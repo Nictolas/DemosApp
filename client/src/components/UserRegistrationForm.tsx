@@ -1,0 +1,872 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { createClient } from "@supabase/supabase-js";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ITALY_DATA } from "@/data/italyData";
+import { supabase } from "@/lib/supabase";
+
+// Form schema with validation
+const formSchema = z.object({
+  nome: z.string().min(1, "Il nome è obbligatorio"),
+  cognome: z.string().min(1, "Il cognome è obbligatorio"),
+  data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
+  genere: z.string().min(1, "Il genere è obbligatorio"),
+  cittadinanza: z.string().min(1, "La cittadinanza è obbligatoria"),
+  
+  paese_residenza: z.string().min(1, "Il paese di residenza è obbligatorio"),
+  regione_residenza: z.string().min(1, "La regione di residenza è obbligatoria"),
+  provincia_residenza: z.string().min(1, "La provincia di residenza è obbligatoria"),
+  comune_residenza: z.string().min(1, "Il comune di residenza è obbligatorio"),
+  
+  paese_elezione: z.string().optional(),
+  regione_elezione: z.string().optional(),
+  provincia_elezione: z.string().optional(),
+  comune_elezione: z.string().optional(),
+  
+  paese_candidatura: z.string().optional(),
+  regione_candidatura: z.string().optional(),
+  provincia_candidatura: z.string().optional(),
+  comune_candidatura: z.string().optional(),
+  
+  ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
+  grado_elezione: z.string().optional(),
+  grado_candidatura: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+export default function UserRegistrationForm() {
+  const { toast } = useToast();
+  
+  // Form state
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: "",
+      cognome: "",
+      data_nascita: "",
+      genere: "",
+      cittadinanza: "",
+      paese_residenza: "",
+      regione_residenza: "",
+      provincia_residenza: "",
+      comune_residenza: "",
+      paese_elezione: "",
+      regione_elezione: "",
+      provincia_elezione: "",
+      comune_elezione: "",
+      paese_candidatura: "",
+      regione_candidatura: "",
+      provincia_candidatura: "",
+      comune_candidatura: "",
+      ruolo: "",
+      grado_elezione: "",
+      grado_candidatura: ""
+    },
+  });
+  
+  // Dynamic select options state
+  const [regioniResidenza, setRegioniResidenza] = useState<string[]>([]);
+  const [provinceResidenza, setProvinceResidenza] = useState<string[]>([]);
+  const [comuniResidenza, setComuniResidenza] = useState<string[]>([]);
+  
+  const [regioniElezione, setRegioniElezione] = useState<string[]>([]);
+  const [provinceElezione, setProvinceElezione] = useState<string[]>([]);
+  const [comuniElezione, setComuniElezione] = useState<string[]>([]);
+  
+  const [regioniCandidatura, setRegioniCandidatura] = useState<string[]>([]);
+  const [provinceCandidatura, setProvinceCandidatura] = useState<string[]>([]);
+  const [comuniCandidatura, setComuniCandidatura] = useState<string[]>([]);
+  
+  // Mutation for submitting the form
+  const { mutate, isPending } = useMutation({
+    mutationFn: async (formData: FormValues) => {
+      const { error } = await supabase
+        .from('utenti')
+        .insert([formData]);
+      
+      if (error) throw error;
+      return true;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Registrazione completata",
+        description: "I tuoi dati sono stati salvati con successo!",
+        variant: "success",
+      });
+      form.reset();
+    },
+    onError: (error) => {
+      console.error("Error inserting data:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante il salvataggio dei dati.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Handle residence country change
+  useEffect(() => {
+    const paeseResidenza = form.watch("paese_residenza");
+    if (paeseResidenza === "Italia") {
+      const regioni = ITALY_DATA.Italia.regioni.map(regione => regione.nome);
+      setRegioniResidenza(regioni);
+    } else {
+      setRegioniResidenza([]);
+      form.setValue("regione_residenza", "");
+    }
+    setProvinceResidenza([]);
+    setComuniResidenza([]);
+    form.setValue("provincia_residenza", "");
+    form.setValue("comune_residenza", "");
+  }, [form.watch("paese_residenza")]);
+  
+  // Handle residence region change
+  useEffect(() => {
+    const paeseResidenza = form.watch("paese_residenza");
+    const regioneResidenza = form.watch("regione_residenza");
+    
+    if (paeseResidenza === "Italia" && regioneResidenza) {
+      const selectedRegion = ITALY_DATA.Italia.regioni.find(
+        r => r.nome === regioneResidenza
+      );
+      
+      if (selectedRegion) {
+        const province = selectedRegion.province.map(provincia => provincia.nome);
+        setProvinceResidenza(province);
+      }
+    } else {
+      setProvinceResidenza([]);
+    }
+    setComuniResidenza([]);
+    form.setValue("provincia_residenza", "");
+    form.setValue("comune_residenza", "");
+  }, [form.watch("regione_residenza")]);
+  
+  // Handle residence province change
+  useEffect(() => {
+    const paeseResidenza = form.watch("paese_residenza");
+    const regioneResidenza = form.watch("regione_residenza");
+    const provinciaResidenza = form.watch("provincia_residenza");
+    
+    if (paeseResidenza === "Italia" && regioneResidenza && provinciaResidenza) {
+      const selectedRegion = ITALY_DATA.Italia.regioni.find(
+        r => r.nome === regioneResidenza
+      );
+      
+      if (selectedRegion) {
+        const selectedProvince = selectedRegion.province.find(
+          p => p.nome === provinciaResidenza
+        );
+        
+        if (selectedProvince) {
+          setComuniResidenza(selectedProvince.comuni);
+        }
+      }
+    } else {
+      setComuniResidenza([]);
+    }
+    form.setValue("comune_residenza", "");
+  }, [form.watch("provincia_residenza")]);
+  
+  // Handle election country change
+  useEffect(() => {
+    const paeseElezione = form.watch("paese_elezione");
+    if (paeseElezione === "Italia") {
+      const regioni = ITALY_DATA.Italia.regioni.map(regione => regione.nome);
+      setRegioniElezione(regioni);
+    } else {
+      setRegioniElezione([]);
+      form.setValue("regione_elezione", "");
+    }
+    setProvinceElezione([]);
+    setComuniElezione([]);
+    form.setValue("provincia_elezione", "");
+    form.setValue("comune_elezione", "");
+  }, [form.watch("paese_elezione")]);
+  
+  // Handle election region change
+  useEffect(() => {
+    const paeseElezione = form.watch("paese_elezione");
+    const regioneElezione = form.watch("regione_elezione");
+    
+    if (paeseElezione === "Italia" && regioneElezione) {
+      const selectedRegion = ITALY_DATA.Italia.regioni.find(
+        r => r.nome === regioneElezione
+      );
+      
+      if (selectedRegion) {
+        const province = selectedRegion.province.map(provincia => provincia.nome);
+        setProvinceElezione(province);
+      }
+    } else {
+      setProvinceElezione([]);
+    }
+    setComuniElezione([]);
+    form.setValue("provincia_elezione", "");
+    form.setValue("comune_elezione", "");
+  }, [form.watch("regione_elezione")]);
+  
+  // Handle election province change
+  useEffect(() => {
+    const paeseElezione = form.watch("paese_elezione");
+    const regioneElezione = form.watch("regione_elezione");
+    const provinciaElezione = form.watch("provincia_elezione");
+    
+    if (paeseElezione === "Italia" && regioneElezione && provinciaElezione) {
+      const selectedRegion = ITALY_DATA.Italia.regioni.find(
+        r => r.nome === regioneElezione
+      );
+      
+      if (selectedRegion) {
+        const selectedProvince = selectedRegion.province.find(
+          p => p.nome === provinciaElezione
+        );
+        
+        if (selectedProvince) {
+          setComuniElezione(selectedProvince.comuni);
+        }
+      }
+    } else {
+      setComuniElezione([]);
+    }
+    form.setValue("comune_elezione", "");
+  }, [form.watch("provincia_elezione")]);
+  
+  // Handle candidacy country change
+  useEffect(() => {
+    const paeseCandidatura = form.watch("paese_candidatura");
+    if (paeseCandidatura === "Italia") {
+      const regioni = ITALY_DATA.Italia.regioni.map(regione => regione.nome);
+      setRegioniCandidatura(regioni);
+    } else {
+      setRegioniCandidatura([]);
+      form.setValue("regione_candidatura", "");
+    }
+    setProvinceCandidatura([]);
+    setComuniCandidatura([]);
+    form.setValue("provincia_candidatura", "");
+    form.setValue("comune_candidatura", "");
+  }, [form.watch("paese_candidatura")]);
+  
+  // Handle candidacy region change
+  useEffect(() => {
+    const paeseCandidatura = form.watch("paese_candidatura");
+    const regioneCandidatura = form.watch("regione_candidatura");
+    
+    if (paeseCandidatura === "Italia" && regioneCandidatura) {
+      const selectedRegion = ITALY_DATA.Italia.regioni.find(
+        r => r.nome === regioneCandidatura
+      );
+      
+      if (selectedRegion) {
+        const province = selectedRegion.province.map(provincia => provincia.nome);
+        setProvinceCandidatura(province);
+      }
+    } else {
+      setProvinceCandidatura([]);
+    }
+    setComuniCandidatura([]);
+    form.setValue("provincia_candidatura", "");
+    form.setValue("comune_candidatura", "");
+  }, [form.watch("regione_candidatura")]);
+  
+  // Handle candidacy province change
+  useEffect(() => {
+    const paeseCandidatura = form.watch("paese_candidatura");
+    const regioneCandidatura = form.watch("regione_candidatura");
+    const provinciaCandidatura = form.watch("provincia_candidatura");
+    
+    if (paeseCandidatura === "Italia" && regioneCandidatura && provinciaCandidatura) {
+      const selectedRegion = ITALY_DATA.Italia.regioni.find(
+        r => r.nome === regioneCandidatura
+      );
+      
+      if (selectedRegion) {
+        const selectedProvince = selectedRegion.province.find(
+          p => p.nome === provinciaCandidatura
+        );
+        
+        if (selectedProvince) {
+          setComuniCandidatura(selectedProvince.comuni);
+        }
+      }
+    } else {
+      setComuniCandidatura([]);
+    }
+    form.setValue("comune_candidatura", "");
+  }, [form.watch("provincia_candidatura")]);
+  
+  // Form submission handler
+  const onSubmit = (values: FormValues) => {
+    mutate(values);
+  };
+  
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {/* Personal Information Section */}
+        <div className="bg-gray-50 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Informazioni Personali</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Nome Field */}
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Nome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Inserisci il nome" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Cognome Field */}
+            <FormField
+              control={form.control}
+              name="cognome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Cognome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Inserisci il cognome" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Data di Nascita Field */}
+            <FormField
+              control={form.control}
+              name="data_nascita"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Data di Nascita</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Genere Field */}
+            <FormField
+              control={form.control}
+              name="genere"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Genere</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona genere" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="uomo">Uomo</SelectItem>
+                      <SelectItem value="donna">Donna</SelectItem>
+                      <SelectItem value="altro">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Cittadinanza Field */}
+            <FormField
+              control={form.control}
+              name="cittadinanza"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Cittadinanza</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona cittadinanza" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Italia">Italia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* Residence Information Section */}
+        <div className="bg-gray-50 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Informazioni di Residenza</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Paese di Residenza Field */}
+            <FormField
+              control={form.control}
+              name="paese_residenza"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Paese di Residenza</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona paese" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Italia">Italia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Regione di Residenza Field */}
+            <FormField
+              control={form.control}
+              name="regione_residenza"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Regione di Residenza</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("paese_residenza") || regioniResidenza.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("paese_residenza") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima il paese" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {regioniResidenza.map(regione => (
+                        <SelectItem key={regione} value={regione}>
+                          {regione}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Provincia di Residenza Field */}
+            <FormField
+              control={form.control}
+              name="provincia_residenza"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Provincia di Residenza</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("regione_residenza") || provinceResidenza.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("regione_residenza") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima la regione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {provinceResidenza.map(provincia => (
+                        <SelectItem key={provincia} value={provincia}>
+                          {provincia}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Comune di Residenza Field */}
+            <FormField
+              control={form.control}
+              name="comune_residenza"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Comune di Residenza</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("provincia_residenza") || comuniResidenza.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("provincia_residenza") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima la provincia" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {comuniResidenza.map(comune => (
+                        <SelectItem key={comune} value={comune}>
+                          {comune}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* Election Information Section */}
+        <div className="bg-gray-50 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Informazioni di Elezione</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Paese di Elezione Field */}
+            <FormField
+              control={form.control}
+              name="paese_elezione"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Paese di Elezione</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona paese" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Italia">Italia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Regione di Elezione Field */}
+            <FormField
+              control={form.control}
+              name="regione_elezione"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Regione di Elezione</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("paese_elezione") || regioniElezione.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("paese_elezione") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima il paese" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {regioniElezione.map(regione => (
+                        <SelectItem key={regione} value={regione}>
+                          {regione}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Provincia di Elezione Field */}
+            <FormField
+              control={form.control}
+              name="provincia_elezione"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Provincia di Elezione</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("regione_elezione") || provinceElezione.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("regione_elezione") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima la regione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {provinceElezione.map(provincia => (
+                        <SelectItem key={provincia} value={provincia}>
+                          {provincia}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Comune di Elezione Field */}
+            <FormField
+              control={form.control}
+              name="comune_elezione"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Comune di Elezione</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("provincia_elezione") || comuniElezione.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("provincia_elezione") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima la provincia" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {comuniElezione.map(comune => (
+                        <SelectItem key={comune} value={comune}>
+                          {comune}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* Candidacy Information Section */}
+        <div className="bg-gray-50 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Informazioni di Candidatura</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Paese di Candidatura Field */}
+            <FormField
+              control={form.control}
+              name="paese_candidatura"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Paese di Candidatura</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona paese" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Italia">Italia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Regione di Candidatura Field */}
+            <FormField
+              control={form.control}
+              name="regione_candidatura"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Regione di Candidatura</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("paese_candidatura") || regioniCandidatura.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("paese_candidatura") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima il paese" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {regioniCandidatura.map(regione => (
+                        <SelectItem key={regione} value={regione}>
+                          {regione}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Provincia di Candidatura Field */}
+            <FormField
+              control={form.control}
+              name="provincia_candidatura"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Provincia di Candidatura</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("regione_candidatura") || provinceCandidatura.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("regione_candidatura") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima la regione" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {provinceCandidatura.map(provincia => (
+                        <SelectItem key={provincia} value={provincia}>
+                          {provincia}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Comune di Candidatura Field */}
+            <FormField
+              control={form.control}
+              name="comune_candidatura"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Comune di Candidatura</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!form.watch("provincia_candidatura") || comuniCandidatura.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger className={!form.watch("provincia_candidatura") ? "bg-gray-100" : ""}>
+                        <SelectValue placeholder="Seleziona prima la provincia" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {comuniCandidatura.map(comune => (
+                        <SelectItem key={comune} value={comune}>
+                          {comune}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* Role and Level Section */}
+        <div className="bg-gray-50 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Ruolo e Grado</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Ruolo Field */}
+            <FormField
+              control={form.control}
+              name="ruolo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Ruolo</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona ruolo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="elettore">Elettore</SelectItem>
+                      <SelectItem value="politico">Politico</SelectItem>
+                      <SelectItem value="candidato">Candidato</SelectItem>
+                      <SelectItem value="politico_candidato">Politico Candidato</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Grado Elezione Field */}
+            <FormField
+              control={form.control}
+              name="grado_elezione"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Grado Elezione</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona grado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="parlamento_europeo">Parlamento Europeo</SelectItem>
+                      <SelectItem value="parlamento_italiano">Parlamento Italiano</SelectItem>
+                      <SelectItem value="regione">Regione</SelectItem>
+                      <SelectItem value="comune">Comune</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Grado Candidatura Field */}
+            <FormField
+              control={form.control}
+              name="grado_candidatura"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Grado Candidatura</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona grado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="parlamento_europeo">Parlamento Europeo</SelectItem>
+                      <SelectItem value="parlamento_italiano">Parlamento Italiano</SelectItem>
+                      <SelectItem value="regione">Regione</SelectItem>
+                      <SelectItem value="comune">Comune</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* Submit Button */}
+        <div className="text-right">
+          <p className="text-sm text-gray-500 mb-4">I campi contrassegnati con * sono obbligatori</p>
+          <Button 
+            type="submit"
+            className="py-2 px-6 bg-primary hover:bg-blue-700 transition-colors duration-200"
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                Invio in corso
+                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              </>
+            ) : (
+              "Invia"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
