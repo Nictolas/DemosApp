@@ -1,18 +1,19 @@
+import { Navbar } from "@/components/Navbar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import UserRegistrationForm from "@/components/UserRegistrationForm";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "wouter";
 
 export default function Home() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+
   return (
     <div className="min-h-screen">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <h1 className="text-3xl font-bold text-primary">DEMOS</h1>
-            <span className="text-gray-500 text-sm">Sistema di Registrazione</span>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="overflow-hidden">
