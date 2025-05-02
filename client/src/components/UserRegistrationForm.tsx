@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { createClient } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ITALY_DATA } from "@/data/italyData";
-import { supabase } from "@/lib/supabase";
 
 // Form schema with validation
 const formSchema = z.object({
@@ -90,12 +88,21 @@ export default function UserRegistrationForm() {
   // Mutation for submitting the form
   const { mutate, isPending } = useMutation({
     mutationFn: async (formData: FormValues) => {
-      const { error } = await supabase
-        .from('utenti')
-        .insert([formData]);
+      const response = await fetch('/api/utenti', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+        credentials: 'include'
+      });
       
-      if (error) throw error;
-      return true;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Si è verificato un errore durante il salvataggio dei dati');
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -109,7 +116,7 @@ export default function UserRegistrationForm() {
       console.error("Error inserting data:", error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante il salvataggio dei dati.",
+        description: error instanceof Error ? error.message : "Si è verificato un errore durante il salvataggio dei dati.",
         variant: "destructive",
       });
     }
