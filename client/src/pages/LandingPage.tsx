@@ -1,0 +1,123 @@
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Navbar } from "@/components/Navbar";
+import { useAuth } from "@/hooks/use-auth";
+
+export default function LandingPage() {
+  const { user } = useAuth();
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+      <Navbar />
+      
+      <main className="flex-grow">
+        {/* Hero Section */}
+        <section className="py-16 md:py-24">
+          <div className="container mx-auto px-4">
+            <div className="max-w-3xl mx-auto text-center">
+              <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+                Benvenuto in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">DEMOS</span>
+              </h1>
+              <p className="text-xl text-gray-700 mb-8">
+                Il sistema di registrazione per la democrazia italiana. DEMOS ti permette di registrare i tuoi dati e partecipare attivamente al processo democratico.
+              </p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                {user ? (
+                  <Link href="/registrazione">
+                    <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                      Vai alla registrazione
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/auth">
+                      <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                        Inizia ora
+                      </Button>
+                    </Link>
+                    <Link href="/auth">
+                      <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                        Accedi
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="py-16 bg-white">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-center mb-12">Cosa puoi fare con DEMOS</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              <div className="bg-blue-50 rounded-lg p-6 shadow-md">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Registrazione Utente</h3>
+                <p className="text-gray-600">
+                  Registra le tue informazioni personali per partecipare al sistema democratico italiano.
+                </p>
+              </div>
+              
+              <div className="bg-blue-50 rounded-lg p-6 shadow-md">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Informazioni di Residenza</h3>
+                <p className="text-gray-600">
+                  Specifica i dettagli sulla tua residenza, inclusi regione, provincia e comune.
+                </p>
+              </div>
+              
+              <div className="bg-blue-50 rounded-lg p-6 shadow-md">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Elezione e Candidatura</h3>
+                <p className="text-gray-600">
+                  Fornisci informazioni sul tuo ruolo elettorale, candidature e altre informazioni rilevanti.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Call to Action */}
+        <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-3xl font-bold mb-4">Entra a far parte di DEMOS oggi stesso</h2>
+            <p className="text-xl mb-8 max-w-2xl mx-auto">
+              Unisciti ai cittadini che stanno contribuendo attivamente alla democrazia italiana.
+            </p>
+            {!user && (
+              <Link href="/auth">
+                <Button size="lg" variant="secondary" className="font-semibold">
+                  Registrati ora
+                </Button>
+              </Link>
+            )}
+          </div>
+        </section>
+      </main>
+
+      <footer className="bg-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="py-6 md:flex md:items-center md:justify-between">
+            <div className="text-center md:text-left">
+              <p className="text-base text-gray-500">&copy; 2023 DEMOS. Tutti i diritti riservati.</p>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
