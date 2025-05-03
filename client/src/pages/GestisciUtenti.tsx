@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/lib/supabase";
 
 type User = {
   id: number;
@@ -27,13 +28,26 @@ export default function GestisciUtenti() {
       if (!user) return;
       
       try {
-        const response = await fetch("/api/users");
-        if (!response.ok) {
-          throw new Error("Errore nel caricamento degli utenti");
-        }
+        // Carica i dati da Supabase
+        const { data: supabaseUsers, error: supabaseError } = await supabase
+          .from('utenti')
+          .select('*');
         
-        const data = await response.json();
-        setUsers(data);
+        if (supabaseUsers && supabaseUsers.length > 0) {
+          console.log("Utenti caricati da Supabase:", supabaseUsers);
+          setUsers(supabaseUsers as User[]);
+        } else {
+          console.log("Dati non trovati in Supabase, caricamento dal database locale:", supabaseError);
+          
+          // Fallback: carica i dati dal database locale
+          const response = await fetch("/api/users");
+          if (!response.ok) {
+            throw new Error("Errore nel caricamento degli utenti");
+          }
+          
+          const data = await response.json();
+          setUsers(data);
+        }
       } catch (error) {
         console.error("Errore:", error);
         setError("Errore nel caricamento degli utenti");

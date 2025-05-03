@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { storage } from "./storage";
 import connectPg from "connect-pg-simple";
 import { pool } from "../db";
+import SupabaseService from "./supabase-service";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -103,7 +104,7 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ error: "Email già esistente" });
       }
 
-      // Insert new user
+      // Insert new user into local database for authentication
       const hashedPassword = await hashPassword(password);
       console.log("Inserting user with email:", email);
       const result = await db.insert(users).values({
@@ -114,7 +115,7 @@ export function setupAuth(app: Express) {
       const newUser = result[0];
       console.log("User inserted:", JSON.stringify(newUser, null, 2));
       
-      // Insert user details in utenti table
+      // Insert user details in local utenti table
       try {
         console.log("Inserting user details with user_id:", newUser.id);
         console.log("User details to insert:", JSON.stringify({
@@ -127,7 +128,19 @@ export function setupAuth(app: Express) {
           user_id: newUser.id // Associate with user account
         });
         
-        console.log("User details saved successfully");
+        console.log("User details saved successfully to local database");
+        
+        // Save user data to Supabase
+        const { success, error } = await SupabaseService.saveUserData({
+          ...userDetails,
+          email: email
+        });
+        
+        if (!success) {
+          console.error("Error saving user data to Supabase:", error);
+        } else {
+          console.log("User data saved successfully to Supabase");
+        }
       } catch (detailsError) {
         console.error("Error saving user details:", detailsError);
         // Continue with login but log the error
