@@ -125,8 +125,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verifica se l'utente che fa la richiesta è un Admin
-      const requestingUser = await storage.getUserById(req.user.id);
-      if (!requestingUser || requestingUser.ruolo !== 'Admin') {
+      // Problema: storage.getUserById cerca l'utente nella tabella utenti per id, 
+      // ma cerchiamo per l'id dell'utente, non per user_id
+      
+      console.log("User ID richiedente:", req.user.id);
+      console.log("Email richiedente:", req.user.email);
+      
+      // Prima cerchiamo nella tabella utenti per user_id
+      const userDetails = await storage.getUserProfile(req.user.id);
+      console.log("Dettagli utente da user_id:", userDetails);
+      
+      // Poi cerchiamo l'utente in Supabase tramite l'email
+      let isAdmin = false;
+      
+      try {
+        // Verifica in Supabase usando il nostro servizio
+        const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+        console.log("Dati da Supabase:", supabaseUser);
+        
+        if (supabaseUser && supabaseUser.ruolo === 'Admin') {
+          isAdmin = true;
+          console.log("L'utente è un admin secondo Supabase");
+        }
+      } catch (error) {
+        console.error("Errore nel controllo Supabase:", error);
+      }
+      
+      // Poi cerchiamo in utenti locali
+      if (!isAdmin && userDetails && userDetails.ruolo === 'Admin') {
+        isAdmin = true;
+        console.log("L'utente è un admin secondo il database locale");
+      }
+      
+      if (!isAdmin) {
         return res.status(403).json({ error: 'Solo gli amministratori possono eliminare utenti' });
       }
 
