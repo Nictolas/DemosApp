@@ -7,7 +7,6 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { checkSupabaseAuth } from "@/lib/supabase";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -33,27 +32,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
-  // Verifica automatica dell'autenticazione
+  // Verifica periodica dell'autenticazione
   useEffect(() => {
-    // Funzione per verificare l'autenticazione
-    const verifyAuth = async () => {
-      // Se l'utente è già autenticato nella sessione, controlla anche Supabase
+    // Funzione per verificare l'autenticazione tramite API Express
+    const verifySessionAuth = async () => {
       if (user) {
-        const isSupabaseAuthenticated = await checkSupabaseAuth();
-        
-        // Se l'utente non è autenticato in Supabase ma lo è nella sessione, disconnettilo
-        if (!isSupabaseAuthenticated) {
-          console.log("Utente autenticato in sessione ma non in Supabase, esecuzione logout automatico");
-          logoutMutation.mutate();
+        try {
+          // Verifica che la sessione sia ancora valida facendo una richiesta all'API
+          const response = await fetch('/api/user');
+          if (!response.ok) {
+            console.log("Sessione scaduta o non valida, esecuzione logout");
+            queryClient.setQueryData(["/api/user"], null);
+            // Non chiamiamo logoutMutation perché potrebbe causare un ciclo
+          }
+        } catch (error) {
+          console.error("Errore durante la verifica della sessione:", error);
         }
       }
     };
 
-    // Verifica iniziale
-    verifyAuth();
-
-    // Verifica periodica dell'autenticazione (ogni 5 minuti)
-    const interval = setInterval(verifyAuth, 5 * 60 * 1000);
+    // Verifica periodica dell'autenticazione (ogni 15 minuti)
+    const interval = setInterval(verifySessionAuth, 15 * 60 * 1000);
     
     // Pulizia interval quando il componente viene smontato
     return () => clearInterval(interval);
