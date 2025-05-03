@@ -5,7 +5,7 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { db } from "../db";
-import { users } from "@shared/schema";
+import { users, utenti } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import { pool } from "../db";
@@ -92,7 +92,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, ...userDetails } = req.body;
       
       // Check if user already exists
       const existingUsers = await db.select().from(users).where(eq(users.username, username));
@@ -108,6 +108,19 @@ export function setupAuth(app: Express) {
       }).returning();
       
       const newUser = result[0];
+      
+      // Insert user details in utenti table
+      try {
+        await db.insert(utenti).values({
+          ...userDetails,
+          user_id: newUser.id // Associate with user account
+        });
+        
+        console.log("User details saved successfully");
+      } catch (detailsError) {
+        console.error("Error saving user details:", detailsError);
+        // Continue with login but log the error
+      }
 
       req.login({ id: newUser.id, username: newUser.username }, (err) => {
         if (err) return next(err);

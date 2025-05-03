@@ -20,6 +20,7 @@ export type User = typeof users.$inferSelect;
 // Schema for DEMOS application
 export const utenti = pgTable("utenti", {
   id: serial("id").primaryKey(),
+  user_id: integer("user_id").references(() => users.id),
   nome: text("nome").notNull(),
   cognome: text("cognome").notNull(),
   data_nascita: text("data_nascita").notNull(),
@@ -45,6 +46,21 @@ export const utenti = pgTable("utenti", {
   grado_elezione: text("grado_elezione"),
   grado_candidatura: text("grado_candidatura"),
 });
+
+// Relazioni tra tabelle
+export const usersRelations = relations(users, ({ one }) => ({
+  utente: one(utenti, {
+    fields: [users.id],
+    references: [utenti.user_id],
+  }),
+}));
+
+export const utentiRelations = relations(utenti, ({ one }) => ({
+  user: one(users, {
+    fields: [utenti.user_id],
+    references: [users.id],
+  }),
+}));
 
 export const utentiInsertSchema = createInsertSchema(utenti);
 export type UtentiInsert = z.infer<typeof utentiInsertSchema>;
