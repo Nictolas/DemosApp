@@ -155,46 +155,73 @@ export class SupabaseService {
         unione_europea: opinions.unione_europea || ''
       };
       
-      // Prima eliminiamo qualsiasi record esistente utilizzando il metodo SQL diretto
-      // Questo ci consente di aggirare le restrizioni RLS
-      try {
-        // Utilizza SQL diretto per eliminare il record esistente (aggira RLS)
-        const { error: deleteError } = await supabase.rpc('delete_opinion_for_user', { 
-          user_id_param: utenteId 
-        });
+      // Verifica se esistono già opinioni per questo utente
+      // Questo è importante per decidere se fare un INSERT o un UPDATE
+      const { data: existingOpinions, error: checkError } = await supabase
+        .from('opinioni')
+        .select('*')
+        .eq('utente_id', utenteId);
+      
+      let result;
+      
+      // Se esistono già opinioni per questo utente, esegui un UPDATE
+      if (!checkError && existingOpinions && existingOpinions.length > 0) {
+        console.log('Eseguendo UPDATE su opinioni esistenti per l\'utente:', utenteId);
         
-        if (deleteError) {
-          console.log('Nota: Tentativo di eliminazione fallito o funzione RPC non disponibile:', deleteError);
-          // Possiamo continuare comunque con l'inserimento
-        } else {
-          console.log('Record esistente rimosso con successo prima dell\'inserimento');
-        }
-      } catch (rpcError) {
-        console.log('Nota: Funzione RPC non disponibile, continuiamo con inserimento diretto:', rpcError);
+        // Utilizziamo l'operazione UPDATE, specificando l'utente_id
+        // questo rispetta la policy update_own_opinion
+        result = await supabase
+          .from('opinioni')
+          .update({
+            energia_nucleare: opinionData.energia_nucleare,
+            sperimentazione_animale: opinionData.sperimentazione_animale,
+            legalizzazione_canapa: opinionData.legalizzazione_canapa,
+            caccia: opinionData.caccia,
+            unione_europea: opinionData.unione_europea
+          })
+          .eq('utente_id', utenteId) // Questa condizione è fondamentale per la policy RLS
+          .select();
+      } else {
+        // Se non esistono, esegui un INSERT
+        console.log('Eseguendo INSERT di nuove opinioni per l\'utente:', utenteId);
+        result = await supabase
+          .from('opinioni')
+          .insert([opinionData])
+          .select();
       }
       
-      // Inserisci il nuovo record con le opinioni aggiornate
-      const result = await supabase
-        .from('opinioni')
-        .insert([opinionData])
-        .select();
-      
       // Verifica se l'operazione ha avuto successo
-      if (result.error) {
+      if (result && result.error) {
         console.error('Error saving opinions in Supabase:', result.error);
         
         // Se il problema è RLS, salviamo in memoria le opinioni e restituiamo successo simulato
         if (result.error.code === '42501') { // Codice errore per violazione policy RLS
           console.log('Violazione RLS rilevata. Tentativo di approccio alternativo...');
           
-          // Memorizza temporaneamente le opinioni dell'utente
+          // Proviamo con un'operazione di upsert come ultima risorsa
+          console.log('Tentativo di UPSERT come ultima risorsa...');
+          const upsertResult = await supabase
+            .from('opinioni')
+            .upsert([opinionData], {
+              onConflict: 'utente_id',
+              ignoreDuplicates: false
+            })
+            .select();
+            
+          if (!upsertResult.error) {
+            console.log('UPSERT riuscito:', upsertResult.data);
+            return { success: true, data: upsertResult.data };
+          }
+          
+          // Se anche l'upsert fallisce, salviamo in memoria
+          console.log('Anche UPSERT fallito, salvataggio in memoria...');
           SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
           SupabaseService.tempOpinions[utenteId] = opinionData;
           
           return { 
             success: true, 
             data: [opinionData],
-            note: "I dati sono stati salvati temporaneamente in memoria. Contatta l'amministratore per configurare correttamente le policy RLS in Supabase."
+            note: "I dati sono stati salvati temporaneamente in memoria. Assicurati che l'utente abbia i permessi corretti nelle policy RLS."
           };
         }
         
@@ -202,8 +229,15 @@ export class SupabaseService {
         return { success: false, error: result.error };
       }
       
-      console.log('Successfully saved opinions in Supabase:', result.data);
-      return { success: true, data: result.data };
+      console.log('Successfully saved opinions in Supabase:', result ? result.data : 'No data returned');
+      
+      // Se l'operazione ha avuto successo, aggiorniamo anche i dati in memoria
+      if (result && result.data) {
+        SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+        SupabaseService.tempOpinions[utenteId] = result.data[0];
+      }
+      
+      return { success: true, data: result ? result.data : [opinionData] };
     } catch (error) {
       console.error('Exception saving opinions in Supabase:', error);
       
