@@ -72,6 +72,7 @@ class SupabaseService {
 
   /**
    * Salva le opinioni dell'utente su Supabase modificando la tabella utenti
+   * @returns {Object} Un oggetto con success (boolean), data (array), note (string opzionale) e error (string o null)
    */
   static async saveUserOpinions(utenteId: string, opinions: {
     energia_nucleare?: string;
@@ -79,7 +80,12 @@ class SupabaseService {
     legalizzazione_canapa?: string;
     caccia?: string;
     unione_europea?: string;
-  }) {
+  }): Promise<{
+    success: boolean;
+    data: any[];
+    note?: string;
+    error: string | null;
+  }> {
     try {
       console.log(`Salvando opinioni per utente con ID: ${utenteId}`, opinions);
       
@@ -205,7 +211,7 @@ class SupabaseService {
         delete SupabaseService.tempOpinions[utenteId]; // Rimuovi dalla memoria temporanea
       }
       
-      return { success: true, data: result || [opinionData] };
+      return { success: true, data: result || [opinionData], error: null };
     } catch (error: any) {
       console.error('Exception saving opinions in Supabase:', error);
       
@@ -233,7 +239,8 @@ class SupabaseService {
           utente_id: utenteId,
           ...opinions
         }],
-        note: "I dati sono stati salvati temporaneamente in memoria a causa di un errore nel database: " + (error.message || 'Errore sconosciuto')
+        note: "I dati sono stati salvati temporaneamente in memoria a causa di un errore nel database: " + (error.message || 'Errore sconosciuto'),
+        error: null
       };
     }
   }
@@ -248,7 +255,8 @@ class SupabaseService {
         return { 
           success: true, 
           data: [userData],
-          note: "Supabase non è configurato, i dati sono stati salvati solo in memoria"
+          note: "Supabase non è configurato, i dati sono stati salvati solo in memoria",
+          error: null
         };
       }
 
@@ -270,7 +278,8 @@ class SupabaseService {
       
       return { 
         success: true, 
-        data 
+        data,
+        error: null
       };
     } catch (error: any) {
       console.error('Exception updating user data in Supabase:', error);
@@ -284,8 +293,13 @@ class SupabaseService {
 
   /**
    * Elimina un utente in Supabase tramite email
+   * @returns {Object} Un oggetto con success (boolean) e error (string o undefined)
    */
-  static async deleteUserByEmail(email: string) {
+  static async deleteUserByEmail(email: string): Promise<{
+    success: boolean;
+    error?: string;
+    data?: null; 
+  }> {
     try {
       if (!supabase && !supabaseAdmin) {
         console.log('Supabase non configurato, impossibile eliminare dati');
