@@ -45,12 +45,8 @@ export const utenti = pgTable("utenti", {
   ruolo: text("ruolo").notNull(),
   grado_elezione: text("grado_elezione"),
   grado_candidatura: text("grado_candidatura"),
-});
-
-// Schema per le opinioni degli utenti
-export const opinioni = pgTable("opinioni", {
-  id: serial("id").primaryKey(),
-  utente_id: text("utente_id").notNull(), // In Supabase è una chiave esterna alla tabella utenti
+  
+  // Campi per le opinioni (precedentemente in tabella separata)
   energia_nucleare: text("energia_nucleare"),
   sperimentazione_animale: text("sperimentazione_animale"),
   legalizzazione_canapa: text("legalizzazione_canapa"),
@@ -66,26 +62,12 @@ export const usersRelations = relations(users, ({ one }) => ({
   }),
 }));
 
-export const utentiRelations = relations(utenti, ({ one, many }) => ({
+export const utentiRelations = relations(utenti, ({ one }) => ({
   user: one(users, {
     fields: [utenti.user_id],
     references: [users.id],
   }),
-  opinioni: many(opinioni)
 }));
-
-export const opinioniRelations = relations(opinioni, ({ one }) => ({
-  utente: one(utenti, {
-    // In Supabase, la relazione è definita direttamente alla tabella utenti
-    fields: [opinioni.utente_id],
-    references: [utenti.id], // La struttura di database in Supabase usa l'ID degli utenti, non user_id
-  })
-}));
-
-// Schema di inserimento e tipi per opinioni
-export const opinioniInsertSchema = createInsertSchema(opinioni);
-export type OpinioniInsert = z.infer<typeof opinioniInsertSchema>;
-export type Opinioni = typeof opinioni.$inferSelect;
 
 export const utentiInsertSchema = createInsertSchema(utenti);
 export type UtentiInsert = z.infer<typeof utentiInsertSchema>;
