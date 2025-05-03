@@ -1,4 +1,5 @@
 export interface UserInfo {
+  id?: string;
   nome: string;
   cognome: string;
   data_nascita: string;

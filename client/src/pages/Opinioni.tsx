@@ -1,0 +1,207 @@
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "wouter";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+
+// Definizione delle domande e delle opzioni
+const questions = [
+  { id: "energia_nucleare", text: "Energia Nucleare" },
+  { id: "sperimentazione_animale", text: "Sperimentazione Animale" },
+  { id: "legalizzazione_canapa", text: "Legalizzazione Canapa" },
+  { id: "caccia", text: "Caccia" },
+  { id: "unione_europea", text: "Unione Europea" }
+];
+
+const options = [
+  { value: "Favorevole", color: "bg-green-100 border-green-500 hover:bg-green-200" },
+  { value: "Indeciso", color: "bg-yellow-100 border-yellow-500 hover:bg-yellow-200" },
+  { value: "Contrario", color: "bg-red-100 border-red-500 hover:bg-red-200" }
+];
+
+export default function Opinioni() {
+  const { user, isLoading } = useAuth();
+  const { toast } = useToast();
+  const [opinions, setOpinions] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
+
+  useEffect(() => {
+    // Carica le opinioni dell'utente quando la pagina viene caricata
+    if (user) {
+      loadUserOpinions();
+    }
+  }, [user]);
+
+  const loadUserOpinions = async () => {
+    try {
+      setIsLoadingOpinions(true);
+      const response = await fetch('/api/opinioni', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Errore nel caricamento delle opinioni');
+      }
+      
+      const data = await response.json();
+      
+      if (data) {
+        // Filtra solo le proprietà che corrispondono alle domande
+        const filteredOpinions: Record<string, string> = {};
+        questions.forEach(question => {
+          if (data[question.id]) {
+            filteredOpinions[question.id] = data[question.id];
+          }
+        });
+        
+        setOpinions(filteredOpinions);
+      }
+    } catch (error) {
+      console.error('Errore nel caricamento delle opinioni:', error);
+      toast({
+        title: "Errore",
+        description: "Non è stato possibile caricare le tue opinioni.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingOpinions(false);
+    }
+  };
+
+  const handleOpinionChange = (questionId: string, value: string) => {
+    setOpinions(prev => ({
+      ...prev,
+      [questionId]: value
+    }));
+  };
+
+  const saveOpinions = async () => {
+    try {
+      setIsSubmitting(true);
+      
+      // Verifica che tutte le domande abbiano una risposta
+      const hasAllAnswers = questions.every(question => opinions[question.id]);
+      
+      if (!hasAllAnswers) {
+        toast({
+          title: "Attenzione",
+          description: "Per favore, rispondi a tutte le domande prima di salvare.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      const response = await fetch('/api/opinioni', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(opinions)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Errore nel salvataggio delle opinioni');
+      }
+      
+      const result = await response.json();
+      
+      if (result) {
+        toast({
+          title: "Successo",
+          description: "Le tue opinioni sono state salvate correttamente.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error('Errore nel salvataggio delle opinioni:', error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante il salvataggio delle opinioni.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Redirect to auth page if not logged in
+  if (!user && !isLoading) {
+    return <Redirect to="/auth" />;
+  }
+
+  return (
+    <div className="h-screen overflow-y-auto bg-gradient-to-b from-background to-secondary/20">
+      <div className="container mx-auto px-4 py-8">
+        <Card className="w-full max-w-4xl mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              Le Tue Opinioni
+            </CardTitle>
+            <CardDescription>
+              Rispondi alle seguenti domande selezionando l'opzione che rappresenta meglio la tua posizione.
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="p-6">
+            {isLoadingOpinions ? (
+              <div className="flex justify-center items-center h-60">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Caricamento opinioni...</span>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-8">
+                  {questions.map((question) => (
+                    <div key={question.id} className="border rounded-lg p-4 shadow-sm">
+                      <h3 className="text-lg font-semibold mb-4">{question.text}</h3>
+                      <RadioGroup 
+                        value={opinions[question.id] || ""} 
+                        onValueChange={(value) => handleOpinionChange(question.id, value)}
+                        className="grid gap-4 grid-cols-1 sm:grid-cols-3"
+                      >
+                        {options.map((option) => (
+                          <div key={option.value} className={`flex items-center space-x-2 rounded-md border-2 p-4 ${option.color}`}>
+                            <RadioGroupItem value={option.value} id={`${question.id}-${option.value}`} />
+                            <Label htmlFor={`${question.id}-${option.value}`} className="font-medium cursor-pointer flex-grow">
+                              {option.value}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-8 flex justify-center">
+                  <Button
+                    onClick={saveOpinions}
+                    disabled={isSubmitting}
+                    className="w-full max-w-sm"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvataggio in corso...
+                      </>
+                    ) : (
+                      "Salva Opinioni"
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
