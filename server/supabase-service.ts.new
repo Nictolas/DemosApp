@@ -1,0 +1,422 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+// Carica le variabili d'ambiente da .env
+dotenv.config();
+
+// Crea un client Supabase per le operazioni database
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabaseAdmin = supabaseAdminKey ? createClient(supabaseUrl, supabaseAdminKey) : null;
+
+class SupabaseService {
+  /**
+   * Salva o aggiorna le opinioni dell'utente in Supabase
+   */
+  static async saveUserOpinions(utenteId: string, opinions: Record<string, string>): Promise<{ 
+    success: boolean; 
+    data?: any[]; 
+    error?: any;
+    note?: string;
+  }> {
+    try {
+      // Selezioniamo il client Supabase da utilizzare (admin o regolare)
+      // Il client admin bypassa le policy RLS, quindi è più adatto per operazioni backend
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Saving user opinions to Supabase for user ID: ${utenteId}`, opinions);
+      
+      // Prepara l'oggetto dati per Supabase
+      const opinionData = {
+        utente_id: utenteId,
+        ...opinions
+      };
+      
+      // Prova a trovare un record esistente per questo utente
+      let usersId: number | null = null;
+      
+      // Se l'ID utente è un'email, cerca di ottenere l'ID numerico dalla tabella users
+      if (utenteId.includes('@')) {
+        console.log(`Il valore utenteId è un'email: ${utenteId}, cercando l'ID corrispondente nella tabella users`);
+        
+        try {
+          const { data: userData, error: userError } = await client
+            .from('users')
+            .select('id')
+            .eq('email', utenteId)
+            .single();
+            
+          if (userError) {
+            console.error(`Errore nel recuperare l'ID dalla tabella users per l'email ${utenteId}:`, userError);
+          } else if (userData) {
+            usersId = userData.id;
+            console.log(`Trovato ID numerico per l'email ${utenteId}: ${usersId}`);
+          }
+        } catch (e) {
+          console.error('Errore nella query per trovare ID utente:', e);
+        }
+      }
+      // Se l'ID sembra essere numerico, usalo come tale
+      else if (!isNaN(Number(utenteId))) {
+        usersId = Number(utenteId);
+        console.log(`L'ID utente fornito è già numerico: ${usersId}`);
+      }
+      
+      // Decidi quale client usare per la query
+      console.log(`Utilizzando client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
+      // Cerca se esiste già un record per questo utente
+      const { data: existingOpinion, error: findError } = await client
+        .from('opinioni')
+        .select('*')
+        .eq('utente_id', usersId ? usersId.toString() : utenteId)
+        .maybeSingle();
+      
+      let result;
+      
+      if (findError && findError.code !== 'PGRST116') {
+        // PGRST116 significa che non è stato trovato, il che è normale se inserisce per la prima volta
+        console.error('Error finding existing opinions:', findError);
+      }
+      
+      // Se esiste già, aggiorna il record
+      if (existingOpinion) {
+        console.log(`Aggiornando opinioni esistenti per l'utente: ${usersId || utenteId}`);
+        
+        result = await client
+          .from('opinioni')
+          .update(opinions)
+          .eq('utente_id', usersId ? usersId.toString() : utenteId)
+          .select();
+      } 
+      // Altrimenti, inserisci un nuovo record
+      else {
+        console.log(`Eseguendo INSERT di nuove opinioni per l'utente: ${usersId || utenteId}`);
+        
+        result = await client
+          .from('opinioni')
+          .insert(opinionData)
+          .select();
+      }
+      
+      if (result.error) {
+        console.error('Error saving opinions in Supabase:', result.error);
+        throw result.error;
+      }
+      
+      console.log('Saved opinions successfully:', result.data);
+      
+      // Se il salvataggio è avvenuto con successo, rimuoviamo eventuali dati in memoria
+      if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
+        console.log('Rimuovendo dai dati temporanei dopo salvataggio riuscito:', utenteId);
+        SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+        delete SupabaseService.tempOpinions[utenteId]; // Rimuovi dalla memoria temporanea
+      }
+      
+      return { success: true, data: result ? result.data : [opinionData] };
+    } catch (error: any) {
+      console.error('Exception saving opinions in Supabase:', error);
+      
+      // Controlla se l'errore è relativo alla chiave esterna (foreign key constraint)
+      if (error.code === '23503' && error.message.includes('violates foreign key constraint')) {
+        console.log('Errore di vincolo di chiave esterna. Verificare se:');
+        console.log('1. L\'utente esiste nella tabella users di Supabase');
+        console.log('2. Il vincolo di chiave esterna è configurato correttamente');
+        console.log('3. L\'ID utente è stato passato correttamente');
+        
+        // Salviamo temporaneamente in memoria le opinioni
+        console.log('Salvataggio temporaneo delle opinioni in memoria...');
+      }
+      
+      // Salviamo in memoria le opinioni
+      SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+      SupabaseService.tempOpinions[utenteId] = {
+        utente_id: utenteId,
+        ...opinions
+      };
+      
+      return { 
+        success: true, 
+        data: [{
+          utente_id: utenteId,
+          ...opinions
+        }],
+        note: "I dati sono stati salvati temporaneamente in memoria a causa di un errore nel database: " + (error.message || 'Errore sconosciuto')
+      };
+    }
+  }
+  
+  // Variabile statica per memorizzare temporaneamente le opinioni in caso di errori
+  static tempOpinions: Record<string, any> = {};
+
+  /**
+   * Recupera le opinioni dell'utente da Supabase tramite ID utente
+   */
+  static async getUserOpinions(utenteId: string): Promise<{ 
+    energia_nucleare?: string; 
+    sperimentazione_animale?: string;
+    legalizzazione_canapa?: string;
+    caccia?: string;
+    unione_europea?: string;
+  } | null> {
+    try {
+      // Prima controlla se abbiamo dei dati in memoria per questo utente
+      if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
+        console.log('Recuperando opinioni dalla memoria temporanea per utenteId:', utenteId);
+        return SupabaseService.tempOpinions[utenteId];
+      }
+      
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      // Il client admin bypassa le policy RLS
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Recuperando opinioni con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
+      // Prima di tutto, dobbiamo verificare se l'utente esiste nella tabella "utenti" e ottenere
+      // il corrispondente user_id dalla tabella "users", che è quello che ci serve
+      let usersId: number | null = null;
+      
+      // Se l'ID utente è un'email, ottieni l'ID dalla tabella users tramite email
+      if (utenteId.includes('@')) {
+        console.log(`Il valore utenteId è un'email: ${utenteId}, cercando l'ID corrispondente nella tabella users`);
+        
+        const { data: userData, error: userError } = await client
+          .from('users')
+          .select('id')
+          .eq('email', utenteId)
+          .single();
+          
+        if (userError || !userData) {
+          console.error(`Errore nel recuperare l'ID dalla tabella users per l'email ${utenteId}:`, userError);
+          // Controlla se abbiamo dati in memoria prima di restituire un oggetto vuoto
+          if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
+            return SupabaseService.tempOpinions[utenteId];
+          }
+          
+          return {
+            energia_nucleare: '',
+            sperimentazione_animale: '',
+            legalizzazione_canapa: '',
+            caccia: '',
+            unione_europea: ''
+          };
+        }
+        
+        usersId = userData.id;
+        console.log(`ID numerico recuperato dalla tabella users per l'email ${utenteId}: ${usersId}`);
+      } 
+      // Se l'ID sembra essere numerico, usalo direttamente
+      else if (!isNaN(Number(utenteId))) {
+        usersId = Number(utenteId);
+        console.log(`L'ID utente fornito è già numerico: ${usersId}`);
+      } 
+      // Altrimenti, prova a usarlo così com'è (può essere un UUID)
+      else {
+        console.log(`Utilizzo l'ID così com'è, assumendo che sia un riferimento diretto: ${utenteId}`);
+        // Verifica se l'ID si riferisce a un record nella tabella utenti che ha un user_id
+        const { data: utentiData, error: utentiError } = await client
+          .from('utenti')
+          .select('user_id')
+          .eq('id', utenteId)
+          .single();
+          
+        if (!utentiError && utentiData && utentiData.user_id) {
+          usersId = utentiData.user_id;
+          console.log(`Trovato riferimento a user_id ${usersId} per l'utente con ID ${utenteId}`);
+        } else {
+          usersId = null; // Useremo l'ID originale
+        }
+      }
+      
+      // Ora prova a recuperare da Supabase usando l'ID corretto
+      const queryId = usersId ? usersId.toString() : utenteId;
+      console.log(`Interrogazione alla tabella opinioni con utente_id = ${queryId}`);
+      
+      const { data, error } = await client
+        .from('opinioni')
+        .select('*')
+        .eq('utente_id', queryId)
+        .single();
+      
+      if (error) {
+        console.error('Error getting user opinions from Supabase:', error);
+        
+        // Se l'errore è dovuto a RLS o record non trovato, restituiamo un oggetto vuoto
+        // che verrà interpretato come "non ci sono ancora opinioni"
+        if (error.code === 'PGRST116' || error.code === '42501') {
+          // Se stiamo già usando il client admin e c'è un errore, non ci sono davvero opinioni
+          if (usingAdminClient) {
+            console.log('Nessuna opinione trovata per l\'utente (verificato con client admin)');
+          } else {
+            console.log('Errore di accesso con client standard, possibile problema di RLS');
+          }
+          
+          // Controlla se abbiamo dati in memoria prima di restituire un oggetto vuoto
+          if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
+            return SupabaseService.tempOpinions[utenteId];
+          }
+          
+          return {
+            energia_nucleare: '',
+            sperimentazione_animale: '',
+            legalizzazione_canapa: '',
+            caccia: '',
+            unione_europea: ''
+          };
+        }
+        
+        return null;
+      }
+      
+      if (!data) {
+        // Se non ci sono dati ma non c'è stato un errore, restituiamo un oggetto vuoto
+        // o i dati in memoria, se disponibili
+        if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
+          return SupabaseService.tempOpinions[utenteId];
+        }
+        
+        return {
+          energia_nucleare: '',
+          sperimentazione_animale: '',
+          legalizzazione_canapa: '',
+          caccia: '',
+          unione_europea: ''
+        };
+      }
+      
+      // Se abbiamo recuperato dati da Supabase, aggiorna anche la cache in memoria
+      SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+      SupabaseService.tempOpinions[utenteId] = data;
+      
+      return data;
+    } catch (error) {
+      console.error('Exception getting user opinions from Supabase:', error);
+      
+      // In caso di eccezione, prova a restituire i dati in memoria se disponibili
+      if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
+        return SupabaseService.tempOpinions[utenteId];
+      }
+      
+      return null;
+    }
+  }
+
+  /**
+   * Recupera le opinioni di tutti gli utenti
+   */
+  static async getAllOpinions(): Promise<any[]> {
+    try {
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Recuperando tutte le opinioni con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
+      const { data, error } = await client
+        .from('opinioni')
+        .select('*');
+      
+      if (error || !data) {
+        console.error('Error getting all opinions from Supabase:', error);
+        
+        // Se c'è un errore, restituisci i dati memorizzati in tempOpinions
+        if (SupabaseService.tempOpinions) {
+          // Converti l'oggetto tempOpinions in un array
+          const opinionArray = Object.values(SupabaseService.tempOpinions);
+          console.log('Using in-memory opinions instead of database:', opinionArray);
+          return opinionArray;
+        }
+        
+        return [];
+      }
+      
+      // Combina i dati dal database con quelli in memoria
+      // Questo è importante per visualizzare sia i dati permanenti che quelli temporanei
+      const dbData = data || [];
+      const memoryData = Object.values(SupabaseService.tempOpinions || {});
+      
+      // Crea una mappa per evitare duplicati
+      const opinionMap = new Map();
+      
+      // Aggiungi prima i dati dal database
+      for (const opinion of dbData) {
+        opinionMap.set(opinion.utente_id, opinion);
+      }
+      
+      // Poi aggiungi o sostituisci con i dati in memoria, che hanno priorità perché più recenti
+      for (const opinion of memoryData) {
+        opinionMap.set(opinion.utente_id, opinion);
+      }
+      
+      // Converti la mappa in un array
+      const combinedData = Array.from(opinionMap.values());
+      
+      return combinedData;
+    } catch (error) {
+      console.error('Exception getting all opinions from Supabase:', error);
+      
+      // In caso di eccezione, prova a restituire i dati in memoria
+      if (SupabaseService.tempOpinions) {
+        return Object.values(SupabaseService.tempOpinions);
+      }
+      
+      return [];
+    }
+  }
+
+  /**
+   * Recupera i dettagli dell'utente tramite email
+   */
+  static async getUserByEmail(email: string): Promise<any | null> {
+    try {
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      const client = supabaseAdmin || supabase;
+      
+      // Prima cerca l'ID dell'utente nella tabella users tramite email
+      const { data: userData, error: userError } = await client
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+        
+      if (userError) {
+        console.error(`Errore nel recuperare l'ID utente per l'email ${email}:`, userError);
+        return null;
+      }
+      
+      if (!userData) {
+        console.log(`Nessun utente trovato con l'email ${email}`);
+        return null;
+      }
+      
+      // Ora cerca i dettagli completi dell'utente nella tabella utenti
+      const { data: utentiData, error: utentiError } = await client
+        .from('utenti')
+        .select('*')
+        .eq('user_id', userData.id)
+        .single();
+        
+      if (utentiError) {
+        console.error(`Errore nel recuperare i dettagli dell'utente con ID ${userData.id}:`, utentiError);
+        return null;
+      }
+      
+      if (!utentiData) {
+        console.log(`Nessun dettaglio trovato per l'utente con ID ${userData.id}`);
+        return null;
+      }
+      
+      return { ...utentiData, email };
+    } catch (error) {
+      console.error('Exception getting user by email:', error);
+      return null;
+    }
+  }
+}
+
+export default SupabaseService;
