@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { ViewUserDialog } from "@/components/ViewUserDialog";
+import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
+import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 
 type User = {
   id: number;
@@ -41,7 +43,10 @@ export default function GestisciUtenti() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showViewOpinioniDialog, setShowViewOpinioniDialog] = useState(false);
+  const [showEditOpinioniDialog, setShowEditOpinioniDialog] = useState(false);
   const [selectedUserEmail, setSelectedUserEmail] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -204,38 +209,66 @@ export default function GestisciUtenti() {
                               <TableCell>{user.cognome}</TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>{user.ruolo}</TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedUserEmail(user.email);
-                                    setShowViewDialog(true);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  Visualizza
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedUserEmail(user.email);
-                                    setShowEditDialog(true);
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4 mr-1" />
-                                  Modifica
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => openDeleteDialog(user)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-1" />
-                                  Elimina
-                                </Button>
+                              <TableCell className="text-right flex flex-wrap justify-end gap-1">
+                                <div className="flex space-x-1 items-center justify-end">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUserEmail(user.email);
+                                      setShowViewDialog(true);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    Visualizza
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUserEmail(user.email);
+                                      setShowEditDialog(true);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Modifica
+                                  </Button>
+                                </div>
+                                <div className="flex space-x-1 mt-1 items-center justify-end">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-blue-500"
+                                    onClick={() => {
+                                      setSelectedUserId(user.id.toString());
+                                      setShowViewOpinioniDialog(true);
+                                    }}
+                                  >
+                                    Visualizza Opinioni
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-green-600"
+                                    onClick={() => {
+                                      setSelectedUserId(user.id.toString());
+                                      setShowEditOpinioniDialog(true);
+                                    }}
+                                  >
+                                    Modifica Opinioni
+                                  </Button>
+                                </div>
+                                <div className="flex justify-end mt-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => openDeleteDialog(user)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Elimina
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))
@@ -329,6 +362,27 @@ export default function GestisciUtenti() {
           };
           
           fetchUsers();
+        }}
+      />
+
+      {/* Dialog di visualizzazione opinioni */}
+      <ViewOpinioniDialog
+        utenteId={selectedUserId}
+        open={showViewOpinioniDialog}
+        onOpenChange={setShowViewOpinioniDialog}
+      />
+
+      {/* Dialog di modifica opinioni */}
+      <EditOpinioniDialog
+        utenteId={selectedUserId}
+        open={showEditOpinioniDialog}
+        onOpenChange={setShowEditOpinioniDialog}
+        onOpinioniUpdated={() => {
+          toast({
+            title: "Opinioni aggiornate",
+            description: "Le opinioni dell'utente sono state aggiornate con successo",
+            variant: "default",
+          });
         }}
       />
     </div>
