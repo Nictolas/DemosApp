@@ -147,12 +147,12 @@ export class SupabaseService {
       // Creiamo una nuova struttura di dati da inserire che include l'utente_id
       const opinionData = {
         utente_id: utenteId,
-        energia_nucleare: opinions.energia_nucleare || null,
-        sperimentazione_animale: opinions.sperimentazione_animale || null,
-        legalizzazione_canapa: opinions.legalizzazione_canapa || null,
-        caccia: opinions.caccia || null,
-        unione_europea: opinions.unione_europea || null,
-        creato_il: new Date().toISOString()
+        energia_nucleare: opinions.energia_nucleare || '',
+        sperimentazione_animale: opinions.sperimentazione_animale || '',
+        legalizzazione_canapa: opinions.legalizzazione_canapa || '',
+        caccia: opinions.caccia || '',
+        unione_europea: opinions.unione_europea || ''
+        // Rimuoviamo creato_il che non esiste nella tabella
       };
       
       // Verifica se esistono già opinioni per questo utente

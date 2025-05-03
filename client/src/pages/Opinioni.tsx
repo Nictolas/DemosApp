@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 
 // Definizione delle domande e delle opzioni
 const questions = [
@@ -29,6 +29,7 @@ export default function Opinioni() {
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     // Carica le opinioni dell'utente quando la pagina viene caricata
@@ -120,6 +121,11 @@ export default function Opinioni() {
           description: "Le tue opinioni sono state salvate correttamente.",
           variant: "default",
         });
+        
+        // Attendiamo un attimo per mostrare il toast, poi indirizziamo al menu
+        setTimeout(() => {
+          setLocation("/menu");
+        }, 1500);
       }
     } catch (error) {
       console.error('Errore nel salvataggio delle opinioni:', error);
@@ -141,6 +147,14 @@ export default function Opinioni() {
   return (
     <div className="h-screen overflow-y-auto bg-gradient-to-b from-background to-secondary/20">
       <div className="container mx-auto px-4 py-8">
+        <Button 
+          variant="ghost" 
+          className="mb-4 flex items-center"
+          onClick={() => setLocation("/menu")}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+        </Button>
+        
         <Card className="w-full max-w-4xl mx-auto">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
