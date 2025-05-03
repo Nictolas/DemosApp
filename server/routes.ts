@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import SupabaseService from "./supabase-service";
+import SupabaseService, { UserOpinions } from "./supabase-service";
 import { db } from "../db";
 import { users, utenti } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -405,14 +405,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const opinions = await SupabaseService.getUserOpinions(userId.toString());
       
       // Se non viene trovato nulla, controlla se ci sono opinioni salvate con ID alternativo
-      if (!opinions || (opinions && Object.keys(opinions as Record<string, any>).every(k => !(opinions as Record<string, any>)[k]))) {
+      if (!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k]))) {
         console.log('Nessuna opinione trovata con ID numerico, provo con altri metodi...');
         
         // Prima cerca con l'email (metodo di fallback)
         console.log('Provo a recuperare opinioni usando email come ID:', req.user.email);
         const opinionsWithEmail = await SupabaseService.getUserOpinions(req.user.email);
         
-        if (opinionsWithEmail && Object.keys(opinionsWithEmail as Record<string, any>).some(k => !!(opinionsWithEmail as Record<string, any>)[k])) {
+        if (opinionsWithEmail && Object.keys(opinionsWithEmail).some(k => !!opinionsWithEmail[k])) {
           console.log('Trovate opinioni usando email come ID');
           return res.status(200).json(opinionsWithEmail);
         }

@@ -7,6 +7,7 @@ export interface UserOpinions {
   legalizzazione_canapa?: string;
   caccia?: string;
   unione_europea?: string;
+  utente_id?: string; // Aggiunto per supportare il tracking dell'utente
   [key: string]: string | undefined; // Per consentire l'indice di stringa
 }
 
@@ -47,7 +48,7 @@ export { supabase, supabaseAdmin };
 class SupabaseService {
   
   // Variabile statica per memorizzare temporaneamente le opinioni in caso di errori
-  static tempOpinions: Record<string, any> = {};
+  static tempOpinions: Record<string, UserOpinions> = {};
 
   /**
    * Recupera un utente dal database tramite email
