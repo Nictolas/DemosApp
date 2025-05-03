@@ -98,16 +98,15 @@ export default function Profilo() {
                   <EditProfileForm 
                     userData={{...userInfo, email: user.email}} 
                     onProfileUpdated={(updatedData) => {
-                      // Aggiorna lo stato locale con i dati aggiornati
-                      setUserInfo(updatedData);
-                      setIsEditing(false);
-                      
                       // Mostra un toast di conferma
                       toast({
                         title: "Profilo aggiornato",
                         description: "Il profilo è stato aggiornato con successo",
                         variant: "default",
                       });
+                      
+                      // Reindirizza al menu invece di aggiornare lo stato locale
+                      window.location.href = "/menu";
                     }}
                     onCancel={() => setIsEditing(false)}
                   />
