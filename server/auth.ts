@@ -16,7 +16,7 @@ declare global {
   namespace Express {
     interface User {
       id: number;
-      username: string;
+      email: string;
     }
   }
 }
@@ -60,15 +60,15 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const result = await db.select().from(users).where(eq(users.username, username));
+        const result = await db.select().from(users).where(eq(users.email, email));
         const user = result[0];
         
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false);
         } else {
-          return done(null, { id: user.id, username: user.username });
+          return done(null, { id: user.id, email: user.email });
         }
       } catch (error) {
         return done(error);
@@ -84,7 +84,7 @@ export function setupAuth(app: Express) {
       if (!user) {
         return done(null, false);
       }
-      done(null, { id: user.id, username: user.username });
+      done(null, { id: user.id, email: user.email });
     } catch (error) {
       done(error);
     }
@@ -92,18 +92,18 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { username, password, ...userDetails } = req.body;
+      const { email, password, ...userDetails } = req.body;
       
       // Check if user already exists
-      const existingUsers = await db.select().from(users).where(eq(users.username, username));
+      const existingUsers = await db.select().from(users).where(eq(users.email, email));
       if (existingUsers.length > 0) {
-        return res.status(400).json({ error: "Nome utente già esistente" });
+        return res.status(400).json({ error: "Email già esistente" });
       }
 
       // Insert new user
       const hashedPassword = await hashPassword(password);
       const result = await db.insert(users).values({
-        username,
+        email,
         password: hashedPassword,
       }).returning();
       
@@ -122,9 +122,9 @@ export function setupAuth(app: Express) {
         // Continue with login but log the error
       }
 
-      req.login({ id: newUser.id, username: newUser.username }, (err) => {
+      req.login({ id: newUser.id, email: newUser.email }, (err) => {
         if (err) return next(err);
-        res.status(201).json({ id: newUser.id, username: newUser.username });
+        res.status(201).json({ id: newUser.id, email: newUser.email });
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -136,7 +136,7 @@ export function setupAuth(app: Express) {
     passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
       if (err) return next(err);
       if (!user) {
-        return res.status(401).json({ error: "Nome utente o password non validi" });
+        return res.status(401).json({ error: "Email o password non validi" });
       }
       req.login(user, (err) => {
         if (err) return next(err);
