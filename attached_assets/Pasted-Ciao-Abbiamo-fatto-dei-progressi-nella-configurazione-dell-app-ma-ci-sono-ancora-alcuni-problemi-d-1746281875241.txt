@@ -1,0 +1,43 @@
+Ciao! Abbiamo fatto dei progressi nella configurazione dell'app, ma ci sono ancora alcuni problemi da risolvere. Voglio che tu esegua una revisione approfondita, tenendo conto delle seguenti informazioni.
+
+Dettagli aggiuntivi:
+Autenticazione: Stiamo utilizzando Supabase per l'autenticazione. È fondamentale che l'app verifichi se l'utente è loggato prima di consentire l'accesso a qualsiasi pagina. Se l'utente non è autenticato, la pagina Home deve essere visibile, ma tutte le altre pagine devono essere bloccate. Se l'utente non è loggato, l'app deve disconnetterlo automaticamente.
+
+JWT e SERVICE ROLE KEY:
+
+Abbiamo aggiunto i seguenti secrets per Supabase:
+
+SUPABASE_SERVICE_ROLE_KEY: Utilizzato per operazioni amministrative senza vincolare le operazioni alle policy RLS.
+
+SUPABASE_URL: URL di connessione di Supabase.
+
+SUPABASE_ANON_KEY: Chiave anonima per l'accesso pubblico.
+
+Non è stato necessario aggiungere SUPABASE_JWT perché stiamo utilizzando il SUPABASE_SERVICE_ROLE_KEY per bypassare le policy RLS per operazioni generali.
+
+Problema con il salvataggio delle opinioni:
+
+L'app salva correttamente le opinioni in memoria, ma non vengono salvate su Supabase.
+
+Stiamo usando INSERT o UPDATE per salvare le opinioni, ma il problema sembra essere legato alle Row-Level Security (RLS) di Supabase. Abbiamo bisogno di configurare correttamente le politiche di sicurezza RLS per fare in modo che l'utente possa salvare e aggiornare le proprie opinioni.
+
+L'errore che vediamo è: "new row violates row-level security policy for table 'opinioni'". Questo errore si verifica durante l'inserimento o l'aggiornamento delle opinioni.
+
+RLS Policies:
+
+Abbiamo configurato le RLS policies per garantire che ogni utente possa modificare solo le proprie opinioni. La policy update_own_opinion è configurata per limitare l'aggiornamento delle opinioni solo all'utente che le ha create.
+
+Assicurati che le policy siano corrette e che l'ID utente venga utilizzato correttamente nelle query.
+
+Cosa dobbiamo fare:
+
+Verifica che l'utente sia correttamente autenticato prima di tentare di salvare le opinioni. Se l'utente non è autenticato, blocca l'accesso a tutte le pagine tranne la Home.
+
+Assicurati che quando un utente non è autenticato, l'app disconnetta l'utente automaticamente.
+
+Verifica se il problema è legato all'ID utente che viene utilizzato nelle query per le opinioni. Controlla anche se l'ID utente viene passato correttamente in ogni query che interagisce con la tabella "opinioni".
+
+Controlla le politiche di sicurezza RLS nella tabella "opinioni" per assicurarti che l'operazione di salvataggio delle opinioni rispetti le policy.
+
+Prova a fare un UPSET per le opinioni, in modo da semplificare l'operazione di salvataggio evitando errori tra INSERT e UPDATE.
+
