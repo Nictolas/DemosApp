@@ -313,29 +313,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      // Ottiene il profilo utente da Supabase per recuperare l'ID
-      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
-      if (!supabaseUser || !supabaseUser.id) {
-        console.warn('Utente non trovato in Supabase o ID mancante, ma procediamo comunque con ID temporaneo');
+      console.log(`Utente autenticato. ID: ${req.user.id}, Email: ${req.user.email}`);
+      
+      // Utilizza direttamente l'ID dalla sessione Express, che è l'ID dalla tabella "users"
+      // Questo dovrebbe corrispondere con il vincolo di chiave esterna sulla tabella "opinioni"
+      const userId = req.user.id;
+      
+      // Salva le opinioni dell'utente con l'ID numerico della tabella users
+      const opinionsData = req.body;
+      console.log(`Salvando opinioni per utente con ID: ${userId}`, opinionsData);
+      
+      const result = await SupabaseService.saveUserOpinions(userId.toString(), opinionsData);
+      
+      if (!result.success) {
+        console.error('Errore nel salvataggio delle opinioni:', result.error);
         
-        // Crea un ID utente temporaneo basato sull'email dell'utente se non esiste in Supabase
-        const tempUserId = req.user.email;
+        // In caso di fallimento, proviamo a usare l'email come fallback (per retrocompatibilità)
+        console.log('Tentativo di salvataggio con email come ID:', req.user.email);
+        const fallbackResult = await SupabaseService.saveUserOpinions(req.user.email, opinionsData);
         
-        // Salva le opinioni dell'utente con ID temporaneo
-        const opinionsData = req.body;
-        const result = await SupabaseService.saveUserOpinions(tempUserId, opinionsData);
-
-        return res.status(200).json({ 
-          message: 'Opinioni salvate temporaneamente in memoria',
+        if (fallbackResult.success) {
+          console.log('Salvataggio riuscito con email come ID');
+          return res.status(200).json({
+            message: 'Opinioni salvate con metodo alternativo',
+            data: fallbackResult.data,
+            note: fallbackResult.note || 'Salvate usando l\'email come identificativo',
+            temp_storage: true
+          });
+        }
+        
+        return res.status(500).json({ 
+          error: 'Errore nel salvataggio delle opinioni', 
+          details: result.error,
           data: result.data,
-          warning: 'Non è stato possibile salvare le opinioni nel database a causa di un problema di configurazione. Le opinioni sono state salvate in memoria temporanea.',
-          temp_storage: true
+          note: result.note
         });
       }
-
-      // Salva le opinioni dell'utente
-      const opinionsData = req.body;
-      const result = await SupabaseService.saveUserOpinions(supabaseUser.id, opinionsData);
 
       // Anche se ci sono stati problemi, restituiamo un successo dato che i dati sono salvati in memoria
       return res.status(200).json({ 
@@ -381,16 +394,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      // Ottiene il profilo utente da Supabase per recuperare l'ID
-      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+      console.log(`Utente autenticato per richiesta opinioni. ID: ${req.user.id}, Email: ${req.user.email}`);
       
-      // Se l'utente non è trovato in Supabase, controlliamo se abbiamo opinioni in memoria temporanea
-      if (!supabaseUser || !supabaseUser.id) {
-        console.warn('Utente non trovato in Supabase, controllo opinioni in memoria...');
+      // Utilizza direttamente l'ID dalla sessione Express, che è l'ID dalla tabella "users"
+      // Questo dovrebbe corrispondere con il vincolo di chiave esterna sulla tabella "opinioni"
+      const userId = req.user.id;
+      
+      // Recupera le opinioni dell'utente usando l'ID numerico della tabella users
+      console.log(`Recuperando opinioni per utente con ID numerico: ${userId}`);
+      const opinions = await SupabaseService.getUserOpinions(userId.toString());
+      
+      // Se non viene trovato nulla, controlla se ci sono opinioni salvate con ID alternativo
+      if (!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k]))) {
+        console.log('Nessuna opinione trovata con ID numerico, provo con altri metodi...');
         
-        // Cerca le opinioni temporanee usando l'email come chiave (come facciamo nel salvataggio)
+        // Prima cerca con l'email (metodo di fallback)
+        console.log('Provo a recuperare opinioni usando email come ID:', req.user.email);
+        const opinionsWithEmail = await SupabaseService.getUserOpinions(req.user.email);
+        
+        if (opinionsWithEmail && Object.keys(opinionsWithEmail).some(k => !!opinionsWithEmail[k])) {
+          console.log('Trovate opinioni usando email come ID');
+          return res.status(200).json(opinionsWithEmail);
+        }
+        
+        // Come ultima risorsa, cerca nelle opinioni memorizzate temporaneamente
         if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[req.user.email]) {
-          console.log('Trovate opinioni in memoria per:', req.user.email);
+          console.log('Trovate opinioni in memoria temporanea per:', req.user.email);
           return res.status(200).json(SupabaseService.tempOpinions[req.user.email]);
         }
         
@@ -405,9 +434,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Nessuna opinione trovata per questo utente'
         });
       }
-
-      // Recupera le opinioni dell'utente da Supabase
-      const opinions = await SupabaseService.getUserOpinions(supabaseUser.id);
       
       return res.status(200).json(opinions || {});
     } catch (error) {
