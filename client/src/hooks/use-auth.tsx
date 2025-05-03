@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
 import {
   useQuery,
   useMutation,
@@ -7,6 +7,7 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { checkSupabaseAuth } from "@/lib/supabase";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -26,10 +27,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
+    refetch,
   } = useQuery<SelectUser | undefined, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
+
+  // Verifica automatica dell'autenticazione
+  useEffect(() => {
+    // Funzione per verificare l'autenticazione
+    const verifyAuth = async () => {
+      // Se l'utente è già autenticato nella sessione, controlla anche Supabase
+      if (user) {
+        const isSupabaseAuthenticated = await checkSupabaseAuth();
+        
+        // Se l'utente non è autenticato in Supabase ma lo è nella sessione, disconnettilo
+        if (!isSupabaseAuthenticated) {
+          console.log("Utente autenticato in sessione ma non in Supabase, esecuzione logout automatico");
+          logoutMutation.mutate();
+        }
+      }
+    };
+
+    // Verifica iniziale
+    verifyAuth();
+
+    // Verifica periodica dell'autenticazione (ogni 5 minuti)
+    const interval = setInterval(verifyAuth, 5 * 60 * 1000);
+    
+    // Pulizia interval quando il componente viene smontato
+    return () => clearInterval(interval);
+  }, [user]); // Esegui quando user cambia
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {

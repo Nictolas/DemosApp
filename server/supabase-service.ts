@@ -34,8 +34,14 @@ export class SupabaseService {
     try {
       console.log('Saving user data to Supabase:', userData);
       
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Salvando dati utente con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
       // Inserisci nella tabella 'utenti' di Supabase
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('utenti')
         .insert([userData])
         .select();
@@ -58,13 +64,33 @@ export class SupabaseService {
    */
   static async getUserByEmail(email: string): Promise<UserInfo | null> {
     try {
-      const { data, error } = await supabase
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      // Per query di lettura di base possiamo usare il client standard
+      const client = supabase;
+      
+      const { data, error } = await client
         .from('utenti')
         .select('*')
         .eq('email', email)
         .single();
       
       if (error || !data) {
+        // Se c'è un errore con il client standard e abbiamo il client admin disponibile, riproviamo con quello
+        if (error && supabaseAdmin) {
+          console.log('Tentativo di recupero utente con client admin dopo fallimento con client standard');
+          
+          const adminResult = await supabaseAdmin
+            .from('utenti')
+            .select('*')
+            .eq('email', email)
+            .single();
+            
+          if (!adminResult.error && adminResult.data) {
+            console.log('Recupero utente riuscito con client admin');
+            return adminResult.data as UserInfo;
+          }
+        }
+        
         console.error('Error getting user from Supabase:', error);
         return null;
       }
@@ -81,7 +107,13 @@ export class SupabaseService {
    */
   static async getAllUsers(): Promise<UserInfo[]> {
     try {
-      const { data, error } = await supabase
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Recuperando tutti gli utenti con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
+      const { data, error } = await client
         .from('utenti')
         .select('*');
       
@@ -104,8 +136,14 @@ export class SupabaseService {
     try {
       console.log('Updating user data in Supabase for email:', email, userData);
       
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Aggiornando utente con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
       // Aggiorna la riga nella tabella 'utenti' di Supabase
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('utenti')
         .update(userData)
         .eq('email', email)
@@ -131,7 +169,14 @@ export class SupabaseService {
     try {
       console.log('Deleting user from Supabase with email:', email);
       
-      const { error } = await supabase
+      // Per le operazioni di eliminazione, è preferibile usare il client admin
+      // per essere sicuri di avere i permessi necessari
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Eliminando utente con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
+      const { error } = await client
         .from('utenti')
         .delete()
         .eq('email', email);
@@ -400,7 +445,13 @@ export class SupabaseService {
    */
   static async getAllOpinions(): Promise<any[]> {
     try {
-      const { data, error } = await supabase
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      const client = supabaseAdmin || supabase;
+      const usingAdminClient = !!supabaseAdmin;
+      
+      console.log(`Recuperando tutte le opinioni con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
+      
+      const { data, error } = await client
         .from('opinioni')
         .select('*');
       
