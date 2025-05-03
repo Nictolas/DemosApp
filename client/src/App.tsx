@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -11,17 +11,38 @@ import Profilo from "@/pages/Profilo";
 import GestisciUtenti from "@/pages/GestisciUtenti";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { PageTransition } from "@/components/PageTransition";
 
 function Router() {
+  const [location] = useLocation();
+  
   return (
     <Switch>
-      <Route path="/" component={LandingPage} />
-      <Route path="/auth" component={AuthPage} />
+      <Route path="/">
+        {() => (
+          <PageTransition location={location}>
+            <LandingPage />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/auth">
+        {() => (
+          <PageTransition location={location}>
+            <AuthPage />
+          </PageTransition>
+        )}
+      </Route>
       <ProtectedRoute path="/registrazione" component={Home} />
       <ProtectedRoute path="/menu" component={Menu} />
       <ProtectedRoute path="/profilo" component={Profilo} />
       <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
-      <Route component={NotFound} />
+      <Route path="/:rest*">
+        {() => (
+          <PageTransition location={location}>
+            <NotFound />
+          </PageTransition>
+        )}
+      </Route>
     </Switch>
   );
 }
