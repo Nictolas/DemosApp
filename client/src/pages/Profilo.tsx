@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,11 @@ import { Loader2, ArrowLeft, Edit, User } from "lucide-react";
 import { UserInfo } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { EditProfileForm } from "@/components/EditProfileForm";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Profilo() {
   const { user, isLoading } = useAuth();
+  const { toast } = useToast();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,8 +98,16 @@ export default function Profilo() {
                   <EditProfileForm 
                     userData={{...userInfo, email: user.email}} 
                     onProfileUpdated={(updatedData) => {
+                      // Aggiorna lo stato locale con i dati aggiornati
                       setUserInfo(updatedData);
                       setIsEditing(false);
+                      
+                      // Mostra un toast di conferma
+                      toast({
+                        title: "Profilo aggiornato",
+                        description: "Il profilo è stato aggiornato con successo",
+                        variant: "default",
+                      });
                     }}
                     onCancel={() => setIsEditing(false)}
                   />

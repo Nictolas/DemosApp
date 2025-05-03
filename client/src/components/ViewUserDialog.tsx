@@ -63,7 +63,7 @@ export function ViewUserDialog({ userEmail, open, onOpenChange }: ViewUserDialog
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Dettagli Utente</DialogTitle>
           <DialogDescription>
