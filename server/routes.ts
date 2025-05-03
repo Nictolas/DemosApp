@@ -110,6 +110,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API per aggiornare il profilo utente
+  app.put('/api/users/:email', requireAuth, async (req, res) => {
+    try {
+      const { email } = req.params;
+      const userData = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: 'Email utente non valida' });
+      }
+      
+      console.log(`User ID richiedente: ${req.user?.id}`);
+      console.log(`Email richiedente: ${req.user?.email}`);
+      console.log("Dati di aggiornamento ricevuti:", userData);
+      
+      // Verifica se l'utente è admin o sta modificando il proprio profilo
+      const isOwnProfile = req.user?.email === email;
+      let isAdmin = false;
+      
+      // Verifica se l'utente è admin (controllo in Supabase)
+      try {
+        if (req.user?.email) {
+          const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+          if (supabaseUser && supabaseUser.ruolo === 'Admin') {
+            isAdmin = true;
+            console.log("L'utente è un admin secondo Supabase");
+          }
+        }
+      } catch (error) {
+        console.error("Errore nel controllo Supabase:", error);
+      }
+      
+      // Verifica anche nel database locale
+      if (req.user?.id) {
+        const userDetails = await storage.getUserProfile(req.user.id);
+        if (!isAdmin && userDetails && userDetails.ruolo === 'Admin') {
+          isAdmin = true;
+          console.log("L'utente è un admin secondo il database locale");
+        }
+      }
+      
+      // Se non è il proprio profilo e non è admin, blocca l'operazione
+      if (!isOwnProfile && !isAdmin) {
+        return res.status(403).json({ 
+          error: 'Non hai i permessi per modificare questo profilo' 
+        });
+      }
+      
+      // Verifica se l'utente esiste in Supabase
+      const existingUser = await SupabaseService.getUserByEmail(email);
+      if (!existingUser) {
+        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
+      }
+      
+      // Aggiorna il profilo in Supabase
+      const { success, error, data } = await SupabaseService.updateUserData(email, userData);
+      
+      if (!success) {
+        return res.status(500).json({ 
+          error: 'Errore durante l\'aggiornamento del profilo su Supabase',
+          details: error
+        });
+      }
+      
+      // Se è il proprio profilo, aggiorna anche il database locale
+      if (isOwnProfile && req.user?.id) {
+        try {
+          // Cerca l'utente nel DB locale
+          const localUser = await storage.getUserByEmail(email);
+          
+          if (localUser) {
+            // Aggiorna anche in PostgreSQL
+            await db.update(utenti)
+              .set({
+                nome: userData.nome,
+                cognome: userData.cognome,
+                data_nascita: userData.data_nascita,
+                genere: userData.genere,
+                cittadinanza: userData.cittadinanza,
+                paese_residenza: userData.paese_residenza,
+                regione_residenza: userData.regione_residenza,
+                provincia_residenza: userData.provincia_residenza,
+                comune_residenza: userData.comune_residenza,
+                paese_elezione: userData.paese_elezione || '',
+                regione_elezione: userData.regione_elezione || '',
+                provincia_elezione: userData.provincia_elezione || '',
+                comune_elezione: userData.comune_elezione || '',
+                paese_candidatura: userData.paese_candidatura || '',
+                regione_candidatura: userData.regione_candidatura || '',
+                provincia_candidatura: userData.provincia_candidatura || '',
+                comune_candidatura: userData.comune_candidatura || '',
+                ruolo: userData.ruolo,
+                grado_elezione: userData.grado_elezione || '',
+                grado_candidatura: userData.grado_candidatura || ''
+              })
+              .where(eq(utenti.user_id, localUser.id));
+              
+            console.log("Profilo aggiornato anche nel database locale");
+          } else {
+            console.log("Utente non trovato nel database locale, aggiornato solo su Supabase");
+          }
+        } catch (dbError) {
+          console.error("Errore nell'aggiornamento del database locale:", dbError);
+          // Continuiamo comunque perché Supabase è il database principale
+        }
+      }
+      
+      return res.status(200).json({ 
+        message: 'Profilo aggiornato con successo',
+        data
+      });
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento del profilo:", error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   // API per eliminare un utente (solo per Admin)
   app.delete('/api/users/:email', requireAuth, async (req, res) => {
     try {

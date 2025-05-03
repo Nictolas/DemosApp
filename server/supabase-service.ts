@@ -79,6 +79,33 @@ export class SupabaseService {
   }
 
   /**
+   * Aggiorna i dati dell'utente in Supabase
+   */
+  static async updateUserData(email: string, userData: Partial<UserInfo>): Promise<{ success: boolean, error?: any, data?: any }> {
+    try {
+      console.log('Updating user data in Supabase for email:', email, userData);
+      
+      // Aggiorna la riga nella tabella 'utenti' di Supabase
+      const { data, error } = await supabase
+        .from('utenti')
+        .update(userData)
+        .eq('email', email)
+        .select();
+      
+      if (error) {
+        console.error('Error updating user in Supabase:', error);
+        return { success: false, error };
+      }
+      
+      console.log('Successfully updated user in Supabase:', data);
+      return { success: true, data };
+    } catch (error) {
+      console.error('Exception updating user in Supabase:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
    * Elimina un utente da Supabase tramite email
    */
   static async deleteUserByEmail(email: string): Promise<{ success: boolean, error?: any }> {
