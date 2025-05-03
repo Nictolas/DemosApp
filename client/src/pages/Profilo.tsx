@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { UserInfo } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 export default function Profilo() {
   const { user, isLoading } = useAuth();
@@ -17,13 +18,28 @@ export default function Profilo() {
       if (!user) return;
       
       try {
-        const response = await fetch(`/api/users/${user.id}/profile`);
-        if (!response.ok) {
-          throw new Error("Errore nel caricamento dei dati del profilo");
-        }
+        // Primo tentativo: carica i dati da Supabase
+        const { data: supabaseData, error: supabaseError } = await supabase
+          .from('utenti')
+          .select('*')
+          .eq('email', user.email)
+          .single();
         
-        const data = await response.json();
-        setUserInfo(data);
+        if (supabaseData) {
+          console.log("Dati utente caricati da Supabase:", supabaseData);
+          setUserInfo(supabaseData as UserInfo);
+        } else {
+          console.log("Dati non trovati in Supabase, caricamento dal database locale:", supabaseError);
+          
+          // Fallback: carica i dati dal database locale
+          const response = await fetch(`/api/users/${user.id}/profile`);
+          if (!response.ok) {
+            throw new Error("Errore nel caricamento dei dati del profilo");
+          }
+          
+          const data = await response.json();
+          setUserInfo(data);
+        }
       } catch (error) {
         console.error("Errore:", error);
         setError("Errore nel caricamento dei dati del profilo");
