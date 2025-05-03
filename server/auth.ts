@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { db } from "../db";
 import { users, utenti } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { storage } from "./storage";
 import connectPg from "connect-pg-simple";
 import { pool } from "../db";
 
@@ -62,8 +63,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const result = await db.select().from(users).where(eq(users.email, email));
-        const user = result[0];
+        const user = await storage.getUserByEmail(email);
         
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false);
@@ -79,8 +79,7 @@ export function setupAuth(app: Express) {
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser<number>(async (id, done) => {
     try {
-      const result = await db.select().from(users).where(eq(users.id, id));
-      const user = result[0];
+      const user = await storage.getUser(id);
       if (!user) {
         return done(null, false);
       }
@@ -95,8 +94,8 @@ export function setupAuth(app: Express) {
       const { email, password, ...userDetails } = req.body;
       
       // Check if user already exists
-      const existingUsers = await db.select().from(users).where(eq(users.email, email));
-      if (existingUsers.length > 0) {
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
         return res.status(400).json({ error: "Email già esistente" });
       }
 

@@ -308,9 +308,9 @@ export default function AuthPage() {
     registerMutation.mutate(userData);
   };
 
-  // Redirect to home page if already logged in
+  // Redirect to menu page if already logged in
   if (user) {
-    return <Redirect to="/" />;
+    return <Redirect to="/menu" />;
   }
 
   return (

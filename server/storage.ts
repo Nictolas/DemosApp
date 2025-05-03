@@ -31,14 +31,19 @@ export const storage = {
   },
   
   // Metodi per l'autenticazione
-  async getUserByUsername(username: string) {
-    const result = await db.select().from(users).where(eq(users.username, username));
+  async getUserByEmail(email: string) {
+    const result = await db.select().from(users).where(eq(users.email, email));
     return result[0] || null;
   },
   
-  async createUser(data: { username: string, password: string }) {
+  async createUser(data: { email: string, password: string }) {
     const result = await db.insert(users).values(data).returning();
     return result[0];
+  },
+  
+  async getUserProfile(userId: number) {
+    const result = await db.select().from(utenti).where(eq(utenti.user_id, userId));
+    return result[0] || null;
   },
   
   async getUser(id: number) {
