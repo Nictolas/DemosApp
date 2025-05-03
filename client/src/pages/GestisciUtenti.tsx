@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Search, Trash2, AlertCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Eye } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
@@ -18,6 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EditUserDialog } from "@/components/EditUserDialog";
+import { ViewUserDialog } from "@/components/ViewUserDialog";
 
 type User = {
   id: number;
@@ -37,6 +39,9 @@ export default function GestisciUtenti() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [selectedUserEmail, setSelectedUserEmail] = useState<string>("");
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -200,8 +205,28 @@ export default function GestisciUtenti() {
                               <TableCell>{user.email}</TableCell>
                               <TableCell>{user.ruolo}</TableCell>
                               <TableCell className="text-right">
-                                <Button variant="ghost" size="sm">Visualizza</Button>
-                                <Button variant="ghost" size="sm">Modifica</Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUserEmail(user.email);
+                                    setShowViewDialog(true);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Visualizza
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUserEmail(user.email);
+                                    setShowEditDialog(true);
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-1" />
+                                  Modifica
+                                </Button>
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
