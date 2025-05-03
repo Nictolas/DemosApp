@@ -57,11 +57,7 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
       
       const data = await response.json();
       
-      toast({
-        title: "Profilo aggiornato",
-        description: "Il profilo è stato aggiornato con successo",
-        variant: "default",
-      });
+      // Il toast sarà mostrato nel componente chiamante
       
       onProfileUpdated(data.data || formData);
     } catch (error) {
