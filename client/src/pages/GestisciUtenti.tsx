@@ -3,10 +3,21 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Search } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Trash2, AlertCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type User = {
   id: number;
@@ -18,10 +29,14 @@ type User = {
 
 export default function GestisciUtenti() {
   const { user, isLoading } = useAuth();
+  const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -65,6 +80,49 @@ export default function GestisciUtenti() {
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
   }
+
+  // Funzione per eliminare un utente
+  const deleteUser = async (userEmail: string) => {
+    setIsDeleting(true);
+    
+    try {
+      const response = await fetch(`/api/users/${userEmail}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Errore durante l'eliminazione dell'utente");
+      }
+      
+      // Aggiorna la lista degli utenti rimuovendo l'utente eliminato
+      setUsers(prevUsers => prevUsers.filter(u => u.email !== userEmail));
+      
+      toast({
+        title: 'Utente eliminato',
+        description: 'L\'utente è stato eliminato con successo',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Errore durante l\'eliminazione:', error);
+      
+      toast({
+        title: 'Errore',
+        description: error instanceof Error ? error.message : 'Si è verificato un errore durante l\'eliminazione dell\'utente',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
+    }
+  };
+  
+  // Apre il dialog di conferma eliminazione
+  const openDeleteDialog = (user: User) => {
+    setUserToDelete(user);
+    setShowDeleteDialog(true);
+  };
 
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
