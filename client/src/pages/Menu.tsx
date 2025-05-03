@@ -70,6 +70,13 @@ export default function Menu() {
               >
                 Gestisci Utenti
               </Button>
+              <Button 
+                className="h-24 text-lg font-medium md:col-span-2" 
+                variant="default"
+                onClick={() => window.location.href = "/opinioni"}
+              >
+                Opinioni
+              </Button>
             </CardContent>
             <CardFooter className="flex justify-center p-6 pt-0">
               <Button 

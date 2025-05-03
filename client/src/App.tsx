@@ -9,6 +9,7 @@ import AuthPage from "@/pages/auth-page";
 import Menu from "@/pages/Menu";
 import Profilo from "@/pages/Profilo";
 import GestisciUtenti from "@/pages/GestisciUtenti";
+import Opinioni from "@/pages/Opinioni";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { PageTransition } from "@/components/PageTransition";
@@ -36,6 +37,7 @@ function Router() {
       <ProtectedRoute path="/menu" component={Menu} />
       <ProtectedRoute path="/profilo" component={Profilo} />
       <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
+      <ProtectedRoute path="/opinioni" component={Opinioni} />
       <Route path="/:rest*">
         {() => (
           <PageTransition location={location}>
