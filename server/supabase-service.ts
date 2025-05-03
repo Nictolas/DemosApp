@@ -322,10 +322,21 @@ export class SupabaseService {
       }
       
       return { success: true, data: result ? result.data : [opinionData] };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Exception saving opinions in Supabase:', error);
       
-      // Anche in caso di eccezione, salviamo in memoria le opinioni
+      // Controlla se l'errore è relativo alla chiave esterna (foreign key constraint)
+      if (error.code === '23503' && error.message.includes('violates foreign key constraint')) {
+        console.log('Errore di vincolo di chiave esterna. Verificare se:');
+        console.log('1. L\'utente esiste nella tabella users di Supabase');
+        console.log('2. Il vincolo di chiave esterna è configurato correttamente');
+        console.log('3. L\'ID utente è stato passato correttamente');
+        
+        // Salviamo temporaneamente in memoria le opinioni
+        console.log('Salvataggio temporaneo delle opinioni in memoria...');
+      }
+      
+      // Salviamo in memoria le opinioni
       SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
       SupabaseService.tempOpinions[utenteId] = {
         utente_id: utenteId,
@@ -338,7 +349,7 @@ export class SupabaseService {
           utente_id: utenteId,
           ...opinions
         }],
-        note: "I dati sono stati salvati temporaneamente in memoria a causa di un'eccezione."
+        note: "I dati sono stati salvati temporaneamente in memoria a causa di un errore nel database: " + (error.message || 'Errore sconosciuto')
       };
     }
   }

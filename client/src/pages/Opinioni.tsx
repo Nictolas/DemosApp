@@ -109,29 +109,58 @@ export default function Opinioni() {
         body: JSON.stringify(opinions)
       });
       
-      if (!response.ok) {
-        throw new Error('Errore nel salvataggio delle opinioni');
-      }
-      
+      // Leggiamo la risposta anche se non è OK perché potrebbe contenere dati salvati temporaneamente
       const result = await response.json();
       
+      console.log('Risposta dal server per il salvataggio delle opinioni:', result);
+      
+      if (result.error) {
+        // Se c'è un errore ma i dati sono stati comunque salvati in memoria
+        if (result.data) {
+          toast({
+            title: "Attenzione",
+            description: "Le tue opinioni sono state salvate temporaneamente, ma non nel database. " + 
+                         (result.note || "Sarà possibile accedervi fino alla fine della sessione."),
+            variant: "warning",
+          });
+          
+          // Reindirizza comunque al menu dopo un po'
+          setTimeout(() => {
+            setLocation("/menu");
+          }, 3000);
+          return;
+        }
+        
+        throw new Error(result.error);
+      }
+      
       if (result) {
-        toast({
-          title: "Successo",
-          description: "Le tue opinioni sono state salvate correttamente.",
-          variant: "default",
-        });
+        // Verifica se i dati sono stati salvati temporaneamente o permanentemente
+        if (result.note && result.note.includes('memoria')) {
+          toast({
+            title: "Successo con limitazioni",
+            description: "Le tue opinioni sono state salvate, ma solo temporaneamente: " + result.note,
+            variant: "warning",
+          });
+        } else {
+          toast({
+            title: "Successo",
+            description: "Le tue opinioni sono state salvate correttamente.",
+            variant: "default",
+          });
+        }
         
         // Attendiamo un attimo per mostrare il toast, poi indirizziamo al menu
         setTimeout(() => {
           setLocation("/menu");
-        }, 1500);
+        }, 2000);
       }
     } catch (error) {
       console.error('Errore nel salvataggio delle opinioni:', error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante il salvataggio delle opinioni.",
+        description: "Si è verificato un errore durante il salvataggio delle opinioni: " + 
+                    (error instanceof Error ? error.message : 'Errore sconosciuto'),
         variant: "destructive",
       });
     } finally {
