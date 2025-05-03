@@ -1,5 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Definizione del tipo per le opinioni degli utenti
+export interface UserOpinions {
+  energia_nucleare?: string;
+  sperimentazione_animale?: string;
+  legalizzazione_canapa?: string;
+  caccia?: string;
+  unione_europea?: string;
+  [key: string]: string | undefined; // Per consentire l'indice di stringa
+}
+
 // Inizializza il client Supabase con le credenziali dell'ambiente
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_KEY || '';
@@ -74,13 +84,7 @@ class SupabaseService {
    * Salva le opinioni dell'utente su Supabase modificando la tabella utenti
    * @returns {Object} Un oggetto con success (boolean), data (array), note (string opzionale) e error (string o null)
    */
-  static async saveUserOpinions(utenteId: string, opinions: {
-    energia_nucleare?: string;
-    sperimentazione_animale?: string;
-    legalizzazione_canapa?: string;
-    caccia?: string;
-    unione_europea?: string;
-  }): Promise<{
+  static async saveUserOpinions(utenteId: string, opinions: UserOpinions): Promise<{
     success: boolean;
     data: any[];
     note?: string;
@@ -106,7 +110,8 @@ class SupabaseService {
             utente_id: utenteId,
             ...opinions
           }],
-          note: "I dati sono stati salvati solo in memoria perché Supabase non è configurato"
+          note: "I dati sono stati salvati solo in memoria perché Supabase non è configurato",
+          error: null
         };
       }
       
@@ -334,13 +339,7 @@ class SupabaseService {
    * Recupera le opinioni dell'utente da Supabase tramite ID utente
    * direttamente dalla tabella utenti
    */
-  static async getUserOpinions(utenteId: string): Promise<{ 
-    energia_nucleare?: string; 
-    sperimentazione_animale?: string;
-    legalizzazione_canapa?: string;
-    caccia?: string;
-    unione_europea?: string;
-  } | null> {
+  static async getUserOpinions(utenteId: string): Promise<UserOpinions | null> {
     try {
       // Prima controlla se abbiamo dei dati in memoria per questo utente
       if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
