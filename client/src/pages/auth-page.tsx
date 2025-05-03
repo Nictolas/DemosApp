@@ -14,13 +14,13 @@ import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
 
 const loginSchema = z.object({
-  username: z.string().min(3, "Il nome utente deve contenere almeno 3 caratteri"),
+  email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
   password: z.string().min(6, "La password deve contenere almeno 6 caratteri"),
 });
 
 // Schema completo per la registrazione includendo tutti i dati demografici
 const registerSchema = z.object({
-  username: z.string().min(3, "Il nome utente deve contenere almeno 3 caratteri"),
+  email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
   password: z.string().min(6, "La password deve contenere almeno 6 caratteri"),
   confirmPassword: z.string(),
   
@@ -66,7 +66,7 @@ export default function AuthPage() {
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -87,7 +87,7 @@ export default function AuthPage() {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
       confirmPassword: "",
       nome: "",
@@ -372,12 +372,12 @@ export default function AuthPage() {
                       <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                         <FormField
                           control={loginForm.control}
-                          name="username"
+                          name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Nome utente</FormLabel>
+                              <FormLabel>Email</FormLabel>
                               <FormControl>
-                                <Input placeholder="Inserisci il tuo nome utente" {...field} />
+                                <Input placeholder="Inserisci la tua email" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -420,12 +420,12 @@ export default function AuthPage() {
                           <div className="grid grid-cols-1 gap-4">
                             <FormField
                               control={registerForm.control}
-                              name="username"
+                              name="email"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className="required-field">Nome utente</FormLabel>
+                                  <FormLabel className="required-field">Email</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Scegli un nome utente" {...field} />
+                                    <Input placeholder="Inserisci la tua email" {...field} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
