@@ -207,9 +207,62 @@ export class SupabaseService {
     try {
       console.log('Saving user opinions to Supabase for user ID:', utenteId, opinions);
       
-      // Creiamo una nuova struttura di dati da inserire che include l'utente_id
+      // Prima dobbiamo ottenere l'ID numerico dalla tabella users
+      let usersId: number | null = null;
+      
+      // Scegliamo quale client Supabase usare (admin o regolare)
+      // Il client admin bypassa le policy RLS
+      let client = supabaseAdmin || supabase;
+      let usingAdminClient = !!supabaseAdmin;
+      
+      // Se l'ID utente è un'email, ottieni l'ID dalla tabella users tramite email
+      if (utenteId.includes('@')) {
+        console.log(`Il valore utenteId è un'email: ${utenteId}, cercando l'ID corrispondente nella tabella users`);
+        
+        const { data: userData, error: userError } = await client
+          .from('users')
+          .select('id')
+          .eq('email', utenteId)
+          .single();
+          
+        if (userError || !userData) {
+          console.error(`Errore nel recuperare l'ID dalla tabella users per l'email ${utenteId}:`, userError);
+          
+          // Memorizza in cache temporanea e restituisci
+          SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+          SupabaseService.tempOpinions[utenteId] = {
+            utente_id: utenteId,
+            energia_nucleare: opinions.energia_nucleare || '',
+            sperimentazione_animale: opinions.sperimentazione_animale || '',
+            legalizzazione_canapa: opinions.legalizzazione_canapa || '',
+            caccia: opinions.caccia || '',
+            unione_europea: opinions.unione_europea || ''
+          };
+          
+          return { 
+            success: true, 
+            data: [SupabaseService.tempOpinions[utenteId]],
+            note: "I dati sono stati salvati temporaneamente in memoria perché l'utente non è stato trovato nella tabella users."
+          };
+        }
+        
+        usersId = userData.id;
+        console.log(`ID numerico recuperato dalla tabella users per l'email ${utenteId}: ${usersId}`);
+      } 
+      // Se l'ID sembra essere numerico, usalo direttamente
+      else if (!isNaN(Number(utenteId))) {
+        usersId = Number(utenteId);
+        console.log(`L'ID utente fornito è già numerico: ${usersId}`);
+      } 
+      // Altrimenti, prova a usarlo così com'è (può essere un UUID)
+      else {
+        console.log(`Utilizzo l'ID così com'è, assumendo che sia un riferimento diretto: ${utenteId}`);
+        usersId = null; // Useremo l'ID originale
+      }
+      
+      // Prepara i dati da inserire, utilizzando l'ID corretto
       const opinionData = {
-        utente_id: utenteId,
+        utente_id: usersId ? usersId.toString() : utenteId,
         energia_nucleare: opinions.energia_nucleare || '',
         sperimentazione_animale: opinions.sperimentazione_animale || '',
         legalizzazione_canapa: opinions.legalizzazione_canapa || '',
@@ -217,11 +270,7 @@ export class SupabaseService {
         unione_europea: opinions.unione_europea || ''
       };
       
-      // Scegliamo quale client Supabase usare (admin o regolare)
-      // Il client admin bypassa le policy RLS
-      const client = supabaseAdmin || supabase;
-      const usingAdminClient = !!supabaseAdmin;
-      
+      // Utilizziamo lo stesso client che abbiamo inizializzato in precedenza
       console.log(`Utilizzando client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
       
       // Verifica se esistono già opinioni per questo utente
@@ -229,13 +278,13 @@ export class SupabaseService {
       const { data: existingOpinions, error: checkError } = await client
         .from('opinioni')
         .select('*')
-        .eq('utente_id', utenteId);
+        .eq('utente_id', opinionData.utente_id);
       
       let result;
       
       // Se esistono già opinioni per questo utente, esegui un UPDATE
       if (!checkError && existingOpinions && existingOpinions.length > 0) {
-        console.log('Eseguendo UPDATE su opinioni esistenti per l\'utente:', utenteId);
+        console.log('Eseguendo UPDATE su opinioni esistenti per l\'utente:', opinionData.utente_id);
         
         // Utilizziamo l'operazione UPDATE, specificando l'utente_id
         result = await client
@@ -247,11 +296,11 @@ export class SupabaseService {
             caccia: opinionData.caccia,
             unione_europea: opinionData.unione_europea
           })
-          .eq('utente_id', utenteId)
+          .eq('utente_id', opinionData.utente_id)
           .select();
       } else {
         // Se non esistono, esegui un INSERT
-        console.log('Eseguendo INSERT di nuove opinioni per l\'utente:', utenteId);
+        console.log('Eseguendo INSERT di nuove opinioni per l\'utente:', opinionData.utente_id);
         result = await client
           .from('opinioni')
           .insert([opinionData])
@@ -381,11 +430,70 @@ export class SupabaseService {
       
       console.log(`Recuperando opinioni con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
       
-      // Prova a recuperare da Supabase
+      // Prima di tutto, dobbiamo verificare se l'utente esiste nella tabella "utenti" e ottenere
+      // il corrispondente user_id dalla tabella "users", che è quello che ci serve
+      let usersId: number | null = null;
+      
+      // Se l'ID utente è un'email, ottieni l'ID dalla tabella users tramite email
+      if (utenteId.includes('@')) {
+        console.log(`Il valore utenteId è un'email: ${utenteId}, cercando l'ID corrispondente nella tabella users`);
+        
+        const { data: userData, error: userError } = await client
+          .from('users')
+          .select('id')
+          .eq('email', utenteId)
+          .single();
+          
+        if (userError || !userData) {
+          console.error(`Errore nel recuperare l'ID dalla tabella users per l'email ${utenteId}:`, userError);
+          // Controlla se abbiamo dati in memoria prima di restituire un oggetto vuoto
+          if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
+            return SupabaseService.tempOpinions[utenteId];
+          }
+          
+          return {
+            energia_nucleare: '',
+            sperimentazione_animale: '',
+            legalizzazione_canapa: '',
+            caccia: '',
+            unione_europea: ''
+          };
+        }
+        
+        usersId = userData.id;
+        console.log(`ID numerico recuperato dalla tabella users per l'email ${utenteId}: ${usersId}`);
+      } 
+      // Se l'ID sembra essere numerico, usalo direttamente
+      else if (!isNaN(Number(utenteId))) {
+        usersId = Number(utenteId);
+        console.log(`L'ID utente fornito è già numerico: ${usersId}`);
+      } 
+      // Altrimenti, prova a usarlo così com'è (può essere un UUID)
+      else {
+        console.log(`Utilizzo l'ID così com'è, assumendo che sia un riferimento diretto: ${utenteId}`);
+        // Verifica se l'ID si riferisce a un record nella tabella utenti che ha un user_id
+        const { data: utentiData, error: utentiError } = await client
+          .from('utenti')
+          .select('user_id')
+          .eq('id', utenteId)
+          .single();
+          
+        if (!utentiError && utentiData && utentiData.user_id) {
+          usersId = utentiData.user_id;
+          console.log(`Trovato riferimento a user_id ${usersId} per l'utente con ID ${utenteId}`);
+        } else {
+          usersId = null; // Useremo l'ID originale
+        }
+      }
+      
+      // Ora prova a recuperare da Supabase usando l'ID corretto
+      const queryId = usersId ? usersId.toString() : utenteId;
+      console.log(`Interrogazione alla tabella opinioni con utente_id = ${queryId}`);
+      
       const { data, error } = await client
         .from('opinioni')
         .select('*')
-        .eq('utente_id', utenteId)
+        .eq('utente_id', queryId)
         .single();
       
       if (error) {
