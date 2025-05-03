@@ -77,6 +77,31 @@ export class SupabaseService {
       return [];
     }
   }
+
+  /**
+   * Elimina un utente da Supabase tramite email
+   */
+  static async deleteUserByEmail(email: string): Promise<{ success: boolean, error?: any }> {
+    try {
+      console.log('Deleting user from Supabase with email:', email);
+      
+      const { error } = await supabase
+        .from('utenti')
+        .delete()
+        .eq('email', email);
+      
+      if (error) {
+        console.error('Error deleting user from Supabase:', error);
+        return { success: false, error };
+      }
+      
+      console.log('User successfully deleted from Supabase');
+      return { success: true };
+    } catch (error) {
+      console.error('Exception deleting user from Supabase:', error);
+      return { success: false, error };
+    }
+  }
 }
 
 export default SupabaseService;
