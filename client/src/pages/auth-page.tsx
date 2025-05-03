@@ -657,9 +657,11 @@ export default function AuthPage() {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    <SelectItem value="cittadino">Cittadino</SelectItem>
-                                    <SelectItem value="candidato">Candidato</SelectItem>
-                                    <SelectItem value="eletto">Eletto</SelectItem>
+                                    <SelectItem value="Elettore">Elettore</SelectItem>
+                                    <SelectItem value="Candidato">Candidato</SelectItem>
+                                    <SelectItem value="Politico">Politico</SelectItem>
+                                    <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
+                                    <SelectItem value="Admin">Admin</SelectItem>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
