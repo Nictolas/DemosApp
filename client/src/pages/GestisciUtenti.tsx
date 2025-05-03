@@ -202,6 +202,15 @@ export default function GestisciUtenti() {
                               <TableCell className="text-right">
                                 <Button variant="ghost" size="sm">Visualizza</Button>
                                 <Button variant="ghost" size="sm">Modifica</Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => openDeleteDialog(user)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Elimina
+                                </Button>
                               </TableCell>
                             </TableRow>
                           ))
@@ -221,6 +230,50 @@ export default function GestisciUtenti() {
           </Card>
         </div>
       )}
+      {/* Dialog di conferma eliminazione */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+              Conferma eliminazione
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {userToDelete && (
+                <>
+                  Sei sicuro di voler eliminare l'utente <strong>{userToDelete.nome} {userToDelete.cognome}</strong> ({userToDelete.email})?
+                  <br />
+                  <span className="text-red-500 font-medium mt-2 block">
+                    Questa operazione non può essere annullata.
+                  </span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault();
+                if (userToDelete) {
+                  deleteUser(userToDelete.email);
+                }
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminazione in corso...
+                </>
+              ) : (
+                "Elimina utente"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
