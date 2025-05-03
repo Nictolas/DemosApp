@@ -50,7 +50,7 @@ export const utenti = pgTable("utenti", {
 // Schema per le opinioni degli utenti
 export const opinioni = pgTable("opinioni", {
   id: serial("id").primaryKey(),
-  utente_id: text("utente_id").notNull(),
+  utente_id: text("utente_id").notNull(), // In Supabase è una chiave esterna alla tabella utenti
   energia_nucleare: text("energia_nucleare"),
   sperimentazione_animale: text("sperimentazione_animale"),
   legalizzazione_canapa: text("legalizzazione_canapa"),
@@ -66,11 +66,20 @@ export const usersRelations = relations(users, ({ one }) => ({
   }),
 }));
 
-export const utentiRelations = relations(utenti, ({ one }) => ({
+export const utentiRelations = relations(utenti, ({ one, many }) => ({
   user: one(users, {
     fields: [utenti.user_id],
     references: [users.id],
   }),
+  opinioni: many(opinioni)
+}));
+
+export const opinioniRelations = relations(opinioni, ({ one }) => ({
+  utente: one(utenti, {
+    // In Supabase, la relazione è definita direttamente alla tabella utenti
+    fields: [opinioni.utente_id],
+    references: [utenti.id], // La struttura di database in Supabase usa l'ID degli utenti, non user_id
+  })
 }));
 
 // Schema di inserimento e tipi per opinioni
