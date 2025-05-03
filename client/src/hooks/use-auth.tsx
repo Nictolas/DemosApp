@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Login effettuato",
-        description: `Benvenuto, ${user.username}!`,
+        description: `Benvenuto, ${user.email}!`,
         variant: "success",
       });
     },
