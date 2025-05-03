@@ -1,10 +1,25 @@
-import { Link } from "wouter";
+import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
 
 export default function LandingPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  
+  // Redirect to menu if user is authenticated
+  if (user && !isLoading) {
+    return <Redirect to="/menu" />;
+  }
+
+  // Show loading indicator while checking auth state
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
