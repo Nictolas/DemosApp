@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import SupabaseService from "./supabase-service";
 import { db } from "../db";
-import { users, utenti, opinioni } from "@shared/schema";
+import { users, utenti } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Estendi l'interfaccia Request per includere user
