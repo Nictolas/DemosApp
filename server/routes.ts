@@ -315,8 +315,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Ottiene il profilo utente da Supabase per recuperare l'ID
       const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
-      if (!supabaseUser) {
-        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
+      if (!supabaseUser || !supabaseUser.id) {
+        return res.status(404).json({ error: 'Utente non trovato in Supabase o ID mancante' });
       }
 
       // Salva le opinioni dell'utente
@@ -349,8 +349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Ottiene il profilo utente da Supabase per recuperare l'ID
       const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
-      if (!supabaseUser) {
-        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
+      if (!supabaseUser || !supabaseUser.id) {
+        return res.status(404).json({ error: 'Utente non trovato in Supabase o ID mancante' });
       }
 
       // Recupera le opinioni dell'utente
