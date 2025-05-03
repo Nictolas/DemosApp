@@ -1,0 +1,81 @@
+Ciao! La tua missione è implementare la funzionalità di salvataggio delle opinioni degli utenti nel nostro sistema utilizzando Supabase come database.
+
+Cosa devi fare:
+Verifica la connessione a Supabase:
+Assicurati che l'app sia correttamente collegata a Supabase e che l'utente sia autenticato. Utilizza supabase.auth.user() per ottenere l'ID dell'utente autenticato.
+
+Salvataggio delle Opinioni:
+Quando un utente risponde alle domande (Energia Nucleare, Sperimentazione Animale, Legalizzazione Canapa, Caccia, Unione Europea), le risposte devono essere salvate nel database di Supabase. Devi implementare una funzione di salvataggio che:
+
+Ottenga l'ID dell'utente con supabase.auth.user().id.
+
+Salvi le risposte nel database con upsert().
+
+Assicurati che ogni risposta venga mappata correttamente alla tabella nel database (esempio: energia_nucleare, sperimentazione_animale, ecc.).
+
+Gestione degli errori:
+Se c'è un errore nel salvataggio dei dati, devi:
+
+Mostrare un messaggio di errore nell'interfaccia utente.
+
+Loggare l'errore nella console per aiutare nella diagnosi del problema.
+
+Aggiornamento della Tabella Opinioni:
+Assicurati che la tabella opinioni in Supabase abbia i seguenti campi:
+
+user_id (UUID, collegato all'utente autenticato)
+
+energia_nucleare (testo)
+
+sperimentazione_animale (testo)
+
+legalizzazione_canapa (testo)
+
+caccia (testo)
+
+unione_europea (testo)
+
+Interfaccia Utente:
+Quando l'utente clicca su "Salva Opinioni":
+
+Il sistema deve inviare i dati a Supabase.
+
+Aggiungi una funzione di salvataggio che invia i dati a Supabase quando l'utente preme il pulsante.
+
+Verifica Politiche di Sicurezza (RLS):
+Se la tabella opinioni ha abilitato la RLS (Row Level Security), assicurati che ci siano politiche appropriate per consentire l'inserimento di dati da parte degli utenti. Se non esiste, puoi aggiungere una politica del tipo:
+
+sql
+Copia
+Modifica
+CREATE POLICY "Allow users to insert opinions"
+ON public.opinioni
+FOR INSERT
+USING (auth.uid() = user_id);
+Codice di Salvataggio (Esempio):
+js
+Copia
+Modifica
+const saveOpinions = async () => {
+  const user = supabase.auth.user();
+  const { error } = await supabase
+    .from('opinioni')
+    .upsert([
+      {
+        user_id: user.id,
+        energia_nucleare: rispostaEnergiaNucleare,
+        sperimentazione_animale: rispostaSperimentazioneAnimale,
+        legalizzazione_canapa: rispostaLegalizzazioneCanapa,
+        caccia: rispostaCaccia,
+        unione_europea: rispostaUnioneEuropea
+      }
+    ]);
+  if (error) {
+    console.error("Errore nel salvataggio delle opinioni:", error.message);
+    alert("Errore nel salvataggio. Riprova.");
+  } else {
+    console.log("Opinioni salvate con successo!");
+  }
+};
+Assicurati di testare e correggere eventuali errori. Se ci sono problemi, guarda nella console per i dettagli e facci sapere dove trovi difficoltà.
+
