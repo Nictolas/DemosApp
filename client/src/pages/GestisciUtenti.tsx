@@ -299,6 +299,38 @@ export default function GestisciUtenti() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog di visualizzazione utente */}
+      <ViewUserDialog 
+        userEmail={selectedUserEmail}
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+      />
+
+      {/* Dialog di modifica utente */}
+      <EditUserDialog
+        userEmail={selectedUserEmail}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onUserUpdated={() => {
+          // Aggiorna la lista degli utenti dopo una modifica
+          const fetchUsers = async () => {
+            try {
+              const { data, error } = await supabase
+                .from('utenti')
+                .select('*');
+              
+              if (data) {
+                setUsers(data as User[]);
+              }
+            } catch (error) {
+              console.error("Errore durante l'aggiornamento della lista utenti:", error);
+            }
+          };
+          
+          fetchUsers();
+        }}
+      />
     </div>
   );
 }
