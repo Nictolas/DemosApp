@@ -91,7 +91,11 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
+      console.log("Registrazione dati utente:", JSON.stringify(req.body, null, 2));
       const { email, password, ...userDetails } = req.body;
+      
+      console.log("Email:", email);
+      console.log("UserDetails:", JSON.stringify(userDetails, null, 2));
       
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(email);
@@ -101,15 +105,23 @@ export function setupAuth(app: Express) {
 
       // Insert new user
       const hashedPassword = await hashPassword(password);
+      console.log("Inserting user with email:", email);
       const result = await db.insert(users).values({
         email,
         password: hashedPassword,
       }).returning();
       
       const newUser = result[0];
+      console.log("User inserted:", JSON.stringify(newUser, null, 2));
       
       // Insert user details in utenti table
       try {
+        console.log("Inserting user details with user_id:", newUser.id);
+        console.log("User details to insert:", JSON.stringify({
+          ...userDetails,
+          user_id: newUser.id
+        }, null, 2));
+        
         await db.insert(utenti).values({
           ...userDetails,
           user_id: newUser.id // Associate with user account
