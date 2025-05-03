@@ -358,10 +358,11 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                   <div className="space-y-2">
                     <Label htmlFor="paese_elezione">Paese</Label>
                     <Select 
-                      value={selectedPaeseElezione} 
+                      value={selectedPaeseElezione || "nessuno"} 
                       onValueChange={(value) => {
-                        setSelectedPaeseElezione(value);
-                        handleChange("paese_elezione", value);
+                        const newValue = value === "nessuno" ? "" : value;
+                        setSelectedPaeseElezione(newValue);
+                        handleChange("paese_elezione", newValue);
                         setSelectedRegioneElezione("");
                         setSelectedProvinciaElezione("");
                         handleChange("regione_elezione", "");
@@ -374,7 +375,7 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Italia">Italia</SelectItem>
-                        <SelectItem value="">Nessuno</SelectItem>
+                        <SelectItem value="nessuno">Nessuno</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -427,13 +428,14 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                     <div className="space-y-2">
                       <Label htmlFor="comune_elezione">Comune</Label>
                       <Select 
-                        value={formData.comune_elezione || ""} 
-                        onValueChange={(value) => handleChange("comune_elezione", value)}
+                        value={formData.comune_elezione || "nessuno"} 
+                        onValueChange={(value) => handleChange("comune_elezione", value === "nessuno" ? "" : value)}
                       >
                         <SelectTrigger id="comune_elezione">
                           <SelectValue placeholder="Seleziona comune" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="nessuno">Nessuno</SelectItem>
                           {getComuni(selectedPaeseElezione, selectedRegioneElezione, selectedProvinciaElezione).map((comune) => (
                             <SelectItem key={comune} value={comune}>{comune}</SelectItem>
                           ))}
@@ -461,10 +463,11 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                   <div className="space-y-2">
                     <Label htmlFor="paese_candidatura">Paese</Label>
                     <Select 
-                      value={selectedPaeseCandidatura} 
+                      value={selectedPaeseCandidatura || "nessuno"} 
                       onValueChange={(value) => {
-                        setSelectedPaeseCandidatura(value);
-                        handleChange("paese_candidatura", value);
+                        const newValue = value === "nessuno" ? "" : value;
+                        setSelectedPaeseCandidatura(newValue);
+                        handleChange("paese_candidatura", newValue);
                         setSelectedRegioneCandidatura("");
                         setSelectedProvinciaCandidatura("");
                         handleChange("regione_candidatura", "");
@@ -477,7 +480,7 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Italia">Italia</SelectItem>
-                        <SelectItem value="">Nessuno</SelectItem>
+                        <SelectItem value="nessuno">Nessuno</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -530,13 +533,14 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
                     <div className="space-y-2">
                       <Label htmlFor="comune_candidatura">Comune</Label>
                       <Select 
-                        value={formData.comune_candidatura || ""} 
-                        onValueChange={(value) => handleChange("comune_candidatura", value)}
+                        value={formData.comune_candidatura || "nessuno"} 
+                        onValueChange={(value) => handleChange("comune_candidatura", value === "nessuno" ? "" : value)}
                       >
                         <SelectTrigger id="comune_candidatura">
                           <SelectValue placeholder="Seleziona comune" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="nessuno">Nessuno</SelectItem>
                           {getComuni(selectedPaeseCandidatura, selectedRegioneCandidatura, selectedProvinciaCandidatura).map((comune) => (
                             <SelectItem key={comune} value={comune}>{comune}</SelectItem>
                           ))}
