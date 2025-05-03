@@ -129,6 +129,110 @@ export class SupabaseService {
       return { success: false, error };
     }
   }
+
+  /**
+   * Salva le opinioni dell'utente in Supabase
+   */
+  static async saveUserOpinions(utenteId: string, opinions: {
+    energia_nucleare?: string;
+    sperimentazione_animale?: string;
+    legalizzazione_canapa?: string;
+    caccia?: string;
+    unione_europea?: string;
+  }): Promise<{ success: boolean, error?: any, data?: any }> {
+    try {
+      console.log('Saving user opinions to Supabase for user ID:', utenteId, opinions);
+      
+      // Verifica se esistono già opinioni per questo utente
+      const { data: existingData, error: fetchError } = await supabase
+        .from('opinioni')
+        .select('*')
+        .eq('utente_id', utenteId)
+        .single();
+      
+      let result;
+      
+      if (existingData) {
+        // Aggiorna le opinioni esistenti
+        result = await supabase
+          .from('opinioni')
+          .update(opinions)
+          .eq('utente_id', utenteId)
+          .select();
+        
+        console.log('Updated existing opinions for user ID:', utenteId);
+      } else {
+        // Crea un nuovo record di opinioni
+        result = await supabase
+          .from('opinioni')
+          .insert([{ utente_id: utenteId, ...opinions }])
+          .select();
+        
+        console.log('Created new opinions for user ID:', utenteId);
+      }
+      
+      if (result.error) {
+        console.error('Error saving/updating opinions in Supabase:', result.error);
+        return { success: false, error: result.error };
+      }
+      
+      console.log('Successfully saved/updated opinions in Supabase:', result.data);
+      return { success: true, data: result.data };
+    } catch (error) {
+      console.error('Exception saving/updating opinions in Supabase:', error);
+      return { success: false, error };
+    }
+  }
+
+  /**
+   * Recupera le opinioni dell'utente da Supabase tramite ID utente
+   */
+  static async getUserOpinions(utenteId: string): Promise<{ 
+    energia_nucleare?: string; 
+    sperimentazione_animale?: string;
+    legalizzazione_canapa?: string;
+    caccia?: string;
+    unione_europea?: string;
+  } | null> {
+    try {
+      const { data, error } = await supabase
+        .from('opinioni')
+        .select('*')
+        .eq('utente_id', utenteId)
+        .single();
+      
+      if (error || !data) {
+        console.error('Error getting user opinions from Supabase:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Exception getting user opinions from Supabase:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Recupera le opinioni di tutti gli utenti
+   */
+  static async getAllOpinions(): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('opinioni')
+        .select('*');
+      
+      if (error || !data) {
+        console.error('Error getting all opinions from Supabase:', error);
+        return [];
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Exception getting all opinions from Supabase:', error);
+      return [];
+    }
+  }
 }
 
 export default SupabaseService;

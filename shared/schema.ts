@@ -47,6 +47,17 @@ export const utenti = pgTable("utenti", {
   grado_candidatura: text("grado_candidatura"),
 });
 
+// Schema per le opinioni degli utenti
+export const opinioni = pgTable("opinioni", {
+  id: serial("id").primaryKey(),
+  utente_id: text("utente_id").notNull(),
+  energia_nucleare: text("energia_nucleare"),
+  sperimentazione_animale: text("sperimentazione_animale"),
+  legalizzazione_canapa: text("legalizzazione_canapa"),
+  caccia: text("caccia"),
+  unione_europea: text("unione_europea"),
+});
+
 // Relazioni tra tabelle
 export const usersRelations = relations(users, ({ one }) => ({
   utente: one(utenti, {
@@ -61,6 +72,11 @@ export const utentiRelations = relations(utenti, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// Schema di inserimento e tipi per opinioni
+export const opinioniInsertSchema = createInsertSchema(opinioni);
+export type OpinioniInsert = z.infer<typeof opinioniInsertSchema>;
+export type Opinioni = typeof opinioni.$inferSelect;
 
 export const utentiInsertSchema = createInsertSchema(utenti);
 export type UtentiInsert = z.infer<typeof utentiInsertSchema>;

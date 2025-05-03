@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import SupabaseService from "./supabase-service";
 import { db } from "../db";
-import { users, utenti } from "@shared/schema";
+import { users, utenti, opinioni } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Estendi l'interfaccia Request per includere user
@@ -302,6 +302,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json({ message: 'Utente eliminato con successo' });
     } catch (error) {
       console.error("Errore durante l'eliminazione dell'utente:", error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // API per salvare le opinioni dell'utente
+  app.post('/api/opinioni', requireAuth, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      // Ottiene il profilo utente da Supabase per recuperare l'ID
+      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+      if (!supabaseUser) {
+        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
+      }
+
+      // Salva le opinioni dell'utente
+      const opinionsData = req.body;
+      const result = await SupabaseService.saveUserOpinions(supabaseUser.id, opinionsData);
+
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante il salvataggio delle opinioni', 
+          details: result.error 
+        });
+      }
+
+      return res.status(200).json({ 
+        message: 'Opinioni salvate con successo',
+        data: result.data
+      });
+    } catch (error) {
+      console.error('Errore durante il salvataggio delle opinioni:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // API per ottenere le opinioni dell'utente
+  app.get('/api/opinioni', requireAuth, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      // Ottiene il profilo utente da Supabase per recuperare l'ID
+      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+      if (!supabaseUser) {
+        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
+      }
+
+      // Recupera le opinioni dell'utente
+      const opinions = await SupabaseService.getUserOpinions(supabaseUser.id);
+      
+      return res.status(200).json(opinions || {});
+    } catch (error) {
+      console.error('Errore durante il recupero delle opinioni:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // API per ottenere le opinioni di un utente specifico (solo per Admin)
+  app.get('/api/opinioni/:utente_id', requireAuth, async (req, res) => {
+    try {
+      const { utente_id } = req.params;
+      
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      // Verifica se l'utente che fa la richiesta è un admin
+      let isAdmin = false;
+      
+      // Verifica in Supabase
+      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+      if (supabaseUser && supabaseUser.ruolo === 'Admin') {
+        isAdmin = true;
+      }
+      
+      // Verifica nel database locale
+      if (!isAdmin) {
+        const userDetails = await storage.getUserProfile(req.user.id);
+        if (userDetails && userDetails.ruolo === 'Admin') {
+          isAdmin = true;
+        }
+      }
+      
+      // Se non è admin, blocca l'operazione
+      if (!isAdmin) {
+        return res.status(403).json({ error: 'Solo gli amministratori possono visualizzare le opinioni di altri utenti' });
+      }
+
+      // Recupera le opinioni dell'utente specificato
+      const opinions = await SupabaseService.getUserOpinions(utente_id);
+      
+      if (!opinions) {
+        return res.status(404).json({ error: 'Opinioni non trovate per questo utente' });
+      }
+      
+      return res.status(200).json(opinions);
+    } catch (error) {
+      console.error('Errore durante il recupero delle opinioni:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // API per aggiornare le opinioni di un utente specifico (solo per Admin)
+  app.put('/api/opinioni/:utente_id', requireAuth, async (req, res) => {
+    try {
+      const { utente_id } = req.params;
+      const opinionsData = req.body;
+      
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      // Verifica se l'utente che fa la richiesta è un admin
+      let isAdmin = false;
+      
+      // Verifica in Supabase
+      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+      if (supabaseUser && supabaseUser.ruolo === 'Admin') {
+        isAdmin = true;
+      }
+      
+      // Verifica nel database locale
+      if (!isAdmin) {
+        const userDetails = await storage.getUserProfile(req.user.id);
+        if (userDetails && userDetails.ruolo === 'Admin') {
+          isAdmin = true;
+        }
+      }
+      
+      // Se non è admin, blocca l'operazione
+      if (!isAdmin) {
+        return res.status(403).json({ error: 'Solo gli amministratori possono modificare le opinioni di altri utenti' });
+      }
+
+      // Aggiorna le opinioni dell'utente specificato
+      const result = await SupabaseService.saveUserOpinions(utente_id, opinionsData);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante l\'aggiornamento delle opinioni',
+          details: result.error
+        });
+      }
+      
+      return res.status(200).json({ 
+        message: 'Opinioni aggiornate con successo',
+        data: result.data
+      });
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento delle opinioni:', error);
       return res.status(500).json({ error: 'Errore interno del server' });
     }
   });
