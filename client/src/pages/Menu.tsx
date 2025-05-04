@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, UserCheck, Vote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Menu() {
@@ -71,11 +71,27 @@ export default function Menu() {
                 Gestisci Utenti
               </Button>
               <Button 
-                className="h-24 text-lg font-medium md:col-span-2" 
+                className="h-24 text-lg font-medium" 
                 variant="default"
                 onClick={() => window.location.href = "/opinioni"}
               >
                 Opinioni
+              </Button>
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="outline"
+                onClick={() => window.location.href = "/rappresentanti"}
+              >
+                <UserCheck className="mr-2 h-5 w-5" />
+                Rappresentanti
+              </Button>
+              <Button 
+                className="h-24 text-lg font-medium md:col-span-2" 
+                variant="default"
+                onClick={() => window.location.href = "/elezioni"}
+              >
+                <Vote className="mr-2 h-5 w-5" />
+                Elezioni
               </Button>
             </CardContent>
             <CardFooter className="flex justify-center p-6 pt-0">

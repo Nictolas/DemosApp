@@ -10,6 +10,10 @@ import Menu from "@/pages/Menu";
 import Profilo from "@/pages/Profilo";
 import GestisciUtenti from "@/pages/GestisciUtenti";
 import Opinioni from "@/pages/Opinioni";
+import Rappresentanti from "@/pages/Rappresentanti";
+import Elezioni from "@/pages/Elezioni";
+import ScegliRappresentante from "@/pages/ScegliRappresentante";
+import ScegliCandidato from "@/pages/ScegliCandidato";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
 import RegistrazioneElezioneCandidatura from "@/pages/RegistrazioneElezioneCandidatura";
@@ -90,6 +94,34 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/opinioni" component={Opinioni} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/rappresentanti">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/rappresentanti" component={Rappresentanti} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/elezioni">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/elezioni" component={Elezioni} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/scegli-rappresentante/:categoria">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/scegli-rappresentante/:categoria" component={ScegliRappresentante} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/scegli-candidato/:categoria">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/scegli-candidato/:categoria" component={ScegliCandidato} />
           </PageTransition>
         )}
       </Route>
