@@ -306,46 +306,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API per salvare le opinioni dell'utente
+  // API per salvare le opinioni dell'utente - UTILIZZA ESCLUSIVAMENTE SUPABASE
   app.post('/api/opinioni', requireAuth, async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      console.log(`Utente autenticato. ID: ${req.user.id}, Email: ${req.user.email}`);
+      console.log(`Utente autenticato. ID: ${req.user.id}, Email: ${req.user.email}, UUID: ${req.user.uuid || req.user.id}`);
       
-      // Per salvare le opinioni, è meglio usare l'email per trovare l'utente in Supabase
-      // poiché l'ID utente di Express non corrisponde all'UUID Supabase
-      const email = req.user.email;
       const opinionsData = req.body;
       
-      // Prima verifichiamo se l'utente esiste in Supabase
-      console.log(`Verificando e salvando opinioni per utente con email: ${email}`);
-      let result = await SupabaseService.saveUserOpinions(email, opinionsData);
+      // Priorità di identificativi per salvare le opinioni:
+      // 1. UUID (il più affidabile, è l'ID di Supabase Auth)
+      // 2. Email (secondo più affidabile)
+      // 3. ID di sessione (usato solo come ultima risorsa)
       
-      // Se il salvataggio con email fallisce, proviamo con l'ID numerico (per retrocompatibilità)
-      if (!result.success) {
-        console.log(`Tentativo alternativo usando ID: ${req.user.id}`);
-        result = await SupabaseService.saveUserOpinions(req.user.id.toString(), opinionsData);
+      const userId = req.user.uuid || req.user.id; // Preferisco usare l'UUID ma fallback all'ID
+      const email = req.user.email;
+      
+      // Logghiamo l'operazione
+      console.log(`Salvando opinioni su Supabase per utente - UUID: ${userId}, Email: ${email}`);
+      console.log('Dati opinioni:', JSON.stringify(opinionsData, null, 2));
+      
+      // Salviamo direttamente con l'UUID
+      let result = await SupabaseService.saveUserOpinions(userId, opinionsData);
+      
+      // Se fallisce, proviamo con l'email
+      if (!result.success && email) {
+        console.log(`Fallback: salvando con email ${email}`);
+        result = await SupabaseService.saveUserOpinions(email, opinionsData);
       }
       
-      // Se entrambi i tentativi falliscono, salviamo in memoria temporanea
+      // Verifichiamo il risultato
       if (!result.success) {
-        console.log('Tutti i tentativi di salvataggio in DB falliti, salvataggio in memoria temporanea');
-        
-        // Salva in memoria temporanea come fallback
-        SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
-        SupabaseService.tempOpinions[email] = {
-          utente_id: email,
-          ...opinionsData
-        };
-        
-        return res.status(200).json({
-          message: 'Opinioni salvate solo in memoria temporanea',
-          data: [SupabaseService.tempOpinions[email]],
-          error_message: result.error || 'Errore durante il salvataggio nel database',
-          temp_storage: true
+        console.error('Errore nel salvataggio delle opinioni:', result.error);
+        return res.status(500).json({ 
+          error: 'Errore durante il salvataggio delle opinioni', 
+          details: result.error 
         });
       }
       
@@ -357,79 +355,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Errore durante il salvataggio delle opinioni:', error);
-      
-      // Anche in caso di errore grave, proviamo a salvare in memoria
-      if (req.user && req.user.email) {
-        const tempUserId = req.user.email;
-        const opinionsData = req.body;
-        
-        try {
-          SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
-          SupabaseService.tempOpinions[tempUserId] = {
-            utente_id: tempUserId,
-            ...opinionsData
-          };
-          
-          return res.status(200).json({
-            message: 'Opinioni salvate solo in memoria temporanea a causa di un errore',
-            data: [SupabaseService.tempOpinions[tempUserId]],
-            error_message: error instanceof Error ? error.message : 'Errore sconosciuto',
-            temp_storage: true
-          });
-        } catch (memoryError) {
-          console.error('Errore anche nel salvataggio in memoria:', memoryError);
-        }
-      }
-      
-      return res.status(500).json({ error: 'Errore grave durante il salvataggio delle opinioni' });
+      return res.status(500).json({ 
+        error: 'Errore grave durante il salvataggio delle opinioni',
+        message: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
     }
   });
 
-  // API per ottenere le opinioni dell'utente
+  // API per ottenere le opinioni dell'utente - UTILIZZA ESCLUSIVAMENTE SUPABASE
   app.get('/api/opinioni', requireAuth, async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      console.log(`Utente autenticato per richiesta opinioni. ID: ${req.user.id}, Email: ${req.user.email}`);
+      console.log(`Utente autenticato per richiesta opinioni. ID: ${req.user.id}, Email: ${req.user.email}, UUID: ${req.user.uuid || req.user.id}`);
       
-      // Tenta di recuperare le opinioni in diversi modi
-      // Prima controlla usando l'email, che è più affidabile per trovare l'utente in Supabase
-      console.log(`Tentativo di recuperare opinioni usando email: ${req.user.email}`);
-      let opinions: UserOpinions | null = await SupabaseService.getUserOpinions(req.user.email);
+      // Priorità di identificativi per recuperare le opinioni:
+      // 1. UUID (il più affidabile, è l'ID di Supabase Auth)
+      // 2. Email (secondo più affidabile)
       
-      // Inizializziamo opinions con un oggetto vuoto se è null
-      if (opinions === null) {
-        console.log(`Nessuna opinione trovata con email, tento con ID: ${req.user.id}`);
-        const idOpinions = await SupabaseService.getUserOpinions(req.user.id.toString());
-        opinions = idOpinions || {
-          energia_nucleare: '',
-          sperimentazione_animale: '',
-          legalizzazione_canapa: '',
-          caccia: '',
-          unione_europea: ''
-        };
-      } else if (opinions && Object.keys(opinions).every(k => !opinions[k as keyof typeof opinions])) {
-        console.log(`Opinioni vuote trovate con email, tento con ID: ${req.user.id}`);
-        const idOpinions = await SupabaseService.getUserOpinions(req.user.id.toString());
-        if (idOpinions && Object.keys(idOpinions).some(k => idOpinions[k])) {
-          opinions = idOpinions;
+      const userId = req.user.uuid || req.user.id; // Preferisco usare l'UUID ma fallback all'ID
+      const email = req.user.email;
+      
+      console.log(`Recuperando opinioni con UUID: ${userId}`);
+      // Prova prima con l'UUID
+      let opinions = await SupabaseService.getUserOpinions(userId.toString());
+      
+      // Se non trova nulla con UUID, prova con l'email
+      if (!opinions || Object.keys(opinions).every(k => !opinions[k as keyof typeof opinions])) {
+        console.log(`Nessuna opinione trovata con UUID, tento con email: ${email}`);
+        const emailOpinions = await SupabaseService.getUserOpinions(email);
+        
+        if (emailOpinions && Object.keys(emailOpinions).some(k => emailOpinions[k as keyof typeof emailOpinions])) {
+          opinions = emailOpinions;
         }
       }
       
-      // Come ultima risorsa, cerca nelle opinioni memorizzate temporaneamente
-      if ((!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k]))) && 
-          SupabaseService.tempOpinions && SupabaseService.tempOpinions[req.user.email]) {
-        console.log('Trovate opinioni in memoria temporanea per:', req.user.email);
-        return res.status(200).json({
-          ...SupabaseService.tempOpinions[req.user.email],
-          temp_storage: true
-        });
-      }
-      
       // Se abbiamo trovato opinioni, restituiscile
-      if (opinions && Object.keys(opinions).some(k => opinions[k])) {
+      if (opinions && Object.keys(opinions).some(k => opinions[k as keyof typeof opinions])) {
         return res.status(200).json(opinions);
       }
       
@@ -444,28 +408,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Errore durante il recupero delle opinioni:', error);
-      
-      // Anche in caso di errore, prova a recuperare dalla memoria
-      if (req.user && req.user.email && SupabaseService.tempOpinions && SupabaseService.tempOpinions[req.user.email]) {
-        return res.status(200).json({
-          ...SupabaseService.tempOpinions[req.user.email],
-          temp_storage: true,
-          error_message: 'Recuperato da memoria a causa di un errore'
-        });
-      }
-      
-      return res.status(200).json({
+      return res.status(500).json({
         energia_nucleare: '',
         sperimentazione_animale: '',
         legalizzazione_canapa: '',
         caccia: '',
         unione_europea: '',
-        error: 'Errore nel recupero delle opinioni'
+        error: 'Errore nel recupero delle opinioni',
+        message: error instanceof Error ? error.message : 'Errore sconosciuto'
       });
     }
   });
 
-  // API per ottenere le opinioni di un utente specifico (solo per Admin)
+  // API per ottenere le opinioni di un utente specifico (solo per Admin) - UTILIZZA ESCLUSIVAMENTE SUPABASE
   app.get('/api/opinioni/:utente_id', requireAuth, async (req, res) => {
     try {
       const { utente_id } = req.params;
@@ -474,21 +429,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      // Verifica se l'utente che fa la richiesta è un admin
+      // Verifica se l'utente che fa la richiesta è un admin - SOLO VIA SUPABASE
       let isAdmin = false;
       
-      // Verifica in Supabase
+      // Verifica in Supabase usando l'email dell'utente
       const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
       if (supabaseUser && supabaseUser.ruolo === 'Admin') {
         isAdmin = true;
-      }
-      
-      // Verifica nel database locale
-      if (!isAdmin) {
-        const userDetails = await storage.getUserProfile(req.user.id);
-        if (userDetails && userDetails.ruolo === 'Admin') {
-          isAdmin = true;
-        }
       }
       
       // Se non è admin, blocca l'operazione

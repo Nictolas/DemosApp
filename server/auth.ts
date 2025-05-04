@@ -14,8 +14,10 @@ const PostgresSessionStore = connectPg(session);
 declare global {
   namespace Express {
     interface User {
-      id: number;
+      id: string;
       email: string;
+      uuid?: string;
+      profile?: any;
     }
   }
 }
@@ -61,35 +63,38 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        // Verifica credenziali direttamente con Supabase
+        // Verifica credenziali direttamente con Supabase Auth
         console.log("Tentativo login con Supabase Auth per:", email);
         
-        // Prima verifichiamo se l'utente esiste in Supabase
-        const supabaseUser = await SupabaseService.getUserByEmail(email);
-        if (!supabaseUser) {
-          console.log("Utente non trovato in Supabase:", email);
-          return done(null, false);
-        }
-        
-        // Poi proviamo ad autenticare l'utente con Supabase Auth
-        if (supabase) {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-          
-          if (error || !data.user) {
-            console.error("Errore login con Supabase Auth:", error);
-            return done(null, false);
-          }
-          
-          console.log("Login con Supabase Auth riuscito per:", email);
-          const userId = Date.now(); // ID temporaneo per questa sessione
-          return done(null, { id: userId, email: email });
-        } else {
+        if (!supabase) {
           console.error("Client Supabase non configurato per login");
           return done(null, false);
         }
+        
+        // Prima proviamo l'autenticazione con Supabase Auth
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error || !data.user) {
+          console.error("Errore login con Supabase Auth:", error);
+          return done(null, false);
+        }
+        
+        console.log("Login con Supabase Auth riuscito per:", email);
+        console.log("UUID utente:", data.user.id);
+        
+        // Recupera i dati dell'utente dalla tabella utenti
+        const userProfile = await SupabaseService.getUserByEmail(email);
+        
+        // Salva l'UUID di Supabase Auth nell'oggetto utente per la sessione
+        return done(null, { 
+          id: data.user.id, 
+          email: email,
+          uuid: data.user.id, // Importante: memorizziamo l'UUID per usarlo in seguito
+          profile: userProfile // Memorizziamo anche i dati del profilo
+        });
       } catch (error) {
         console.error("Eccezione durante il login:", error);
         return done(error);
@@ -141,11 +146,27 @@ export function setupAuth(app: Express) {
       
       console.log("=== UTENTE REGISTRATO CON SUCCESSO SU SUPABASE AUTH E SALVATO IN TABELLA UTENTI ===");
       
-      // Crea una sessione temporanea con i dati dell'utente
-      const userId = Date.now(); // ID temporaneo per questa sessione
-      req.login({ id: userId, email: email }, (err) => {
+      // Utilizza direttamente l'UUID dall'utente Supabase Auth
+      const supabaseUser = supabaseAuthResult.user;
+      const uuid = supabaseUser.id;
+      
+      // Recupera anche il profilo appena creato da passare alla sessione
+      const userProfile = await SupabaseService.getUserByEmail(email);
+      
+      // Crea una sessione con l'UUID di Supabase e i dati del profilo
+      req.login({ 
+        id: uuid,
+        uuid: uuid, 
+        email: email,
+        profile: userProfile
+      }, (err) => {
         if (err) return next(err);
-        res.status(201).json({ id: userId, email: email });
+        res.status(201).json({ 
+          id: uuid, 
+          uuid: uuid,
+          email: email,
+          profile: userProfile
+        });
       });
     } catch (error) {
       console.error("Registration error:", error);
