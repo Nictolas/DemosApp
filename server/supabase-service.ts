@@ -74,10 +74,21 @@ class SupabaseService {
         };
       }
 
-      // Registra l'utente in Supabase Auth
+      // Registra l'utente in Supabase Auth - In modalità AUTO CONFIRMATION
+      console.log('Avvio registrazione utente su Supabase Auth con auto-conferma email');
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          // Questo forza Supabase a non inviare email di conferma
+          emailRedirectTo: undefined,
+          data: {
+            // Aggiungiamo alcuni metadati base
+            nome: userDetails.nome || '',
+            cognome: userDetails.cognome || '',
+            ruolo: userDetails.ruolo || 'Elettore'
+          }
+        }
       });
       
       if (error) {
@@ -97,6 +108,32 @@ class SupabaseService {
       }
       
       console.log('Utente registrato con successo su Supabase Auth. UUID:', data.user.id);
+      
+      // Auto-conferma email
+      try {
+        if (supabaseAdmin) {
+          console.log('Tentativo di auto-conferma email per:', email);
+          
+          // Questa parte richiede un client Supabase con privilegi admin
+          // Dobbiamo verificare che la chiave API in uso abbia i privilegi necessari
+          const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(
+            data.user.id,
+            { email_confirm: true }
+          );
+          
+          if (confirmError) {
+            console.error('Errore nella conferma automatica email:', confirmError);
+            console.warn('Procedendo comunque con la registrazione, ma il login potrebbe richiedere conferma email');
+          } else {
+            console.log('Email confermata automaticamente con successo');
+          }
+        } else {
+          console.warn('Client Supabase Admin non disponibile, impossibile confermare email automaticamente');
+        }
+      } catch (confirmError) {
+        console.error('Eccezione durante la conferma automatica email:', confirmError);
+        console.warn('Procedendo comunque con la registrazione, ma il login potrebbe richiedere conferma email');
+      }
       
       // MODIFICATO: Subito dopo la registrazione, salviamo i dati dell'utente usando saveUserOpinions
       // Creiamo un payload con tutti i dati completi dell'utente

@@ -79,7 +79,65 @@ export function setupAuth(app: Express) {
         
         if (error || !data.user) {
           console.error("Errore login con Supabase Auth:", error);
-          return done(null, false, { message: "Email o password non validi" });
+          
+          // Gestiamo specificamente l'errore di email non confermata
+          if (error?.message?.includes('Email not confirmed') || error?.code === 'email_not_confirmed') {
+            console.log("Tentativo di auto-conferma email durante il login per:", email);
+            
+            // Tentativo di auto-confermare l'email utilizzando il client admin
+            if (supabaseAdmin) {
+              try {
+                // Prima otteniamo l'ID dell'utente dalla sua email
+                const { data: adminData } = await supabaseAdmin.auth.admin.getUserByEmail(email);
+                
+                if (adminData?.user?.id) {
+                  console.log(`Trovato ID utente: ${adminData.user.id}, tentativo di conferma email...`);
+                  
+                  // Conferma l'email utilizzando il client admin
+                  const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(
+                    adminData.user.id,
+                    { email_confirm: true }
+                  );
+                  
+                  if (confirmError) {
+                    console.error("Errore nella conferma email durante il login:", confirmError);
+                    return done(null, false, { message: "Non è stato possibile confermare l'email. Contatta l'amministratore." });
+                  }
+                  
+                  console.log("Email confermata con successo, ritento login...");
+                  
+                  // Riprova il login dopo la conferma
+                  const { data: newData, error: newError } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                  });
+                  
+                  if (newError || !newData.user) {
+                    console.error("Errore nel secondo tentativo di login:", newError);
+                    return done(null, false, { message: "Email confermata, ma login fallito. Riprova." });
+                  }
+                  
+                  // A questo punto dovremmo avere un login riuscito
+                  data.user = newData.user;
+                  data.session = newData.session;
+                  
+                  console.log("Login riuscito dopo conferma email!");
+                } else {
+                  console.error("Impossibile trovare l'utente per la conferma email");
+                  return done(null, false, { message: "Impossibile confermare l'email. Contatta l'amministratore." });
+                }
+              } catch (adminError) {
+                console.error("Errore durante l'uso del client admin:", adminError);
+                return done(null, false, { message: "Errore interno durante la conferma dell'email." });
+              }
+            } else {
+              console.warn("Client admin non disponibile, impossibile confermare email");
+              return done(null, false, { message: "Email non confermata. Contatta l'amministratore per confermarla." });
+            }
+          } else {
+            // Altri tipi di errori
+            return done(null, false, { message: "Email o password non validi" });
+          }
         }
         
         console.log("Login con Supabase Auth riuscito per:", email);
