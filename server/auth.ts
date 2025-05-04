@@ -64,28 +64,57 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        const user = await storage.getUserByEmail(email);
+        // Verifica credenziali direttamente con Supabase
+        console.log("Tentativo login con Supabase Auth per:", email);
         
-        if (!user || !(await comparePasswords(password, user.password))) {
+        // Prima verifichiamo se l'utente esiste in Supabase
+        const supabaseUser = await SupabaseService.getUserByEmail(email);
+        if (!supabaseUser) {
+          console.log("Utente non trovato in Supabase:", email);
           return done(null, false);
+        }
+        
+        // Poi proviamo ad autenticare l'utente con Supabase Auth
+        if (supabase) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (error || !data.user) {
+            console.error("Errore login con Supabase Auth:", error);
+            return done(null, false);
+          }
+          
+          console.log("Login con Supabase Auth riuscito per:", email);
+          const userId = Date.now(); // ID temporaneo per questa sessione
+          return done(null, { id: userId, email: email });
         } else {
-          return done(null, { id: user.id, email: user.email });
+          console.error("Client Supabase non configurato per login");
+          return done(null, false);
         }
       } catch (error) {
+        console.error("Eccezione durante il login:", error);
         return done(error);
       }
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
-  passport.deserializeUser<number>(async (id, done) => {
+  passport.serializeUser((user, done) => {
+    // Se è un oggetto con id e email, serialize l'intero oggetto
+    if (user && typeof user === 'object' && 'id' in user && 'email' in user) {
+      return done(null, JSON.stringify(user));
+    }
+    return done(null, user);
+  });
+  
+  passport.deserializeUser(async (userDataStr, done) => {
     try {
-      const user = await storage.getUser(id);
-      if (!user) {
-        return done(null, false);
-      }
-      done(null, { id: user.id, email: user.email });
+      // Deserialize l'oggetto utente
+      const userData = JSON.parse(String(userDataStr));
+      return done(null, userData);
     } catch (error) {
+      console.error("Errore deserializzando l'utente:", error);
       done(error);
     }
   });
@@ -98,85 +127,28 @@ export function setupAuth(app: Express) {
       console.log("Email:", email);
       console.log("UserDetails:", JSON.stringify(userDetails, null, 2));
       
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ error: "Email già esistente" });
-      }
-
-      // Insert new user into local database for authentication
-      const hashedPassword = await hashPassword(password);
-      console.log("Inserting user with email:", email);
-      const result = await db.insert(users).values({
-        email,
-        password: hashedPassword,
-      }).returning();
+      // Registrazione esclusivamente su Supabase (nessun database locale)
+      console.log("=== INIZIO REGISTRAZIONE SU SUPABASE AUTH ===");
+      console.log("Dati utente per registrazione:", { email, ...userDetails });
       
-      const newUser = result[0];
-      console.log("User inserted:", JSON.stringify(newUser, null, 2));
+      // UNICO FLUSSO: Il metodo registerUserOnSupabaseAuth esegue signUp e
+      // salva DIRETTAMENTE i dati utente con saveUserOpinions
+      const supabaseAuthResult = await SupabaseService.registerUserOnSupabaseAuth(email, password, userDetails);
       
-      // Insert user details in local utenti table - WITHOUT opinion fields
-      try {
-        console.log("Inserting user details with user_id:", newUser.id);
-        
-        // Filter out any opinion fields from userDetails to avoid SQL errors
-        const { energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, ...cleanUserDetails } = userDetails;
-        
-        console.log("User details to insert:", JSON.stringify({
-          ...cleanUserDetails,
-          user_id: newUser.id
-        }, null, 2));
-        
-        await db.insert(utenti).values({
-          ...cleanUserDetails,
-          user_id: newUser.id // Associate with user account
-        });
-        
-        console.log("User details saved successfully to local database");
-        
-        // Tentativo di registrazione su Supabase Auth
-        try {
-          console.log("=== INIZIO REGISTRAZIONE SU SUPABASE AUTH ===");
-          console.log("Dati utente per registrazione:", { email, ...userDetails });
-          
-          // UNICO FLUSSO: Passiamo i dettagli utente direttamente alla registrazione
-          // Il metodo registerUserOnSupabaseAuth salverà DIRETTAMENTE i dati utente con saveUserOpinions
-          // subito dopo la chiamata a supabase.auth.signUp()
-          const supabaseAuthResult = await SupabaseService.registerUserOnSupabaseAuth(email, password, userDetails);
-          
-          console.log("Risultato registrazione su Supabase Auth:", JSON.stringify(supabaseAuthResult, null, 2));
-          
-          // Visualizziamo i log del risultato finale
-          if (supabaseAuthResult.success) {
-            console.log("=== UTENTE REGISTRATO CON SUCCESSO SU SUPABASE AUTH E SALVATO IN TABELLA UTENTI ===");
-          } else {
-            console.error("Errore registrando l'utente su Supabase Auth:", supabaseAuthResult.error);
-          }
-        } catch (supabaseError) {
-          console.error("Eccezione durante la registrazione su Supabase:", supabaseError);
-          
-          // In caso di errore completo, salviamo almeno in memoria temporanea
-          const userDataPayload = {
-            energia_nucleare: "",
-            sperimentazione_animale: "",
-            legalizzazione_canapa: "",
-            caccia: "",
-            unione_europea: "",
-            ...userDetails,
-            email: email
-          };
-          
-          SupabaseService.tempOpinions[email] = userDataPayload;
-          console.log("Dati utente salvati temporaneamente in memoria per:", email);
-        }
-      } catch (detailsError) {
-        console.error("Error saving user details:", detailsError);
-        // Continue with login but log the error
+      console.log("Risultato registrazione su Supabase Auth:", JSON.stringify(supabaseAuthResult, null, 2));
+      
+      if (!supabaseAuthResult.success) {
+        console.error("Errore registrando l'utente su Supabase Auth:", supabaseAuthResult.error);
+        return res.status(400).json({ error: "Errore durante la registrazione con Supabase: " + supabaseAuthResult.error });
       }
-
-      req.login({ id: newUser.id, email: newUser.email }, (err) => {
+      
+      console.log("=== UTENTE REGISTRATO CON SUCCESSO SU SUPABASE AUTH E SALVATO IN TABELLA UTENTI ===");
+      
+      // Crea una sessione temporanea con i dati dell'utente
+      const userId = Date.now(); // ID temporaneo per questa sessione
+      req.login({ id: userId, email: email }, (err) => {
         if (err) return next(err);
-        res.status(201).json({ id: newUser.id, email: newUser.email });
+        res.status(201).json({ id: userId, email: email });
       });
     } catch (error) {
       console.error("Registration error:", error);

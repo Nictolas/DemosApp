@@ -425,22 +425,45 @@ class SupabaseService {
       }
       // Se non è né un numero né un'email, assumiamo che sia già un UUID
       
-      // Prepara i dati per l'aggiornamento (solo i campi delle opinioni)
-      const opinionData = {
-        energia_nucleare: opinions.energia_nucleare || null,
-        sperimentazione_animale: opinions.sperimentazione_animale || null,
-        legalizzazione_canapa: opinions.legalizzazione_canapa || null,
-        caccia: opinions.caccia || null,
-        unione_europea: opinions.unione_europea || null
+      // Estrai i dati del profilo e delle opinioni dall'oggetto opinions
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { utente_id, ...restOpinions } = opinions;
+      
+      // Estrai solo i campi delle opinioni specifiche
+      const opinionFields = {
+        energia_nucleare: restOpinions.energia_nucleare || null,
+        sperimentazione_animale: restOpinions.sperimentazione_animale || null,
+        legalizzazione_canapa: restOpinions.legalizzazione_canapa || null,
+        caccia: restOpinions.caccia || null,
+        unione_europea: restOpinions.unione_europea || null
       };
       
-      console.log(`Aggiornando opinioni nella tabella utenti con UUID: ${targetUUID}`, opinionData);
+      // Tutti gli altri campi sono considerati dati del profilo
+      // Estrai campi del profilo rimuovendo le opinioni
+      const { 
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, 
+        caccia, unione_europea, ...profileData 
+      } = restOpinions;
       
-      // Esegui l'aggiornamento nella tabella utenti usando l'UUID
+      // Unisci tutti i dati in un unico oggetto
+      const fullUserData = {
+        ...profileData, // Dati del profilo
+        ...opinionFields // Opinioni
+      };
+      
+      console.log(`Aggiornando dati completi nella tabella utenti con UUID: ${targetUUID}`);
+      console.log(`Dati profilo:`, JSON.stringify(profileData, null, 2));
+      console.log(`Dati opinioni:`, JSON.stringify(opinionFields, null, 2));
+      console.log(`Payload completo:`, JSON.stringify(fullUserData, null, 2));
+      
+      // In caso di INSERIMENTO NUOVO UTENTE (da signUp), utilizziamo upsert
+      // per creare l'utente se non esiste, aggiornarlo altrimenti
       const { data: result, error: updateError } = await client
         .from('utenti')
-        .update(opinionData)
-        .eq('id', targetUUID)
+        .upsert({
+          id: targetUUID, // Imposta l'UUID come ID primario
+          ...fullUserData // Tutti i dati dell'utente (profilo + opinioni)
+        })
         .select();
       
       if (updateError) {
