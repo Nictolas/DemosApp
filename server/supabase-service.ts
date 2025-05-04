@@ -122,68 +122,64 @@ class SupabaseService {
       
       console.log(`Usando client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
       
-      // Prima di tutto, dobbiamo recuperare l'ID corretto
-      let utentiIdToUse: string | number = utenteId;
+      // Identifica il tipo di ID passato e recupera l'UUID dell'utente necessario per Supabase
+      let targetUUID = utenteId;
       
-      // Se l'ID utente è un'email, ottieni l'ID dalla tabella users tramite email
-      if (utenteId.includes('@')) {
-        console.log(`Il valore utenteId è un'email: ${utenteId}, cercando l'ID corrispondente nella tabella users`);
+      // Se l'ID è numerico, potrebbe essere un ID utente dal database locale
+      if (!isNaN(Number(utenteId))) {
+        console.log(`L'ID fornito è numerico: ${utenteId}, cerco l'UUID corrispondente`);
         
+        // Controlla se esiste un utente con questo ID numerico come user_id
         const { data: userData, error: userError } = await client
-          .from('users')
+          .from('utenti')
+          .select('id')
+          .eq('user_id', Number(utenteId))
+          .single();
+        
+        if (!userError && userData) {
+          targetUUID = userData.id;
+          console.log(`Trovato UUID utente: ${targetUUID} per user_id: ${utenteId}`);
+        } else {
+          console.error(`Nessun utente trovato con user_id ${utenteId}`);
+          // Proviamo a capire se è già un UUID (potrebbe essere convertito a numero ma comunque valido)
+          try {
+            // Tenta di cercarlo direttamente
+            const { data: directCheck, error: directError } = await client
+              .from('utenti')
+              .select('id')
+              .eq('id', utenteId)
+              .single();
+              
+            if (!directError && directCheck) {
+              targetUUID = utenteId;
+              console.log(`L'ID ${utenteId} è valido e corrisponde a un utente esistente`);
+            } else {
+              console.error(`Errore: Impossibile trovare un utente con ID: ${utenteId}`);
+              throw new Error(`Utente con ID ${utenteId} non trovato`);
+            }
+          } catch (innerError) {
+            console.error('Errore durante la verifica dell\'ID:', innerError);
+            throw new Error(`Utente con ID ${utenteId} non trovato`);
+          }
+        }
+      } else if (utenteId.includes('@')) {
+        // Se è un'email, cerchiamo l'utente corrispondente
+        console.log(`Cerco utente con email: ${utenteId}`);
+        const { data: userByEmail, error: emailError } = await client
+          .from('utenti')
           .select('id')
           .eq('email', utenteId)
           .single();
           
-        if (userError || !userData) {
-          console.error(`Errore nel recuperare l'ID dalla tabella users per l'email ${utenteId}:`, userError);
+        if (!emailError && userByEmail) {
+          targetUUID = userByEmail.id;
+          console.log(`Trovato UUID utente: ${targetUUID} per email: ${utenteId}`);
         } else {
-          // Ora dobbiamo trovare il record corrispondente nella tabella utenti
-          const { data: utentiData, error: utentiError } = await client
-            .from('utenti')
-            .select('id')
-            .eq('user_id', userData.id)
-            .single();
-            
-          if (utentiError || !utentiData) {
-            console.error(`Errore nel recuperare l'ID dalla tabella utenti per l'user_id ${userData.id}:`, utentiError);
-          } else {
-            utentiIdToUse = utentiData.id;
-            console.log(`ID utente trovato nella tabella utenti: ${utentiIdToUse}`);
-          }
-        }
-      } 
-      // Se l'ID è numerico, verifica se è direttamente un ID della tabella utenti o un user_id
-      else if (!isNaN(Number(utenteId))) {
-        const numericId = Number(utenteId);
-        
-        // Controlla prima se è un ID diretto in tabella utenti
-        const { data: directCheck, error: directError } = await client
-          .from('utenti')
-          .select('id')
-          .eq('id', numericId)
-          .single();
-          
-        if (!directError && directCheck) {
-          utentiIdToUse = numericId;
-          console.log(`ID ${numericId} trovato direttamente nella tabella utenti`);
-        } else {
-          // Controlla se è un user_id
-          const { data: utentiCheck, error: utentiError } = await client
-            .from('utenti')
-            .select('id')
-            .eq('user_id', numericId)
-            .single();
-            
-          if (!utentiError && utentiCheck) {
-            utentiIdToUse = utentiCheck.id;
-            console.log(`Trovato utenti.id=${utentiIdToUse} corrispondente a user_id=${numericId}`);
-          } else {
-            console.log(`Non è stato trovato un record in utenti per l'ID ${numericId}, lo useremo direttamente`);
-            utentiIdToUse = numericId;
-          }
+          console.error(`Nessun utente trovato con email ${utenteId}:`, emailError);
+          throw new Error(`Utente con email ${utenteId} non trovato`);
         }
       }
+      // Se non è né un numero né un'email, assumiamo che sia già un UUID
       
       // Prepara i dati per l'aggiornamento (solo i campi delle opinioni)
       const opinionData = {
@@ -194,17 +190,24 @@ class SupabaseService {
         unione_europea: opinions.unione_europea || null
       };
       
-      console.log(`Aggiornando dati nella tabella utenti con ID: ${utentiIdToUse}`, opinionData);
+      console.log(`Aggiornando opinioni nella tabella utenti con UUID: ${targetUUID}`, opinionData);
       
-      // Esegui l'aggiornamento nella tabella utenti
+      // Esegui l'aggiornamento nella tabella utenti usando l'UUID
       const { data: result, error: updateError } = await client
         .from('utenti')
         .update(opinionData)
-        .eq('id', utentiIdToUse)
+        .eq('id', targetUUID)
         .select();
       
       if (updateError) {
-        console.error('Error updating user opinions in Supabase:', updateError);
+        console.error(`Errore nell'aggiornamento delle opinioni in Supabase:`, updateError);
+        
+        // Verifica se è un errore di formato UUID
+        if (updateError.message && updateError.message.includes('invalid input syntax for type uuid')) {
+          console.error('Errore di formato UUID. Assicurati di utilizzare un UUID valido.');
+          throw new Error('ID utente non valido: richiesto un UUID');
+        }
+        
         throw updateError;
       }
       
@@ -213,7 +216,6 @@ class SupabaseService {
       // Se abbiamo dati in memoria temporanea per questo utente, li rimuoviamo
       // visto che ora sono stati salvati nel database
       if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
-        SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
         delete SupabaseService.tempOpinions[utenteId]; // Rimuovi dalla memoria temporanea
       }
       
@@ -221,18 +223,7 @@ class SupabaseService {
     } catch (error: any) {
       console.error('Exception saving opinions in Supabase:', error);
       
-      // Controlla se l'errore è relativo alla chiave esterna (foreign key constraint)
-      if (error.code === '23503' && error.message.includes('violates foreign key constraint')) {
-        console.log('Errore di vincolo di chiave esterna. Verificare se:');
-        console.log('1. L\'utente esiste nella tabella users di Supabase');
-        console.log('2. Il vincolo di chiave esterna è configurato correttamente');
-        console.log('3. L\'ID utente è stato passato correttamente');
-        
-        // Salviamo temporaneamente in memoria le opinioni
-        console.log('Salvataggio temporaneo delle opinioni in memoria...');
-      }
-      
-      // Salviamo in memoria le opinioni
+      // Salviamo in memoria le opinioni come fallback
       SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
       SupabaseService.tempOpinions[utenteId] = {
         utente_id: utenteId,
@@ -240,13 +231,13 @@ class SupabaseService {
       };
       
       return { 
-        success: true, 
+        success: false, 
         data: [{
           utente_id: utenteId,
           ...opinions
         }],
         note: "I dati sono stati salvati temporaneamente in memoria a causa di un errore nel database: " + (error.message || 'Errore sconosciuto'),
-        error: null
+        error: error.message || 'Errore sconosciuto'
       };
     }
   }
@@ -367,124 +358,87 @@ class SupabaseService {
       
       console.log(`Recuperando opinioni con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
       
-      // Prima di tutto, dobbiamo verificare come recuperare l'utente
-      let utentiIdToUse: string | number = utenteId;
+      // Identifica il tipo di ID passato e recupera l'UUID dell'utente necessario per Supabase
+      let targetUUID = utenteId;
+      let userFound = false;
       
-      // Se l'ID utente è un'email, ottieni l'ID utente corrispondente
-      if (utenteId.includes('@')) {
-        console.log(`Il valore utenteId è un'email: ${utenteId}, cercando l'ID corrispondente nella tabella users`);
+      // Se l'ID è numerico, potrebbe essere un ID utente dal database locale
+      if (!isNaN(Number(utenteId))) {
+        console.log(`L'ID fornito è numerico: ${utenteId}, cerco l'UUID corrispondente`);
         
-        const { data: userData, error: userError } = await client
-          .from('users')
+        // Cerchiamo direttamente l'utente nella tabella utenti tramite user_id
+        const { data: userByUserId, error: userIdError } = await client
+          .from('utenti')
+          .select('id')
+          .eq('user_id', Number(utenteId))
+          .single();
+          
+        if (!userIdError && userByUserId) {
+          targetUUID = userByUserId.id;
+          userFound = true;
+          console.log(`Trovato UUID utente: ${targetUUID} per user_id: ${utenteId}`);
+        } else {
+          console.log(`Nessun utente trovato con user_id ${utenteId}`);
+        }
+      } 
+      // Se l'ID è un'email, cerchiamo l'utente corrispondente
+      else if (utenteId.includes('@')) {
+        console.log(`Cerco utente con email: ${utenteId}`);
+        
+        // Cerca direttamente nella tabella utenti con l'email
+        const { data: userByEmail, error: emailError } = await client
+          .from('utenti')
           .select('id')
           .eq('email', utenteId)
           .single();
           
-        if (userError || !userData) {
-          console.error(`Errore nel recuperare l'ID dalla tabella users per l'email ${utenteId}:`, userError);
-          // Controlla se abbiamo dati in memoria prima di restituire un oggetto vuoto
-          if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
-            return SupabaseService.tempOpinions[utenteId];
-          }
-          
-          return {
-            energia_nucleare: '',
-            sperimentazione_animale: '',
-            legalizzazione_canapa: '',
-            caccia: '',
-            unione_europea: ''
-          };
-        }
-        
-        // Cerca il record nella tabella utenti con questo user_id
-        const { data: utentiData, error: utentiError } = await client
-          .from('utenti')
-          .select('id')
-          .eq('user_id', userData.id)
-          .single();
-          
-        if (utentiError || !utentiData) {
-          console.error(`Errore nel recuperare l'ID dalla tabella utenti per l'user_id ${userData.id}:`, utentiError);
-          return {
-            energia_nucleare: '',
-            sperimentazione_animale: '',
-            legalizzazione_canapa: '',
-            caccia: '',
-            unione_europea: ''
-          };
-        }
-        
-        utentiIdToUse = utentiData.id;
-        console.log(`ID utente trovato nella tabella utenti: ${utentiIdToUse}`);
-      } 
-      // Se l'ID è numerico, verifica se è direttamente un ID della tabella utenti o un user_id
-      else if (!isNaN(Number(utenteId))) {
-        const numericId = Number(utenteId);
-        
-        // Controlla prima se è un ID diretto in tabella utenti
-        const { data: directCheck, error: directError } = await client
-          .from('utenti')
-          .select('id')
-          .eq('id', numericId)
-          .single();
-          
-        if (!directError && directCheck) {
-          utentiIdToUse = numericId;
-          console.log(`ID ${numericId} trovato direttamente nella tabella utenti`);
+        if (!emailError && userByEmail) {
+          targetUUID = userByEmail.id;
+          userFound = true;
+          console.log(`Trovato UUID utente: ${targetUUID} per email: ${utenteId}`);
         } else {
-          // Controlla se è un user_id
-          const { data: utentiCheck, error: utentiError } = await client
-            .from('utenti')
-            .select('id')
-            .eq('user_id', numericId)
-            .single();
-            
-          if (!utentiError && utentiCheck) {
-            utentiIdToUse = utentiCheck.id;
-            console.log(`Trovato utenti.id=${utentiIdToUse} corrispondente a user_id=${numericId}`);
-          } else {
-            console.log(`Non è stato trovato un record in utenti per l'ID ${numericId}, lo useremo direttamente`);
-            utentiIdToUse = numericId;
-          }
+          console.log(`Nessun utente trovato con email ${utenteId}:`, emailError);
         }
       }
+      // Se l'ID non è né numerico né un'email, assumiamo che sia già un UUID
       
-      // Ora recupera le opinioni dalla tabella utenti
-      console.log(`Recuperando opinioni dalla tabella utenti con ID = ${utentiIdToUse}`);
+      // Se non abbiamo trovato un utente valido, restituisci un oggetto vuoto
+      if (!userFound && !utenteId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+        console.log(`ID fornito ${utenteId} non è un UUID valido e non è stato possibile trovare l'utente corrispondente`);
+        return {
+          energia_nucleare: '',
+          sperimentazione_animale: '',
+          legalizzazione_canapa: '',
+          caccia: '',
+          unione_europea: ''
+        };
+      }
+      
+      // Ora recupera le opinioni dalla tabella utenti usando l'UUID
+      console.log(`Recuperando opinioni dalla tabella utenti con UUID = ${targetUUID}`);
       
       const { data, error } = await client
         .from('utenti')
         .select('energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea')
-        .eq('id', utentiIdToUse)
+        .eq('id', targetUUID)
         .single();
       
       if (error) {
         console.error('Error getting user opinions from Supabase:', error);
         
-        // Se l'errore è dovuto a RLS o record non trovato, restituiamo un oggetto vuoto
-        if (error.code === 'PGRST116' || error.code === '42501') {
-          // Se stiamo già usando il client admin e c'è un errore, non ci sono davvero opinioni
-          if (usingAdminClient) {
-            console.log('Nessuna opinione trovata per l\'utente (verificato con client admin)');
-          } else {
-            console.log('Errore di accesso con client standard, possibile problema di RLS');
-          }
-          
-          // Controlla se abbiamo dati in memoria prima di restituire un oggetto vuoto
-          if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
-            return SupabaseService.tempOpinions[utenteId];
-          }
-          
-          return {
-            energia_nucleare: '',
-            sperimentazione_animale: '',
-            legalizzazione_canapa: '',
-            caccia: '',
-            unione_europea: ''
-          };
+        // Verifica il tipo di errore
+        if (error.message && error.message.includes('invalid input syntax for type uuid')) {
+          console.error('Errore di formato UUID. L\'ID utente deve essere un UUID valido.');
         }
         
-        return null;
+        // In caso di errore, restituisci un oggetto vuoto per le opinioni
+        return {
+          energia_nucleare: '',
+          sperimentazione_animale: '',
+          legalizzazione_canapa: '',
+          caccia: '',
+          unione_europea: ''
+        };
       }
       
       if (!data) {
@@ -516,7 +470,14 @@ class SupabaseService {
         return SupabaseService.tempOpinions[utenteId];
       }
       
-      return null;
+      // Altrimenti restituisci un oggetto vuoto
+      return {
+        energia_nucleare: '',
+        sperimentazione_animale: '',
+        legalizzazione_canapa: '',
+        caccia: '',
+        unione_europea: ''
+      };
     }
   }
 
@@ -553,9 +514,11 @@ class SupabaseService {
       
       console.log(`Recuperando tutti gli utenti con opinioni con client Supabase ${usingAdminClient ? 'ADMIN (bypassa RLS)' : 'standard (soggetto a RLS)'}`);
       
+      // Recupera direttamente dalla tabella utenti includendo i campi delle opinioni
       const { data, error } = await client
         .from('utenti')
-        .select('id, nome, cognome, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea');
+        .select('id, nome, cognome, email, ruolo, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea')
+        .order('nome');
       
       if (error || !data) {
         console.error('Error getting all users with opinions from Supabase:', error);
@@ -571,9 +534,15 @@ class SupabaseService {
         return [];
       }
       
+      // Filtra i dati per includere solo utenti con almeno un'opinione
+      const usersWithOpinions = data.filter(user => {
+        return user.energia_nucleare || user.sperimentazione_animale || 
+               user.legalizzazione_canapa || user.caccia || user.unione_europea;
+      });
+      
       // Combina i dati dal database con quelli in memoria
       // Questo è importante per visualizzare sia i dati permanenti che quelli temporanei
-      const dbData = data || [];
+      const dbData = usersWithOpinions || [];
       const memoryData = Object.values(SupabaseService.tempOpinions || {});
       
       // Filtra i dati in memoria per mostrare solo quelli con opinioni
