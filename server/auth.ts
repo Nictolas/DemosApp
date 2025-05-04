@@ -139,52 +139,16 @@ export function setupAuth(app: Express) {
           console.log("=== INIZIO REGISTRAZIONE SU SUPABASE AUTH ===");
           console.log("Dati utente per registrazione:", { email, ...userDetails });
           
-          // Prima registriamo l'utente su Supabase Auth
-          const supabaseAuthResult = await SupabaseService.registerUserOnSupabaseAuth(email, password);
+          // UNIFICAZIONE DEL FLUSSO: Passiamo i dettagli utente direttamente alla registrazione
+          // Il metodo registerUserOnSupabaseAuth salverà i dati utente con saveUserOpinions
+          const supabaseAuthResult = await SupabaseService.registerUserOnSupabaseAuth(email, password, userDetails);
           
           console.log("Risultato registrazione su Supabase Auth:", JSON.stringify(supabaseAuthResult, null, 2));
           
           if (supabaseAuthResult.success && supabaseAuthResult.user) {
             console.log("=== UTENTE REGISTRATO CON SUCCESSO SU SUPABASE AUTH ===");
-            console.log("UUID utente:", supabaseAuthResult.user.id);
-            
-            console.log("=== TENTATIVO SALVATAGGIO DATI UTENTE SU TABELLA UTENTI SUPABASE ===");
-            
-            // UNIFICAZIONE DEL FLUSSO: Utilizziamo saveUserData invece di saveUserOpinions
-            // come specificato nelle istruzioni per risolvere il problema
-            
-            // Creiamo un payload completo con tutti i dati dell'utente
-            const userDataPayload = {
-              // ID dall'autenticazione Supabase
-              id: supabaseAuthResult.user.id,
-              
-              // Inizializziamo i campi delle opinioni come vuoti
-              energia_nucleare: "",
-              sperimentazione_animale: "",
-              legalizzazione_canapa: "",
-              caccia: "",
-              unione_europea: "",
-              
-              // Aggiungiamo tutti i campi del profilo
-              ...userDetails,
-              email: email
-            };
-            
-            console.log("Dati utente da salvare con saveUserData:", JSON.stringify(userDataPayload, null, 2));
-            console.log("Chiamata a saveUserData invocata con await");
-            
-            // Chiamiamo saveUserData direttamente con l'intero payload
-            const saveResult = await SupabaseService.saveUserData(userDataPayload);
-            
-            console.log("Risultato salvataggio dati utente:", JSON.stringify(saveResult, null, 2));
-            
-            if (!saveResult.success) {
-              console.error("=== ERRORE SALVATAGGIO DATI UTENTE SU SUPABASE ===");
-              console.error("Dettagli errore:", saveResult.error);
-            } else {
-              console.log("=== DATI UTENTE SALVATI CON SUCCESSO SU SUPABASE ===");
-              console.log("Dati salvati:", JSON.stringify(saveResult.data, null, 2));
-            }
+            // I log del salvataggio dati sono già gestiti nel metodo registerUserOnSupabaseAuth
+            // Non facciamo niente qui, il salvataggio è già stato eseguito
           } else {
             console.error("Errore registrando l'utente su Supabase Auth:", supabaseAuthResult.error);
             
