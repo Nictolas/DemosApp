@@ -110,7 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API per aggiornare il profilo utente
+  // API per aggiornare il profilo utente - UTILIZZA ESCLUSIVAMENTE SUPABASE
   app.put('/api/users/:email', requireAuth, async (req, res) => {
     try {
       const { email } = req.params;
@@ -122,13 +122,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`User ID richiedente: ${req.user?.id}`);
       console.log(`Email richiedente: ${req.user?.email}`);
+      console.log(`UUID richiedente: ${req.user?.uuid || 'non disponibile'}`);
       console.log("Dati di aggiornamento ricevuti:", userData);
       
       // Verifica se l'utente è admin o sta modificando il proprio profilo
       const isOwnProfile = req.user?.email === email;
       let isAdmin = false;
       
-      // Verifica se l'utente è admin (controllo in Supabase)
+      // Verifica se l'utente è admin (controllo SOLO in Supabase)
       try {
         if (req.user?.email) {
           const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
@@ -139,15 +140,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } catch (error) {
         console.error("Errore nel controllo Supabase:", error);
-      }
-      
-      // Verifica anche nel database locale
-      if (req.user?.id) {
-        const userDetails = await storage.getUserProfile(req.user.id);
-        if (!isAdmin && userDetails && userDetails.ruolo === 'Admin') {
-          isAdmin = true;
-          console.log("L'utente è un admin secondo il database locale");
-        }
       }
       
       // Se non è il proprio profilo e non è admin, blocca l'operazione
@@ -173,47 +165,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Se è il proprio profilo, aggiorna anche il database locale
-      if (isOwnProfile && req.user?.id) {
-        try {
-          // Cerca l'utente nel DB locale
-          const localUser = await storage.getUserByEmail(email);
-          
-          if (localUser) {
-            // Aggiorna anche in PostgreSQL
-            await db.update(utenti)
-              .set({
-                nome: userData.nome,
-                cognome: userData.cognome,
-                data_nascita: userData.data_nascita,
-                genere: userData.genere,
-                cittadinanza: userData.cittadinanza,
-                paese_residenza: userData.paese_residenza,
-                regione_residenza: userData.regione_residenza,
-                provincia_residenza: userData.provincia_residenza,
-                comune_residenza: userData.comune_residenza,
-                paese_elezione: userData.paese_elezione || '',
-                regione_elezione: userData.regione_elezione || '',
-                provincia_elezione: userData.provincia_elezione || '',
-                comune_elezione: userData.comune_elezione || '',
-                paese_candidatura: userData.paese_candidatura || '',
-                regione_candidatura: userData.regione_candidatura || '',
-                provincia_candidatura: userData.provincia_candidatura || '',
-                comune_candidatura: userData.comune_candidatura || '',
-                ruolo: userData.ruolo,
-                grado_elezione: userData.grado_elezione || '',
-                grado_candidatura: userData.grado_candidatura || ''
-              })
-              .where(eq(utenti.user_id, localUser.id));
-              
-            console.log("Profilo aggiornato anche nel database locale");
-          } else {
-            console.log("Utente non trovato nel database locale, aggiornato solo su Supabase");
-          }
-        } catch (dbError) {
-          console.error("Errore nell'aggiornamento del database locale:", dbError);
-          // Continuiamo comunque perché Supabase è il database principale
-        }
+      // Aggiorniamo la sessione se l'utente sta modificando il proprio profilo
+      if (isOwnProfile && req.user) {
+        // Aggiorna il profilo memorizzato nella sessione
+        req.user.profile = data;
+        
+        // Si noti che il profilo completo è ora nella richiesta dell'utente e sarà 
+        // disponibile in tutte le chiamate API future
+        console.log("Profilo nella sessione aggiornato");
       }
       
       return res.status(200).json({ 
@@ -226,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API per eliminare un utente (solo per Admin)
+  // API per eliminare un utente (solo per Admin) - UTILIZZA ESCLUSIVAMENTE SUPABASE
   app.delete('/api/users/:email', requireAuth, async (req, res) => {
     try {
       const { email } = req.params;
@@ -240,22 +199,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      // Verifica se l'utente che fa la richiesta è un Admin
-      // Problema: storage.getUserById cerca l'utente nella tabella utenti per id, 
-      // ma cerchiamo per l'id dell'utente, non per user_id
-      
       console.log("User ID richiedente:", req.user.id);
       console.log("Email richiedente:", req.user.email);
+      console.log("UUID richiedente:", req.user.uuid || "non disponibile");
       
-      // Prima cerchiamo nella tabella utenti per user_id
-      const userDetails = await storage.getUserProfile(req.user.id);
-      console.log("Dettagli utente da user_id:", userDetails);
-      
-      // Poi cerchiamo l'utente in Supabase tramite l'email
+      // Verifica se l'utente che fa la richiesta è admin (controllo SOLO in Supabase)
       let isAdmin = false;
       
+      // Verifica in Supabase usando il nostro servizio
       try {
-        // Verifica in Supabase usando il nostro servizio
         const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
         console.log("Dati da Supabase:", supabaseUser);
         
@@ -267,36 +219,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Errore nel controllo Supabase:", error);
       }
       
-      // Poi cerchiamo in utenti locali
-      if (!isAdmin && userDetails && userDetails.ruolo === 'Admin') {
-        isAdmin = true;
-        console.log("L'utente è un admin secondo il database locale");
-      }
-      
       if (!isAdmin) {
         return res.status(403).json({ error: 'Solo gli amministratori possono eliminare utenti' });
       }
 
-      // Verifica se l'utente esiste
-      const userToDelete = await storage.getUserByEmail(email);
+      // Verifica se l'utente esiste in Supabase
+      const userToDelete = await SupabaseService.getUserByEmail(email);
       if (!userToDelete) {
-        return res.status(404).json({ error: 'Utente non trovato' });
+        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
       }
 
-      console.log(`Deleting user with email ${email} from PostgreSQL`);
-      
-      // Elimina i dettagli dell'utente nel database locale
-      await db.delete(utenti).where(eq(utenti.user_id, userToDelete.id));
-      
-      // Elimina l'utente nel database locale
-      await db.delete(users).where(eq(users.id, userToDelete.id));
+      console.log(`Richiesta eliminazione utente con email ${email} da Supabase`);
       
       // Elimina l'utente in Supabase
       const { success, error } = await SupabaseService.deleteUserByEmail(email);
       
       if (!success) {
         console.error("Errore durante l'eliminazione dell'utente da Supabase:", error);
-        // Continuiamo comunque, è stato eliminato dal database locale
+        return res.status(500).json({ 
+          error: "Errore durante l'eliminazione dell'utente", 
+          details: error 
+        });
       }
       
       return res.status(200).json({ message: 'Utente eliminato con successo' });
@@ -457,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API per aggiornare le opinioni di un utente specifico (solo per Admin)
+  // API per aggiornare le opinioni di un utente specifico (solo per Admin) - UTILIZZA ESCLUSIVAMENTE SUPABASE
   app.put('/api/opinioni/:utente_id', requireAuth, async (req, res) => {
     try {
       const { utente_id } = req.params;
@@ -467,21 +410,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      // Verifica se l'utente che fa la richiesta è un admin
+      // Verifica se l'utente che fa la richiesta è un admin - SOLO VIA SUPABASE
       let isAdmin = false;
       
-      // Verifica in Supabase
+      // Verifica in Supabase usando l'email dell'utente
       const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
       if (supabaseUser && supabaseUser.ruolo === 'Admin') {
         isAdmin = true;
-      }
-      
-      // Verifica nel database locale
-      if (!isAdmin) {
-        const userDetails = await storage.getUserProfile(req.user.id);
-        if (userDetails && userDetails.ruolo === 'Admin') {
-          isAdmin = true;
-        }
       }
       
       // Se non è admin, blocca l'operazione
