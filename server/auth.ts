@@ -68,7 +68,7 @@ export function setupAuth(app: Express) {
         
         if (!supabase) {
           console.error("Client Supabase non configurato per login");
-          return done(null, false);
+          return done(null, false, { message: "Servizio di autenticazione non disponibile" });
         }
         
         // Prima proviamo l'autenticazione con Supabase Auth
@@ -79,7 +79,7 @@ export function setupAuth(app: Express) {
         
         if (error || !data.user) {
           console.error("Errore login con Supabase Auth:", error);
-          return done(null, false);
+          return done(null, false, { message: "Email o password non validi" });
         }
         
         console.log("Login con Supabase Auth riuscito per:", email);
@@ -88,16 +88,34 @@ export function setupAuth(app: Express) {
         // Recupera i dati dell'utente dalla tabella utenti
         const userProfile = await SupabaseService.getUserByEmail(email);
         
+        if (!userProfile) {
+          console.log("Utente autenticato ma profilo non trovato in Supabase, creando profilo di base");
+          
+          // Crea un profilo di base per l'utente nella tabella utenti
+          const basicProfile = {
+            id: data.user.id,
+            email: email,
+            nome: "",
+            cognome: "",
+            ruolo: "Elettore"
+          };
+          
+          await SupabaseService.saveUserData(basicProfile);
+        }
+        
+        // Recupera di nuovo il profilo per assicurarsi di avere i dati aggiornati
+        const updatedProfile = userProfile || await SupabaseService.getUserByEmail(email);
+        
         // Salva l'UUID di Supabase Auth nell'oggetto utente per la sessione
         return done(null, { 
           id: data.user.id, 
           email: email,
           uuid: data.user.id, // Importante: memorizziamo l'UUID per usarlo in seguito
-          profile: userProfile // Memorizziamo anche i dati del profilo
+          profile: updatedProfile // Memorizziamo anche i dati del profilo
         });
       } catch (error) {
         console.error("Eccezione durante il login:", error);
-        return done(error);
+        return done(error, false, { message: "Errore durante l'autenticazione" });
       }
     }),
   );
