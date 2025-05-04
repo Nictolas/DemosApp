@@ -115,16 +115,20 @@ export function setupAuth(app: Express) {
       const newUser = result[0];
       console.log("User inserted:", JSON.stringify(newUser, null, 2));
       
-      // Insert user details in local utenti table
+      // Insert user details in local utenti table - WITHOUT opinion fields
       try {
         console.log("Inserting user details with user_id:", newUser.id);
+        
+        // Filter out any opinion fields from userDetails to avoid SQL errors
+        const { energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, ...cleanUserDetails } = userDetails;
+        
         console.log("User details to insert:", JSON.stringify({
-          ...userDetails,
+          ...cleanUserDetails,
           user_id: newUser.id
         }, null, 2));
         
         await db.insert(utenti).values({
-          ...userDetails,
+          ...cleanUserDetails,
           user_id: newUser.id // Associate with user account
         });
         
