@@ -51,6 +51,115 @@ class SupabaseService {
   static tempOpinions: Record<string, UserOpinions> = {};
 
   /**
+   * Salva i dati di un nuovo utente in Supabase nella tabella utenti
+   * Usato principalmente durante la registrazione di un nuovo utente
+   * @param userData Dati dell'utente da salvare (inclusa l'email)
+   */
+  static async saveUserData(userData: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      console.log(`Salvando nuovo utente in Supabase:`, userData);
+      
+      if (!supabase && !supabaseAdmin) {
+        console.log('Supabase non configurato, impossibile salvare dati utente');
+        return { 
+          success: false, 
+          error: "Supabase non è configurato"
+        };
+      }
+
+      const client = supabaseAdmin || supabase;
+      
+      // Prima controlla se esiste già un utente con questa email
+      console.log(`Verificando se esiste già un utente con email: ${userData.email}`);
+      const { data: existingUser, error: searchError } = await client
+        .from('utenti')
+        .select('id, email')
+        .eq('email', userData.email)
+        .maybeSingle();
+      
+      if (existingUser) {
+        console.log(`Utente con email ${userData.email} già esistente, aggiornamento dati`);
+        
+        // Aggiorna i dati dell'utente esistente
+        const { data: updatedData, error: updateError } = await client
+          .from('utenti')
+          .update(userData)
+          .eq('id', existingUser.id)
+          .select();
+          
+        if (updateError) {
+          console.error('Errore durante l\'aggiornamento dell\'utente esistente:', updateError);
+          return { 
+            success: false, 
+            error: updateError.message
+          };
+        }
+        
+        console.log('Utente esistente aggiornato con successo:', updatedData);
+        return { 
+          success: true, 
+          data: updatedData
+        };
+      }
+      
+      // Se l'utente non esiste, crealo
+      console.log(`Creazione nuovo utente con email: ${userData.email}`);
+      
+      // Cerchiamo di ottenere l'UUID dell'utente da auth.users se disponibile
+      let authUserId = null;
+      
+      try {
+        if (supabaseAdmin) {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserByEmail(userData.email);
+          if (authUser && authUser.user) {
+            authUserId = authUser.user.id;
+            console.log(`Trovato UUID dell'utente in auth.users: ${authUserId}`);
+          }
+        }
+      } catch (authError) {
+        console.log('Impossibile recuperare UUID da auth.users:', authError);
+      }
+      
+      // Prepara i dati da inserire
+      const dataToInsert = {
+        ...userData,
+        // Se abbiamo l'UUID da auth.users, usalo come id
+        ...(authUserId && { id: authUserId })
+      };
+      
+      // Inserisci il nuovo utente
+      const { data: insertedData, error: insertError } = await client
+        .from('utenti')
+        .insert(dataToInsert)
+        .select();
+      
+      if (insertError) {
+        console.error('Errore durante la creazione del nuovo utente in Supabase:', insertError);
+        return { 
+          success: false, 
+          error: insertError.message
+        };
+      }
+      
+      console.log('Nuovo utente creato con successo in Supabase:', insertedData);
+      return { 
+        success: true, 
+        data: insertedData
+      };
+    } catch (error: any) {
+      console.error('Exception creating user in Supabase:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Unknown error'
+      };
+    }
+  }
+
+  /**
    * Recupera un utente dal database tramite email
    */
   static async getUserByEmail(email: string) {
