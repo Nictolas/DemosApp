@@ -3,7 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { useRegistration } from "@/hooks/use-registration";
+import { Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -303,10 +304,39 @@ export default function AuthPage() {
     loginMutation.mutate(data);
   };
 
+  const { setFormData } = useRegistration();
+  const [, navigate] = useLocation();
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
+
   const onRegisterSubmit = (data: RegisterFormValues) => {
     const { confirmPassword, ...userData } = data;
-    registerMutation.mutate(userData);
+    
+    // Se il ruolo è Elettore o Admin, procedi con la registrazione normale
+    if (userData.ruolo === "Elettore" || userData.ruolo === "Admin") {
+      registerMutation.mutate(userData);
+    } 
+    // Per gli altri ruoli, salva i dati e reindirizza alla pagina appropriata per i dati aggiuntivi
+    else {
+      // Salva i dati del primo step nel contesto di registrazione
+      setFormData(userData);
+      
+      // Reindirizza in base al ruolo
+      if (userData.ruolo === "Candidato") {
+        setRedirectPath("/registrazione-candidatura");
+      } else if (userData.ruolo === "Politico") {
+        setRedirectPath("/registrazione-elezione");
+      } else if (userData.ruolo === "Candidato Politico") {
+        setRedirectPath("/registrazione-elezione-candidatura");
+      }
+    }
   };
+
+  // Gestisci i redirect
+  useEffect(() => {
+    if (redirectPath) {
+      navigate(redirectPath);
+    }
+  }, [redirectPath, navigate]);
 
   // Redirect to menu page if already logged in
   if (user) {
