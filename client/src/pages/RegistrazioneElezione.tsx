@@ -4,12 +4,32 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { useRegistration } from "@/hooks/use-registration";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
 import { useToast } from "@/hooks/use-toast";
@@ -29,16 +49,12 @@ export default function RegistrazioneElezione() {
   const { toast } = useToast();
   const { registerMutation } = useAuth();
   const { formData, clearFormData } = useRegistration();
-  const [registrationSubmitted, setRegistrationSubmitted] = useState(false);
-  const [shouldRedirectToAuth, setShouldRedirectToAuth] = useState(false);
-  const [shouldRedirectToMenu, setShouldRedirectToMenu] = useState(false);
+  const [, navigate] = useLocation();
 
-  // Stati per le opzioni dinamiche delle località
   const [regioniElezione, setRegioniElezione] = useState<string[]>([]);
   const [provinceElezione, setProvinceElezione] = useState<string[]>([]);
   const [comuniElezione, setComuniElezione] = useState<string[]>([]);
 
-  // Inizializzazione del form
   const form = useForm<ElezioneFormValues>({
     resolver: zodResolver(elezioneSchema),
     defaultValues: {
@@ -49,34 +65,22 @@ export default function RegistrazioneElezione() {
       comune_elezione: "",
     },
   });
-  
-  // Verifico se devo fare redirect
+
+  const { watch } = form;
+
+  const paeseElezione = watch("paese_elezione");
+  const regioneElezione = watch("regione_elezione");
+  const provinciaElezione = watch("provincia_elezione");
+
   useEffect(() => {
     if (!formData) {
-      setShouldRedirectToAuth(true);
+      navigate("/auth");
     }
-  }, [formData]);
-  
-  useEffect(() => {
-    if (registrationSubmitted && !registerMutation.isPending) {
-      setShouldRedirectToMenu(true);
-    }
-  }, [registrationSubmitted, registerMutation.isPending]);
-  
-  // Redirect se necessario
-  if (shouldRedirectToAuth) {
-    return <Redirect to="/auth" />;
-  }
-  
-  if (shouldRedirectToMenu) {
-    return <Redirect to="/menu" />;
-  }
+  }, [formData, navigate]);
 
-  // Gestione selezioni a cascata per la elezione
   useEffect(() => {
-    const paeseElezione = form.watch("paese_elezione");
     if (paeseElezione === "Italia") {
-      const regioni = ITALY_DATA.Italia.regioni.map(regione => regione.nome);
+      const regioni = ITALY_DATA.Italia.regioni.map((regione) => regione.nome);
       setRegioniElezione(regioni);
     } else {
       setRegioniElezione([]);
@@ -86,19 +90,18 @@ export default function RegistrazioneElezione() {
     setComuniElezione([]);
     form.setValue("provincia_elezione", "");
     form.setValue("comune_elezione", "");
-  }, [form.watch("paese_elezione")]);
-  
+  }, [paeseElezione]);
+
   useEffect(() => {
-    const paeseElezione = form.watch("paese_elezione");
-    const regioneElezione = form.watch("regione_elezione");
-    
     if (paeseElezione === "Italia" && regioneElezione) {
       const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneElezione
+        (r) => r.nome === regioneElezione
       );
-      
+
       if (selectedRegion) {
-        const province = selectedRegion.province.map(provincia => provincia.nome);
+        const province = selectedRegion.province.map(
+          (provincia) => provincia.nome
+        );
         setProvinceElezione(province);
       }
     } else {
@@ -107,23 +110,19 @@ export default function RegistrazioneElezione() {
     setComuniElezione([]);
     form.setValue("provincia_elezione", "");
     form.setValue("comune_elezione", "");
-  }, [form.watch("regione_elezione")]);
-  
+  }, [regioneElezione, paeseElezione]);
+
   useEffect(() => {
-    const paeseElezione = form.watch("paese_elezione");
-    const regioneElezione = form.watch("regione_elezione");
-    const provinciaElezione = form.watch("provincia_elezione");
-    
     if (paeseElezione === "Italia" && regioneElezione && provinciaElezione) {
       const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneElezione
+        (r) => r.nome === regioneElezione
       );
-      
+
       if (selectedRegion) {
         const selectedProvince = selectedRegion.province.find(
-          p => p.nome === provinciaElezione
+          (p) => p.nome === provinciaElezione
         );
-        
+
         if (selectedProvince) {
           setComuniElezione(selectedProvince.comuni);
         }
@@ -132,19 +131,17 @@ export default function RegistrazioneElezione() {
       setComuniElezione([]);
     }
     form.setValue("comune_elezione", "");
-  }, [form.watch("provincia_elezione")]);
+  }, [provinciaElezione, regioneElezione, paeseElezione]);
 
   const onSubmit = (values: ElezioneFormValues) => {
-    // Combina i dati del form precedente con quelli di questo form
     const completeData = {
       ...formData,
-      ...values
+      ...values,
     };
-    
-    // Registra l'utente con i dati completi
+
     registerMutation.mutate(completeData as any);
     setRegistrationSubmitted(true);
-    clearFormData(); // Pulisci i dati temporanei dopo l'invio
+    clearFormData();
   };
 
   return (
