@@ -51,6 +51,64 @@ class SupabaseService {
   static tempOpinions: Record<string, UserOpinions> = {};
 
   /**
+   * Registra un nuovo utente in Supabase Auth
+   * Usato per creare l'autenticazione ufficiale su Supabase
+   * @param email Email dell'utente
+   * @param password Password dell'utente 
+   */
+  static async registerUserOnSupabaseAuth(email: string, password: string): Promise<{
+    success: boolean;
+    user?: any;
+    error?: string;
+  }> {
+    try {
+      console.log(`Tentativo di registrazione utente su Supabase Auth con email: ${email}`);
+      
+      if (!supabase) {
+        console.log('Client Supabase non configurato, impossibile registrare utente');
+        return { 
+          success: false, 
+          error: "Client Supabase non configurato" 
+        };
+      }
+
+      // Registra l'utente in Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('Errore durante la registrazione su Supabase Auth:', error);
+        return { 
+          success: false, 
+          error: error.message 
+        };
+      }
+      
+      if (!data.user) {
+        console.error('Nessun utente restituito dopo la registrazione su Supabase Auth');
+        return { 
+          success: false, 
+          error: "Nessun utente restituito dalla registrazione" 
+        };
+      }
+      
+      console.log('Utente registrato con successo su Supabase Auth:', data.user.id);
+      return { 
+        success: true, 
+        user: data.user 
+      };
+    } catch (error: any) {
+      console.error('Eccezione durante la registrazione su Supabase Auth:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Errore sconosciuto' 
+      };
+    }
+  }
+
+  /**
    * Salva i dati di un nuovo utente in Supabase nella tabella utenti
    * Usato principalmente durante la registrazione di un nuovo utente
    * @param userData Dati dell'utente da salvare (inclusa l'email)
