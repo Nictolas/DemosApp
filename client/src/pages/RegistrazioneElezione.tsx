@@ -139,9 +139,12 @@ export default function RegistrazioneElezione() {
       ...values,
     };
 
-    registerMutation.mutate(completeData as any);
-    setRegistrationSubmitted(true);
-    clearFormData();
+    registerMutation.mutate(completeData as any, {
+      onSuccess: () => {
+        clearFormData(); // Pulisci i dati temporanei dopo l'invio
+        navigate("/menu"); // Reindirizza direttamente al menu dopo la registrazione
+      }
+    });
   };
 
   return (
