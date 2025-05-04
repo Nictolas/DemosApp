@@ -65,11 +65,13 @@
 
 /* Stili per le transizioni di pagina */
 .page-transition {
-  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  transition: opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(15px);
   min-height: 100vh;
   width: 100%;
+  position: relative;
+  will-change: transform, opacity;
 }
 
 .page-visible {
@@ -79,5 +81,29 @@
 
 .page-hidden {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(15px);
+}
+
+/* Fade in dal basso all'alto */
+.fade-up-transition {
+  transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.fade-up-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fade in orizzontale */
+.fade-side-transition {
+  transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.fade-side-visible {
+  opacity: 1;
+  transform: translateX(0);
 }

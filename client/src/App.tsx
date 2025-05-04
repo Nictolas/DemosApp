@@ -21,26 +21,56 @@ function Router() {
     <Switch>
       <Route path="/">
         {() => (
-          <PageTransition location={location}>
+          <PageTransition location={location} type="fade-up" delay={100}>
             <LandingPage />
           </PageTransition>
         )}
       </Route>
       <Route path="/auth">
         {() => (
-          <PageTransition location={location}>
+          <PageTransition location={location} type="fade-up">
             <AuthPage />
           </PageTransition>
         )}
       </Route>
-      <ProtectedRoute path="/registrazione" component={Home} />
-      <ProtectedRoute path="/menu" component={Menu} />
-      <ProtectedRoute path="/profilo" component={Profilo} />
-      <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
-      <ProtectedRoute path="/opinioni" component={Opinioni} />
+      <Route path="/registrazione">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/registrazione" component={Home} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/menu">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/menu" component={Menu} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/profilo">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/profilo" component={Profilo} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/gestisci-utenti">
+        {(params) => (
+          <PageTransition location={location}>
+            <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/opinioni" component={Opinioni} />
+          </PageTransition>
+        )}
+      </Route>
       <Route path="/:rest*">
         {() => (
-          <PageTransition location={location}>
+          <PageTransition location={location} type="fade-up">
             <NotFound />
           </PageTransition>
         )}
