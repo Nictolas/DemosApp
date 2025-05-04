@@ -148,13 +148,16 @@ export function setupAuth(app: Express) {
             console.log("=== UTENTE REGISTRATO CON SUCCESSO SU SUPABASE AUTH ===");
             console.log("UUID utente:", supabaseAuthResult.user.id);
             
-            // NUOVO APPROCCIO: Utilizziamo direttamente saveUserOpinions
-            // Questo metodo è già testato e funziona correttamente per salvare dati nella tabella utenti di Supabase
-            
             console.log("=== TENTATIVO SALVATAGGIO DATI UTENTE SU TABELLA UTENTI SUPABASE ===");
             
-            // Creiamo un payload compatibile con la funzione già esistente
+            // UNIFICAZIONE DEL FLUSSO: Utilizziamo saveUserData invece di saveUserOpinions
+            // come specificato nelle istruzioni per risolvere il problema
+            
+            // Creiamo un payload completo con tutti i dati dell'utente
             const userDataPayload = {
+              // ID dall'autenticazione Supabase
+              id: supabaseAuthResult.user.id,
+              
               // Inizializziamo i campi delle opinioni come vuoti
               energia_nucleare: "",
               sperimentazione_animale: "",
@@ -167,13 +170,11 @@ export function setupAuth(app: Express) {
               email: email
             };
             
-            console.log("Dati utente da salvare:", JSON.stringify(userDataPayload, null, 2));
+            console.log("Dati utente da salvare con saveUserData:", JSON.stringify(userDataPayload, null, 2));
+            console.log("Chiamata a saveUserData invocata con await");
             
-            // Utilizziamo l'UUID dell'utente Supabase Auth come identificatore
-            const saveResult = await SupabaseService.saveUserOpinions(
-              supabaseAuthResult.user.id, 
-              userDataPayload
-            );
+            // Chiamiamo saveUserData direttamente con l'intero payload
+            const saveResult = await SupabaseService.saveUserData(userDataPayload);
             
             console.log("Risultato salvataggio dati utente:", JSON.stringify(saveResult, null, 2));
             
@@ -191,7 +192,7 @@ export function setupAuth(app: Express) {
             // usando un ID generato o un identificatore alternativo come email
             console.log("Tentativo fallback di salvataggio dati senza UUID da Auth");
             
-            // Creiamo un payload compatibile con saveUserOpinions
+            // Creiamo un payload per saveUserData (stesso metodo usato nel caso di successo)
             const userDataPayload = {
               energia_nucleare: "",
               sperimentazione_animale: "",
@@ -202,8 +203,10 @@ export function setupAuth(app: Express) {
               email: email
             };
             
-            // Usando l'email come identificatore (saveUserOpinions gestirà la ricerca dell'utente per email)
-            const saveResult = await SupabaseService.saveUserOpinions(email, userDataPayload);
+            console.log("Chiamata a saveUserData (fallback) invocata con await");
+            
+            // Usiamo saveUserData anche per il fallback
+            const saveResult = await SupabaseService.saveUserData(userDataPayload);
             
             if (!saveResult.success) {
               console.error("Errore salvando i dati utente su Supabase (fallback):", saveResult.error);
@@ -214,10 +217,10 @@ export function setupAuth(app: Express) {
         } catch (supabaseError) {
           console.error("Eccezione durante la registrazione su Supabase:", supabaseError);
           
-          // Fallback di emergenza: salva almeno i dati in memoria temporanea
-          console.log("FALLBACK EMERGENZA: Tentativo di salvataggio dati usando memoria temporanea");
+          // Tentativo ultimo di salvataggio dati usando saveUserData
+          console.log("TENTATIVO FINALE DI EMERGENZA usando saveUserData");
           
-          // Creiamo un payload compatibile
+          // Creiamo un payload per saveUserData
           const userDataPayload = {
             energia_nucleare: "",
             sperimentazione_animale: "",
@@ -228,11 +231,26 @@ export function setupAuth(app: Express) {
             email: email
           };
           
-          // Salvare solo in memoria temporanea
-          SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
-          SupabaseService.tempOpinions[email] = userDataPayload;
-          
-          console.log("Dati utente salvati temporaneamente in memoria per:", email);
+          try {
+            console.log("Chiamata a saveUserData (emergenza) invocata con await");
+            const lastAttemptResult = await SupabaseService.saveUserData(userDataPayload);
+            
+            if (!lastAttemptResult.success) {
+              // Solo in caso di fallimento completo, salvare in memoria
+              console.log("Fallimento finale, salvataggio in memoria temporanea");
+              SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+              SupabaseService.tempOpinions[email] = userDataPayload;
+              console.log("Dati utente salvati temporaneamente in memoria per:", email);
+            } else {
+              console.log("Dati utente salvati con successo nell'ultimo tentativo:", lastAttemptResult.data);
+            }
+          } catch (finalError) {
+            console.error("Fallimento completo di tutti i metodi di salvataggio:", finalError);
+            // Salvare in memoria come ultima risorsa
+            SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+            SupabaseService.tempOpinions[email] = userDataPayload;
+            console.log("Dati utente salvati solo in memoria come ultima risorsa per:", email);
+          }
         }
       } catch (detailsError) {
         console.error("Error saving user details:", detailsError);
