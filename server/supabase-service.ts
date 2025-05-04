@@ -13,7 +13,7 @@ export interface UserOpinions {
 
 // Inizializza il client Supabase con le credenziali dell'ambiente
 const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_KEY || '';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || ''; // Usiamo SUPABASE_ANON_KEY come configurato nei secrets
 const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Variabili per i client Supabase
