@@ -357,6 +357,7 @@ class SupabaseService {
       
       // Identifica il tipo di ID passato e recupera l'UUID dell'utente necessario per Supabase
       let targetUUID = utenteId;
+      let userEmail = null;
       
       // Se l'ID è numerico, potrebbe essere un ID utente dal database locale
       if (!isNaN(Number(utenteId))) {
@@ -365,13 +366,14 @@ class SupabaseService {
         // Controlla se esiste un utente con questo ID numerico come user_id
         const { data: userData, error: userError } = await client
           .from('utenti')
-          .select('id')
+          .select('id, email')
           .eq('user_id', Number(utenteId))
           .single();
         
         if (!userError && userData) {
           targetUUID = userData.id;
-          console.log(`Trovato UUID utente: ${targetUUID} per user_id: ${utenteId}`);
+          userEmail = userData.email;
+          console.log(`Trovato UUID utente: ${targetUUID} per user_id: ${utenteId}, email: ${userEmail}`);
         } else {
           console.error(`Nessun utente trovato con user_id ${utenteId}`);
           // Proviamo a capire se è già un UUID (potrebbe essere convertito a numero ma comunque valido)
@@ -379,13 +381,14 @@ class SupabaseService {
             // Tenta di cercarlo direttamente
             const { data: directCheck, error: directError } = await client
               .from('utenti')
-              .select('id')
+              .select('id, email')
               .eq('id', utenteId)
               .single();
               
             if (!directError && directCheck) {
               targetUUID = utenteId;
-              console.log(`L'ID ${utenteId} è valido e corrisponde a un utente esistente`);
+              userEmail = directCheck.email;
+              console.log(`L'ID ${utenteId} è valido e corrisponde a un utente esistente, email: ${userEmail}`);
             } else {
               console.error(`Errore: Impossibile trovare un utente con ID: ${utenteId}`);
               throw new Error(`Utente con ID ${utenteId} non trovato`);
@@ -398,6 +401,8 @@ class SupabaseService {
       } else if (utenteId.includes('@')) {
         // Se è un'email, cerchiamo l'utente corrispondente
         console.log(`Cerco utente con email: ${utenteId}`);
+        userEmail = utenteId; // L'ID stesso è un'email, usiamolo
+        
         const { data: userByEmail, error: emailError } = await client
           .from('utenti')
           .select('id')
@@ -410,6 +415,21 @@ class SupabaseService {
         } else {
           console.error(`Nessun utente trovato con email ${utenteId}:`, emailError);
           throw new Error(`Utente con email ${utenteId} non trovato`);
+        }
+      } else {
+        // Ultimo caso: è già un UUID, recuperiamo l'email
+        console.log(`Cerco i dati utente per UUID: ${utenteId}`);
+        const { data: userByUUID, error: uuidError } = await client
+          .from('utenti')
+          .select('email')
+          .eq('id', utenteId)
+          .single();
+          
+        if (!uuidError && userByUUID) {
+          userEmail = userByUUID.email;
+          console.log(`Trovata email utente: ${userEmail} per UUID: ${utenteId}`);
+        } else {
+          console.warn(`Nessuna email trovata per UUID ${utenteId}, potrebbe causare errori`);
         }
       }
       // Se non è né un numero né un'email, assumiamo che sia già un UUID
@@ -437,7 +457,8 @@ class SupabaseService {
       // Unisci tutti i dati in un unico oggetto
       const fullUserData = {
         ...profileData, // Dati del profilo
-        ...opinionFields // Opinioni
+        ...opinionFields, // Opinioni
+        email: userEmail || profileData.email || opinions.email // Assicuriamo che l'email sia presente
       };
       
       console.log(`Aggiornando dati completi nella tabella utenti con UUID: ${targetUUID}`);
