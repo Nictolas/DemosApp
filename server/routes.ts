@@ -269,9 +269,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.uuid || req.user.id; // Preferisco usare l'UUID ma fallback all'ID
       const email = req.user.email;
       
+      // Assicuriamo che l'email sia presente nei dati delle opinioni
+      // Prima verifichiamo se l'email è nel payload, altrimenti usiamo quella dell'utente
+      if (!opinionsData.email && email) {
+        opinionsData.email = email;
+        console.log(`Email aggiunta automaticamente ai dati: ${email}`);
+      }
+      
       // Logghiamo l'operazione
       console.log(`Salvando opinioni su Supabase per utente - UUID: ${userId}, Email: ${email}`);
-      console.log('Dati opinioni:', JSON.stringify(opinionsData, null, 2));
+      console.log('Dati opinioni completi:', JSON.stringify(opinionsData, null, 2));
       
       // Salviamo direttamente con l'UUID
       let result = await SupabaseService.saveUserOpinions(userId, opinionsData);
