@@ -101,12 +101,21 @@ export default function Opinioni() {
         return;
       }
       
+      // Includiamo esplicitamente l'email dell'utente nel payload per garantire 
+      // che sia sempre presente quando si salvano le opinioni
+      const opinionPayload = {
+        ...opinions,
+        email: user?.email || (user as any)?.profile?.email // Includiamo l'email da dove disponibile
+      };
+      
+      console.log('Invio dati opinioni con email:', opinionPayload);
+      
       const response = await fetch('/api/opinioni', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(opinions)
+        body: JSON.stringify(opinionPayload)
       });
       
       // Leggiamo la risposta anche se non è OK perché potrebbe contenere dati salvati temporaneamente
@@ -121,7 +130,7 @@ export default function Opinioni() {
             title: "Attenzione",
             description: "Le tue opinioni sono state salvate temporaneamente, ma non nel database. " + 
                          (result.note || "Sarà possibile accedervi fino alla fine della sessione."),
-            variant: "warning",
+            variant: "destructive",
           });
           
           // Reindirizza comunque al menu dopo un po'
@@ -140,7 +149,7 @@ export default function Opinioni() {
           toast({
             title: "Successo con limitazioni",
             description: "Le tue opinioni sono state salvate, ma solo temporaneamente: " + result.note,
-            variant: "warning",
+            variant: "destructive",
           });
         } else {
           toast({
