@@ -132,23 +132,38 @@ export function setupAuth(app: Express) {
         
         // Tentativo di registrazione su Supabase Auth
         try {
+          console.log("=== INIZIO REGISTRAZIONE SU SUPABASE AUTH ===");
+          console.log("Dati utente per registrazione:", { email, ...userDetails });
+          
           // Prima registriamo l'utente su Supabase Auth
           const supabaseAuthResult = await SupabaseService.registerUserOnSupabaseAuth(email, password);
           
+          console.log("Risultato registrazione su Supabase Auth:", JSON.stringify(supabaseAuthResult, null, 2));
+          
           if (supabaseAuthResult.success && supabaseAuthResult.user) {
-            console.log("Utente registrato con successo su Supabase Auth:", supabaseAuthResult.user.id);
+            console.log("=== UTENTE REGISTRATO CON SUCCESSO SU SUPABASE AUTH ===");
+            console.log("UUID utente:", supabaseAuthResult.user.id);
             
-            // Salva i dati utente nella tabella "utenti" di Supabase con l'ID Auth
-            const { success, error, data } = await SupabaseService.saveUserData({
+            // Prepara i dati per la tabella utenti di Supabase
+            const userDataForSupabase = {
               ...userDetails,
               email: email,
               id: supabaseAuthResult.user.id // Usa l'UUID di Supabase Auth
-            });
+            };
             
-            if (!success) {
-              console.error("Errore salvando i dati utente su Supabase:", error);
+            console.log("=== TENTATIVO SALVATAGGIO DATI UTENTE SU TABELLA UTENTI ===");
+            console.log("Dati da salvare:", JSON.stringify(userDataForSupabase, null, 2));
+            
+            // Salva i dati utente nella tabella "utenti" di Supabase con l'ID Auth
+            const saveResult = await SupabaseService.saveUserData(userDataForSupabase);
+            console.log("Risultato salvataggio dati utente:", JSON.stringify(saveResult, null, 2));
+            
+            if (!saveResult.success) {
+              console.error("=== ERRORE SALVATAGGIO DATI UTENTE SU SUPABASE ===");
+              console.error("Dettagli errore:", saveResult.error);
             } else {
-              console.log("Dati utente salvati con successo su Supabase:", data);
+              console.log("=== DATI UTENTE SALVATI CON SUCCESSO SU SUPABASE ===");
+              console.log("Dati salvati:", JSON.stringify(saveResult.data, null, 2));
             }
           } else {
             console.error("Errore registrando l'utente su Supabase Auth:", supabaseAuthResult.error);
