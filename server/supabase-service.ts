@@ -244,9 +244,13 @@ class SupabaseService {
 
   /**
    * Aggiorna i dati di un utente in Supabase
+   * @param email Email dell'utente da aggiornare (usata per trovare l'UUID)
+   * @param userData Dati dell'utente da aggiornare
    */
   static async updateUserData(email: string, userData: any) {
     try {
+      console.log(`Aggiornamento dati utente per ${email}:`, userData);
+      
       if (!supabase && !supabaseAdmin) {
         console.log('Supabase non configurato, salvataggio dati in memoria');
         return { 
@@ -258,24 +262,62 @@ class SupabaseService {
       }
 
       const client = supabaseAdmin || supabase;
-      const { data, error } = await client
+      
+      // Prima cerca l'utente per ottenere l'UUID
+      console.log(`Cercando utente con email: ${email}`);
+      const { data: userFound, error: userError } = await client
         .from('utenti')
-        .update(userData)
+        .select('id, email')
         .eq('email', email)
-        .select();
+        .single();
+      
+      if (userError) {
+        console.log(`Utente con email ${email} non trovato, tentativo di creazione:`, userError);
+
+        // Se l'utente non esiste, proviamo a inserirlo
+        const { data: insertedData, error: insertError } = await client
+          .from('utenti')
+          .insert({...userData, email: email})
+          .select();
         
-      if (error) {
-        console.error('Error updating user data in Supabase:', error);
+        if (insertError) {
+          console.error('Errore durante la creazione del nuovo utente:', insertError);
+          return { 
+            success: false, 
+            data: null,
+            error: insertError.message
+          };
+        }
+        
+        console.log('Nuovo utente creato con successo:', insertedData);
         return { 
-          success: false, 
-          data: null,
-          error: error.message
+          success: true, 
+          data: insertedData,
+          error: null
         };
       }
       
+      // Se abbiamo trovato l'utente, aggiorniamo i suoi dati usando l'UUID
+      console.log(`Utente trovato, aggiornamento con UUID: ${userFound.id}`);
+      const { data: updatedData, error: updateError } = await client
+        .from('utenti')
+        .update(userData)
+        .eq('id', userFound.id)
+        .select();
+        
+      if (updateError) {
+        console.error('Errore durante l\'aggiornamento dei dati utente:', updateError);
+        return { 
+          success: false, 
+          data: null,
+          error: updateError.message
+        };
+      }
+      
+      console.log('Dati utente aggiornati con successo:', updatedData);
       return { 
         success: true, 
-        data,
+        data: updatedData,
         error: null
       };
     } catch (error: any) {

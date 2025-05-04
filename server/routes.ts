@@ -410,7 +410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           caccia: '',
           unione_europea: ''
         };
-      } else if (Object.keys(opinions).every(k => !opinions[k])) {
+      } else if (opinions && Object.keys(opinions).every(k => !opinions[k])) {
         console.log(`Opinioni vuote trovate con email, tento con ID: ${req.user.id}`);
         const idOpinions = await SupabaseService.getUserOpinions(req.user.id.toString());
         if (idOpinions && Object.keys(idOpinions).some(k => idOpinions[k])) {
