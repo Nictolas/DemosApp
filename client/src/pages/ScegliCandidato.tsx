@@ -66,10 +66,9 @@ export default function ScegliCandidato() {
       
       try {
         // Carica le opinioni dell'utente corrente
-        const opinionsResponse = await apiRequest('/api/opinioni', {
-          method: 'GET',
-        });
-        setUserOpinions(opinionsResponse);
+        const opinionsResponse = await apiRequest("GET", '/api/opinioni');
+        const opinionsData = await opinionsResponse.json();
+        setUserOpinions(opinionsData);
         
         // Carica tutti gli utenti con ruolo candidato o politico candidato
         const { data, error } = await supabase
@@ -87,19 +86,19 @@ export default function ScegliCandidato() {
           const candidatiConOpinioniComuni = data.map(candidato => {
             let opinioniComuni = 0;
             
-            if (candidato.energia_nucleare && candidato.energia_nucleare === opinionsResponse.energia_nucleare) {
+            if (candidato.energia_nucleare && candidato.energia_nucleare === opinionsData.energia_nucleare) {
               opinioniComuni++;
             }
-            if (candidato.sperimentazione_animale && candidato.sperimentazione_animale === opinionsResponse.sperimentazione_animale) {
+            if (candidato.sperimentazione_animale && candidato.sperimentazione_animale === opinionsData.sperimentazione_animale) {
               opinioniComuni++;
             }
-            if (candidato.legalizzazione_canapa && candidato.legalizzazione_canapa === opinionsResponse.legalizzazione_canapa) {
+            if (candidato.legalizzazione_canapa && candidato.legalizzazione_canapa === opinionsData.legalizzazione_canapa) {
               opinioniComuni++;
             }
-            if (candidato.caccia && candidato.caccia === opinionsResponse.caccia) {
+            if (candidato.caccia && candidato.caccia === opinionsData.caccia) {
               opinioniComuni++;
             }
-            if (candidato.unione_europea && candidato.unione_europea === opinionsResponse.unione_europea) {
+            if (candidato.unione_europea && candidato.unione_europea === opinionsData.unione_europea) {
               opinioniComuni++;
             }
             
@@ -142,10 +141,7 @@ export default function ScegliCandidato() {
       };
       
       // Aggiorna i dati dell'utente
-      await apiRequest(`/api/users/${user.email}`, {
-        method: 'PUT',
-        body: JSON.stringify(updateData),
-      });
+      await apiRequest("PUT", `/api/users/${user.email}`, updateData);
       
       toast({
         title: "Candidato selezionato",
