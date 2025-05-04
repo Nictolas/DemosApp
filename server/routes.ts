@@ -397,16 +397,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Tenta di recuperare le opinioni in diversi modi
       // Prima controlla usando l'email, che è più affidabile per trovare l'utente in Supabase
       console.log(`Tentativo di recuperare opinioni usando email: ${req.user.email}`);
-      let opinions = await SupabaseService.getUserOpinions(req.user.email);
+      let opinions: UserOpinions | null = await SupabaseService.getUserOpinions(req.user.email);
       
-      // Se non troviamo nulla con l'email, proviamo con l'ID
-      if (!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k]))) {
+      // Inizializziamo opinions con un oggetto vuoto se è null
+      if (opinions === null) {
         console.log(`Nessuna opinione trovata con email, tento con ID: ${req.user.id}`);
-        opinions = await SupabaseService.getUserOpinions(req.user.id.toString());
+        const idOpinions = await SupabaseService.getUserOpinions(req.user.id.toString());
+        opinions = idOpinions || {
+          energia_nucleare: '',
+          sperimentazione_animale: '',
+          legalizzazione_canapa: '',
+          caccia: '',
+          unione_europea: ''
+        };
+      } else if (Object.keys(opinions).every(k => !opinions[k])) {
+        console.log(`Opinioni vuote trovate con email, tento con ID: ${req.user.id}`);
+        const idOpinions = await SupabaseService.getUserOpinions(req.user.id.toString());
+        if (idOpinions && Object.keys(idOpinions).some(k => idOpinions[k])) {
+          opinions = idOpinions;
+        }
       }
       
       // Come ultima risorsa, cerca nelle opinioni memorizzate temporaneamente
-      if ((!opinions || Object.keys(opinions).every(k => !opinions[k])) && 
+      if ((!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k]))) && 
           SupabaseService.tempOpinions && SupabaseService.tempOpinions[req.user.email]) {
         console.log('Trovate opinioni in memoria temporanea per:', req.user.email);
         return res.status(200).json({
