@@ -66,10 +66,9 @@ export default function ScegliRappresentante() {
       
       try {
         // Carica le opinioni dell'utente corrente
-        const opinionsResponse = await apiRequest('/api/opinioni', {
-          method: 'GET',
-        });
-        setUserOpinions(opinionsResponse);
+        const opinionsResponse = await apiRequest("GET", '/api/opinioni');
+        const opinionsData = await opinionsResponse.json();
+        setUserOpinions(opinionsData);
         
         // Carica tutti gli utenti con ruolo politico o politico candidato
         const { data, error } = await supabase
@@ -87,19 +86,19 @@ export default function ScegliRappresentante() {
           const rappresentantiConOpinioniComuni = data.map(rappresentante => {
             let opinioniComuni = 0;
             
-            if (rappresentante.energia_nucleare && rappresentante.energia_nucleare === opinionsResponse.energia_nucleare) {
+            if (rappresentante.energia_nucleare && rappresentante.energia_nucleare === opinionsData.energia_nucleare) {
               opinioniComuni++;
             }
-            if (rappresentante.sperimentazione_animale && rappresentante.sperimentazione_animale === opinionsResponse.sperimentazione_animale) {
+            if (rappresentante.sperimentazione_animale && rappresentante.sperimentazione_animale === opinionsData.sperimentazione_animale) {
               opinioniComuni++;
             }
-            if (rappresentante.legalizzazione_canapa && rappresentante.legalizzazione_canapa === opinionsResponse.legalizzazione_canapa) {
+            if (rappresentante.legalizzazione_canapa && rappresentante.legalizzazione_canapa === opinionsData.legalizzazione_canapa) {
               opinioniComuni++;
             }
-            if (rappresentante.caccia && rappresentante.caccia === opinionsResponse.caccia) {
+            if (rappresentante.caccia && rappresentante.caccia === opinionsData.caccia) {
               opinioniComuni++;
             }
-            if (rappresentante.unione_europea && rappresentante.unione_europea === opinionsResponse.unione_europea) {
+            if (rappresentante.unione_europea && rappresentante.unione_europea === opinionsData.unione_europea) {
               opinioniComuni++;
             }
             
@@ -142,10 +141,7 @@ export default function ScegliRappresentante() {
       };
       
       // Aggiorna i dati dell'utente
-      await apiRequest(`/api/users/${user.email}`, {
-        method: 'PUT',
-        body: JSON.stringify(updateData),
-      });
+      await apiRequest("PUT", `/api/users/${user.email}`, updateData);
       
       toast({
         title: "Rappresentante selezionato",

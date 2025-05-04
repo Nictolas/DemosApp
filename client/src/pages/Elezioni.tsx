@@ -18,10 +18,9 @@ export default function Elezioni() {
     const fetchUserData = async () => {
       if (user) {
         try {
-          const response = await apiRequest(`/api/user`, {
-            method: 'GET',
-          });
-          setUserData(response);
+          const response = await apiRequest("GET", `/api/user`);
+          const data = await response.json();
+          setUserData(data);
         } catch (error) {
           console.error("Errore durante il recupero dei dati utente:", error);
           toast({
