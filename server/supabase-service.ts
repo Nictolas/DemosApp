@@ -61,6 +61,7 @@ class SupabaseService {
     success: boolean;
     user?: any;
     error?: string;
+    saveResult?: any;
   }> {
     try {
       console.log(`Tentativo di registrazione utente su Supabase Auth con email: ${email}`);
