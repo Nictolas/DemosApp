@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import SupabaseService, { UserOpinions } from "./supabase-service";
 import { db } from "../db";
-import { users, utenti } from "@shared/schema";
+import { users, utenti, User } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Estendi l'interfaccia Request per includere user
@@ -12,8 +12,9 @@ declare global {
   namespace Express {
     interface Request {
       user?: {
-        id: number;
+        id: number | string;
         email: string;
+        uuid?: string;
       };
       isAuthenticated(): boolean;
     }
@@ -82,7 +83,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verifica se l'utente sta cercando di accedere al proprio profilo o è un admin
-      if (req.user && req.user.id !== userId) {
+      if (req.user && Number(req.user.id) !== userId) {
         return res.status(403).json({ error: 'Non autorizzato ad accedere a questo profilo' });
       }
       
@@ -326,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let opinions = await SupabaseService.getUserOpinions(userId.toString());
       
       // Se non trova nulla con UUID, prova con l'email
-      if (!opinions || Object.keys(opinions).every(k => !opinions[k as keyof typeof opinions])) {
+      if (!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k as keyof typeof opinions]))) {
         console.log(`Nessuna opinione trovata con UUID, tento con email: ${email}`);
         const emailOpinions = await SupabaseService.getUserOpinions(email);
         
