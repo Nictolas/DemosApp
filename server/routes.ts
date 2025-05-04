@@ -315,47 +315,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Utente autenticato. ID: ${req.user.id}, Email: ${req.user.email}`);
       
-      // Utilizza direttamente l'ID dalla sessione Express, che è l'ID dalla tabella "users"
-      // Questo dovrebbe corrispondere con il vincolo di chiave esterna sulla tabella "opinioni"
-      const userId = req.user.id;
-      
-      // Salva le opinioni dell'utente con l'ID numerico della tabella users
+      // Per salvare le opinioni, è meglio usare l'email per trovare l'utente in Supabase
+      // poiché l'ID utente di Express non corrisponde all'UUID Supabase
+      const email = req.user.email;
       const opinionsData = req.body;
-      console.log(`Salvando opinioni per utente con ID: ${userId}`, opinionsData);
       
-      const result = await SupabaseService.saveUserOpinions(userId.toString(), opinionsData);
+      // Prima verifichiamo se l'utente esiste in Supabase
+      console.log(`Verificando e salvando opinioni per utente con email: ${email}`);
+      let result = await SupabaseService.saveUserOpinions(email, opinionsData);
       
+      // Se il salvataggio con email fallisce, proviamo con l'ID numerico (per retrocompatibilità)
       if (!result.success) {
-        console.error('Errore nel salvataggio delle opinioni:', result.error);
+        console.log(`Tentativo alternativo usando ID: ${req.user.id}`);
+        result = await SupabaseService.saveUserOpinions(req.user.id.toString(), opinionsData);
+      }
+      
+      // Se entrambi i tentativi falliscono, salviamo in memoria temporanea
+      if (!result.success) {
+        console.log('Tutti i tentativi di salvataggio in DB falliti, salvataggio in memoria temporanea');
         
-        // In caso di fallimento, proviamo a usare l'email come fallback (per retrocompatibilità)
-        console.log('Tentativo di salvataggio con email come ID:', req.user.email);
-        const fallbackResult = await SupabaseService.saveUserOpinions(req.user.email, opinionsData);
+        // Salva in memoria temporanea come fallback
+        SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
+        SupabaseService.tempOpinions[email] = {
+          utente_id: email,
+          ...opinionsData
+        };
         
-        if (fallbackResult.success) {
-          console.log('Salvataggio riuscito con email come ID');
-          return res.status(200).json({
-            message: 'Opinioni salvate con metodo alternativo',
-            data: fallbackResult.data,
-            note: fallbackResult.note || 'Salvate usando l\'email come identificativo',
-            temp_storage: true
-          });
-        }
-        
-        return res.status(500).json({ 
-          error: 'Errore nel salvataggio delle opinioni', 
-          details: result.error,
-          data: result.data,
-          note: result.note
+        return res.status(200).json({
+          message: 'Opinioni salvate solo in memoria temporanea',
+          data: [SupabaseService.tempOpinions[email]],
+          error_message: result.error || 'Errore durante il salvataggio nel database',
+          temp_storage: true
         });
       }
-
-      // Anche se ci sono stati problemi, restituiamo un successo dato che i dati sono salvati in memoria
+      
+      // Salvataggio riuscito, invia risposta
       return res.status(200).json({ 
-        message: 'Opinioni salvate',
+        message: 'Opinioni salvate con successo',
         data: result.data,
-        note: result.note, // Questo potrebbe contenere informazioni sul salvataggio in memoria
-        persistent: result.success && !result.note // Indica se i dati sono persistenti (nel DB) o temporanei (in memoria)
+        note: result.note
       });
     } catch (error) {
       console.error('Errore durante il salvataggio delle opinioni:', error);
@@ -396,46 +394,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Utente autenticato per richiesta opinioni. ID: ${req.user.id}, Email: ${req.user.email}`);
       
-      // Utilizza direttamente l'ID dalla sessione Express, che è l'ID dalla tabella "users"
-      // Questo dovrebbe corrispondere con il vincolo di chiave esterna sulla tabella "opinioni"
-      const userId = req.user.id;
+      // Tenta di recuperare le opinioni in diversi modi
+      // Prima controlla usando l'email, che è più affidabile per trovare l'utente in Supabase
+      console.log(`Tentativo di recuperare opinioni usando email: ${req.user.email}`);
+      let opinions = await SupabaseService.getUserOpinions(req.user.email);
       
-      // Recupera le opinioni dell'utente usando l'ID numerico della tabella users
-      console.log(`Recuperando opinioni per utente con ID numerico: ${userId}`);
-      const opinions = await SupabaseService.getUserOpinions(userId.toString());
-      
-      // Se non viene trovato nulla, controlla se ci sono opinioni salvate con ID alternativo
+      // Se non troviamo nulla con l'email, proviamo con l'ID
       if (!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k]))) {
-        console.log('Nessuna opinione trovata con ID numerico, provo con altri metodi...');
-        
-        // Prima cerca con l'email (metodo di fallback)
-        console.log('Provo a recuperare opinioni usando email come ID:', req.user.email);
-        const opinionsWithEmail = await SupabaseService.getUserOpinions(req.user.email);
-        
-        if (opinionsWithEmail && Object.keys(opinionsWithEmail).some(k => !!opinionsWithEmail[k])) {
-          console.log('Trovate opinioni usando email come ID');
-          return res.status(200).json(opinionsWithEmail);
-        }
-        
-        // Come ultima risorsa, cerca nelle opinioni memorizzate temporaneamente
-        if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[req.user.email]) {
-          console.log('Trovate opinioni in memoria temporanea per:', req.user.email);
-          return res.status(200).json(SupabaseService.tempOpinions[req.user.email]);
-        }
-        
-        // Se non abbiamo niente, restituisci un oggetto opinioni vuoto
+        console.log(`Nessuna opinione trovata con email, tento con ID: ${req.user.id}`);
+        opinions = await SupabaseService.getUserOpinions(req.user.id.toString());
+      }
+      
+      // Come ultima risorsa, cerca nelle opinioni memorizzate temporaneamente
+      if ((!opinions || Object.keys(opinions).every(k => !opinions[k])) && 
+          SupabaseService.tempOpinions && SupabaseService.tempOpinions[req.user.email]) {
+        console.log('Trovate opinioni in memoria temporanea per:', req.user.email);
         return res.status(200).json({
-          energia_nucleare: '',
-          sperimentazione_animale: '',
-          legalizzazione_canapa: '',
-          caccia: '',
-          unione_europea: '',
-          temp_storage: true,
-          message: 'Nessuna opinione trovata per questo utente'
+          ...SupabaseService.tempOpinions[req.user.email],
+          temp_storage: true
         });
       }
       
-      return res.status(200).json(opinions || {});
+      // Se abbiamo trovato opinioni, restituiscile
+      if (opinions && Object.keys(opinions).some(k => opinions[k])) {
+        return res.status(200).json(opinions);
+      }
+      
+      // Se non abbiamo trovato nulla, restituisci un oggetto vuoto
+      return res.status(200).json({
+        energia_nucleare: '',
+        sperimentazione_animale: '',
+        legalizzazione_canapa: '',
+        caccia: '',
+        unione_europea: '',
+        message: 'Nessuna opinione trovata per questo utente'
+      });
     } catch (error) {
       console.error('Errore durante il recupero delle opinioni:', error);
       
@@ -448,7 +441,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      return res.status(500).json({ error: 'Errore interno del server' });
+      return res.status(200).json({
+        energia_nucleare: '',
+        sperimentazione_animale: '',
+        legalizzazione_canapa: '',
+        caccia: '',
+        unione_europea: '',
+        error: 'Errore nel recupero delle opinioni'
+      });
     }
   });
 
