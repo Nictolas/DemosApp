@@ -535,7 +535,13 @@ class SupabaseService {
       }
       
       // Filtra i dati per includere solo utenti con almeno un'opinione
-      const usersWithOpinions = data.filter(user => {
+      const usersWithOpinions = data.filter((user: {
+        energia_nucleare?: string;
+        sperimentazione_animale?: string;
+        legalizzazione_canapa?: string;
+        caccia?: string;
+        unione_europea?: string;
+      }) => {
         return user.energia_nucleare || user.sperimentazione_animale || 
                user.legalizzazione_canapa || user.caccia || user.unione_europea;
       });
