@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { useRegistration } from "@/hooks/use-registration";
-import { Redirect } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -29,9 +29,7 @@ export default function RegistrazioneCandidatura() {
   const { toast } = useToast();
   const { registerMutation } = useAuth();
   const { formData, clearFormData } = useRegistration();
-  const [registrationSubmitted, setRegistrationSubmitted] = useState(false);
-  const [shouldRedirectToAuth, setShouldRedirectToAuth] = useState(false);
-  const [shouldRedirectToMenu, setShouldRedirectToMenu] = useState(false);
+  const [, navigate] = useLocation();
 
   // Stati per le opzioni dinamiche delle località
   const [regioniCandidatura, setRegioniCandidatura] = useState<string[]>([]);
@@ -50,27 +48,12 @@ export default function RegistrazioneCandidatura() {
     },
   });
   
-  // Verifico se devo fare redirect
+  // Verifica se ci sono dati temporanei di registrazione
   useEffect(() => {
     if (!formData) {
-      setShouldRedirectToAuth(true);
+      navigate("/auth");
     }
-  }, [formData]);
-  
-  useEffect(() => {
-    if (registrationSubmitted && !registerMutation.isPending) {
-      setShouldRedirectToMenu(true);
-    }
-  }, [registrationSubmitted, registerMutation.isPending]);
-  
-  // Redirect se necessario
-  if (shouldRedirectToAuth) {
-    return <Redirect to="/auth" />;
-  }
-  
-  if (shouldRedirectToMenu) {
-    return <Redirect to="/menu" />;
-  }
+  }, [formData, navigate]);
 
   // Gestione selezioni a cascata per la candidatura
   useEffect(() => {
@@ -142,9 +125,12 @@ export default function RegistrazioneCandidatura() {
     };
     
     // Registra l'utente con i dati completi
-    registerMutation.mutate(completeData as any);
-    setRegistrationSubmitted(true);
-    clearFormData(); // Pulisci i dati temporanei dopo l'invio
+    registerMutation.mutate(completeData as any, {
+      onSuccess: () => {
+        clearFormData(); // Pulisci i dati temporanei dopo l'invio
+        navigate("/menu"); // Reindirizza direttamente al menu dopo la registrazione
+      }
+    });
   };
 
   return (
