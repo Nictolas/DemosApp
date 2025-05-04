@@ -55,8 +55,9 @@ class SupabaseService {
    * Usato per creare l'autenticazione ufficiale su Supabase
    * @param email Email dell'utente
    * @param password Password dell'utente 
+   * @param userDetails Dettagli utente completi
    */
-  static async registerUserOnSupabaseAuth(email: string, password: string): Promise<{
+  static async registerUserOnSupabaseAuth(email: string, password: string, userDetails: any = {}): Promise<{
     success: boolean;
     user?: any;
     error?: string;
@@ -94,10 +95,44 @@ class SupabaseService {
         };
       }
       
-      console.log('Utente registrato con successo su Supabase Auth:', data.user.id);
+      console.log('Utente registrato con successo su Supabase Auth. UUID:', data.user.id);
+      
+      // MODIFICATO: Subito dopo la registrazione, salviamo i dati dell'utente usando saveUserOpinions
+      // Creiamo un payload con tutti i dati completi dell'utente
+      const userDataPayload = {
+        // Campi di profilo
+        ...userDetails,
+        email: email,
+        
+        // Campi opinioni (vuoti)
+        energia_nucleare: "",
+        sperimentazione_animale: "",
+        legalizzazione_canapa: "",
+        caccia: "",
+        unione_europea: ""
+      };
+      
+      // Log prima dell'invio
+      console.log(`saveUserOpinions: UUID da salvare: ${data.user.id}`);
+      console.log(`saveUserOpinions: Payload completo da inviare:`, JSON.stringify(userDataPayload, null, 2));
+      console.log(`saveUserOpinions invocato con await`);
+      
+      // Chiamata a saveUserOpinions
+      const saveResult = await this.saveUserOpinions(data.user.id, userDataPayload);
+      
+      // Log dopo la risposta
+      console.log(`Risultato chiamata saveUserOpinions:`, JSON.stringify(saveResult, null, 2));
+      
+      if (saveResult.success) {
+        console.log(`saveUserOpinions ha restituito successo`);
+      } else {
+        console.error(`saveUserOpinions ha restituito errore:`, saveResult.error);
+      }
+      
       return { 
         success: true, 
-        user: data.user 
+        user: data.user,
+        saveResult // Includiamo il risultato del salvataggio nella risposta
       };
     } catch (error: any) {
       console.error('Eccezione durante la registrazione su Supabase Auth:', error);
