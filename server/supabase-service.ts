@@ -486,7 +486,7 @@ class SupabaseService {
         delete SupabaseService.tempOpinions[utenteId]; // Rimuovi dalla memoria temporanea
       }
       
-      return { success: true, data: result || [opinionData], error: null };
+      return { success: true, data: result || [fullUserData], error: null };
     } catch (error: any) {
       console.error('Exception saving opinions in Supabase:', error);
       
