@@ -38,6 +38,8 @@ export default function RegistrazioneElezioneCandidatura() {
   const { registerMutation } = useAuth();
   const { formData, clearFormData } = useRegistration();
   const [registrationSubmitted, setRegistrationSubmitted] = useState(false);
+  const [shouldRedirectToAuth, setShouldRedirectToAuth] = useState(false);
+  const [shouldRedirectToMenu, setShouldRedirectToMenu] = useState(false);
 
   // Stati per le opzioni dinamiche delle località di elezione
   const [regioniElezione, setRegioniElezione] = useState<string[]>([]);
@@ -65,14 +67,26 @@ export default function RegistrazioneElezioneCandidatura() {
       comune_candidatura: "",
     },
   });
-
-  // Redirect se non ci sono dati di registrazione
-  if (!formData) {
+  
+  // Verifico se devo fare redirect
+  useEffect(() => {
+    if (!formData) {
+      setShouldRedirectToAuth(true);
+    }
+  }, [formData]);
+  
+  useEffect(() => {
+    if (registrationSubmitted && !registerMutation.isPending) {
+      setShouldRedirectToMenu(true);
+    }
+  }, [registrationSubmitted, registerMutation.isPending]);
+  
+  // Redirect se necessario
+  if (shouldRedirectToAuth) {
     return <Redirect to="/auth" />;
   }
-
-  // Redirect se la registrazione è completata con successo
-  if (registrationSubmitted && !registerMutation.isPending) {
+  
+  if (shouldRedirectToMenu) {
     return <Redirect to="/menu" />;
   }
 
