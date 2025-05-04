@@ -1,0 +1,57 @@
+Abbiamo un problema specifico:
+
+Quando registriamo un nuovo utente, Supabase Auth crea correttamente l’UUID, ma non viene mai eseguito alcun INSERT nella tabella utenti di Supabase. Di conseguenza, la tabella utenti resta vuota per i nuovi iscritti, mentre le opinioni — salvate con un metodo diverso — funzionano regolarmente.
+
+Possibili cause:
+
+Il ramo di codice che richiama l’INSERT su utenti non viene invocato dopo la registrazione.
+
+Il metodo di inserimento fallisce silenziosamente (errori non loggati).
+
+L’UUID restituito da Supabase Auth non viene passato correttamente al metodo di inserimento.
+
+Viene utilizzato un client Supabase non autenticato o sbagliato per l’INSERT.
+
+I nomi dei campi del payload non corrispondono ai nomi delle colonne nella tabella utenti.
+
+La chiamata a saveUserOpinions non è awaited, quindi potrebbe non eseguire l’INSERT prima che la funzione termini.
+
+Cosa fare subito:
+
+Ignora completamente qualsiasi riferimento a database locale, migrazioni o script di schema: il focus è esclusivamente sulla tabella utenti di Supabase.
+
+Unifica il flusso di registrazione e salvataggio profilo/opinioni in una sola chiamata, utilizzando il metodo già collaudato saveUserOpinions.
+
+Assicurati che, subito dopo il completamento di Supabase Auth (signUp), venga invocato solo saveUserOpinions, passando:
+
+l’UUID restituito da Auth
+
+tutti i campi di profilo (nome, cognome, email)
+
+i campi delle opinioni (anche se vuoti)
+
+Rimuovi qualsiasi altro codice separato di INSERT o UPDATE per il profilo utente; deve esistere un unico flusso: signUp → saveUserOpinions.
+
+Aggiungi log puntuali immediatamente prima e dopo la chiamata a saveUserOpinions, registrando:
+
+l’UUID ricevuto
+
+il payload completo inviato
+
+i valori di data ed error restituiti dalla chiamata Supabase
+
+Verifica che il client Supabase utilizzato sia lo stesso che già funziona per le opinioni, con il token di sessione corretto (admin o anon).
+
+Riavvia applicazione, registra un nuovo utente e controlla:
+
+i log in console (UUID, payload, risposta Supabase)
+
+il pannello Supabase per confermare la presenza della nuova riga in utenti con UUID, dati profilo e opinioni.
+
+Controlla che la chiamata a saveUserOpinions sia preceduta da await, in modo che il processo asincrono non termini prima di completare l’INSERT, e aggiungi log che confermino:
+
+“Chiamata a saveUserOpinions invocata con await”
+
+“saveUserOpinions ha restituito successo”
+
+Riporta qui tutti i log raccolti e uno screenshot aggiornato della tabella utenti dopo il test, in modo da identificare esattamente il punto di blocco e chiudere il ticket.
