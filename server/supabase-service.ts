@@ -44,10 +44,10 @@ export { supabase, supabaseAdmin };
 
 /**
  * Servizio per interagire con Supabase
+ * UTILIZZA ESCLUSIVAMENTE SUPABASE, NESSUNA MEMORIZZAZIONE LOCALE
  */
 class SupabaseService {
-  
-  // Variabile statica per memorizzare temporaneamente le opinioni in caso di errori
+  // Per compatibilità con TypeScript, manteniamo la dichiarazione ma non la utilizzeremo
   static tempOpinions: Record<string, UserOpinions> = {};
 
   /**
@@ -338,25 +338,14 @@ class SupabaseService {
     try {
       console.log(`Salvando opinioni per utente con ID: ${utenteId}`, opinions);
       
-      // Se Supabase non è configurato, salva solo in memoria
+      // Se Supabase non è configurato, restituisci un errore
       if (!supabase && !supabaseAdmin) {
-        console.log('Supabase non configurato, salvando opinioni solo in memoria');
-        
-        // Salviamo in memoria le opinioni
-        SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
-        SupabaseService.tempOpinions[utenteId] = {
-          utente_id: utenteId,
-          ...opinions
-        };
-        
+        console.error('Supabase non configurato, impossibile salvare le opinioni');
         return { 
-          success: true, 
-          data: [{
-            utente_id: utenteId,
-            ...opinions
-          }],
-          note: "I dati sono stati salvati solo in memoria perché Supabase non è configurato",
-          error: null
+          success: false, 
+          data: [],
+          note: "Impossibile salvare i dati perché Supabase non è configurato",
+          error: "Connessione a Supabase non disponibile"
         };
       }
       
@@ -480,22 +469,9 @@ class SupabaseService {
       
       console.log('Opinioni salvate con successo:', result);
       
-      // Se abbiamo dati in memoria temporanea per questo utente, li rimuoviamo
-      // visto che ora sono stati salvati nel database
-      if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
-        delete SupabaseService.tempOpinions[utenteId]; // Rimuovi dalla memoria temporanea
-      }
-      
       return { success: true, data: result || [fullUserData], error: null };
     } catch (error: any) {
       console.error('Exception saving opinions in Supabase:', error);
-      
-      // Salviamo in memoria le opinioni come fallback
-      SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
-      SupabaseService.tempOpinions[utenteId] = {
-        utente_id: utenteId,
-        ...opinions
-      };
       
       return { 
         success: false, 
@@ -503,7 +479,7 @@ class SupabaseService {
           utente_id: utenteId,
           ...opinions
         }],
-        note: "I dati sono stati salvati temporaneamente in memoria a causa di un errore nel database: " + (error.message || 'Errore sconosciuto'),
+        note: "Errore durante il salvataggio delle opinioni nel database",
         error: error.message || 'Errore sconosciuto'
       };
     }
@@ -642,15 +618,9 @@ class SupabaseService {
    */
   static async getUserOpinions(utenteId: string): Promise<UserOpinions | null> {
     try {
-      // Prima controlla se abbiamo dei dati in memoria per questo utente
-      if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
-        console.log('Recuperando opinioni dalla memoria temporanea per utenteId:', utenteId);
-        return SupabaseService.tempOpinions[utenteId];
-      }
-      
       // Se Supabase non è configurato, restituiamo un oggetto vuoto
       if (!supabase && !supabaseAdmin) {
-        console.log('Supabase non configurato, restituendo oggetto opinioni vuoto');
+        console.error('Supabase non configurato, impossibile recuperare le opinioni');
         return {
           energia_nucleare: '',
           sperimentazione_animale: '',
@@ -752,11 +722,6 @@ class SupabaseService {
       
       if (!data) {
         // Se non ci sono dati ma non c'è stato un errore, restituiamo un oggetto vuoto
-        // o i dati in memoria, se disponibili
-        if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
-          return SupabaseService.tempOpinions[utenteId];
-        }
-        
         return {
           energia_nucleare: '',
           sperimentazione_animale: '',
@@ -766,20 +731,11 @@ class SupabaseService {
         };
       }
       
-      // Se abbiamo recuperato dati da Supabase, aggiorna anche la cache in memoria
-      SupabaseService.tempOpinions = SupabaseService.tempOpinions || {};
-      SupabaseService.tempOpinions[utenteId] = data;
-      
       return data;
     } catch (error) {
       console.error('Exception getting user opinions from Supabase:', error);
       
-      // In caso di eccezione, prova a restituire i dati in memoria se disponibili
-      if (SupabaseService.tempOpinions && SupabaseService.tempOpinions[utenteId]) {
-        return SupabaseService.tempOpinions[utenteId];
-      }
-      
-      // Altrimenti restituisci un oggetto vuoto
+      // In caso di eccezione, restituisci un oggetto vuoto
       return {
         energia_nucleare: '',
         sperimentazione_animale: '',
@@ -803,17 +759,9 @@ class SupabaseService {
    */
   static async getAllUsersOpinions(): Promise<any[]> {
     try {
-      // Se Supabase non è configurato, restituiamo solo i dati in memoria (se ce ne sono)
+      // Se Supabase non è configurato, restituiamo un array vuoto
       if (!supabase && !supabaseAdmin) {
-        console.log('Supabase non configurato, restituendo solo dati in memoria');
-        
-        // Se ci sono dati in memoria, restituiscili
-        if (SupabaseService.tempOpinions) {
-          const opinionArray = Object.values(SupabaseService.tempOpinions);
-          return opinionArray;
-        }
-        
-        // Altrimenti, restituisci un array vuoto
+        console.error('Supabase non configurato, impossibile recuperare le opinioni degli utenti');
         return [];
       }
       
@@ -831,15 +779,6 @@ class SupabaseService {
       
       if (error || !data) {
         console.error('Error getting all users with opinions from Supabase:', error);
-        
-        // Se c'è un errore, restituisci i dati memorizzati in tempOpinions
-        if (SupabaseService.tempOpinions) {
-          // Converti l'oggetto tempOpinions in un array
-          const opinionArray = Object.values(SupabaseService.tempOpinions);
-          console.log('Using in-memory opinions instead of database:', opinionArray);
-          return opinionArray;
-        }
-        
         return [];
       }
       
@@ -855,47 +794,9 @@ class SupabaseService {
                user.legalizzazione_canapa || user.caccia || user.unione_europea;
       });
       
-      // Combina i dati dal database con quelli in memoria
-      // Questo è importante per visualizzare sia i dati permanenti che quelli temporanei
-      const dbData = usersWithOpinions || [];
-      const memoryData = Object.values(SupabaseService.tempOpinions || {});
-      
-      // Filtra i dati in memoria per mostrare solo quelli con opinioni
-      const filteredMemoryData = memoryData.filter(item => {
-        return item.energia_nucleare || item.sperimentazione_animale || 
-               item.legalizzazione_canapa || item.caccia || item.unione_europea;
-      });
-      
-      // Crea una mappa per evitare duplicati, usando l'ID utenti come chiave
-      const opinionMap = new Map();
-      
-      // Aggiungi prima i dati dal database
-      for (const user of dbData) {
-        opinionMap.set(user.id, user);
-      }
-      
-      // Poi aggiungi o sostituisci con i dati in memoria, che hanno priorità perché più recenti
-      for (const opinion of filteredMemoryData) {
-        if (opinion.id) {
-          opinionMap.set(opinion.id, opinion);
-        } else if (opinion.utente_id) {
-          // Se non c'è un ID ma c'è un utente_id, proviamo a usare quello
-          opinionMap.set(opinion.utente_id, opinion);
-        }
-      }
-      
-      // Converti la mappa in un array
-      const combinedData = Array.from(opinionMap.values());
-      
-      return combinedData;
+      return usersWithOpinions || [];
     } catch (error) {
       console.error('Exception getting all users with opinions from Supabase:', error);
-      
-      // In caso di eccezione, prova a restituire i dati in memoria
-      if (SupabaseService.tempOpinions) {
-        return Object.values(SupabaseService.tempOpinions);
-      }
-      
       return [];
     }
   }
