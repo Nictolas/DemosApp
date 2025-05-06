@@ -3,13 +3,43 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck } from "lucide-react";
+import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 export default function Menu() {
   const { user, isLoading, logoutMutation } = useAuth();
   const { toast } = useToast();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Verifica se l'utente è admin
+  useEffect(() => {
+    const checkIfAdmin = async () => {
+      if (!user) return;
+      
+      try {
+        // Cerca l'utente in Supabase usando l'email
+        const { data, error } = await supabase
+          .from('utenti')
+          .select('ruolo')
+          .eq('email', user.email)
+          .single();
+        
+        if (error) {
+          console.error("Errore nel verificare il ruolo:", error);
+          return;
+        }
+        
+        // Imposta isAdmin se il ruolo è "Admin"
+        setIsAdmin(data && data.ruolo === "Admin");
+      } catch (error) {
+        console.error("Errore:", error);
+      }
+    };
+    
+    checkIfAdmin();
+  }, [user]);
 
   // Funzione per effettuare il logout
   const handleLogout = async () => {
@@ -101,10 +131,18 @@ export default function Menu() {
                 <BarChart2 className="mr-2 h-5 w-5" />
                 Statistiche Utenti
               </Button>
-              {user && (user as any).ruolo === "Admin" && (
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="default"
+                onClick={() => window.location.href = "/statistiche-opinioni"}
+              >
+                <PieChart className="mr-2 h-5 w-5" />
+                Statistiche Opinioni
+              </Button>
+              {isAdmin && (
                 <Button 
-                  className="h-24 text-lg font-medium" 
-                  variant="default"
+                  className="h-24 text-lg font-medium md:col-span-2" 
+                  variant="outline"
                   onClick={() => {}}
                 >
                   <ShieldCheck className="mr-2 h-5 w-5" />
