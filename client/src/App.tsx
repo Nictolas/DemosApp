@@ -14,6 +14,8 @@ import Rappresentanti from "@/pages/Rappresentanti";
 import Elezioni from "@/pages/Elezioni";
 import ScegliRappresentante from "@/pages/ScegliRappresentante";
 import ScegliCandidato from "@/pages/ScegliCandidato";
+import StatisticheUtenti from "@/pages/StatisticheUtenti";
+import StatisticheOpinioni from "@/pages/StatisticheOpinioni";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
 import RegistrazioneElezioneCandidatura from "@/pages/RegistrazioneElezioneCandidatura";
@@ -122,6 +124,20 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute path="/scegli-candidato/:categoria" component={ScegliCandidato} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/statistiche-utenti">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/statistiche-utenti" component={StatisticheUtenti} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/statistiche-opinioni">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/statistiche-opinioni" component={StatisticheOpinioni} />
           </PageTransition>
         )}
       </Route>
