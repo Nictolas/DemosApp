@@ -25,6 +25,11 @@ interface Rappresentante {
   legalizzazione_canapa?: string;
   caccia?: string;
   unione_europea?: string;
+  // Campi per la località
+  paese_elezione?: string;
+  regione_elezione?: string;
+  provincia_elezione?: string;
+  comune_elezione?: string;
 }
 
 export default function ScegliRappresentante() {
@@ -73,17 +78,62 @@ export default function ScegliRappresentante() {
         // Carica tutti gli utenti con ruolo politico o politico candidato
         const { data, error } = await supabase
           .from('utenti')
-          .select('id, nome, cognome, email, ruolo, grado_elezione, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea')
+          .select('id, nome, cognome, email, ruolo, grado_elezione, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, paese_elezione, regione_elezione, provincia_elezione, comune_elezione')
           .or('ruolo.eq.Politico,ruolo.eq.Politico Candidato')
           .eq('grado_elezione', getTitolo());
-        
+          
         if (error) {
           throw new Error(error.message);
         }
         
         if (data) {
+          // Filtra i rappresentanti in base alla località di elezione dell'utente
+          const userData = user as any;
+          let filteredData = data;
+          
+          // Filtra in base alla località appropriata secondo il livello
+          if (userData) {
+            switch (categoria) {
+              case "europeo":
+                // Per rappresentanti europei, filtra per paese
+                filteredData = data.filter(item => 
+                  !userData.paese_elezione || 
+                  item.paese_elezione === userData.paese_elezione
+                );
+                break;
+              case "camera":
+              case "senato":
+                // Per rappresentanti nazionali, filtra per paese
+                filteredData = data.filter(item => 
+                  !userData.paese_elezione || 
+                  item.paese_elezione === userData.paese_elezione
+                );
+                break;
+              case "regione":
+                // Per rappresentanti regionali, filtra per regione
+                filteredData = data.filter(item => 
+                  !userData.regione_elezione || 
+                  (item.paese_elezione === userData.paese_elezione && 
+                  item.regione_elezione === userData.regione_elezione)
+                );
+                break;
+              case "comune":
+                // Per rappresentanti comunali, filtra per comune
+                filteredData = data.filter(item => 
+                  !userData.comune_elezione || 
+                  (item.paese_elezione === userData.paese_elezione && 
+                  item.regione_elezione === userData.regione_elezione &&
+                  item.provincia_elezione === userData.provincia_elezione &&
+                  item.comune_elezione === userData.comune_elezione)
+                );
+                break;
+              default:
+                break;
+            }
+          }
+          
           // Calcola le opinioni comuni con l'utente corrente
-          const rappresentantiConOpinioniComuni = data.map(rappresentante => {
+          const rappresentantiConOpinioniComuni = filteredData.map(rappresentante => {
             let opinioniComuni = 0;
             
             if (rappresentante.energia_nucleare && rappresentante.energia_nucleare === opinionsData.energia_nucleare) {
