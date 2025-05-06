@@ -134,13 +134,40 @@ export default function GestisciUtenti() {
     setShowDeleteDialog(true);
   };
 
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.cognome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.ruolo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Stato per l'ordinamento
+  const [sortField, setSortField] = useState<keyof User | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  // Funzione per gestire il cambio di ordinamento
+  const handleSort = (field: keyof User) => {
+    if (sortField === field) {
+      // Inverti la direzione se stai già ordinando per questo campo
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Imposta un nuovo campo di ordinamento con direzione ascendente di default
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Filtra e ordina gli utenti
+  const filteredUsers = users
+    .filter(user => 
+      user.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      user.cognome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.ruolo.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (!sortField) return 0;
+      
+      const valA = a[sortField];
+      const valB = b[sortField];
+      
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
@@ -192,11 +219,50 @@ export default function GestisciUtenti() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>ID</TableHead>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Cognome</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Ruolo</TableHead>
+                          <TableHead 
+                            className="cursor-pointer select-none"
+                            onClick={() => handleSort("nome")}
+                          >
+                            Nome
+                            {sortField === "nome" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? "↑" : "↓"}
+                              </span>
+                            )}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer select-none"
+                            onClick={() => handleSort("cognome")}
+                          >
+                            Cognome
+                            {sortField === "cognome" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? "↑" : "↓"}
+                              </span>
+                            )}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer select-none"
+                            onClick={() => handleSort("email")}
+                          >
+                            Email
+                            {sortField === "email" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? "↑" : "↓"}
+                              </span>
+                            )}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer select-none"
+                            onClick={() => handleSort("ruolo")}
+                          >
+                            Ruolo
+                            {sortField === "ruolo" && (
+                              <span className="ml-1">
+                                {sortDirection === "asc" ? "↑" : "↓"}
+                              </span>
+                            )}
+                          </TableHead>
                           <TableHead className="text-right">Azioni</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -204,24 +270,32 @@ export default function GestisciUtenti() {
                         {filteredUsers.length > 0 ? (
                           filteredUsers.map((user) => (
                             <TableRow key={user.id}>
-                              <TableCell>{user.id}</TableCell>
-                              <TableCell>{user.nome}</TableCell>
-                              <TableCell>{user.cognome}</TableCell>
+                              <TableCell>
+                                <span 
+                                  className="cursor-pointer text-blue-600 hover:underline"
+                                  onClick={() => {
+                                    setSelectedUserEmail(user.email);
+                                    setShowViewDialog(true);
+                                  }}
+                                >
+                                  {user.nome}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <span 
+                                  className="cursor-pointer text-blue-600 hover:underline"
+                                  onClick={() => {
+                                    setSelectedUserEmail(user.email);
+                                    setShowViewDialog(true);
+                                  }}
+                                >
+                                  {user.cognome}
+                                </span>
+                              </TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>{user.ruolo}</TableCell>
                               <TableCell className="text-right flex flex-wrap justify-end gap-1">
                                 <div className="flex space-x-1 items-center justify-end">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedUserEmail(user.email);
-                                      setShowViewDialog(true);
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    Visualizza
-                                  </Button>
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
