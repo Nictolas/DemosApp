@@ -14,7 +14,7 @@ const PostgresSessionStore = connectPg(session);
 declare global {
   namespace Express {
     interface User {
-      id: string;
+      id: string | number;
       email: string;
       uuid?: string;
       profile?: any;

@@ -4,7 +4,6 @@ import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, BarChart } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { 
   Chart as ChartJS, 
   ArcElement, 
@@ -69,16 +68,16 @@ export default function StatisticheOpinioni() {
       if (!user) return;
       
       try {
-        // Carica i dati da Supabase - assicurati di selezionare solo utenti con opinioni
-        const { data: users, error: supabaseError } = await supabase
-          .from('utenti')
-          .select('energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea');
-        
-        console.log("Dati opinioni caricati:", users);
-        
-        if (supabaseError) {
-          throw new Error(supabaseError.message);
+        // Utilizza API del backend per recuperare tutte le opinioni
+        // Questo ci permette di usare il client admin di Supabase lato server
+        // che bypassa le restrizioni RLS
+        const response = await fetch('/api/statistiche-opinioni');
+        if (!response.ok) {
+          throw new Error(`Errore API: ${response.statusText}`);
         }
+        
+        const users = await response.json();
+        console.log("Dati opinioni caricati:", users);
 
         // Non lanciare errore se non ci sono utenti
         if (!users || users.length === 0) {
@@ -99,7 +98,7 @@ export default function StatisticheOpinioni() {
         });
 
         // Calcola statistiche
-        usersData.forEach(user => {
+        usersData.forEach((user: Record<string, any>) => {
           Object.keys(opinionQuestions).forEach(question => {
             const opinion = user[question as keyof typeof user];
             if (opinion) {
