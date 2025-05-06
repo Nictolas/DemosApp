@@ -25,6 +25,11 @@ interface Candidato {
   legalizzazione_canapa?: string;
   caccia?: string;
   unione_europea?: string;
+  // Campi per la località
+  paese_candidatura?: string;
+  regione_candidatura?: string;
+  provincia_candidatura?: string;
+  comune_candidatura?: string;
 }
 
 export default function ScegliCandidato() {
@@ -73,7 +78,7 @@ export default function ScegliCandidato() {
         // Carica tutti gli utenti con ruolo candidato o politico candidato
         const { data, error } = await supabase
           .from('utenti')
-          .select('id, nome, cognome, email, ruolo, grado_candidatura, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea')
+          .select('id, nome, cognome, email, ruolo, grado_candidatura, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura')
           .or('ruolo.eq.Candidato,ruolo.eq.Politico Candidato')
           .eq('grado_candidatura', getTitolo());
         
@@ -82,8 +87,53 @@ export default function ScegliCandidato() {
         }
         
         if (data) {
+          // Filtra i candidati in base alla località di candidatura dell'utente
+          const userData = user as any;
+          let filteredData = data;
+          
+          // Filtra in base alla località appropriata secondo il livello
+          if (userData) {
+            switch (categoria) {
+              case "europeo":
+                // Per candidati europei, filtra per paese
+                filteredData = data.filter(item => 
+                  !userData.paese_candidatura || 
+                  item.paese_candidatura === userData.paese_candidatura
+                );
+                break;
+              case "camera":
+              case "senato":
+                // Per candidati nazionali, filtra per paese
+                filteredData = data.filter(item => 
+                  !userData.paese_candidatura || 
+                  item.paese_candidatura === userData.paese_candidatura
+                );
+                break;
+              case "regione":
+                // Per candidati regionali, filtra per regione
+                filteredData = data.filter(item => 
+                  !userData.regione_candidatura || 
+                  (item.paese_candidatura === userData.paese_candidatura && 
+                  item.regione_candidatura === userData.regione_candidatura)
+                );
+                break;
+              case "comune":
+                // Per candidati comunali, filtra per comune
+                filteredData = data.filter(item => 
+                  !userData.comune_candidatura || 
+                  (item.paese_candidatura === userData.paese_candidatura && 
+                  item.regione_candidatura === userData.regione_candidatura &&
+                  item.provincia_candidatura === userData.provincia_candidatura &&
+                  item.comune_candidatura === userData.comune_candidatura)
+                );
+                break;
+              default:
+                break;
+            }
+          }
+          
           // Calcola le opinioni comuni con l'utente corrente
-          const candidatiConOpinioniComuni = data.map(candidato => {
+          const candidatiConOpinioniComuni = filteredData.map(candidato => {
             let opinioniComuni = 0;
             
             if (candidato.energia_nucleare && candidato.energia_nucleare === opinionsData.energia_nucleare) {
@@ -149,7 +199,7 @@ export default function ScegliCandidato() {
         variant: "default",
       });
       
-      // Redirect alla pagina delle elezioni
+      // Redirect alla pagina dei candidati
       window.location.href = "/elezioni";
     } catch (error) {
       console.error("Errore durante la selezione del candidato:", error);
