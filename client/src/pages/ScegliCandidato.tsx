@@ -40,6 +40,7 @@ export default function ScegliCandidato() {
   const [userOpinions, setUserOpinions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selezionando, setSelezionando] = useState(false);
+  const [candidatoSelezionato, setCandidatoSelezionato] = useState<string | null>(null);
   
   // Titolo visualizzato in base alla categoria
   const getTitolo = (): string => {

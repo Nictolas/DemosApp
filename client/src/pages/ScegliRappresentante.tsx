@@ -40,6 +40,7 @@ export default function ScegliRappresentante() {
   const [userOpinions, setUserOpinions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selezionando, setSelezionando] = useState(false);
+  const [rappresentanteSelezionato, setRappresentanteSelezionato] = useState<string | null>(null);
   
   // Titolo visualizzato in base alla categoria
   const getTitolo = (): string => {
@@ -70,6 +71,15 @@ export default function ScegliRappresentante() {
       if (!user) return;
       
       try {
+        // Carica i dati dell'utente corrente
+        const userResponse = await apiRequest("GET", `/api/user`);
+        const userData = await userResponse.json();
+        
+        // Recupera l'ID del rappresentante selezionato
+        if (userData) {
+          setRappresentanteSelezionato(userData[getFieldName()] || null);
+        }
+        
         // Carica le opinioni dell'utente corrente
         const opinionsResponse = await apiRequest("GET", '/api/opinioni');
         const opinionsData = await opinionsResponse.json();
@@ -161,8 +171,8 @@ export default function ScegliRappresentante() {
           // Ordina per numero di opinioni comuni (decrescente)
           rappresentantiConOpinioniComuni.sort((a, b) => b.opinioni_comuni - a.opinioni_comuni);
           
-          // Prendi solo i primi 3 rappresentanti
-          setRappresentanti(rappresentantiConOpinioniComuni.slice(0, 3));
+          // Usa tutti i rappresentanti disponibili
+          setRappresentanti(rappresentantiConOpinioniComuni);
         }
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);
@@ -264,14 +274,24 @@ export default function ScegliRappresentante() {
   return (
     <PageTransition>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
-          <Button variant="ghost" className="mr-2" asChild>
-            <Link to="/rappresentanti">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Indietro
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">Scegli Rappresentante {getTitolo()}</h1>
+        <div className="flex flex-col mb-6">
+          <div className="flex items-center mb-2">
+            <Button variant="ghost" className="mr-2" asChild>
+              <Link to="/rappresentanti">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Indietro
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">Scegli Rappresentante {getTitolo()}</h1>
+          </div>
+          
+          {rappresentanteSelezionato && (
+            <div className="bg-secondary/20 p-2 rounded-md text-center mb-4">
+              <p className="text-sm text-muted-foreground">
+                Rappresentante selezionato: {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.nome} {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.cognome || "(ID: " + rappresentanteSelezionato + ")"}
+              </p>
+            </div>
+          )}
         </div>
         
         {rappresentanti.length === 0 ? (

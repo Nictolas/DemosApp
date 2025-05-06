@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
+import { supabase } from "@/lib/supabase";
 
 export default function Rappresentanti() {
   const { user, isLoading } = useAuth();
@@ -105,12 +106,16 @@ export default function Rappresentanti() {
   // Funzione per mostrare i dettagli del rappresentante o un pulsante per sceglierlo
   const renderRappresentante = (categoria: { id: string, nome: string, field: string }) => {
     const rappresentanteId = userData?.[categoria.field];
+    const rappresentanteData = rappresentanti[categoria.id];
     
     if (rappresentanteId) {
       return (
         <div className="flex flex-col space-y-2 items-center">
           <User className="h-12 w-12 text-primary" />
-          <p className="text-sm text-gray-500">ID: {rappresentanteId}</p>
+          <p className="font-medium text-primary">
+            {rappresentanteData ? `${rappresentanteData.nome} ${rappresentanteData.cognome}` : 'Caricamento...'}
+          </p>
+          <p className="text-xs text-gray-500">ID: {rappresentanteId}</p>
           <Button 
             variant="outline"
             size="sm"
