@@ -13,14 +13,19 @@ export default function Rappresentanti() {
   const { toast } = useToast();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [rappresentanti, setRappresentanti] = useState<Record<string, any>>({});
   
   useEffect(() => {
     const fetchUserData = async () => {
       if (user) {
         try {
+          // Carica i dati dell'utente
           const response = await apiRequest("GET", `/api/user`);
           const data = await response.json();
           setUserData(data);
+          
+          // Caricare i dettagli dei rappresentanti
+          await fetchRappresentanti(data);
         } catch (error) {
           console.error("Errore durante il recupero dei dati utente:", error);
           toast({
@@ -32,6 +37,44 @@ export default function Rappresentanti() {
           setLoading(false);
         }
       }
+    };
+    
+    // Funzione per caricare i dettagli dei rappresentanti
+    const fetchRappresentanti = async (userData: any) => {
+      if (!userData) return;
+      
+      const rappresentantiData: Record<string, any> = {};
+      const categorie = [
+        { id: "europeo", field: "rappresentante_europeo" },
+        { id: "camera", field: "rappresentante_camera" },
+        { id: "senato", field: "rappresentante_senato" },
+        { id: "regione", field: "rappresentante_regione" },
+        { id: "comune", field: "rappresentante_comune" }
+      ];
+      
+      for (const categoria of categorie) {
+        const rappresentanteId = userData[categoria.field];
+        if (rappresentanteId) {
+          try {
+            // Caricare i dettagli del rappresentante da Supabase
+            const { data, error } = await supabase
+              .from('utenti')
+              .select('nome, cognome')
+              .eq('id', rappresentanteId)
+              .single();
+              
+            if (error) {
+              console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, error);
+            } else if (data) {
+              rappresentantiData[categoria.id] = data;
+            }
+          } catch (error) {
+            console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, error);
+          }
+        }
+      }
+      
+      setRappresentanti(rappresentantiData);
     };
     
     fetchUserData();
