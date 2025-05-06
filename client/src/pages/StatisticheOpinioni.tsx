@@ -41,7 +41,7 @@ export default function StatisticheOpinioni() {
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Domande di opinione
+  // Domande di opinione - assicurati che corrispondano ESATTAMENTE ai nomi delle colonne nel DB
   const opinionQuestions = {
     energia_nucleare: "Energia Nucleare",
     sperimentazione_animale: "Sperimentazione Animale",
@@ -49,6 +49,9 @@ export default function StatisticheOpinioni() {
     caccia: "Caccia",
     unione_europea: "Unione Europea"
   };
+  
+  // Log dei nomi delle chiavi per debug
+  console.log("Nomi delle chiavi opinioni:", Object.keys(opinionQuestions));
 
   // Colori per i grafici
   const backgroundColors = {
@@ -98,17 +101,21 @@ export default function StatisticheOpinioni() {
         });
 
         // Calcola statistiche
+        console.log("Calcolo statistiche per", usersData.length, "utenti");
         usersData.forEach((user: Record<string, any>) => {
           Object.keys(opinionQuestions).forEach(question => {
             const opinion = user[question as keyof typeof user];
-            if (opinion) {
+            console.log(`Utente ${user.nome} ${user.cognome}, opinione ${question}: ${opinion}`);
+            if (opinion && ['Favorevole', 'Indeciso', 'Contrario'].includes(opinion)) {
               // Incrementa il contatore appropriato
-              if (opinionStats[question][opinion as keyof typeof opinionStats[typeof question]]) {
-                opinionStats[question][opinion as keyof typeof opinionStats[typeof question]]++;
-              }
+              console.log(`  Incrementando contatore per ${question} - ${opinion}`);
+              opinionStats[question][opinion as keyof typeof opinionStats[typeof question]]++;
             }
           });
         });
+        
+        // Log delle statistiche calcolate
+        console.log("Statistiche calcolate:", opinionStats);
 
         setStats(opinionStats);
       } catch (error) {

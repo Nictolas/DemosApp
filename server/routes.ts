@@ -270,8 +270,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Salvando opinioni su Supabase per utente - UUID: ${userId}, Email: ${email}`);
       console.log('Dati opinioni completi:', JSON.stringify(opinionsData, null, 2));
       
-      // Salviamo direttamente con l'UUID
-      let result = await SupabaseService.saveUserOpinions(userId, opinionsData);
+      // Salviamo direttamente con l'UUID - convertiamo a stringa per sicurezza
+      let result = await SupabaseService.saveUserOpinions(String(userId), opinionsData);
       
       // Se fallisce, proviamo con l'email
       if (!result.success && email) {
@@ -321,7 +321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Recuperando opinioni con UUID: ${userId}`);
       // Prova prima con l'UUID
-      let opinions = await SupabaseService.getUserOpinions(userId.toString());
+      let opinions = await SupabaseService.getUserOpinions(String(userId));
       
       // Se non trova nulla con UUID, prova con l'email
       if (!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k as keyof typeof opinions]))) {
