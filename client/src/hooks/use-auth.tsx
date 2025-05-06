@@ -92,6 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Account creato con successo!",
         variant: "success",
       });
+      
+      // Reindirizza al menu indipendentemente dal ruolo dell'utente
+      window.location.href = "/menu";
     },
     onError: (error: Error) => {
       toast({

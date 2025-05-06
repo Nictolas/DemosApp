@@ -69,18 +69,24 @@ export default function StatisticheOpinioni() {
       if (!user) return;
       
       try {
-        // Carica i dati da Supabase
+        // Carica i dati da Supabase - assicurati di selezionare solo utenti con opinioni
         const { data: users, error: supabaseError } = await supabase
           .from('utenti')
           .select('energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea');
+        
+        console.log("Dati opinioni caricati:", users);
         
         if (supabaseError) {
           throw new Error(supabaseError.message);
         }
 
+        // Non lanciare errore se non ci sono utenti
         if (!users || users.length === 0) {
-          throw new Error("Nessun dato utente trovato");
+          console.warn("Nessun dato utente trovato");
         }
+        
+        // Utilizza un array vuoto se users è null
+        const usersData = users || [];
 
         // Inizializza struttura dati per statistiche
         const opinionStats: OpinionStats = {};
@@ -93,7 +99,7 @@ export default function StatisticheOpinioni() {
         });
 
         // Calcola statistiche
-        users.forEach(user => {
+        usersData.forEach(user => {
           Object.keys(opinionQuestions).forEach(question => {
             const opinion = user[question as keyof typeof user];
             if (opinion) {
