@@ -7,12 +7,14 @@ import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
+import { supabase } from "@/lib/supabase";
 
 export default function Elezioni() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [candidati, setCandidati] = useState<Record<string, any>>({});
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -21,6 +23,39 @@ export default function Elezioni() {
           const response = await apiRequest("GET", `/api/user`);
           const data = await response.json();
           setUserData(data);
+          
+          // Carichiamo i dati di tutti i candidati che l'utente ha selezionato
+          const candidatiIds = [
+            data.candidato_europeo, 
+            data.candidato_camera, 
+            data.candidato_senato, 
+            data.candidato_regione, 
+            data.candidato_comune
+          ].filter(Boolean); // Filtriamo i valori nulli o undefined
+          
+          if (candidatiIds.length > 0) {
+            try {
+              // Recuperiamo i dati dei candidati in un'unica query
+              const { data: candidatiData, error } = await supabase
+                .from('utenti')
+                .select('id, nome, cognome, ruolo')
+                .in('id', candidatiIds);
+                
+              if (error) {
+                throw new Error(error.message);
+              }
+              
+              // Convertiamo l'array in un oggetto con l'ID come chiave per accesso rapido
+              const candidatiMap = candidatiData.reduce((acc: Record<string, any>, candidato) => {
+                acc[candidato.id] = candidato;
+                return acc;
+              }, {});
+              
+              setCandidati(candidatiMap);
+            } catch (err) {
+              console.error("Errore durante il recupero dei dati dei candidati:", err);
+            }
+          }
         } catch (error) {
           console.error("Errore durante il recupero dei dati utente:", error);
           toast({
@@ -64,10 +99,18 @@ export default function Elezioni() {
     const candidatoId = userData?.[categoria.field];
     
     if (candidatoId) {
+      const candidato = candidati[candidatoId];
       return (
         <div className="flex flex-col space-y-2 items-center">
           <User className="h-12 w-12 text-primary" />
-          <p className="text-sm text-gray-500">ID: {candidatoId}</p>
+          {candidato ? (
+            <div className="text-center">
+              <p className="text-base font-medium">{candidato.nome} {candidato.cognome}</p>
+              <p className="text-xs text-muted-foreground">{candidato.ruolo}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">ID: {candidatoId}</p>
+          )}
           <Button 
             variant="outline"
             size="sm"

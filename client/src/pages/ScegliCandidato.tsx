@@ -71,6 +71,15 @@ export default function ScegliCandidato() {
       if (!user) return;
       
       try {
+        // Carica i dati dell'utente corrente
+        const userResponse = await apiRequest("GET", `/api/user`);
+        const userData = await userResponse.json();
+        
+        // Recupera l'ID del candidato selezionato
+        if (userData) {
+          setCandidatoSelezionato(userData[getFieldName()] || null);
+        }
+        
         // Carica le opinioni dell'utente corrente
         const opinionsResponse = await apiRequest("GET", '/api/opinioni');
         const opinionsData = await opinionsResponse.json();
@@ -162,8 +171,8 @@ export default function ScegliCandidato() {
           // Ordina per numero di opinioni comuni (decrescente)
           candidatiConOpinioniComuni.sort((a, b) => b.opinioni_comuni - a.opinioni_comuni);
           
-          // Prendi solo i primi 3 candidati
-          setCandidati(candidatiConOpinioniComuni.slice(0, 3));
+          // Usa tutti i candidati disponibili
+          setCandidati(candidatiConOpinioniComuni);
         }
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);
@@ -265,14 +274,24 @@ export default function ScegliCandidato() {
   return (
     <PageTransition>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
-          <Button variant="ghost" className="mr-2" asChild>
-            <Link to="/elezioni">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Indietro
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">Scegli Candidato {getTitolo()}</h1>
+        <div className="flex flex-col mb-6">
+          <div className="flex items-center mb-2">
+            <Button variant="ghost" className="mr-2" asChild>
+              <Link to="/elezioni">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Indietro
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">Scegli Candidato {getTitolo()}</h1>
+          </div>
+          
+          {candidatoSelezionato && (
+            <div className="bg-secondary/20 p-2 rounded-md text-center mb-4">
+              <p className="text-sm text-muted-foreground">
+                Candidato selezionato: {candidati.find(c => c.id === candidatoSelezionato)?.nome} {candidati.find(c => c.id === candidatoSelezionato)?.cognome || "(ID: " + candidatoSelezionato + ")"}
+              </p>
+            </div>
+          )}
         </div>
         
         {candidati.length === 0 ? (
