@@ -8,18 +8,8 @@ import { users, utenti, User } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Estendi l'interfaccia Request per includere user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: number | string;
-        email: string;
-        uuid?: string;
-      };
-      isAuthenticated(): boolean;
-    }
-  }
-}
+// Interface already defined in auth.ts
+// Keep this empty as a workaround to avoid type conflict
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -404,6 +394,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(opinions);
     } catch (error) {
       console.error('Errore durante il recupero delle opinioni:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // API per recuperare tutte le opinioni per statistiche - UTILIZZA ESCLUSIVAMENTE SUPABASE
+  app.get('/api/statistiche-opinioni', requireAuth, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+      
+      // Recupera tutte le opinioni degli utenti usando il servizio Supabase
+      // Questa funzione utilizza il client admin che bypassa RLS
+      const allOpinions = await SupabaseService.getAllUsersOpinions();
+      
+      console.log(`Recuperate ${allOpinions.length} opinioni per le statistiche`);
+      
+      return res.status(200).json(allOpinions);
+    } catch (error) {
+      console.error('Errore durante il recupero delle statistiche opinioni:', error);
       return res.status(500).json({ error: 'Errore interno del server' });
     }
   });
