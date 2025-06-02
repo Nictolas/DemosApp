@@ -504,6 +504,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Route per reset password
+  app.post('/api/reset-password', async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: 'Email richiesta' });
+      }
+
+      const result = await FirebaseService.resetPassword(email);
+      
+      if (result.success) {
+        return res.status(200).json({ message: 'Email di reset inviata con successo' });
+      } else {
+        return res.status(400).json({ error: result.error });
+      }
+    } catch (error) {
+      console.error('Errore nel reset password:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
