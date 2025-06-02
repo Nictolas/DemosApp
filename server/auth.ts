@@ -6,8 +6,10 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import connectPg from "connect-pg-simple";
 import { pool } from "../db";
-// Importa SupabaseService e il client supabase dalla classe di servizio
-import SupabaseService, { supabase, supabaseAdmin } from "./supabase-service";
+// Importa FirebaseService e i client firebase dalla configurazione
+import FirebaseService from "./firebase-service";
+import { auth, adminAuth } from './firebase-config';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const PostgresSessionStore = connectPg(session);
 
@@ -63,113 +65,49 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        // Verifica credenziali direttamente con Supabase Auth
-        console.log("Tentativo login con Supabase Auth per:", email);
+        // Verifica credenziali direttamente con Firebase Auth
+        console.log("Tentativo login con Firebase Auth per:", email);
         
-        if (!supabase) {
-          console.error("Client Supabase non configurato per login");
+        if (!auth) {
+          console.error("Client Firebase non configurato per login");
           return done(null, false, { message: "Servizio di autenticazione non disponibile" });
         }
         
-        // Prima proviamo l'autenticazione con Supabase Auth
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+        // Prima proviamo l'autenticazione con Firebase Auth
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
         
-        if (error || !data.user) {
-          console.error("Errore login con Supabase Auth:", error);
-          
-          // Gestiamo specificamente l'errore di email non confermata
-          if (error?.message?.includes('Email not confirmed') || error?.code === 'email_not_confirmed') {
-            console.log("Tentativo di auto-conferma email durante il login per:", email);
-            
-            // Tentativo di auto-confermare l'email utilizzando il client admin
-            if (supabaseAdmin) {
-              try {
-                // Prima otteniamo l'ID dell'utente dalla sua email
-                const { data: adminData } = await supabaseAdmin.auth.admin.getUserByEmail(email);
-                
-                if (adminData?.user?.id) {
-                  console.log(`Trovato ID utente: ${adminData.user.id}, tentativo di conferma email...`);
-                  
-                  // Conferma l'email utilizzando il client admin
-                  const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(
-                    adminData.user.id,
-                    { email_confirm: true }
-                  );
-                  
-                  if (confirmError) {
-                    console.error("Errore nella conferma email durante il login:", confirmError);
-                    return done(null, false, { message: "Non è stato possibile confermare l'email. Contatta l'amministratore." });
-                  }
-                  
-                  console.log("Email confermata con successo, ritento login...");
-                  
-                  // Riprova il login dopo la conferma
-                  const { data: newData, error: newError } = await supabase.auth.signInWithPassword({
-                    email,
-                    password
-                  });
-                  
-                  if (newError || !newData.user) {
-                    console.error("Errore nel secondo tentativo di login:", newError);
-                    return done(null, false, { message: "Email confermata, ma login fallito. Riprova." });
-                  }
-                  
-                  // A questo punto dovremmo avere un login riuscito
-                  data.user = newData.user;
-                  data.session = newData.session;
-                  
-                  console.log("Login riuscito dopo conferma email!");
-                } else {
-                  console.error("Impossibile trovare l'utente per la conferma email");
-                  return done(null, false, { message: "Impossibile confermare l'email. Contatta l'amministratore." });
-                }
-              } catch (adminError) {
-                console.error("Errore durante l'uso del client admin:", adminError);
-                return done(null, false, { message: "Errore interno durante la conferma dell'email." });
-              }
-            } else {
-              console.warn("Client admin non disponibile, impossibile confermare email");
-              return done(null, false, { message: "Email non confermata. Contatta l'amministratore per confermarla." });
-            }
-          } else {
-            // Altri tipi di errori
-            return done(null, false, { message: "Email o password non validi" });
-          }
+        if (!userCredential.user) {
+          console.error("Errore login con Firebase Auth");
+          return done(null, false, { message: "Credenziali non valide" });
         }
         
-        console.log("Login con Supabase Auth riuscito per:", email);
-        console.log("UUID utente:", data.user.id);
+        console.log('Login con Firebase Auth riuscito. UID:', userCredential.user.uid);
         
-        // Recupera i dati dell'utente dalla tabella utenti
-        const userProfile = await SupabaseService.getUserByEmail(email);
+        // Recupera il profilo utente da Firestore
+        let userProfile = await FirebaseService.getUserByEmail(email);
         
         if (!userProfile) {
-          console.log("Utente autenticato ma profilo non trovato in Supabase, creando profilo di base");
+          console.log("Profilo utente non trovato in Firestore, creazione profilo base...");
           
-          // Crea un profilo di base per l'utente nella tabella utenti
+          // Crea un profilo di base se non esiste
           const basicProfile = {
-            id: data.user.id,
             email: email,
-            nome: "",
-            cognome: "",
-            ruolo: "Elettore"
+            uid: userCredential.user.uid,
+            nome: '',
+            cognome: '',
+            ruolo: 'Elettore'
           };
           
-          await SupabaseService.saveUserData(basicProfile);
+          await FirebaseService.saveUserData(basicProfile);
+          userProfile = basicProfile;
         }
         
-        // Recupera di nuovo il profilo per assicurarsi di avere i dati aggiornati
-        const updatedProfile = userProfile || await SupabaseService.getUserByEmail(email);
-        
-        // Salva l'UUID di Supabase Auth nell'oggetto utente per la sessione
+        // Salva l'UID di Firebase Auth nell'oggetto utente per la sessione
         return done(null, { 
-          id: data.user.id, 
+          id: userCredential.user.uid, 
           email: email,
-          uuid: data.user.id, // Importante: memorizziamo l'UUID per usarlo in seguito
-          profile: updatedProfile // Memorizziamo anche i dati del profilo
+          uuid: userCredential.user.uid, // Importante: memorizziamo l'UID per usarlo in seguito
+          profile: userProfile // Memorizziamo anche i dati del profilo
         });
       } catch (error) {
         console.error("Eccezione durante il login:", error);
@@ -205,29 +143,29 @@ export function setupAuth(app: Express) {
       console.log("Email:", email);
       console.log("UserDetails:", JSON.stringify(userDetails, null, 2));
       
-      // Registrazione esclusivamente su Supabase (nessun database locale)
-      console.log("=== INIZIO REGISTRAZIONE SU SUPABASE AUTH ===");
+      // Registrazione esclusivamente su Firebase (nessun database locale)
+      console.log("=== INIZIO REGISTRAZIONE SU FIREBASE AUTH ===");
       console.log("Dati utente per registrazione:", { email, ...userDetails });
       
-      // UNICO FLUSSO: Il metodo registerUserOnSupabaseAuth esegue signUp e
-      // salva DIRETTAMENTE i dati utente con saveUserOpinions
-      const supabaseAuthResult = await SupabaseService.registerUserOnSupabaseAuth(email, password, userDetails);
+      // UNICO FLUSSO: Il metodo registerUserOnFirebaseAuth esegue signUp e
+      // salva DIRETTAMENTE i dati utente
+      const firebaseAuthResult = await FirebaseService.registerUserOnFirebaseAuth(email, password, userDetails);
       
-      console.log("Risultato registrazione su Supabase Auth:", JSON.stringify(supabaseAuthResult, null, 2));
+      console.log("Risultato registrazione su Firebase Auth:", JSON.stringify(firebaseAuthResult, null, 2));
       
-      if (!supabaseAuthResult.success) {
-        console.error("Errore registrando l'utente su Supabase Auth:", supabaseAuthResult.error);
-        return res.status(400).json({ error: "Errore durante la registrazione con Supabase: " + supabaseAuthResult.error });
+      if (!firebaseAuthResult.success) {
+        console.error("Errore registrando l'utente su Firebase Auth:", firebaseAuthResult.error);
+        return res.status(400).json({ error: "Errore durante la registrazione con Firebase: " + firebaseAuthResult.error });
       }
       
-      console.log("=== UTENTE REGISTRATO CON SUCCESSO SU SUPABASE AUTH E SALVATO IN TABELLA UTENTI ===");
+      console.log("=== UTENTE REGISTRATO CON SUCCESSO SU FIREBASE AUTH E SALVATO IN FIRESTORE ===");
       
-      // Utilizza direttamente l'UUID dall'utente Supabase Auth
-      const supabaseUser = supabaseAuthResult.user;
-      const uuid = supabaseUser.id;
+      // Utilizza direttamente l'UID dall'utente Firebase Auth
+      const firebaseUser = firebaseAuthResult.user;
+      const uuid = firebaseUser.uid;
       
       // Recupera anche il profilo appena creato da passare alla sessione
-      const userProfile = await SupabaseService.getUserByEmail(email);
+      const userProfile = await FirebaseService.getUserByEmail(email);
       
       // Crea una sessione con l'UUID di Supabase e i dati del profilo
       req.login({ 
