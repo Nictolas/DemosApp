@@ -436,6 +436,37 @@ export default function AuthPage() {
                             "Accedi"
                           )}
                         </Button>
+                        
+                        <div className="text-center mt-4">
+                          <Button 
+                            type="button" 
+                            variant="link" 
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                            onClick={async () => {
+                              const email = loginForm.getValues("email");
+                              if (!email) {
+                                alert("Inserisci prima la tua email");
+                                return;
+                              }
+                              try {
+                                const response = await fetch('/api/reset-password', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ email })
+                                });
+                                if (response.ok) {
+                                  alert("Email di reset inviata! Controlla la tua casella email.");
+                                } else {
+                                  alert("Errore nell'invio dell'email di reset");
+                                }
+                              } catch (error) {
+                                alert("Errore nell'invio dell'email di reset");
+                              }
+                            }}
+                          >
+                            Password dimenticata?
+                          </Button>
+                        </div>
                       </form>
                     </Form>
                   </TabsContent>

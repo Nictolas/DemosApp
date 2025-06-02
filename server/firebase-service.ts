@@ -363,6 +363,39 @@ class FirebaseService {
   static async getAllOpinions(): Promise<any[]> {
     return this.getAllUsersOpinions();
   }
+
+  /**
+   * Invia email di reset password tramite Firebase Auth
+   */
+  static async resetPassword(email: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!auth) {
+        return {
+          success: false,
+          error: 'Firebase Auth non configurato'
+        };
+      }
+
+      // Importa sendPasswordResetEmail dinamicamente
+      const { sendPasswordResetEmail } = await import('firebase/auth');
+      
+      await sendPasswordResetEmail(auth, email);
+      
+      return {
+        success: true
+      };
+      
+    } catch (error: any) {
+      console.error('Errore nel reset password:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore nel reset password'
+      };
+    }
+  }
 }
 
 export default FirebaseService;
