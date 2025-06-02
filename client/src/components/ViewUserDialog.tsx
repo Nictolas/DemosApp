@@ -31,7 +31,7 @@ export function ViewUserDialog({ userEmail, open, onOpenChange }: ViewUserDialog
 
     try {
       // Carica i dati da Supabase
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('utenti')
         .select('*')
         .eq('email', userEmail)

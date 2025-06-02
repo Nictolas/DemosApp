@@ -36,7 +36,7 @@ export default function Elezioni() {
           if (candidatiIds.length > 0) {
             try {
               // Recuperiamo i dati dei candidati in un'unica query
-              const { data: candidatiData, error } = await supabase
+              const { data: candidatiData, error } = await db
                 .from('utenti')
                 .select('id, nome, cognome, ruolo')
                 .in('id', candidatiIds);

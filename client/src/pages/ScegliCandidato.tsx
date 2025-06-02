@@ -86,7 +86,7 @@ export default function ScegliCandidato() {
         setUserOpinions(opinionsData);
         
         // Carica tutti gli utenti con ruolo candidato o politico candidato
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from('utenti')
           .select('id, nome, cognome, email, ruolo, grado_candidatura, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura')
           .or('ruolo.eq.Candidato,ruolo.eq.Politico Candidato')

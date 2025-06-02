@@ -22,22 +22,19 @@ export default function Profilo() {
       if (!user) return;
       
       try {
-        // Primo tentativo: carica i dati da Supabase
-        const { data: supabaseData, error: supabaseError } = await supabase
-          .from('utenti')
-          .select('*')
-          .eq('email', user.email)
-          .single();
+        // Carica i dati utente tramite API (che ora usa Firebase)
+        const response = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
         
-        if (supabaseData) {
-          console.log("Dati utente caricati da Supabase:", supabaseData);
-          setUserInfo(supabaseData as UserInfo);
+        if (response.ok) {
+          const userData = await response.json();
+          console.log("Dati utente caricati:", userData);
+          setUserInfo(userData as UserInfo);
         } else {
-          console.log("Dati non trovati in Supabase, caricamento dal database locale:", supabaseError);
+          console.log("Dati non trovati, caricamento dal profilo locale");
           
           // Fallback: carica i dati dal database locale
-          const response = await fetch(`/api/users/${user.id}/profile`);
-          if (!response.ok) {
+          const profileResponse = await fetch(`/api/users/${user.id}/profile`);
+          if (!profileResponse.ok) {
             throw new Error("Errore nel caricamento dei dati del profilo");
           }
           

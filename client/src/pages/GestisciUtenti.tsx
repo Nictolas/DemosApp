@@ -53,25 +53,14 @@ export default function GestisciUtenti() {
       if (!user) return;
       
       try {
-        // Carica i dati da Supabase
-        const { data: supabaseUsers, error: supabaseError } = await supabase
-          .from('utenti')
-          .select('*');
-        
-        if (supabaseUsers && supabaseUsers.length > 0) {
-          console.log("Utenti caricati da Supabase:", supabaseUsers);
-          setUsers(supabaseUsers as User[]);
+        // Carica i dati tramite API (che ora usa Firebase)
+        const response = await fetch("/api/users");
+        if (response.ok) {
+          const userData = await response.json();
+          console.log("Utenti caricati:", userData);
+          setUsers(userData as User[]);
         } else {
-          console.log("Dati non trovati in Supabase, caricamento dal database locale:", supabaseError);
-          
-          // Fallback: carica i dati dal database locale
-          const response = await fetch("/api/users");
-          if (!response.ok) {
-            throw new Error("Errore nel caricamento degli utenti");
-          }
-          
-          const data = await response.json();
-          setUsers(data);
+          throw new Error("Errore nel caricamento degli utenti");
         }
       } catch (error) {
         console.error("Errore:", error);
@@ -423,7 +412,7 @@ export default function GestisciUtenti() {
           // Aggiorna la lista degli utenti dopo una modifica
           const fetchUsers = async () => {
             try {
-              const { data, error } = await supabase
+              const { data, error } = await db
                 .from('utenti')
                 .select('*');
               

@@ -68,12 +68,12 @@ export default function StatisticheUtenti() {
       
       try {
         // Carica i dati da Supabase
-        const { data: users, error: supabaseError } = await supabase
+        const { data: users, error: dbError } = await db
           .from('utenti')
           .select('*');
         
-        if (supabaseError) {
-          throw new Error(supabaseError.message);
+        if (dbError) {
+          throw new Error(dbError.message);
         }
 
         if (!users || users.length === 0) {

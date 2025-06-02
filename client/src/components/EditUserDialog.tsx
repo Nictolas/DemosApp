@@ -33,7 +33,7 @@ export function EditUserDialog({ userEmail, open, onOpenChange, onUserUpdated }:
 
     try {
       // Carica i dati da Supabase
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('utenti')
         .select('*')
         .eq('email', userEmail)

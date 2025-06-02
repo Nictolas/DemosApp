@@ -19,20 +19,14 @@ export default function Menu() {
       if (!user) return;
       
       try {
-        // Cerca l'utente in Supabase usando l'email
-        const { data, error } = await supabase
-          .from('utenti')
-          .select('ruolo')
-          .eq('email', user.email)
-          .single();
-        
-        if (error) {
-          console.error("Errore nel verificare il ruolo:", error);
-          return;
+        // Cerca l'utente usando l'API che ora utilizza Firebase
+        const response = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        if (response.ok) {
+          const userData = await response.json();
+          setIsAdmin(userData?.ruolo === 'Admin');
+        } else {
+          console.error("Errore nel verificare il ruolo");
         }
-        
-        // Imposta isAdmin se il ruolo è "Admin"
-        setIsAdmin(data && data.ruolo === "Admin");
       } catch (error) {
         console.error("Errore:", error);
       }
