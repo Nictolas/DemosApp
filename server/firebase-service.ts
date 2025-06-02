@@ -5,6 +5,7 @@ import {
   getDocs, 
   getDoc, 
   addDoc, 
+  setDoc,
   updateDoc, 
   deleteDoc, 
   query, 
@@ -189,7 +190,7 @@ class FirebaseService {
       console.log('Salvataggio opinioni utente in Firestore per ID:', utenteId);
       
       const userDocRef = doc(db, 'utenti', utenteId);
-      await updateDoc(userDocRef, opinions);
+      await setDoc(userDocRef, opinions, { merge: true });
       
       console.log('Opinioni utente salvate con successo in Firestore');
       
