@@ -16,6 +16,39 @@ export default function Profilo() {
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [userOpinions, setUserOpinions] = useState<any>(null);
+
+  // Funzione per categorizzare le opinioni
+  const categorizeOpinions = (opinions: any) => {
+    if (!opinions) return { favorevoli: [], indecisi: [], contrari: [] };
+
+    const opinionLabels = {
+      energia_nucleare: "Energia Nucleare",
+      sperimentazione_animale: "Sperimentazione Animale", 
+      legalizzazione_canapa: "Legalizzazione Canapa",
+      caccia: "Caccia",
+      unione_europea: "Unione Europea"
+    };
+
+    const favorevoli: string[] = [];
+    const indecisi: string[] = [];
+    const contrari: string[] = [];
+
+    Object.entries(opinions).forEach(([key, value]) => {
+      if (key in opinionLabels) {
+        const label = opinionLabels[key as keyof typeof opinionLabels];
+        if (value === "Favorevole") {
+          favorevoli.push(label);
+        } else if (value === "Indeciso") {
+          indecisi.push(label);
+        } else if (value === "Contrario") {
+          contrari.push(label);
+        }
+      }
+    });
+
+    return { favorevoli, indecisi, contrari };
+  };
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -29,6 +62,16 @@ export default function Profilo() {
           const userData = await response.json();
           console.log("Dati utente caricati:", userData);
           setUserInfo(userData as UserInfo);
+          
+          // Estrai le opinioni dai dati utente (ora sono unificati)
+          const opinions = {
+            energia_nucleare: userData.energia_nucleare || '',
+            sperimentazione_animale: userData.sperimentazione_animale || '',
+            legalizzazione_canapa: userData.legalizzazione_canapa || '',
+            caccia: userData.caccia || '',
+            unione_europea: userData.unione_europea || ''
+          };
+          setUserOpinions(opinions);
         } else {
           console.log("Dati non trovati, caricamento dal profilo locale");
           
@@ -174,6 +217,93 @@ export default function Profilo() {
               )}
             </CardFooter>
           </Card>
+
+          {/* Sezione Opinioni */}
+          {userInfo && userOpinions && (
+            <Card className="animate-in-delay">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Le Tue Opinioni Politiche
+                </CardTitle>
+                <CardDescription>
+                  Visualizzazione delle tue posizioni sui temi principali
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Colonna Favorevoli - Verde */}
+                  <div className="space-y-3">
+                    <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        Favorevole
+                      </h3>
+                      <div className="space-y-2">
+                        {categorizeOpinions(userOpinions).favorevoli.length > 0 ? (
+                          categorizeOpinions(userOpinions).favorevoli.map((opinion, index) => (
+                            <div key={index} className="bg-green-50 border border-green-200 rounded-md p-3">
+                              <span className="text-green-800 font-medium">{opinion}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-green-600 text-sm italic">
+                            Nessuna opinione favorevole
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Colonna Indecisi - Giallo */}
+                  <div className="space-y-3">
+                    <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                        Indeciso
+                      </h3>
+                      <div className="space-y-2">
+                        {categorizeOpinions(userOpinions).indecisi.length > 0 ? (
+                          categorizeOpinions(userOpinions).indecisi.map((opinion, index) => (
+                            <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                              <span className="text-yellow-800 font-medium">{opinion}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-yellow-600 text-sm italic">
+                            Nessuna opinione indecisa
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Colonna Contrari - Rosso */}
+                  <div className="space-y-3">
+                    <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        Contrario
+                      </h3>
+                      <div className="space-y-2">
+                        {categorizeOpinions(userOpinions).contrari.length > 0 ? (
+                          categorizeOpinions(userOpinions).contrari.map((opinion, index) => (
+                            <div key={index} className="bg-red-50 border border-red-200 rounded-md p-3">
+                              <span className="text-red-800 font-medium">{opinion}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-red-600 text-sm italic">
+                            Nessuna opinione contraria
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>
