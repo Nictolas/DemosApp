@@ -80,21 +80,21 @@ function Router() {
       </Route>
       <Route path="/profilo">
         {(params) => (
-          <PageTransition location={location} type="fade-up">
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
             <ProtectedRoute path="/profilo" component={Profilo} />
           </PageTransition>
         )}
       </Route>
       <Route path="/gestisci-utenti">
         {(params) => (
-          <PageTransition location={location}>
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
           </PageTransition>
         )}
       </Route>
       <Route path="/opinioni">
         {(params) => (
-          <PageTransition location={location} type="fade-up">
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
             <ProtectedRoute path="/opinioni" component={Opinioni} />
           </PageTransition>
         )}
