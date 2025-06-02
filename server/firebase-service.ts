@@ -159,8 +159,21 @@ class FirebaseService {
         return null;
       }
       
-      const userDoc = querySnapshot.docs[0];
-      return { id: userDoc.id, ...userDoc.data() };
+      // Se ci sono più documenti per la stessa email, unisci tutti i dati
+      let mergedData: any = {};
+      let primaryDocId = '';
+      
+      querySnapshot.docs.forEach((doc) => {
+        const docData = doc.data();
+        // Privilegia il documento con più campi (dati completi del profilo)
+        if (Object.keys(docData).length > Object.keys(mergedData).length) {
+          primaryDocId = doc.id;
+        }
+        // Unisce tutti i dati disponibili
+        mergedData = { ...mergedData, ...docData };
+      });
+      
+      return { id: primaryDocId || querySnapshot.docs[0].id, ...mergedData };
       
     } catch (error: any) {
       console.error('Errore nel recuperare utente da Firestore:', error);
