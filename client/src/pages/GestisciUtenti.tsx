@@ -142,10 +142,10 @@ export default function GestisciUtenti() {
   // Filtra e ordina gli utenti
   const filteredUsers = users
     .filter(user => 
-      user.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      user.cognome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.ruolo.toLowerCase().includes(searchTerm.toLowerCase())
+      (user.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (user.cognome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.ruolo || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
       if (!sortField) return 0;
