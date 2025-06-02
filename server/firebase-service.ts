@@ -1,24 +1,19 @@
-import { db, auth, adminDb, adminAuth } from './firebase-config';
+import { db, auth } from './firebase-config';
 import { 
   collection, 
   doc, 
   getDocs, 
   getDoc, 
-  addDoc, 
   setDoc,
-  updateDoc, 
   deleteDoc, 
   query, 
-  where,
-  orderBy 
+  where
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signOut 
+  sendPasswordResetEmail
 } from 'firebase/auth';
 
-// Definizione del tipo per le opinioni degli utenti
 export interface UserOpinions {
   energia_nucleare?: string;
   sperimentazione_animale?: string;
@@ -32,9 +27,17 @@ export interface UserOpinions {
 /**
  * Servizio per interagire con Firebase Firestore
  * UTILIZZA ESCLUSIVAMENTE FIREBASE, NESSUNA MEMORIZZAZIONE LOCALE
+ * Usa l'email come ID del documento per evitare duplicazioni
  */
 class FirebaseService {
   static tempOpinions: Record<string, UserOpinions> = {};
+
+  /**
+   * Converte email in ID valido per Firebase
+   */
+  private static emailToId(email: string): string {
+    return email.replace(/[.#$\[\]]/g, '_');
+  }
 
   /**
    * Registra un nuovo utente in Firebase Auth
@@ -50,17 +53,14 @@ class FirebaseService {
     saveResult?: any;
   }> {
     try {
-      console.log(`Tentativo di registrazione utente su Firebase Auth con email: ${email}`);
-      
       if (!auth) {
-        console.log('Firebase Auth non configurato, impossibile registrare utente');
+        console.log('Firebase Auth non configurato');
         return { 
           success: false, 
-          error: "Firebase Auth non configurato" 
+          error: "Firebase Auth non è configurato" 
         };
       }
 
-      // Registra l'utente in Firebase Auth
       console.log('Avvio registrazione utente su Firebase Auth');
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
@@ -79,7 +79,8 @@ class FirebaseService {
         email,
         uid: userCredential.user.uid,
         ...userDetails,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
       const saveResult = await this.saveUserData(userDataToSave);
@@ -94,7 +95,7 @@ class FirebaseService {
       console.error('Errore durante la registrazione su Firebase Auth:', error);
       return { 
         success: false, 
-        error: error.message || 'Errore durante la registrazione'
+        error: error.message || 'Errore sconosciuto durante la registrazione'
       };
     }
   }
@@ -129,7 +130,7 @@ class FirebaseService {
       console.log('Salvataggio dati utente in Firestore con email come ID:', userData.email);
       
       // Usa l'email come ID del documento per evitare duplicazioni
-      const emailId = userData.email.replace(/[.#$\[\]]/g, '_'); // Sostituisce caratteri non validi per Firebase
+      const emailId = this.emailToId(userData.email);
       const userDocRef = doc(db, 'utenti', emailId);
       
       // Aggiungi ID documento ai dati
@@ -170,7 +171,7 @@ class FirebaseService {
       }
 
       // Prima prova con l'email come ID del documento
-      const emailId = email.replace(/[.#$\[\]]/g, '_');
+      const emailId = this.emailToId(email);
       const userDocRef = doc(db, 'utenti', emailId);
       const docSnap = await getDoc(userDocRef);
       
@@ -211,6 +212,7 @@ class FirebaseService {
 
   /**
    * Salva le opinioni dell'utente su Firebase modificando il documento utente
+   * Usa l'email come ID del documento per mantenere coerenza
    * @returns {Object} Un oggetto con success (boolean), data (array), note (string opzionale) e error (string o null)
    */
   static async saveUserOpinions(utenteId: string, opinions: UserOpinions): Promise<{
@@ -231,7 +233,7 @@ class FirebaseService {
       // Se utenteId è un'email, usala direttamente, altrimenti cerca l'utente
       let emailId = utenteId;
       if (utenteId.includes('@')) {
-        emailId = utenteId.replace(/[.#$\[\]]/g, '_');
+        emailId = this.emailToId(utenteId);
       } else {
         // Se non è un'email, cerca nel database l'utente con questo ID
         const usersCollection = collection(db, 'utenti');
@@ -248,7 +250,7 @@ class FirebaseService {
         
         if (!userFound && opinions.email) {
           // Usa l'email dalle opinioni se disponibile
-          emailId = opinions.email.replace(/[.#$\[\]]/g, '_');
+          emailId = this.emailToId(opinions.email);
         }
       }
 
@@ -297,7 +299,7 @@ class FirebaseService {
       }
 
       // Usa l'email come ID del documento
-      const emailId = email.replace(/[.#$\[\]]/g, '_');
+      const emailId = this.emailToId(email);
       const userDocRef = doc(db, 'utenti', emailId);
       
       // Aggiungi timestamp di aggiornamento
@@ -329,7 +331,6 @@ class FirebaseService {
   static async deleteUserByEmail(email: string): Promise<{
     success: boolean;
     error?: string;
-    data?: null; 
   }> {
     try {
       if (!db) {
@@ -340,19 +341,12 @@ class FirebaseService {
         };
       }
 
-      // Prima trova l'utente tramite email
-      const user = await this.getUserByEmail(email);
-      if (!user || !user.id) {
-        return {
-          success: false,
-          error: "Utente non trovato"
-        };
-      }
-
-      const userDocRef = doc(db, 'utenti', user.id);
+      const emailId = this.emailToId(email);
+      const userDocRef = doc(db, 'utenti', emailId);
       await deleteDoc(userDocRef);
       
       return { success: true };
+      
     } catch (error: any) {
       console.error('Errore nell\'eliminare utente da Firestore:', error);
       return { 
@@ -369,7 +363,7 @@ class FirebaseService {
   static async getUserOpinions(utenteId: string): Promise<UserOpinions | null> {
     try {
       if (!db) {
-        console.log('Firebase Firestore non configurato, impossibile recuperare opinioni');
+        console.log('Firebase Firestore non configurato');
         return null;
       }
 
@@ -379,17 +373,15 @@ class FirebaseService {
       if (!userDoc.exists()) {
         return null;
       }
-      
+
       const userData = userDoc.data();
       
-      // Estrai solo i campi delle opinioni
       const opinions: UserOpinions = {
-        energia_nucleare: userData.energia_nucleare,
-        sperimentazione_animale: userData.sperimentazione_animale,
-        legalizzazione_canapa: userData.legalizzazione_canapa,
-        caccia: userData.caccia,
-        unione_europea: userData.unione_europea,
-        utente_id: utenteId
+        energia_nucleare: userData.energia_nucleare || '',
+        sperimentazione_animale: userData.sperimentazione_animale || '',
+        legalizzazione_canapa: userData.legalizzazione_canapa || '',
+        caccia: userData.caccia || '',
+        unione_europea: userData.unione_europea || ''
       };
       
       return opinions;
@@ -406,7 +398,6 @@ class FirebaseService {
   static async getAllUsersOpinions(): Promise<any[]> {
     try {
       if (!db) {
-        console.log('Firebase Firestore non configurato, impossibile recuperare dati');
         return [];
       }
 
@@ -442,15 +433,12 @@ class FirebaseService {
   }> {
     try {
       if (!auth) {
-        return {
-          success: false,
-          error: 'Firebase Auth non configurato'
+        return { 
+          success: false, 
+          error: "Firebase Auth non è configurato"
         };
       }
 
-      // Importa sendPasswordResetEmail dinamicamente
-      const { sendPasswordResetEmail } = await import('firebase/auth');
-      
       await sendPasswordResetEmail(auth, email);
       
       return {
@@ -459,9 +447,9 @@ class FirebaseService {
       
     } catch (error: any) {
       console.error('Errore nel reset password:', error);
-      return {
-        success: false,
-        error: error.message || 'Errore nel reset password'
+      return { 
+        success: false, 
+        error: error.message || 'Errore sconosciuto durante il reset password'
       };
     }
   }
