@@ -41,7 +41,9 @@ export default function Opinioni() {
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const response = await fetch('/api/opinioni', {
+      
+      // Carica i dati utente unificati che ora contengono anche le opinioni
+      const response = await fetch(`/api/users/${encodeURIComponent(user.email)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -49,17 +51,17 @@ export default function Opinioni() {
       });
       
       if (!response.ok) {
-        throw new Error('Errore nel caricamento delle opinioni');
+        throw new Error('Errore nel caricamento dei dati utente');
       }
       
-      const data = await response.json();
+      const userData = await response.json();
       
-      if (data) {
-        // Filtra solo le proprietà che corrispondono alle domande
+      if (userData) {
+        // Estrai le opinioni dai dati utente unificati
         const filteredOpinions: Record<string, string> = {};
         questions.forEach(question => {
-          if (data[question.id]) {
-            filteredOpinions[question.id] = data[question.id];
+          if (userData[question.id]) {
+            filteredOpinions[question.id] = userData[question.id];
           }
         });
         
