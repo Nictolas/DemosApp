@@ -6,6 +6,8 @@ interface PageTransitionProps {
   location?: string;
   type?: 'default' | 'fade-up' | 'fade-side';
   delay?: number;
+  showLoader?: boolean;
+  loaderDuration?: number;
 }
 
 /**
@@ -16,11 +18,14 @@ export function PageTransition({
   children, 
   location, 
   type = 'default',
-  delay = 50 
+  delay = 80,
+  showLoader = false,
+  loaderDuration = 400
 }: PageTransitionProps) {
   const [currentLocation] = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const [content, setContent] = useState(children);
+  const [showLoaderState, setShowLoaderState] = useState(false);
   const isPending = useRef(false);
   
   // Se viene passata una location specifica, usiamo quella, altrimenti quella corrente
@@ -48,6 +53,16 @@ export function PageTransition({
   // Ottieni le classi CSS per il tipo di transizione corrente
   const classes = transitionClasses[type];
   
+  // Componente loader elegante
+  const LoaderComponent = () => (
+    <div className="page-loader">
+      <div className="loader-content">
+        <div className="loader-spinner"></div>
+        <div className="loader-text">Caricamento...</div>
+      </div>
+    </div>
+  );
+  
   // Quando cambia la location o i contenuti, facciamo la transizione
   useEffect(() => {
     if (isPending.current) return;
@@ -59,29 +74,44 @@ export function PageTransition({
     isPending.current = true;
     setIsVisible(false);
     
+    // Mostra il loader se richiesto
+    if (showLoader) {
+      setShowLoaderState(true);
+    }
+    
     // Aspetta che l'animazione di uscita si completi
     const hideTimer = setTimeout(() => {
       // Aggiorna il contenuto 
       setContent(newContent);
       
+      // Nasconde il loader dopo il tempo specificato
+      if (showLoader) {
+        setTimeout(() => {
+          setShowLoaderState(false);
+        }, loaderDuration);
+      }
+      
       // Inizia l'animazione di entrata dopo un breve ritardo
       const showTimer = setTimeout(() => {
         setIsVisible(true);
         isPending.current = false;
-      }, 20);
+      }, showLoader ? loaderDuration + 50 : 30);
       
       return () => clearTimeout(showTimer);
     }, delay);
     
     return () => clearTimeout(hideTimer);
-  }, [actualLocation, children, delay]);
+  }, [actualLocation, children, delay, showLoader, loaderDuration]);
 
   return (
-    <div 
-      className={`${classes.base} ${isVisible ? classes.visible : classes.hidden}`}
-      aria-live="polite"
-    >
-      {content}
-    </div>
+    <>
+      {showLoaderState && <LoaderComponent />}
+      <div 
+        className={`${classes.base} ${isVisible ? classes.visible : classes.hidden}`}
+        aria-live="polite"
+      >
+        {content}
+      </div>
+    </>
   );
 }
