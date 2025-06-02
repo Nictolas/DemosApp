@@ -412,11 +412,9 @@ export default function GestisciUtenti() {
           // Aggiorna la lista degli utenti dopo una modifica
           const fetchUsers = async () => {
             try {
-              const { data, error } = await db
-                .from('utenti')
-                .select('*');
-              
-              if (data) {
+              const response = await fetch('/api/users');
+              if (response.ok) {
+                const data = await response.json();
                 setUsers(data as User[]);
               }
             } catch (error) {

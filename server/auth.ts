@@ -16,10 +16,12 @@ const PostgresSessionStore = connectPg(session);
 declare global {
   namespace Express {
     interface User {
-      id: string | number;
+      id: string;
       email: string;
-      uuid?: string;
-      profile?: any;
+      uid?: string;
+      nome?: string;
+      cognome?: string;
+      ruolo?: string;
     }
   }
 }
@@ -106,8 +108,10 @@ export function setupAuth(app: Express) {
         return done(null, { 
           id: userCredential.user.uid, 
           email: email,
-          uuid: userCredential.user.uid, // Importante: memorizziamo l'UID per usarlo in seguito
-          profile: userProfile // Memorizziamo anche i dati del profilo
+          uid: userCredential.user.uid,
+          nome: userProfile.nome || '',
+          cognome: userProfile.cognome || '',
+          ruolo: userProfile.ruolo || 'Cittadino'
         });
       } catch (error) {
         console.error("Eccezione durante il login:", error);

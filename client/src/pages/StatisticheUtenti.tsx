@@ -67,15 +67,13 @@ export default function StatisticheUtenti() {
       if (!user) return;
       
       try {
-        // Carica i dati da Supabase
-        const { data: users, error: dbError } = await db
-          .from('utenti')
-          .select('*');
-        
-        if (dbError) {
-          throw new Error(dbError.message);
+        // Carica i dati tramite API
+        const response = await fetch('/api/users');
+        if (!response.ok) {
+          throw new Error('Errore nel caricamento degli utenti');
         }
-
+        
+        const users = await response.json();
         if (!users || users.length === 0) {
           throw new Error("Nessun dato utente trovato");
         }
