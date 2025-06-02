@@ -93,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/users', requireAuth, async (req, res) => {
     try {
       // Qui potremmo aggiungere una verifica del ruolo (solo admin può vedere tutti gli utenti)
-      const users = await storage.getAllUsers();
+      const users = await FirebaseService.getAllUsersOpinions();
       return res.status(200).json(users);
     } catch (error) {
       console.error('Error fetching users:', error);
