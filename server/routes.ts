@@ -462,6 +462,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Route per recuperare dati utente tramite email (usata dal profilo)
+  app.get('/api/users/:email', requireAuth, async (req, res) => {
+    try {
+      const { email } = req.params;
+      const userData = await FirebaseService.getUserByEmail(decodeURIComponent(email));
+      
+      if (!userData) {
+        return res.status(404).json({ error: 'Utente non trovato' });
+      }
+      
+      return res.status(200).json(userData);
+    } catch (error) {
+      console.error('Errore nel recupero utente:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Route per recuperare tutti gli utenti (usata dalla gestione utenti)
+  app.get('/api/users', requireAuth, async (req, res) => {
+    try {
+      const users = await FirebaseService.getAllUsersOpinions();
+      return res.status(200).json(users);
+    } catch (error) {
+      console.error('Errore nel recupero utenti:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Route per recuperare candidati
+  app.get('/api/candidati', requireAuth, async (req, res) => {
+    try {
+      const users = await FirebaseService.getAllUsersOpinions();
+      const candidati = users.filter(user => 
+        user.ruolo === 'Candidato' || user.ruolo === 'Politico Candidato'
+      );
+      return res.status(200).json(candidati);
+    } catch (error) {
+      console.error('Errore nel recupero candidati:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
