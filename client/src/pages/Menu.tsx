@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { db, auth } from "@/lib/firebase";
 
 export default function Menu() {
   const { user, isLoading, logoutMutation } = useAuth();
