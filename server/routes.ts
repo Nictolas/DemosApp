@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import SupabaseService, { UserOpinions } from "./supabase-service";
+import FirebaseService, { UserOpinions } from "./firebase-service";
 import { db } from "../db";
 import { users, utenti, User } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -120,17 +120,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isOwnProfile = req.user?.email === email;
       let isAdmin = false;
       
-      // Verifica se l'utente è admin (controllo SOLO in Supabase)
+      // Verifica se l'utente è admin (controllo SOLO in Firebase)
       try {
         if (req.user?.email) {
-          const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
-          if (supabaseUser && supabaseUser.ruolo === 'Admin') {
+          const firebaseUser = await FirebaseService.getUserByEmail(req.user.email);
+          if (firebaseUser && firebaseUser.ruolo === 'Admin') {
             isAdmin = true;
-            console.log("L'utente è un admin secondo Supabase");
+            console.log("L'utente è un admin secondo Firebase");
           }
         }
       } catch (error) {
-        console.error("Errore nel controllo Supabase:", error);
+        console.error("Errore nel controllo Firebase:", error);
       }
       
       // Se non è il proprio profilo e non è admin, blocca l'operazione
@@ -140,18 +140,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Verifica se l'utente esiste in Supabase
-      const existingUser = await SupabaseService.getUserByEmail(email);
+      // Verifica se l'utente esiste in Firebase
+      const existingUser = await FirebaseService.getUserByEmail(email);
       if (!existingUser) {
-        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
+        return res.status(404).json({ error: 'Utente non trovato in Firebase' });
       }
       
-      // Aggiorna il profilo in Supabase
-      const { success, error, data } = await SupabaseService.updateUserData(email, userData);
+      // Aggiorna il profilo in Firebase
+      const { success, error, data } = await FirebaseService.updateUserData(email, userData);
       
       if (!success) {
         return res.status(500).json({ 
-          error: 'Errore durante l\'aggiornamento del profilo su Supabase',
+          error: 'Errore durante l\'aggiornamento del profilo su Firebase',
           details: error
         });
       }
@@ -194,39 +194,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Email richiedente:", req.user.email);
       console.log("UUID richiedente:", req.user.uuid || "non disponibile");
       
-      // Verifica se l'utente che fa la richiesta è admin (controllo SOLO in Supabase)
+      // Verifica se l'utente che fa la richiesta è admin (controllo SOLO in Firebase)
       let isAdmin = false;
       
-      // Verifica in Supabase usando il nostro servizio
+      // Verifica in Firebase usando il nostro servizio
       try {
-        const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
-        console.log("Dati da Supabase:", supabaseUser);
+        const supabaseUser = await FirebaseService.getUserByEmail(req.user.email);
+        console.log("Dati da Firebase:", supabaseUser);
         
         if (supabaseUser && supabaseUser.ruolo === 'Admin') {
           isAdmin = true;
-          console.log("L'utente è un admin secondo Supabase");
+          console.log("L'utente è un admin secondo Firebase");
         }
       } catch (error) {
-        console.error("Errore nel controllo Supabase:", error);
+        console.error("Errore nel controllo Firebase:", error);
       }
       
       if (!isAdmin) {
         return res.status(403).json({ error: 'Solo gli amministratori possono eliminare utenti' });
       }
 
-      // Verifica se l'utente esiste in Supabase
-      const userToDelete = await SupabaseService.getUserByEmail(email);
+      // Verifica se l'utente esiste in Firebase
+      const userToDelete = await FirebaseService.getUserByEmail(email);
       if (!userToDelete) {
-        return res.status(404).json({ error: 'Utente non trovato in Supabase' });
+        return res.status(404).json({ error: 'Utente non trovato in Firebase' });
       }
 
-      console.log(`Richiesta eliminazione utente con email ${email} da Supabase`);
+      console.log(`Richiesta eliminazione utente con email ${email} da Firebase`);
       
-      // Elimina l'utente in Supabase
-      const { success, error } = await SupabaseService.deleteUserByEmail(email);
+      // Elimina l'utente in Firebase
+      const { success, error } = await FirebaseService.deleteUserByEmail(email);
       
       if (!success) {
-        console.error("Errore durante l'eliminazione dell'utente da Supabase:", error);
+        console.error("Errore durante l'eliminazione dell'utente da Firebase:", error);
         return res.status(500).json({ 
           error: "Errore durante l'eliminazione dell'utente", 
           details: error 
@@ -252,7 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const opinionsData = req.body;
       
       // Priorità di identificativi per salvare le opinioni:
-      // 1. UUID (il più affidabile, è l'ID di Supabase Auth)
+      // 1. UUID (il più affidabile, è l'ID di Firebase Auth)
       // 2. Email (secondo più affidabile)
       // 3. ID di sessione (usato solo come ultima risorsa)
       
@@ -267,16 +267,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Logghiamo l'operazione
-      console.log(`Salvando opinioni su Supabase per utente - UUID: ${userId}, Email: ${email}`);
+      console.log(`Salvando opinioni su Firebase per utente - UUID: ${userId}, Email: ${email}`);
       console.log('Dati opinioni completi:', JSON.stringify(opinionsData, null, 2));
       
       // Salviamo direttamente con l'UUID - convertiamo a stringa per sicurezza
-      let result = await SupabaseService.saveUserOpinions(String(userId), opinionsData);
+      let result = await FirebaseService.saveUserOpinions(String(userId), opinionsData);
       
       // Se fallisce, proviamo con l'email
       if (!result.success && email) {
         console.log(`Fallback: salvando con email ${email}`);
-        result = await SupabaseService.saveUserOpinions(email, opinionsData);
+        result = await FirebaseService.saveUserOpinions(email, opinionsData);
       }
       
       // Verifichiamo il risultato
@@ -313,7 +313,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`Utente autenticato per richiesta opinioni. ID: ${req.user.id}, Email: ${req.user.email}, UUID: ${req.user.uuid || req.user.id}`);
       
       // Priorità di identificativi per recuperare le opinioni:
-      // 1. UUID (il più affidabile, è l'ID di Supabase Auth)
+      // 1. UUID (il più affidabile, è l'ID di Firebase Auth)
       // 2. Email (secondo più affidabile)
       
       const userId = req.user.uuid || req.user.id; // Preferisco usare l'UUID ma fallback all'ID
@@ -321,12 +321,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Recuperando opinioni con UUID: ${userId}`);
       // Prova prima con l'UUID
-      let opinions = await SupabaseService.getUserOpinions(String(userId));
+      let opinions = await FirebaseService.getUserOpinions(String(userId));
       
       // Se non trova nulla con UUID, prova con l'email
       if (!opinions || (opinions && Object.keys(opinions).every(k => !opinions[k as keyof typeof opinions]))) {
         console.log(`Nessuna opinione trovata con UUID, tento con email: ${email}`);
-        const emailOpinions = await SupabaseService.getUserOpinions(email);
+        const emailOpinions = await FirebaseService.getUserOpinions(email);
         
         if (emailOpinions && Object.keys(emailOpinions).some(k => emailOpinions[k as keyof typeof emailOpinions])) {
           opinions = emailOpinions;
@@ -373,8 +373,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verifica se l'utente che fa la richiesta è un admin - SOLO VIA SUPABASE
       let isAdmin = false;
       
-      // Verifica in Supabase usando l'email dell'utente
-      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+      // Verifica in Firebase usando l'email dell'utente
+      const supabaseUser = await FirebaseService.getUserByEmail(req.user.email);
       if (supabaseUser && supabaseUser.ruolo === 'Admin') {
         isAdmin = true;
       }
@@ -385,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Recupera le opinioni dell'utente specificato
-      const opinions = await SupabaseService.getUserOpinions(utente_id);
+      const opinions = await FirebaseService.getUserOpinions(utente_id);
       
       if (!opinions) {
         return res.status(404).json({ error: 'Opinioni non trovate per questo utente' });
@@ -405,9 +405,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
       
-      // Recupera tutte le opinioni degli utenti usando il servizio Supabase
+      // Recupera tutte le opinioni degli utenti usando il servizio Firebase
       // Questa funzione utilizza il client admin che bypassa RLS
-      const allOpinions = await SupabaseService.getAllUsersOpinions();
+      const allOpinions = await FirebaseService.getAllUsersOpinions();
       
       console.log(`Recuperate ${allOpinions.length} opinioni per le statistiche`);
       
@@ -431,8 +431,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verifica se l'utente che fa la richiesta è un admin - SOLO VIA SUPABASE
       let isAdmin = false;
       
-      // Verifica in Supabase usando l'email dell'utente
-      const supabaseUser = await SupabaseService.getUserByEmail(req.user.email);
+      // Verifica in Firebase usando l'email dell'utente
+      const supabaseUser = await FirebaseService.getUserByEmail(req.user.email);
       if (supabaseUser && supabaseUser.ruolo === 'Admin') {
         isAdmin = true;
       }
@@ -443,7 +443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Aggiorna le opinioni dell'utente specificato
-      const result = await SupabaseService.saveUserOpinions(utente_id, opinionsData);
+      const result = await FirebaseService.saveUserOpinions(utente_id, opinionsData);
       
       if (!result.success) {
         return res.status(500).json({ 
