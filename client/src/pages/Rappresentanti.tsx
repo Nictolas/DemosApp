@@ -58,7 +58,7 @@ export default function Rappresentanti() {
         if (rappresentanteId) {
           try {
             // Caricare i dettagli del rappresentante da Supabase
-            const { data, error } = await supabase
+            const { data, error } = await db
               .from('utenti')
               .select('nome, cognome')
               .eq('id', rappresentanteId)
