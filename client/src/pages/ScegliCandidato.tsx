@@ -85,16 +85,13 @@ export default function ScegliCandidato() {
         const opinionsData = await opinionsResponse.json();
         setUserOpinions(opinionsData);
         
-        // Carica tutti gli utenti con ruolo candidato o politico candidato
-        const { data, error } = await db
-          .from('utenti')
-          .select('id, nome, cognome, email, ruolo, grado_candidatura, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura')
-          .or('ruolo.eq.Candidato,ruolo.eq.Politico Candidato')
-          .eq('grado_candidatura', getTitolo());
-        
-        if (error) {
-          throw new Error(error.message);
+        // Carica tutti gli utenti candidati tramite API
+        const candidatiResponse = await fetch('/api/candidati');
+        if (!candidatiResponse.ok) {
+          throw new Error('Errore nel caricamento candidati');
         }
+        
+        const data = await candidatiResponse.json();
         
         if (data) {
           // Filtra i candidati in base alla località di candidatura dell'utente

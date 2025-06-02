@@ -38,7 +38,7 @@ export default function Profilo() {
             throw new Error("Errore nel caricamento dei dati del profilo");
           }
           
-          const data = await response.json();
+          const data = await profileResponse.json();
           setUserInfo(data);
         }
       } catch (error) {
