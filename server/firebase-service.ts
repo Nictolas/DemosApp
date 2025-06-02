@@ -101,7 +101,7 @@ class FirebaseService {
 
   /**
    * Salva i dati di un nuovo utente in Firebase Firestore nella collezione utenti
-   * Usato principalmente durante la registrazione di un nuovo utente
+   * Usa l'email come ID del documento per evitare duplicazioni
    * @param userData Dati dell'utente da salvare (inclusa l'email)
    */
   static async saveUserData(userData: any): Promise<{
@@ -119,16 +119,33 @@ class FirebaseService {
         };
       }
 
-      console.log('Salvataggio dati utente in Firestore:', userData);
+      if (!userData.email) {
+        return { 
+          success: false, 
+          error: "Email mancante nei dati utente"
+        };
+      }
+
+      console.log('Salvataggio dati utente in Firestore con email come ID:', userData.email);
       
-      const usersCollection = collection(db, 'utenti');
-      const docRef = await addDoc(usersCollection, userData);
+      // Usa l'email come ID del documento per evitare duplicazioni
+      const emailId = userData.email.replace(/[.#$\[\]]/g, '_'); // Sostituisce caratteri non validi per Firebase
+      const userDocRef = doc(db, 'utenti', emailId);
       
-      console.log('Dati utente salvati con successo in Firestore con ID:', docRef.id);
+      // Aggiungi ID documento ai dati
+      const dataToSave = {
+        ...userData,
+        id: emailId,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await setDoc(userDocRef, dataToSave, { merge: true });
+      
+      console.log('Dati utente salvati con successo in Firestore con ID:', emailId);
       
       return {
         success: true,
-        data: { id: docRef.id, ...userData },
+        data: dataToSave,
         note: "Dati utente salvati correttamente in Firestore"
       };
       
@@ -143,6 +160,7 @@ class FirebaseService {
 
   /**
    * Recupera un utente dal database tramite email
+   * Usa l'email come ID del documento per accesso diretto
    */
   static async getUserByEmail(email: string) {
     try {
@@ -151,6 +169,16 @@ class FirebaseService {
         return null;
       }
 
+      // Prima prova con l'email come ID del documento
+      const emailId = email.replace(/[.#$\[\]]/g, '_');
+      const userDocRef = doc(db, 'utenti', emailId);
+      const docSnap = await getDoc(userDocRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+      
+      // Se non trova il documento con email come ID, cerca con query (backward compatibility)
       const usersCollection = collection(db, 'utenti');
       const q = query(usersCollection, where('email', '==', email));
       const querySnapshot = await getDocs(q);
@@ -200,16 +228,47 @@ class FirebaseService {
         };
       }
 
-      console.log('Salvataggio opinioni utente in Firestore per ID:', utenteId);
+      // Se utenteId è un'email, usala direttamente, altrimenti cerca l'utente
+      let emailId = utenteId;
+      if (utenteId.includes('@')) {
+        emailId = utenteId.replace(/[.#$\[\]]/g, '_');
+      } else {
+        // Se non è un'email, cerca nel database l'utente con questo ID
+        const usersCollection = collection(db, 'utenti');
+        const querySnapshot = await getDocs(usersCollection);
+        let userFound = false;
+        
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data();
+          if (userData.uid === utenteId || userData.id === utenteId) {
+            emailId = doc.id;
+            userFound = true;
+          }
+        });
+        
+        if (!userFound && opinions.email) {
+          // Usa l'email dalle opinioni se disponibile
+          emailId = opinions.email.replace(/[.#$\[\]]/g, '_');
+        }
+      }
+
+      console.log('Salvataggio opinioni utente in Firestore per email ID:', emailId);
       
-      const userDocRef = doc(db, 'utenti', utenteId);
-      await setDoc(userDocRef, opinions, { merge: true });
+      const userDocRef = doc(db, 'utenti', emailId);
+      
+      // Aggiungi timestamp di aggiornamento
+      const opinionsToSave = {
+        ...opinions,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await setDoc(userDocRef, opinionsToSave, { merge: true });
       
       console.log('Opinioni utente salvate con successo in Firestore');
       
       return {
         success: true,
-        data: opinions,
+        data: opinionsToSave,
         note: "Opinioni utente salvate correttamente in Firestore"
       };
       
@@ -237,24 +296,21 @@ class FirebaseService {
         };
       }
 
-      // Prima trova l'utente tramite email
-      const user = await this.getUserByEmail(email);
-      if (!user || !user.id) {
-        return {
-          success: false,
-          error: "Utente non trovato"
-        };
-      }
-
-      const userDocRef = doc(db, 'utenti', user.id);
-      await updateDoc(userDocRef, {
+      // Usa l'email come ID del documento
+      const emailId = email.replace(/[.#$\[\]]/g, '_');
+      const userDocRef = doc(db, 'utenti', emailId);
+      
+      // Aggiungi timestamp di aggiornamento
+      const dataToUpdate = {
         ...userData,
         updatedAt: new Date().toISOString()
-      });
+      };
+      
+      await setDoc(userDocRef, dataToUpdate, { merge: true });
       
       return {
         success: true,
-        data: userData
+        data: dataToUpdate
       };
       
     } catch (error: any) {
