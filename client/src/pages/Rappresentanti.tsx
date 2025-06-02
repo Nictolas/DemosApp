@@ -57,17 +57,13 @@ export default function Rappresentanti() {
         const rappresentanteId = userData[categoria.field];
         if (rappresentanteId) {
           try {
-            // Caricare i dettagli del rappresentante da Supabase
-            const { data, error } = await db
-              .from('utenti')
-              .select('nome, cognome')
-              .eq('id', rappresentanteId)
-              .single();
-              
-            if (error) {
-              console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, error);
-            } else if (data) {
+            // Caricare i dettagli del rappresentante tramite API
+            const response = await fetch(`/api/users/${encodeURIComponent(rappresentanteId)}`);
+            if (response.ok) {
+              const data = await response.json();
               rappresentantiData[categoria.id] = data;
+            } else {
+              console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, response.statusText);
             }
           } catch (error) {
             console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, error);
