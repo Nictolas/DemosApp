@@ -86,15 +86,16 @@ export default function ScegliRappresentante() {
         setUserOpinions(opinionsData);
         
         // Carica tutti gli utenti con ruolo politico o politico candidato
-        const { data, error } = await db
-          .from('utenti')
-          .select('id, nome, cognome, email, ruolo, grado_elezione, energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, paese_elezione, regione_elezione, provincia_elezione, comune_elezione')
-          .or('ruolo.eq.Politico,ruolo.eq.Politico Candidato')
-          .eq('grado_elezione', getTitolo());
-          
-        if (error) {
-          throw new Error(error.message);
+        const usersResponse = await fetch('/api/users');
+        if (!usersResponse.ok) {
+          throw new Error('Errore nel caricamento degli utenti');
         }
+        
+        const allUsers = await usersResponse.json();
+        const data = allUsers.filter((user: any) => 
+          (user.ruolo === 'Politico' || user.ruolo === 'Politico Candidato') &&
+          user.grado_elezione === getTitolo()
+        );
         
         if (data) {
           // Filtra i rappresentanti in base alla località di elezione dell'utente
