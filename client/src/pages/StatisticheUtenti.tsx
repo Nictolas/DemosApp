@@ -4,7 +4,7 @@ import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Users } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { db, auth } from "@/lib/firebase";
 import { 
   Chart as ChartJS, 
   ArcElement, 

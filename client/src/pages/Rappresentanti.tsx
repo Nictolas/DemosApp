@@ -7,7 +7,7 @@ import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
-import { supabase } from "@/lib/supabase";
+import { db, auth } from "@/lib/firebase";
 
 export default function Rappresentanti() {
   const { user, isLoading } = useAuth();
