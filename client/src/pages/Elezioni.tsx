@@ -35,18 +35,19 @@ export default function Elezioni() {
           
           if (candidatiIds.length > 0) {
             try {
-              // Recuperiamo i dati dei candidati in un'unica query
-              const { data: candidatiData, error } = await db
-                .from('utenti')
-                .select('id, nome, cognome, ruolo')
-                .in('id', candidatiIds);
-                
-              if (error) {
-                throw new Error(error.message);
+              // Recuperiamo i dati dei candidati tramite API
+              const response = await fetch('/api/candidati');
+              if (!response.ok) {
+                throw new Error('Errore nel caricamento candidati');
               }
               
+              const candidatiData = await response.json();
+              
+              // Filtriamo solo i candidati che ci interessano
+              const candidatiRelevanti = candidatiData.filter((c: any) => candidatiIds.includes(c.id));
+              
               // Convertiamo l'array in un oggetto con l'ID come chiave per accesso rapido
-              const candidatiMap = candidatiData.reduce((acc: Record<string, any>, candidato) => {
+              const candidatiMap = candidatiRelevanti.reduce((acc: Record<string, any>, candidato) => {
                 acc[candidato.id] = candidato;
                 return acc;
               }, {});

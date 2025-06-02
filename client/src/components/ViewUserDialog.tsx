@@ -30,23 +30,16 @@ export function ViewUserDialog({ userEmail, open, onOpenChange }: ViewUserDialog
     setError(null);
 
     try {
-      // Carica i dati da Supabase
-      const { data, error } = await db
-        .from('utenti')
-        .select('*')
-        .eq('email', userEmail)
-        .single();
+      // Carica i dati tramite API
+      const response = await fetch(`/api/users/${encodeURIComponent(userEmail)}`);
       
-      if (error) {
-        throw new Error(error.message || "Errore nel caricamento dei dati dell'utente");
+      if (!response.ok) {
+        throw new Error("Errore nel caricamento dei dati dell'utente");
       }
       
-      if (data) {
-        console.log("Dati utente caricati per visualizzazione:", data);
-        setUserData(data);
-      } else {
-        throw new Error("Utente non trovato");
-      }
+      const data = await response.json();
+      console.log("Dati utente caricati per visualizzazione:", data);
+      setUserData(data);
     } catch (err) {
       console.error("Errore:", err);
       setError(err instanceof Error ? err.message : "Errore sconosciuto");
