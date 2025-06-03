@@ -60,8 +60,8 @@ export default function ScegliRappresentante() {
       case "europeo": return "rappresentante_europeo";
       case "camera": return "rappresentante_camera";
       case "senato": return "rappresentante_senato";
-      case "regione": return "rappresentante_regione";
-      case "comune": return "rappresentante_comune";
+      case "regione": return "rappresentante_regionale";
+      case "comune": return "rappresentante_comunale";
       default: return "";
     }
   };
