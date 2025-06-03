@@ -48,10 +48,22 @@ export default function Comunica() {
     },
   });
 
-  // Get user data to determine the zona
-  const { data: userData } = useQuery({
+  // Get user session data
+  const { data: sessionData } = useQuery({
     queryKey: ["/api/user"],
     enabled: !!user?.email,
+  });
+
+  // Get complete user data including role
+  const { data: userData } = useQuery({
+    queryKey: ["/api/users", sessionData?.email],
+    queryFn: async () => {
+      if (!sessionData?.email) return null;
+      const response = await fetch(`/api/users/${encodeURIComponent(sessionData.email)}`);
+      if (!response.ok) throw new Error('Failed to fetch user data');
+      return response.json();
+    },
+    enabled: !!sessionData?.email,
   });
 
   // Generate zona based on user's election data
@@ -142,8 +154,8 @@ export default function Comunica() {
     submitComunicazione.mutate(data);
   };
 
-  // Show loading while userData is being fetched
-  if (!userData) {
+  // Show loading while sessionData or userData is being fetched
+  if (!sessionData || !userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />
