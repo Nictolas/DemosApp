@@ -109,7 +109,7 @@ export default function PodioTrasparenza() {
             </p>
           </div>
 
-          {!podioUsers || podioUsers.length === 0 ? (
+          {!podioUsers || (podioUsers as any[]).length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <Trophy className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -121,7 +121,7 @@ export default function PodioTrasparenza() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {podioUsers.map((user: PodioUser, index: number) => {
+              {(podioUsers as any[]).map((user: PodioUser, index: number) => {
                 const position = index + 1;
                 
                 return (
