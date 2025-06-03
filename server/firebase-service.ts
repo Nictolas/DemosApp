@@ -5,9 +5,13 @@ import {
   getDocs, 
   getDoc, 
   setDoc,
+  addDoc,
+  updateDoc,
   deleteDoc, 
   query, 
-  where
+  where,
+  orderBy,
+  limit
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword, 
@@ -450,6 +454,405 @@ class FirebaseService {
       return { 
         success: false, 
         error: error.message || 'Errore sconosciuto durante il reset password'
+      };
+    }
+  }
+
+  // ===== COMUNICAZIONI METHODS =====
+
+  /**
+   * Controlla se esiste già una comunicazione con lo stesso titolo e zona
+   */
+  static async checkDuplicateComunicazione(titolo: string, zona: string) {
+    try {
+      if (!db) {
+        throw new Error("Firebase Firestore non è configurato");
+      }
+
+      const comunicazioniCollection = collection(db, 'comunicazioni');
+      const q = query(
+        comunicazioniCollection,
+        where('titolo', '==', titolo),
+        where('zona', '==', zona),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        const data = doc.data();
+        return {
+          titolo: data.titolo,
+          vincitore: data.vincitore,
+          zona: data.zona
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error('Errore nel controllo duplicati comunicazione:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Salva una nuova comunicazione nella collezione comunicazioni
+   */
+  static async saveComunicazione(comunicazioneData: any): Promise<{
+    success: boolean;
+    data?: any;
+    comunicazioneId?: string;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return {
+          success: false,
+          error: "Firebase Firestore non è configurato"
+        };
+      }
+
+      const comunicazioniCollection = collection(db, 'comunicazioni');
+      const docRef = await addDoc(comunicazioniCollection, comunicazioneData);
+      
+      return {
+        success: true,
+        data: { id: docRef.id, ...comunicazioneData },
+        comunicazioneId: docRef.id
+      };
+    } catch (error: any) {
+      console.error('Errore nel salvataggio comunicazione:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore sconosciuto nel salvataggio comunicazione'
+      };
+    }
+  }
+
+  /**
+   * Aggiorna l'ultima comunicazione nel documento utente
+   */
+  static async updateUltimaComunicazione(email: string, ultimaComunicazione: any): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return {
+          success: false,
+          error: "Firebase Firestore non è configurato"
+        };
+      }
+
+      const userId = this.emailToId(email);
+      const userDoc = doc(db, 'utenti', userId);
+      
+      await updateDoc(userDoc, {
+        ultimaComunicazione,
+        updatedAt: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore aggiornamento ultima comunicazione:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore sconosciuto nell\'aggiornamento ultima comunicazione'
+      };
+    }
+  }
+
+  /**
+   * Recupera la classifica del podio trasparenza
+   */
+  static async getPodioTrasparenza(): Promise<any[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const comunicazioniCollection = collection(db, 'comunicazioni');
+      const querySnapshot = await getDocs(comunicazioniCollection);
+      
+      // Raggruppa per id_utente e calcola i punti totali
+      const userPoints: { [key: string]: any } = {};
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const userId = data.id_utente;
+        
+        if (!userPoints[userId]) {
+          userPoints[userId] = {
+            id_utente: userId,
+            nome: data.nome,
+            cognome: data.cognome,
+            ruolo: data.ruolo,
+            punti_trasparenza_totali: 0,
+            numero_comunicazioni: 0
+          };
+        }
+        
+        userPoints[userId].punti_trasparenza_totali += data.punti_trasparenza || 0;
+        userPoints[userId].numero_comunicazioni += 1;
+      });
+      
+      // Converte in array e ordina per punti decrescenti
+      const podioArray = Object.values(userPoints)
+        .sort((a: any, b: any) => b.punti_trasparenza_totali - a.punti_trasparenza_totali)
+        .slice(0, 10); // Top 10
+      
+      return podioArray;
+    } catch (error: any) {
+      console.error('Errore nel recupero podio trasparenza:', error);
+      return [];
+    }
+  }
+
+  // ===== NOTIFICHE METHODS =====
+
+  /**
+   * Invia notifiche agli utenti che hanno scelto questo rappresentante
+   */
+  static async sendNotificationsForComunicazione(
+    rappresentanteId: string,
+    rappresentanteNome: string,
+    rappresentanteCognome: string,
+    titolo: string,
+    votoDato: string,
+    vincitore: string,
+    comunicazioneId: string
+  ): Promise<void> {
+    try {
+      if (!db) {
+        console.error("Firebase Firestore non è configurato");
+        return;
+      }
+
+      // Trova tutti gli utenti che hanno scelto questo rappresentante
+      // Nota: Questo richiede che tu abbia un sistema per tracciare le scelte degli elettori
+      // Per ora creo notifiche per tutti gli utenti (puoi raffinare questa logica)
+      
+      const usersCollection = collection(db, 'utenti');
+      const usersSnapshot = await getDocs(usersCollection);
+      
+      const notificationsCollection = collection(db, 'notifiche');
+      
+      const notificationPromises: Promise<any>[] = [];
+      
+      usersSnapshot.forEach((userDoc) => {
+        const userData = userDoc.data();
+        
+        // Crea notifica solo per utenti che non sono il rappresentante stesso
+        if (userData.id !== rappresentanteId && userData.ruolo !== 'Politico' && userData.ruolo !== 'Candidato Politico') {
+          const notificationData = {
+            comunicazione_id: comunicazioneId,
+            destinatario_id: userData.id || userDoc.id,
+            rappresentante_id: rappresentanteId,
+            rappresentante_nome: rappresentanteNome,
+            rappresentante_cognome: rappresentanteCognome,
+            titolo,
+            voto_dato: votoDato,
+            vincitore,
+            data_creazione: new Date().toISOString(),
+            letta: false
+          };
+          
+          notificationPromises.push(addDoc(notificationsCollection, notificationData));
+        }
+      });
+      
+      await Promise.all(notificationPromises);
+      console.log(`Inviate ${notificationPromises.length} notifiche per la comunicazione`);
+      
+    } catch (error: any) {
+      console.error('Errore nell\'invio notifiche:', error);
+    }
+  }
+
+  /**
+   * Recupera le notifiche per un utente
+   */
+  static async getUserNotifications(userId: string): Promise<any[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const notificationsCollection = collection(db, 'notifiche');
+      const q = query(
+        notificationsCollection,
+        where('destinatario_id', '==', userId),
+        orderBy('data_creazione', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      const notifications: any[] = [];
+      
+      // Recupera anche le reazioni dell'utente per ogni comunicazione
+      for (const docSnapshot of querySnapshot.docs) {
+        const notificationData = { id: docSnapshot.id, ...docSnapshot.data() };
+        
+        // Controlla se l'utente ha già reagito a questa comunicazione
+        const reactionsCollection = collection(db, 'reazioni');
+        const reactionQuery = query(
+          reactionsCollection,
+          where('comunicazione_id', '==', notificationData.comunicazione_id),
+          where('utente_id', '==', userId),
+          limit(1)
+        );
+        
+        const reactionSnapshot = await getDocs(reactionQuery);
+        if (!reactionSnapshot.empty) {
+          const reactionData = reactionSnapshot.docs[0].data();
+          notificationData.user_reaction = reactionData.tipo;
+        }
+        
+        notifications.push(notificationData);
+      }
+      
+      return notifications;
+    } catch (error: any) {
+      console.error('Errore nel recupero notifiche utente:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Segna una notifica come letta
+   */
+  static async markNotificationAsRead(notificationId: string, userId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return {
+          success: false,
+          error: "Firebase Firestore non è configurato"
+        };
+      }
+
+      const notificationDoc = doc(db, 'notifiche', notificationId);
+      const notificationSnapshot = await getDoc(notificationDoc);
+      
+      if (!notificationSnapshot.exists()) {
+        return {
+          success: false,
+          error: "Notifica non trovata"
+        };
+      }
+      
+      const notificationData = notificationSnapshot.data();
+      if (notificationData.destinatario_id !== userId) {
+        return {
+          success: false,
+          error: "Non autorizzato a modificare questa notifica"
+        };
+      }
+      
+      await updateDoc(notificationDoc, {
+        letta: true,
+        data_lettura: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel segnare notifica come letta:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Registra una reazione (like/dislike) a una comunicazione
+   */
+  static async reactToComunicazione(
+    comunicazioneId: string,
+    userId: string,
+    reaction: 'like' | 'dislike'
+  ): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return {
+          success: false,
+          error: "Firebase Firestore non è configurato"
+        };
+      }
+
+      // Controlla se l'utente ha già reagito
+      const reactionsCollection = collection(db, 'reazioni');
+      const existingReactionQuery = query(
+        reactionsCollection,
+        where('comunicazione_id', '==', comunicazioneId),
+        where('utente_id', '==', userId),
+        limit(1)
+      );
+      
+      const existingReactionSnapshot = await getDocs(existingReactionQuery);
+      
+      if (!existingReactionSnapshot.empty) {
+        // Aggiorna la reazione esistente
+        const reactionDoc = existingReactionSnapshot.docs[0];
+        await updateDoc(reactionDoc.ref, {
+          tipo: reaction,
+          data_aggiornamento: new Date().toISOString()
+        });
+      } else {
+        // Crea una nuova reazione
+        const reactionData = {
+          comunicazione_id: comunicazioneId,
+          utente_id: userId,
+          tipo: reaction,
+          data_creazione: new Date().toISOString()
+        };
+        
+        await addDoc(reactionsCollection, reactionData);
+      }
+      
+      // Aggiorna i contatori nella comunicazione
+      const comunicazioneDoc = doc(db, 'comunicazioni', comunicazioneId);
+      const comunicazioneSnapshot = await getDoc(comunicazioneDoc);
+      
+      if (comunicazioneSnapshot.exists()) {
+        // Riconteggia likes e dislikes
+        const likesQuery = query(
+          reactionsCollection,
+          where('comunicazione_id', '==', comunicazioneId),
+          where('tipo', '==', 'like')
+        );
+        
+        const dislikesQuery = query(
+          reactionsCollection,
+          where('comunicazione_id', '==', comunicazioneId),
+          where('tipo', '==', 'dislike')
+        );
+        
+        const [likesSnapshot, dislikesSnapshot] = await Promise.all([
+          getDocs(likesQuery),
+          getDocs(dislikesQuery)
+        ]);
+        
+        await updateDoc(comunicazioneDoc, {
+          likes: likesSnapshot.size,
+          dislikes: dislikesSnapshot.size,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nella reazione alla comunicazione:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore sconosciuto nella reazione'
       };
     }
   }
