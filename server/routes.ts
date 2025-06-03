@@ -252,11 +252,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const opinionsData = req.body;
       
       // Priorità di identificativi per salvare le opinioni:
-      // 1. UUID (il più affidabile, è l'ID di Firebase Auth)
+      // 1. UID (il più affidabile, è l'ID di Firebase Auth)
       // 2. Email (secondo più affidabile)
       // 3. ID di sessione (usato solo come ultima risorsa)
       
-      const userId = req.user.uuid || req.user.id; // Preferisco usare l'UUID ma fallback all'ID
+      const userId = req.user.uid || req.user.id; // Preferisco usare l'UID ma fallback all'ID
       const email = req.user.email;
       
       // Assicuriamo che l'email sia presente nei dati delle opinioni
@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const comunicazioneData = {
-        id_utente: req.user.uuid || req.user.id,
+        id_utente: req.user.uid || req.user.id,
         nome: userData.nome,
         cognome: userData.cognome,
         ruolo: userData.ruolo,
@@ -612,13 +612,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send notifications to users who chose this representative
       await FirebaseService.sendNotificationsForComunicazione(
-        req.user.uuid || req.user.id,
+        req.user.uid || req.user.id || '',
         userData.nome,
         userData.cognome,
         titolo,
         voto_dato,
         vincitore,
-        result.comunicazioneId
+        result.comunicazioneId || ''
       );
 
       return res.status(201).json({ 
@@ -651,7 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      const notifiche = await FirebaseService.getUserNotifications(req.user.uuid || req.user.id);
+      const notifiche = await FirebaseService.getUserNotifications(req.user.uid || req.user.id);
       return res.status(200).json(notifiche);
     } catch (error) {
       console.error('Errore nel recupero notifiche:', error);
