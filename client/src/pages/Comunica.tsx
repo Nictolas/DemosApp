@@ -58,7 +58,7 @@ export default function Comunica() {
   const generateZona = () => {
     if (!userData) return "";
     
-    const { grado_elezione, comune_elezione, provincia_elezione, regione_elezione, paese_elezione } = userData;
+    const { grado_elezione, comune_elezione, provincia_elezione, regione_elezione, paese_elezione } = userData as any;
     
     if (grado_elezione === "Comunale" && comune_elezione) {
       return `Comune di ${comune_elezione}`;
@@ -143,7 +143,7 @@ export default function Comunica() {
   };
 
   // Check if user has the right role
-  if (!user || (userData?.ruolo !== "Politico" && userData?.ruolo !== "Candidato Politico")) {
+  if (!user || ((userData as any)?.ruolo !== "Politico" && (userData as any)?.ruolo !== "Candidato Politico")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />

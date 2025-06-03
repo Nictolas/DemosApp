@@ -19,6 +19,9 @@ import StatisticheOpinioni from "@/pages/StatisticheOpinioni";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
 import RegistrazioneElezioneCandidatura from "@/pages/RegistrazioneElezioneCandidatura";
+import Comunica from "@/pages/Comunica";
+import PodioTrasparenza from "@/pages/PodioTrasparenza";
+import Notifiche from "@/pages/Notifiche";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -138,6 +141,27 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/statistiche-opinioni" component={StatisticheOpinioni} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/comunica">
+        {(params) => (
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={300}>
+            <ProtectedRoute path="/comunica" component={Comunica} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/podio-trasparenza">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <PodioTrasparenza />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/notifiche">
+        {(params) => (
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
+            <ProtectedRoute path="/notifiche" component={Notifiche} />
           </PageTransition>
         )}
       </Route>
