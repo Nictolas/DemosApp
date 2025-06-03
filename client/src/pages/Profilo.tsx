@@ -17,6 +17,7 @@ export default function Profilo() {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [userOpinions, setUserOpinions] = useState<any>(null);
+  const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
 
   // Funzione per categorizzare le opinioni
   const categorizeOpinions = (opinions: any) => {
@@ -50,6 +51,39 @@ export default function Profilo() {
     return { favorevoli, indecisi, contrari };
   };
 
+  // Funzione per recuperare i nomi dei rappresentanti
+  const fetchRepresentativeNames = async (userInfo: any) => {
+    const representatives = {
+      rappresentante_europeo: userInfo.rappresentante_europeo,
+      rappresentante_camera: userInfo.rappresentante_camera,
+      rappresentante_senato: userInfo.rappresentante_senato,
+      rappresentante_regionale: userInfo.rappresentante_regionale,
+      rappresentante_comunale: userInfo.rappresentante_comunale,
+    };
+
+    const names: Record<string, string> = {};
+
+    for (const [key, email] of Object.entries(representatives)) {
+      if (email && typeof email === 'string') {
+        try {
+          const cleanEmail = email.replace('@gmail_com', '@gmail.com');
+          const response = await fetch(`/api/users/${encodeURIComponent(cleanEmail)}`);
+          if (response.ok) {
+            const userData = await response.json();
+            names[key] = `${userData.nome} ${userData.cognome}`;
+          } else {
+            names[key] = cleanEmail; // Fallback to email if name not found
+          }
+        } catch (error) {
+          console.error(`Errore nel recupero dati per ${email}:`, error);
+          names[key] = email.replace('@gmail_com', '@gmail.com'); // Fallback to email
+        }
+      }
+    }
+
+    setRepresentativeNames(names);
+  };
+
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (!user) return;
@@ -72,6 +106,9 @@ export default function Profilo() {
             unione_europea: userData.unione_europea || ''
           };
           setUserOpinions(opinions);
+          
+          // Fetch representative names
+          await fetchRepresentativeNames(userData);
         } else {
           console.log("Dati non trovati, caricamento dal profilo locale");
           
@@ -329,7 +366,7 @@ export default function Profilo() {
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                         {(userInfo as any).rappresentante_europeo ? (
                           <span className="text-blue-800 font-medium">
-                            {(userInfo as any).rappresentante_europeo?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                            {representativeNames.rappresentante_europeo || 'Caricamento...'}
                           </span>
                         ) : (
                           <span className="text-blue-600 text-sm italic">Non selezionato</span>
@@ -348,7 +385,7 @@ export default function Profilo() {
                       <div className="bg-green-50 border border-green-200 rounded-md p-3">
                         {(userInfo as any).rappresentante_camera ? (
                           <span className="text-green-800 font-medium">
-                            {(userInfo as any).rappresentante_camera?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                            {representativeNames.rappresentante_camera || 'Caricamento...'}
                           </span>
                         ) : (
                           <span className="text-green-600 text-sm italic">Non selezionato</span>
@@ -367,7 +404,7 @@ export default function Profilo() {
                       <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
                         {(userInfo as any).rappresentante_senato ? (
                           <span className="text-purple-800 font-medium">
-                            {(userInfo as any).rappresentante_senato?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                            {representativeNames.rappresentante_senato || 'Caricamento...'}
                           </span>
                         ) : (
                           <span className="text-purple-600 text-sm italic">Non selezionato</span>

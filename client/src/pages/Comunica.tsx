@@ -143,7 +143,8 @@ export default function Comunica() {
   };
 
   // Check if user has the right role
-  if (!user || ((userData as any)?.ruolo !== "Politico" && (userData as any)?.ruolo !== "Candidato Politico")) {
+  const userRole = (userData as any)?.ruolo;
+  if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />
@@ -152,7 +153,7 @@ export default function Comunica() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Accesso negato</AlertTitle>
             <AlertDescription>
-              Questa sezione è accessibile solo ai Politici e ai Candidati Politici.
+              Questa sezione è accessibile solo ai Politici e ai Candidati Politici. Il tuo ruolo: {userRole || 'Non definito'}
             </AlertDescription>
           </Alert>
         </div>
