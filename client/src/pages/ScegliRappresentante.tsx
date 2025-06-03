@@ -145,7 +145,7 @@ export default function ScegliRappresentante() {
                   item.provincia_elezione === userData.provincia_elezione &&
                   item.comune_elezione === userData.comune_elezione)
                 );
-                console.log(`Filtro comunale - Utente corrente: ${userData.comune_elezione}, ${userData.provincia_elezione}, ${userData.regione_elezione}`);
+                console.log(`Filtro comunale - Utente corrente: ${userData.comune_elezione}, ${userData.provincia_elezione}, ${userData.regione_elezione}, ${userData.paese_elezione}`);
                 console.log(`Rappresentanti comunali trovati:`, filteredData.length);
                 filteredData.forEach((rep: any) => {
                   console.log(`- ${rep.nome} ${rep.cognome} (${rep.email}) - ${rep.comune_elezione}, ${rep.provincia_elezione}, ${rep.regione_elezione}`);
