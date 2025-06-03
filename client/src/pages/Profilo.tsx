@@ -423,7 +423,7 @@ export default function Profilo() {
                       <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
                         {(userInfo as any).rappresentante_regionale ? (
                           <span className="text-orange-800 font-medium">
-                            {(userInfo as any).rappresentante_regionale?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                            {representativeNames.rappresentante_regionale || 'Caricamento...'}
                           </span>
                         ) : (
                           <span className="text-orange-600 text-sm italic">Non selezionato</span>
@@ -442,7 +442,7 @@ export default function Profilo() {
                       <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
                         {(userInfo as any).rappresentante_comunale ? (
                           <span className="text-teal-800 font-medium">
-                            {(userInfo as any).rappresentante_comunale?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                            {representativeNames.rappresentante_comunale || 'Caricamento...'}
                           </span>
                         ) : (
                           <span className="text-teal-600 text-sm italic">Non selezionato</span>
