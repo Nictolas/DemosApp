@@ -526,6 +526,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== COMUNICAZIONI API ROUTES =====
+
+  // Check for duplicate comunicazione
+  app.get('/api/comunicazioni/check-duplicate', requireAuth, async (req, res) => {
+    try {
+      const { titolo, zona } = req.query;
+      
+      if (!titolo || !zona) {
+        return res.status(400).json({ error: 'Titolo e zona sono richiesti' });
+      }
+
+      const existingComunicazione = await FirebaseService.checkDuplicateComunicazione(
+        String(titolo), 
+        String(zona)
+      );
+      
+      if (existingComunicazione) {
+        return res.status(200).json({
+          exists: true,
+          comunicazione: existingComunicazione
+        });
+      }
+      
+      return res.status(200).json({ exists: false });
+    } catch (error) {
+      console.error('Errore nel controllo duplicati comunicazione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Create new comunicazione
+  app.post('/api/comunicazioni', requireAuth, async (req, res) => {
+    try {
+      const { titolo, voto_dato, vincitore, zona, isDuplicate } = req.body;
+      
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      // Get user data
+      const userData = await FirebaseService.getUserByEmail(req.user.email);
+      if (!userData) {
+        return res.status(404).json({ error: 'Dati utente non trovati' });
+      }
+
+      // Check if user has the right role
+      if (userData.ruolo !== 'Politico' && userData.ruolo !== 'Candidato Politico') {
+        return res.status(403).json({ error: 'Solo i Politici e Candidati Politici possono creare comunicazioni' });
+      }
+
+      const comunicazioneData = {
+        id_utente: req.user.uuid || req.user.id,
+        nome: userData.nome,
+        cognome: userData.cognome,
+        ruolo: userData.ruolo,
+        titolo,
+        voto_dato,
+        vincitore,
+        zona,
+        data_creazione: new Date().toISOString(),
+        punti_trasparenza: isDuplicate ? 1 : 3,
+        likes: 0,
+        dislikes: 0
+      };
+
+      const result = await FirebaseService.saveComunicazione(comunicazioneData);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante il salvataggio della comunicazione',
+          details: result.error
+        });
+      }
+
+      // Update user's ultima comunicazione
+      const ultimaComunicazione = {
+        titolo,
+        voto_dato,
+        vincitore,
+        data: new Date().toISOString()
+      };
+
+      await FirebaseService.updateUltimaComunicazione(req.user.email, ultimaComunicazione);
+
+      // Send notifications to users who chose this representative
+      await FirebaseService.sendNotificationsForComunicazione(
+        req.user.uuid || req.user.id,
+        userData.nome,
+        userData.cognome,
+        titolo,
+        voto_dato,
+        vincitore,
+        result.comunicazioneId
+      );
+
+      return res.status(201).json({ 
+        message: 'Comunicazione creata con successo',
+        data: result.data
+      });
+    } catch (error) {
+      console.error('Errore durante la creazione della comunicazione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get podio trasparenza
+  app.get('/api/podio-trasparenza', async (req, res) => {
+    try {
+      const podioUsers = await FirebaseService.getPodioTrasparenza();
+      return res.status(200).json(podioUsers);
+    } catch (error) {
+      console.error('Errore nel recupero podio trasparenza:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // ===== NOTIFICHE API ROUTES =====
+
+  // Get user notifications
+  app.get('/api/notifiche', requireAuth, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const notifiche = await FirebaseService.getUserNotifications(req.user.uuid || req.user.id);
+      return res.status(200).json(notifiche);
+    } catch (error) {
+      console.error('Errore nel recupero notifiche:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Mark notification as read
+  app.patch('/api/notifiche/:id/read', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const result = await FirebaseService.markNotificationAsRead(id, req.user.uuid || req.user.id);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante l\'aggiornamento della notifica',
+          details: result.error
+        });
+      }
+
+      return res.status(200).json({ message: 'Notifica segnata come letta' });
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento della notifica:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // React to comunicazione (like/dislike)
+  app.post('/api/comunicazioni/:id/react', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reaction } = req.body;
+      
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!['like', 'dislike'].includes(reaction)) {
+        return res.status(400).json({ error: 'Reazione non valida' });
+      }
+
+      const result = await FirebaseService.reactToComunicazione(
+        id, 
+        req.user.uuid || req.user.id, 
+        reaction
+      );
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante la reazione',
+          details: result.error
+        });
+      }
+
+      return res.status(200).json({ 
+        message: 'Reazione registrata con successo',
+        data: result.data
+      });
+    } catch (error) {
+      console.error('Errore durante la reazione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
