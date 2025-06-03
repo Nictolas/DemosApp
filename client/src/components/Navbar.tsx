@@ -68,6 +68,26 @@ export function Navbar() {
                         Profilo
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/menu">
+                        Menu Principale
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/comunica">
+                        Comunica
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/notifiche">
+                        Notifiche
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/podio-trasparenza">
+                        Podio Trasparenza
+                      </Link>
+                    </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

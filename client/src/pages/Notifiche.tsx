@@ -145,7 +145,7 @@ export default function Notifiche() {
             </p>
           </div>
 
-          {!notifiche || notifiche.length === 0 ? (
+          {!notifiche || (notifiche as any[]).length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <Bell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -157,7 +157,7 @@ export default function Notifiche() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {notifiche.map((notifica: Notifica) => (
+              {(notifiche as any[]).map((notifica: Notifica) => (
                 <Card 
                   key={notifica.id} 
                   className={`transition-all duration-200 hover:shadow-md ${
