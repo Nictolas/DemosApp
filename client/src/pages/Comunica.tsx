@@ -142,6 +142,23 @@ export default function Comunica() {
     submitComunicazione.mutate(data);
   };
 
+  // Show loading while userData is being fetched
+  if (!userData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">Caricamento dati utente...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Check if user has the right role
   const userRole = (userData as any)?.ruolo;
   if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico")) {
@@ -153,7 +170,7 @@ export default function Comunica() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Accesso negato</AlertTitle>
             <AlertDescription>
-              Questa sezione è accessibile solo ai Politici e ai Candidati Politici. Il tuo ruolo: {userRole || 'Non definito'}
+              Questa sezione è accessibile solo ai Politici e ai Candidati Politici. Il tuo ruolo attuale: {userRole || 'Non definito'}
             </AlertDescription>
           </Alert>
         </div>

@@ -46,10 +46,10 @@ export default function ScegliRappresentante() {
   const getTitolo = (): string => {
     switch (categoria) {
       case "europeo": return "Europeo";
-      case "camera": return "Camera";
-      case "senato": return "Senato";
-      case "regione": return "Regione";
-      case "comune": return "Comune";
+      case "camera": return "Nazionale";
+      case "senato": return "Nazionale";
+      case "regione": return "Regionale";
+      case "comune": return "Comunale";
       default: return "Rappresentante";
     }
   };
@@ -73,7 +73,13 @@ export default function ScegliRappresentante() {
       try {
         // Carica i dati dell'utente corrente
         const userResponse = await apiRequest("GET", `/api/user`);
-        const userData = await userResponse.json();
+        const currentUser = await userResponse.json();
+        
+        // Carica i dati completi dell'utente tramite email
+        const userDataResponse = await fetch(`/api/users/${encodeURIComponent(currentUser.email)}`);
+        const userData = await userDataResponse.json();
+        
+        console.log('Dati utente completi:', userData);
         
         // Recupera l'ID del rappresentante selezionato
         if (userData) {
@@ -93,13 +99,15 @@ export default function ScegliRappresentante() {
         
         const allUsers = await usersResponse.json();
         const data = allUsers.filter((user: any) => 
-          (user.ruolo === 'Politico' || user.ruolo === 'Politico Candidato') &&
+          (user.ruolo === 'Politico' || user.ruolo === 'Candidato Politico') &&
           user.grado_elezione === getTitolo()
         );
         
+        console.log(`Utenti trovati per grado ${getTitolo()}:`, data.length);
+        console.log(`Email utente corrente: ${userData.email}`);
+        
         if (data) {
-          // Filtra i rappresentanti in base alla località di elezione dell'utente
-          const userData = user as any;
+          // Filtra i rappresentanti in base alla località di elezione dell'utente corrente
           let filteredData = data;
           
           // Filtra in base alla località appropriata secondo il livello
@@ -130,13 +138,18 @@ export default function ScegliRappresentante() {
                 break;
               case "comune":
                 // Per rappresentanti comunali, filtra per comune
-                filteredData = data.filter(item => 
+                filteredData = data.filter((item: any) => 
                   !userData.comune_elezione || 
                   (item.paese_elezione === userData.paese_elezione && 
                   item.regione_elezione === userData.regione_elezione &&
                   item.provincia_elezione === userData.provincia_elezione &&
                   item.comune_elezione === userData.comune_elezione)
                 );
+                console.log(`Filtro comunale - Utente corrente: ${userData.comune_elezione}, ${userData.provincia_elezione}, ${userData.regione_elezione}`);
+                console.log(`Rappresentanti comunali trovati:`, filteredData.length);
+                filteredData.forEach((rep: any) => {
+                  console.log(`- ${rep.nome} ${rep.cognome} (${rep.email}) - ${rep.comune_elezione}, ${rep.provincia_elezione}, ${rep.regione_elezione}`);
+                });
                 break;
               default:
                 break;
