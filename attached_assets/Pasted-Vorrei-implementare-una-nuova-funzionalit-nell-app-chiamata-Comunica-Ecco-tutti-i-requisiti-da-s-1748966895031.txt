@@ -1,0 +1,93 @@
+Vorrei implementare una nuova funzionalità nell'app chiamata "Comunica". Ecco tutti i requisiti da seguire per intero:
+
+✅ 1. Creazione della pagina “Comunica”
+Visibile solo agli utenti con ruolo "Politico" o "Candidato Politico".
+
+Deve permettere di compilare e inviare una comunicazione con i seguenti campi:
+
+titolo (stringa)
+
+voto_dato (select: "Favorevole", "Contrario", "Astenuto")
+
+vincitore (select: "Favorevole", "Contrario", "Astenuto")
+
+zona (stringa generata automaticamente in base alla zona di elezione dell’utente: es. "Comune di Napoli", "Parlamento Italiano", ecc.)
+
+✅ 2. Salvataggio su Firebase
+Ogni comunicazione viene salvata in una collezione chiamata "comunicazioni" (verrà creata automaticamente se non esiste).
+
+Ogni documento deve contenere i seguenti campi:
+
+id_utente (UID Firebase del rappresentante)
+
+nome, cognome
+
+ruolo
+
+titolo, voto_dato, vincitore, zona, data_creazione
+
+punti_trasparenza: 3 se è il primo a comunicare quella votazione nella stessa zona e con lo stesso titolo, altrimenti 1
+
+likes: inizializzato a 0
+
+dislikes: inizializzato a 0
+
+✅ 3. Prevenzione doppioni
+Prima di permettere l’invio, verifica se esiste già una comunicazione nella stessa zona con lo stesso titolo.
+
+Se esiste, mostra i dati già comunicati (titolo, vincitore, zona) e permetti solo di scegliere voto_dato.
+
+In questo caso salva comunque un nuovo documento, ma assegna solo punti_trasparenza = 1.
+
+✅ 4. Salvataggio ultima comunicazione nel documento utente
+Dopo aver inviato una comunicazione, aggiorna il documento dell’utente su Firebase (users) aggiungendo un oggetto ultimaComunicazione con:
+
+titolo
+
+voto_dato
+
+vincitore
+
+data
+
+✅ 5. Pagina “Podio Trasparenza”
+Aggiungere una nuova pagina accessibile a tutti chiamata "Podio Trasparenza".
+
+Mostrare i 10 utenti con più punti_trasparenza totali, calcolati sommando i punti delle comunicazioni nella collezione "comunicazioni", raggruppati per id_utente.
+
+Ordinare in ordine decrescente.
+
+✅ 6. Pagina “Notifiche”
+Creare una pagina "Notifiche" per ogni utente.
+
+Ogni volta che un rappresentante invia una comunicazione, inviare una notifica a tutti gli utenti che lo hanno scelto come rappresentante.
+
+Il testo della notifica deve essere:
+
+"NOME COGNOME ha comunicato una votazione: TITOLO. Ha votato: VOTO_DATO. Ha vinto: VINCITORE"
+
+Nella notifica, l’utente può cliccare su pollice su o pollice giù.
+
+Il voto viene salvato aggiornando il documento comunicazioni corrispondente, incrementando likes o dislikes.
+
+✅ 7. Sovrascrittura automatica
+Quando un rappresentante invia una nuova comunicazione, il campo ultimaComunicazione nel suo documento utente deve essere sovrascritto, sostituendo la comunicazione precedente.
+
+Riassunto tecnico:
+Aggiungi nuova sezione "Comunica" per Politici e Candidati Politici
+
+Salva dati in collezione Firebase comunicazioni
+
+Gestione doppioni per zona + titolo
+
+Calcolo automatico dei punti_trasparenza
+
+Aggiorna ultimaComunicazione nel documento dell'utente
+
+Crea pagina “Podio Trasparenza” con i 10 migliori
+
+Crea pagina “Notifiche” con supporto a like/dislike
+
+Notifiche agli elettori legati a quel rappresentante
+
+Ogni rappresentante può avere solo un’ultima comunicazione nel proprio documento
