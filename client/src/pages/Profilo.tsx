@@ -304,6 +304,119 @@ export default function Profilo() {
               </CardContent>
             </Card>
           )}
+
+          {/* Sezione Rappresentanti */}
+          {userInfo && (
+            <Card className="animate-in-delay">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  I Tuoi Rappresentanti
+                </CardTitle>
+                <CardDescription>
+                  I rappresentanti che hai scelto per i diversi livelli di governo
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Rappresentante Europeo */}
+                  <div className="space-y-3">
+                    <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        Parlamento Europeo
+                      </h3>
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                        {(userInfo as any).rappresentante_europeo ? (
+                          <span className="text-blue-800 font-medium">
+                            {(userInfo as any).rappresentante_europeo?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                          </span>
+                        ) : (
+                          <span className="text-blue-600 text-sm italic">Non selezionato</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rappresentante Camera */}
+                  <div className="space-y-3">
+                    <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        Camera dei Deputati
+                      </h3>
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                        {(userInfo as any).rappresentante_camera ? (
+                          <span className="text-green-800 font-medium">
+                            {(userInfo as any).rappresentante_camera?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                          </span>
+                        ) : (
+                          <span className="text-green-600 text-sm italic">Non selezionato</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rappresentante Senato */}
+                  <div className="space-y-3">
+                    <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                        Senato della Repubblica
+                      </h3>
+                      <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                        {(userInfo as any).rappresentante_senato ? (
+                          <span className="text-purple-800 font-medium">
+                            {(userInfo as any).rappresentante_senato?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                          </span>
+                        ) : (
+                          <span className="text-purple-600 text-sm italic">Non selezionato</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rappresentante Regionale */}
+                  <div className="space-y-3">
+                    <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                        Consiglio Regionale
+                      </h3>
+                      <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                        {(userInfo as any).rappresentante_regionale ? (
+                          <span className="text-orange-800 font-medium">
+                            {(userInfo as any).rappresentante_regionale?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                          </span>
+                        ) : (
+                          <span className="text-orange-600 text-sm italic">Non selezionato</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rappresentante Comunale */}
+                  <div className="space-y-3">
+                    <div className="bg-teal-100 border border-teal-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-teal-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-teal-500 rounded-full"></div>
+                        Consiglio Comunale
+                      </h3>
+                      <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
+                        {(userInfo as any).rappresentante_comunale ? (
+                          <span className="text-teal-800 font-medium">
+                            {(userInfo as any).rappresentante_comunale?.replace('@gmail_com', '@gmail.com') || 'Non selezionato'}
+                          </span>
+                        ) : (
+                          <span className="text-teal-600 text-sm italic">Non selezionato</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

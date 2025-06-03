@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart } from "lucide-react";
+import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
 
@@ -12,6 +12,7 @@ export default function Menu() {
   const { toast } = useToast();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
   
   // Verifica se l'utente è admin
   useEffect(() => {
@@ -24,6 +25,7 @@ export default function Menu() {
         if (response.ok) {
           const userData = await response.json();
           setIsAdmin(userData?.ruolo === 'Admin');
+          setUserRole(userData?.ruolo || '');
         } else {
           console.error("Errore nel verificare il ruolo");
         }
@@ -132,6 +134,32 @@ export default function Menu() {
               >
                 <PieChart className="mr-2 h-5 w-5" />
                 Statistiche Opinioni
+              </Button>
+              {(userRole === 'Politico' || userRole === 'Candidato Politico') && (
+                <Button 
+                  className="h-24 text-lg font-medium" 
+                  variant="default"
+                  onClick={() => window.location.href = "/comunica"}
+                >
+                  <MessageSquare className="mr-2 h-5 w-5" />
+                  Comunica
+                </Button>
+              )}
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="outline"
+                onClick={() => window.location.href = "/notifiche"}
+              >
+                <Bell className="mr-2 h-5 w-5" />
+                Notifiche
+              </Button>
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="default"
+                onClick={() => window.location.href = "/podio-trasparenza"}
+              >
+                <Trophy className="mr-2 h-5 w-5" />
+                Podio Trasparenza
               </Button>
               {isAdmin && (
                 <Button 
