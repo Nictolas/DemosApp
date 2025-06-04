@@ -584,6 +584,40 @@ class FirebaseService {
   }
 
   /**
+   * Recupera l'ultima comunicazione di un utente
+   */
+  static async getUltimaComunicazione(userId: string): Promise<any | null> {
+    try {
+      if (!db) {
+        return null;
+      }
+
+      const comunicazioniCollection = collection(db, 'comunicazioni');
+      const q = query(
+        comunicazioniCollection,
+        where('id_utente', '==', userId),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error('Errore nel recupero ultima comunicazione:', error);
+      return null;
+    }
+  }
+
+  /**
    * Salva una nuova comunicazione nella collezione comunicazioni
    */
   static async saveComunicazione(comunicazioneData: any): Promise<{
