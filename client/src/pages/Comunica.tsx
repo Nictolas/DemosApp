@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
-import { AlertTriangle, CheckCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useLocation } from "wouter";
 
 const comunicaSchema = z.object({
@@ -284,6 +284,19 @@ export default function Comunica() {
                       minute: '2-digit'
                     })}
                   </p>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <span className="font-medium text-sm">Feedback ricevuto:</span>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-1">
+                      <ThumbsUp className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium">{ultimaComunicazione.likes || 0}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <ThumbsDown className="h-4 w-4 text-red-600" />
+                      <span className="text-sm font-medium">{ultimaComunicazione.dislikes || 0}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
