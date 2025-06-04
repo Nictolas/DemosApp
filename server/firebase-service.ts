@@ -497,52 +497,56 @@ class FirebaseService {
   }
 
   /**
-   * Elimina una comunicazione precedente dello stesso utente
+   * Elimina tutte le comunicazioni precedenti dello stesso utente
    */
-  static async deletePreviousComunicazione(userId: string): Promise<{
+  static async deletePreviousComunicazioni(userId: string): Promise<{
     success: boolean;
-    deletedComunicazioneId?: string;
+    deletedCount: number;
     error?: string;
   }> {
     try {
       if (!db) {
-        return { success: false, error: "Firebase Firestore non è configurato" };
+        return { success: false, deletedCount: 0, error: "Firebase Firestore non è configurato" };
       }
 
       const comunicazioniCollection = collection(db, 'comunicazioni');
+      // Usa solo il filtro per id_utente senza orderBy per evitare l'indice composito
       const q = query(
         comunicazioniCollection,
-        where('id_utente', '==', userId),
-        orderBy('data_creazione', 'desc'),
-        limit(1)
+        where('id_utente', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);
+      const deletePromises: Promise<any>[] = [];
+      const notificationDeletePromises: Promise<any>[] = [];
       
-      if (!querySnapshot.empty) {
-        const docToDelete = querySnapshot.docs[0];
+      console.log(`🗑️ Trovate ${querySnapshot.size} comunicazioni da eliminare per utente: ${userId}`);
+      
+      querySnapshot.forEach((docToDelete) => {
         const comunicazioneId = docToDelete.id;
-        
-        console.log(`🗑️ Eliminando comunicazione precedente: ${comunicazioneId}`);
+        console.log(`🗑️ Eliminando comunicazione: ${comunicazioneId}`);
         
         // Elimina la comunicazione
-        await deleteDoc(doc(db, 'comunicazioni', comunicazioneId));
+        deletePromises.push(deleteDoc(doc(db, 'comunicazioni', comunicazioneId)));
         
-        // Elimina tutte le notifiche associate
-        await this.deleteNotificationsForComunicazione(comunicazioneId);
-        
-        return { 
-          success: true, 
-          deletedComunicazioneId: comunicazioneId 
-        };
-      }
+        // Elimina le notifiche associate
+        notificationDeletePromises.push(this.deleteNotificationsForComunicazione(comunicazioneId));
+      });
       
-      return { success: true }; // Nessuna comunicazione precedente da eliminare
+      // Esegui tutte le eliminazioni in parallelo
+      await Promise.all([...deletePromises, ...notificationDeletePromises]);
+      
+      return { 
+        success: true, 
+        deletedCount: querySnapshot.size 
+      };
+      
     } catch (error: any) {
-      console.error('Errore eliminazione comunicazione precedente:', error);
+      console.error('Errore eliminazione comunicazioni precedenti:', error);
       return { 
         success: false, 
-        error: error.message || 'Errore sconosciuto nell\'eliminazione comunicazione precedente' 
+        deletedCount: 0,
+        error: error.message || 'Errore sconosciuto nell\'eliminazione comunicazioni precedenti' 
       };
     }
   }

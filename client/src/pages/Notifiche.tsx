@@ -21,7 +21,6 @@ interface Notifica {
   commento?: string;
   vincitore: string;
   data_creazione: string;
-  letta: boolean;
   user_reaction?: "like" | "dislike" | null;
 }
 
@@ -36,19 +35,7 @@ export default function Notifiche() {
     enabled: !!user,
   });
 
-  // Mark notification as read
-  const markAsRead = useMutation({
-    mutationFn: async (notificaId: string) => {
-      const response = await fetch(`/api/notifiche/${notificaId}/read`, {
-        method: "PATCH",
-      });
-      if (!response.ok) throw new Error("Errore nel segnare come letta");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notifiche"] });
-    },
-  });
+
 
   // React to communication (like/dislike)
   const reactToCommunication = useMutation({
@@ -82,10 +69,6 @@ export default function Notifiche() {
   const handleReaction = (comunicazioneId: string, reaction: "like" | "dislike") => {
     setProcessingReaction(comunicazioneId);
     reactToCommunication.mutate({ comunicazioneId, reaction });
-  };
-
-  const handleMarkAsRead = (notificaId: string) => {
-    markAsRead.mutate(notificaId);
   };
 
   const getReactionColor = (reaction: string | null) => {
@@ -161,11 +144,7 @@ export default function Notifiche() {
               {(notifiche as any[]).map((notifica: Notifica) => (
                 <Card 
                   key={notifica.id} 
-                  className={`transition-all duration-200 hover:shadow-md ${
-                    !notifica.letta 
-                      ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-900/10" 
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                  }`}
+                  className="transition-all duration-200 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
@@ -191,17 +170,7 @@ export default function Notifiche() {
                           </div>
                         </div>
                       </div>
-                      
-                      {!notifica.letta && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMarkAsRead(notifica.id)}
-                          disabled={markAsRead.isPending}
-                        >
-                          Segna come letta
-                        </Button>
-                      )}
+
                     </div>
                   </CardHeader>
                   
