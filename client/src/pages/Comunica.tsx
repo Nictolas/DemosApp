@@ -20,6 +20,7 @@ const comunicaSchema = z.object({
   voto_dato: z.enum(["Favorevole", "Contrario", "Astenuto"], {
     required_error: "Seleziona il tuo voto",
   }),
+  commento: z.string().max(20, "Il commento non può superare i 20 caratteri").optional(),
   vincitore: z.enum(["Favorevole", "Contrario", "Astenuto"], {
     required_error: "Seleziona il vincitore",
   }),
@@ -46,6 +47,7 @@ export default function Comunica() {
     defaultValues: {
       titolo: "",
       voto_dato: undefined,
+      commento: "",
       vincitore: undefined,
     },
   });
@@ -274,6 +276,25 @@ export default function Comunica() {
                           <SelectItem value="Astenuto">Astenuto</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="commento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Commento <span className="text-sm text-muted-foreground">(opzionale, max 20 caratteri)</span></FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Aggiungi un breve commento..."
+                          {...field}
+                          maxLength={20}
+                          disabled={submitComunicazione.isPending}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
