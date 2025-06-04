@@ -636,10 +636,10 @@ class FirebaseService {
       const notificationsCollection = collection(db, 'notifiche');
       const notificationPromises: Promise<any>[] = [];
       
-      // Ottieni l'email del rappresentante per confronto
-      const rappresentanteEmail = rappresentanteId; // L'email è già in formato corretto
+      // Ottieni l'email del rappresentante per confronto in formato Firebase
+      const rappresentanteEmailFirebase = rappresentanteId.replace('@gmail.com', '@gmail_com');
       
-      console.log(`Cercando utenti che hanno scelto rappresentante: ${rappresentanteEmail}`);
+      console.log(`Cercando utenti che hanno scelto rappresentante: ${rappresentanteId} (formato Firebase: ${rappresentanteEmailFirebase})`);
       
       usersSnapshot.forEach((userDoc) => {
         const userData = userDoc.data();
@@ -651,11 +651,11 @@ class FirebaseService {
         
         // Verifica se l'utente ha scelto questo rappresentante in uno dei campi
         const hasChosenRepresentative = 
-          userData.rappresentante_europeo === rappresentanteEmail ||
-          userData.rappresentante_camera === rappresentanteEmail ||
-          userData.rappresentante_senato === rappresentanteEmail ||
-          userData.rappresentante_regionale === rappresentanteEmail ||
-          userData.rappresentante_comunale === rappresentanteEmail;
+          userData.rappresentante_europeo === rappresentanteEmailFirebase ||
+          userData.rappresentante_camera === rappresentanteEmailFirebase ||
+          userData.rappresentante_senato === rappresentanteEmailFirebase ||
+          userData.rappresentante_regionale === rappresentanteEmailFirebase ||
+          userData.rappresentante_comunale === rappresentanteEmailFirebase;
         
         if (hasChosenRepresentative) {
           console.log(`✅ Trovato utente che ha scelto questo rappresentante: ${userData.nome} ${userData.cognome} (${userData.email})`);

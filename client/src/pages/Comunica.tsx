@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { AlertTriangle, CheckCircle } from "lucide-react";
+import { useLocation } from "wouter";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -36,6 +37,7 @@ export default function Comunica() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [existingComunicazione, setExistingComunicazione] = useState<ExistingComunicazione | null>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
@@ -139,7 +141,10 @@ export default function Comunica() {
       });
       form.reset();
       setExistingComunicazione(null);
-      // Rimossa invalidazione query per migliorare performance
+      // Naviga alla home page con un breve delay per mostrare il toast
+      setTimeout(() => {
+        setLocation("/");
+      }, 1000);
     },
     onError: (error: any) => {
       toast({
