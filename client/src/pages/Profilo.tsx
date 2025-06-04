@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
 import { UserInfo } from "@/types";
 import { db, auth } from "@/lib/firebase";
 import { EditProfileForm } from "@/components/EditProfileForm";
+import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Profilo() {
@@ -18,6 +19,7 @@ export default function Profilo() {
   const [isEditing, setIsEditing] = useState(false);
   const [userOpinions, setUserOpinions] = useState<any>(null);
   const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
+  const [avatarConfig, setAvatarConfig] = useState<any>(null);
 
   // Funzione per categorizzare le opinioni
   const categorizeOpinions = (opinions: any) => {
@@ -107,6 +109,16 @@ export default function Profilo() {
           };
           setUserOpinions(opinions);
           
+          // Carica la configurazione avatar se presente
+          if (userData.avatar_config) {
+            try {
+              const config = JSON.parse(userData.avatar_config);
+              setAvatarConfig(config);
+            } catch (error) {
+              console.error("Errore nel parsing della configurazione avatar:", error);
+            }
+          }
+          
           // Fetch representative names
           await fetchRepresentativeNames(userData);
         } else {
@@ -188,53 +200,69 @@ export default function Profilo() {
                     onCancel={() => setIsEditing(false)}
                   />
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-lg font-medium mb-2">Informazioni personali</h3>
-                      <div className="space-y-2">
-                        <p><strong>Nome:</strong> {userInfo.nome}</p>
-                        <p><strong>Cognome:</strong> {userInfo.cognome}</p>
-                        <p><strong>Data di nascita:</strong> {userInfo.data_nascita}</p>
-                        <p><strong>Genere:</strong> {userInfo.genere}</p>
-                        <p><strong>Cittadinanza:</strong> {userInfo.cittadinanza}</p>
-                        <p><strong>Ruolo:</strong> {userInfo.ruolo}</p>
+                  <div className="space-y-6">
+                    {/* Sezione Avatar (solo per utenti autorizzati) */}
+                    {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
+                      <div className="flex justify-center">
+                        <div className="text-center">
+                          <h3 className="text-lg font-medium mb-4">Il Tuo Avatar</h3>
+                          <CustomAvatar 
+                            config={avatarConfig} 
+                            size={120}
+                            className="mx-auto border-2 border-gray-200 rounded-lg p-2 bg-white shadow-sm"
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                     
-                    <div>
-                      <h3 className="text-lg font-medium mb-2">Residenza</h3>
-                      <div className="space-y-2">
-                        <p><strong>Paese:</strong> {userInfo.paese_residenza}</p>
-                        <p><strong>Regione:</strong> {userInfo.regione_residenza}</p>
-                        <p><strong>Provincia:</strong> {userInfo.provincia_residenza}</p>
-                        <p><strong>Comune:</strong> {userInfo.comune_residenza}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Informazioni personali</h3>
+                        <div className="space-y-2">
+                          <p><strong>Nome:</strong> {userInfo.nome}</p>
+                          <p><strong>Cognome:</strong> {userInfo.cognome}</p>
+                          <p><strong>Data di nascita:</strong> {userInfo.data_nascita}</p>
+                          <p><strong>Genere:</strong> {userInfo.genere}</p>
+                          <p><strong>Cittadinanza:</strong> {userInfo.cittadinanza}</p>
+                          <p><strong>Ruolo:</strong> {userInfo.ruolo}</p>
+                        </div>
                       </div>
                       
-                      {userInfo.paese_elezione && (
-                        <>
-                          <h3 className="text-lg font-medium mt-4 mb-2">Elezione</h3>
-                          <div className="space-y-2">
-                            <p><strong>Paese:</strong> {userInfo.paese_elezione}</p>
-                            <p><strong>Regione:</strong> {userInfo.regione_elezione}</p>
-                            <p><strong>Provincia:</strong> {userInfo.provincia_elezione}</p>
-                            <p><strong>Comune:</strong> {userInfo.comune_elezione}</p>
-                            <p><strong>Grado:</strong> {userInfo.grado_elezione}</p>
-                          </div>
-                        </>
-                      )}
-                      
-                      {userInfo.paese_candidatura && (
-                        <>
-                          <h3 className="text-lg font-medium mt-4 mb-2">Candidatura</h3>
-                          <div className="space-y-2">
-                            <p><strong>Paese:</strong> {userInfo.paese_candidatura}</p>
-                            <p><strong>Regione:</strong> {userInfo.regione_candidatura}</p>
-                            <p><strong>Provincia:</strong> {userInfo.provincia_candidatura}</p>
-                            <p><strong>Comune:</strong> {userInfo.comune_candidatura}</p>
-                            <p><strong>Grado:</strong> {userInfo.grado_candidatura}</p>
-                          </div>
-                        </>
-                      )}
+                      <div>
+                        <h3 className="text-lg font-medium mb-2">Residenza</h3>
+                        <div className="space-y-2">
+                          <p><strong>Paese:</strong> {userInfo.paese_residenza}</p>
+                          <p><strong>Regione:</strong> {userInfo.regione_residenza}</p>
+                          <p><strong>Provincia:</strong> {userInfo.provincia_residenza}</p>
+                          <p><strong>Comune:</strong> {userInfo.comune_residenza}</p>
+                        </div>
+                        
+                        {userInfo.paese_elezione && (
+                          <>
+                            <h3 className="text-lg font-medium mt-4 mb-2">Elezione</h3>
+                            <div className="space-y-2">
+                              <p><strong>Paese:</strong> {userInfo.paese_elezione}</p>
+                              <p><strong>Regione:</strong> {userInfo.regione_elezione}</p>
+                              <p><strong>Provincia:</strong> {userInfo.provincia_elezione}</p>
+                              <p><strong>Comune:</strong> {userInfo.comune_elezione}</p>
+                              <p><strong>Grado:</strong> {userInfo.grado_elezione}</p>
+                            </div>
+                          </>
+                        )}
+                        
+                        {userInfo.paese_candidatura && (
+                          <>
+                            <h3 className="text-lg font-medium mt-4 mb-2">Candidatura</h3>
+                            <div className="space-y-2">
+                              <p><strong>Paese:</strong> {userInfo.paese_candidatura}</p>
+                              <p><strong>Regione:</strong> {userInfo.regione_candidatura}</p>
+                              <p><strong>Provincia:</strong> {userInfo.provincia_candidatura}</p>
+                              <p><strong>Comune:</strong> {userInfo.comune_candidatura}</p>
+                              <p><strong>Grado:</strong> {userInfo.grado_candidatura}</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
