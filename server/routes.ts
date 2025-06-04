@@ -754,6 +754,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint per salvare la configurazione dell'avatar
+  app.post('/api/users/:email/avatar', requireAuth, async (req, res) => {
+    try {
+      const { email } = req.params;
+      const { avatar_config } = req.body;
+
+      if (!email || !avatar_config) {
+        return res.status(400).json({ error: 'Email e configurazione avatar richieste' });
+      }
+
+      // Decodifica l'email se necessario
+      const decodedEmail = decodeURIComponent(email);
+
+      // Aggiorna la configurazione avatar nel database Firebase
+      const result = await FirebaseService.updateUserData(decodedEmail, { avatar_config });
+
+      if (result.success) {
+        res.json({ success: true, message: 'Configurazione avatar salvata con successo' });
+      } else {
+        res.status(500).json({ error: result.error || 'Errore nel salvataggio della configurazione avatar' });
+      }
+    } catch (error) {
+      console.error('Errore durante il salvataggio della configurazione avatar:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

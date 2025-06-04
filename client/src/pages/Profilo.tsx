@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Edit, User } from "lucide-react";
+import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
 import { UserInfo } from "@/types";
 import { db, auth } from "@/lib/firebase";
 import { EditProfileForm } from "@/components/EditProfileForm";
@@ -245,12 +245,23 @@ export default function Profilo() {
               )}
             </CardContent>
             
-            <CardFooter className="flex justify-end">
+            <CardFooter className="flex justify-end gap-2">
               {userInfo && user && !isEditing && (
-                <Button onClick={() => setIsEditing(true)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Modifica Profilo
-                </Button>
+                <>
+                  {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => window.location.href = "/modifica-immagine"}
+                    >
+                      <Image className="mr-2 h-4 w-4" />
+                      Modifica Immagine
+                    </Button>
+                  )}
+                  <Button onClick={() => setIsEditing(true)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Modifica Profilo
+                  </Button>
+                </>
               )}
             </CardFooter>
           </Card>
