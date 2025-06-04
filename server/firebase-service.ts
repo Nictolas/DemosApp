@@ -644,6 +644,11 @@ class FirebaseService {
       usersSnapshot.forEach((userDoc) => {
         const userData = userDoc.data();
         
+        // Debug: mostra i rappresentanti di ogni utente
+        console.log(`Utente: ${userData.nome} ${userData.cognome} (${userData.email})`);
+        console.log(`  - rappresentante_comunale: ${userData.rappresentante_comunale}`);
+        console.log(`  - rappresentante_europeo: ${userData.rappresentante_europeo}`);
+        
         // Verifica se l'utente ha scelto questo rappresentante in uno dei campi
         const hasChosenRepresentative = 
           userData.rappresentante_europeo === rappresentanteEmail ||
@@ -653,7 +658,7 @@ class FirebaseService {
           userData.rappresentante_comunale === rappresentanteEmail;
         
         if (hasChosenRepresentative) {
-          console.log(`Trovato utente che ha scelto questo rappresentante: ${userData.nome} ${userData.cognome} (${userData.email})`);
+          console.log(`✅ Trovato utente che ha scelto questo rappresentante: ${userData.nome} ${userData.cognome} (${userData.email})`);
         }
         
         // Crea notifica solo per utenti che hanno scelto questo rappresentante
