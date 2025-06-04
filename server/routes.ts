@@ -559,7 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new comunicazione
   app.post('/api/comunicazioni', requireAuth, async (req, res) => {
     try {
-      const { titolo, voto_dato, vincitore, zona, isDuplicate } = req.body;
+      const { titolo, voto_dato, commento, vincitore, zona, isDuplicate } = req.body;
       
       if (!req.user || !req.user.id) {
         return res.status(401).json({ error: 'Utente non autenticato' });
@@ -583,6 +583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ruolo: userData.ruolo,
         titolo,
         voto_dato,
+        commento: commento || "",
         vincitore,
         zona,
         data_creazione: new Date().toISOString(),

@@ -620,6 +620,7 @@ class FirebaseService {
     rappresentanteCognome: string,
     titolo: string,
     votoDato: string,
+    commento: string,
     vincitore: string,
     comunicazioneId: string
   ): Promise<void> {
@@ -671,6 +672,7 @@ class FirebaseService {
             rappresentante_cognome: rappresentanteCognome,
             titolo,
             voto_dato: votoDato,
+            commento: commento || "",
             vincitore,
             data_creazione: new Date().toISOString(),
             letta: false
