@@ -630,24 +630,31 @@ class FirebaseService {
       }
 
       // Trova tutti gli utenti che hanno scelto questo rappresentante
-      // Nota: Questo richiede che tu abbia un sistema per tracciare le scelte degli elettori
-      // Per ora creo notifiche per tutti gli utenti (puoi raffinare questa logica)
-      
       const usersCollection = collection(db, 'utenti');
       const usersSnapshot = await getDocs(usersCollection);
       
       const notificationsCollection = collection(db, 'notifiche');
-      
       const notificationPromises: Promise<any>[] = [];
+      
+      // Ottieni l'email del rappresentante per confronto
+      const rappresentanteEmail = rappresentanteId.replace('@gmail_com', '@gmail.com');
       
       usersSnapshot.forEach((userDoc) => {
         const userData = userDoc.data();
         
-        // Crea notifica solo per utenti che non sono il rappresentante stesso
-        if (userData.id !== rappresentanteId && userData.ruolo !== 'Politico' && userData.ruolo !== 'Candidato Politico') {
+        // Verifica se l'utente ha scelto questo rappresentante in uno dei campi
+        const hasChosenRepresentative = 
+          userData.rappresentante_europeo === rappresentanteEmail ||
+          userData.rappresentante_camera === rappresentanteEmail ||
+          userData.rappresentante_senato === rappresentanteEmail ||
+          userData.rappresentante_regionale === rappresentanteEmail ||
+          userData.rappresentante_comunale === rappresentanteEmail;
+        
+        // Crea notifica solo per utenti che hanno scelto questo rappresentante
+        if (hasChosenRepresentative) {
           const notificationData = {
             comunicazione_id: comunicazioneId,
-            destinatario_id: userData.id || userDoc.id,
+            destinatario_id: userData.uid || userData.id || userDoc.id,
             rappresentante_id: rappresentanteId,
             rappresentante_nome: rappresentanteNome,
             rappresentante_cognome: rappresentanteCognome,
@@ -682,35 +689,25 @@ class FirebaseService {
       const notificationsCollection = collection(db, 'notifiche');
       const q = query(
         notificationsCollection,
-        where('destinatario_id', '==', userId),
-        orderBy('data_creazione', 'desc')
+        where('destinatario_id', '==', userId)
       );
       
       const querySnapshot = await getDocs(q);
       
       const notifications: any[] = [];
       
-      // Recupera anche le reazioni dell'utente per ogni comunicazione
+      // Processa le notifiche e ordina manualmente
       for (const docSnapshot of querySnapshot.docs) {
         const notificationData = { id: docSnapshot.id, ...docSnapshot.data() };
-        
-        // Controlla se l'utente ha già reagito a questa comunicazione
-        const reactionsCollection = collection(db, 'reazioni');
-        const reactionQuery = query(
-          reactionsCollection,
-          where('comunicazione_id', '==', notificationData.comunicazione_id),
-          where('utente_id', '==', userId),
-          limit(1)
-        );
-        
-        const reactionSnapshot = await getDocs(reactionQuery);
-        if (!reactionSnapshot.empty) {
-          const reactionData = reactionSnapshot.docs[0].data();
-          notificationData.user_reaction = reactionData.tipo;
-        }
-        
         notifications.push(notificationData);
       }
+      
+      // Ordina manualmente per data_creazione (desc)
+      notifications.sort((a, b) => {
+        const dateA = new Date(a.data_creazione || 0);
+        const dateB = new Date(b.data_creazione || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
       
       return notifications;
     } catch (error: any) {
