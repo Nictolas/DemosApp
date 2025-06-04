@@ -162,11 +162,7 @@ export default function Notifiche() {
                                 locale: it,
                               })}
                             </span>
-                            {!notifica.letta && (
-                              <Badge variant="secondary" className="text-xs">
-                                Nuova
-                              </Badge>
-                            )}
+
                           </div>
                         </div>
                       </div>
