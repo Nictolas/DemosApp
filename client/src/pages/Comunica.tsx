@@ -139,7 +139,7 @@ export default function Comunica() {
       });
       form.reset();
       setExistingComunicazione(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/comunicazioni"] });
+      // Rimossa invalidazione query per migliorare performance
     },
     onError: (error: any) => {
       toast({
