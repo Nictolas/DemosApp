@@ -576,6 +576,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Solo i Politici e Candidati Politici possono creare comunicazioni' });
       }
 
+      // Elimina la comunicazione precedente dell'utente
+      console.log(`🗑️ Eliminando comunicazione precedente per utente: ${req.user.uid || req.user.id}`);
+      const deleteResult = await FirebaseService.deletePreviousComunicazione(req.user.uid || req.user.id);
+      
+      if (!deleteResult.success) {
+        console.error('Errore eliminazione comunicazione precedente:', deleteResult.error);
+        // Continua comunque con la creazione della nuova comunicazione
+      } else if (deleteResult.deletedComunicazioneId) {
+        console.log(`✅ Comunicazione precedente eliminata: ${deleteResult.deletedComunicazioneId}`);
+      } else {
+        console.log(`ℹ️ Nessuna comunicazione precedente da eliminare`);
+      }
+
       const comunicazioneData = {
         id_utente: req.user.uid || req.user.id,
         nome: userData.nome,

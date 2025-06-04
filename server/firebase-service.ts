@@ -497,6 +497,89 @@ class FirebaseService {
   }
 
   /**
+   * Elimina una comunicazione precedente dello stesso utente
+   */
+  static async deletePreviousComunicazione(userId: string): Promise<{
+    success: boolean;
+    deletedComunicazioneId?: string;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      const comunicazioniCollection = collection(db, 'comunicazioni');
+      const q = query(
+        comunicazioniCollection,
+        where('id_utente', '==', userId),
+        orderBy('data_creazione', 'desc'),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const docToDelete = querySnapshot.docs[0];
+        const comunicazioneId = docToDelete.id;
+        
+        console.log(`🗑️ Eliminando comunicazione precedente: ${comunicazioneId}`);
+        
+        // Elimina la comunicazione
+        await deleteDoc(doc(db, 'comunicazioni', comunicazioneId));
+        
+        // Elimina tutte le notifiche associate
+        await this.deleteNotificationsForComunicazione(comunicazioneId);
+        
+        return { 
+          success: true, 
+          deletedComunicazioneId: comunicazioneId 
+        };
+      }
+      
+      return { success: true }; // Nessuna comunicazione precedente da eliminare
+    } catch (error: any) {
+      console.error('Errore eliminazione comunicazione precedente:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Errore sconosciuto nell\'eliminazione comunicazione precedente' 
+      };
+    }
+  }
+
+  /**
+   * Elimina tutte le notifiche associate a una comunicazione
+   */
+  static async deleteNotificationsForComunicazione(comunicazioneId: string): Promise<void> {
+    try {
+      if (!db) {
+        console.error("Firebase Firestore non è configurato");
+        return;
+      }
+
+      const notificheCollection = collection(db, 'notifiche');
+      const q = query(
+        notificheCollection,
+        where('comunicazione_id', '==', comunicazioneId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const deletePromises: Promise<any>[] = [];
+      
+      console.log(`🗑️ Eliminando ${querySnapshot.size} notifiche per comunicazione ${comunicazioneId}`);
+      
+      querySnapshot.forEach((notificaDoc) => {
+        deletePromises.push(deleteDoc(doc(db, 'notifiche', notificaDoc.id)));
+      });
+      
+      await Promise.all(deletePromises);
+      
+    } catch (error: any) {
+      console.error('Errore nell\'eliminazione notifiche:', error);
+    }
+  }
+
+  /**
    * Salva una nuova comunicazione nella collezione comunicazioni
    */
   static async saveComunicazione(comunicazioneData: any): Promise<{
