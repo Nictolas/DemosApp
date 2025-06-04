@@ -18,6 +18,7 @@ interface Notifica {
   rappresentante_cognome: string;
   titolo: string;
   voto_dato: string;
+  commento?: string;
   vincitore: string;
   data_creazione: string;
   letta: boolean;
@@ -241,6 +242,13 @@ export default function Notifiche() {
                           </Badge>
                         </div>
                       </div>
+                      
+                      {notifica.commento && (
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                          <span className="text-muted-foreground text-sm">Commento:</span>
+                          <p className="text-sm font-medium mt-1 italic">"{notifica.commento}"</p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between">

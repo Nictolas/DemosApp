@@ -618,6 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userData.cognome,
         titolo,
         voto_dato,
+        commento || "",
         vincitore,
         result.comunicazioneId || ''
       );
