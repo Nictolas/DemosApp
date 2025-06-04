@@ -612,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Send notifications to users who chose this representative
       await FirebaseService.sendNotificationsForComunicazione(
-        req.user.uid || req.user.id || '',
+        req.user.email, // Usa l'email invece dell'UID per il confronto
         userData.nome,
         userData.cognome,
         titolo,
