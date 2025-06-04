@@ -403,39 +403,51 @@ export default function Profilo() {
                         Parlamento Europeo
                       </h3>
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <span className="text-blue-800 font-medium">
-                          {representativeNames.rappresentante_europeo || (userInfo as any).rappresentante_europeo || "Non selezionato"}
-                        </span>
+                        {(userInfo as any).rappresentante_europeo ? (
+                          <span className="text-blue-800 font-medium">
+                            {representativeNames.rappresentante_europeo || 'Caricamento...'}
+                          </span>
+                        ) : (
+                          <span className="text-blue-600 text-sm italic">Non selezionato</span>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Rappresentante Camera */}
                   <div className="space-y-3">
-                    <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                         Camera dei Deputati
                       </h3>
-                      <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                        <span className="text-purple-800 font-medium">
-                          {representativeNames.rappresentante_camera || (userInfo as any).rappresentante_camera || "Non selezionato"}
-                        </span>
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                        {(userInfo as any).rappresentante_camera ? (
+                          <span className="text-green-800 font-medium">
+                            {representativeNames.rappresentante_camera || 'Caricamento...'}
+                          </span>
+                        ) : (
+                          <span className="text-green-600 text-sm italic">Non selezionato</span>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Rappresentante Senato */}
                   <div className="space-y-3">
-                    <div className="bg-indigo-100 border border-indigo-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
-                        Senato
+                    <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                        Senato della Repubblica
                       </h3>
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3">
-                        <span className="text-indigo-800 font-medium">
-                          {representativeNames.rappresentante_senato || (userInfo as any).rappresentante_senato || "Non selezionato"}
-                        </span>
+                      <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                        {(userInfo as any).rappresentante_senato ? (
+                          <span className="text-purple-800 font-medium">
+                            {representativeNames.rappresentante_senato || 'Caricamento...'}
+                          </span>
+                        ) : (
+                          <span className="text-purple-600 text-sm italic">Non selezionato</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -448,9 +460,13 @@ export default function Profilo() {
                         Consiglio Regionale
                       </h3>
                       <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                        <span className="text-orange-800 font-medium">
-                          {representativeNames.rappresentante_regionale || (userInfo as any).rappresentante_regionale || "Non selezionato"}
-                        </span>
+                        {(userInfo as any).rappresentante_regionale ? (
+                          <span className="text-orange-800 font-medium">
+                            {representativeNames.rappresentante_regionale || 'Caricamento...'}
+                          </span>
+                        ) : (
+                          <span className="text-orange-600 text-sm italic">Non selezionato</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -463,9 +479,13 @@ export default function Profilo() {
                         Consiglio Comunale
                       </h3>
                       <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
-                        <span className="text-teal-800 font-medium">
-                          {representativeNames.rappresentante_comunale || (userInfo as any).rappresentante_comunale || "Non selezionato"}
-                        </span>
+                        {(userInfo as any).rappresentante_comunale ? (
+                          <span className="text-teal-800 font-medium">
+                            {representativeNames.rappresentante_comunale || 'Caricamento...'}
+                          </span>
+                        ) : (
+                          <span className="text-teal-600 text-sm italic">Non selezionato</span>
+                        )}
                       </div>
                     </div>
                   </div>
