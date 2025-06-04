@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,6 +66,20 @@ export default function Comunica() {
       if (!sessionData?.email) return null;
       const response = await fetch(`/api/users/${encodeURIComponent(sessionData.email)}`);
       if (!response.ok) throw new Error('Failed to fetch user data');
+      return response.json();
+    },
+    enabled: !!sessionData?.email,
+  });
+
+  // Get user's last communication
+  const { data: ultimaComunicazione } = useQuery({
+    queryKey: ["/api/ultima-comunicazione"],
+    queryFn: async () => {
+      const response = await fetch('/api/ultima-comunicazione');
+      if (!response.ok) {
+        if (response.status === 404) return null; // No previous communication
+        throw new Error('Failed to fetch last communication');
+      }
       return response.json();
     },
     enabled: !!sessionData?.email,
@@ -200,10 +215,85 @@ export default function Comunica() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <Navbar />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        {/* Ultima Votazione Section */}
+        {ultimaComunicazione && (
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">Ultima Votazione</CardTitle>
+              <CardDescription>
+                La tua ultima comunicazione inviata
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
+                <div>
+                  <span className="font-medium">Titolo:</span>
+                  <p className="text-sm mt-1">{ultimaComunicazione.titolo}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-medium text-sm">Il tuo voto:</span>
+                    <Badge 
+                      variant="outline" 
+                      className={`ml-2 ${
+                        ultimaComunicazione.voto_dato === "Favorevole" 
+                          ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                          : ultimaComunicazione.voto_dato === "Contrario"
+                          ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
+                          : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                      }`}
+                    >
+                      {ultimaComunicazione.voto_dato}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="font-medium text-sm">Risultato:</span>
+                    <Badge 
+                      variant="outline" 
+                      className={`ml-2 ${
+                        ultimaComunicazione.vincitore === "Favorevole" 
+                          ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                          : ultimaComunicazione.vincitore === "Contrario"
+                          ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
+                          : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                      }`}
+                    >
+                      {ultimaComunicazione.vincitore}
+                    </Badge>
+                  </div>
+                </div>
+                {ultimaComunicazione.commento && (
+                  <div>
+                    <span className="font-medium text-sm">Commento:</span>
+                    <p className="text-sm mt-1 italic">"{ultimaComunicazione.commento}"</p>
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium text-sm">Zona:</span>
+                  <p className="text-sm mt-1">{ultimaComunicazione.zona}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-sm">Data:</span>
+                  <p className="text-sm mt-1">
+                    {new Date(ultimaComunicazione.data_creazione).toLocaleDateString('it-IT', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Nuova Comunicazione Section */}
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Comunica una Votazione</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">Nuova Comunicazione</CardTitle>
             <CardDescription className="text-center">
               Condividi i dettagli di una votazione con i tuoi elettori
             </CardDescription>

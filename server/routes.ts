@@ -644,6 +644,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user's last communication
+  app.get('/api/ultima-comunicazione', requireAuth, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const ultimaComunicazione = await FirebaseService.getUltimaComunicazione(req.user.uid || req.user.id);
+      
+      if (!ultimaComunicazione) {
+        return res.status(404).json({ error: 'Nessuna comunicazione precedente trovata' });
+      }
+
+      return res.status(200).json(ultimaComunicazione);
+    } catch (error) {
+      console.error('Errore nel recupero ultima comunicazione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   // Get podio trasparenza
   app.get('/api/podio-trasparenza', async (req, res) => {
     try {
