@@ -9,7 +9,9 @@ interface AvatarConfig {
   skinColor: string;
   hairColor: string;
   hairStyle: string;
-  mustache: boolean;
+  mustacheStyle: string;
+  beardStyle: string;
+  noseStyle: string;
   suitColor: string;
   tieColor: string;
 }
@@ -23,7 +25,9 @@ const defaultConfig: AvatarConfig = {
   skinColor: "#FDBCB4",
   hairColor: "#8B4513",
   hairStyle: "short",
-  mustache: false,
+  mustacheStyle: "none",
+  beardStyle: "none",
+  noseStyle: "normal",
   suitColor: "#2C3E50",
   tieColor: "#E74C3C"
 };
@@ -32,6 +36,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
   const [config, setConfig] = useState<AvatarConfig>(initialConfig);
 
   const skinColors = [
+    { name: "Molto Chiaro", value: "#FFE5D9" },
     { name: "Chiaro", value: "#FDBCB4" },
     { name: "Medio", value: "#F1C27D" },
     { name: "Olivastro", value: "#E0AC69" },
@@ -131,33 +136,97 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     }
   };
 
-  const renderFacialHair = () => {
-    if (!config.mustache) return null;
-    
-    return (
-      <g>
-        {/* Baffi */}
-        <ellipse
-          cx="150"
-          cy="140"
-          rx="12"
-          ry="4"
-          fill="#2C1810"
-          stroke="#000"
-          strokeWidth="1"
-        />
-        {/* Barba (pizzetto) */}
-        <ellipse
-          cx="150"
-          cy="165"
-          rx="8"
-          ry="12"
-          fill="#2C1810"
-          stroke="#000"
-          strokeWidth="1"
-        />
-      </g>
-    );
+  const renderMustache = () => {
+    switch (config.mustacheStyle) {
+      case "classic":
+        return (
+          <ellipse
+            cx="150"
+            cy="145"
+            rx="12"
+            ry="4"
+            fill="#2C1810"
+            stroke="#000"
+            strokeWidth="1"
+          />
+        );
+      case "thick":
+        return (
+          <ellipse
+            cx="150"
+            cy="145"
+            rx="15"
+            ry="6"
+            fill="#2C1810"
+            stroke="#000"
+            strokeWidth="1"
+          />
+        );
+      case "handlebar":
+        return (
+          <g>
+            <ellipse cx="150" cy="145" rx="10" ry="3" fill="#2C1810" />
+            <circle cx="135" cy="143" r="4" fill="#2C1810" />
+            <circle cx="165" cy="143" r="4" fill="#2C1810" />
+          </g>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderBeard = () => {
+    switch (config.beardStyle) {
+      case "goatee":
+        return (
+          <ellipse
+            cx="150"
+            cy="170"
+            rx="8"
+            ry="12"
+            fill="#2C1810"
+            stroke="#000"
+            strokeWidth="1"
+          />
+        );
+      case "full":
+        return (
+          <path
+            d="M110 155 Q150 175 190 155 Q190 180 150 185 Q110 180 110 155 Z"
+            fill="#2C1810"
+            stroke="#000"
+            strokeWidth="1"
+          />
+        );
+      case "stubble":
+        return (
+          <ellipse
+            cx="150"
+            cy="165"
+            rx="25"
+            ry="8"
+            fill="#2C1810"
+            opacity="0.3"
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderNose = () => {
+    switch (config.noseStyle) {
+      case "small":
+        return <path d="M 148 130 Q 150 133 152 130" stroke="#000" strokeWidth="2" fill="none" />;
+      case "large":
+        return <path d="M 145 127 Q 150 137 155 127" stroke="#000" strokeWidth="3" fill="none" />;
+      case "pointed":
+        return <path d="M 148 128 L 150 135 L 152 128" stroke="#000" strokeWidth="2" fill="none" />;
+      case "button":
+        return <circle cx="150" cy="130" r="3" fill={config.skinColor} stroke="#000" strokeWidth="2" />;
+      default: // normal
+        return <path d="M 145 130 Q 150 135 155 130" stroke="#000" strokeWidth="3" fill="none" />;
+    }
   };
 
   return (
