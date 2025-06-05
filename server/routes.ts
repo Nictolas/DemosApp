@@ -882,19 +882,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const elezioneData = req.body;
       
       // Validate required fields
-      const requiredFields = ['sovranazione', 'stato', 'regione', 'provincia', 'comune', 'dataInizio', 'dataFine'];
+      const requiredFields = ['tipo', 'nome', 'dataInizio', 'dataFine', 'circa'];
       for (const field of requiredFields) {
-        if (!elezioneData[field]) {
+        if (elezioneData[field] === undefined || elezioneData[field] === null) {
           return res.status(400).json({ error: `Campo richiesto mancante: ${field}` });
         }
       }
 
-      // Validate dates
-      const dataInizio = new Date(elezioneData.dataInizio);
-      const dataFine = new Date(elezioneData.dataFine);
-      
-      if (dataFine <= dataInizio) {
-        return res.status(400).json({ error: 'La data di fine deve essere successiva alla data di inizio' });
+      // Validate tipo field
+      const validTypes = ['sovranazione', 'stato', 'regione', 'provincia', 'comune'];
+      if (!validTypes.includes(elezioneData.tipo)) {
+        return res.status(400).json({ error: 'Tipo di elezione non valido' });
+      }
+
+      // Validate dates if not circa
+      if (!elezioneData.circa) {
+        const dataInizio = new Date(elezioneData.dataInizio);
+        const dataFine = new Date(elezioneData.dataFine);
+        
+        if (isNaN(dataInizio.getTime()) || isNaN(dataFine.getTime())) {
+          return res.status(400).json({ error: 'Date non valide' });
+        }
+        
+        if (dataFine <= dataInizio) {
+          return res.status(400).json({ error: 'La data di fine deve essere successiva alla data di inizio' });
+        }
+      } else {
+        // Validate years if circa is true
+        const annoInizio = parseInt(elezioneData.dataInizio);
+        const annoFine = parseInt(elezioneData.dataFine);
+        
+        if (isNaN(annoInizio) || isNaN(annoFine)) {
+          return res.status(400).json({ error: 'Anni non validi' });
+        }
+        
+        if (annoFine < annoInizio) {
+          return res.status(400).json({ error: 'L\'anno di fine deve essere successivo o uguale all\'anno di inizio' });
+        }
       }
 
       // Check if election exists
