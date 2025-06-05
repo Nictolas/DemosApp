@@ -72,7 +72,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "short":
         return (
           <path
-            d="M95 85 Q150 60 205 85 Q205 100 150 95 Q95 100 95 85 Z"
+            d="M95 85 Q150 65 205 85 Q205 100 150 95 Q95 100 95 85 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -82,7 +82,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
         return (
           <g>
             <path
-              d="M85 80 Q150 50 215 80 Q220 120 200 150 Q180 160 150 155 Q120 160 100 150 Q80 120 85 80 Z"
+              d="M85 80 Q150 65 215 80 Q220 120 200 150 Q180 160 150 155 Q120 160 100 150 Q80 120 85 80 Z"
               fill={hairColor}
               stroke="#000"
               strokeWidth="3"
@@ -92,15 +92,17 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "curly":
         return (
           <g>
-            <circle cx="120" cy="80" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="150" cy="70" r="18" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="180" cy="80" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="120" cy="75" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="150" cy="70" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="180" cy="75" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="110" cy="90" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="190" cy="90" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
           </g>
         );
       case "messy":
         return (
           <path
-            d="M90 90 Q110 60 130 80 Q140 55 150 75 Q160 50 170 80 Q180 65 200 85 Q190 100 150 95 Q110 100 90 90 Z"
+            d="M90 90 Q110 65 130 80 Q140 60 150 75 Q160 55 170 80 Q180 70 200 85 Q190 100 150 95 Q110 100 90 90 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -109,7 +111,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "wavy":
         return (
           <path
-            d="M95 85 Q120 65 150 75 Q180 65 205 85 Q200 105 150 100 Q100 105 95 85 Z"
+            d="M95 85 Q120 70 150 75 Q180 70 205 85 Q200 105 150 100 Q100 105 95 85 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -118,7 +120,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "buzz":
         return (
           <path
-            d="M100 90 Q150 75 200 90 Q195 100 150 98 Q105 100 100 90 Z"
+            d="M100 85 Q150 75 200 85 Q195 95 150 93 Q105 95 100 85 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -129,19 +131,32 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     }
   };
 
-  const renderMustache = () => {
+  const renderFacialHair = () => {
     if (!config.mustache) return null;
     
     return (
-      <ellipse
-        cx="150"
-        cy="140"
-        rx="12"
-        ry="4"
-        fill="#2C1810"
-        stroke="#000"
-        strokeWidth="1"
-      />
+      <g>
+        {/* Baffi */}
+        <ellipse
+          cx="150"
+          cy="140"
+          rx="12"
+          ry="4"
+          fill="#2C1810"
+          stroke="#000"
+          strokeWidth="1"
+        />
+        {/* Barba (pizzetto) */}
+        <ellipse
+          cx="150"
+          cy="165"
+          rx="8"
+          ry="12"
+          fill="#2C1810"
+          stroke="#000"
+          strokeWidth="1"
+        />
+      </g>
     );
   };
 
@@ -155,22 +170,11 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             {/* Sfondo */}
             <rect width="300" height="300" fill="#F5F5F5" />
             
-            {/* Orecchie (dietro, senza bordo nero visibile) */}
-            <ellipse cx="95" cy="125" rx="15" ry="22" fill={config.skinColor} />
-            <ellipse cx="205" cy="125" rx="15" ry="22" fill={config.skinColor} />
+            {/* Orecchie (dietro) */}
+            <ellipse cx="95" cy="125" rx="15" ry="22" fill={config.skinColor} stroke="#000" strokeWidth="3" />
+            <ellipse cx="205" cy="125" rx="15" ry="22" fill={config.skinColor} stroke="#000" strokeWidth="3" />
             
-            {/* Collo realistico */}
-            <ellipse
-              cx="150"
-              cy="185"
-              rx="30"
-              ry="25"
-              fill={config.skinColor}
-              stroke="#000"
-              strokeWidth="3"
-            />
-            
-            {/* Spalle rotonde */}
+            {/* Spalle con braccia che partono dagli angoli */}
             <ellipse
               cx="150"
               cy="275"
@@ -219,6 +223,17 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
               strokeWidth="3"
             />
             
+            {/* Collo che entra nel colletto */}
+            <ellipse
+              cx="150"
+              cy="205"
+              rx="25"
+              ry="20"
+              fill={config.skinColor}
+              stroke="#000"
+              strokeWidth="3"
+            />
+            
             {/* Nodo cravatta */}
             <ellipse
               cx="150"
@@ -238,12 +253,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
               strokeWidth="3"
             />
             
-            {/* Testa ovale */}
-            <ellipse
-              cx="150"
-              cy="125"
-              rx="60"
-              ry="70"
+            {/* Testa con forma più realistica (schiacciata sopra e sotto) */}
+            <path
+              d="M90 125 Q90 70 150 65 Q210 70 210 125 Q210 180 150 185 Q90 180 90 125 Z"
               fill={config.skinColor}
               stroke="#000"
               strokeWidth="4"
@@ -256,14 +268,14 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             <ellipse cx="125" cy="110" rx="6" ry="9" fill="#000" />
             <ellipse cx="175" cy="110" rx="6" ry="9" fill="#000" />
             
-            {/* Naso */}
-            <path d="M 148 125 Q 150 130 152 125" stroke="#000" strokeWidth="3" fill="none" />
+            {/* Naso come nell'immagine */}
+            <path d="M 145 125 Q 150 130 155 125" stroke="#000" strokeWidth="3" fill="none" />
             
             {/* Bocca */}
             <path d="M 135 150 Q 150 160 165 150" stroke="#000" strokeWidth="3" fill="none" />
             
-            {/* Baffi */}
-            {renderMustache()}
+            {/* Baffi e barba */}
+            {renderFacialHair()}
           </svg>
         </div>
       </div>
@@ -337,7 +349,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 checked={config.mustache}
                 onCheckedChange={(checked) => setConfig({ ...config, mustache: checked })}
               />
-              <Label>Baffi</Label>
+              <Label>Baffi e Barba</Label>
             </div>
           </CardContent>
         </Card>
