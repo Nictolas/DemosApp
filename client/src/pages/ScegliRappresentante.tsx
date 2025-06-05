@@ -20,6 +20,7 @@ interface Rappresentante {
   ruolo: string;
   grado_elezione?: string;
   opinioni_comuni: number;
+  avatar_config?: string;
   // Campi per le opinioni
   energia_nucleare?: string;
   sperimentazione_animale?: string;
@@ -324,9 +325,27 @@ export default function ScegliRappresentante() {
               <Card key={rappresentante.id} className="w-full">
                 <CardHeader>
                   <div className="flex justify-center mb-2">
-                    <Avatar className="h-16 w-16">
-                      <AvatarFallback>{rappresentante.nome.charAt(0)}{rappresentante.cognome.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      try {
+                        if (rappresentante.avatar_config) {
+                          const config = JSON.parse(rappresentante.avatar_config);
+                          return (
+                            <CustomAvatar 
+                              config={config}
+                              size={64}
+                              className="border-2 border-gray-200 rounded-full shadow-sm"
+                            />
+                          );
+                        }
+                      } catch (error) {
+                        console.error("Errore nel parsing della configurazione avatar:", error);
+                      }
+                      return (
+                        <Avatar className="h-16 w-16">
+                          <AvatarFallback>{rappresentante.nome.charAt(0)}{rappresentante.cognome.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                   <CardTitle className="text-xl text-center">
                     {rappresentante.nome} {rappresentante.cognome}

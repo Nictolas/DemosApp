@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
 
 interface Candidato {
@@ -19,6 +20,7 @@ interface Candidato {
   ruolo: string;
   grado_candidatura?: string;
   opinioni_comuni: number;
+  avatar_config?: string;
   // Campi per le opinioni
   energia_nucleare?: string;
   sperimentazione_animale?: string;
@@ -306,9 +308,27 @@ export default function ScegliCandidato() {
               <Card key={candidato.id} className="w-full">
                 <CardHeader>
                   <div className="flex justify-center mb-2">
-                    <Avatar className="h-16 w-16">
-                      <AvatarFallback>{candidato.nome.charAt(0)}{candidato.cognome.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    {(() => {
+                      try {
+                        if (candidato.avatar_config) {
+                          const config = JSON.parse(candidato.avatar_config);
+                          return (
+                            <CustomAvatar 
+                              config={config}
+                              size={64}
+                              className="border-2 border-gray-200 rounded-full shadow-sm"
+                            />
+                          );
+                        }
+                      } catch (error) {
+                        console.error("Errore nel parsing della configurazione avatar:", error);
+                      }
+                      return (
+                        <Avatar className="h-16 w-16">
+                          <AvatarFallback>{candidato.nome.charAt(0)}{candidato.cognome.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
                   </div>
                   <CardTitle className="text-xl text-center">
                     {candidato.nome} {candidato.cognome}

@@ -69,7 +69,7 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
     return (
       <ellipse
         cx="150"
-        cy="130"
+        cy="140"
         rx="12"
         ry="4"
         fill="#2C1810"

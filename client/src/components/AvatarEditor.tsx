@@ -119,7 +119,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     return (
       <ellipse
         cx="150"
-        cy="130"
+        cy="140"
         rx="12"
         ry="4"
         fill="#2C1810"
