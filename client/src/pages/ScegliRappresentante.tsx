@@ -117,7 +117,7 @@ export default function ScegliRappresentante() {
             switch (categoria) {
               case "europeo":
                 // Per rappresentanti europei, filtra per paese
-                filteredData = data.filter(item => 
+                filteredData = data.filter((item: any) => 
                   !userData.paese_elezione || 
                   item.paese_elezione === userData.paese_elezione
                 );
@@ -125,14 +125,14 @@ export default function ScegliRappresentante() {
               case "camera":
               case "senato":
                 // Per rappresentanti nazionali, filtra per paese
-                filteredData = data.filter(item => 
+                filteredData = data.filter((item: any) => 
                   !userData.paese_elezione || 
                   item.paese_elezione === userData.paese_elezione
                 );
                 break;
               case "regione":
                 // Per rappresentanti regionali, filtra per regione
-                filteredData = data.filter(item => 
+                filteredData = data.filter((item: any) => 
                   !userData.regione_elezione || 
                   (item.paese_elezione === userData.paese_elezione && 
                   item.regione_elezione === userData.regione_elezione)
@@ -159,7 +159,7 @@ export default function ScegliRappresentante() {
           }
           
           // Calcola le opinioni comuni con l'utente corrente
-          const rappresentantiConOpinioniComuni = filteredData.map(rappresentante => {
+          const rappresentantiConOpinioniComuni = filteredData.map((rappresentante: any) => {
             let opinioniComuni = 0;
             
             // Confronta le opinioni, considerando anche stringhe vuote e valori non specificati
@@ -314,49 +314,7 @@ export default function ScegliRappresentante() {
             <h1 className="text-2xl font-bold">Scegli Rappresentante {getTitolo()}</h1>
           </div>
           
-          {rappresentanteSelezionato && (
-            <div className="bg-secondary/20 p-4 rounded-md mb-4">
-              <div className="flex items-center justify-center gap-4">
-                {(() => {
-                  const selectedRep = rappresentanti.find(r => r.id === rappresentanteSelezionato);
-                  if (selectedRep?.avatar_config) {
-                    try {
-                      const config = JSON.parse(selectedRep.avatar_config);
-                      // Converti le configurazioni legacy
-                      const updatedConfig = {
-                        skinColor: config.skinColor || "#FDBCB4",
-                        hairColor: config.hairColor || "#8B4513",
-                        hairStyle: config.hairStyle || "short",
-                        mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
-                        mustacheColor: config.mustacheColor || "#2C1810",
-                        beardStyle: config.beardStyle || "none",
-                        beardColor: config.beardColor || "#2C1810",
-                        noseStyle: config.noseStyle || "normal",
-                        suitColor: config.suitColor || "#2C3E50",
-                        tieColor: config.tieColor || "#E74C3C"
-                      };
-                      return (
-                        <CustomAvatar 
-                          config={updatedConfig}
-                          size={60}
-                          className="border-2 border-gray-300 rounded-full shadow-sm"
-                        />
-                      );
-                    } catch (error) {
-                      console.error("Errore nel parsing della configurazione avatar:", error);
-                    }
-                  }
-                  return null;
-                })()}
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Il tuo rappresentante attuale</p>
-                  <p className="font-medium">
-                    {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.nome} {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.cognome || "(ID: " + rappresentanteSelezionato + ")"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+
         </div>
         
         {rappresentanti.length === 0 ? (
