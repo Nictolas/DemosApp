@@ -781,6 +781,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== ELEZIONI API ROUTES =====
+
+  // Get all elections
+  app.get('/api/elezioni', requireAuth, async (req, res) => {
+    try {
+      const elezioni = await FirebaseService.getAllElezioni();
+      return res.status(200).json(elezioni);
+    } catch (error) {
+      console.error('Errore nel recupero delle elezioni:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get specific election by ID
+  app.get('/api/elezioni/:id', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const elezione = await FirebaseService.getElezioneById(id);
+      
+      if (!elezione) {
+        return res.status(404).json({ error: 'Elezione non trovata' });
+      }
+      
+      return res.status(200).json(elezione);
+    } catch (error) {
+      console.error('Errore nel recupero dell\'elezione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Create new election
+  app.post('/api/elezioni', requireAuth, async (req, res) => {
+    try {
+      const elezioneData = req.body;
+      
+      // Validate required fields
+      const requiredFields = ['sovranazione', 'stato', 'regione', 'provincia', 'comune', 'dataInizio', 'dataFine'];
+      for (const field of requiredFields) {
+        if (!elezioneData[field]) {
+          return res.status(400).json({ error: `Campo richiesto mancante: ${field}` });
+        }
+      }
+
+      // Validate dates
+      const dataInizio = new Date(elezioneData.dataInizio);
+      const dataFine = new Date(elezioneData.dataFine);
+      
+      if (dataFine <= dataInizio) {
+        return res.status(400).json({ error: 'La data di fine deve essere successiva alla data di inizio' });
+      }
+
+      const result = await FirebaseService.createElezione(elezioneData);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante la creazione dell\'elezione',
+          details: result.error
+        });
+      }
+
+      return res.status(201).json({ 
+        id: result.id,
+        message: 'Elezione creata con successo'
+      });
+    } catch (error) {
+      console.error('Errore durante la creazione dell\'elezione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Update election
+  app.put('/api/elezioni/:id', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const elezioneData = req.body;
+      
+      // Validate required fields
+      const requiredFields = ['sovranazione', 'stato', 'regione', 'provincia', 'comune', 'dataInizio', 'dataFine'];
+      for (const field of requiredFields) {
+        if (!elezioneData[field]) {
+          return res.status(400).json({ error: `Campo richiesto mancante: ${field}` });
+        }
+      }
+
+      // Validate dates
+      const dataInizio = new Date(elezioneData.dataInizio);
+      const dataFine = new Date(elezioneData.dataFine);
+      
+      if (dataFine <= dataInizio) {
+        return res.status(400).json({ error: 'La data di fine deve essere successiva alla data di inizio' });
+      }
+
+      // Check if election exists
+      const existingElezione = await FirebaseService.getElezioneById(id);
+      if (!existingElezione) {
+        return res.status(404).json({ error: 'Elezione non trovata' });
+      }
+
+      const result = await FirebaseService.updateElezione(id, elezioneData);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante l\'aggiornamento dell\'elezione',
+          details: result.error
+        });
+      }
+
+      return res.status(200).json({ message: 'Elezione aggiornata con successo' });
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento dell\'elezione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Delete election
+  app.delete('/api/elezioni/:id', requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if election exists
+      const existingElezione = await FirebaseService.getElezioneById(id);
+      if (!existingElezione) {
+        return res.status(404).json({ error: 'Elezione non trovata' });
+      }
+
+      const result = await FirebaseService.deleteElezione(id);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante l\'eliminazione dell\'elezione',
+          details: result.error
+        });
+      }
+
+      return res.status(200).json({ message: 'Elezione eliminata con successo' });
+    } catch (error) {
+      console.error('Errore durante l\'eliminazione dell\'elezione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
