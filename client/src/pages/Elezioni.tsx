@@ -49,8 +49,8 @@ export default function Elezioni() {
             completeUserData.candidato_europeo, 
             completeUserData.candidato_camera, 
             completeUserData.candidato_senato, 
-            completeUserData.candidato_regionale, 
-            completeUserData.candidato_comunale
+            completeUserData.candidato_regione, 
+            completeUserData.candidato_comune
           ].filter(Boolean); // Filtriamo i valori nulli o undefined
           
           if (candidatiIds.length > 0) {
@@ -111,8 +111,8 @@ export default function Elezioni() {
     { id: "europeo", nome: "Parlamento Europeo", field: "candidato_europeo", color: "blue", tipoElezione: "sovranazione" },
     { id: "camera", nome: "Camera dei Deputati", field: "candidato_camera", color: "green", tipoElezione: "stato" },
     { id: "senato", nome: "Senato della Repubblica", field: "candidato_senato", color: "purple", tipoElezione: "stato" },
-    { id: "regione", nome: "Consiglio Regionale", field: "candidato_regionale", color: "orange", tipoElezione: "regione" },
-    { id: "comune", nome: "Consiglio Comunale", field: "candidato_comunale", color: "teal", tipoElezione: "comune" }
+    { id: "regione", nome: "Consiglio Regionale", field: "candidato_regione", color: "orange", tipoElezione: "regione" },
+    { id: "comune", nome: "Consiglio Comunale", field: "candidato_comune", color: "teal", tipoElezione: "comune" }
   ];
 
   // Funzione per trovare l'elezione più rilevante per una categoria
