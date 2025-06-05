@@ -55,7 +55,7 @@ export default function Elezioni() {
               const candidatiRelevanti = candidatiData.filter((c: any) => candidatiIds.includes(c.id));
               
               // Convertiamo l'array in un oggetto con l'ID come chiave per accesso rapido
-              const candidatiMap = candidatiRelevanti.reduce((acc: Record<string, any>, candidato) => {
+              const candidatiMap = candidatiRelevanti.reduce((acc: Record<string, any>, candidato: any) => {
                 acc[candidato.id] = candidato;
                 return acc;
               }, {});
@@ -96,30 +96,68 @@ export default function Elezioni() {
 
   // Definizione delle categorie di elezioni
   const categorie = [
-    { id: "europeo", nome: "Europeo", field: "candidato_europeo" },
-    { id: "camera", nome: "Camera", field: "candidato_camera" },
-    { id: "senato", nome: "Senato", field: "candidato_senato" },
-    { id: "regione", nome: "Regione", field: "candidato_regione" },
-    { id: "comune", nome: "Comune", field: "candidato_comune" }
+    { id: "europeo", nome: "Parlamento Europeo", field: "candidato_europeo", color: "blue" },
+    { id: "camera", nome: "Camera dei Deputati", field: "candidato_camera", color: "green" },
+    { id: "senato", nome: "Senato della Repubblica", field: "candidato_senato", color: "purple" },
+    { id: "regione", nome: "Consiglio Regionale", field: "candidato_regionale", color: "orange" },
+    { id: "comune", nome: "Consiglio Comunale", field: "candidato_comunale", color: "teal" }
   ];
 
   // Funzione per mostrare i dettagli del candidato o un pulsante per sceglierlo
-  const renderCandidato = (categoria: { id: string, nome: string, field: string }) => {
+  const renderCandidato = (categoria: { id: string, nome: string, field: string, color: string }) => {
     const candidatoId = userData?.[categoria.field];
     
     if (candidatoId) {
       const candidato = candidati[candidatoId];
+      
       return (
-        <div className="flex flex-col space-y-2 items-center">
-          <User className="h-12 w-12 text-primary" />
-          {candidato ? (
-            <div className="text-center">
-              <p className="text-base font-medium">{candidato.nome} {candidato.cognome}</p>
-              <p className="text-xs text-muted-foreground">{candidato.ruolo}</p>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">ID: {candidatoId}</p>
-          )}
+        <div className="flex flex-col space-y-3 items-center">
+          {/* Avatar del candidato */}
+          {(() => {
+            if (candidato?.avatar_config) {
+              try {
+                const config = JSON.parse(candidato.avatar_config);
+                const updatedConfig = {
+                  skinColor: config.skinColor || "#FDBCB4",
+                  hairColor: config.hairColor || "#8B4513",
+                  hairStyle: config.hairStyle || "short",
+                  mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+                  mustacheColor: config.mustacheColor || "#2C1810",
+                  beardStyle: config.beardStyle || "none",
+                  beardColor: config.beardColor || "#2C1810",
+                  noseStyle: config.noseStyle || "normal",
+                  suitColor: config.suitColor || "#2C3E50",
+                  tieColor: config.tieColor || "#E74C3C"
+                };
+                return (
+                  <CustomAvatar 
+                    config={updatedConfig}
+                    size={80}
+                    className="border-2 border-gray-300 rounded-full shadow-sm"
+                  />
+                );
+              } catch (error) {
+                console.error("Errore nel parsing della configurazione avatar:", error);
+              }
+            }
+            // Avatar vuoto per candidati senza avatar
+            return (
+              <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center">
+                <User className="h-10 w-10 text-gray-400" />
+              </div>
+            );
+          })()}
+          
+          <div className="text-center">
+            {candidato ? (
+              <p className="font-medium text-primary">
+                {`${candidato.nome} ${candidato.cognome}`}
+              </p>
+            ) : (
+              <p className="text-gray-500 italic">Caricamento...</p>
+            )}
+          </div>
+          
           <Button 
             variant="outline"
             size="sm"
@@ -132,12 +170,24 @@ export default function Elezioni() {
     }
     
     return (
-      <Button 
-        variant="default"
-        onClick={() => window.location.href = `/scegli-candidato/${categoria.id}`}
-      >
-        Scegli Candidato
-      </Button>
+      <div className="flex flex-col space-y-3 items-center">
+        {/* Avatar vuoto per candidati assenti */}
+        <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center">
+          <User className="h-10 w-10 text-gray-400" />
+        </div>
+        
+        <div className="text-center">
+          <p className="text-gray-500 italic">Assente</p>
+        </div>
+        
+        <Button 
+          variant="default"
+          size="sm"
+          onClick={() => window.location.href = `/scegli-candidato/${categoria.id}`}
+        >
+          Scegli Candidato
+        </Button>
+      </div>
     );
   };
 
@@ -154,20 +204,40 @@ export default function Elezioni() {
           <h1 className="text-2xl font-bold">Le tue Elezioni</h1>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {categorie.map((categoria) => (
-            <Card key={categoria.id} className="w-full">
-              <CardHeader>
-                <CardTitle className="text-xl text-center">{categoria.nome}</CardTitle>
-                <CardDescription className="text-center">
-                  Il tuo candidato {categoria.nome.toLowerCase()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center py-4">
-                {renderCandidato(categoria)}
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {categorie.map((categoria) => {
+            const colorClasses = {
+              blue: "bg-blue-50 border-blue-200",
+              green: "bg-green-50 border-green-200", 
+              purple: "bg-purple-50 border-purple-200",
+              orange: "bg-orange-50 border-orange-200",
+              teal: "bg-teal-50 border-teal-200"
+            };
+            
+            const titleColorClasses = {
+              blue: "text-blue-800",
+              green: "text-green-800",
+              purple: "text-purple-800", 
+              orange: "text-orange-800",
+              teal: "text-teal-800"
+            };
+            
+            return (
+              <Card key={categoria.id} className={`w-full ${colorClasses[categoria.color as keyof typeof colorClasses]}`}>
+                <CardHeader>
+                  <CardTitle className={`text-lg text-center ${titleColorClasses[categoria.color as keyof typeof titleColorClasses]}`}>
+                    {categoria.nome}
+                  </CardTitle>
+                  <CardDescription className="text-center">
+                    Il tuo candidato attuale
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center py-4">
+                  {renderCandidato(categoria)}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </PageTransition>
