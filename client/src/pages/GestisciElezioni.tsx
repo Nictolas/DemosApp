@@ -18,8 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 interface Elezione {
   id: string;
   tipo: 'sovranazione' | 'stato' | 'regione' | 'provincia' | 'comune';
-  nome: string;
-  livelloSuperiore?: string;
+  zona: string;
   dataInizio: string;
   dataFine: string;
   circa: boolean;
@@ -31,8 +30,7 @@ const elezioneSchema = z.object({
   tipo: z.enum(['sovranazione', 'stato', 'regione', 'provincia', 'comune'], {
     required_error: "Tipo di elezione è richiesto",
   }),
-  nome: z.string().min(1, "Nome è richiesto"),
-  livelloSuperiore: z.string().optional(),
+  zona: z.string().min(1, "Zona è richiesta"),
   dataInizio: z.string().min(1, "Data inizio è richiesta"),
   dataFine: z.string().min(1, "Data fine è richiesta"),
   circa: z.boolean().default(false),
@@ -52,8 +50,7 @@ export default function GestisciElezioni() {
     resolver: zodResolver(elezioneSchema),
     defaultValues: {
       tipo: undefined,
-      nome: "",
-      livelloSuperiore: "",
+      zona: "",
       dataInizio: "",
       dataFine: "",
       circa: false,
@@ -136,8 +133,7 @@ export default function GestisciElezioni() {
     setEditingElezione(elezione);
     form.reset({
       tipo: elezione.tipo,
-      nome: elezione.nome,
-      livelloSuperiore: elezione.livelloSuperiore || "",
+      zona: elezione.zona,
       dataInizio: elezione.dataInizio,
       dataFine: elezione.dataFine,
       circa: elezione.circa,
@@ -178,12 +174,48 @@ export default function GestisciElezioni() {
     setEditingElezione(null);
     form.reset({
       tipo: undefined,
-      nome: "",
-      livelloSuperiore: "",
+      zona: "",
       dataInizio: "",
       dataFine: "",
       circa: false,
     });
+  };
+
+  // Zone options based on tipo selection
+  const getZoneOptions = (tipo: string) => {
+    switch (tipo) {
+      case 'sovranazione':
+        return ['Europa'];
+      case 'stato':
+        return [
+          'Austria', 'Belgio', 'Bulgaria', 'Cipro', 'Croazia', 'Danimarca', 
+          'Estonia', 'Finlandia', 'Francia', 'Germania', 'Grecia', 'Irlanda', 
+          'Italia', 'Lettonia', 'Lituania', 'Lussemburgo', 'Malta', 'Paesi Bassi', 
+          'Polonia', 'Portogallo', 'Repubblica Ceca', 'Romania', 'Slovacchia', 
+          'Slovenia', 'Spagna', 'Svezia', 'Ungheria'
+        ];
+      case 'regione':
+        return [
+          'Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 
+          'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 
+          'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 
+          'Trentino-Alto Adige', 'Umbria', "Valle d'Aosta", 'Veneto'
+        ];
+      case 'provincia':
+        return ['Pisa', 'Firenze', 'Livorno', 'Lucca', 'Massa-Carrara', 'Pistoia', 'Prato', 'Siena', 'Arezzo', 'Grosseto'];
+      case 'comune':
+        return [
+          'Bientina', 'Buti', 'Calci', 'Calcinaia', 'Capannoli', 'Cascina', 
+          'Castelfranco di Sotto', 'Castellina Marittima', 'Castelnuovo di Val di Cecina', 
+          'Chianni', 'Crespina Lorenzana', 'Fauglia', 'Guardistallo', 'Lajatico', 
+          'Lari', 'Montecatini Val di Cecina', 'Monteverdi Marittimo', 'Montopoli in Val d\'Arno', 
+          'Orciano Pisano', 'Palaia', 'Peccioli', 'Pisa', 'Pomarance', 'Ponsacco', 
+          'Pontedera', 'Riparbella', 'San Giuliano Terme', 'San Miniato', 'Santa Croce sull\'Arno', 
+          'Santa Luce', 'Santa Maria a Monte', 'Terricciola', 'Vecchiano', 'Vicopisano', 'Volterra'
+        ];
+      default:
+        return [];
+    }
   };
 
   const handleDialogOpenChange = (open: boolean) => {
@@ -261,41 +293,32 @@ export default function GestisciElezioni() {
                   
                   <FormField
                     control={form.control}
-                    name="nome"
+                    name="zona"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nome dell'Elezione</FormLabel>
-                        <FormControl>
-                          <Input placeholder="es: Elezioni Europee 2024" {...field} />
-                        </FormControl>
+                        <FormLabel>Zona</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                          disabled={!form.watch('tipo')}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleziona la zona" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {getZoneOptions(form.watch('tipo') || '').map((zona) => (
+                              <SelectItem key={zona} value={zona}>
+                                {zona}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
-                  {form.watch('tipo') && form.watch('tipo') !== 'sovranazione' && (
-                    <FormField
-                      control={form.control}
-                      name="livelloSuperiore"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Livello Superiore</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder={
-                                form.watch('tipo') === 'stato' ? "es: Europa" :
-                                form.watch('tipo') === 'regione' ? "es: Italia" :
-                                form.watch('tipo') === 'provincia' ? "es: Toscana" :
-                                form.watch('tipo') === 'comune' ? "es: Pisa" : ""
-                              } 
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
                   
                   <FormField
                     control={form.control}
@@ -401,8 +424,7 @@ export default function GestisciElezioni() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Livello Superiore</TableHead>
+                    <TableHead>Zona</TableHead>
                     <TableHead>Data Inizio</TableHead>
                     <TableHead>Data Fine</TableHead>
                     <TableHead>Approssimativa</TableHead>
@@ -413,8 +435,7 @@ export default function GestisciElezioni() {
                   {elezioni.map((elezione) => (
                     <TableRow key={elezione.id}>
                       <TableCell className="font-medium capitalize">{elezione.tipo}</TableCell>
-                      <TableCell>{elezione.nome}</TableCell>
-                      <TableCell>{elezione.livelloSuperiore || '-'}</TableCell>
+                      <TableCell>{elezione.zona}</TableCell>
                       <TableCell>{elezione.circa ? elezione.dataInizio : formatDate(elezione.dataInizio)}</TableCell>
                       <TableCell>{elezione.circa ? elezione.dataFine : formatDate(elezione.dataFine)}</TableCell>
                       <TableCell>{elezione.circa ? 'Sì' : 'No'}</TableCell>
