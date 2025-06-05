@@ -98,14 +98,14 @@ export default function ScegliCandidato() {
         if (data) {
           // Filtra i candidati in base alla località di candidatura dell'utente
           const userData = user as any;
-          let filteredData = data;
+          let filteredData: any[] = data;
           
           // Filtra in base alla località appropriata secondo il livello
           if (userData) {
             switch (categoria) {
               case "europeo":
                 // Per candidati europei, filtra per paese
-                filteredData = data.filter(item => 
+                filteredData = data.filter((item: any) => 
                   !userData.paese_candidatura || 
                   item.paese_candidatura === userData.paese_candidatura
                 );
@@ -113,27 +113,27 @@ export default function ScegliCandidato() {
               case "camera":
               case "senato":
                 // Per candidati nazionali, filtra per paese
-                filteredData = data.filter(item => 
+                filteredData = data.filter((item: any) => 
                   !userData.paese_candidatura || 
                   item.paese_candidatura === userData.paese_candidatura
                 );
                 break;
               case "regione":
                 // Per candidati regionali, filtra per regione
-                filteredData = data.filter(item => 
+                filteredData = data.filter((item: any) => 
                   !userData.regione_candidatura || 
                   (item.paese_candidatura === userData.paese_candidatura && 
                   item.regione_candidatura === userData.regione_candidatura)
                 );
                 break;
               case "comune":
-                // Per candidati comunali, filtra per comune
-                filteredData = data.filter(item => 
-                  !userData.comune_candidatura || 
-                  (item.paese_candidatura === userData.paese_candidatura && 
-                  item.regione_candidatura === userData.regione_candidatura &&
-                  item.provincia_candidatura === userData.provincia_candidatura &&
-                  item.comune_candidatura === userData.comune_candidatura)
+                // Per candidati comunali, filtra per comune di residenza dell'utente
+                filteredData = data.filter((item: any) => 
+                  !userData.comune_residenza || 
+                  (item.paese_candidatura === userData.paese_residenza && 
+                  item.regione_candidatura === userData.regione_residenza &&
+                  item.provincia_candidatura === userData.provincia_residenza &&
+                  item.comune_candidatura === userData.comune_residenza)
                 );
                 break;
               default:
@@ -142,7 +142,7 @@ export default function ScegliCandidato() {
           }
           
           // Calcola le opinioni comuni con l'utente corrente
-          const candidatiConOpinioniComuni = filteredData.map(candidato => {
+          const candidatiConOpinioniComuni = filteredData.map((candidato: any) => {
             let opinioniComuni = 0;
             
             if (candidato.energia_nucleare && candidato.energia_nucleare === opinionsData.energia_nucleare) {
@@ -168,7 +168,7 @@ export default function ScegliCandidato() {
           });
           
           // Ordina per numero di opinioni comuni (decrescente)
-          candidatiConOpinioniComuni.sort((a, b) => b.opinioni_comuni - a.opinioni_comuni);
+          candidatiConOpinioniComuni.sort((a: any, b: any) => b.opinioni_comuni - a.opinioni_comuni);
           
           // Usa tutti i candidati disponibili
           setCandidati(candidatiConOpinioniComuni);
