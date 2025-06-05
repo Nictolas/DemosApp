@@ -9,6 +9,7 @@ import AuthPage from "@/pages/auth-page";
 import Menu from "@/pages/Menu";
 import Profilo from "@/pages/Profilo";
 import GestisciUtenti from "@/pages/GestisciUtenti";
+import GestisciElezioni from "@/pages/GestisciElezioni";
 import Opinioni from "@/pages/Opinioni";
 import Rappresentanti from "@/pages/Rappresentanti";
 import Elezioni from "@/pages/Elezioni";
@@ -100,6 +101,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/gestisci-elezioni">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/gestisci-elezioni" component={GestisciElezioni} />
           </PageTransition>
         )}
       </Route>
