@@ -162,19 +162,32 @@ export default function ScegliRappresentante() {
           const rappresentantiConOpinioniComuni = filteredData.map(rappresentante => {
             let opinioniComuni = 0;
             
-            if (rappresentante.energia_nucleare && rappresentante.energia_nucleare === opinionsData.energia_nucleare) {
+            // Confronta le opinioni, considerando anche stringhe vuote e valori non specificati
+            const confrontaOpinione = (repOpinione: string, userOpinione: string) => {
+              // Se entrambe sono definite e non vuote, confrontale
+              if (repOpinione && userOpinione && repOpinione.trim() !== '' && userOpinione.trim() !== '') {
+                return repOpinione === userOpinione;
+              }
+              // Se entrambe sono vuote o non definite, considerale uguali
+              if ((!repOpinione || repOpinione.trim() === '') && (!userOpinione || userOpinione.trim() === '')) {
+                return true;
+              }
+              return false;
+            };
+            
+            if (confrontaOpinione(rappresentante.energia_nucleare, opinionsData.energia_nucleare)) {
               opinioniComuni++;
             }
-            if (rappresentante.sperimentazione_animale && rappresentante.sperimentazione_animale === opinionsData.sperimentazione_animale) {
+            if (confrontaOpinione(rappresentante.sperimentazione_animale, opinionsData.sperimentazione_animale)) {
               opinioniComuni++;
             }
-            if (rappresentante.legalizzazione_canapa && rappresentante.legalizzazione_canapa === opinionsData.legalizzazione_canapa) {
+            if (confrontaOpinione(rappresentante.legalizzazione_canapa, opinionsData.legalizzazione_canapa)) {
               opinioniComuni++;
             }
-            if (rappresentante.caccia && rappresentante.caccia === opinionsData.caccia) {
+            if (confrontaOpinione(rappresentante.caccia, opinionsData.caccia)) {
               opinioniComuni++;
             }
-            if (rappresentante.unione_europea && rappresentante.unione_europea === opinionsData.unione_europea) {
+            if (confrontaOpinione(rappresentante.unione_europea, opinionsData.unione_europea)) {
               opinioniComuni++;
             }
             
