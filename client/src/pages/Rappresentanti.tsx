@@ -21,13 +21,19 @@ export default function Rappresentanti() {
     const fetchUserData = async () => {
       if (user) {
         try {
-          // Carica i dati dell'utente
-          const response = await apiRequest("GET", `/api/user`);
-          const data = await response.json();
-          setUserData(data);
+          // Carica i dati base dell'utente per ottenere l'email
+          const userResponse = await apiRequest("GET", `/api/user`);
+          const userData = await userResponse.json();
+          
+          // Carica i dati completi dell'utente tramite email
+          const completeUserResponse = await fetch(`/api/users/${encodeURIComponent(userData.email)}`);
+          const completeUserData = await completeUserResponse.json();
+          
+          console.log("Dati utente completi caricati:", completeUserData);
+          setUserData(completeUserData);
           
           // Caricare i dettagli dei rappresentanti
-          await fetchRappresentanti(data);
+          await fetchRappresentanti(completeUserData);
         } catch (error) {
           console.error("Errore durante il recupero dei dati utente:", error);
           toast({
