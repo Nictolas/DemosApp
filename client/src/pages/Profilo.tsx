@@ -19,6 +19,7 @@ export default function Profilo() {
   const [isEditing, setIsEditing] = useState(false);
   const [userOpinions, setUserOpinions] = useState<any>(null);
   const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
+  const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
 
   // Funzione per categorizzare le opinioni
@@ -53,7 +54,7 @@ export default function Profilo() {
     return { favorevoli, indecisi, contrari };
   };
 
-  // Funzione per recuperare i nomi dei rappresentanti
+  // Funzione per recuperare i nomi e avatar dei rappresentanti
   const fetchRepresentativeNames = async (userInfo: any) => {
     const representatives = {
       rappresentante_europeo: userInfo.rappresentante_europeo,
@@ -64,6 +65,7 @@ export default function Profilo() {
     };
 
     const names: Record<string, string> = {};
+    const avatars: Record<string, any> = {};
 
     for (const [key, email] of Object.entries(representatives)) {
       if (email && typeof email === 'string') {
@@ -73,17 +75,41 @@ export default function Profilo() {
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
+            
+            // Carica l'avatar del rappresentante se disponibile
+            if (userData.avatar_config) {
+              try {
+                const avatarConfig = JSON.parse(userData.avatar_config);
+                // Converti le configurazioni legacy
+                const updatedConfig = {
+                  skinColor: avatarConfig.skinColor || "#FDBCB4",
+                  hairColor: avatarConfig.hairColor || "#8B4513",
+                  hairStyle: avatarConfig.hairStyle || "short",
+                  mustacheStyle: avatarConfig.mustacheStyle || (avatarConfig.mustache ? "classic" : "none"),
+                  mustacheColor: avatarConfig.mustacheColor || "#2C1810",
+                  beardStyle: avatarConfig.beardStyle || "none",
+                  beardColor: avatarConfig.beardColor || "#2C1810",
+                  noseStyle: avatarConfig.noseStyle || "normal",
+                  suitColor: avatarConfig.suitColor || "#2C3E50",
+                  tieColor: avatarConfig.tieColor || "#E74C3C"
+                };
+                avatars[key] = updatedConfig;
+              } catch (error) {
+                console.error("Errore nel parsing dell'avatar del rappresentante:", error);
+              }
+            }
           } else {
-            names[key] = cleanEmail; // Fallback to email if name not found
+            names[key] = cleanEmail;
           }
         } catch (error) {
           console.error(`Errore nel recupero dati per ${email}:`, error);
-          names[key] = email.replace('@gmail_com', '@gmail.com'); // Fallback to email
+          names[key] = email.replace('@gmail_com', '@gmail.com');
         }
       }
     }
 
     setRepresentativeNames(names);
+    setRepresentativeAvatars(avatars);
   };
 
   useEffect(() => {
@@ -403,9 +429,18 @@ export default function Profilo() {
                         Parlamento Europeo
                       </h3>
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <span className="text-blue-800 font-medium">
-                          {representativeNames.rappresentante_europeo || (userInfo as any).rappresentante_europeo || "Non selezionato"}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          {representativeAvatars.rappresentante_europeo && (
+                            <CustomAvatar 
+                              config={representativeAvatars.rappresentante_europeo} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-blue-800 font-medium">
+                            {representativeNames.rappresentante_europeo || (userInfo as any).rappresentante_europeo || "Non selezionato"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -418,9 +453,18 @@ export default function Profilo() {
                         Camera dei Deputati
                       </h3>
                       <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                        <span className="text-purple-800 font-medium">
-                          {representativeNames.rappresentante_camera || (userInfo as any).rappresentante_camera || "Non selezionato"}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          {representativeAvatars.rappresentante_camera && (
+                            <CustomAvatar 
+                              config={representativeAvatars.rappresentante_camera} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-purple-800 font-medium">
+                            {representativeNames.rappresentante_camera || (userInfo as any).rappresentante_camera || "Non selezionato"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -433,9 +477,18 @@ export default function Profilo() {
                         Senato
                       </h3>
                       <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3">
-                        <span className="text-indigo-800 font-medium">
-                          {representativeNames.rappresentante_senato || (userInfo as any).rappresentante_senato || "Non selezionato"}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          {representativeAvatars.rappresentante_senato && (
+                            <CustomAvatar 
+                              config={representativeAvatars.rappresentante_senato} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-indigo-800 font-medium">
+                            {representativeNames.rappresentante_senato || (userInfo as any).rappresentante_senato || "Non selezionato"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -448,9 +501,18 @@ export default function Profilo() {
                         Consiglio Regionale
                       </h3>
                       <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                        <span className="text-orange-800 font-medium">
-                          {representativeNames.rappresentante_regionale || (userInfo as any).rappresentante_regionale || "Non selezionato"}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          {representativeAvatars.rappresentante_regionale && (
+                            <CustomAvatar 
+                              config={representativeAvatars.rappresentante_regionale} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-orange-800 font-medium">
+                            {representativeNames.rappresentante_regionale || (userInfo as any).rappresentante_regionale || "Non selezionato"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -463,9 +525,18 @@ export default function Profilo() {
                         Consiglio Comunale
                       </h3>
                       <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
-                        <span className="text-teal-800 font-medium">
-                          {representativeNames.rappresentante_comunale || (userInfo as any).rappresentante_comunale || "Non selezionato"}
-                        </span>
+                        <div className="flex items-center gap-3">
+                          {representativeAvatars.rappresentante_comunale && (
+                            <CustomAvatar 
+                              config={representativeAvatars.rappresentante_comunale} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-teal-800 font-medium">
+                            {representativeNames.rappresentante_comunale || (userInfo as any).rappresentante_comunale || "Non selezionato"}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
