@@ -198,7 +198,7 @@ export default function ScegliRappresentante() {
           });
           
           // Ordina per numero di opinioni comuni (decrescente)
-          rappresentantiConOpinioniComuni.sort((a, b) => b.opinioni_comuni - a.opinioni_comuni);
+          rappresentantiConOpinioniComuni.sort((a: any, b: any) => b.opinioni_comuni - a.opinioni_comuni);
           
           // Usa tutti i rappresentanti disponibili
           setRappresentanti(rappresentantiConOpinioniComuni);
