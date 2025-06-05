@@ -987,6 +987,159 @@ class FirebaseService {
       };
     }
   }
+
+  /**
+   * Crea una nuova elezione su Firebase
+   */
+  static async createElezione(elezioneData: any): Promise<{
+    success: boolean;
+    id?: string;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return {
+          success: false,
+          error: "Firebase Firestore non è configurato"
+        };
+      }
+
+      const elezioniCollection = collection(db, 'elezioni');
+      const newElezione = {
+        ...elezioneData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const docRef = await addDoc(elezioniCollection, newElezione);
+      
+      return {
+        success: true,
+        id: docRef.id
+      };
+    } catch (error: any) {
+      console.error('Errore nella creazione dell\'elezione:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Recupera tutte le elezioni da Firebase
+   */
+  static async getAllElezioni(): Promise<any[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const elezioniCollection = collection(db, 'elezioni');
+      const q = query(elezioniCollection, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const elezioni: any[] = [];
+      querySnapshot.forEach((doc) => {
+        elezioni.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      return elezioni;
+    } catch (error: any) {
+      console.error('Errore nel recupero delle elezioni:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Aggiorna un'elezione su Firebase
+   */
+  static async updateElezione(id: string, elezioneData: any): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return {
+          success: false,
+          error: "Firebase Firestore non è configurato"
+        };
+      }
+
+      const elezioneDoc = doc(db, 'elezioni', id);
+      const updatedData = {
+        ...elezioneData,
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateDoc(elezioneDoc, updatedData);
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nell\'aggiornamento dell\'elezione:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Elimina un'elezione da Firebase
+   */
+  static async deleteElezione(id: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return {
+          success: false,
+          error: "Firebase Firestore non è configurato"
+        };
+      }
+
+      const elezioneDoc = doc(db, 'elezioni', id);
+      await deleteDoc(elezioneDoc);
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nell\'eliminazione dell\'elezione:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Recupera un'elezione specifica da Firebase
+   */
+  static async getElezioneById(id: string): Promise<any | null> {
+    try {
+      if (!db) {
+        return null;
+      }
+
+      const elezioneDoc = doc(db, 'elezioni', id);
+      const elezioneSnapshot = await getDoc(elezioneDoc);
+      
+      if (elezioneSnapshot.exists()) {
+        return {
+          id: elezioneSnapshot.id,
+          ...elezioneSnapshot.data()
+        };
+      }
+      
+      return null;
+    } catch (error: any) {
+      console.error('Errore nel recupero dell\'elezione:', error);
+      return null;
+    }
+  }
 }
 
 export default FirebaseService;
