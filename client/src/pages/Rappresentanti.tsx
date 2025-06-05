@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
+import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
 
 export default function Rappresentanti() {
@@ -106,12 +107,45 @@ export default function Rappresentanti() {
     
     if (rappresentanteId) {
       return (
-        <div className="flex flex-col space-y-2 items-center">
-          <User className="h-12 w-12 text-primary" />
-          <p className="font-medium text-primary">
-            {rappresentanteData ? `${rappresentanteData.nome} ${rappresentanteData.cognome}` : 'Caricamento...'}
-          </p>
-          <p className="text-xs text-gray-500">ID: {rappresentanteId}</p>
+        <div className="flex flex-col space-y-3 items-center">
+          {/* Avatar del rappresentante */}
+          {(() => {
+            if (rappresentanteData?.avatar_config) {
+              try {
+                const config = JSON.parse(rappresentanteData.avatar_config);
+                // Converti le configurazioni legacy
+                const updatedConfig = {
+                  skinColor: config.skinColor || "#FDBCB4",
+                  hairColor: config.hairColor || "#8B4513",
+                  hairStyle: config.hairStyle || "short",
+                  mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+                  mustacheColor: config.mustacheColor || "#2C1810",
+                  beardStyle: config.beardStyle || "none",
+                  beardColor: config.beardColor || "#2C1810",
+                  noseStyle: config.noseStyle || "normal",
+                  suitColor: config.suitColor || "#2C3E50",
+                  tieColor: config.tieColor || "#E74C3C"
+                };
+                return (
+                  <CustomAvatar 
+                    config={updatedConfig}
+                    size={80}
+                    className="border-2 border-gray-300 rounded-full shadow-sm"
+                  />
+                );
+              } catch (error) {
+                console.error("Errore nel parsing della configurazione avatar:", error);
+              }
+            }
+            return <User className="h-20 w-20 text-primary p-4 border-2 border-gray-300 rounded-full" />;
+          })()}
+          
+          <div className="text-center">
+            <p className="font-medium text-primary">
+              {rappresentanteData ? `${rappresentanteData.nome} ${rappresentanteData.cognome}` : 'Caricamento...'}
+            </p>
+          </div>
+          
           <Button 
             variant="outline"
             size="sm"
