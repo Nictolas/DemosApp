@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Edit, Trash2, Calendar } from "lucide-react";
 import { Link } from "wouter";
@@ -15,25 +17,25 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 interface Elezione {
   id: string;
-  sovranazione: string;
-  stato: string;
-  regione: string;
-  provincia: string;
-  comune: string;
+  tipo: 'sovranazione' | 'stato' | 'regione' | 'provincia' | 'comune';
+  nome: string;
+  livelloSuperiore?: string;
   dataInizio: string;
   dataFine: string;
+  circa: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
 const elezioneSchema = z.object({
-  sovranazione: z.string().min(1, "Sovranazione è richiesta"),
-  stato: z.string().min(1, "Stato è richiesto"),
-  regione: z.string().min(1, "Regione è richiesta"),
-  provincia: z.string().min(1, "Provincia è richiesta"),
-  comune: z.string().min(1, "Comune è richiesto"),
+  tipo: z.enum(['sovranazione', 'stato', 'regione', 'provincia', 'comune'], {
+    required_error: "Tipo di elezione è richiesto",
+  }),
+  nome: z.string().min(1, "Nome è richiesto"),
+  livelloSuperiore: z.string().optional(),
   dataInizio: z.string().min(1, "Data inizio è richiesta"),
   dataFine: z.string().min(1, "Data fine è richiesta"),
+  circa: z.boolean().default(false),
 });
 
 type ElezioneForm = z.infer<typeof elezioneSchema>;
@@ -49,13 +51,12 @@ export default function GestisciElezioni() {
   const form = useForm<ElezioneForm>({
     resolver: zodResolver(elezioneSchema),
     defaultValues: {
-      sovranazione: "",
-      stato: "",
-      regione: "",
-      provincia: "",
-      comune: "",
+      tipo: undefined,
+      nome: "",
+      livelloSuperiore: "",
       dataInizio: "",
       dataFine: "",
+      circa: false,
     },
   });
 
@@ -134,13 +135,12 @@ export default function GestisciElezioni() {
   const handleEdit = (elezione: Elezione) => {
     setEditingElezione(elezione);
     form.reset({
-      sovranazione: elezione.sovranazione,
-      stato: elezione.stato,
-      regione: elezione.regione,
-      provincia: elezione.provincia,
-      comune: elezione.comune,
+      tipo: elezione.tipo,
+      nome: elezione.nome,
+      livelloSuperiore: elezione.livelloSuperiore || "",
       dataInizio: elezione.dataInizio,
       dataFine: elezione.dataFine,
+      circa: elezione.circa,
     });
     setIsDialogOpen(true);
   };
@@ -177,13 +177,12 @@ export default function GestisciElezioni() {
   const resetForm = () => {
     setEditingElezione(null);
     form.reset({
-      sovranazione: "",
-      stato: "",
-      regione: "",
-      provincia: "",
-      comune: "",
+      tipo: undefined,
+      nome: "",
+      livelloSuperiore: "",
       dataInizio: "",
       dataFine: "",
+      circa: false,
     });
   };
 
@@ -227,20 +226,34 @@ export default function GestisciElezioni() {
               <DialogTitle>
                 {editingElezione ? "Modifica Elezione" : "Aggiungi Nuova Elezione"}
               </DialogTitle>
+              <DialogDescription>
+                {editingElezione ? "Modifica i dettagli dell'elezione selezionata." : "Compila il modulo per aggiungere una nuova elezione al sistema."}
+              </DialogDescription>
             </DialogHeader>
             
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="sovranazione"
+                    name="tipo"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sovranazione</FormLabel>
-                        <FormControl>
-                          <Input placeholder="es: Parlamento Europeo" {...field} />
-                        </FormControl>
+                        <FormLabel>Tipo di Elezione</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleziona il tipo di elezione" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="sovranazione">Sovranazione (es: Parlamento Europeo)</SelectItem>
+                            <SelectItem value="stato">Stato (es: Italia)</SelectItem>
+                            <SelectItem value="regione">Regione (es: Toscana)</SelectItem>
+                            <SelectItem value="provincia">Provincia (es: Pisa)</SelectItem>
+                            <SelectItem value="comune">Comune (es: San Giuliano Terme)</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -248,89 +261,106 @@ export default function GestisciElezioni() {
                   
                   <FormField
                     control={form.control}
-                    name="stato"
+                    name="nome"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Stato</FormLabel>
+                        <FormLabel>Nome dell'Elezione</FormLabel>
                         <FormControl>
-                          <Input placeholder="es: Italia" {...field} />
+                          <Input placeholder="es: Elezioni Europee 2024" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  
+                  {form.watch('tipo') && form.watch('tipo') !== 'sovranazione' && (
+                    <FormField
+                      control={form.control}
+                      name="livelloSuperiore"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Livello Superiore</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder={
+                                form.watch('tipo') === 'stato' ? "es: Europa" :
+                                form.watch('tipo') === 'regione' ? "es: Italia" :
+                                form.watch('tipo') === 'provincia' ? "es: Toscana" :
+                                form.watch('tipo') === 'comune' ? "es: Pisa" : ""
+                              } 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                   
                   <FormField
                     control={form.control}
-                    name="regione"
+                    name="circa"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Regione</FormLabel>
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
-                          <Input placeholder="es: Toscana" {...field} />
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
                         </FormControl>
-                        <FormMessage />
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Circa (data approssimativa)
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Se spuntato, sarà sufficiente inserire solo l'anno nelle date
+                          </p>
+                        </div>
                       </FormItem>
                     )}
                   />
                   
-                  <FormField
-                    control={form.control}
-                    name="provincia"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Provincia</FormLabel>
-                        <FormControl>
-                          <Input placeholder="es: Pisa" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="comune"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Comune</FormLabel>
-                        <FormControl>
-                          <Input placeholder="es: San Giuliano Terme" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="md:col-span-1"></div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="dataInizio"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data Inizio</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="dataFine"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data Fine</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="dataInizio"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data Inizio</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type={form.watch('circa') ? "number" : "date"}
+                              placeholder={form.watch('circa') ? "Anno (es: 2024)" : ""}
+                              min={form.watch('circa') ? "1900" : undefined}
+                              max={form.watch('circa') ? "2100" : undefined}
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="dataFine"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Data Fine</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type={form.watch('circa') ? "number" : "date"}
+                              placeholder={form.watch('circa') ? "Anno (es: 2024)" : ""}
+                              min={form.watch('circa') ? "1900" : undefined}
+                              max={form.watch('circa') ? "2100" : undefined}
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
                 
                 <div className="flex justify-end space-x-2 pt-4">
@@ -370,26 +400,24 @@ export default function GestisciElezioni() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Sovranazione</TableHead>
-                    <TableHead>Stato</TableHead>
-                    <TableHead>Regione</TableHead>
-                    <TableHead>Provincia</TableHead>
-                    <TableHead>Comune</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Livello Superiore</TableHead>
                     <TableHead>Data Inizio</TableHead>
                     <TableHead>Data Fine</TableHead>
+                    <TableHead>Approssimativa</TableHead>
                     <TableHead className="text-right">Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {elezioni.map((elezione) => (
                     <TableRow key={elezione.id}>
-                      <TableCell className="font-medium">{elezione.sovranazione}</TableCell>
-                      <TableCell>{elezione.stato}</TableCell>
-                      <TableCell>{elezione.regione}</TableCell>
-                      <TableCell>{elezione.provincia}</TableCell>
-                      <TableCell>{elezione.comune}</TableCell>
-                      <TableCell>{formatDate(elezione.dataInizio)}</TableCell>
-                      <TableCell>{formatDate(elezione.dataFine)}</TableCell>
+                      <TableCell className="font-medium capitalize">{elezione.tipo}</TableCell>
+                      <TableCell>{elezione.nome}</TableCell>
+                      <TableCell>{elezione.livelloSuperiore || '-'}</TableCell>
+                      <TableCell>{elezione.circa ? elezione.dataInizio : formatDate(elezione.dataInizio)}</TableCell>
+                      <TableCell>{elezione.circa ? elezione.dataFine : formatDate(elezione.dataFine)}</TableCell>
+                      <TableCell>{elezione.circa ? 'Sì' : 'No'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
                           <Button
