@@ -120,8 +120,8 @@ export default function Profilo() {
       candidato_europeo: userInfo.candidato_europeo,
       candidato_camera: userInfo.candidato_camera,
       candidato_senato: userInfo.candidato_senato,
-      candidato_regionale: userInfo.candidato_regionale,
-      candidato_comunale: userInfo.candidato_comunale,
+      candidato_regionale: userInfo.candidato_regione,
+      candidato_comunale: userInfo.candidato_comune,
     };
 
     const names: Record<string, string> = {};
