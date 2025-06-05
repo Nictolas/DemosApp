@@ -14,9 +14,9 @@ interface CustomAvatarProps {
 }
 
 const defaultConfig: AvatarConfig = {
-  skinColor: "#E6B894",
+  skinColor: "#FDBCB4",
   hairColor: "#8B4513",
-  hairStyle: "bald",
+  hairStyle: "short",
   mustache: false,
   suitColor: "#2C3E50",
   tieColor: "#E74C3C"
@@ -26,41 +26,69 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
   const avatarConfig = config || defaultConfig;
 
   const renderHair = () => {
-    if (avatarConfig.hairStyle === "bald") return null;
-    
-    let hairPath = "";
+    const hairColor = avatarConfig.hairColor;
     
     switch (avatarConfig.hairStyle) {
+      case "bald":
+        return null;
       case "short":
-        hairPath = "M85 80 Q50 70 115 80 Q150 70 215 80 Q215 95 200 100 Q100 100 85 95 Z";
-        break;
+        return (
+          <path
+            d="M95 85 Q150 60 205 85 Q205 100 150 95 Q95 100 95 85 Z"
+            fill={hairColor}
+            stroke="#000"
+            strokeWidth="3"
+          />
+        );
       case "long":
-        hairPath = "M75 70 Q50 60 125 70 Q150 60 225 70 Q225 120 200 130 Q100 130 75 120 Z";
-        break;
+        return (
+          <g>
+            <path
+              d="M85 80 Q150 50 215 80 Q220 120 200 150 Q180 160 150 155 Q120 160 100 150 Q80 120 85 80 Z"
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="3"
+            />
+          </g>
+        );
       case "curly":
-        hairPath = "M85 75 Q60 65 90 80 Q120 70 150 85 Q180 70 210 80 Q240 65 215 80 Q215 110 190 115 Q150 120 110 115 Q85 110 85 75 Z";
-        break;
-      case "spiky":
-        hairPath = "M85 85 L90 65 L95 85 L105 70 L115 85 L130 75 L145 65 L160 75 L175 65 L190 75 L205 70 L215 85 Q215 100 200 105 Q100 105 85 100 Z";
-        break;
+        return (
+          <g>
+            <circle cx="120" cy="80" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="150" cy="70" r="18" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="180" cy="80" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
+          </g>
+        );
+      case "messy":
+        return (
+          <path
+            d="M90 90 Q110 60 130 80 Q140 55 150 75 Q160 50 170 80 Q180 65 200 85 Q190 100 150 95 Q110 100 90 90 Z"
+            fill={hairColor}
+            stroke="#000"
+            strokeWidth="3"
+          />
+        );
       case "wavy":
-        hairPath = "M80 80 Q60 70 85 85 Q110 75 135 85 Q160 75 185 85 Q210 75 220 80 Q220 105 200 110 Q100 110 80 105 Z";
-        break;
+        return (
+          <path
+            d="M95 85 Q120 65 150 75 Q180 65 205 85 Q200 105 150 100 Q100 105 95 85 Z"
+            fill={hairColor}
+            stroke="#000"
+            strokeWidth="3"
+          />
+        );
       case "buzz":
-        hairPath = "M90 85 Q70 80 120 85 Q150 80 180 85 Q230 80 210 85 Q210 95 195 98 Q105 98 90 95 Z";
-        break;
+        return (
+          <path
+            d="M100 90 Q150 75 200 90 Q195 100 150 98 Q105 100 100 90 Z"
+            fill={hairColor}
+            stroke="#000"
+            strokeWidth="3"
+          />
+        );
       default:
-        hairPath = "M85 80 Q50 70 115 80 Q150 70 215 80 Q215 95 200 100 Q100 100 85 95 Z";
+        return null;
     }
-    
-    return (
-      <path
-        d={hairPath}
-        fill={avatarConfig.hairColor}
-        stroke="#000"
-        strokeWidth="3"
-      />
-    );
   };
 
   const renderMustache = () => {
@@ -85,73 +113,112 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         {/* Sfondo */}
         <rect width="300" height="300" fill="#F5F5F5" />
         
-        {/* Collo (dietro la faccia) */}
-        <rect x="130" y="155" width="40" height="40" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="3" />
+        {/* Orecchie (dietro, senza bordo nero visibile) */}
+        <ellipse cx="95" cy="125" rx="15" ry="22" fill={avatarConfig.skinColor} />
+        <ellipse cx="205" cy="125" rx="15" ry="22" fill={avatarConfig.skinColor} />
         
-        {/* Orecchie (dietro la faccia, più esterne) */}
-        <circle cx="88" cy="120" r="12" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="3" />
-        <circle cx="212" cy="120" r="12" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="3" />
+        {/* Collo realistico */}
+        <ellipse
+          cx="150"
+          cy="185"
+          rx="30"
+          ry="25"
+          fill={avatarConfig.skinColor}
+          stroke="#000"
+          strokeWidth="3"
+        />
         
-        {/* Capelli (dietro se lunghi) */}
-        {avatarConfig.hairStyle === "long" && renderHair()}
-        
-        {/* Giacca */}
-        <path
-          d="M80 190 L80 300 L220 300 L220 190 L200 180 L190 185 L190 195 L110 195 L110 185 L100 180 Z"
+        {/* Spalle rotonde */}
+        <ellipse
+          cx="150"
+          cy="275"
+          rx="110"
+          ry="40"
           fill={avatarConfig.suitColor}
           stroke="#000"
-          strokeWidth="4"
+          strokeWidth="3"
+        />
+        
+        {/* Giacca con forma migliorata */}
+        <path
+          d="M60 235 Q120 225 150 225 Q180 225 240 235 L240 300 L60 300 Z"
+          fill={avatarConfig.suitColor}
+          stroke="#000"
+          strokeWidth="3"
+        />
+        
+        {/* Lapels della giacca */}
+        <path
+          d="M105 240 L125 255 L135 225 L115 225 Z"
+          fill={avatarConfig.suitColor}
+          stroke="#000"
+          strokeWidth="3"
+        />
+        <path
+          d="M195 240 L175 255 L165 225 L185 225 Z"
+          fill={avatarConfig.suitColor}
+          stroke="#000"
+          strokeWidth="3"
         />
         
         {/* Camicia */}
-        <rect x="110" y="185" width="80" height="115" fill="#FFFFFF" stroke="#000" strokeWidth="3" />
+        <path
+          d="M130 225 Q140 220 150 220 Q160 220 170 225 L170 300 L130 300 Z"
+          fill="#FFFFFF"
+          stroke="#000"
+          strokeWidth="3"
+        />
         
-        {/* Cravatta completa */}
-        <polygon 
-          points="140,185 160,185 158,220 155,240 150,260 145,240 142,220" 
-          fill={avatarConfig.tieColor} 
-          stroke="#000" 
-          strokeWidth="2" 
+        {/* Colletto della camicia */}
+        <path
+          d="M135 225 L145 215 L150 230 L155 215 L165 225"
+          fill="#FFFFFF"
+          stroke="#000"
+          strokeWidth="3"
         />
         
         {/* Nodo cravatta */}
-        <polygon 
-          points="140,185 160,185 155,200 145,200" 
-          fill={avatarConfig.tieColor} 
-          stroke="#000" 
-          strokeWidth="2" 
+        <ellipse
+          cx="150"
+          cy="235"
+          rx="10"
+          ry="8"
+          fill={avatarConfig.tieColor}
+          stroke="#000"
+          strokeWidth="3"
         />
         
-        {/* Risvolti giacca */}
-        <path d="M100 180 L120 200 L120 230 L100 210 Z" fill={avatarConfig.suitColor} stroke="#000" strokeWidth="2" />
-        <path d="M200 180 L180 200 L180 230 L200 210 Z" fill={avatarConfig.suitColor} stroke="#000" strokeWidth="2" />
+        {/* Cravatta */}
+        <path
+          d="M140 242 L160 242 L158 290 L150 300 L142 290 Z"
+          fill={avatarConfig.tieColor}
+          stroke="#000"
+          strokeWidth="3"
+        />
         
-        {/* Colletto camicia */}
-        <path d="M120 185 L140 185 L140 195 L120 195 Z" fill="#FFFFFF" stroke="#000" strokeWidth="2" />
-        <path d="M160 185 L180 185 L180 195 L160 195 Z" fill="#FFFFFF" stroke="#000" strokeWidth="2" />
-        
-        {/* Testa */}
-        <circle
+        {/* Testa ovale */}
+        <ellipse
           cx="150"
-          cy="120"
-          r="65"
+          cy="125"
+          rx="60"
+          ry="70"
           fill={avatarConfig.skinColor}
           stroke="#000"
           strokeWidth="4"
         />
         
-        {/* Capelli corti (davanti alla faccia) */}
-        {avatarConfig.hairStyle !== "long" && renderHair()}
+        {/* Capelli */}
+        {renderHair()}
         
         {/* Occhi */}
-        <ellipse cx="125" cy="105" rx="6" ry="8" fill="#000" />
-        <ellipse cx="175" cy="105" rx="6" ry="8" fill="#000" />
+        <ellipse cx="125" cy="110" rx="6" ry="9" fill="#000" />
+        <ellipse cx="175" cy="110" rx="6" ry="9" fill="#000" />
         
         {/* Naso */}
-        <path d="M145 125 Q150 130 155 125" stroke="#000" strokeWidth="2" fill="none" />
+        <path d="M 148 125 Q 150 130 152 125" stroke="#000" strokeWidth="3" fill="none" />
         
         {/* Bocca */}
-        <path d="M135 145 Q150 155 165 145" stroke="#000" strokeWidth="3" fill="none" />
+        <path d="M 135 150 Q 150 160 165 150" stroke="#000" strokeWidth="3" fill="none" />
         
         {/* Baffi */}
         {renderMustache()}
