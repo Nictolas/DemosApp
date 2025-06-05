@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
+import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
 
 export default function Elezioni() {
@@ -20,17 +21,24 @@ export default function Elezioni() {
     const fetchUserData = async () => {
       if (user) {
         try {
-          const response = await apiRequest("GET", `/api/user`);
-          const data = await response.json();
-          setUserData(data);
+          // Carica i dati base dell'utente per ottenere l'email
+          const userResponse = await apiRequest("GET", `/api/user`);
+          const userData = await userResponse.json();
+          
+          // Carica i dati completi dell'utente tramite email
+          const completeUserResponse = await fetch(`/api/users/${encodeURIComponent(userData.email)}`);
+          const completeUserData = await completeUserResponse.json();
+          
+          console.log("Dati utente completi caricati:", completeUserData);
+          setUserData(completeUserData);
           
           // Carichiamo i dati di tutti i candidati che l'utente ha selezionato
           const candidatiIds = [
-            data.candidato_europeo, 
-            data.candidato_camera, 
-            data.candidato_senato, 
-            data.candidato_regione, 
-            data.candidato_comune
+            completeUserData.candidato_europeo, 
+            completeUserData.candidato_camera, 
+            completeUserData.candidato_senato, 
+            completeUserData.candidato_regionale, 
+            completeUserData.candidato_comunale
           ].filter(Boolean); // Filtriamo i valori nulli o undefined
           
           if (candidatiIds.length > 0) {
