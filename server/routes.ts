@@ -817,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const elezioneData = req.body;
       
       // Validate required fields
-      const requiredFields = ['tipo', 'nome', 'dataInizio', 'dataFine', 'circa'];
+      const requiredFields = ['tipo', 'zona', 'dataInizio', 'dataFine', 'circa'];
       for (const field of requiredFields) {
         if (elezioneData[field] === undefined || elezioneData[field] === null) {
           return res.status(400).json({ error: `Campo richiesto mancante: ${field}` });
@@ -882,7 +882,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const elezioneData = req.body;
       
       // Validate required fields
-      const requiredFields = ['tipo', 'nome', 'dataInizio', 'dataFine', 'circa'];
+      const requiredFields = ['tipo', 'zona', 'dataInizio', 'dataFine', 'circa'];
       for (const field of requiredFields) {
         if (elezioneData[field] === undefined || elezioneData[field] === null) {
           return res.status(400).json({ error: `Campo richiesto mancante: ${field}` });

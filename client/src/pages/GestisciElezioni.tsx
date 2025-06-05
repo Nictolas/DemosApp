@@ -57,6 +57,14 @@ export default function GestisciElezioni() {
     },
   });
 
+  // Watch for tipo changes and reset zona
+  const watchedTipo = form.watch('tipo');
+  useEffect(() => {
+    if (watchedTipo) {
+      form.setValue('zona', '');
+    }
+  }, [watchedTipo, form]);
+
   // Carica le elezioni all'avvio
   useEffect(() => {
     loadElezioni();
