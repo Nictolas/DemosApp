@@ -20,6 +20,8 @@ export default function Profilo() {
   const [userOpinions, setUserOpinions] = useState<any>(null);
   const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
   const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
+  const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
+  const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
 
   // Funzione per categorizzare le opinioni
@@ -112,6 +114,64 @@ export default function Profilo() {
     setRepresentativeAvatars(avatars);
   };
 
+  // Funzione per recuperare i nomi e avatar dei candidati
+  const fetchCandidateNames = async (userInfo: any) => {
+    const candidates = {
+      candidato_europeo: userInfo.candidato_europeo,
+      candidato_camera: userInfo.candidato_camera,
+      candidato_senato: userInfo.candidato_senato,
+      candidato_regionale: userInfo.candidato_regionale,
+      candidato_comunale: userInfo.candidato_comunale,
+    };
+
+    const names: Record<string, string> = {};
+    const avatars: Record<string, any> = {};
+
+    for (const [key, email] of Object.entries(candidates)) {
+      if (email && typeof email === 'string') {
+        try {
+          const cleanEmail = email.replace('@gmail_com', '@gmail.com');
+          const response = await fetch(`/api/users/${encodeURIComponent(cleanEmail)}`);
+          if (response.ok) {
+            const userData = await response.json();
+            names[key] = `${userData.nome} ${userData.cognome}`;
+            
+            // Carica l'avatar del candidato se disponibile
+            if (userData.avatar_config) {
+              try {
+                const avatarConfig = JSON.parse(userData.avatar_config);
+                // Converti le configurazioni legacy
+                const updatedConfig = {
+                  skinColor: avatarConfig.skinColor || "#FDBCB4",
+                  hairColor: avatarConfig.hairColor || "#8B4513",
+                  hairStyle: avatarConfig.hairStyle || "short",
+                  mustacheStyle: avatarConfig.mustacheStyle || (avatarConfig.mustache ? "classic" : "none"),
+                  mustacheColor: avatarConfig.mustacheColor || "#2C1810",
+                  beardStyle: avatarConfig.beardStyle || "none",
+                  beardColor: avatarConfig.beardColor || "#2C1810",
+                  noseStyle: avatarConfig.noseStyle || "normal",
+                  suitColor: avatarConfig.suitColor || "#2C3E50",
+                  tieColor: avatarConfig.tieColor || "#E74C3C"
+                };
+                avatars[key] = updatedConfig;
+              } catch (error) {
+                console.error("Errore nel parsing dell'avatar del candidato:", error);
+              }
+            }
+          } else {
+            names[key] = cleanEmail;
+          }
+        } catch (error) {
+          console.error(`Errore nel recupero dati per ${email}:`, error);
+          names[key] = email.replace('@gmail_com', '@gmail.com');
+        }
+      }
+    }
+
+    setCandidateNames(names);
+    setCandidateAvatars(avatars);
+  };
+
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (!user) return;
@@ -158,8 +218,9 @@ export default function Profilo() {
             }
           }
           
-          // Fetch representative names
+          // Fetch representative names and candidate names
           await fetchRepresentativeNames(userData);
+          await fetchCandidateNames(userData);
         } else {
           console.log("Dati non trovati, caricamento dal profilo locale");
           
@@ -548,6 +609,144 @@ export default function Profilo() {
                           )}
                           <span className="text-teal-800 font-medium">
                             {representativeNames.rappresentante_comunale || (userInfo as any).rappresentante_comunale || "Non selezionato"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Sezione Candidati */}
+          {userInfo && (
+            <Card className="animate-in-delay">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  I Tuoi Candidati
+                </CardTitle>
+                <CardDescription>
+                  I candidati che hai scelto per i diversi livelli di governo
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Candidato Europeo */}
+                  <div className="space-y-3">
+                    <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        Parlamento Europeo
+                      </h3>
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                        <div className="flex items-center gap-3">
+                          {candidateAvatars.candidato_europeo && (
+                            <CustomAvatar 
+                              config={candidateAvatars.candidato_europeo} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-blue-800 font-medium">
+                            {candidateNames.candidato_europeo || (userInfo as any).candidato_europeo || "Non selezionato"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Candidato Camera */}
+                  <div className="space-y-3">
+                    <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        Camera dei Deputati
+                      </h3>
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                        <div className="flex items-center gap-3">
+                          {candidateAvatars.candidato_camera && (
+                            <CustomAvatar 
+                              config={candidateAvatars.candidato_camera} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-green-800 font-medium">
+                            {candidateNames.candidato_camera || (userInfo as any).candidato_camera || "Non selezionato"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Candidato Senato */}
+                  <div className="space-y-3">
+                    <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                        Senato della Repubblica
+                      </h3>
+                      <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                        <div className="flex items-center gap-3">
+                          {candidateAvatars.candidato_senato && (
+                            <CustomAvatar 
+                              config={candidateAvatars.candidato_senato} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-purple-800 font-medium">
+                            {candidateNames.candidato_senato || (userInfo as any).candidato_senato || "Non selezionato"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Candidato Regionale */}
+                  <div className="space-y-3">
+                    <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                        Consiglio Regionale
+                      </h3>
+                      <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
+                        <div className="flex items-center gap-3">
+                          {candidateAvatars.candidato_regionale && (
+                            <CustomAvatar 
+                              config={candidateAvatars.candidato_regionale} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-orange-800 font-medium">
+                            {candidateNames.candidato_regionale || (userInfo as any).candidato_regionale || "Non selezionato"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Candidato Comunale */}
+                  <div className="space-y-3">
+                    <div className="bg-teal-100 border border-teal-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-teal-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-teal-500 rounded-full"></div>
+                        Consiglio Comunale
+                      </h3>
+                      <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
+                        <div className="flex items-center gap-3">
+                          {candidateAvatars.candidato_comunale && (
+                            <CustomAvatar 
+                              config={candidateAvatars.candidato_comunale} 
+                              size={40} 
+                              className="flex-shrink-0"
+                            />
+                          )}
+                          <span className="text-teal-800 font-medium">
+                            {candidateNames.candidato_comunale || (userInfo as any).candidato_comunale || "Non selezionato"}
                           </span>
                         </div>
                       </div>
