@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 
 interface AvatarConfig {
   skinColor: string;
@@ -77,7 +76,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "short":
         return (
           <path
-            d="M95 85 Q150 65 205 85 Q205 100 150 95 Q95 100 95 85 Z"
+            d="M100 90 Q150 70 200 90 Q200 105 150 100 Q100 105 100 90 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -87,7 +86,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
         return (
           <g>
             <path
-              d="M85 80 Q150 65 215 80 Q220 120 200 150 Q180 160 150 155 Q120 160 100 150 Q80 120 85 80 Z"
+              d="M90 85 Q150 70 210 85 Q215 125 195 155 Q185 165 150 160 Q115 165 105 155 Q85 125 90 85 Z"
               fill={hairColor}
               stroke="#000"
               strokeWidth="3"
@@ -97,17 +96,17 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "curly":
         return (
           <g>
-            <circle cx="120" cy="75" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="150" cy="70" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="180" cy="75" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="110" cy="90" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="190" cy="90" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="125" cy="80" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="150" cy="75" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="175" cy="80" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="115" cy="95" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="185" cy="95" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
           </g>
         );
       case "messy":
         return (
           <path
-            d="M90 90 Q110 65 130 80 Q140 60 150 75 Q160 55 170 80 Q180 70 200 85 Q190 100 150 95 Q110 100 90 90 Z"
+            d="M95 95 Q115 70 135 85 Q145 65 150 80 Q165 60 175 85 Q185 75 205 90 Q195 105 150 100 Q115 105 95 95 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -116,7 +115,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "wavy":
         return (
           <path
-            d="M95 85 Q120 70 150 75 Q180 70 205 85 Q200 105 150 100 Q100 105 95 85 Z"
+            d="M100 90 Q125 75 150 80 Q175 75 200 90 Q195 110 150 105 Q105 110 100 90 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -125,7 +124,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
       case "buzz":
         return (
           <path
-            d="M100 85 Q150 75 200 85 Q195 95 150 93 Q105 95 100 85 Z"
+            d="M105 90 Q150 80 195 90 Q190 100 150 98 Q110 100 105 90 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
@@ -240,13 +239,21 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             <rect width="300" height="300" fill="#F5F5F5" />
             
             {/* Orecchie (dietro) */}
-            <ellipse cx="95" cy="125" rx="15" ry="22" fill={config.skinColor} stroke="#000" strokeWidth="3" />
-            <ellipse cx="205" cy="125" rx="15" ry="22" fill={config.skinColor} stroke="#000" strokeWidth="3" />
+            <ellipse cx="95" cy="130" rx="15" ry="22" fill={config.skinColor} stroke="#000" strokeWidth="3" />
+            <ellipse cx="205" cy="130" rx="15" ry="22" fill={config.skinColor} stroke="#000" strokeWidth="3" />
             
-            {/* Spalle con braccia che partono dagli angoli */}
+            {/* Collo trapezoidale (dietro) */}
+            <path
+              d="M135 195 L165 195 L175 225 L125 225 Z"
+              fill={config.skinColor}
+              stroke="#000"
+              strokeWidth="3"
+            />
+            
+            {/* Spalle con braccia più in alto */}
             <ellipse
               cx="150"
-              cy="275"
+              cy="270"
               rx="110"
               ry="40"
               fill={config.suitColor}
@@ -256,7 +263,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             
             {/* Giacca con forma migliorata */}
             <path
-              d="M60 235 Q120 225 150 225 Q180 225 240 235 L240 300 L60 300 Z"
+              d="M60 230 Q120 220 150 220 Q180 220 240 230 L240 300 L60 300 Z"
               fill={config.suitColor}
               stroke="#000"
               strokeWidth="3"
@@ -264,13 +271,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             
             {/* Lapels della giacca */}
             <path
-              d="M105 240 L125 255 L135 225 L115 225 Z"
+              d="M105 235 L125 250 L135 220 L115 220 Z"
               fill={config.suitColor}
               stroke="#000"
               strokeWidth="3"
             />
             <path
-              d="M195 240 L175 255 L165 225 L185 225 Z"
+              d="M195 235 L175 250 L165 220 L185 220 Z"
               fill={config.suitColor}
               stroke="#000"
               strokeWidth="3"
@@ -278,7 +285,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             
             {/* Camicia */}
             <path
-              d="M130 225 Q140 220 150 220 Q160 220 170 225 L170 300 L130 300 Z"
+              d="M130 220 Q140 215 150 215 Q160 215 170 220 L170 300 L130 300 Z"
               fill="#FFFFFF"
               stroke="#000"
               strokeWidth="3"
@@ -286,19 +293,8 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             
             {/* Colletto della camicia */}
             <path
-              d="M135 225 L145 215 L150 230 L155 215 L165 225"
+              d="M135 220 L145 210 L150 225 L155 210 L165 220"
               fill="#FFFFFF"
-              stroke="#000"
-              strokeWidth="3"
-            />
-            
-            {/* Collo che entra nel colletto */}
-            <ellipse
-              cx="150"
-              cy="205"
-              rx="25"
-              ry="20"
-              fill={config.skinColor}
               stroke="#000"
               strokeWidth="3"
             />
@@ -306,7 +302,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             {/* Nodo cravatta */}
             <ellipse
               cx="150"
-              cy="235"
+              cy="230"
               rx="10"
               ry="8"
               fill={config.tieColor}
@@ -316,15 +312,15 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             
             {/* Cravatta */}
             <path
-              d="M140 242 L160 242 L158 290 L150 300 L142 290 Z"
+              d="M140 237 L160 237 L158 285 L150 295 L142 285 Z"
               fill={config.tieColor}
               stroke="#000"
               strokeWidth="3"
             />
             
-            {/* Testa con forma più realistica (schiacciata sopra e sotto) */}
+            {/* Testa più alta e allungata */}
             <path
-              d="M90 125 Q90 70 150 65 Q210 70 210 125 Q210 180 150 185 Q90 180 90 125 Z"
+              d="M100 130 Q100 60 150 55 Q200 60 200 130 Q200 200 150 205 Q100 200 100 130 Z"
               fill={config.skinColor}
               stroke="#000"
               strokeWidth="4"
@@ -334,17 +330,20 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
             {renderHair()}
             
             {/* Occhi */}
-            <ellipse cx="125" cy="110" rx="6" ry="9" fill="#000" />
-            <ellipse cx="175" cy="110" rx="6" ry="9" fill="#000" />
+            <ellipse cx="125" cy="115" rx="6" ry="9" fill="#000" />
+            <ellipse cx="175" cy="115" rx="6" ry="9" fill="#000" />
             
-            {/* Naso come nell'immagine */}
-            <path d="M 145 125 Q 150 130 155 125" stroke="#000" strokeWidth="3" fill="none" />
+            {/* Naso */}
+            {renderNose()}
             
             {/* Bocca */}
-            <path d="M 135 150 Q 150 160 165 150" stroke="#000" strokeWidth="3" fill="none" />
+            <path d="M 135 155 Q 150 165 165 155" stroke="#000" strokeWidth="3" fill="none" />
             
-            {/* Baffi e barba */}
-            {renderFacialHair()}
+            {/* Baffi */}
+            {renderMustache()}
+            
+            {/* Barba */}
+            {renderBeard()}
           </svg>
         </div>
       </div>
@@ -360,7 +359,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
           <CardContent className="space-y-4">
             <div>
               <Label>Colore Pelle</Label>
-              <div className="grid grid-cols-5 gap-2 mt-2">
+              <div className="grid grid-cols-6 gap-2 mt-2">
                 {skinColors.map((color) => (
                   <button
                     key={color.value}
@@ -413,12 +412,59 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                checked={config.mustache}
-                onCheckedChange={(checked) => setConfig({ ...config, mustache: checked })}
-              />
-              <Label>Baffi e Barba</Label>
+            <div>
+              <Label>Stile Baffi</Label>
+              <Select
+                value={config.mustacheStyle}
+                onValueChange={(value) => setConfig({ ...config, mustacheStyle: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nessuno</SelectItem>
+                  <SelectItem value="classic">Classici</SelectItem>
+                  <SelectItem value="thick">Spessi</SelectItem>
+                  <SelectItem value="handlebar">A Manubrio</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Stile Barba</Label>
+              <Select
+                value={config.beardStyle}
+                onValueChange={(value) => setConfig({ ...config, beardStyle: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nessuna</SelectItem>
+                  <SelectItem value="goatee">Pizzetto</SelectItem>
+                  <SelectItem value="full">Piena</SelectItem>
+                  <SelectItem value="stubble">Barba Incolta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Stile Naso</Label>
+              <Select
+                value={config.noseStyle}
+                onValueChange={(value) => setConfig({ ...config, noseStyle: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">Normale</SelectItem>
+                  <SelectItem value="small">Piccolo</SelectItem>
+                  <SelectItem value="large">Grande</SelectItem>
+                  <SelectItem value="pointed">Appuntito</SelectItem>
+                  <SelectItem value="button">A Bottone</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
