@@ -93,77 +93,75 @@ export default function Rappresentanti() {
 
   // Definizione delle categorie dei rappresentanti
   const categorie = [
-    { id: "europeo", nome: "Europeo", field: "rappresentante_europeo" },
-    { id: "camera", nome: "Camera", field: "rappresentante_camera" },
-    { id: "senato", nome: "Senato", field: "rappresentante_senato" },
-    { id: "regione", nome: "Regione", field: "rappresentante_regione" },
-    { id: "comune", nome: "Comune", field: "rappresentante_comune" }
+    { id: "europeo", nome: "Parlamento Europeo", field: "rappresentante_europeo", color: "blue" },
+    { id: "camera", nome: "Camera dei Deputati", field: "rappresentante_camera", color: "green" },
+    { id: "senato", nome: "Senato della Repubblica", field: "rappresentante_senato", color: "purple" },
+    { id: "regione", nome: "Consiglio Regionale", field: "rappresentante_regionale", color: "orange" },
+    { id: "comune", nome: "Consiglio Comunale", field: "rappresentante_comunale", color: "teal" }
   ];
 
   // Funzione per mostrare i dettagli del rappresentante o un pulsante per sceglierlo
-  const renderRappresentante = (categoria: { id: string, nome: string, field: string }) => {
+  const renderRappresentante = (categoria: { id: string, nome: string, field: string, color: string }) => {
     const rappresentanteId = userData?.[categoria.field];
     const rappresentanteData = rappresentanti[categoria.id];
     
-    if (rappresentanteId) {
-      return (
-        <div className="flex flex-col space-y-3 items-center">
-          {/* Avatar del rappresentante */}
-          {(() => {
-            if (rappresentanteData?.avatar_config) {
-              try {
-                const config = JSON.parse(rappresentanteData.avatar_config);
-                // Converti le configurazioni legacy
-                const updatedConfig = {
-                  skinColor: config.skinColor || "#FDBCB4",
-                  hairColor: config.hairColor || "#8B4513",
-                  hairStyle: config.hairStyle || "short",
-                  mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
-                  mustacheColor: config.mustacheColor || "#2C1810",
-                  beardStyle: config.beardStyle || "none",
-                  beardColor: config.beardColor || "#2C1810",
-                  noseStyle: config.noseStyle || "normal",
-                  suitColor: config.suitColor || "#2C3E50",
-                  tieColor: config.tieColor || "#E74C3C"
-                };
-                return (
-                  <CustomAvatar 
-                    config={updatedConfig}
-                    size={80}
-                    className="border-2 border-gray-300 rounded-full shadow-sm"
-                  />
-                );
-              } catch (error) {
-                console.error("Errore nel parsing della configurazione avatar:", error);
-              }
-            }
-            return <User className="h-20 w-20 text-primary p-4 border-2 border-gray-300 rounded-full" />;
-          })()}
-          
-          <div className="text-center">
-            <p className="font-medium text-primary">
-              {rappresentanteData ? `${rappresentanteData.nome} ${rappresentanteData.cognome}` : 'Caricamento...'}
-            </p>
-          </div>
-          
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}
-          >
-            Cambia rappresentante
-          </Button>
-        </div>
-      );
-    }
-    
     return (
-      <Button 
-        variant="default"
-        onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}
-      >
-        Scegli Rappresentante
-      </Button>
+      <div className="flex flex-col space-y-3 items-center">
+        {/* Avatar del rappresentante */}
+        {(() => {
+          if (rappresentanteId && rappresentanteData?.avatar_config) {
+            try {
+              const config = JSON.parse(rappresentanteData.avatar_config);
+              // Converti le configurazioni legacy
+              const updatedConfig = {
+                skinColor: config.skinColor || "#FDBCB4",
+                hairColor: config.hairColor || "#8B4513",
+                hairStyle: config.hairStyle || "short",
+                mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+                mustacheColor: config.mustacheColor || "#2C1810",
+                beardStyle: config.beardStyle || "none",
+                beardColor: config.beardColor || "#2C1810",
+                noseStyle: config.noseStyle || "normal",
+                suitColor: config.suitColor || "#2C3E50",
+                tieColor: config.tieColor || "#E74C3C"
+              };
+              return (
+                <CustomAvatar 
+                  config={updatedConfig}
+                  size={80}
+                  className="border-2 border-gray-300 rounded-full shadow-sm"
+                />
+              );
+            } catch (error) {
+              console.error("Errore nel parsing della configurazione avatar:", error);
+            }
+          }
+          // Avatar vuoto per rappresentanti assenti
+          return (
+            <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center">
+              <User className="h-10 w-10 text-gray-400" />
+            </div>
+          );
+        })()}
+        
+        <div className="text-center">
+          {rappresentanteId && rappresentanteData ? (
+            <p className="font-medium text-primary">
+              {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
+            </p>
+          ) : (
+            <p className="text-gray-500 italic">Assente</p>
+          )}
+        </div>
+        
+        <Button 
+          variant={rappresentanteId ? "outline" : "default"}
+          size="sm"
+          onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}
+        >
+          {rappresentanteId ? "Cambia rappresentante" : "Scegli Rappresentante"}
+        </Button>
+      </div>
     );
   };
 
@@ -180,20 +178,40 @@ export default function Rappresentanti() {
           <h1 className="text-2xl font-bold">I tuoi Rappresentanti</h1>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {categorie.map((categoria) => (
-            <Card key={categoria.id} className="w-full">
-              <CardHeader>
-                <CardTitle className="text-xl text-center">{categoria.nome}</CardTitle>
-                <CardDescription className="text-center">
-                  Il tuo rappresentante {categoria.nome.toLowerCase()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center py-4">
-                {renderRappresentante(categoria)}
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {categorie.map((categoria) => {
+            const colorClasses = {
+              blue: "bg-blue-50 border-blue-200",
+              green: "bg-green-50 border-green-200", 
+              purple: "bg-purple-50 border-purple-200",
+              orange: "bg-orange-50 border-orange-200",
+              teal: "bg-teal-50 border-teal-200"
+            };
+            
+            const titleColorClasses = {
+              blue: "text-blue-800",
+              green: "text-green-800",
+              purple: "text-purple-800", 
+              orange: "text-orange-800",
+              teal: "text-teal-800"
+            };
+            
+            return (
+              <Card key={categoria.id} className={`w-full ${colorClasses[categoria.color as keyof typeof colorClasses]}`}>
+                <CardHeader>
+                  <CardTitle className={`text-lg text-center ${titleColorClasses[categoria.color as keyof typeof titleColorClasses]}`}>
+                    {categoria.nome}
+                  </CardTitle>
+                  <CardDescription className="text-center">
+                    Il tuo rappresentante attuale
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex justify-center py-4">
+                  {renderRappresentante(categoria)}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </PageTransition>
