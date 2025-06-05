@@ -16,6 +16,7 @@ export default function Elezioni() {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [candidati, setCandidati] = useState<Record<string, any>>({});
+  const [elezioni, setElezioni] = useState<any[]>([]);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -32,6 +33,17 @@ export default function Elezioni() {
           console.log("Dati utente completi caricati:", completeUserData);
           setUserData(completeUserData);
           
+          // Carichiamo i dati delle elezioni
+          try {
+            const elezioniResponse = await fetch('/api/elezioni');
+            if (elezioniResponse.ok) {
+              const elezioniData = await elezioniResponse.json();
+              setElezioni(elezioniData);
+            }
+          } catch (err) {
+            console.error("Errore durante il recupero dei dati delle elezioni:", err);
+          }
+
           // Carichiamo i dati di tutti i candidati che l'utente ha selezionato
           const candidatiIds = [
             completeUserData.candidato_europeo, 
@@ -96,12 +108,47 @@ export default function Elezioni() {
 
   // Definizione delle categorie di elezioni
   const categorie = [
-    { id: "europeo", nome: "Parlamento Europeo", field: "candidato_europeo", color: "blue" },
-    { id: "camera", nome: "Camera dei Deputati", field: "candidato_camera", color: "green" },
-    { id: "senato", nome: "Senato della Repubblica", field: "candidato_senato", color: "purple" },
-    { id: "regione", nome: "Consiglio Regionale", field: "candidato_regionale", color: "orange" },
-    { id: "comune", nome: "Consiglio Comunale", field: "candidato_comunale", color: "teal" }
+    { id: "europeo", nome: "Parlamento Europeo", field: "candidato_europeo", color: "blue", tipoElezione: "sovranazione" },
+    { id: "camera", nome: "Camera dei Deputati", field: "candidato_camera", color: "green", tipoElezione: "stato" },
+    { id: "senato", nome: "Senato della Repubblica", field: "candidato_senato", color: "purple", tipoElezione: "stato" },
+    { id: "regione", nome: "Consiglio Regionale", field: "candidato_regionale", color: "orange", tipoElezione: "regione" },
+    { id: "comune", nome: "Consiglio Comunale", field: "candidato_comunale", color: "teal", tipoElezione: "comune" }
   ];
+
+  // Funzione per trovare l'elezione più rilevante per una categoria
+  const getElectionForCategory = (categoria: { tipoElezione: string }) => {
+    return elezioni.find(elezione => elezione.tipo === categoria.tipoElezione);
+  };
+
+  // Funzione per formattare le date delle elezioni
+  const formatElectionDates = (elezione: any) => {
+    if (!elezione) return null;
+    
+    if (elezione.circa) {
+      // Se è approssimativa, mostra solo gli anni
+      if (elezione.dataInizio === elezione.dataFine) {
+        return `${elezione.dataInizio}`;
+      }
+      return `${elezione.dataInizio} - ${elezione.dataFine}`;
+    } else {
+      // Se non è approssimativa, formatta le date complete
+      const formatDate = (dateString: string) => {
+        try {
+          return new Date(dateString).toLocaleDateString('it-IT');
+        } catch {
+          return dateString;
+        }
+      };
+      
+      const dataInizio = formatDate(elezione.dataInizio);
+      const dataFine = formatDate(elezione.dataFine);
+      
+      if (dataInizio === dataFine) {
+        return dataInizio;
+      }
+      return `${dataInizio} - ${dataFine}`;
+    }
+  };
 
   // Funzione per mostrare i dettagli del candidato o un pulsante per sceglierlo
   const renderCandidato = (categoria: { id: string, nome: string, field: string, color: string }) => {
@@ -222,12 +269,22 @@ export default function Elezioni() {
               teal: "text-teal-800"
             };
             
+            const elezione = getElectionForCategory(categoria);
+            const dateString = formatElectionDates(elezione);
+            
             return (
               <Card key={categoria.id} className={`w-full ${colorClasses[categoria.color as keyof typeof colorClasses]}`}>
                 <CardHeader>
                   <CardTitle className={`text-lg text-center ${titleColorClasses[categoria.color as keyof typeof titleColorClasses]}`}>
                     {categoria.nome}
                   </CardTitle>
+                  {dateString && (
+                    <div className="text-center text-sm text-gray-600 mt-2 mb-1">
+                      <span className="font-medium">Prossime elezioni:</span>
+                      <br />
+                      <span className="text-gray-800">{dateString}</span>
+                    </div>
+                  )}
                   <CardDescription className="text-center">
                     Il tuo candidato attuale
                   </CardDescription>
