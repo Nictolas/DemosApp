@@ -50,12 +50,13 @@ export default function Rappresentanti() {
         { id: "europeo", field: "rappresentante_europeo" },
         { id: "camera", field: "rappresentante_camera" },
         { id: "senato", field: "rappresentante_senato" },
-        { id: "regione", field: "rappresentante_regione" },
-        { id: "comune", field: "rappresentante_comune" }
+        { id: "regione", field: "rappresentante_regionale" },
+        { id: "comune", field: "rappresentante_comunale" }
       ];
       
       for (const categoria of categorie) {
         const rappresentanteId = userData[categoria.field];
+        console.log(`Categoria ${categoria.id}: campo ${categoria.field} = ${rappresentanteId}`);
         if (rappresentanteId) {
           try {
             // Caricare i dettagli del rappresentante tramite API
@@ -63,6 +64,7 @@ export default function Rappresentanti() {
             if (response.ok) {
               const data = await response.json();
               rappresentantiData[categoria.id] = data;
+              console.log(`Dati caricati per ${categoria.id}:`, data.nome, data.cognome);
             } else {
               console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, response.statusText);
             }
