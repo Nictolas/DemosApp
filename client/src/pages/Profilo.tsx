@@ -139,7 +139,20 @@ export default function Profilo() {
           if (userData.avatar_config) {
             try {
               const config = JSON.parse(userData.avatar_config);
-              setAvatarConfig(config);
+              // Converti le configurazioni legacy
+              const updatedConfig = {
+                skinColor: config.skinColor || "#FDBCB4",
+                hairColor: config.hairColor || "#8B4513",
+                hairStyle: config.hairStyle || "short",
+                mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+                mustacheColor: config.mustacheColor || "#2C1810",
+                beardStyle: config.beardStyle || "none",
+                beardColor: config.beardColor || "#2C1810",
+                noseStyle: config.noseStyle || "normal",
+                suitColor: config.suitColor || "#2C3E50",
+                tieColor: config.tieColor || "#E74C3C"
+              };
+              setAvatarConfig(updatedConfig);
             } catch (error) {
               console.error("Errore nel parsing della configurazione avatar:", error);
             }

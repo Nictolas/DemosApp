@@ -302,10 +302,46 @@ export default function ScegliRappresentante() {
           </div>
           
           {rappresentanteSelezionato && (
-            <div className="bg-secondary/20 p-2 rounded-md text-center mb-4">
-              <p className="text-sm text-muted-foreground">
-                Rappresentante selezionato: {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.nome} {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.cognome || "(ID: " + rappresentanteSelezionato + ")"}
-              </p>
+            <div className="bg-secondary/20 p-4 rounded-md mb-4">
+              <div className="flex items-center justify-center gap-4">
+                {(() => {
+                  const selectedRep = rappresentanti.find(r => r.id === rappresentanteSelezionato);
+                  if (selectedRep?.avatar_config) {
+                    try {
+                      const config = JSON.parse(selectedRep.avatar_config);
+                      // Converti le configurazioni legacy
+                      const updatedConfig = {
+                        skinColor: config.skinColor || "#FDBCB4",
+                        hairColor: config.hairColor || "#8B4513",
+                        hairStyle: config.hairStyle || "short",
+                        mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+                        mustacheColor: config.mustacheColor || "#2C1810",
+                        beardStyle: config.beardStyle || "none",
+                        beardColor: config.beardColor || "#2C1810",
+                        noseStyle: config.noseStyle || "normal",
+                        suitColor: config.suitColor || "#2C3E50",
+                        tieColor: config.tieColor || "#E74C3C"
+                      };
+                      return (
+                        <CustomAvatar 
+                          config={updatedConfig}
+                          size={60}
+                          className="border-2 border-gray-300 rounded-full shadow-sm"
+                        />
+                      );
+                    } catch (error) {
+                      console.error("Errore nel parsing della configurazione avatar:", error);
+                    }
+                  }
+                  return null;
+                })()}
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-1">Il tuo rappresentante attuale</p>
+                  <p className="font-medium">
+                    {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.nome} {rappresentanti.find(r => r.id === rappresentanteSelezionato)?.cognome || "(ID: " + rappresentanteSelezionato + ")"}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -329,9 +365,22 @@ export default function ScegliRappresentante() {
                       try {
                         if (rappresentante.avatar_config) {
                           const config = JSON.parse(rappresentante.avatar_config);
+                          // Converti le configurazioni legacy
+                          const updatedConfig = {
+                            skinColor: config.skinColor || "#FDBCB4",
+                            hairColor: config.hairColor || "#8B4513",
+                            hairStyle: config.hairStyle || "short",
+                            mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+                            mustacheColor: config.mustacheColor || "#2C1810",
+                            beardStyle: config.beardStyle || "none",
+                            beardColor: config.beardColor || "#2C1810",
+                            noseStyle: config.noseStyle || "normal",
+                            suitColor: config.suitColor || "#2C3E50",
+                            tieColor: config.tieColor || "#E74C3C"
+                          };
                           return (
                             <CustomAvatar 
-                              config={config}
+                              config={updatedConfig}
                               size={64}
                               className="border-2 border-gray-200 rounded-full shadow-sm"
                             />
