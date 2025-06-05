@@ -201,8 +201,8 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         <rect width="300" height="300" fill="#F5F5F5" />
         
         {/* Orecchie (dietro) */}
-        <ellipse cx="90" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="3" />
-        <ellipse cx="210" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="3" />
+        <ellipse cx="90" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} />
+        <ellipse cx="210" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} />
         
         {/* Collo trapezoidale (dietro) */}
         <path
@@ -284,9 +284,9 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         <path
           d="M90 130 Q90 60 150 55 Q210 60 210 130 Q210 200 150 205 Q90 200 90 130 Z"
           fill={avatarConfig.skinColor}
-          stroke="#000"
-          strokeWidth="4"
-        />
+          /* stroke="#000" */
+          /* strokeWidth="4" */
+         />
         
         {/* Capelli */}
         {renderHair()}
