@@ -495,7 +495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const users = await FirebaseService.getAllUsersOpinions();
       const candidati = users.filter(user => 
-        user.ruolo === 'Candidato' || user.ruolo === 'Politico Candidato'
+        user.ruolo === 'Candidato' || user.ruolo === 'Candidato Politico'
       );
       return res.status(200).json(candidati);
     } catch (error) {
