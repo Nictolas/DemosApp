@@ -1275,6 +1275,266 @@ class FirebaseService {
     
     return classifiche;
   }
+
+  // ===== CAPO DI STATO METHODS =====
+
+  /**
+   * Vota per un capo di stato (permette voti multipli)
+   */
+  static async voteCapodiStato(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      // Aggiungi sempre un nuovo voto (permette voti multipli)
+      const votiCollection = collection(db, 'voti_capo_stato');
+      await addDoc(votiCollection, {
+        userId: userId,
+        nome: nome,
+        timestamp: new Date().toISOString()
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel votare capo di stato:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Recupera i voti di un utente per capo di stato
+   */
+  static async getUserVotiCapodiStato(userId: string): Promise<string[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_capo_stato');
+      const q = query(votiCollection, where('userId', '==', userId));
+      
+      const querySnapshot = await getDocs(q);
+      const voti: string[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        voti.push(data.nome);
+      });
+      
+      return voti;
+    } catch (error: any) {
+      console.error('Errore nel recuperare voti capo di stato:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera la classifica per capo di stato (Top 10)
+   */
+  static async getClassificaCapodiStato(): Promise<Array<{nome: string, voti: number}>> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_capo_stato');
+      const querySnapshot = await getDocs(votiCollection);
+      const conteggi: Record<string, number> = {};
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const nome = data.nome;
+        conteggi[nome] = (conteggi[nome] || 0) + 1;
+      });
+      
+      // Converti in array e ordina per numero di voti
+      const classifica = Object.entries(conteggi)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10); // Top 10
+      
+      return classifica;
+    } catch (error: any) {
+      console.error('Errore nel recuperare classifica capo di stato:', error);
+      return [];
+    }
+  }
+
+  // ===== GRAZIA METHODS =====
+
+  /**
+   * Vota per grazia di un cittadino carcerato (permette voti multipli)
+   */
+  static async voteGrazia(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      const votiCollection = collection(db, 'voti_grazia');
+      await addDoc(votiCollection, {
+        userId: userId,
+        nome: nome,
+        timestamp: new Date().toISOString()
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel votare grazia:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Recupera i voti di un utente per grazia
+   */
+  static async getUserVotiGrazia(userId: string): Promise<string[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_grazia');
+      const q = query(votiCollection, where('userId', '==', userId));
+      
+      const querySnapshot = await getDocs(q);
+      const voti: string[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        voti.push(data.nome);
+      });
+      
+      return voti;
+    } catch (error: any) {
+      console.error('Errore nel recuperare voti grazia:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera la classifica per grazia (Top 10)
+   */
+  static async getClassificaGrazia(): Promise<Array<{nome: string, voti: number}>> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_grazia');
+      const querySnapshot = await getDocs(votiCollection);
+      const conteggi: Record<string, number> = {};
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const nome = data.nome;
+        conteggi[nome] = (conteggi[nome] || 0) + 1;
+      });
+      
+      const classifica = Object.entries(conteggi)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10); // Top 10
+      
+      return classifica;
+    } catch (error: any) {
+      console.error('Errore nel recuperare classifica grazia:', error);
+      return [];
+    }
+  }
+
+  // ===== AMNISTIA METHODS =====
+
+  /**
+   * Vota per amnistia di una legge (permette voti multipli)
+   */
+  static async voteAmnistia(userId: string, legge: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      const votiCollection = collection(db, 'voti_amnistia');
+      await addDoc(votiCollection, {
+        userId: userId,
+        legge: legge,
+        timestamp: new Date().toISOString()
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel votare amnistia:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Recupera i voti di un utente per amnistia
+   */
+  static async getUserVotiAmnistia(userId: string): Promise<string[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_amnistia');
+      const q = query(votiCollection, where('userId', '==', userId));
+      
+      const querySnapshot = await getDocs(q);
+      const voti: string[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        voti.push(data.legge);
+      });
+      
+      return voti;
+    } catch (error: any) {
+      console.error('Errore nel recuperare voti amnistia:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera la classifica per amnistia (Top 10)
+   */
+  static async getClassificaAmnistia(): Promise<Array<{nome: string, voti: number}>> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_amnistia');
+      const querySnapshot = await getDocs(votiCollection);
+      const conteggi: Record<string, number> = {};
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const legge = data.legge;
+        conteggi[legge] = (conteggi[legge] || 0) + 1;
+      });
+      
+      const classifica = Object.entries(conteggi)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10); // Top 10
+      
+      return classifica;
+    } catch (error: any) {
+      console.error('Errore nel recuperare classifica amnistia:', error);
+      return [];
+    }
+  }
 }
 
 export default FirebaseService;
