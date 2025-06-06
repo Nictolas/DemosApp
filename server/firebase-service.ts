@@ -1140,6 +1140,141 @@ class FirebaseService {
       return null;
     }
   }
+
+  // ===== GOVERNO METHODS =====
+
+  /**
+   * Vota per un ministro in una specifica categoria
+   */
+  static async voteMinistro(userId: string, categoria: string, nomeMinistro: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      // Verifica se l'utente ha già votato per questa categoria
+      const votiCollection = collection(db, 'voti_ministri');
+      const q = query(
+        votiCollection,
+        where('userId', '==', userId),
+        where('categoria', '==', categoria)
+      );
+      
+      const existingVotes = await getDocs(q);
+      
+      if (!existingVotes.empty) {
+        // Aggiorna il voto esistente
+        const votoDoc = existingVotes.docs[0];
+        await updateDoc(votoDoc.ref, {
+          nomeMinistro: nomeMinistro,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        // Crea un nuovo voto
+        await addDoc(votiCollection, {
+          userId: userId,
+          categoria: categoria,
+          nomeMinistro: nomeMinistro,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel votare ministro:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Recupera i voti di un utente per tutti i ministeri
+   */
+  static async getUserVotiMinistri(userId: string): Promise<Record<string, string>> {
+    try {
+      if (!db) {
+        return {};
+      }
+
+      const votiCollection = collection(db, 'voti_ministri');
+      const q = query(votiCollection, where('userId', '==', userId));
+      
+      const querySnapshot = await getDocs(q);
+      const voti: Record<string, string> = {};
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        voti[data.categoria] = data.nomeMinistro;
+      });
+      
+      return voti;
+    } catch (error: any) {
+      console.error('Errore nel recuperare voti utente:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Recupera la classifica per una categoria di ministero
+   */
+  static async getClassificaMinistro(categoria: string): Promise<Array<{nome: string, voti: number}>> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_ministri');
+      const q = query(votiCollection, where('categoria', '==', categoria));
+      
+      const querySnapshot = await getDocs(q);
+      const conteggi: Record<string, number> = {};
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const nome = data.nomeMinistro;
+        conteggi[nome] = (conteggi[nome] || 0) + 1;
+      });
+      
+      // Converti in array e ordina per numero di voti
+      const classifica = Object.entries(conteggi)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 3); // Prendi solo i primi 3
+      
+      return classifica;
+    } catch (error: any) {
+      console.error('Errore nel recuperare classifica ministro:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera tutte le classifiche dei ministeri
+   */
+  static async getAllClassificheMinistri(): Promise<Record<string, Array<{nome: string, voti: number}>>> {
+    const categorie = [
+      'primo_ministro',
+      'esteri',
+      'interno',
+      'giustizia',
+      'difesa',
+      'economia',
+      'lavoro',
+      'istruzione',
+      'salute',
+      'cultura'
+    ];
+
+    const classifiche: Record<string, Array<{nome: string, voti: number}>> = {};
+    
+    for (const categoria of categorie) {
+      classifiche[categoria] = await this.getClassificaMinistro(categoria);
+    }
+    
+    return classifiche;
+  }
 }
 
 export default FirebaseService;
