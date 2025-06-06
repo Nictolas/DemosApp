@@ -24,6 +24,10 @@ import Comunica from "@/pages/Comunica";
 import PodioTrasparenza from "@/pages/PodioTrasparenza";
 import Notifiche from "@/pages/Notifiche";
 import ModificaImmagine from "@/pages/ModificaImmagine";
+import CapodiStato from "@/pages/CapodiStato";
+import Governo from "@/pages/Governo";
+import Grazia from "@/pages/Grazia";
+import Amnistia from "@/pages/Amnistia";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -178,6 +182,34 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
             <ProtectedRoute path="/notifiche" component={Notifiche} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/capo-di-stato">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/capo-di-stato" component={CapodiStato} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/governo">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/governo" component={Governo} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/grazia">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/grazia" component={Grazia} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/amnistia">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/amnistia" component={Amnistia} />
           </PageTransition>
         )}
       </Route>
