@@ -40,33 +40,53 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
       case "bald":
         return null;
       case "short":
-        return (
+      return (
+        <g>
+          {/* Capelli superiori, ancora più in alto e asimmetrici */}
           <path
-            d="M90 80 Q150 60 210 80 Q210 95 150 90 Q90 95 90 80 Z"
+            d="M80 70 Q150 45 220 75 L220 95 Q150 90 80 95 Z"
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
           />
+          {/* Ciocche di dettaglio */}
+          <path d="M90 70 Q110 58 130 75" stroke="#000" strokeWidth="1" fill="none" />
+          <path d="M165 75 Q185 55 205 72" stroke="#000" strokeWidth="1" fill="none" />
+          <path d="M120 65 Q150 52 185 65" stroke="#000" strokeWidth="1" fill="none" />
+          {/* Basette più dritte e differenti tra lato sx/dx */}
+          <path
+            d="M80 95 L85 125"
+            stroke={hairColor}
+            strokeWidth="8"
+            strokeLinecap="round"
+          />
+          <path
+            d="M220 95 L210 130"
+            stroke={hairColor}
+            strokeWidth="10"
+            strokeLinecap="round"
+          />
+        </g>
         );
       case "long":
-        return (
-          <g>
-            <path
-              d="M80 75 Q150 60 220 75 Q225 115 205 145 Q195 155 150 150 Q105 155 95 145 Q75 115 80 75 Z"
-              fill={hairColor}
-              stroke="#000"
-              strokeWidth="3"
-            />
+      return (
+        <g>
+          <path
+            d="M80 75 Q150 60 220 75 Q225 115 205 145 Q195 155 150 150 Q105 155 95 145 Q75 115 80 75 Z"
+            fill={hairColor}
+            stroke="#000"
+            strokeWidth="3"
+          />
           </g>
-        );
+            );
       case "curly":
         return (
           <g>
-            <circle cx="125" cy="70" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="150" cy="65" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="175" cy="70" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="115" cy="85" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
-            <circle cx="185" cy="85" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="125" cy="60" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="150" cy="55" r="15" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="175" cy="60" r="12" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="110" cy="75" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
+            <circle cx="190" cy="75" r="10" fill={hairColor} stroke="#000" strokeWidth="2" />
           </g>
         );
       case "messy":
@@ -79,14 +99,27 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
           />
         );
       case "wavy":
-        return (
-          <path
-            d="M90 80 Q115 65 150 70 Q165 65 210 80 Q205 100 150 95 Q95 100 90 80 Z"
-            fill={hairColor}
-            stroke="#000"
-            strokeWidth="3"
-          />
-        );
+      return (
+        <path
+          d="M90 60 
+             Q110 40 150 45 
+             Q190 40 210 60 
+             Q220 80 215 100 
+             Q210 115 200 120 
+             Q195 100 195 85 
+             Q195 70 180 65 
+             Q165 60 150 62 
+             Q135 60 120 65 
+             Q105 70 105 85 
+             Q105 100 100 120 
+             Q90 115 85 100 
+             Q80 80 90 60 
+             Z"
+          fill={hairColor}
+          stroke="#000"
+          strokeWidth="3"
+        />
+      );
       case "buzz":
         return (
           <path
@@ -104,37 +137,76 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
   const renderMustache = () => {
     switch (avatarConfig.mustacheStyle) {
       case "classic":
-        return (
-          <ellipse
-            cx="150"
-            cy="150"
-            rx="12"
-            ry="4"
+      return (
+        <g>
+          {/* Parte sinistra */}
+          <path
+            d="M135 150 C125 148, 125 152, 135 154"
             fill={avatarConfig.mustacheColor}
             stroke="#000"
             strokeWidth="1"
           />
-        );
+          {/* Parte destra */}
+          <path
+            d="M165 150 C175 148, 175 152, 165 154"
+            fill={avatarConfig.mustacheColor}
+            stroke="#000"
+            strokeWidth="1"
+          />
+          {/* Parte centrale */}
+          <rect
+            x="135"
+            y="150"
+            width="30"
+            height="4"
+            fill={avatarConfig.mustacheColor}
+            stroke="#000"
+            strokeWidth="1"
+          />
+        </g>
+      );
       case "thick":
-        return (
-          <ellipse
-            cx="150"
-            cy="150"
-            rx="15"
-            ry="6"
+      return (
+        <g>
+          <path
+            d="M135 150 C125 145, 120 150, 135 155"
             fill={avatarConfig.mustacheColor}
             stroke="#000"
             strokeWidth="1"
           />
-        );
+          <path
+            d="M165 150 C175 145, 180 150, 165 155"
+            fill={avatarConfig.mustacheColor}
+            stroke="#000"
+            strokeWidth="1"
+          />
+          <rect
+            x="135"
+            y="149"
+            width="30"
+            height="4"
+            fill={avatarConfig.mustacheColor}
+            stroke="#000"
+            strokeWidth="1"
+          />
+        </g>
+      );
       case "handlebar":
-        return (
-          <g>
-            <ellipse cx="150" cy="150" rx="10" ry="3" fill={avatarConfig.mustacheColor} />
-            <circle cx="135" cy="148" r="4" fill={avatarConfig.mustacheColor} />
-            <circle cx="165" cy="148" r="4" fill={avatarConfig.mustacheColor} />
-          </g>
-        );
+      return (
+        <path
+          d="
+            M120 150
+            C120 145 135 140 150 145
+            C165 140 180 145 180 150
+            C180 155 165 160 150 155
+            C135 160 120 155 120 150 Z
+          "
+          fill={avatarConfig.mustacheColor}
+          stroke="#000"
+          strokeWidth="1"
+          strokeLinecap="round"
+        />
+      );
       default:
         return null;
     }
@@ -146,7 +218,7 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         return (
           <ellipse
             cx="150"
-            cy="175"
+            cy="190"
             rx="8"
             ry="12"
             fill={avatarConfig.beardColor}
@@ -157,7 +229,7 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
       case "full":
         return (
           <path
-            d="M110 160 Q150 180 190 160 Q190 185 150 190 Q110 185 110 160 Z"
+            d="M100 170 Q150 200 200 170 Q200 200 150 210 Q100 200 100 170 Z"
             fill={avatarConfig.beardColor}
             stroke="#000"
             strokeWidth="1"
@@ -167,9 +239,9 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         return (
           <ellipse
             cx="150"
-            cy="170"
-            rx="25"
-            ry="8"
+            cy="180"     // abbassata (da 170 a 180)
+            rx="49"      // allargata (da 25 a 35)
+            ry="22"
             fill={avatarConfig.beardColor}
             opacity="0.3"
           />
@@ -215,8 +287,8 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         {/* Spalle con braccia ancora più in alto */}
         <ellipse
           cx="150"
-          cy="260"
-          rx="110"
+          cy="249"
+          rx="122"
           ry="40"
           fill={avatarConfig.suitColor}
           stroke="#000"
@@ -284,8 +356,8 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         <path
           d="M90 130 Q90 60 150 55 Q210 60 210 130 Q210 200 150 205 Q90 200 90 130 Z"
           fill={avatarConfig.skinColor}
-          /* stroke="#000" */
-          /* strokeWidth="4" */
+          stroke="#000"
+          strokeWidth="4"
          />
         
         {/* Capelli */}
