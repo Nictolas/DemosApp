@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings } from "lucide-react";
+import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings, Crown, Building2, Scale, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
 
@@ -168,6 +168,38 @@ export default function Menu() {
               >
                 <Trophy className="mr-2 h-5 w-5" />
                 Podio Trasparenza
+              </Button>
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="outline"
+                onClick={() => window.location.href = "/capo-di-stato"}
+              >
+                <Crown className="mr-2 h-5 w-5" />
+                Capo di Stato
+              </Button>
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="default"
+                onClick={() => window.location.href = "/governo"}
+              >
+                <Building2 className="mr-2 h-5 w-5" />
+                Governo
+              </Button>
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="outline"
+                onClick={() => window.location.href = "/grazia"}
+              >
+                <Scale className="mr-2 h-5 w-5" />
+                Grazia
+              </Button>
+              <Button 
+                className="h-24 text-lg font-medium" 
+                variant="default"
+                onClick={() => window.location.href = "/amnistia"}
+              >
+                <Users className="mr-2 h-5 w-5" />
+                Amnistia
               </Button>
               {isAdmin && (
                 <Button 
