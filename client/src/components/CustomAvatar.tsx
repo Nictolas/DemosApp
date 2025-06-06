@@ -1,3 +1,25 @@
+function darkenColor(hexColor, amount = 20) {
+  // Rimuove il # se presente
+  let color = hexColor.replace("#", "");
+  if (color.length === 3) {
+    color = color.split("").map(c => c + c).join("");
+  }
+
+  // Estrae i valori RGB
+  const num = parseInt(color, 16);
+  let r = (num >> 16) & 0xFF;
+  let g = (num >> 8) & 0xFF;
+  let b = num & 0xFF;
+
+  // Scura il colore
+  r = Math.max(0, r - amount);
+  g = Math.max(0, g - amount);
+  b = Math.max(0, b - amount);
+
+  // Ricompone in esadecimale
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
 interface AvatarConfig {
   skinColor: string;
   hairColor: string;
@@ -40,45 +62,99 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
       case "bald":
         return null;
       case "short":
-      return (
-        <g>
-          {/* Capelli superiori, ancora più in alto e asimmetrici */}
-          <path
-            d="M80 70 Q150 45 220 75 L220 95 Q150 90 80 95 Z"
-            fill={hairColor}
-            stroke="#000"
-            strokeWidth="3"
-          />
-          {/* Ciocche di dettaglio */}
-          <path d="M90 70 Q110 58 130 75" stroke="#000" strokeWidth="1" fill="none" />
-          <path d="M165 75 Q185 55 205 72" stroke="#000" strokeWidth="1" fill="none" />
-          <path d="M120 65 Q150 52 185 65" stroke="#000" strokeWidth="1" fill="none" />
-          {/* Basette più dritte e differenti tra lato sx/dx */}
-          <path
-            d="M80 95 L85 125"
-            stroke={hairColor}
-            strokeWidth="8"
-            strokeLinecap="round"
-          />
-          <path
-            d="M220 95 L210 130"
-            stroke={hairColor}
-            strokeWidth="10"
-            strokeLinecap="round"
-          />
-        </g>
+        return (
+          <g>
+            {/* Ciocca sinistra, abbassata e leggermente avvicinata */}
+            <path
+              d="M93 100 
+                 Q88 130 93 160 
+                 Q98 150 103 130 
+                 Q98 110 93 100 
+                 Z"
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="3"
+            />
+
+            {/* Ciocca destra, abbassata e leggermente avvicinata */}
+            <path
+              d="M207 100 
+                 Q212 130 207 160 
+                 Q202 150 197 130 
+                 Q202 110 207 100 
+                 Z"
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="3"
+            />
+          </g>
         );
       case "long":
-      return (
-        <g>
-          <path
-            d="M80 75 Q150 60 220 75 Q225 115 205 145 Q195 155 150 150 Q105 155 95 145 Q75 115 80 75 Z"
-            fill={hairColor}
-            stroke="#000"
-            strokeWidth="3"
-          />
+        const darkerHairColor = darkenColor(hairColor, 30);
+
+        return (
+          <g>
+            {/* Ciocca sinistra */}
+            <path
+              d="M85,60 C65,110 60,180 75,230 C85,255 100,255 105,235 C110,215 105,170 100,155 C90,130 90,90 115,70 L115,60 Z"
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="4"
+            />
+
+            {/* Ciocca destra */}
+            <path
+              d="M215,60 C235,110 240,180 225,230 C215,255 200,255 195,235 C190,215 195,170 200,155 C210,130 210,90 185,70 L185,60 Z"
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="4"
+            />
+
+            {/* Linee interne sinistra – colore più scuro dei capelli */}
+            <path
+              d="M85 85 C65 120 70 150 75 170"
+              stroke={darkerHairColor}
+              strokeWidth="2"
+              fill="none"
+            />
+            <path
+              d="M90 100 C70 130 80 160 82 180"
+              stroke={darkerHairColor}
+              strokeWidth="2"
+              fill="none"
+            />
+
+            {/* Linee interne destra – colore più scuro dei capelli */}
+            <path
+              d="M215 85 C235 120 230 150 225 170"
+              stroke={darkerHairColor}
+              strokeWidth="2"
+              fill="none"
+            />
+            <path
+              d="M210 100 C230 130 220 160 218 180"
+              stroke={darkerHairColor}
+              strokeWidth="2"
+              fill="none"
+            />
+
+            {/* Parte superiore (frangetta) – più realistica, abbassata */}
+            <path
+              d="
+                M230,60
+                C235,75 215,80 200,70
+                C190,90 160,85 150,60
+                C140,85 110,90 100,70
+                C85,80 65,75 70,60
+                C75,40 225,40 230,60
+                Z
+              "
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="4"
+            />
           </g>
-            );
+        );
       case "curly":
         return (
           <g>
@@ -91,12 +167,44 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         );
       case "messy":
         return (
-          <path
-            d="M85 85 Q105 60 125 75 Q135 55 150 70 Q155 50 165 75 Q175 65 195 80 Q185 95 150 90 Q105 95 85 85 Z"
-            fill={hairColor}
-            stroke="#000"
-            strokeWidth="3"
-          />
+          <g>
+            {/* Capelli laterali più lunghi verso il basso */}
+            <path
+              d="M90 100 
+                 Q110 40 150 45 
+                 Q190 40 210 80 
+                 Q220 110 215 130 
+                 Q210 145 200 150 
+                 Q195 100 195 85 
+                 Q195 70 180 65 
+                 Q165 60 150 62 
+                 Q135 60 120 65 
+                 Q105 70 105 85 
+                 Q105 100 100 140 
+                 Q90 135 85 130 
+                 Q80 120 90 100 
+                 Z"
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="3"
+            />
+
+            {/* Frangetta davanti */}
+            <path
+              d="
+                M230,60
+                C235,75 215,80 200,70
+                C190,90 160,85 150,60
+                C140,85 210,90 100,70
+                C85,80 65,75 70,60
+                C75,40 225,40 230,60
+                Z
+              "
+              fill={hairColor}
+              stroke="#000"
+              strokeWidth="4"
+            />
+          </g>
         );
       case "wavy":
       return (
@@ -121,14 +229,37 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
         />
       );
       case "buzz":
-        return (
+      return (
+        <g>
+          {/* Ciocca sinistra abbassata con punta più verso l'interno */}
           <path
-            d="M95 80 Q150 70 205 80 Q200 90 150 88 Q100 90 95 80 Z"
+            d="
+              M90 80 
+              Q80 110 90 140 
+              Q95 130 100 110 
+              Q95 90 90 80 
+              Z
+            "
             fill={hairColor}
             stroke="#000"
             strokeWidth="3"
           />
-        );
+
+          {/* Ciocca destra abbassata con punta più verso l'interno */}
+          <path
+            d="
+              M210 80 
+              Q220 110 210 140 
+              Q205 130 200 110 
+              Q205 90 210 80 
+              Z
+            "
+            fill={hairColor}
+            stroke="#000"
+            strokeWidth="3"
+          />
+        </g>
+      );
       default:
         return null;
     }

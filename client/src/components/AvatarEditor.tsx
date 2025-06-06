@@ -45,11 +45,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     { name: "Medio", value: "#F1C27D" },
     { name: "Olivastro", value: "#E0AC69" },
     { name: "Scuro", value: "#C68642" },
-    { name: "Molto Scuro", value: "#8D5524" }
+    { name: "Molto Scuro", value: "#8D5524" },
+    { name: "Ebano", value: "#5D4037" }
   ];
 
   const hairColors = [
     { name: "Biondo", value: "#F5F5DC" },
+    { name: "Biondo Platino", value: "#FFF8DC" },
     { name: "Castano", value: "#8B4513" },
     { name: "Nero", value: "#2F2F2F" },
     { name: "Rosso", value: "#B22222" },
@@ -61,7 +63,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     { name: "Blu Scuro", value: "#2C3E50" },
     { name: "Nero", value: "#2F2F2F" },
     { name: "Grigio", value: "#5D6D7E" },
-    { name: "Marrone", value: "#8B4513" }
+    { name: "Marrone", value: "#8B4513" },
+    { name: "Blu Navy", value: "#1A237E" },
+    { name: "Verde Scuro", value: "#2E7D32" }
   ];
 
   const tieColors = [
@@ -69,7 +73,8 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     { name: "Blu", value: "#3498DB" },
     { name: "Verde", value: "#27AE60" },
     { name: "Giallo", value: "#F1C40F" },
-    { name: "Viola", value: "#9B59B6" }
+    { name: "Viola", value: "#9B59B6" },
+    { name: "Arancione", value: "#FF5722" }
   ];
 
 
@@ -254,7 +259,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
           <CardContent className="space-y-4">
             <div>
               <Label>Colore Giacca</Label>
-              <div className="grid grid-cols-4 gap-2 mt-2">
+              <div className="grid grid-cols-6 gap-2 mt-2">
                 {suitColors.map((color) => (
                   <button
                     key={color.value}
@@ -271,7 +276,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
             <div>
               <Label>Colore Cravatta</Label>
-              <div className="grid grid-cols-5 gap-2 mt-2">
+              <div className="grid grid-cols-6 gap-2 mt-2">
                 {tieColors.map((color) => (
                   <button
                     key={color.value}
