@@ -1039,6 +1039,177 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== CAPO DI STATO ROUTES =====
+
+  // Vote for head of state
+  app.post('/api/capo-stato/vota', requireAuth, async (req, res) => {
+    try {
+      const { nome } = req.body;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!nome) {
+        return res.status(400).json({ error: 'Nome è richiesto' });
+      }
+
+      const result = await FirebaseService.voteCapodiStato(userId, nome);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto registrato con successo' });
+    } catch (error) {
+      console.error('Errore nel registrare voto capo di stato:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get user votes for head of state
+  app.get('/api/capo-stato/voti', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const voti = await FirebaseService.getUserVotiCapodiStato(userId);
+      return res.status(200).json(voti);
+    } catch (error) {
+      console.error('Errore nel recuperare voti capo di stato:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get head of state ranking
+  app.get('/api/capo-stato/classifica', async (req, res) => {
+    try {
+      const classifica = await FirebaseService.getClassificaCapodiStato();
+      return res.status(200).json(classifica);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica capo di stato:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // ===== GRAZIA ROUTES =====
+
+  // Vote for grace
+  app.post('/api/grazia/vota', requireAuth, async (req, res) => {
+    try {
+      const { nome } = req.body;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!nome) {
+        return res.status(400).json({ error: 'Nome è richiesto' });
+      }
+
+      const result = await FirebaseService.voteGrazia(userId, nome);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto registrato con successo' });
+    } catch (error) {
+      console.error('Errore nel registrare voto grazia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get user votes for grace
+  app.get('/api/grazia/voti', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const voti = await FirebaseService.getUserVotiGrazia(userId);
+      return res.status(200).json(voti);
+    } catch (error) {
+      console.error('Errore nel recuperare voti grazia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get grace ranking
+  app.get('/api/grazia/classifica', async (req, res) => {
+    try {
+      const classifica = await FirebaseService.getClassificaGrazia();
+      return res.status(200).json(classifica);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica grazia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // ===== AMNISTIA ROUTES =====
+
+  // Vote for amnesty
+  app.post('/api/amnistia/vota', requireAuth, async (req, res) => {
+    try {
+      const { legge } = req.body;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!legge) {
+        return res.status(400).json({ error: 'Legge è richiesta' });
+      }
+
+      const result = await FirebaseService.voteAmnistia(userId, legge);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto registrato con successo' });
+    } catch (error) {
+      console.error('Errore nel registrare voto amnistia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get user votes for amnesty
+  app.get('/api/amnistia/voti', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const voti = await FirebaseService.getUserVotiAmnistia(userId);
+      return res.status(200).json(voti);
+    } catch (error) {
+      console.error('Errore nel recuperare voti amnistia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get amnesty ranking
+  app.get('/api/amnistia/classifica', async (req, res) => {
+    try {
+      const classifica = await FirebaseService.getClassificaAmnistia();
+      return res.status(200).json(classifica);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica amnistia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
