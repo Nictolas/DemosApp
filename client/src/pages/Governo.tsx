@@ -1,13 +1,190 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Briefcase, GraduationCap, Heart, Palette } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Briefcase, GraduationCap, Heart, Palette, Vote, Trophy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+
+interface Classifica {
+  nome: string;
+  voti: number;
+}
+
+interface UserVoti {
+  [categoria: string]: string;
+}
+
+interface TutteClassifiche {
+  [categoria: string]: Classifica[];
+}
 
 export default function Governo() {
   const { user, isLoading } = useAuth();
+  const { toast } = useToast();
+  const [userVoti, setUserVoti] = useState<UserVoti>({});
+  const [classifiche, setClassifiche] = useState<TutteClassifiche>({});
+  const [loadingVoti, setLoadingVoti] = useState(false);
+  const [votingCategory, setVotingCategory] = useState<string | null>(null);
+
+  const ministeri = [
+    {
+      title: "Primo Ministro",
+      categoria: "primo_ministro",
+      icon: User,
+      description: "Presidenza del Consiglio dei Ministri",
+      color: "bg-red-100 text-red-600"
+    },
+    {
+      title: "Ministero degli Esteri",
+      categoria: "esteri",
+      icon: Building2,
+      description: "Relazioni internazionali e cooperazione",
+      color: "bg-blue-100 text-blue-600"
+    },
+    {
+      title: "Ministero dell'Interno",
+      categoria: "interno",
+      icon: Shield,
+      description: "Sicurezza pubblica e amministrazione territoriale",
+      color: "bg-green-100 text-green-600"
+    },
+    {
+      title: "Ministero della Giustizia",
+      categoria: "giustizia",
+      icon: Scale,
+      description: "Sistema giudiziario e carcerario",
+      color: "bg-purple-100 text-purple-600"
+    },
+    {
+      title: "Ministero della Difesa",
+      categoria: "difesa",
+      icon: Shield,
+      description: "Forze armate e sicurezza nazionale",
+      color: "bg-gray-100 text-gray-600"
+    },
+    {
+      title: "Ministero dell'Economia e delle Finanze",
+      categoria: "economia",
+      icon: Banknote,
+      description: "Politiche economiche e fiscali",
+      color: "bg-yellow-100 text-yellow-600"
+    },
+    {
+      title: "Ministero del Lavoro e delle Politiche Sociali",
+      categoria: "lavoro",
+      icon: Briefcase,
+      description: "Occupazione e previdenza sociale",
+      color: "bg-orange-100 text-orange-600"
+    },
+    {
+      title: "Ministero dell'Istruzione",
+      categoria: "istruzione",
+      icon: GraduationCap,
+      description: "Sistema educativo e formazione",
+      color: "bg-indigo-100 text-indigo-600"
+    },
+    {
+      title: "Ministero della Salute",
+      categoria: "salute",
+      icon: Heart,
+      description: "Sanità pubblica e politiche sanitarie",
+      color: "bg-pink-100 text-pink-600"
+    },
+    {
+      title: "Ministero della Cultura",
+      categoria: "cultura",
+      icon: Palette,
+      description: "Patrimonio culturale e spettacolo",
+      color: "bg-teal-100 text-teal-600"
+    }
+  ];
+
+  // Carica i voti dell'utente e le classifiche
+  useEffect(() => {
+    if (user) {
+      loadUserData();
+    }
+  }, [user]);
+
+  const loadUserData = async () => {
+    setLoadingVoti(true);
+    try {
+      // Carica i voti dell'utente
+      const votiResponse = await fetch('/api/governo/voti', {
+        credentials: 'include'
+      });
+      if (votiResponse.ok) {
+        const voti = await votiResponse.json();
+        setUserVoti(voti);
+      }
+
+      // Carica tutte le classifiche
+      const classificheResponse = await fetch('/api/governo/classifiche');
+      if (classificheResponse.ok) {
+        const classificheData = await classificheResponse.json();
+        setClassifiche(classificheData);
+      }
+    } catch (error) {
+      console.error('Errore nel caricamento dati:', error);
+    } finally {
+      setLoadingVoti(false);
+    }
+  };
+
+  const handleVote = async (categoria: string, nomeMinistro: string) => {
+    if (!nomeMinistro.trim()) {
+      toast({
+        title: "Errore",
+        description: "Inserisci un nome valido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setVotingCategory(categoria);
+    try {
+      const response = await fetch('/api/governo/vota', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          categoria,
+          nomeMinistro: nomeMinistro.trim()
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Voto registrato",
+          description: `Hai votato ${nomeMinistro} per ${ministeri.find(m => m.categoria === categoria)?.title}`,
+        });
+        
+        // Aggiorna i dati
+        await loadUserData();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Errore",
+          description: error.error || "Errore nel registrare il voto",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Errore nel votare:', error);
+      toast({
+        title: "Errore",
+        description: "Errore di connessione",
+        variant: "destructive",
+      });
+    } finally {
+      setVotingCategory(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -20,79 +197,6 @@ export default function Governo() {
   if (!user) {
     return <Redirect to="/auth" />;
   }
-
-  const ministeri = [
-    {
-      title: "Primo Ministro",
-      icon: User,
-      description: "Presidenza del Consiglio dei Ministri",
-      color: "bg-red-100 text-red-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero degli Esteri",
-      icon: Building2,
-      description: "Relazioni internazionali e cooperazione",
-      color: "bg-blue-100 text-blue-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero dell'Interno",
-      icon: Shield,
-      description: "Sicurezza pubblica e amministrazione territoriale",
-      color: "bg-green-100 text-green-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero della Giustizia",
-      icon: Scale,
-      description: "Sistema giudiziario e carcerario",
-      color: "bg-purple-100 text-purple-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero della Difesa",
-      icon: Shield,
-      description: "Forze armate e sicurezza nazionale",
-      color: "bg-gray-100 text-gray-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero dell'Economia e delle Finanze",
-      icon: Banknote,
-      description: "Politiche economiche e fiscali",
-      color: "bg-yellow-100 text-yellow-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero del Lavoro e delle Politiche Sociali",
-      icon: Briefcase,
-      description: "Occupazione e previdenza sociale",
-      color: "bg-orange-100 text-orange-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero dell'Istruzione",
-      icon: GraduationCap,
-      description: "Sistema educativo e formazione",
-      color: "bg-indigo-100 text-indigo-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero della Salute",
-      icon: Heart,
-      description: "Sanità pubblica e politiche sanitarie",
-      color: "bg-pink-100 text-pink-600",
-      status: "Attivo"
-    },
-    {
-      title: "Ministero della Cultura",
-      icon: Palette,
-      description: "Patrimonio culturale e spettacolo",
-      color: "bg-teal-100 text-teal-600",
-      status: "Attivo"
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
@@ -116,88 +220,136 @@ export default function Governo() {
               Governo
             </CardTitle>
             <CardDescription className="text-lg">
-              Gestione dei ministeri e delle politiche governative
+              Vota per i tuoi ministri preferiti e visualizza le classifiche
             </CardDescription>
           </CardHeader>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {ministeri.map((ministero, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <div className="flex items-center justify-between mb-2">
-                  <div className={`p-3 rounded-lg ${ministero.color}`}>
-                    <ministero.icon className="h-6 w-6" />
-                  </div>
-                  <Badge variant={ministero.status === "Attivo" ? "default" : "secondary"}>
-                    {ministero.status}
-                  </Badge>
-                </div>
-                <CardTitle className="text-lg leading-tight">
-                  {ministero.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {ministero.description}
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Personale:</span>
-                    <span className="font-medium">---</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Budget:</span>
-                    <span className="font-medium">---</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Statistiche Generali */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="h-5 w-5" />
-                <span>Ministri Attivi</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-blue-600">10</div>
-              <p className="text-sm text-muted-foreground">Su 10 ministeri</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Briefcase className="h-5 w-5" />
-                <span>Progetti in Corso</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">---</div>
-              <p className="text-sm text-muted-foreground">Iniziative attive</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Scale className="h-5 w-5" />
-                <span>Leggi Approvate</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-purple-600">---</div>
-              <p className="text-sm text-muted-foreground">Nell'ultimo anno</p>
-            </CardContent>
-          </Card>
-        </div>
+        {loadingVoti ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ministeri.map((ministero) => (
+              <MinisteroCard
+                key={ministero.categoria}
+                ministero={ministero}
+                userVote={userVoti[ministero.categoria] || ""}
+                classifica={classifiche[ministero.categoria] || []}
+                onVote={(nome) => handleVote(ministero.categoria, nome)}
+                isVoting={votingCategory === ministero.categoria}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+interface MinisteroCardProps {
+  ministero: {
+    title: string;
+    categoria: string;
+    icon: any;
+    description: string;
+    color: string;
+  };
+  userVote: string;
+  classifica: Classifica[];
+  onVote: (nome: string) => void;
+  isVoting: boolean;
+}
+
+function MinisteroCard({ ministero, userVote, classifica, onVote, isVoting }: MinisteroCardProps) {
+  const [nomeInput, setNomeInput] = useState(userVote);
+
+  useEffect(() => {
+    setNomeInput(userVote);
+  }, [userVote]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onVote(nomeInput);
+  };
+
+  return (
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardHeader>
+        <div className="flex items-center justify-between mb-2">
+          <div className={`p-3 rounded-lg ${ministero.color}`}>
+            <ministero.icon className="h-6 w-6" />
+          </div>
+          {userVote && (
+            <Badge variant="default">
+              <Vote className="h-3 w-3 mr-1" />
+              Votato
+            </Badge>
+          )}
+        </div>
+        <CardTitle className="text-lg leading-tight">
+          {ministero.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          {ministero.description}
+        </p>
+
+        {/* Form di voto */}
+        <form onSubmit={handleSubmit} className="space-y-2">
+          <div className="flex space-x-2">
+            <Input
+              placeholder="Nome del candidato..."
+              value={nomeInput}
+              onChange={(e) => setNomeInput(e.target.value)}
+              className="flex-1"
+            />
+            <Button 
+              type="submit" 
+              size="sm" 
+              disabled={isVoting || !nomeInput.trim()}
+            >
+              {isVoting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Vote className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          {userVote && (
+            <p className="text-xs text-muted-foreground">
+              Il tuo voto attuale: <strong>{userVote}</strong>
+            </p>
+          )}
+        </form>
+
+        {/* Classifica */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold flex items-center">
+            <Trophy className="h-4 w-4 mr-1 text-yellow-500" />
+            Top 3
+          </h4>
+          {classifica.length > 0 ? (
+            <div className="space-y-1">
+              {classifica.map((candidato, index) => (
+                <div key={candidato.nome} className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-yellow-600">#{index + 1}</span>
+                    <span className="truncate">{candidato.nome}</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {candidato.voti} voti
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Nessun voto ancora</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

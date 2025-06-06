@@ -970,6 +970,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GOVERNO ROUTES =====
+
+  // Vote for a minister
+  app.post('/api/governo/vota', requireAuth, async (req, res) => {
+    try {
+      const { categoria, nomeMinistro } = req.body;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!categoria || !nomeMinistro) {
+        return res.status(400).json({ error: 'Categoria e nome ministro sono richiesti' });
+      }
+
+      const result = await FirebaseService.voteMinistro(userId, categoria, nomeMinistro);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto registrato con successo' });
+    } catch (error) {
+      console.error('Errore nel registrare voto ministro:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get user votes for all ministers
+  app.get('/api/governo/voti', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const voti = await FirebaseService.getUserVotiMinistri(userId);
+      return res.status(200).json(voti);
+    } catch (error) {
+      console.error('Errore nel recuperare voti utente:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get rankings for all ministers
+  app.get('/api/governo/classifiche', async (req, res) => {
+    try {
+      const classifiche = await FirebaseService.getAllClassificheMinistri();
+      return res.status(200).json(classifiche);
+    } catch (error) {
+      console.error('Errore nel recuperare classifiche ministri:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get ranking for specific minister category
+  app.get('/api/governo/classifica/:categoria', async (req, res) => {
+    try {
+      const { categoria } = req.params;
+      const classifica = await FirebaseService.getClassificaMinistro(categoria);
+      return res.status(200).json(classifica);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica ministro:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
