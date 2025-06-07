@@ -1210,6 +1210,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== COMIZI ROUTES =====
+
+  // Create a new comizio
+  app.post('/api/comizi', requireAuth, async (req, res) => {
+    try {
+      const { dove, quando } = req.body;
+      
+      if (!dove || !quando) {
+        return res.status(400).json({ error: 'Dove e quando sono richiesti' });
+      }
+
+      // Get user data for organizer info
+      const userData = await FirebaseService.getUserByEmail(req.user.email);
+      if (!userData) {
+        return res.status(404).json({ error: 'Dati utente non trovati' });
+      }
+
+      const comizioData = {
+        dove,
+        quando,
+        organizzatore: `${userData.nome} ${userData.cognome}`,
+        organizzatore_email: req.user.email,
+        data_creazione: new Date().toISOString()
+      };
+
+      // Save to Firebase (we'll use a simple collection for now)
+      const result = await FirebaseService.saveComizio(comizioData);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante il salvataggio del comizio',
+          details: result.error
+        });
+      }
+
+      return res.status(201).json({ 
+        message: 'Comizio programmato con successo',
+        data: result.data
+      });
+    } catch (error) {
+      console.error('Errore durante la creazione del comizio:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get all comizi
+  app.get('/api/comizi', async (req, res) => {
+    try {
+      const comizi = await FirebaseService.getAllComizi();
+      return res.status(200).json(comizi);
+    } catch (error) {
+      console.error('Errore nel recupero comizi:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

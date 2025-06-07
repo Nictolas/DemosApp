@@ -1,6 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Calendar, MapPin } from "lucide-react";
@@ -14,35 +15,16 @@ export default function Comizi() {
     return <Redirect to="/auth" />;
   }
 
-  // Mock data for now - will be replaced with Firebase integration
-  const comizi = [
-    {
-      id: 1,
-      data: "2024-12-20",
-      ora: "18:00",
-      luogo: "Piazza del Duomo, Milano",
-      organizzatore: "Marco Rossi",
-    },
-    {
-      id: 2,
-      data: "2024-12-22",
-      ora: "20:30",
-      luogo: "Auditorium Parco della Musica, Roma",
-      organizzatore: "Laura Bianchi",
-    },
-    {
-      id: 3,
-      data: "2024-12-25",
-      ora: "16:00",
-      luogo: "Teatro La Fenice, Venezia",
-      organizzatore: "Giuseppe Verdi",
-    },
-  ];
+  // Fetch comizi data from API
+  const { data: comizi = [], isLoading: comiziLoading } = useQuery({
+    queryKey: ["/api/comizi"],
+    enabled: !!user,
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <Navbar />
-      {isLoading ? (
+      {isLoading || comiziLoading ? (
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -81,20 +63,25 @@ export default function Comizi() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {comizi.map((comizio) => (
+                    {comizi.map((comizio: any) => (
                       <TableRow key={comizio.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <TableCell className="font-medium">
-                          {new Date(comizio.data).toLocaleDateString('it-IT', {
+                          {new Date(comizio.quando).toLocaleDateString('it-IT', {
                             weekday: 'short',
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric'
                           })}
                         </TableCell>
-                        <TableCell>{comizio.ora}</TableCell>
+                        <TableCell>
+                          {new Date(comizio.quando).toLocaleTimeString('it-IT', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </TableCell>
                         <TableCell className="max-w-xs">
-                          <div className="truncate" title={comizio.luogo}>
-                            {comizio.luogo}
+                          <div className="truncate" title={comizio.dove}>
+                            {comizio.dove}
                           </div>
                         </TableCell>
                         <TableCell>{comizio.organizzatore}</TableCell>

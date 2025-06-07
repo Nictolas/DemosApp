@@ -1508,6 +1508,52 @@ class FirebaseService {
   /**
    * Recupera la classifica per amnistia (Top 10)
    */
+  /**
+   * Salva un nuovo comizio su Firebase
+   */
+  static async saveComizio(comizioData: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      const db = getFirestore();
+      const comiziRef = collection(db, 'comizi');
+      const docRef = await addDoc(comiziRef, comizioData);
+      
+      return {
+        success: true,
+        data: { id: docRef.id, ...comizioData }
+      };
+    } catch (error) {
+      console.error('Errore nel salvare comizio:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Recupera tutti i comizi da Firebase
+   */
+  static async getAllComizi(): Promise<any[]> {
+    try {
+      const db = getFirestore();
+      const comiziRef = collection(db, 'comizi');
+      const q = query(comiziRef, orderBy('quando', 'asc'));
+      const querySnapshot = await getDocs(q);
+      
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Errore nel recuperare comizi:', error);
+      return [];
+    }
+  }
+
   static async getClassificaAmnistia(): Promise<Array<{nome: string, voti: number}>> {
     try {
       if (!db) {
