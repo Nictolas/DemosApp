@@ -200,12 +200,36 @@ export default function Amnistia() {
               <CardContent>
                 <form onSubmit={handleVote} className="space-y-4">
                   <div className="flex space-x-2">
-                    <Input
-                      placeholder="Nome della legge..."
-                      value={leggeInput}
-                      onChange={(e) => setLeggeInput(e.target.value)}
-                      className="flex-1"
-                    />
+                    <div className="flex-1 relative">
+                      <Input
+                        placeholder="Nome della legge..."
+                        value={leggeInput}
+                        onChange={(e) => {
+                          setLeggeInput(e.target.value);
+                          setShowSuggestions(true);
+                        }}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        className="w-full"
+                      />
+                      {showSuggestions && getSuggestions().length > 0 && (
+                        <div className="absolute top-full left-0 right-0 z-10 bg-white border border-gray-200 rounded-md shadow-lg mt-1">
+                          {getSuggestions().map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                              onClick={() => {
+                                setLeggeInput(suggestion.nome);
+                                setShowSuggestions(false);
+                              }}
+                            >
+                              {suggestion.nome} ({suggestion.voti} voti)
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <Button 
                       type="submit" 
                       disabled={isVoting || !leggeInput.trim()}
@@ -225,12 +249,20 @@ export default function Amnistia() {
                     <h4 className="text-sm font-semibold mb-2">I tuoi voti:</h4>
                     <div className="flex flex-wrap gap-2">
                       {userVoti.map((voto, index) => (
-                        <Badge key={index} variant="default">
+                        <Badge 
+                          key={index} 
+                          variant="default"
+                          className="cursor-pointer hover:bg-destructive/90 transition-colors"
+                          onClick={() => removeVote(voto)}
+                        >
                           <Vote className="h-3 w-3 mr-1" />
                           {voto}
                         </Badge>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Clicca su un nome per rimuovere il voto
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -253,6 +285,15 @@ export default function Amnistia() {
                     {classifica.map((legge, index) => (
                       <div key={legge.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
                         <div className="flex items-center space-x-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => voteForLaw(legge.nome)}
+                            disabled={isVoting}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                          </Button>
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                             index === 0 ? 'bg-yellow-100 text-yellow-700' :
                             index === 1 ? 'bg-gray-100 text-gray-700' :
@@ -263,9 +304,26 @@ export default function Amnistia() {
                           </div>
                           <span className="font-medium">{legge.nome}</span>
                         </div>
-                        <Badge variant="outline">
-                          {legge.voti} voti
-                        </Badge>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline">
+                            {legge.voti} voti
+                          </Badge>
+                          {user?.email === "polidemos@gmail.com" && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteFromClassifica(legge.nome)}
+                              disabled={isDeleting === legge.nome}
+                              className="h-8 w-8 p-0"
+                            >
+                              {isDeleting === legge.nome ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <X className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
