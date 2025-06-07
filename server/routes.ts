@@ -247,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      console.log(`Utente autenticato. ID: ${req.user.id}, Email: ${req.user.email}, UUID: ${req.user.uuid || req.user.id}`);
+      console.log(`Utente autenticato. ID: ${req.user.id}, Email: ${req.user.email}, UID: ${req.user.uid || req.user.id}`);
       
       const opinionsData = req.body;
       
@@ -310,16 +310,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      console.log(`Utente autenticato per richiesta opinioni. ID: ${req.user.id}, Email: ${req.user.email}, UUID: ${req.user.uuid || req.user.id}`);
+      console.log(`Utente autenticato per richiesta opinioni. ID: ${req.user.id}, Email: ${req.user.email}, UID: ${req.user.uid || req.user.id}`);
       
       // Priorità di identificativi per recuperare le opinioni:
-      // 1. UUID (il più affidabile, è l'ID di Firebase Auth)
+      // 1. UID (il più affidabile, è l'ID di Firebase Auth)
       // 2. Email (secondo più affidabile)
       
-      const userId = req.user.uuid || req.user.id; // Preferisco usare l'UUID ma fallback all'ID
+      const userId = req.user.uid || req.user.id; // Preferisco usare l'UID ma fallback all'ID
       const email = req.user.email;
       
-      console.log(`Recuperando opinioni con UUID: ${userId}`);
+      console.log(`Recuperando opinioni con UID: ${userId}`);
       // Prova prima con l'UUID
       let opinions = await FirebaseService.getUserOpinions(String(userId));
       
@@ -742,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      const result = await FirebaseService.markNotificationAsRead(id, req.user.uuid || req.user.id);
+      const result = await FirebaseService.markNotificationAsRead(id, req.user.uid || req.user.id);
       
       if (!result.success) {
         return res.status(500).json({ 
@@ -774,7 +774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const result = await FirebaseService.reactToComunicazione(
         id, 
-        req.user.uuid || req.user.id, 
+        req.user.uid || req.user.id, 
         reaction
       );
       
@@ -1206,6 +1206,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(voti);
     } catch (error) {
       console.error('Errore nel recuperare voti grazia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Remove vote for grace
+  app.delete('/api/grazia/voto/:nome', requireAuth, async (req, res) => {
+    try {
+      const { nome } = req.params;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!nome) {
+        return res.status(400).json({ error: 'Nome è richiesto' });
+      }
+
+      const result = await FirebaseService.removeVoteGrazia(userId, decodeURIComponent(nome));
+      
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto rimosso con successo' });
+    } catch (error) {
+      console.error('Errore nel rimuovere voto grazia:', error);
       return res.status(500).json({ error: 'Errore interno del server' });
     }
   });
