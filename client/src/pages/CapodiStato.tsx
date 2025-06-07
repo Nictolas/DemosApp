@@ -133,11 +133,38 @@ export default function CapodiStato() {
   };
 
   const removeVote = async (nome: string) => {
-    // Implementation will depend on backend API
-    toast({
-      title: "Info",
-      description: "Funzione di rimozione voto in sviluppo",
-    });
+    setIsDeleting(nome);
+    try {
+      const response = await fetch(`/api/capo-stato/voto/${encodeURIComponent(nome)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Voto rimosso",
+          description: `Hai rimosso il voto per ${nome}`,
+        });
+        
+        await loadData();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Errore",
+          description: error.error || "Errore nel rimuovere il voto",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Errore nel rimuovere il voto:', error);
+      toast({
+        title: "Errore",
+        description: "Errore di connessione",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(null);
+    }
   };
 
   const deleteFromClassifica = async (nome: string) => {
