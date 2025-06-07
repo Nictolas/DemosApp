@@ -398,6 +398,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint per recuperare le statistiche dei sostenitori di un politico
+  app.get('/api/sostenitori/:email', requireAuth, async (req, res) => {
+    try {
+      const email = decodeURIComponent(req.params.email);
+      
+      // Verifica che l'utente richieda le proprie statistiche sostenitori
+      if (req.user && req.user.email !== email) {
+        return res.status(403).json({ error: "Non autorizzato" });
+      }
+
+      // Recupera i sostenitori del politico da Firebase
+      const supporterStats = await FirebaseService.getSupporterStats(email);
+      
+      res.json(supporterStats);
+    } catch (error) {
+      console.error('Errore nel recupero statistiche sostenitori:', error);
+      res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Endpoint per recuperare le statistiche dettagliate di una specifica opinione
+  app.get('/api/opinioni-dettaglio/:opinion', requireAuth, async (req, res) => {
+    try {
+      const opinion = req.params.opinion;
+      
+      // Validazione dell'opinione
+      const validOpinions = ['energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'unione_europea'];
+      if (!validOpinions.includes(opinion)) {
+        return res.status(400).json({ error: 'Opinione non valida' });
+      }
+
+      // Recupera le statistiche dettagliate dell'opinione da Firebase
+      const opinionStats = await FirebaseService.getOpinionDetailStats(opinion);
+      
+      res.json(opinionStats);
+    } catch (error) {
+      console.error('Errore nel recupero statistiche opinione:', error);
+      res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   // API per recuperare tutte le opinioni per statistiche - UTILIZZA ESCLUSIVAMENTE SUPABASE
   app.get('/api/statistiche-opinioni', requireAuth, async (req, res) => {
     try {

@@ -256,9 +256,18 @@ export default function StatisticheOpinioni() {
                   {/* Grafici a torta singole opinioni */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {Object.entries(opinionQuestions).map(([key, title]) => (
-                      <Card key={key} className="shadow-sm">
+                      <Card key={key} className="shadow-sm cursor-pointer hover:shadow-md transition-shadow" onClick={() => {
+                        const urlMap: Record<string, string> = {
+                          'energia_nucleare': '/opinioni/energia-nucleare',
+                          'sperimentazione_animale': '/opinioni/sperimentazione-animale',
+                          'legalizzazione_canapa': '/opinioni/legalizzazione-canapa',
+                          'caccia': '/opinioni/caccia',
+                          'unione_europea': '/opinioni/unione-europea'
+                        };
+                        window.location.href = urlMap[key];
+                      }}>
                         <CardHeader className="pb-2">
-                          <CardTitle className="text-xl">{title}</CardTitle>
+                          <CardTitle className="text-xl hover:text-primary transition-colors">{title}</CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-center">
                           {stats && (
