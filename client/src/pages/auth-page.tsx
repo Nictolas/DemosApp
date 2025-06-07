@@ -311,21 +311,28 @@ export default function AuthPage() {
   const onRegisterSubmit = (data: RegisterFormValues) => {
     const { confirmPassword, ...userData } = data;
     
+    // Capitalizza nome e cognome
+    const userDataWithCapitalization = {
+      ...userData,
+      nome: userData.nome.charAt(0).toUpperCase() + userData.nome.slice(1).toLowerCase(),
+      cognome: userData.cognome.charAt(0).toUpperCase() + userData.cognome.slice(1).toLowerCase()
+    };
+    
     // Se il ruolo è Elettore o Admin, procedi con la registrazione normale
-    if (userData.ruolo === "Elettore" || userData.ruolo === "Admin") {
-      registerMutation.mutate(userData);
+    if (userDataWithCapitalization.ruolo === "Elettore" || userDataWithCapitalization.ruolo === "Admin") {
+      registerMutation.mutate(userDataWithCapitalization);
     } 
     // Per gli altri ruoli, salva i dati e reindirizza alla pagina appropriata per i dati aggiuntivi
     else {
       // Salva i dati del primo step nel contesto di registrazione
-      setFormData(userData);
+      setFormData(userDataWithCapitalization);
       
       // Reindirizza in base al ruolo
-      if (userData.ruolo === "Candidato") {
+      if (userDataWithCapitalization.ruolo === "Candidato") {
         setRedirectPath("/registrazione-candidatura");
-      } else if (userData.ruolo === "Politico") {
+      } else if (userDataWithCapitalization.ruolo === "Politico") {
         setRedirectPath("/registrazione-elezione");
-      } else if (userData.ruolo === "Candidato Politico") {
+      } else if (userDataWithCapitalization.ruolo === "Candidato Politico") {
         setRedirectPath("/registrazione-elezione-candidatura");
       }
     }
