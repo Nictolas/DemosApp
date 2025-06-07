@@ -1333,6 +1333,43 @@ class FirebaseService {
   }
 
   /**
+   * Rimuove un voto specifico per capo di stato
+   */
+  static async removeVoteCapodiStato(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      const votiCollection = collection(db, 'voti_capo_stato');
+      const q = query(
+        votiCollection, 
+        where('userId', '==', userId),
+        where('nome', '==', nome),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return { success: false, error: "Voto non trovato" };
+      }
+
+      // Elimina il primo voto trovato
+      const docToDelete = querySnapshot.docs[0];
+      await deleteDoc(docToDelete.ref);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel rimuovere voto capo di stato:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Recupera la classifica per capo di stato (Top 10)
    */
   static async getClassificaCapodiStato(): Promise<Array<{nome: string, voti: number}>> {
@@ -1416,6 +1453,43 @@ class FirebaseService {
     } catch (error: any) {
       console.error('Errore nel recuperare voti grazia:', error);
       return [];
+    }
+  }
+
+  /**
+   * Rimuove un voto specifico per grazia
+   */
+  static async removeVoteGrazia(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      const votiCollection = collection(db, 'voti_grazia');
+      const q = query(
+        votiCollection, 
+        where('userId', '==', userId),
+        where('nome', '==', nome),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return { success: false, error: "Voto non trovato" };
+      }
+
+      // Elimina il primo voto trovato
+      const docToDelete = querySnapshot.docs[0];
+      await deleteDoc(docToDelete.ref);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel rimuovere voto grazia:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -1506,8 +1580,72 @@ class FirebaseService {
   }
 
   /**
+   * Rimuove un voto specifico per amnistia
+   */
+  static async removeVoteAmnistia(userId: string, legge: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: "Firebase Firestore non è configurato" };
+      }
+
+      const votiCollection = collection(db, 'voti_amnistia');
+      const q = query(
+        votiCollection, 
+        where('userId', '==', userId),
+        where('legge', '==', legge),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        return { success: false, error: "Voto non trovato" };
+      }
+
+      // Elimina il primo voto trovato
+      const docToDelete = querySnapshot.docs[0];
+      await deleteDoc(docToDelete.ref);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Errore nel rimuovere voto amnistia:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Recupera la classifica per amnistia (Top 10)
    */
+  static async getClassificaAmnistia(): Promise<Array<{nome: string, voti: number}>> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiCollection = collection(db, 'voti_amnistia');
+      const querySnapshot = await getDocs(votiCollection);
+      const conteggi: Record<string, number> = {};
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const legge = data.legge;
+        conteggi[legge] = (conteggi[legge] || 0) + 1;
+      });
+      
+      const classifica = Object.entries(conteggi)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10); // Top 10
+      
+      return classifica;
+    } catch (error: any) {
+      console.error('Errore nel recuperare classifica amnistia:', error);
+      return [];
+    }
+  }
   /**
    * Salva un nuovo comizio su Firebase
    */

@@ -1137,6 +1137,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Remove vote for head of state
+  app.delete('/api/capo-stato/voti/:nome', requireAuth, async (req, res) => {
+    try {
+      const { nome } = req.params;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!nome) {
+        return res.status(400).json({ error: 'Nome è richiesto' });
+      }
+
+      const result = await FirebaseService.removeVoteCapodiStato(userId, decodeURIComponent(nome));
+      
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto rimosso con successo' });
+    } catch (error) {
+      console.error('Errore nel rimuovere voto capo di stato:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   // ===== GRAZIA ROUTES =====
 
   // Vote for grace
