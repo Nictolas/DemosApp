@@ -1821,6 +1821,194 @@ class FirebaseService {
   /**
    * Recupera la classifica dei referendum abrogativi
    */
+  /**
+   * Recupera le statistiche dei sostenitori di un politico
+   */
+  static async getSupporterStats(politicoEmail: string): Promise<{
+    totalSupporters: number;
+    genderDistribution: { Maschio: number; Femmina: number; Altro: number; };
+    locationDistribution: Record<string, number>;
+    averageAge: number;
+    ageDistribution: { '18-25': number; '26-35': number; '36-45': number; '46-55': number; '56-65': number; '65+': number; };
+  }> {
+    try {
+      const politicoId = this.emailToId(politicoEmail);
+      
+      // Recupera tutti gli utenti dal database
+      const usersSnapshot = await getDocs(collection(db, 'utenti'));
+      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      
+      // Filtra i sostenitori del politico (utenti che hanno lo stesso comune di elezione)
+      const politico = allUsers.find(user => user.id === politicoId);
+      if (!politico) {
+        throw new Error('Politico non trovato');
+      }
+      
+      const supporters = allUsers.filter(user => 
+        user.comune_elezione === politico.comune_elezione && 
+        user.id !== politicoId &&
+        ['Cittadino', 'Candidato'].includes(user.ruolo)
+      );
+      
+      // Calcola le statistiche
+      const stats = {
+        totalSupporters: supporters.length,
+        genderDistribution: { Maschio: 0, Femmina: 0, Altro: 0 },
+        locationDistribution: {} as Record<string, number>,
+        averageAge: 0,
+        ageDistribution: { '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0 }
+      };
+      
+      let totalAge = 0;
+      let ageCount = 0;
+      
+      supporters.forEach(supporter => {
+        // Distribuzione per genere
+        const gender = supporter.genere || 'Altro';
+        if (gender in stats.genderDistribution) {
+          stats.genderDistribution[gender as keyof typeof stats.genderDistribution]++;
+        } else {
+          stats.genderDistribution.Altro++;
+        }
+        
+        // Distribuzione per località
+        const location = supporter.comune_elezione || 'Non specificato';
+        stats.locationDistribution[location] = (stats.locationDistribution[location] || 0) + 1;
+        
+        // Calcolo età e distribuzione per fascia d'età
+        if (supporter.data_nascita) {
+          const birthDate = new Date(supporter.data_nascita);
+          const today = new Date();
+          const age = today.getFullYear() - birthDate.getFullYear();
+          
+          totalAge += age;
+          ageCount++;
+          
+          if (age >= 18 && age <= 25) stats.ageDistribution['18-25']++;
+          else if (age >= 26 && age <= 35) stats.ageDistribution['26-35']++;
+          else if (age >= 36 && age <= 45) stats.ageDistribution['36-45']++;
+          else if (age >= 46 && age <= 55) stats.ageDistribution['46-55']++;
+          else if (age >= 56 && age <= 65) stats.ageDistribution['56-65']++;
+          else if (age > 65) stats.ageDistribution['65+']++;
+        }
+      });
+      
+      stats.averageAge = ageCount > 0 ? totalAge / ageCount : 0;
+      
+      return stats;
+    } catch (error) {
+      console.error('Errore nel recupero statistiche sostenitori:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Recupera le statistiche dettagliate di una specifica opinione
+   */
+  static async getOpinionDetailStats(opinionField: string): Promise<{
+    total: number;
+    favorevoli: number;
+    contrari: number;
+    indecisi: number;
+    genderDistribution: {
+      Maschio: { Favorevole: number; Contrario: number; Indeciso: number; };
+      Femmina: { Favorevole: number; Contrario: number; Indeciso: number; };
+      Altro: { Favorevole: number; Contrario: number; Indeciso: number; };
+    };
+    averageAge: { Favorevole: number; Contrario: number; Indeciso: number; };
+    ageDistribution: {
+      '18-25': { Favorevole: number; Contrario: number; Indeciso: number; };
+      '26-35': { Favorevole: number; Contrario: number; Indeciso: number; };
+      '36-45': { Favorevole: number; Contrario: number; Indeciso: number; };
+      '46-55': { Favorevole: number; Contrario: number; Indeciso: number; };
+      '56-65': { Favorevole: number; Contrario: number; Indeciso: number; };
+      '65+': { Favorevole: number; Contrario: number; Indeciso: number; };
+    };
+  }> {
+    try {
+      // Recupera tutti gli utenti con le loro opinioni
+      const usersSnapshot = await getDocs(collection(db, 'utenti'));
+      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      
+      // Filtra gli utenti che hanno espresso un'opinione su questo argomento
+      const usersWithOpinion = allUsers.filter((user: any) => 
+        user[opinionField] && ['Favorevole', 'Contrario', 'Indeciso'].includes(user[opinionField])
+      );
+      
+      const stats = {
+        total: usersWithOpinion.length,
+        favorevoli: 0,
+        contrari: 0,
+        indecisi: 0,
+        genderDistribution: {
+          Maschio: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          Femmina: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          Altro: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
+        },
+        averageAge: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+        ageDistribution: {
+          '18-25': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          '26-35': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          '36-45': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          '46-55': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          '56-65': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          '65+': { Favorevole: 0, Contrario: 0, Indeciso: 0 }
+        }
+      };
+      
+      const ageData = { Favorevole: [], Contrario: [], Indeciso: [] } as Record<string, number[]>;
+      
+      usersWithOpinion.forEach((user: any) => {
+        const opinion = user[opinionField] as 'Favorevole' | 'Contrario' | 'Indeciso';
+        const gender = (user.genere || 'Altro') as 'Maschio' | 'Femmina' | 'Altro';
+        
+        // Conta per opinione
+        if (opinion === 'Favorevole') stats.favorevoli++;
+        else if (opinion === 'Contrario') stats.contrari++;
+        else if (opinion === 'Indeciso') stats.indecisi++;
+        
+        // Distribuzione per genere
+        if (gender in stats.genderDistribution) {
+          stats.genderDistribution[gender][opinion]++;
+        } else {
+          stats.genderDistribution.Altro[opinion]++;
+        }
+        
+        // Calcolo età e distribuzione per fascia d'età
+        if (user.data_nascita) {
+          const birthDate = new Date(user.data_nascita);
+          const today = new Date();
+          const age = today.getFullYear() - birthDate.getFullYear();
+          
+          ageData[opinion].push(age);
+          
+          let ageGroup: keyof typeof stats.ageDistribution;
+          if (age >= 18 && age <= 25) ageGroup = '18-25';
+          else if (age >= 26 && age <= 35) ageGroup = '26-35';
+          else if (age >= 36 && age <= 45) ageGroup = '36-45';
+          else if (age >= 46 && age <= 55) ageGroup = '46-55';
+          else if (age >= 56 && age <= 65) ageGroup = '56-65';
+          else ageGroup = '65+';
+          
+          stats.ageDistribution[ageGroup][opinion]++;
+        }
+      });
+      
+      // Calcola le età medie per opinione
+      Object.keys(ageData).forEach(opinion => {
+        const ages = ageData[opinion];
+        if (ages.length > 0) {
+          stats.averageAge[opinion as keyof typeof stats.averageAge] = ages.reduce((a, b) => a + b, 0) / ages.length;
+        }
+      });
+      
+      return stats;
+    } catch (error) {
+      console.error('Errore nel recupero statistiche opinione:', error);
+      throw error;
+    }
+  }
+
   static async getClassificaReferendumAbrogativo(): Promise<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string}>> {
     try {
       if (!db) {
