@@ -1,6 +1,6 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, FileText, Vote } from "lucide-react";
@@ -35,38 +35,34 @@ export default function Proponi() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
-              <Button 
-                className="h-40 text-xl font-medium flex flex-col items-center justify-center space-y-4" 
-                variant="default"
-                onClick={() => {
-                  // Placeholder for future implementation
-                  console.log("Iniziative Popolari clicked");
-                }}
-              >
-                <FileText className="h-12 w-12" />
-                <div className="text-center">
-                  <div className="font-bold">Iniziative Popolari</div>
-                  <div className="text-sm font-normal opacity-80 mt-1">
-                    Proponi nuove leggi e iniziative
+              <Link href="/iniziative-popolari">
+                <Button 
+                  className="h-40 text-xl font-medium flex flex-col items-center justify-center space-y-4 w-full" 
+                  variant="default"
+                >
+                  <FileText className="h-12 w-12" />
+                  <div className="text-center">
+                    <div className="font-bold">Iniziative Popolari</div>
+                    <div className="text-sm font-normal opacity-80 mt-1">
+                      Proponi nuove leggi e iniziative
+                    </div>
                   </div>
-                </div>
-              </Button>
-              <Button 
-                className="h-40 text-xl font-medium flex flex-col items-center justify-center space-y-4" 
-                variant="outline"
-                onClick={() => {
-                  // Placeholder for future implementation
-                  console.log("Referendum Abrogativi clicked");
-                }}
-              >
-                <Vote className="h-12 w-12" />
-                <div className="text-center">
-                  <div className="font-bold">Referendum Abrogativi</div>
-                  <div className="text-sm font-normal opacity-80 mt-1">
-                    Proponi l'abrogazione di leggi esistenti
+                </Button>
+              </Link>
+              <Link href="/referendum-abrogativi">
+                <Button 
+                  className="h-40 text-xl font-medium flex flex-col items-center justify-center space-y-4 w-full" 
+                  variant="outline"
+                >
+                  <Vote className="h-12 w-12" />
+                  <div className="text-center">
+                    <div className="font-bold">Referendum Abrogativi</div>
+                    <div className="text-sm font-normal opacity-80 mt-1">
+                      Proponi l'abrogazione di leggi esistenti
+                    </div>
                   </div>
-                </div>
-              </Button>
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
