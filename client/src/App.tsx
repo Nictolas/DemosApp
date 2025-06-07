@@ -28,6 +28,9 @@ import CapodiStato from "@/pages/CapodiStato";
 import Governo from "@/pages/Governo";
 import Grazia from "@/pages/Grazia";
 import Amnistia from "@/pages/Amnistia";
+import Vota from "@/pages/Vota";
+import Comizi from "@/pages/Comizi";
+import Proponi from "@/pages/Proponi";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -210,6 +213,27 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/amnistia" component={Amnistia} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/vota">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/vota" component={Vota} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/comizi">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/comizi" component={Comizi} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/proponi">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/proponi" component={Proponi} />
           </PageTransition>
         )}
       </Route>

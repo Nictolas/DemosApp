@@ -158,9 +158,9 @@ export default function Comunica() {
       });
       form.reset();
       setExistingComunicazione(null);
-      // Naviga alla home page con un breve delay per mostrare il toast
+      // Naviga al menu con un breve delay per mostrare il toast
       setTimeout(() => {
-        setLocation("/");
+        setLocation("/menu");
       }, 1000);
     },
     onError: (error: any) => {
