@@ -23,6 +23,7 @@ export default function CapodiStato() {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Carica i dati dell'utente e la classifica
   useEffect(() => {
@@ -48,6 +49,15 @@ export default function CapodiStato() {
       if (classificaResponse.ok) {
         const classificaData = await classificaResponse.json();
         setClassifica(classificaData);
+      }
+
+      // Carica il profilo utente
+      if (user) {
+        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          setUserProfile(userData);
+        }
       }
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
@@ -131,7 +141,7 @@ export default function CapodiStato() {
   };
 
   const deleteFromClassifica = async (nome: string) => {
-    if (user?.ruolo !== "Admin") return;
+    if (userProfile?.ruolo !== "Admin") return;
     
     setIsDeleting(nome);
     // Implementation will depend on backend API
@@ -321,7 +331,7 @@ export default function CapodiStato() {
                           <Badge variant="outline">
                             {candidato.voti} voti
                           </Badge>
-                          {user?.email === "polidemos@gmail.com" && (
+                          {userProfile?.ruolo === "Admin" && (
                             <Button
                               size="sm"
                               variant="destructive"

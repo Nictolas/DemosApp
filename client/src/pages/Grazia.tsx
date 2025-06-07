@@ -23,6 +23,7 @@ export default function Grazia() {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   // Carica i dati dell'utente e la classifica
   useEffect(() => {
@@ -48,6 +49,15 @@ export default function Grazia() {
       if (classificaResponse.ok) {
         const classificaData = await classificaResponse.json();
         setClassifica(classificaData);
+      }
+
+      // Carica il profilo utente
+      if (user) {
+        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          setUserProfile(userData);
+        }
       }
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
