@@ -31,7 +31,7 @@ export function Navbar() {
           </div>
 
           <nav className="flex items-center space-x-4">
-            <Link href="/">
+            <Link href="/menu">
               <span className="text-gray-600 hover:text-gray-900 cursor-pointer">Home</span>
             </Link>
             {user && (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings, Crown, Building2, Scale, Users, FileText, Calendar, Megaphone } from "lucide-react";
@@ -82,117 +82,131 @@ export default function Menu() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="default"
-                onClick={() => window.location.href = "/profilo"}
-              >
-                Profilo
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="outline"
-                onClick={() => window.location.href = "/gestisci-utenti"}
-              >
-                Gestisci Utenti
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="default"
-                onClick={() => window.location.href = "/opinioni"}
-              >
-                Opinioni
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="outline"
-                onClick={() => window.location.href = "/rappresentanti"}
-              >
-                <UserCheck className="mr-2 h-5 w-5" />
-                Rappresentanti
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="default"
-                onClick={() => window.location.href = "/elezioni"}
-              >
-                <Vote className="mr-2 h-5 w-5" />
-                Elezioni
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="outline"
-                onClick={() => window.location.href = "/gestisci-elezioni"}
-              >
-                <Settings className="mr-2 h-5 w-5" />
-                Gestisci Elezioni
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="outline"
-                onClick={() => window.location.href = "/statistiche-utenti"}
-              >
-                <BarChart2 className="mr-2 h-5 w-5" />
-                Statistiche Utenti
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="default"
-                onClick={() => window.location.href = "/statistiche-opinioni"}
-              >
-                <PieChart className="mr-2 h-5 w-5" />
-                Statistiche Opinioni
-              </Button>
-              {(userRole === 'Politico' || userRole === 'Candidato Politico') && (
+              <Link href="/profilo">
                 <Button 
-                  className="h-24 text-lg font-medium" 
+                  className="h-24 text-lg font-medium w-full" 
                   variant="default"
-                  onClick={() => window.location.href = "/comunica"}
                 >
-                  <MessageSquare className="mr-2 h-5 w-5" />
-                  Comunica
+                  Profilo
                 </Button>
+              </Link>
+              <Link href="/gestisci-utenti">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="outline"
+                >
+                  Gestisci Utenti
+                </Button>
+              </Link>
+              <Link href="/opinioni">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="default"
+                >
+                  Opinioni
+                </Button>
+              </Link>
+              <Link href="/rappresentanti">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="outline"
+                >
+                  <UserCheck className="mr-2 h-5 w-5" />
+                  Rappresentanti
+                </Button>
+              </Link>
+              <Link href="/elezioni">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="default"
+                >
+                  <Vote className="mr-2 h-5 w-5" />
+                  Elezioni
+                </Button>
+              </Link>
+              <Link href="/gestisci-elezioni">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="outline"
+                >
+                  <Settings className="mr-2 h-5 w-5" />
+                  Gestisci Elezioni
+                </Button>
+              </Link>
+              <Link href="/statistiche-utenti">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="outline"
+                >
+                  <BarChart2 className="mr-2 h-5 w-5" />
+                  Statistiche Utenti
+                </Button>
+              </Link>
+              <Link href="/statistiche-opinioni">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="default"
+                >
+                  <PieChart className="mr-2 h-5 w-5" />
+                  Statistiche Opinioni
+                </Button>
+              </Link>
+              {(userRole === 'Politico' || userRole === 'Candidato Politico') && (
+                <Link href="/comunica">
+                  <Button 
+                    className="h-24 text-lg font-medium w-full" 
+                    variant="default"
+                  >
+                    <MessageSquare className="mr-2 h-5 w-5" />
+                    Comunica
+                  </Button>
+                </Link>
               )}
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="outline"
-                onClick={() => window.location.href = "/notifiche"}
-              >
-                <Bell className="mr-2 h-5 w-5" />
-                Notifiche
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="default"
-                onClick={() => window.location.href = "/podio-trasparenza"}
-              >
-                <Trophy className="mr-2 h-5 w-5" />
-                Podio Trasparenza
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="outline"
-                onClick={() => window.location.href = "/vota"}
-              >
-                <Vote className="mr-2 h-5 w-5" />
-                Vota
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="default"
-                onClick={() => window.location.href = "/comizi"}
-              >
-                <Megaphone className="mr-2 h-5 w-5" />
-                Comizi
-              </Button>
-              <Button 
-                className="h-24 text-lg font-medium" 
-                variant="outline"
-                onClick={() => window.location.href = "/proponi"}
-              >
-                <FileText className="mr-2 h-5 w-5" />
-                Proponi
-              </Button>
+              <Link href="/notifiche">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="outline"
+                >
+                  <Bell className="mr-2 h-5 w-5" />
+                  Notifiche
+                </Button>
+              </Link>
+              <Link href="/podio-trasparenza">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="default"
+                >
+                  <Trophy className="mr-2 h-5 w-5" />
+                  Podio Trasparenza
+                </Button>
+              </Link>
+              <Link href="/vota">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="outline"
+                >
+                  <Vote className="mr-2 h-5 w-5" />
+                  Vota
+                </Button>
+              </Link>
+              <Link href="/comizi">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="default"
+                >
+                  <Megaphone className="mr-2 h-5 w-5" />
+                  Comizi
+                </Button>
+              </Link>
+              <Link href="/proponi">
+                <Button 
+                  className="h-24 text-lg font-medium w-full" 
+                  variant="outline"
+                >
+                  <FileText className="mr-2 h-5 w-5" />
+                  Proponi
+                </Button>
+              </Link>
               {isAdmin && (
                 <Button 
                   className="h-24 text-lg font-medium md:col-span-2" 

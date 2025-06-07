@@ -27,7 +27,13 @@ const comunicaSchema = z.object({
   }),
 });
 
+const comizioSchema = z.object({
+  dove: z.string().min(1, "Il luogo è obbligatorio"),
+  quando: z.string().min(1, "La data è obbligatoria"),
+});
+
 type ComunicaFormData = z.infer<typeof comunicaSchema>;
+type ComizioFormData = z.infer<typeof comizioSchema>;
 
 interface ExistingComunicazione {
   titolo: string;
@@ -50,6 +56,14 @@ export default function Comunica() {
       voto_dato: undefined,
       commento: "",
       vincitore: undefined,
+    },
+  });
+
+  const comizioForm = useForm<ComizioFormData>({
+    resolver: zodResolver(comizioSchema),
+    defaultValues: {
+      dove: "",
+      quando: "",
     },
   });
 
@@ -174,6 +188,41 @@ export default function Comunica() {
 
   const onSubmit = (data: ComunicaFormData) => {
     submitComunicazione.mutate(data);
+  };
+
+  // Submit nuovo comizio
+  const submitComizio = useMutation({
+    mutationFn: async (data: ComizioFormData) => {
+      const response = await fetch("/api/comizi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Errore nell'invio del comizio");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Comizio programmato",
+        description: "Il tuo comizio è stato programmato con successo.",
+      });
+      comizioForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore nella programmazione del comizio.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmitComizio = (data: ComizioFormData) => {
+    submitComizio.mutate(data);
   };
 
   // Show loading while sessionData or userData is being fetched
@@ -441,6 +490,65 @@ export default function Comunica() {
                   disabled={submitComunicazione.isPending || checkingDuplicate}
                 >
                   {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* Nuovo Comizio Section */}
+        <Card className="max-w-2xl mx-auto">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Nuovo Comizio</CardTitle>
+            <CardDescription className="text-center">
+              Programma un nuovo comizio per comunicare con i tuoi elettori
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Form {...comizioForm}>
+              <form onSubmit={comizioForm.handleSubmit(onSubmitComizio)} className="space-y-4">
+                <FormField
+                  control={comizioForm.control}
+                  name="dove"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dove</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Piazza del Duomo, Milano"
+                          {...field}
+                          disabled={submitComizio.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={comizioForm.control}
+                  name="quando"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quando</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="datetime-local"
+                          {...field}
+                          disabled={submitComizio.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={submitComizio.isPending}
+                >
+                  {submitComizio.isPending ? "Programmazione in corso..." : "Programma Comizio"}
                 </Button>
               </form>
             </Form>
