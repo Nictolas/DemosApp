@@ -38,7 +38,7 @@ export default function Comizi() {
                 Comizi
               </CardTitle>
               <CardDescription>
-                Calendario dei comizi politici in programma. Partecipa agli eventi nella tua zona.
+                Calendario dei comizi organizzati dai tuoi rappresentanti e candidati scelti.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
@@ -93,7 +93,7 @@ export default function Comizi() {
               {!comiziLoading && comizi.length === 0 && (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nessun comizio programmato al momento.</p>
+                  <p>Nessun comizio programmato dai tuoi rappresentanti al momento.</p>
                 </div>
               )}
             </CardContent>
