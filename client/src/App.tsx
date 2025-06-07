@@ -33,6 +33,12 @@ import Comizi from "@/pages/Comizi";
 import Proponi from "@/pages/Proponi";
 import IniziativePopolare from "@/pages/IniziativePopolare";
 import ReferendumAbrogativi from "@/pages/ReferendumAbrogativi";
+import Sostenitori from "@/pages/Sostenitori";
+import EnergiaNucleare from "@/pages/opinioni/EnergiaNucleare";
+import Caccia from "@/pages/opinioni/Caccia";
+import SperimentazioneAnimale from "@/pages/opinioni/SperimentazioneAnimale";
+import LegalizzazioneCanapa from "@/pages/opinioni/LegalizzazioneCanapa";
+import UnioneEuropea from "@/pages/opinioni/UnioneEuropea";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -250,6 +256,48 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute path="/referendum-abrogativi" component={ReferendumAbrogativi} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/sostenitori">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/sostenitori" component={Sostenitori} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni/energia-nucleare">
+        {(params) => (
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
+            <ProtectedRoute path="/opinioni/energia-nucleare" component={EnergiaNucleare} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni/caccia">
+        {(params) => (
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
+            <ProtectedRoute path="/opinioni/caccia" component={Caccia} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni/sperimentazione-animale">
+        {(params) => (
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
+            <ProtectedRoute path="/opinioni/sperimentazione-animale" component={SperimentazioneAnimale} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni/legalizzazione-canapa">
+        {(params) => (
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
+            <ProtectedRoute path="/opinioni/legalizzazione-canapa" component={LegalizzazioneCanapa} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni/unione-europea">
+        {(params) => (
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={350}>
+            <ProtectedRoute path="/opinioni/unione-europea" component={UnioneEuropea} />
           </PageTransition>
         )}
       </Route>
