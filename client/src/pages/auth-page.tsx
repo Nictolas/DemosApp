@@ -539,7 +539,15 @@ export default function AuthPage() {
                                 <FormItem>
                                   <FormLabel className="required-field">Nome</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Inserisci il tuo nome" {...field} />
+                                    <Input 
+                                      placeholder="Inserisci il tuo nome" 
+                                      {...field}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                                        field.onChange(capitalized);
+                                      }}
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -552,7 +560,15 @@ export default function AuthPage() {
                                 <FormItem>
                                   <FormLabel className="required-field">Cognome</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Inserisci il tuo cognome" {...field} />
+                                    <Input 
+                                      placeholder="Inserisci il tuo cognome" 
+                                      {...field}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                                        field.onChange(capitalized);
+                                      }}
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
