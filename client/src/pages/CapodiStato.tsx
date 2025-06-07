@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Crown, Vote, Trophy, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Crown, Vote, Trophy, Plus, X, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,8 @@ export default function CapodiStato() {
   const [loadingData, setLoadingData] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
   const [nomeInput, setNomeInput] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Carica i dati dell'utente e la classifica
   useEffect(() => {
@@ -66,6 +68,10 @@ export default function CapodiStato() {
       return;
     }
 
+    await voteForCandidate(nomeInput.trim());
+  };
+
+  const voteForCandidate = async (nome: string) => {
     setIsVoting(true);
     try {
       const response = await fetch('/api/capo-stato/vota', {
@@ -74,19 +80,17 @@ export default function CapodiStato() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          nome: nomeInput.trim()
-        }),
+        body: JSON.stringify({ nome }),
       });
 
       if (response.ok) {
         toast({
           title: "Voto registrato",
-          description: `Hai votato ${nomeInput} per Capo di Stato`,
+          description: `Hai votato ${nome} per Capo di Stato`,
         });
         
         setNomeInput("");
-        // Aggiorna i dati
+        setShowSuggestions(false);
         await loadData();
       } else {
         const error = await response.json();
@@ -106,6 +110,38 @@ export default function CapodiStato() {
     } finally {
       setIsVoting(false);
     }
+  };
+
+  const removeVote = async (nome: string) => {
+    // Implementation will depend on backend API
+    toast({
+      title: "Info",
+      description: "Funzione di rimozione voto in sviluppo",
+    });
+  };
+
+  const deleteFromClassifica = async (nome: string) => {
+    if (user?.ruolo !== "Admin") return;
+    
+    setIsDeleting(nome);
+    // Implementation will depend on backend API
+    toast({
+      title: "Info", 
+      description: "Funzione di eliminazione in sviluppo",
+    });
+    setIsDeleting(null);
+  };
+
+  // Filter suggestions based on input
+  const getSuggestions = () => {
+    if (!nomeInput.trim() || !showSuggestions) return [];
+    
+    return classifica
+      .filter(item => 
+        item.nome.toLowerCase().includes(nomeInput.toLowerCase()) &&
+        item.nome.toLowerCase() !== nomeInput.toLowerCase()
+      )
+      .slice(0, 5);
   };
 
   if (isLoading) {
