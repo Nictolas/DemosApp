@@ -1875,9 +1875,34 @@ class FirebaseService {
     }
   }
 
-}
-
-export default FirebaseService;
+  /**
+   * Salva una nuova iniziativa popolare
+   */
+  static async saveIniziativaPopolare(iniziativaData: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const iniziativeRef = collection(db, 'iniziative_popolari');
+      const docRef = await addDoc(iniziativeRef, iniziativaData);
+      
+      return {
+        success: true,
+        data: { id: docRef.id, ...iniziativaData }
+      };
+    } catch (error) {
+      console.error('Errore nel salvare iniziativa popolare:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
 
   /**
    * Vota per un'iniziativa popolare
@@ -1890,27 +1915,14 @@ export default FirebaseService;
       if (!db) {
         return { success: false, error: 'Database non disponibile' };
       }
-
-      // Check if user already voted for this initiative
+      
       const votiRef = collection(db, 'voti_iniziative_popolari');
-      const existingVoteQuery = query(
-        votiRef,
-        where('utente_id', '==', userId),
-        where('nome', '==', nome)
-      );
-      const existingVoteSnapshot = await getDocs(existingVoteQuery);
-
-      if (!existingVoteSnapshot.empty) {
-        return { success: false, error: 'Hai già votato per questa iniziativa' };
-      }
-
-      // Add new vote
       await addDoc(votiRef, {
-        utente_id: userId,
+        userId,
         nome,
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       });
-
+      
       return { success: true };
     } catch (error) {
       console.error('Errore nel votare iniziativa popolare:', error);
@@ -1926,15 +1938,13 @@ export default FirebaseService;
    */
   static async getUserVotiIniziativePopolare(userId: string): Promise<string[]> {
     try {
-      if (!db) {
-        return [];
-      }
-
+      if (!db) return [];
+      
       const votiRef = collection(db, 'voti_iniziative_popolari');
-      const userVotesQuery = query(votiRef, where('utente_id', '==', userId));
-      const userVotesSnapshot = await getDocs(userVotesQuery);
-
-      return userVotesSnapshot.docs.map(doc => doc.data().nome);
+      const q = query(votiRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => doc.data().nome);
     } catch (error) {
       console.error('Errore nel recuperare voti iniziative popolari:', error);
       return [];
@@ -1944,14 +1954,9 @@ export default FirebaseService;
   /**
    * Recupera la classifica delle iniziative popolari
    */
-  static async getClassificaIniziativePopolare(): Promise<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string}>> {
+  static async getClassificaIniziativePopolare(): Promise<Array<{nome: string, voti: number}>> {
     try {
-      if (!db) {
-        return [];
-      }
-      
-      const iniziativeRef = collection(db, 'iniziative_popolari');
-      const iniziativeSnapshot = await getDocs(iniziativeRef);
+      if (!db) return [];
       
       const votiRef = collection(db, 'voti_iniziative_popolari');
       const votiSnapshot = await getDocs(votiRef);
@@ -1960,23 +1965,11 @@ export default FirebaseService;
       
       votiSnapshot.forEach(doc => {
         const data = doc.data();
-        if (data.nome) {
-          votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
-        }
+        votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
       });
       
-      const iniziativeWithVotes = iniziativeSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          nome: data.nome,
-          dataInizio: data.dataInizio,
-          dataFine: data.dataFine,
-          sitoWeb: data.sitoWeb,
-          voti: votiCount[data.nome] || 0
-        };
-      });
-      
-      return iniziativeWithVotes
+      return Object.entries(votiCount)
+        .map(([nome, voti]) => ({ nome, voti }))
         .sort((a, b) => b.voti - a.voti)
         .slice(0, 10);
     } catch (error) {
@@ -1985,10 +1978,8 @@ export default FirebaseService;
     }
   }
 
-  // ===== REFERENDUM ABROGATIVI METHODS =====
-
   /**
-   * Salva un nuovo referendum abrogativo su Firebase
+   * Salva un nuovo referendum abrogativo
    */
   static async saveReferendumAbrogativo(referendumData: any): Promise<{
     success: boolean;
@@ -2027,27 +2018,14 @@ export default FirebaseService;
       if (!db) {
         return { success: false, error: 'Database non disponibile' };
       }
-
-      // Check if user already voted for this referendum
+      
       const votiRef = collection(db, 'voti_referendum_abrogativi');
-      const existingVoteQuery = query(
-        votiRef,
-        where('utente_id', '==', userId),
-        where('nome', '==', nome)
-      );
-      const existingVoteSnapshot = await getDocs(existingVoteQuery);
-
-      if (!existingVoteSnapshot.empty) {
-        return { success: false, error: 'Hai già votato per questo referendum' };
-      }
-
-      // Add new vote
       await addDoc(votiRef, {
-        utente_id: userId,
+        userId,
         nome,
-        timestamp: new Date().toISOString()
+        timestamp: new Date()
       });
-
+      
       return { success: true };
     } catch (error) {
       console.error('Errore nel votare referendum abrogativo:', error);
@@ -2063,15 +2041,13 @@ export default FirebaseService;
    */
   static async getUserVotiReferendumAbrogativo(userId: string): Promise<string[]> {
     try {
-      if (!db) {
-        return [];
-      }
-
+      if (!db) return [];
+      
       const votiRef = collection(db, 'voti_referendum_abrogativi');
-      const userVotesQuery = query(votiRef, where('utente_id', '==', userId));
-      const userVotesSnapshot = await getDocs(userVotesQuery);
-
-      return userVotesSnapshot.docs.map(doc => doc.data().nome);
+      const q = query(votiRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => doc.data().nome);
     } catch (error) {
       console.error('Errore nel recuperare voti referendum abrogativi:', error);
       return [];
@@ -2081,199 +2057,9 @@ export default FirebaseService;
   /**
    * Recupera la classifica dei referendum abrogativi
    */
-  /**
-   * Recupera le statistiche dei sostenitori di un politico
-   */
-  static async getSupporterStats(politicoEmail: string): Promise<{
-    totalSupporters: number;
-    genderDistribution: { Maschio: number; Femmina: number; Altro: number; };
-    locationDistribution: Record<string, number>;
-    averageAge: number;
-    ageDistribution: { '18-25': number; '26-35': number; '36-45': number; '46-55': number; '56-65': number; '65+': number; };
-  }> {
+  static async getClassificaReferendumAbrogativo(): Promise<Array<{nome: string, voti: number}>> {
     try {
-      const politicoId = this.emailToId(politicoEmail);
-      
-      // Recupera tutti gli utenti dal database
-      const usersSnapshot = await getDocs(collection(db, 'utenti'));
-      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      
-      // Filtra i sostenitori del politico (utenti che hanno lo stesso comune di elezione)
-      const politico = allUsers.find(user => user.id === politicoId);
-      if (!politico) {
-        throw new Error('Politico non trovato');
-      }
-      
-      const supporters = allUsers.filter(user => 
-        user.comune_elezione === politico.comune_elezione && 
-        user.id !== politicoId &&
-        ['Cittadino', 'Candidato'].includes(user.ruolo)
-      );
-      
-      // Calcola le statistiche
-      const stats = {
-        totalSupporters: supporters.length,
-        genderDistribution: { Maschio: 0, Femmina: 0, Altro: 0 },
-        locationDistribution: {} as Record<string, number>,
-        averageAge: 0,
-        ageDistribution: { '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0 }
-      };
-      
-      let totalAge = 0;
-      let ageCount = 0;
-      
-      supporters.forEach(supporter => {
-        // Distribuzione per genere
-        const gender = supporter.genere || 'Altro';
-        if (gender in stats.genderDistribution) {
-          stats.genderDistribution[gender as keyof typeof stats.genderDistribution]++;
-        } else {
-          stats.genderDistribution.Altro++;
-        }
-        
-        // Distribuzione per località
-        const location = supporter.comune_elezione || 'Non specificato';
-        stats.locationDistribution[location] = (stats.locationDistribution[location] || 0) + 1;
-        
-        // Calcolo età e distribuzione per fascia d'età
-        if (supporter.data_nascita) {
-          const birthDate = new Date(supporter.data_nascita);
-          const today = new Date();
-          const age = today.getFullYear() - birthDate.getFullYear();
-          
-          totalAge += age;
-          ageCount++;
-          
-          if (age >= 18 && age <= 25) stats.ageDistribution['18-25']++;
-          else if (age >= 26 && age <= 35) stats.ageDistribution['26-35']++;
-          else if (age >= 36 && age <= 45) stats.ageDistribution['36-45']++;
-          else if (age >= 46 && age <= 55) stats.ageDistribution['46-55']++;
-          else if (age >= 56 && age <= 65) stats.ageDistribution['56-65']++;
-          else if (age > 65) stats.ageDistribution['65+']++;
-        }
-      });
-      
-      stats.averageAge = ageCount > 0 ? totalAge / ageCount : 0;
-      
-      return stats;
-    } catch (error) {
-      console.error('Errore nel recupero statistiche sostenitori:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Recupera le statistiche dettagliate di una specifica opinione
-   */
-  static async getOpinionDetailStats(opinionField: string): Promise<{
-    total: number;
-    favorevoli: number;
-    contrari: number;
-    indecisi: number;
-    genderDistribution: {
-      Maschio: { Favorevole: number; Contrario: number; Indeciso: number; };
-      Femmina: { Favorevole: number; Contrario: number; Indeciso: number; };
-      Altro: { Favorevole: number; Contrario: number; Indeciso: number; };
-    };
-    averageAge: { Favorevole: number; Contrario: number; Indeciso: number; };
-    ageDistribution: {
-      '18-25': { Favorevole: number; Contrario: number; Indeciso: number; };
-      '26-35': { Favorevole: number; Contrario: number; Indeciso: number; };
-      '36-45': { Favorevole: number; Contrario: number; Indeciso: number; };
-      '46-55': { Favorevole: number; Contrario: number; Indeciso: number; };
-      '56-65': { Favorevole: number; Contrario: number; Indeciso: number; };
-      '65+': { Favorevole: number; Contrario: number; Indeciso: number; };
-    };
-  }> {
-    try {
-      // Recupera tutti gli utenti con le loro opinioni
-      const usersSnapshot = await getDocs(collection(db, 'utenti'));
-      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      
-      // Filtra gli utenti che hanno espresso un'opinione su questo argomento
-      const usersWithOpinion = allUsers.filter((user: any) => 
-        user[opinionField] && ['Favorevole', 'Contrario', 'Indeciso'].includes(user[opinionField])
-      );
-      
-      const stats = {
-        total: usersWithOpinion.length,
-        favorevoli: 0,
-        contrari: 0,
-        indecisi: 0,
-        genderDistribution: {
-          Maschio: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          Femmina: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          Altro: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
-        },
-        averageAge: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-        ageDistribution: {
-          '18-25': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          '26-35': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          '36-45': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          '46-55': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          '56-65': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          '65+': { Favorevole: 0, Contrario: 0, Indeciso: 0 }
-        }
-      };
-      
-      const ageData = { Favorevole: [], Contrario: [], Indeciso: [] } as Record<string, number[]>;
-      
-      usersWithOpinion.forEach((user: any) => {
-        const opinion = user[opinionField] as 'Favorevole' | 'Contrario' | 'Indeciso';
-        const gender = (user.genere || 'Altro') as 'Maschio' | 'Femmina' | 'Altro';
-        
-        // Conta per opinione
-        if (opinion === 'Favorevole') stats.favorevoli++;
-        else if (opinion === 'Contrario') stats.contrari++;
-        else if (opinion === 'Indeciso') stats.indecisi++;
-        
-        // Distribuzione per genere
-        if (gender in stats.genderDistribution) {
-          stats.genderDistribution[gender][opinion]++;
-        } else {
-          stats.genderDistribution.Altro[opinion]++;
-        }
-        
-        // Calcolo età e distribuzione per fascia d'età
-        if (user.data_nascita) {
-          const birthDate = new Date(user.data_nascita);
-          const today = new Date();
-          const age = today.getFullYear() - birthDate.getFullYear();
-          
-          ageData[opinion].push(age);
-          
-          let ageGroup: keyof typeof stats.ageDistribution;
-          if (age >= 18 && age <= 25) ageGroup = '18-25';
-          else if (age >= 26 && age <= 35) ageGroup = '26-35';
-          else if (age >= 36 && age <= 45) ageGroup = '36-45';
-          else if (age >= 46 && age <= 55) ageGroup = '46-55';
-          else if (age >= 56 && age <= 65) ageGroup = '56-65';
-          else ageGroup = '65+';
-          
-          stats.ageDistribution[ageGroup][opinion]++;
-        }
-      });
-      
-      // Calcola le età medie per opinione
-      Object.keys(ageData).forEach(opinion => {
-        const ages = ageData[opinion];
-        if (ages.length > 0) {
-          stats.averageAge[opinion as keyof typeof stats.averageAge] = ages.reduce((a, b) => a + b, 0) / ages.length;
-        }
-      });
-      
-      return stats;
-    } catch (error) {
-      console.error('Errore nel recupero statistiche opinione:', error);
-      throw error;
-    }
-  }
-
-  static async getClassificaReferendumAbrogativo(): Promise<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string}>> {
-    try {
-      if (!db) {
-        return [];
-      }
+      if (!db) return [];
       
       const referendumRef = collection(db, 'referendum_abrogativi');
       const referendumSnapshot = await getDocs(referendumRef);
@@ -2285,23 +2071,18 @@ export default FirebaseService;
       
       votiSnapshot.forEach(doc => {
         const data = doc.data();
-        if (data.nome) {
-          votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
-        }
+        votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
       });
       
-      const referendumWithVotes = referendumSnapshot.docs.map(doc => {
+      const classifica: Array<{nome: string, voti: number}> = [];
+      
+      referendumSnapshot.forEach(doc => {
         const data = doc.data();
-        return {
-          nome: data.nome,
-          dataInizio: data.dataInizio,
-          dataFine: data.dataFine,
-          sitoWeb: data.sitoWeb,
-          voti: votiCount[data.nome] || 0
-        };
+        const voti = votiCount[data.nome] || 0;
+        classifica.push({ nome: data.nome, voti });
       });
       
-      return referendumWithVotes
+      return classifica
         .sort((a, b) => b.voti - a.voti)
         .slice(0, 10);
     } catch (error) {
@@ -2309,6 +2090,82 @@ export default FirebaseService;
       return [];
     }
   }
+
+  /**
+   * Recupera le statistiche dettagliate di una specifica opinione
+   */
+  static async getOpinionDetailStats(opinionField: string): Promise<{
+    total: number;
+    favorevoli: number;
+    contrari: number;
+    astenuti: number;
+    usersWithOpinion: any[];
+    ageData: any[];
+  }> {
+    try {
+      if (!db) {
+        return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0, usersWithOpinion: [], ageData: [] };
+      }
+
+      const usersRef = collection(db, 'utenti');
+      const usersSnapshot = await getDocs(usersRef);
+      
+      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const usersWithOpinion = allUsers.filter(user => 
+        user[opinionField] && user[opinionField] !== ''
+      );
+
+      const stats = {
+        total: usersWithOpinion.length,
+        favorevoli: 0,
+        contrari: 0,
+        astenuti: 0,
+        usersWithOpinion,
+        ageData: [] as any[]
+      };
+
+      // Conta le opinioni
+      usersWithOpinion.forEach(user => {
+        const opinion = user[opinionField];
+        if (opinion === 'favorevole') {
+          stats.favorevoli++;
+        } else if (opinion === 'contrario') {
+          stats.contrari++;
+        } else if (opinion === 'astenuto') {
+          stats.astenuti++;
+        }
+      });
+
+      // Calcola statistiche per età
+      const ageData: Record<string, any> = {};
+      
+      usersWithOpinion.forEach(user => {
+        const age = user.eta || 'Non specificato';
+        if (!ageData[age]) {
+          ageData[age] = { favorevoli: 0, contrari: 0, astenuti: 0 };
+        }
+        
+        const opinion = user[opinionField];
+        if (opinion === 'favorevole') {
+          ageData[age].favorevoli++;
+        } else if (opinion === 'contrario') {
+          ageData[age].contrari++;
+        } else if (opinion === 'astenuto') {
+          ageData[age].astenuti++;
+        }
+      });
+
+      stats.ageData = Object.entries(ageData)
+        .map(([age, data]) => ({ age, ...data }))
+        .sort((a, b) => a.age.localeCompare(b.age));
+
+      return stats;
+    } catch (error) {
+      console.error('Errore nel recuperare statistiche opinione:', error);
+      return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0, usersWithOpinion: [], ageData: [] };
+    }
+  }
+
 }
 
 export default FirebaseService;
