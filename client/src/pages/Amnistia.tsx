@@ -72,6 +72,16 @@ export default function Amnistia() {
   };
 
   const voteForLaw = async (legge: string) => {
+    // Check if user has already voted for this law
+    if (userVoti.includes(legge)) {
+      toast({
+        title: "Voto già registrato",
+        description: `Hai già votato per ${legge}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsVoting(true);
     try {
       const response = await fetch('/api/amnistia/vota', {

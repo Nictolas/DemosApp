@@ -72,6 +72,16 @@ export default function CapodiStato() {
   };
 
   const voteForCandidate = async (nome: string) => {
+    // Check if user has already voted for this person
+    if (userVoti.includes(nome)) {
+      toast({
+        title: "Voto già registrato",
+        description: `Hai già votato per ${nome}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsVoting(true);
     try {
       const response = await fetch('/api/capo-stato/vota', {

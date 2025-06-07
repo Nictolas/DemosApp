@@ -51,19 +51,33 @@ export default function Sostenitori() {
   const [stats, setStats] = useState<SupporterStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
-    const fetchSupporterStats = async () => {
+    const fetchUserDataAndStats = async () => {
       if (!user) return;
       
       try {
-        const response = await fetch(`/api/sostenitori/${encodeURIComponent(user.email)}`);
-        if (!response.ok) {
-          throw new Error(`Errore API: ${response.statusText}`);
+        // First fetch user profile to get the role
+        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          setUserProfile(userData);
+          
+          // Check if user is authorized (Politico, Candidato, or Candidato Politico)
+          const isAuthorized = userData.ruolo === 'Politico' || userData.ruolo === 'Candidato' || userData.ruolo === 'Candidato Politico';
+          
+          if (isAuthorized) {
+            // Fetch supporter stats
+            const statsResponse = await fetch(`/api/sostenitori/${encodeURIComponent(user.email)}`);
+            if (!statsResponse.ok) {
+              throw new Error(`Errore API: ${statsResponse.statusText}`);
+            }
+            
+            const supporterData = await statsResponse.json();
+            setStats(supporterData);
+          }
         }
-        
-        const supporterData = await response.json();
-        setStats(supporterData);
       } catch (error) {
         console.error("Errore:", error);
         setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche sostenitori");
@@ -73,13 +87,12 @@ export default function Sostenitori() {
     };
 
     if (user) {
-      fetchSupporterStats();
+      fetchUserDataAndStats();
     }
   }, [user]);
 
   // Verifica ruolo utente
-  const userRole = user?.ruolo;
-  const isAuthorized = userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico';
+  const isAuthorized = userProfile?.ruolo === 'Politico' || userProfile?.ruolo === 'Candidato' || userProfile?.ruolo === 'Candidato Politico';
 
   // Redirect se non autorizzato
   if (!user && !isLoading) {
