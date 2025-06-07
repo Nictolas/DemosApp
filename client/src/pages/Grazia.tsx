@@ -68,6 +68,10 @@ export default function Grazia() {
       return;
     }
 
+    await voteForCandidate(nomeInput.trim());
+  };
+
+  const voteForCandidate = async (nome: string) => {
     setIsVoting(true);
     try {
       const response = await fetch('/api/grazia/vota', {
@@ -76,19 +80,17 @@ export default function Grazia() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          nome: nomeInput.trim()
-        }),
+        body: JSON.stringify({ nome }),
       });
 
       if (response.ok) {
         toast({
           title: "Voto registrato",
-          description: `Hai votato ${nomeInput} per la grazia`,
+          description: `Hai votato ${nome} per la grazia`,
         });
         
         setNomeInput("");
-        // Aggiorna i dati
+        setShowSuggestions(false);
         await loadData();
       } else {
         const error = await response.json();
@@ -108,6 +110,35 @@ export default function Grazia() {
     } finally {
       setIsVoting(false);
     }
+  };
+
+  const removeVote = async (nome: string) => {
+    toast({
+      title: "Info",
+      description: "Funzione di rimozione voto in sviluppo",
+    });
+  };
+
+  const deleteFromClassifica = async (nome: string) => {
+    if (user?.email !== "polidemos@gmail.com") return;
+    
+    setIsDeleting(nome);
+    toast({
+      title: "Info", 
+      description: "Funzione di eliminazione in sviluppo",
+    });
+    setIsDeleting(null);
+  };
+
+  const getSuggestions = () => {
+    if (!nomeInput.trim() || !showSuggestions) return [];
+    
+    return classifica
+      .filter(item => 
+        item.nome.toLowerCase().includes(nomeInput.toLowerCase()) &&
+        item.nome.toLowerCase() !== nomeInput.toLowerCase()
+      )
+      .slice(0, 5);
   };
 
   if (isLoading) {
@@ -169,12 +200,36 @@ export default function Grazia() {
               <CardContent>
                 <form onSubmit={handleVote} className="space-y-4">
                   <div className="flex space-x-2">
-                    <Input
-                      placeholder="Nome del cittadino carcerato..."
-                      value={nomeInput}
-                      onChange={(e) => setNomeInput(e.target.value)}
-                      className="flex-1"
-                    />
+                    <div className="flex-1 relative">
+                      <Input
+                        placeholder="Nome del cittadino carcerato..."
+                        value={nomeInput}
+                        onChange={(e) => {
+                          setNomeInput(e.target.value);
+                          setShowSuggestions(true);
+                        }}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        className="w-full"
+                      />
+                      {showSuggestions && getSuggestions().length > 0 && (
+                        <div className="absolute top-full left-0 right-0 z-10 bg-white border border-gray-200 rounded-md shadow-lg mt-1">
+                          {getSuggestions().map((suggestion, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                              onClick={() => {
+                                setNomeInput(suggestion.nome);
+                                setShowSuggestions(false);
+                              }}
+                            >
+                              {suggestion.nome} ({suggestion.voti} voti)
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <Button 
                       type="submit" 
                       disabled={isVoting || !nomeInput.trim()}
@@ -194,12 +249,20 @@ export default function Grazia() {
                     <h4 className="text-sm font-semibold mb-2">I tuoi voti:</h4>
                     <div className="flex flex-wrap gap-2">
                       {userVoti.map((voto, index) => (
-                        <Badge key={index} variant="default">
+                        <Badge 
+                          key={index} 
+                          variant="default"
+                          className="cursor-pointer hover:bg-destructive/90 transition-colors"
+                          onClick={() => removeVote(voto)}
+                        >
                           <Vote className="h-3 w-3 mr-1" />
                           {voto}
                         </Badge>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Clicca su un nome per rimuovere il voto
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -222,6 +285,15 @@ export default function Grazia() {
                     {classifica.map((candidato, index) => (
                       <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
                         <div className="flex items-center space-x-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => voteForCandidate(candidato.nome)}
+                            disabled={isVoting}
+                            className="h-8 w-8 p-0"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                          </Button>
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                             index === 0 ? 'bg-yellow-100 text-yellow-700' :
                             index === 1 ? 'bg-gray-100 text-gray-700' :
@@ -232,9 +304,26 @@ export default function Grazia() {
                           </div>
                           <span className="font-medium">{candidato.nome}</span>
                         </div>
-                        <Badge variant="outline">
-                          {candidato.voti} voti
-                        </Badge>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant="outline">
+                            {candidato.voti} voti
+                          </Badge>
+                          {user?.email === "polidemos@gmail.com" && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteFromClassifica(candidato.nome)}
+                              disabled={isDeleting === candidato.nome}
+                              className="h-8 w-8 p-0"
+                            >
+                              {isDeleting === candidato.nome ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <X className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
