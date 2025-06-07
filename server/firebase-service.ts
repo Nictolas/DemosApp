@@ -1698,64 +1698,186 @@ class FirebaseService {
     }
   }
 
-  static async getClassificaAmnistia(): Promise<Array<{nome: string, voti: number}>> {
-    try {
-      if (!db) {
-        return [];
-      }
-
-      const votiCollection = collection(db, 'voti_amnistia');
-      const querySnapshot = await getDocs(votiCollection);
-      const conteggi: Record<string, number> = {};
-      
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const legge = data.legge;
-        conteggi[legge] = (conteggi[legge] || 0) + 1;
-      });
-      
-      const classifica = Object.entries(conteggi)
-        .map(([nome, voti]) => ({ nome, voti }))
-        .sort((a, b) => b.voti - a.voti)
-        .slice(0, 10); // Top 10
-      
-      return classifica;
-    } catch (error: any) {
-      console.error('Errore nel recuperare classifica amnistia:', error);
-      return [];
-    }
-  }
-
-  // ===== INIZIATIVE POPOLARI METHODS =====
+  // ===== SUPPORTER STATS METHODS =====
 
   /**
-   * Salva una nuova iniziativa popolare su Firebase
+   * Recupera le statistiche dei sostenitori di un politico
    */
-  static async saveIniziativaPopolare(iniziativaData: any): Promise<{
-    success: boolean;
-    data?: any;
-    error?: string;
+  static async getSupporterStats(politicoEmail: string): Promise<{
+    totalSupporters: number;
+    genderDistribution: {
+      Maschio: number;
+      Femmina: number;
+      Altro: number;
+    };
+    locationDistribution: Record<string, number>;
+    averageAge: number;
+    ageDistribution: {
+      '18-25': number;
+      '26-35': number;
+      '36-45': number;
+      '46-55': number;
+      '56-65': number;
+      '65+': number;
+    };
   }> {
     try {
       if (!db) {
-        return { success: false, error: 'Database non disponibile' };
+        return {
+          totalSupporters: 0,
+          genderDistribution: { Maschio: 0, Femmina: 0, Altro: 0 },
+          locationDistribution: {},
+          averageAge: 0,
+          ageDistribution: {
+            '18-25': 0,
+            '26-35': 0,
+            '36-45': 0,
+            '46-55': 0,
+            '56-65': 0,
+            '65+': 0
+          }
+        };
       }
+
+      const usersCollection = collection(db, 'utenti');
+      const q = query(usersCollection, where('rappresentante_scelto', '==', politicoEmail));
       
-      const iniziativeRef = collection(db, 'iniziative_popolari');
-      const docRef = await addDoc(iniziativeRef, iniziativaData);
-      
-      return {
-        success: true,
-        data: { id: docRef.id, ...iniziativaData }
+      const querySnapshot = await getDocs(q);
+      const supporters = querySnapshot.docs.map(doc => doc.data());
+
+      const stats = {
+        totalSupporters: supporters.length,
+        genderDistribution: { Maschio: 0, Femmina: 0, Altro: 0 },
+        locationDistribution: {} as Record<string, number>,
+        averageAge: 0,
+        ageDistribution: {
+          '18-25': 0,
+          '26-35': 0,
+          '36-45': 0,
+          '46-55': 0,
+          '56-65': 0,
+          '65+': 0
+        }
       };
-    } catch (error) {
-      console.error('Errore nel salvare iniziativa popolare:', error);
+
+      let totalAge = 0;
+
+      supporters.forEach(supporter => {
+        // Gender distribution
+        const gender = supporter.genere || 'Altro';
+        if (gender in stats.genderDistribution) {
+          stats.genderDistribution[gender as keyof typeof stats.genderDistribution]++;
+        } else {
+          stats.genderDistribution.Altro++;
+        }
+
+        // Location distribution
+        const location = supporter.luogo_nascita || 'Non specificato';
+        stats.locationDistribution[location] = (stats.locationDistribution[location] || 0) + 1;
+
+        // Age calculation
+        if (supporter.eta) {
+          const age = parseInt(supporter.eta);
+          if (!isNaN(age)) {
+            totalAge += age;
+            
+            if (age >= 18 && age <= 25) stats.ageDistribution['18-25']++;
+            else if (age >= 26 && age <= 35) stats.ageDistribution['26-35']++;
+            else if (age >= 36 && age <= 45) stats.ageDistribution['36-45']++;
+            else if (age >= 46 && age <= 55) stats.ageDistribution['46-55']++;
+            else if (age >= 56 && age <= 65) stats.ageDistribution['56-65']++;
+            else if (age > 65) stats.ageDistribution['65+']++;
+          }
+        }
+      });
+
+      stats.averageAge = supporters.length > 0 ? Math.round(totalAge / supporters.length) : 0;
+
+      return stats;
+    } catch (error: any) {
+      console.error('Errore nel recuperare statistiche sostenitori:', error);
       return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+        totalSupporters: 0,
+        genderDistribution: { Maschio: 0, Femmina: 0, Altro: 0 },
+        locationDistribution: {},
+        averageAge: 0,
+        ageDistribution: {
+          '18-25': 0,
+          '26-35': 0,
+          '36-45': 0,
+          '46-55': 0,
+          '56-65': 0,
+          '65+': 0
+        }
       };
     }
   }
+
+  /**
+   * Recupera le statistiche dettagliate di una specifica opinione
+   */
+  static async getOpinionDetailStats(opinionField: string): Promise<{
+    totalVotes: number;
+    distribution: {
+      Favorevole: number;
+      Contrario: number;
+      Indeciso: number;
+    };
+    percentages: {
+      Favorevole: number;
+      Contrario: number;
+      Indeciso: number;
+    };
+  }> {
+    try {
+      if (!db) {
+        return {
+          totalVotes: 0,
+          distribution: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+          percentages: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
+        };
+      }
+
+      const usersCollection = collection(db, 'utenti');
+      const querySnapshot = await getDocs(usersCollection);
+      
+      const distribution = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
+      let totalVotes = 0;
+
+      querySnapshot.forEach((doc) => {
+        const userData = doc.data();
+        const opinion = userData[opinionField];
+        
+        if (opinion && ['Favorevole', 'Contrario', 'Indeciso'].includes(opinion)) {
+          distribution[opinion as keyof typeof distribution]++;
+          totalVotes++;
+        }
+      });
+
+      const percentages = {
+        Favorevole: totalVotes > 0 ? Math.round((distribution.Favorevole / totalVotes) * 100) : 0,
+        Contrario: totalVotes > 0 ? Math.round((distribution.Contrario / totalVotes) * 100) : 0,
+        Indeciso: totalVotes > 0 ? Math.round((distribution.Indeciso / totalVotes) * 100) : 0
+      };
+
+      return {
+        totalVotes,
+        distribution,
+        percentages
+      };
+    } catch (error: any) {
+      console.error('Errore nel recuperare statistiche opinione:', error);
+      return {
+        totalVotes: 0,
+        distribution: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+        percentages: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
+      };
+    }
+  }
+
+}
+
+export default FirebaseService;
 
   /**
    * Vota per un'iniziativa popolare
