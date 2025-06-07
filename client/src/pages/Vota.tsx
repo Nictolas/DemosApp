@@ -1,6 +1,6 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Crown, Building2, Scale, Users } from "lucide-react";
@@ -35,38 +35,42 @@ export default function Vota() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-              <Button 
-                className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2" 
-                variant="default"
-                onClick={() => window.location.href = "/capo-di-stato"}
-              >
-                <Crown className="h-8 w-8" />
-                <span>Capo di Stato</span>
-              </Button>
-              <Button 
-                className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2" 
-                variant="outline"
-                onClick={() => window.location.href = "/governo"}
-              >
-                <Building2 className="h-8 w-8" />
-                <span>Governo</span>
-              </Button>
-              <Button 
-                className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2" 
-                variant="default"
-                onClick={() => window.location.href = "/grazia"}
-              >
-                <Scale className="h-8 w-8" />
-                <span>Grazia</span>
-              </Button>
-              <Button 
-                className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2" 
-                variant="outline"
-                onClick={() => window.location.href = "/amnistia"}
-              >
-                <Users className="h-8 w-8" />
-                <span>Amnistia</span>
-              </Button>
+              <Link href="/capo-di-stato">
+                <Button 
+                  className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2 w-full" 
+                  variant="default"
+                >
+                  <Crown className="h-8 w-8" />
+                  <span>Capo di Stato</span>
+                </Button>
+              </Link>
+              <Link href="/governo">
+                <Button 
+                  className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2 w-full" 
+                  variant="outline"
+                >
+                  <Building2 className="h-8 w-8" />
+                  <span>Governo</span>
+                </Button>
+              </Link>
+              <Link href="/grazia">
+                <Button 
+                  className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2 w-full" 
+                  variant="default"
+                >
+                  <Scale className="h-8 w-8" />
+                  <span>Grazia</span>
+                </Button>
+              </Link>
+              <Link href="/amnistia">
+                <Button 
+                  className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2 w-full" 
+                  variant="outline"
+                >
+                  <Users className="h-8 w-8" />
+                  <span>Amnistia</span>
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
