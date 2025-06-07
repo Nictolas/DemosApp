@@ -140,7 +140,7 @@ export default function Grazia() {
   };
 
   const deleteFromClassifica = async (nome: string) => {
-    if (user?.email !== "polidemos@gmail.com") return;
+    if (userProfile?.ruolo !== "Admin") return;
     
     setIsDeleting(nome);
     toast({
