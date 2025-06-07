@@ -1294,6 +1294,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Remove vote for amnesty
+  app.delete('/api/amnistia/voto/:legge', requireAuth, async (req, res) => {
+    try {
+      const { legge } = req.params;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!legge) {
+        return res.status(400).json({ error: 'Legge è richiesta' });
+      }
+
+      const result = await FirebaseService.removeVoteAmnistia(userId, decodeURIComponent(legge));
+      
+      if (!result.success) {
+        return res.status(404).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto rimosso con successo' });
+    } catch (error) {
+      console.error('Errore nel rimuovere voto amnistia:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   // Get amnesty ranking
   app.get('/api/amnistia/classifica', async (req, res) => {
     try {
@@ -1543,6 +1570,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(classifica);
     } catch (error) {
       console.error('Errore nel recuperare classifica referendum:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get supporter statistics for a politician
+  app.get('/api/sostenitori/:politicoEmail', async (req, res) => {
+    try {
+      const { politicoEmail } = req.params;
+      const decodedEmail = decodeURIComponent(politicoEmail);
+      
+      const stats = await FirebaseService.getSupporterStats(decodedEmail);
+      return res.status(200).json(stats);
+    } catch (error) {
+      console.error('Errore nel recuperare statistiche sostenitori:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get detailed opinion statistics
+  app.get('/api/opinioni/:campo/statistiche', async (req, res) => {
+    try {
+      const { campo } = req.params;
+      const stats = await FirebaseService.getOpinionDetailStats(campo);
+      return res.status(200).json(stats);
+    } catch (error) {
+      console.error('Errore nel recuperare statistiche opinione:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get user's ideal government selections
+  app.get('/api/governo-ideale', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const voti = await FirebaseService.getUserVotiMinistri(userId);
+      return res.status(200).json(voti);
+    } catch (error) {
+      console.error('Errore nel recuperare governo ideale:', error);
       return res.status(500).json({ error: 'Errore interno del server' });
     }
   });
