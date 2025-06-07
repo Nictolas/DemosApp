@@ -162,6 +162,17 @@ export default function Menu() {
                   </Button>
                 </Link>
               )}
+              {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
+                <Link href="/sostenitori">
+                  <Button 
+                    className="h-24 text-lg font-medium w-full" 
+                    variant="default"
+                  >
+                    <Users className="mr-2 h-5 w-5" />
+                    Sostenitori
+                  </Button>
+                </Link>
+              )}
               <Link href="/notifiche">
                 <Button 
                   className="h-24 text-lg font-medium w-full" 
