@@ -1266,6 +1266,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== INIZIATIVE POPOLARI ROUTES =====
+
+  // Create new initiative
+  app.post('/api/iniziative-popolari', requireAuth, async (req, res) => {
+    try {
+      const { nome, dataInizio, dataFine, sitoWeb } = req.body;
+      
+      if (!nome || !dataInizio || !dataFine) {
+        return res.status(400).json({ error: 'Nome, data inizio e data fine sono richiesti' });
+      }
+
+      const iniziativaData = {
+        nome,
+        dataInizio,
+        dataFine,
+        sitoWeb: sitoWeb || "",
+        data_creazione: new Date().toISOString(),
+        creatore_email: req.user?.email
+      };
+
+      const result = await FirebaseService.saveIniziativaPopolare(iniziativaData);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante il salvataggio dell\'iniziativa',
+          details: result.error
+        });
+      }
+
+      return res.status(201).json({ 
+        message: 'Iniziativa proposta con successo',
+        data: result.data
+      });
+    } catch (error) {
+      console.error('Errore durante la creazione dell\'iniziativa:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Vote for initiative
+  app.post('/api/iniziative-popolari/vota', requireAuth, async (req, res) => {
+    try {
+      const { nome } = req.body;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!nome) {
+        return res.status(400).json({ error: 'Nome iniziativa richiesto' });
+      }
+
+      const result = await FirebaseService.voteIniziativaPopolare(userId, nome);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto registrato con successo' });
+    } catch (error) {
+      console.error('Errore nel registrare voto iniziativa:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get user's initiative votes
+  app.get('/api/iniziative-popolari/voti', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const voti = await FirebaseService.getUserVotiIniziativePopolare(userId);
+      return res.status(200).json(voti);
+    } catch (error) {
+      console.error('Errore nel recuperare voti iniziative:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get initiative ranking
+  app.get('/api/iniziative-popolari/classifica', async (req, res) => {
+    try {
+      const classifica = await FirebaseService.getClassificaIniziativePopolare();
+      return res.status(200).json(classifica);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica iniziative:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // ===== REFERENDUM ABROGATIVI ROUTES =====
+
+  // Create new referendum
+  app.post('/api/referendum-abrogativi', requireAuth, async (req, res) => {
+    try {
+      const { nome, dataInizio, dataFine, sitoWeb } = req.body;
+      
+      if (!nome || !dataInizio || !dataFine) {
+        return res.status(400).json({ error: 'Nome, data inizio e data fine sono richiesti' });
+      }
+
+      const referendumData = {
+        nome,
+        dataInizio,
+        dataFine,
+        sitoWeb: sitoWeb || "",
+        data_creazione: new Date().toISOString(),
+        creatore_email: req.user?.email
+      };
+
+      const result = await FirebaseService.saveReferendumAbrogativo(referendumData);
+      
+      if (!result.success) {
+        return res.status(500).json({ 
+          error: 'Errore durante il salvataggio del referendum',
+          details: result.error
+        });
+      }
+
+      return res.status(201).json({ 
+        message: 'Referendum proposto con successo',
+        data: result.data
+      });
+    } catch (error) {
+      console.error('Errore durante la creazione del referendum:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Vote for referendum
+  app.post('/api/referendum-abrogativi/vota', requireAuth, async (req, res) => {
+    try {
+      const { nome } = req.body;
+      const userId = req.user?.id || req.user?.uid;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      if (!nome) {
+        return res.status(400).json({ error: 'Nome referendum richiesto' });
+      }
+
+      const result = await FirebaseService.voteReferendumAbrogativo(userId, nome);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Voto registrato con successo' });
+    } catch (error) {
+      console.error('Errore nel registrare voto referendum:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get user's referendum votes
+  app.get('/api/referendum-abrogativi/voti', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      const voti = await FirebaseService.getUserVotiReferendumAbrogativo(userId);
+      return res.status(200).json(voti);
+    } catch (error) {
+      console.error('Errore nel recuperare voti referendum:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
+  // Get referendum ranking
+  app.get('/api/referendum-abrogativi/classifica', async (req, res) => {
+    try {
+      const classifica = await FirebaseService.getClassificaReferendumAbrogativo();
+      return res.status(200).json(classifica);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica referendum:', error);
+      return res.status(500).json({ error: 'Errore interno del server' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

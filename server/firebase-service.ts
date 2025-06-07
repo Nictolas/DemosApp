@@ -1587,6 +1587,280 @@ class FirebaseService {
       return [];
     }
   }
+
+  // ===== INIZIATIVE POPOLARI METHODS =====
+
+  /**
+   * Salva una nuova iniziativa popolare su Firebase
+   */
+  static async saveIniziativaPopolare(iniziativaData: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const iniziativeRef = collection(db, 'iniziative_popolari');
+      const docRef = await addDoc(iniziativeRef, iniziativaData);
+      
+      return {
+        success: true,
+        data: { id: docRef.id, ...iniziativaData }
+      };
+    } catch (error) {
+      console.error('Errore nel salvare iniziativa popolare:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Vota per un'iniziativa popolare
+   */
+  static async voteIniziativaPopolare(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+
+      // Check if user already voted for this initiative
+      const votiRef = collection(db, 'voti_iniziative_popolari');
+      const existingVoteQuery = query(
+        votiRef,
+        where('utente_id', '==', userId),
+        where('nome', '==', nome)
+      );
+      const existingVoteSnapshot = await getDocs(existingVoteQuery);
+
+      if (!existingVoteSnapshot.empty) {
+        return { success: false, error: 'Hai già votato per questa iniziativa' };
+      }
+
+      // Add new vote
+      await addDoc(votiRef, {
+        utente_id: userId,
+        nome,
+        timestamp: new Date().toISOString()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel votare iniziativa popolare:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Recupera i voti dell'utente per le iniziative popolari
+   */
+  static async getUserVotiIniziativePopolare(userId: string): Promise<string[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiRef = collection(db, 'voti_iniziative_popolari');
+      const userVotesQuery = query(votiRef, where('utente_id', '==', userId));
+      const userVotesSnapshot = await getDocs(userVotesQuery);
+
+      return userVotesSnapshot.docs.map(doc => doc.data().nome);
+    } catch (error) {
+      console.error('Errore nel recuperare voti iniziative popolari:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera la classifica delle iniziative popolari
+   */
+  static async getClassificaIniziativePopolare(): Promise<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string}>> {
+    try {
+      if (!db) {
+        return [];
+      }
+      
+      const iniziativeRef = collection(db, 'iniziative_popolari');
+      const iniziativeSnapshot = await getDocs(iniziativeRef);
+      
+      const votiRef = collection(db, 'voti_iniziative_popolari');
+      const votiSnapshot = await getDocs(votiRef);
+      
+      const votiCount: Record<string, number> = {};
+      
+      votiSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.nome) {
+          votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
+        }
+      });
+      
+      const iniziativeWithVotes = iniziativeSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          nome: data.nome,
+          dataInizio: data.dataInizio,
+          dataFine: data.dataFine,
+          sitoWeb: data.sitoWeb,
+          voti: votiCount[data.nome] || 0
+        };
+      });
+      
+      return iniziativeWithVotes
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica iniziative popolari:', error);
+      return [];
+    }
+  }
+
+  // ===== REFERENDUM ABROGATIVI METHODS =====
+
+  /**
+   * Salva un nuovo referendum abrogativo su Firebase
+   */
+  static async saveReferendumAbrogativo(referendumData: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const referendumRef = collection(db, 'referendum_abrogativi');
+      const docRef = await addDoc(referendumRef, referendumData);
+      
+      return {
+        success: true,
+        data: { id: docRef.id, ...referendumData }
+      };
+    } catch (error) {
+      console.error('Errore nel salvare referendum abrogativo:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Vota per un referendum abrogativo
+   */
+  static async voteReferendumAbrogativo(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+
+      // Check if user already voted for this referendum
+      const votiRef = collection(db, 'voti_referendum_abrogativi');
+      const existingVoteQuery = query(
+        votiRef,
+        where('utente_id', '==', userId),
+        where('nome', '==', nome)
+      );
+      const existingVoteSnapshot = await getDocs(existingVoteQuery);
+
+      if (!existingVoteSnapshot.empty) {
+        return { success: false, error: 'Hai già votato per questo referendum' };
+      }
+
+      // Add new vote
+      await addDoc(votiRef, {
+        utente_id: userId,
+        nome,
+        timestamp: new Date().toISOString()
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel votare referendum abrogativo:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Recupera i voti dell'utente per i referendum abrogativi
+   */
+  static async getUserVotiReferendumAbrogativo(userId: string): Promise<string[]> {
+    try {
+      if (!db) {
+        return [];
+      }
+
+      const votiRef = collection(db, 'voti_referendum_abrogativi');
+      const userVotesQuery = query(votiRef, where('utente_id', '==', userId));
+      const userVotesSnapshot = await getDocs(userVotesQuery);
+
+      return userVotesSnapshot.docs.map(doc => doc.data().nome);
+    } catch (error) {
+      console.error('Errore nel recuperare voti referendum abrogativi:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera la classifica dei referendum abrogativi
+   */
+  static async getClassificaReferendumAbrogativo(): Promise<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string}>> {
+    try {
+      if (!db) {
+        return [];
+      }
+      
+      const referendumRef = collection(db, 'referendum_abrogativi');
+      const referendumSnapshot = await getDocs(referendumRef);
+      
+      const votiRef = collection(db, 'voti_referendum_abrogativi');
+      const votiSnapshot = await getDocs(votiRef);
+      
+      const votiCount: Record<string, number> = {};
+      
+      votiSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.nome) {
+          votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
+        }
+      });
+      
+      const referendumWithVotes = referendumSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          nome: data.nome,
+          dataInizio: data.dataInizio,
+          dataFine: data.dataFine,
+          sitoWeb: data.sitoWeb,
+          voti: votiCount[data.nome] || 0
+        };
+      });
+      
+      return referendumWithVotes
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica referendum abrogativi:', error);
+      return [];
+    }
+  }
 }
 
 export default FirebaseService;

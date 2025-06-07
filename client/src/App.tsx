@@ -31,6 +31,8 @@ import Amnistia from "@/pages/Amnistia";
 import Vota from "@/pages/Vota";
 import Comizi from "@/pages/Comizi";
 import Proponi from "@/pages/Proponi";
+import IniziativePopolare from "@/pages/IniziativePopolare";
+import ReferendumAbrogativi from "@/pages/ReferendumAbrogativi";
 import { AuthProvider } from "@/hooks/use-auth";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -234,6 +236,20 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/proponi" component={Proponi} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/iniziative-popolari">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/iniziative-popolari" component={IniziativePopolare} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/referendum-abrogativi">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/referendum-abrogativi" component={ReferendumAbrogativi} />
           </PageTransition>
         )}
       </Route>
