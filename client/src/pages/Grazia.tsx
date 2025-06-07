@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Heart, Vote, Trophy, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Heart, Vote, Trophy, Plus, X, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,8 @@ export default function Grazia() {
   const [loadingData, setLoadingData] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
   const [nomeInput, setNomeInput] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Carica i dati dell'utente e la classifica
   useEffect(() => {
