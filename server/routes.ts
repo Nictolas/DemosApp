@@ -113,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`User ID richiedente: ${req.user?.id}`);
       console.log(`Email richiedente: ${req.user?.email}`);
-      console.log(`UUID richiedente: ${req.user?.uuid || 'non disponibile'}`);
+      console.log(`UID richiedente: ${req.user?.uid || 'non disponibile'}`);
       console.log("Dati di aggiornamento ricevuti:", userData);
       
       // Verifica se l'utente è admin o sta modificando il proprio profilo
@@ -192,7 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("User ID richiedente:", req.user.id);
       console.log("Email richiedente:", req.user.email);
-      console.log("UUID richiedente:", req.user.uuid || "non disponibile");
+      console.log("UID richiedente:", req.user.uid || "non disponibile");
       
       // Verifica se l'utente che fa la richiesta è admin (controllo SOLO in Firebase)
       let isAdmin = false;
