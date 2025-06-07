@@ -23,6 +23,7 @@ export default function Profilo() {
   const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
   const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
+  const [governoIdeale, setGovernoIdeale] = useState<Record<string, string>>({});
 
   // Funzione per categorizzare le opinioni
   const categorizeOpinions = (opinions: any) => {
@@ -172,6 +173,24 @@ export default function Profilo() {
     setCandidateAvatars(avatars);
   };
 
+  // Funzione per recuperare le selezioni di governo dell'utente
+  const fetchGovernoIdeale = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch(`/api/governo/voti`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const votiGoverno = await response.json();
+        setGovernoIdeale(votiGoverno);
+      }
+    } catch (error) {
+      console.error('Errore nel recupero delle selezioni di governo:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (!user) return;
@@ -221,6 +240,9 @@ export default function Profilo() {
           // Fetch representative names and candidate names
           await fetchRepresentativeNames(userData);
           await fetchCandidateNames(userData);
+          
+          // Fetch government selections
+          await fetchGovernoIdeale();
         } else {
           console.log("Dati non trovati, caricamento dal profilo locale");
           
@@ -476,6 +498,35 @@ export default function Profilo() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Sezione Governo Ideale */}
+          {userInfo && Object.keys(governoIdeale).length > 0 && (
+            <Card className="animate-in-delay">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Il Tuo Governo Ideale
+                </CardTitle>
+                <CardDescription>
+                  I ministri che hai selezionato per il tuo governo ideale
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Object.entries(governoIdeale).map(([categoria, nome]) => (
+                    <div key={categoria} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-blue-800 mb-2 capitalize">
+                        {categoria.replace('_', ' ')}
+                      </h3>
+                      <div className="bg-white border border-blue-200 rounded-md p-3">
+                        <span className="text-blue-900 font-medium">{nome}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>

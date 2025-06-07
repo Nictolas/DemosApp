@@ -133,10 +133,38 @@ export default function Amnistia() {
   };
 
   const removeVote = async (legge: string) => {
-    toast({
-      title: "Info",
-      description: "Funzione di rimozione voto in sviluppo",
-    });
+    setIsDeleting(legge);
+    try {
+      const response = await fetch(`/api/amnistia/voto/${encodeURIComponent(legge)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Voto rimosso",
+          description: `Hai rimosso il voto per ${legge}`,
+        });
+        
+        await loadData();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Errore",
+          description: error.error || "Errore nel rimuovere il voto",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Errore nel rimuovere il voto:', error);
+      toast({
+        title: "Errore",
+        description: "Errore di connessione",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(null);
+    }
   };
 
   const deleteFromClassifica = async (legge: string) => {
