@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Scale, Vote, Trophy, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Scale, Vote, Trophy, Plus, X, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,8 @@ export default function Amnistia() {
   const [loadingData, setLoadingData] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
   const [leggeInput, setLeggeInput] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Carica i dati dell'utente e la classifica
   useEffect(() => {
@@ -66,6 +68,10 @@ export default function Amnistia() {
       return;
     }
 
+    await voteForLaw(leggeInput.trim());
+  };
+
+  const voteForLaw = async (legge: string) => {
     setIsVoting(true);
     try {
       const response = await fetch('/api/amnistia/vota', {
@@ -74,19 +80,17 @@ export default function Amnistia() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          legge: leggeInput.trim()
-        }),
+        body: JSON.stringify({ legge }),
       });
 
       if (response.ok) {
         toast({
           title: "Voto registrato",
-          description: `Hai votato ${leggeInput} per l'amnistia`,
+          description: `Hai votato ${legge} per l'amnistia`,
         });
         
         setLeggeInput("");
-        // Aggiorna i dati
+        setShowSuggestions(false);
         await loadData();
       } else {
         const error = await response.json();
@@ -106,6 +110,35 @@ export default function Amnistia() {
     } finally {
       setIsVoting(false);
     }
+  };
+
+  const removeVote = async (legge: string) => {
+    toast({
+      title: "Info",
+      description: "Funzione di rimozione voto in sviluppo",
+    });
+  };
+
+  const deleteFromClassifica = async (legge: string) => {
+    if (user?.email !== "polidemos@gmail.com") return;
+    
+    setIsDeleting(legge);
+    toast({
+      title: "Info", 
+      description: "Funzione di eliminazione in sviluppo",
+    });
+    setIsDeleting(null);
+  };
+
+  const getSuggestions = () => {
+    if (!leggeInput.trim() || !showSuggestions) return [];
+    
+    return classifica
+      .filter(item => 
+        item.nome.toLowerCase().includes(leggeInput.toLowerCase()) &&
+        item.nome.toLowerCase() !== leggeInput.toLowerCase()
+      )
+      .slice(0, 5);
   };
 
   if (isLoading) {
