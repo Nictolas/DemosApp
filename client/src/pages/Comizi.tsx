@@ -16,7 +16,7 @@ export default function Comizi() {
   }
 
   // Fetch comizi data from API
-  const { data: comizi = [], isLoading: comiziLoading } = useQuery({
+  const { data: comizi = [], isLoading: comiziLoading } = useQuery<any[]>({
     queryKey: ["/api/comizi"],
     enabled: !!user,
   });
@@ -90,7 +90,7 @@ export default function Comizi() {
                   </TableBody>
                 </Table>
               </div>
-              {comizi.length === 0 && (
+              {!comiziLoading && comizi.length === 0 && (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Nessun comizio programmato al momento.</p>

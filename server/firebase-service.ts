@@ -1517,7 +1517,10 @@ class FirebaseService {
     error?: string;
   }> {
     try {
-      const db = getFirestore();
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
       const comiziRef = collection(db, 'comizi');
       const docRef = await addDoc(comiziRef, comizioData);
       
@@ -1539,7 +1542,10 @@ class FirebaseService {
    */
   static async getAllComizi(): Promise<any[]> {
     try {
-      const db = getFirestore();
+      if (!db) {
+        return [];
+      }
+      
       const comiziRef = collection(db, 'comizi');
       const q = query(comiziRef, orderBy('quando', 'asc'));
       const querySnapshot = await getDocs(q);
