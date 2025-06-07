@@ -81,143 +81,198 @@ export default function Menu() {
                 Benvenuto nell'applicazione DEMOS. Seleziona un'opzione per continuare.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 p-6">
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 p-6">
               <Link href="/profilo">
                 <Button 
-                  className="h-24 text-lg font-medium w-full" 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
                   variant="default"
                 >
+                  <UserCheck className="h-5 w-5" />
                   Profilo
                 </Button>
               </Link>
-              <Link href="/gestisci-utenti">
-                <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="outline"
-                >
-                  Gestisci Utenti
-                </Button>
-              </Link>
+              
               <Link href="/opinioni">
                 <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="default"
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
                 >
+                  <MessageSquare className="h-5 w-5" />
                   Opinioni
                 </Button>
               </Link>
+              
               <Link href="/rappresentanti">
                 <Button 
-                  className="h-24 text-lg font-medium w-full" 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
                   variant="outline"
                 >
-                  <UserCheck className="mr-2 h-5 w-5" />
+                  <Users className="h-5 w-5" />
                   Rappresentanti
                 </Button>
               </Link>
+              
               <Link href="/elezioni">
                 <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="default"
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
                 >
-                  <Vote className="mr-2 h-5 w-5" />
+                  <Vote className="h-5 w-5" />
                   Elezioni
                 </Button>
               </Link>
-              <Link href="/gestisci-elezioni">
+              
+              <Link href="/statistiche">
                 <Button 
-                  className="h-24 text-lg font-medium w-full" 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
                   variant="outline"
                 >
-                  <Settings className="mr-2 h-5 w-5" />
-                  Gestisci Elezioni
+                  <BarChart2 className="h-5 w-5" />
+                  Statistiche
                 </Button>
               </Link>
-              <Link href="/statistiche-utenti">
+              
+              <Link href="/gestisci">
                 <Button 
-                  className="h-24 text-lg font-medium w-full" 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
                   variant="outline"
                 >
-                  <BarChart2 className="mr-2 h-5 w-5" />
-                  Statistiche Utenti
+                  <Settings className="h-5 w-5" />
+                  Gestisci
                 </Button>
               </Link>
-              <Link href="/statistiche-opinioni">
+              
+              <Link href="/comunica">
                 <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="default"
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
                 >
-                  <PieChart className="mr-2 h-5 w-5" />
-                  Statistiche Opinioni
+                  <Megaphone className="h-5 w-5" />
+                  Comunica
                 </Button>
               </Link>
-              {(userRole === 'Politico' || userRole === 'Candidato Politico') && (
-                <Link href="/comunica">
-                  <Button 
-                    className="h-24 text-lg font-medium w-full" 
-                    variant="default"
-                  >
-                    <MessageSquare className="mr-2 h-5 w-5" />
-                    Comunica
-                  </Button>
-                </Link>
-              )}
+              
+              <Link href="/podio-trasparenza">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Trophy className="h-5 w-5" />
+                  Podio Trasparenza
+                </Button>
+              </Link>
+              
+              <Link href="/notifiche">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Bell className="h-5 w-5" />
+                  Notifiche
+                </Button>
+              </Link>
+              
+              <Link href="/vota">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Vote className="h-5 w-5" />
+                  Vota
+                </Button>
+              </Link>
+              
+              <Link href="/capo-di-stato">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Crown className="h-5 w-5" />
+                  Capo di Stato
+                </Button>
+              </Link>
+              
+              <Link href="/governo">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Building2 className="h-5 w-5" />
+                  Governo
+                </Button>
+              </Link>
+              
+              <Link href="/grazia">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Scale className="h-5 w-5" />
+                  Grazia
+                </Button>
+              </Link>
+              
+              <Link href="/amnistia">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <FileText className="h-5 w-5" />
+                  Amnistia
+                </Button>
+              </Link>
+              
+              <Link href="/comizi">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Megaphone className="h-5 w-5" />
+                  Comizi
+                </Button>
+              </Link>
+              
+              <Link href="/proponi">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <FileText className="h-5 w-5" />
+                  Proponi
+                </Button>
+              </Link>
+              
+              <Link href="/iniziative-popolari">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Users className="h-5 w-5" />
+                  Iniziative Popolari
+                </Button>
+              </Link>
+              
+              <Link href="/referendum-abrogativi">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Vote className="h-5 w-5" />
+                  Referendum Abrogativi
+                </Button>
+              </Link>
+              
               {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
                 <Link href="/sostenitori">
                   <Button 
-                    className="h-24 text-lg font-medium w-full" 
-                    variant="default"
+                    className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                    variant="outline"
                   >
-                    <Users className="mr-2 h-5 w-5" />
+                    <Users className="h-5 w-5" />
                     Sostenitori
                   </Button>
                 </Link>
               )}
-              <Link href="/notifiche">
-                <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="outline"
-                >
-                  <Bell className="mr-2 h-5 w-5" />
-                  Notifiche
-                </Button>
-              </Link>
-              <Link href="/podio-trasparenza">
-                <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="default"
-                >
-                  <Trophy className="mr-2 h-5 w-5" />
-                  Podio Trasparenza
-                </Button>
-              </Link>
-              <Link href="/vota">
-                <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="outline"
-                >
-                  <Vote className="mr-2 h-5 w-5" />
-                  Vota
-                </Button>
-              </Link>
-              <Link href="/comizi">
-                <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="default"
-                >
-                  <Megaphone className="mr-2 h-5 w-5" />
-                  Comizi
-                </Button>
-              </Link>
-              <Link href="/proponi">
-                <Button 
-                  className="h-24 text-lg font-medium w-full" 
-                  variant="outline"
-                >
-                  <FileText className="mr-2 h-5 w-5" />
-                  Proponi
-                </Button>
-              </Link>
               {isAdmin && (
                 <Button 
                   className="h-24 text-lg font-medium md:col-span-2" 

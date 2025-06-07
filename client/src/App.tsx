@@ -34,6 +34,8 @@ import Proponi from "@/pages/Proponi";
 import IniziativePopolare from "@/pages/IniziativePopolare";
 import ReferendumAbrogativi from "@/pages/ReferendumAbrogativi";
 import Sostenitori from "@/pages/Sostenitori";
+import Statistiche from "@/pages/Statistiche";
+import Gestisci from "@/pages/Gestisci";
 import EnergiaNucleare from "@/pages/opinioni/EnergiaNucleare";
 import Caccia from "@/pages/opinioni/Caccia";
 import SperimentazioneAnimale from "@/pages/opinioni/SperimentazioneAnimale";
@@ -263,6 +265,20 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/sostenitori" component={Sostenitori} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/statistiche">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/statistiche" component={Statistiche} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/gestisci">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/gestisci" component={Gestisci} />
           </PageTransition>
         )}
       </Route>
