@@ -2323,34 +2323,41 @@ class FirebaseService {
       const usersCollection = collection(db, 'utenti');
       const querySnapshot = await getDocs(usersCollection);
 
+      let stats = {
+        total: 0,
+        favorevoli: 0,
+        contrari: 0,
+        astenuti: 0,
+        usersWithOpinion: [] as any[],
+        ageData: [] as any[]
+      };
+
       querySnapshot.forEach((doc) => {
         const userData = doc.data();
         const opinion = userData[opinionField];
         
-        if (opinion && ['Favorevole', 'Contrario', 'Indeciso'].includes(opinion)) {
-          distribution[opinion as keyof typeof distribution]++;
-          totalVotes++;
+        if (opinion) {
+          stats.total++;
+          stats.usersWithOpinion.push({
+            id: doc.id,
+            ...userData,
+            opinion
+          });
+          
+          if (opinion === 'favorevole') {
+            stats.favorevoli++;
+          } else if (opinion === 'contrario') {
+            stats.contrari++;
+          } else if (opinion === 'astenuto') {
+            stats.astenuti++;
+          }
         }
       });
 
-      const percentages = {
-        Favorevole: totalVotes > 0 ? Math.round((distribution.Favorevole / totalVotes) * 100) : 0,
-        Contrario: totalVotes > 0 ? Math.round((distribution.Contrario / totalVotes) * 100) : 0,
-        Indeciso: totalVotes > 0 ? Math.round((distribution.Indeciso / totalVotes) * 100) : 0
-      };
-
-      return {
-        totalVotes,
-        distribution,
-        percentages
-      };
-    } catch (error: any) {
+      return stats;
+    } catch (error) {
       console.error('Errore nel recuperare statistiche opinione:', error);
-      return {
-        totalVotes: 0,
-        distribution: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-        percentages: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
-      };
+      return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0, usersWithOpinion: [], ageData: [] };
     }
   }
 
