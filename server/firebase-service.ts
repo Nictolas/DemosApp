@@ -2166,6 +2166,273 @@ class FirebaseService {
     }
   }
 
+  // ===== PROFILE CLAIM METHODS =====
+
+  /**
+   * Save a profile claim request
+   */
+  static async saveProfileClaimRequest(claimData: any): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const claimRef = collection(db, 'profile_claim_requests');
+      await addDoc(claimRef, claimData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel salvare richiesta reclamo profilo:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Create notification for admins
+   */
+  static async createAdminNotification(notificationData: any): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const notifRef = collection(db, 'admin_notifications');
+      await addDoc(notifRef, notificationData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel creare notifica admin:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  // ===== USER APPROVAL METHODS =====
+
+  /**
+   * Get pending users
+   */
+  static async getPendingUsers(): Promise<any[]> {
+    try {
+      if (!db) return [];
+      
+      const usersRef = collection(db, 'utenti');
+      const q = query(usersRef, where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Errore nel recuperare utenti pending:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Approve user
+   */
+  static async approveUser(userId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const userRef = doc(db, 'utenti', userId);
+      await updateDoc(userRef, {
+        status: 'active',
+        approved_at: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nell\'approvare utente:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Reject user
+   */
+  static async rejectUser(userId: string, reason?: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      // Send notification to user before deleting
+      const userDoc = await getDoc(doc(db, 'utenti', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Create rejection notification
+        const notifRef = collection(db, 'user_notifications');
+        await addDoc(notifRef, {
+          user_id: userId,
+          type: 'account_rejected',
+          title: 'Account rifiutato',
+          message: reason || 'La tua richiesta di account è stata rifiutata.',
+          created_at: new Date().toISOString()
+        });
+      }
+      
+      // Delete user account
+      await deleteDoc(doc(db, 'utenti', userId));
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel rifiutare utente:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  // ===== PREMIUM REQUEST METHODS =====
+
+  /**
+   * Get pending premium requests
+   */
+  static async getPendingPremiumRequests(): Promise<any[]> {
+    try {
+      if (!db) return [];
+      
+      const requestsRef = collection(db, 'premium_requests');
+      const q = query(requestsRef, where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Errore nel recuperare richieste premium pending:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Approve premium request
+   */
+  static async approvePremiumRequest(requestId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      // Get request data
+      const requestDoc = await getDoc(doc(db, 'premium_requests', requestId));
+      if (!requestDoc.exists()) {
+        return { success: false, error: 'Richiesta non trovata' };
+      }
+      
+      const requestData = requestDoc.data();
+      
+      // Update user to premium
+      const userRef = doc(db, 'utenti', this.emailToId(requestData.user_email));
+      await updateDoc(userRef, {
+        premium: true,
+        premium_activated_at: new Date().toISOString()
+      });
+      
+      // Update request status
+      await updateDoc(doc(db, 'premium_requests', requestId), {
+        status: 'approved',
+        approved_at: new Date().toISOString()
+      });
+      
+      // Send approval notification to user
+      const notifRef = collection(db, 'user_notifications');
+      await addDoc(notifRef, {
+        user_id: requestData.user_id,
+        type: 'premium_approved',
+        title: 'DEMOS Premium attivato',
+        message: 'La tua richiesta per DEMOS Premium è stata approvata!',
+        created_at: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nell\'approvare richiesta premium:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Reject premium request
+   */
+  static async rejectPremiumRequest(requestId: string, reason?: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      // Get request data
+      const requestDoc = await getDoc(doc(db, 'premium_requests', requestId));
+      if (!requestDoc.exists()) {
+        return { success: false, error: 'Richiesta non trovata' };
+      }
+      
+      const requestData = requestDoc.data();
+      
+      // Update request status
+      await updateDoc(doc(db, 'premium_requests', requestId), {
+        status: 'rejected',
+        rejected_at: new Date().toISOString(),
+        rejection_reason: reason
+      });
+      
+      // Send rejection notification to user
+      const notifRef = collection(db, 'user_notifications');
+      await addDoc(notifRef, {
+        user_id: requestData.user_id,
+        type: 'premium_rejected',
+        title: 'Richiesta DEMOS Premium rifiutata',
+        message: reason || 'La tua richiesta per DEMOS Premium è stata rifiutata.',
+        created_at: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel rifiutare richiesta premium:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
 }
 
 export default FirebaseService;
