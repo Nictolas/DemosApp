@@ -36,6 +36,8 @@ import ReferendumAbrogativi from "@/pages/ReferendumAbrogativi";
 import Sostenitori from "@/pages/Sostenitori";
 import Statistiche from "@/pages/Statistiche";
 import Gestisci from "@/pages/Gestisci";
+import Impostazioni from "@/pages/Impostazioni";
+import ReclamaProfilo from "@/pages/ReclamaProfilo";
 import EnergiaNucleare from "@/pages/opinioni/EnergiaNucleare";
 import Caccia from "@/pages/opinioni/Caccia";
 import SperimentazioneAnimale from "@/pages/opinioni/SperimentazioneAnimale";
@@ -279,6 +281,20 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/gestisci" component={Gestisci} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/impostazioni">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/impostazioni" component={Impostazioni} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/reclama-profilo">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/reclama-profilo" component={ReclamaProfilo} />
           </PageTransition>
         )}
       </Route>

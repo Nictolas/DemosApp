@@ -1616,6 +1616,214 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== PROFILE CLAIM ROUTES =====
+
+  // Search politicians for profile claiming
+  app.get('/api/search-politicians', requireAuth, async (req, res) => {
+    try {
+      const { q } = req.query;
+      
+      if (!q || typeof q !== 'string') {
+        return res.status(400).json({ error: 'Query parameter required' });
+      }
+
+      // Search for politicians in Firebase
+      const allUsers = await FirebaseService.getAllUsersOpinions();
+      const politicians = allUsers.filter(user => 
+        (user.ruolo === 'Politico' || user.ruolo === 'Candidato' || user.ruolo === 'Candidato Politico') &&
+        (user.nome?.toLowerCase().includes(q.toLowerCase()) || 
+         user.cognome?.toLowerCase().includes(q.toLowerCase()) ||
+         `${user.nome} ${user.cognome}`.toLowerCase().includes(q.toLowerCase()))
+      );
+
+      return res.status(200).json(politicians);
+    } catch (error) {
+      console.error('Error searching politicians:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Submit profile claim request
+  app.post('/api/claim-profile', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id || req.user?.uid;
+      const userEmail = req.user?.email;
+      
+      if (!userId || !userEmail) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const claimData = {
+        user_id: userId,
+        user_email: userEmail,
+        nome: req.body.nome,
+        cognome: req.body.cognome,
+        carica_attuale: req.body.carica_attuale,
+        ente_elettorale: req.body.ente_elettorale,
+        email: req.body.email,
+        riferimento_istituzionale: req.body.riferimento_istituzionale,
+        profile_id: req.body.profile_id || null,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+
+      // Save claim request to Firebase
+      const result = await FirebaseService.saveProfileClaimRequest(claimData);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      // Create notification for admins
+      await FirebaseService.createAdminNotification({
+        type: 'profile_claim',
+        title: 'Nuova richiesta reclamo profilo',
+        message: `${claimData.nome} ${claimData.cognome} ha richiesto di reclamare un profilo`,
+        data: claimData,
+        created_at: new Date().toISOString()
+      });
+
+      return res.status(200).json({ message: 'Claim request submitted successfully' });
+    } catch (error) {
+      console.error('Error submitting claim request:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ===== USER APPROVAL ROUTES =====
+
+  // Get pending users (Admin only)
+  app.get('/api/pending-users', requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin
+      const userInfo = await FirebaseService.getUserByEmail(req.user?.email);
+      if (!userInfo || userInfo.ruolo !== 'Admin') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const pendingUsers = await FirebaseService.getPendingUsers();
+      return res.status(200).json(pendingUsers);
+    } catch (error) {
+      console.error('Error fetching pending users:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Approve user (Admin only)
+  app.post('/api/approve-user', requireAuth, async (req, res) => {
+    try {
+      const { userId } = req.body;
+      
+      // Check if user is admin
+      const userInfo = await FirebaseService.getUserByEmail(req.user?.email);
+      if (!userInfo || userInfo.ruolo !== 'Admin') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const result = await FirebaseService.approveUser(userId);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'User approved successfully' });
+    } catch (error) {
+      console.error('Error approving user:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Reject user (Admin only)
+  app.post('/api/reject-user', requireAuth, async (req, res) => {
+    try {
+      const { userId, reason } = req.body;
+      
+      // Check if user is admin
+      const userInfo = await FirebaseService.getUserByEmail(req.user?.email);
+      if (!userInfo || userInfo.ruolo !== 'Admin') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const result = await FirebaseService.rejectUser(userId, reason);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'User rejected successfully' });
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ===== PREMIUM REQUEST ROUTES =====
+
+  // Get pending premium requests (Admin only)
+  app.get('/api/pending-premium-requests', requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin
+      const userInfo = await FirebaseService.getUserByEmail(req.user?.email);
+      if (!userInfo || userInfo.ruolo !== 'Admin') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const pendingRequests = await FirebaseService.getPendingPremiumRequests();
+      return res.status(200).json(pendingRequests);
+    } catch (error) {
+      console.error('Error fetching pending premium requests:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Approve premium request (Admin only)
+  app.post('/api/approve-premium', requireAuth, async (req, res) => {
+    try {
+      const { requestId } = req.body;
+      
+      // Check if user is admin
+      const userInfo = await FirebaseService.getUserByEmail(req.user?.email);
+      if (!userInfo || userInfo.ruolo !== 'Admin') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const result = await FirebaseService.approvePremiumRequest(requestId);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Premium request approved successfully' });
+    } catch (error) {
+      console.error('Error approving premium request:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Reject premium request (Admin only)
+  app.post('/api/reject-premium', requireAuth, async (req, res) => {
+    try {
+      const { requestId, reason } = req.body;
+      
+      // Check if user is admin
+      const userInfo = await FirebaseService.getUserByEmail(req.user?.email);
+      if (!userInfo || userInfo.ruolo !== 'Admin') {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const result = await FirebaseService.rejectPremiumRequest(requestId, reason);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: 'Premium request rejected successfully' });
+    } catch (error) {
+      console.error('Error rejecting premium request:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

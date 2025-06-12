@@ -88,6 +88,11 @@ export function Navbar() {
                         Podio Trasparenza
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link href="/impostazioni">
+                        Impostazioni
+                      </Link>
+                    </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
