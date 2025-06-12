@@ -1,0 +1,156 @@
+Implementazione della Pagina "Reclama Profilo"
+Obiettivo
+Creare una pagina dedicata alla rivendicazione dei profili per rappresentanti eletti, integrando funzionalità di ricerca, raccolta dati, gestione documenti e gestione abbonamenti Premium.
+Dettagli di Implementazione
+1. Struttura della Pagina e Navigazione
+Pagina "Reclama Profilo": Crea una nuova pagina dedicata a questa funzionalità.
+Pagina "Impostazioni": Crea la pagina “Impostazioni”, il pulsante “Impostazioni” nel menu, collega il pulsante alla pagina. 
+Pulsante in "Impostazioni": Nella pagina "Impostazioni", aggiungi un pulsante denominato "Reclama Profilo". Questo pulsante dovrà collegarsi direttamente alla nuova pagina "Reclama Profilo".
+2. Contenuto della Pagina "Reclama Profilo"
+La pagina dovrà presentare la seguente descrizione iniziale, seguita dalle sezioni specifiche.
+Descrizione introduttiva:
+
+ "Sei un rappresentante eletto? Verifica subito se il tuo profilo esiste e richiedi il 'badge verificato' per accedere a DEMOS Premium!"
+
+
+
+
+3. Flusso di Reclamo Profilo e Dati Richiesti
+Fase 1 – Cerca il tuo profilo
+Barra di ricerca: Integra una barra di ricerca con funzionalità di autocomplete.
+Logica di ricerca:
+Se l'utente inserisce il nome di un politico già presente sulla piattaforma, il sistema deve permettere all'utente di "reclamare" quel profilo.
+Se il profilo non è presente, deve apparire il messaggio: "Questo profilo non è presente su DEMOS."
+Fase 2 – Compila i dati
+Questa sezione deve essere accessibile solo dopo che l'utente ha cercato o ha constatato che il suo profilo non è presente (nel secondo caso, si presuppone che l'utente stia creando un nuovo profilo da reclamare).
+Campi obbligatori:
+Nome e Cognome
+Carica Attuale
+Ente Elettorale (es. Comune, Regione, Parlamento)
+Recapito E-mail
+Upload Documenti:
+Documento di identità ufficiale: Upload di Carta d’identità o passaporto in corso di validità (fronte/retro).
+Certificazione di elezione: Upload di copia del verbale di proclamazione o estratto ufficiale (comune, Regione o Parlamento).
+Dichiarazione di carica: Autocertificazione su carta semplice in cui il politico dichiara la carica attuale, con data di inizio mandato.
+Riferimento istituzionale: Campo di testo per un link al sito ufficiale o contatto dell’ufficio elettorale di competenza per eventuali controlli.
+Checkbox GDPR:
+Aggiungi un checkbox con la dicitura: "Accetto i termini, le condizioni e la Privacy Policy di Demos". Il link LINK_ALLA_PRIVACY_POLICY dovrà puntare alla pagina della Privacy Policy.
+Fase 3 – Conferma e invia
+Bottone: "Invia richiesta"
+Messaggio di conferma: Dopo l'invio, visualizzare il messaggio: "Richiesta inviata! Riceverai una notifica non appena verificato."
+
+4. Vantaggi di DEMOS Premium (Visualizzazione per l'utente)
+Proponi la seguente descrizione dei vantaggi in un elenco puntato persuasivo, visibile sulla pagina "Reclama Profilo" e nella prima pagina dell’app, per incentivare l'adesione a DEMOS Premium.
+Con soli 50 € all’anno, DEMOS Premium ti offre:
+Badge verificato: Riconoscimento ufficiale del tuo ruolo istituzionale.
+Dashboard elettorale: Analisi e report costanti delle preferenze in tempo reale.
+Canale diretto: Notifiche push e comunicazioni personalizzate ai tuoi sostenitori.
+Strumenti di engagement: Statistiche e sondaggi per coinvolgere il tuo elettorato.
+Certo! Ecco come potresti presentare i quattro riquadri in fase di registrazione per le diverse tipologie di account (escluso l'admin), includendo costo e funzionalità principali:
+
+Scegli il Tuo Account DEMOS
+Durante la fase di registrazione, l'utente dovrebbe visualizzare quattro riquadri distinti, ciascuno rappresentante una tipologia di account e fornendo informazioni chiare su costi e benefici. Questi riquadri guideranno l'utente nella scelta del profilo più adatto alle proprie esigenze.
+
+Demos Voter 
+Costo: Gratuito per sempre
+Per chi: Gli elettori e i cittadini che vogliono interagire con la politica.
+Poteri:
+Esprimere le proprie opinioni su temi importanti.
+Trovare rappresentanti e candidati con ideologie compatibili.
+Votare simbolicamente per capo di stato, amnistia, grazia e governo ideale.
+Ricevere aggiornamenti costanti sulle votazioni e le attività dei propri rappresentanti.
+
+Demos Candidate 
+Costo: 30 €/anno
+Per chi: I candidati che aspirano a una carica politica.
+Poteri:
+Creare e gestire il proprio profilo pubblico di candidato.
+Interagire con gli elettori e costruire una base di sostenitori.
+Accesso a strumenti base per l'engagement e l'analisi.
+(In caso di vittoria alle elezioni, passaggio a Demos Rep gratuito per il primo anno!)
+
+Demos Rep
+Costo: 50 €/anno
+Per chi: I rappresentanti eletti e i politici in carica.
+Poteri:
+Badge Verificato: Riconoscimento ufficiale del tuo ruolo istituzionale.
+Dashboard Elettorale: Analisi e report costanti delle preferenze in tempo reale.
+Canale Diretto: Notifiche push e comunicazioni personalizzate ai tuoi sostenitori.
+Strumenti di Engagement: Statistiche e sondaggi per coinvolgere il tuo elettorato.
+Gestione avanzata del profilo e delle comunicazioni.
+
+Demos Plus
+Costo: 69 €/anno
+Per chi: Politici già eletti che si preparano alle prossime elezioni.
+Poteri:
+Include tutte le funzionalità di Demos Candidate e Demos Rep.
+Accesso prioritario a nuove funzionalità e supporto dedicato.
+Strumenti avanzati di analisi e strategia elettorale.
+Massima visibilità e coinvolgimento con l'elettorato.
+
+
+Sistema di Approvazione Nuovi Utenti
+Obiettivo
+Implementare un sistema di approvazione manuale per i nuovi profili registrati, garantendo che solo gli amministratori possano attivarli.
+Dettagli di Implementazione
+1. Notifiche Admin
+Ogni volta che un nuovo utente si registra, solo gli utenti con ruolo "Admin" devono ricevere una notifica nella loro pagina "Notifiche".
+Contenuto della notifica: "Nuovo profilo in attesa di approvazione: [Nome Cognome del nuovo utente]"
+Pulsanti di gestione: Accanto al messaggio, l'Admin dovrà avere due pulsanti: "Approva" e "Rifiuta".
+2. Stati degli Utenti e Accesso
+Stato "Pending": I nuovi utenti registrati devono essere impostati con uno stato iniziale di "pending" (non approvato).
+Accesso limitato per "Pending": Gli utenti con stato "pending" possono accedere solo alla propria pagina "Profilo" e sono autorizzati a modificare esclusivamente l'avatar, se disponibile (non è disponibile per tutti gli utenti, solo per “politici”, “candidati” e “candidati politici”). Tutte le altre sezioni e funzionalità della piattaforma devono essere disabilitate per loro.
+Stato "Active": Quando un Admin clicca su "Approva" per un profilo pending, lo stato dell'utente deve cambiare a "active". L'utente potrà quindi navigare e utilizzare normalmente tutte le funzionalità della piattaforma previste per la sua tipologia di account.
+Eliminazione account: Se un Admin clicca su "Rifiuta", l'account dell'utente deve essere eliminato definitivamente.
+
+Sistema di Gestione Richieste DEMOS Premium
+Obiettivo
+Gestire le richieste di abbonamento a DEMOS Premium attraverso un flusso controllato dagli amministratori.
+Dettagli di Implementazione
+1. Notifiche Admin
+Ogni volta che un utente invia una richiesta per ottenere un account DEMOS Premium (Rep, Candidate, e Plus), solo gli utenti con ruolo "Admin" devono ricevere una notifica nella loro pagina "Notifiche".
+Contenuto della notifica:
+Nome e Cognome dell'utente richiedente
+Email dell'utente richiedente
+Tutti i dati inseriti nella richiesta per DEMOS Premium (nome, carica, ente elettorale, recapito e-mail, riferimento istituzionale)
+Link per scaricare tutti i documenti caricati dall'utente (formato PDF o immagini).
+Pulsanti di gestione: Accanto alla notifica, l'Admin dovrà avere due pulsanti: "Accetta" e "Rifiuta".
+2. Funzionamento della Richiesta
+Stato "Pending": La richiesta di DEMOS Premium deve essere salvata con uno stato "pending" finché un Admin non la gestisce.
+Transizione di stato:
+Quando un Admin clicca su "Accetta", lo stato dell'utente richiedente deve passare a premium: true. L'utente riceverà una notifica di conferma dell'attivazione di DEMOS Premium.
+Quando un Admin clicca su "Rifiuta", l'utente riceverà una notifica di rifiuto. Dovrebbe essere possibile inserire un campo di testo opzionale per specificare la motivazione del rifiuto.
+3. Sicurezza e Accesso Documenti
+I file caricati dagli utenti (documenti di identità, certificazioni, ecc.) devono essere archiviati in modo sicuro (es. su Firebase Storage).
+L'accesso a questi documenti deve essere limitato esclusivamente agli Admin autenticati per questioni di privacy e sicurezza.
+
+Gestione Tipi di Account
+Obiettivo
+Definire e implementare i diversi tipi di account disponibili sulla piattaforma e gestire le transizioni tra essi.
+Dettagli di Implementazione
+1. Tipi di Account
+La piattaforma dovrà supportare i seguenti 5 tipi di account:
+Free - Gratuiti:
+
+
+Demos Voter: Account per gli utenti elettori.
+Funzionalità: Scegliere le opinioni, trovare rappresentanti e candidati compatibili, votare simbolicamente per capo di stato, amnistia, grazia e governo ideale. Ricevere costanti aggiornamenti sulle votazioni da parte dei propri rappresentanti.
+Demos Admin: Account riservato agli amministratori.
+Funzionalità: Stesse caratteristiche del Demos Voter, più accesso a pagine esclusive già previste, ad esempio "Gestione Utenti" e "Gestione Opinioni".
+Premium - A pagamento:
+
+
+Demos Rep: Per gli "utenti politici". Costo: 50 € all'anno.
+Demos Candidate: Per gli "utenti candidati". Costo: 30 € all'anno.
+Demos Plus: Per gli "utenti candidati politici". Costo: 69 € all'anno.
+2. Scelta del Tipo di Account alla Registrazione
+Quando un nuovo utente si registra, deve poter scegliere esplicitamente tra i seguenti tipi di account iniziali:
+Demos Voter
+Demos Rep
+Demos Candidate
+Demos Plus
+3. Transizione di account
+Se un utente con account "Demos Candidate" vince delle elezioni, il suo account deve passare automaticamente a "Demos Rep" per il primo anno gratuitamente.
+Alla scadenza di questo anno gratuito, l'utente dovrà rinnovare l'abbonamento a "Demos Rep" al costo standard di 50 €.
+Se un utente con account "Demos Candidate" non vince delle elezioni, il suo account resta lo stesso.
+Se un utente con account "Demos Plus" non vince delle elezioni, il suo account resta lo stesso.
