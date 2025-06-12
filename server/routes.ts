@@ -1696,7 +1696,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/pending-users', requireAuth, async (req, res) => {
     try {
       // Check if user is admin
-      const userInfo = await FirebaseService.getUserByEmail(req.user?.email);
+      const userEmail = req.user?.email;
+      if (!userEmail) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+      
+      const userInfo = await FirebaseService.getUserByEmail(userEmail);
       if (!userInfo || userInfo.ruolo !== 'Admin') {
         return res.status(403).json({ error: 'Access denied' });
       }

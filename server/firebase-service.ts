@@ -1813,36 +1813,515 @@ class FirebaseService {
     }
   }
 
+  // ===== PROFILE CLAIM METHODS =====
+
+  /**
+   * Save a profile claim request
+   */
+  static async saveProfileClaimRequest(claimData: any): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const claimRef = collection(db, 'profile_claim_requests');
+      await addDoc(claimRef, claimData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel salvare richiesta reclamo profilo:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Create notification for admins
+   */
+  static async createAdminNotification(notificationData: any): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const notifRef = collection(db, 'admin_notifications');
+      await addDoc(notifRef, notificationData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel creare notifica admin:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  // ===== USER APPROVAL METHODS =====
+
+  /**
+   * Get pending users
+   */
+  static async getPendingUsers(): Promise<any[]> {
+    try {
+      if (!db) return [];
+      
+      const usersRef = collection(db, 'utenti');
+      const q = query(usersRef, where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Errore nel recuperare utenti pending:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Approve user
+   */
+  static async approveUser(userId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const userRef = doc(db, 'utenti', userId);
+      await updateDoc(userRef, {
+        status: 'active',
+        approved_at: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nell\'approvare utente:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Reject user
+   */
+  static async rejectUser(userId: string, reason?: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      // Send notification to user before deleting
+      const userDoc = await getDoc(doc(db, 'utenti', userId));
+      if (userDoc.exists()) {
+        // Create rejection notification
+        const notifRef = collection(db, 'user_notifications');
+        await addDoc(notifRef, {
+          user_id: userId,
+          type: 'account_rejected',
+          title: 'Account rifiutato',
+          message: reason || 'La tua richiesta di account è stata rifiutata.',
+          created_at: new Date().toISOString()
+        });
+      }
+      
+      // Delete user account
+      await deleteDoc(doc(db, 'utenti', userId));
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel rifiutare utente:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  // ===== PREMIUM REQUEST METHODS =====
+
+  /**
+   * Get pending premium requests
+   */
+  static async getPendingPremiumRequests(): Promise<any[]> {
+    try {
+      if (!db) return [];
+      
+      const requestsRef = collection(db, 'premium_requests');
+      const q = query(requestsRef, where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Errore nel recuperare richieste premium pending:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Approve premium request
+   */
+  static async approvePremiumRequest(requestId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      // Get request data
+      const requestDoc = await getDoc(doc(db, 'premium_requests', requestId));
+      if (!requestDoc.exists()) {
+        return { success: false, error: 'Richiesta non trovata' };
+      }
+      
+      const requestData = requestDoc.data();
+      
+      // Update user to premium
+      const userRef = doc(db, 'utenti', this.emailToId(requestData.user_email));
+      await updateDoc(userRef, {
+        premium: true,
+        premium_activated_at: new Date().toISOString()
+      });
+      
+      // Update request status
+      await updateDoc(doc(db, 'premium_requests', requestId), {
+        status: 'approved',
+        approved_at: new Date().toISOString()
+      });
+      
+      // Send approval notification to user
+      const notifRef = collection(db, 'user_notifications');
+      await addDoc(notifRef, {
+        user_id: requestData.user_id,
+        type: 'premium_approved',
+        title: 'DEMOS Premium attivato',
+        message: 'La tua richiesta per DEMOS Premium è stata approvata!',
+        created_at: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nell\'approvare richiesta premium:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Reject premium request
+   */
+  static async rejectPremiumRequest(requestId: string, reason?: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      // Get request data
+      const requestDoc = await getDoc(doc(db, 'premium_requests', requestId));
+      if (!requestDoc.exists()) {
+        return { success: false, error: 'Richiesta non trovata' };
+      }
+      
+      const requestData = requestDoc.data();
+      
+      // Update request status
+      await updateDoc(doc(db, 'premium_requests', requestId), {
+        status: 'rejected',
+        rejected_at: new Date().toISOString(),
+        rejection_reason: reason
+      });
+      
+      // Send rejection notification to user
+      const notifRef = collection(db, 'user_notifications');
+      await addDoc(notifRef, {
+        user_id: requestData.user_id,
+        type: 'premium_rejected',
+        title: 'Richiesta DEMOS Premium rifiutata',
+        message: reason || 'La tua richiesta per DEMOS Premium è stata rifiutata.',
+        created_at: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel rifiutare richiesta premium:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Salva una nuova iniziativa popolare
+   */
+  static async saveIniziativaPopolare(iniziativaData: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const iniziativeRef = collection(db, 'iniziative_popolari');
+      const docRef = await addDoc(iniziativeRef, iniziativaData);
+      
+      return {
+        success: true,
+        data: { id: docRef.id, ...iniziativaData }
+      };
+    } catch (error) {
+      console.error('Errore nel salvare iniziativa popolare:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Vota per un'iniziativa popolare
+   */
+  static async voteIniziativaPopolare(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const votiRef = collection(db, 'voti_iniziative_popolari');
+      await addDoc(votiRef, {
+        userId,
+        nome,
+        timestamp: new Date()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel votare iniziativa popolare:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Recupera i voti dell'utente per le iniziative popolari
+   */
+  static async getUserVotiIniziativePopolare(userId: string): Promise<string[]> {
+    try {
+      if (!db) return [];
+      
+      const votiRef = collection(db, 'voti_iniziative_popolari');
+      const q = query(votiRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => doc.data().nome);
+    } catch (error) {
+      console.error('Errore nel recuperare voti iniziative:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera la classifica delle iniziative popolari
+   */
+  static async getClassificaIniziativePopolare(): Promise<Array<{nome: string, voti: number}>> {
+    try {
+      if (!db) return [];
+      
+      const iniziativeRef = collection(db, 'iniziative_popolari');
+      const iniziativeSnapshot = await getDocs(iniziativeRef);
+      
+      const votiRef = collection(db, 'voti_iniziative_popolari');
+      const votiSnapshot = await getDocs(votiRef);
+      
+      const votiCount: Record<string, number> = {};
+      
+      votiSnapshot.forEach(doc => {
+        const data = doc.data();
+        votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
+      });
+      
+      const classifica: Array<{nome: string, voti: number}> = [];
+      
+      iniziativeSnapshot.forEach(doc => {
+        const data = doc.data();
+        const voti = votiCount[data.nome] || 0;
+        classifica.push({ nome: data.nome, voti });
+      });
+      
+      return classifica
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica iniziative:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Salva un nuovo referendum abrogativo
+   */
+  static async saveReferendumAbrogativo(referendumData: any): Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const referendumRef = collection(db, 'referendum_abrogativi');
+      const docRef = await addDoc(referendumRef, referendumData);
+      
+      return {
+        success: true,
+        data: { id: docRef.id, ...referendumData }
+      };
+    } catch (error) {
+      console.error('Errore nel salvare referendum abrogativo:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Vota per un referendum abrogativo
+   */
+  static async voteReferendumAbrogativo(userId: string, nome: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      if (!db) {
+        return { success: false, error: 'Database non disponibile' };
+      }
+      
+      const votiRef = collection(db, 'voti_referendum_abrogativi');
+      await addDoc(votiRef, {
+        userId,
+        nome,
+        timestamp: new Date()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nel votare referendum abrogativo:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Errore sconosciuto'
+      };
+    }
+  }
+
+  /**
+   * Recupera i voti dell'utente per i referendum abrogativi
+   */
+  static async getUserVotiReferendumAbrogativo(userId: string): Promise<string[]> {
+    try {
+      if (!db) return [];
+      
+      const votiRef = collection(db, 'voti_referendum_abrogativi');
+      const q = query(votiRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      
+      return snapshot.docs.map(doc => doc.data().nome);
+    } catch (error) {
+      console.error('Errore nel recuperare voti referendum abrogativi:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Recupera la classifica dei referendum abrogativi
+   */
+  static async getClassificaReferendumAbrogativo(): Promise<Array<{nome: string, voti: number}>> {
+    try {
+      if (!db) return [];
+      
+      const referendumRef = collection(db, 'referendum_abrogativi');
+      const referendumSnapshot = await getDocs(referendumRef);
+      
+      const votiRef = collection(db, 'voti_referendum_abrogativi');
+      const votiSnapshot = await getDocs(votiRef);
+      
+      const votiCount: Record<string, number> = {};
+      
+      votiSnapshot.forEach(doc => {
+        const data = doc.data();
+        votiCount[data.nome] = (votiCount[data.nome] || 0) + 1;
+      });
+      
+      const classifica: Array<{nome: string, voti: number}> = [];
+      
+      referendumSnapshot.forEach(doc => {
+        const data = doc.data();
+        const voti = votiCount[data.nome] || 0;
+        classifica.push({ nome: data.nome, voti });
+      });
+      
+      return classifica
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10);
+    } catch (error) {
+      console.error('Errore nel recuperare classifica referendum abrogativi:', error);
+      return [];
+    }
+  }
+
   /**
    * Recupera le statistiche dettagliate di una specifica opinione
    */
   static async getOpinionDetailStats(opinionField: string): Promise<{
-    totalVotes: number;
-    distribution: {
-      Favorevole: number;
-      Contrario: number;
-      Indeciso: number;
-    };
-    percentages: {
-      Favorevole: number;
-      Contrario: number;
-      Indeciso: number;
-    };
+    total: number;
+    favorevoli: number;
+    contrari: number;
+    astenuti: number;
+    usersWithOpinion: any[];
+    ageData: any[];
   }> {
     try {
       if (!db) {
-        return {
-          totalVotes: 0,
-          distribution: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-          percentages: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
-        };
+        return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0, usersWithOpinion: [], ageData: [] };
       }
 
       const usersCollection = collection(db, 'utenti');
       const querySnapshot = await getDocs(usersCollection);
-      
-      const distribution = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
-      let totalVotes = 0;
 
       querySnapshot.forEach((doc) => {
         const userData = doc.data();
