@@ -3,8 +3,10 @@ import fs from "fs";
 import path from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+
+// ===== IMPORT LOCALE CORRETTO CON .js =====
+import viteConfig from "../vite.config.js";
 
 const viteLogger = createLogger();
 
@@ -45,6 +47,7 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
 
     try {
+      // Questo percorso è corretto per l'ambiente di sviluppo
       const clientTemplate = path.resolve(
         import.meta.dirname,
         "..",
@@ -52,8 +55,8 @@ export async function setupVite(app: Express, server: Server) {
         "index.html",
       );
 
-      // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      // Aggiunge un ID univoco per evitare problemi di caching del browser in dev
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
@@ -67,18 +70,21 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
+// Questa funzione viene usata solo se non si deploya su Vercel.
+// Vercel gestisce i file statici tramite vercel.json.
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  // Il percorso corretto per l'output del build di Vite
+  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the build directory: ${distPath}. Make sure to run 'npm run build' first.`,
     );
   }
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
+  // Fallback a index.html per le app Single Page (React Router)
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });

@@ -1,55 +1,65 @@
-// Import Firebase e Firestore
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import * as admin from "firebase-admin";
 
-// Configurazione Firebase (usa i tuoi dati)
-const firebaseConfig = {
-  apiKey: "AIzaSyA13nlciCI04aVODsrTKwgvr_Y3lp-ozBY",
-  authDomain: "demos-finale.firebaseapp.com",
-  projectId: "demos-finale",
-  storageBucket: "demos-finale.firebasestorage.app",
-  messagingSenderId: "848085963511",
-  appId: "1:848085963511:web:2efb3d13fb5576ecd0b9f2",
-  measurementId: "G-HSP3FK0GFN" // opzionale, per Analytics
+// ==============================================================
+// CONFIGURAZIONE FIREBASE PER IL CLIENT (BROWSER)
+// Legge le variabili d'ambiente. Assicurati che siano impostate
+// nel tuo file .env.local e sulla dashboard di Vercel.
+// Il prefisso VITE_ è per Vite, altri framework usano prefissi diversi.
+// ==============================================================
+const clientConfig = {
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID,
+  measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Inizializza Firebase
-const app = initializeApp(firebaseConfig);
+// Inizializza l'app Firebase (lato client) solo se non è già inizializzata
+// per evitare errori in ambienti di hot-reloading.
+const app = getApps().length > 0 ? getApp() : initializeApp(clientConfig);
 
-// Inizializza Firestore
+// Istanzia i servizi client-side
 const db = getFirestore(app);
-
-// Inizializza Auth
 const auth = getAuth(app);
 
-// Inizializza Firebase Admin (per operazioni server-side)
+
+// ==============================================================
+// CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
+// Usa credenziali separate e più potenti, da non esporre mai al client.
+// ==============================================================
 let adminDb: admin.firestore.Firestore | null = null;
 let adminAuth: admin.auth.Auth | null = null;
 
-try {
-  // Prova a inizializzare Firebase Admin se non è già stato fatto
-  if (admin.apps && admin.apps.length === 0) {
-    // Usa le credenziali del service account dai secrets
-    const firebaseConfig = {
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+// Controlla se le credenziali admin esistono e se l'SDK non è già inizializzato.
+// Questo codice viene eseguito solo nell'ambiente server (Node.js).
+if (process.env.FIREBASE_PRIVATE_KEY && admin.apps.length === 0) {
+  try {
+    const adminConfig = {
+      projectId: process.env.FIREBASE_PROJECT_ID!,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
     };
 
     admin.initializeApp({
-      credential: admin.credential.cert(firebaseConfig),
-      projectId: process.env.FIREBASE_PROJECT_ID
+      credential: admin.credential.cert(adminConfig),
     });
-    
+
     adminDb = admin.firestore();
     adminAuth = admin.auth();
-    console.log('Firebase Admin inizializzato con credenziali');
+    console.log('Firebase Admin SDK inizializzato con successo.');
+  } catch (error) {
+    console.error('ERRORE CRITICO: Impossibile inizializzare Firebase Admin SDK.', error);
   }
-} catch (error) {
-  console.error('Errore nell\'inizializzazione di Firebase Admin:', error);
+} else if (admin.apps.length > 0) {
+    // Se l'app è già inizializzata, prendi semplicemente le istanze.
+    adminDb = admin.firestore();
+    adminAuth = admin.auth();
 }
 
-// Esporta db per usarlo altrove
+// Esporta tutte le istanze per usarle negli altri servizi
 export { db, auth, adminDb, adminAuth };

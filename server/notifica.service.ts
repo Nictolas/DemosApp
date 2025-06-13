@@ -1,6 +1,9 @@
-import { FirebaseService } from './firebase-service'; // La nostra classe base
-import { db } from './firebase-config';
-import { collection, query, where, getDocs, doc, addDoc, updateDoc } from 'firebase/firestore';
+// Import della classe base e delle configurazioni con l'estensione .js
+import { FirebaseService } from './firebase-service.js';
+import { db } from './firebase-config.js';
+
+// Import necessari da 'firebase/firestore'
+import { collection, query, where, getDocs, doc, addDoc, updateDoc, getDoc, DocumentReference } from 'firebase/firestore';
 
 class NotificaService extends FirebaseService {
 
@@ -25,7 +28,7 @@ class NotificaService extends FirebaseService {
 
       const rappresentanteIdFirebase = this.emailToId(rappresentanteEmail);
       const usersSnapshot = await getDocs(collection(db, 'utenti'));
-      const notificationPromises: Promise<any>[] = [];
+      const notificationPromises: Promise<DocumentReference>[] = [];
 
       usersSnapshot.forEach((userDoc) => {
         const userData = userDoc.data();
@@ -111,6 +114,32 @@ class NotificaService extends FirebaseService {
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'markNotificationAsRead');
+    }
+  }
+
+  /**
+   * Elimina tutte le notifiche associate a una specifica comunicazione.
+   * Usato principalmente quando una comunicazione viene cancellata.
+   */
+  public static async deleteNotificationsForComunicazione(comunicazioneId: string): Promise<void> {
+    try {
+        if (!db) {
+            console.error("Firebase Firestore non è configurato");
+            return;
+        }
+
+        const q = query(collection(db, 'notifiche'), where('comunicazione_id', '==', comunicazioneId));
+        const querySnapshot = await getDocs(q);
+
+        const deletePromises: Promise<void>[] = [];
+        querySnapshot.forEach((notificaDoc) => {
+            deletePromises.push(deleteDoc(doc(db, 'notifiche', notificaDoc.id)));
+        });
+
+        await Promise.all(deletePromises);
+        console.log(`Eliminate ${deletePromises.length} notifiche per comunicazione ${comunicazioneId}`);
+    } catch (error) {
+        this.handleError(error, 'deleteNotificationsForComunicazione');
     }
   }
 }

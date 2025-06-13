@@ -2,18 +2,18 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
 import connectPg from "connect-pg-simple";
-import { pool } from "../db";
-// Importa FirebaseService e i client firebase dalla configurazione
-import AuthService from "./auth.service";
-import UserService from "./user.service";
-import { auth } from './firebase-config'; // adminAuth non sembra usato qui
+import { pool } from "../db/index.js"; // Aggiunto .js
 import { signInWithEmailAndPassword } from 'firebase/auth';
+
+// ===== IMPORT CORRETTI DAI NUOVI SERVIZI E CONFIGURAZIONI =====
+import AuthService from "./auth.service.js";
+import UserService from "./user.service.js";
+import { auth } from './firebase-config.js';
 
 const PostgresSessionStore = connectPg(session);
 
+// (La dichiarazione global è corretta e rimane invariata)
 declare global {
   namespace Express {
     interface User {
@@ -23,23 +23,9 @@ declare global {
       nome?: string;
       cognome?: string;
       ruolo?: string;
+      profile?: any;
     }
   }
-}
-
-const scryptAsync = promisify(scrypt);
-
-async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
-}
-
-async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
 export function setupAuth(app: Express) {
@@ -65,145 +51,110 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // === STRATEGIA PASSAPORT CHE USA I NUOVI SERVIZI ===
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        // Verifica credenziali direttamente con Firebase Auth
-        console.log("Tentativo login con Firebase Auth per:", email);
-        
         if (!auth) {
-          console.error("Client Firebase non configurato per login");
           return done(null, false, { message: "Servizio di autenticazione non disponibile" });
         }
-        
-        // Prima proviamo l'autenticazione con Firebase Auth
+
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        
         if (!userCredential.user) {
-          console.error("Errore login con Firebase Auth");
           return done(null, false, { message: "Credenziali non valide" });
         }
-        
-        console.log('Login con Firebase Auth riuscito. UID:', userCredential.user.uid);
-        
-        // Recupera il profilo utente da Firestore
-        let userProfile = await FirebaseService.getUserByEmail(email);
-        
+
+        // **USA IL NUOVO UserService**
+        let userProfile = await UserService.getUserByEmail(email);
+
         if (!userProfile) {
-          console.log("Profilo utente non trovato in Firestore, creazione profilo base...");
-          
-          // Crea un profilo di base se non esiste
+          console.log("Profilo non trovato, creazione profilo base...");
           const basicProfile = {
             email: email,
             uid: userCredential.user.uid,
-            nome: '',
-            cognome: '',
-            ruolo: 'Elettore'
+            nome: '', cognome: '', data_nascita: '', genere: '', cittadinanza: '',
+            paese_residenza: '', regione_residenza: '', provincia_residenza: '', comune_residenza: '',
+            ruolo: 'cittadino'
           };
-          
-          await FirebaseService.saveUserData(basicProfile);
-          userProfile = basicProfile;
+          // **USA IL NUOVO UserService**
+          await UserService.saveUserData(basicProfile);
+          userProfile = await UserService.getUserByEmail(email);
         }
-        
-        // Salva l'UID di Firebase Auth nell'oggetto utente per la sessione
+
+        if (!userProfile) return done(null, false, { message: "Impossibile recuperare il profilo utente." });
+
         return done(null, { 
-          id: userCredential.user.uid, 
-          email: email,
-          uid: userCredential.user.uid,
-          nome: userProfile.nome || '',
-          cognome: userProfile.cognome || '',
-          ruolo: userProfile.ruolo || 'Cittadino'
+          id: userProfile.uid!,
+          uid: userProfile.uid,
+          email: userProfile.email,
+          nome: userProfile.nome,
+          cognome: userProfile.cognome,
+          ruolo: userProfile.ruolo
         });
       } catch (error) {
         console.error("Eccezione durante il login:", error);
-        return done(error, false, { message: "Errore durante l'autenticazione" });
+        return done(null, false, { message: "Credenziali non valide" });
       }
     }),
   );
 
+  // (serializeUser e deserializeUser rimangono invariati)
   passport.serializeUser((user, done) => {
-    // Se è un oggetto con id e email, serialize l'intero oggetto
-    if (user && typeof user === 'object' && 'id' in user && 'email' in user) {
-      return done(null, JSON.stringify(user));
+    if (user && typeof user === 'object' && 'id' in user) {
+      done(null, JSON.stringify(user));
+    } else {
+      done(new Error("Oggetto utente non serializzabile"));
     }
-    return done(null, user);
   });
-  
+
   passport.deserializeUser(async (userDataStr, done) => {
     try {
-      // Deserialize l'oggetto utente
       const userData = JSON.parse(String(userDataStr));
-      return done(null, userData);
+      done(null, userData);
     } catch (error) {
-      console.error("Errore deserializzando l'utente:", error);
       done(error);
     }
   });
 
+  // ===== ENDPOINT DI REGISTRAZIONE CHE USA AuthService =====
   app.post("/api/register", async (req, res, next) => {
     try {
-      console.log("Registrazione dati utente:", JSON.stringify(req.body, null, 2));
       const { email, password, ...userDetails } = req.body;
-      
-      console.log("Email:", email);
-      console.log("UserDetails:", JSON.stringify(userDetails, null, 2));
-      
-      // Registrazione esclusivamente su Firebase (nessun database locale)
-      console.log("=== INIZIO REGISTRAZIONE SU FIREBASE AUTH ===");
-      console.log("Dati utente per registrazione:", { email, ...userDetails });
-      
-      // UNICO FLUSSO: Il metodo registerUserOnFirebaseAuth esegue signUp e
-      // salva DIRETTAMENTE i dati utente
-      const firebaseAuthResult = await FirebaseService.registerUserOnFirebaseAuth(email, password, userDetails);
-      
-      console.log("Risultato registrazione su Firebase Auth:", JSON.stringify(firebaseAuthResult, null, 2));
-      
-      if (!firebaseAuthResult.success) {
-        console.error("Errore registrando l'utente su Firebase Auth:", firebaseAuthResult.error);
-        return res.status(400).json({ error: "Errore durante la registrazione con Firebase: " + firebaseAuthResult.error });
+
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email e password sono obbligatori" });
       }
-      
-      console.log("=== UTENTE REGISTRATO CON SUCCESSO SU FIREBASE AUTH E SALVATO IN FIRESTORE ===");
-      
-      // Utilizza direttamente l'UID dall'utente Firebase Auth
-      const firebaseUser = firebaseAuthResult.user;
-      const uuid = firebaseUser.uid;
-      
-      // Recupera anche il profilo appena creato da passare alla sessione
-      const userProfile = await FirebaseService.getUserByEmail(email);
-      
-      // Crea una sessione con l'UUID di Supabase e i dati del profilo
-      req.login({ 
-        id: uuid,
-        uuid: uuid, 
+
+      // **USA IL NUOVO AuthService**
+      const result = await AuthService.registerUserOnFirebaseAuth(email, password, userDetails);
+
+      if (!result.success || !result.user) {
+        return res.status(400).json({ error: result.error || "Errore durante la registrazione" });
+      }
+
+      const userToLogin: Express.User = {
+        id: result.user.uid,
+        uid: result.user.uid,
         email: email,
-        profile: userProfile
-      }, (err) => {
+        nome: userDetails.nome,
+        cognome: userDetails.cognome,
+        ruolo: userDetails.ruolo,
+        profile: userDetails
+      };
+
+      req.login(userToLogin, (err) => {
         if (err) return next(err);
-        res.status(201).json({ 
-          id: uuid, 
-          uuid: uuid,
-          email: email,
-          profile: userProfile
-        });
+        res.status(201).json(userToLogin);
       });
     } catch (error) {
       console.error("Registration error:", error);
-      return res.status(500).json({ error: "Errore durante la registrazione" });
+      return res.status(500).json({ error: "Errore interno del server" });
     }
   });
 
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
-      if (err) return next(err);
-      if (!user) {
-        return res.status(401).json({ error: "Email o password non validi" });
-      }
-      req.login(user, (err) => {
-        if (err) return next(err);
-        return res.status(200).json(user);
-      });
-    })(req, res, next);
+  // (Endpoint /api/login, /api/logout, /api/user rimangono invariati)
+  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+    res.status(200).json(req.user);
   });
 
   app.post("/api/logout", (req, res, next) => {

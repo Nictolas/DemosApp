@@ -1,15 +1,31 @@
-import { FirebaseService } from './firebase-service'; // La nostra classe base
-import { db } from './firebase-config';
+// Import della classe base e delle configurazioni con l'estensione .js
+import { FirebaseService } from './firebase-service.js';
+import { db } from './firebase-config.js';
+
+// Import necessari da 'firebase/firestore'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 class ComizioService extends FirebaseService {
 
   /**
-   * Salva un nuovo comizio nel database.
+   * Salva un nuovo comizio nel database, aggiungendo informazioni sull'organizzatore.
+   * @param comizioData Dati del comizio dal body della richiesta (es. dove, quando).
+   * @param organizer Utente autenticato che sta creando il comizio.
    */
-  public static async saveComizio(comizioData: any): Promise<{ success: boolean; data?: any; error?: string }> {
+  public static async saveComizio(
+    comizioData: { dove: string; quando: string },
+    organizer: Express.User
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+
+    const dataToSave = {
+        ...comizioData,
+        organizzatore_id: organizer.uid,
+        organizzatore_nome: `${organizer.nome} ${organizer.cognome}`,
+        organizzatore_email: organizer.email,
+    };
+
     // Usiamo il metodo helper generico ereditato da FirebaseService
-    return this._saveDocument('comizi', comizioData);
+    return this._saveDocument('comizi', dataToSave);
   }
 
   /**
@@ -21,6 +37,7 @@ class ComizioService extends FirebaseService {
 
       const comiziRef = collection(db, 'comizi');
       const q = query(comiziRef, orderBy('quando', 'asc')); // Ordina per data del comizio
+
       const querySnapshot = await getDocs(q);
 
       return querySnapshot.docs.map(doc => ({
