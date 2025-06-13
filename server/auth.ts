@@ -7,8 +7,9 @@ import { promisify } from "util";
 import connectPg from "connect-pg-simple";
 import { pool } from "../db";
 // Importa FirebaseService e i client firebase dalla configurazione
-import FirebaseService from "./firebase-service";
-import { auth, adminAuth } from './firebase-config';
+import AuthService from "./auth.service";
+import UserService from "./user.service";
+import { auth } from './firebase-config'; // adminAuth non sembra usato qui
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 const PostgresSessionStore = connectPg(session);
