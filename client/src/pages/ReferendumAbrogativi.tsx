@@ -40,6 +40,15 @@ export default function ReferendumAbrogativi() {
     },
   });
 
+  // Funzione helper per gestire gli errori delle mutazioni
+  const handleMutationError = (error: any, actionName: string) => {
+    toast({
+      title: "Errore",
+      description: error.message || `Si è verificato un errore durante l'operazione di ${actionName}.`,
+      variant: "destructive",
+    });
+  };
+
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
@@ -76,13 +85,7 @@ export default function ReferendumAbrogativi() {
         description: "Il tuo voto è stato registrato con successo.",
       });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Errore",
-        description: error.message || "Si è verificato un errore nel voto.",
-        variant: "destructive",
-      });
-    },
+    onError: (error: any) => handleMutationError(error, "voto"),
   });
 
   // Submit new referendum
@@ -105,13 +108,7 @@ export default function ReferendumAbrogativi() {
       setShowForm(false);
       queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Errore",
-        description: error.message || "Si è verificato un errore nell'invio del referendum.",
-        variant: "destructive",
-      });
-    },
+    onError: (error: any) => handleMutationError(error, "invio del referendum"),
   });
 
   const onSubmit = (data: ReferendumFormData) => {
@@ -145,7 +142,7 @@ export default function ReferendumAbrogativi() {
             <CardContent className="space-y-6">
               {/* Add new referendum button */}
               <div className="flex justify-center">
-                <Button 
+                <Button
                   onClick={() => setShowForm(!showForm)}
                   className="mb-4"
                   variant={showForm ? "outline" : "default"}
@@ -238,9 +235,9 @@ export default function ReferendumAbrogativi() {
                           )}
                         />
 
-                        <Button 
-                          type="submit" 
-                          className="w-full" 
+                        <Button
+                          type="submit"
+                          className="w-full"
                           disabled={submitReferendum.isPending}
                         >
                           {submitReferendum.isPending ? "Invio in corso..." : "Proponi Referendum"}
@@ -293,9 +290,9 @@ export default function ReferendumAbrogativi() {
                             </TableCell>
                             <TableCell>
                               {referendum.sitoWeb ? (
-                                <a 
-                                  href={referendum.sitoWeb} 
-                                  target="_blank" 
+                                <a
+                                  href={referendum.sitoWeb}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
                                 >
