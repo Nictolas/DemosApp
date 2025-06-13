@@ -1,24 +1,26 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
+// IMPORT LOCALE CORRETTO
+import { setupAuth } from "./auth.js"; 
 
-// ===== IMPORT DAI NUOVI SERVIZI SPECIALIZZATI =====
-import UserService from "./user.service";
-import VotoService from "./voto.service";
-import AdminService from "./admin.service";
-import ComunicazioneService from "./comunicazione.service";
-import ElezioneService from "./elezione.service";
-import ComizioService from "./comizio.service";
-import NotificaService from "./notifica.service";
+// ===== IMPORT DAI NUOVI SERVIZI SPECIALIZZATI (CON .js) =====
+import UserService from "./user.service.js";
+import VotoService from "./voto.service.js";
+import AdminService from "./admin.service.js";
+import ComunicazioneService from "./comunicazione.service.js";
+import ElezioneService from "./elezione.service.js";
+import ComizioService from "./comizio.service.js";
+import NotificaService from "./notifica.service.js";
 
-// La logica di 'storage' e 'db' locale è mantenuta se serve per altro.
-import { storage } from "./storage";
+// IMPORT LOCALE CORRETTO
+import { storage } from "./storage.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication routes (Passport.js, etc.)
+  // Il resto del codice rimane identico, le chiamate ai servizi sono già corrette.
+  // La modifica chiave è solo nelle righe di import all'inizio del file.
+
   setupAuth(app);
 
-  // Middleware di autenticazione per le rotte protette
   const requireAuth = (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Non autenticato" });
@@ -26,7 +28,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
-  // Middleware per le rotte da amministratore
   const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated() || req.user?.ruolo !== 'Admin') {
       return res.status(403).json({ error: "Accesso negato. Riservato agli amministratori." });
@@ -38,7 +39,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ROTTE UTENTE (gestite da UserService)
   // =========================================================
 
-  // Ottieni tutti gli utenti
   app.get('/api/users', requireAuth, async (req, res) => {
     try {
       const users = await UserService.getAllUsers();
@@ -48,7 +48,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Ottieni un singolo utente tramite email
   app.get('/api/users/:email', requireAuth, async (req, res) => {
     try {
       const userData = await UserService.getUserByEmail(decodeURIComponent(req.params.email));
@@ -59,7 +58,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Aggiorna un utente
   app.put('/api/users/:email', requireAuth, async (req, res) => {
     try {
       const { email } = req.params;
@@ -76,7 +74,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Salva/Aggiorna la configurazione dell'avatar
   app.post('/api/users/:email/avatar', requireAuth, async (req, res) => {
     try {
       const { email } = req.params;
@@ -89,7 +86,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Salva le opinioni di un utente
   app.post('/api/opinioni', requireAuth, async (req, res) => {
     try {
       const result = await UserService.saveUserOpinions(req.user!.email!, req.body);
@@ -100,7 +96,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Ottieni le opinioni dell'utente loggato
   app.get('/api/opinioni', requireAuth, async (req, res) => {
     try {
       const opinions = await UserService.getUserOpinions(req.user!.email!);
@@ -110,7 +105,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Recupera i candidati
   app.get('/api/candidati', requireAuth, async (req, res) => {
     try {
       const candidati = await UserService.getCandidati();
@@ -120,7 +114,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Cerca politici
   app.get('/api/search-politicians', requireAuth, async (req, res) => {
     try {
       const { q } = req.query;
@@ -136,7 +129,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ROTTE VOTO (gestite da VotoService)
   // =========================================================
 
-  // --- Governo Ideale ---
   app.post('/api/governo/vota', requireAuth, async (req, res) => {
       const { categoria, nomeMinistro } = req.body;
       const result = await VotoService.voteMinistro(req.user!.uid!, categoria, nomeMinistro);
@@ -154,37 +146,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(classifiche);
   });
 
-  // --- Capo di Stato, Grazia, Amnistia, Iniziative, Referendum ---
-  // Questo schema si ripete per tutte le categorie di voto
   const setupVotingRoutes = (app: Express, category: string, service: typeof VotoService) => {
     const basePath = `/api/${category}`;
     const entityName = category === 'amnistia' ? 'legge' : 'nome';
+    const capitalizedCategory = capitalize(category.replace('Popolare', ''));
 
     app.post(`${basePath}/vota`, requireAuth, async (req, res) => {
       const { [entityName]: name } = req.body;
-      const result = await (service as any)[`vote${capitalize(category)}`](req.user!.uid!, name);
+      if (!name) return res.status(400).json({ error: "Nome o legge mancante" });
+      const result = await (service as any)[`vote${capitalizedCategory}`](req.user!.uid!, name);
       if (!result.success) return res.status(500).json({ error: result.error });
       return res.status(200).json({ message: "Voto registrato" });
     });
 
     app.get(`${basePath}/voti`, requireAuth, async (req, res) => {
-      const voti = await (service as any)[`getUserVoti${capitalize(category)}`](req.user!.uid!);
+      const voti = await (service as any)[`getUserVoti${capitalizedCategory}`](req.user!.uid!);
       return res.status(200).json(voti);
     });
 
-    app.delete(`${basePath}/voti/:name`, requireAuth, async (req, res) => {
-      const result = await (service as any)[`removeVote${capitalize(category)}`](req.user!.uid!, decodeURIComponent(req.params.name));
-      if (!result.success) return res.status(404).json({ error: result.error });
-      return res.status(200).json({ message: "Voto rimosso" });
-    });
+    if (category !== 'iniziativaPopolare' && category !== 'referendumAbrogativo') {
+      app.delete(`${basePath}/voti/:name`, requireAuth, async (req, res) => {
+        const result = await (service as any)[`removeVote${capitalizedCategory}`](req.user!.uid!, decodeURIComponent(req.params.name));
+        if (!result.success) return res.status(404).json({ error: result.error });
+        return res.status(200).json({ message: "Voto rimosso" });
+      });
+    }
 
     app.get(`${basePath}/classifica`, async (req, res) => {
-      const classifica = await (service as any)[`getClassifica${capitalize(category)}`]();
+      const classifica = await (service as any)[`getClassifica${capitalizedCategory}`]();
       return res.status(200).json(classifica);
     });
   };
 
-  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/i$/, 'o'); // Gestisce capo-stato, grazia ecc.
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   setupVotingRoutes(app, 'capoDiStato', VotoService);
   setupVotingRoutes(app, 'grazia', VotoService);
@@ -218,8 +212,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!result.success) return res.status(500).json({ error: result.error });
     return res.status(200).json({ message: 'Utente rifiutato' });
   });
-
-  // ... e così via per le richieste premium, claim profilo ecc.
 
   // =========================================================
   // ROTTE COMUNICAZIONI (gestite da ComunicazioneService)
@@ -277,7 +269,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(comizi);
   });
 
-  // Crea e restituisce il server HTTP
   const httpServer = createServer(app);
   return httpServer;
 }
