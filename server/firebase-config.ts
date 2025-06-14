@@ -1,13 +1,13 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-import * as admin from "firebase-admin";
+
+// IMPORT CORRETTO per firebase-admin, per risolvere l'errore TypeError
+import admin from "firebase-admin";
 
 // ==============================================================
 // CONFIGURAZIONE FIREBASE PER IL CLIENT (BROWSER)
-// Legge le variabili d'ambiente. Assicurati che siano impostate
-// nel tuo file .env.local e sulla dashboard di Vercel.
-// Il prefisso VITE_ è per Vite, altri framework usano prefissi diversi.
+// Legge le variabili d'ambiente.
 // ==============================================================
 const clientConfig = {
   apiKey: process.env.VITE_FIREBASE_API_KEY,
@@ -20,7 +20,6 @@ const clientConfig = {
 };
 
 // Inizializza l'app Firebase (lato client) solo se non è già inizializzata
-// per evitare errori in ambienti di hot-reloading.
 const app = getApps().length > 0 ? getApp() : initializeApp(clientConfig);
 
 // Istanzia i servizi client-side
@@ -30,35 +29,40 @@ const auth = getAuth(app);
 
 // ==============================================================
 // CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
-// Usa credenziali separate e più potenti, da non esporre mai al client.
 // ==============================================================
 let adminDb: admin.firestore.Firestore | null = null;
 let adminAuth: admin.auth.Auth | null = null;
 
-// Controlla se le credenziali admin esistono e se l'SDK non è già inizializzato.
-// Questo codice viene eseguito solo nell'ambiente server (Node.js).
-if (process.env.FIREBASE_PRIVATE_KEY && admin.apps.length === 0) {
+// LOGICA DI INIZIALIZZAZIONE CORRETTA
+// Controlla se ci sono app admin già inizializzate in modo sicuro
+if (admin.apps.length === 0) { 
   try {
-    const adminConfig = {
-      projectId: process.env.FIREBASE_PROJECT_ID!,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-    };
+    // Prova a inizializzare solo se le credenziali del server esistono
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          // La sostituzione di \n è fondamentale
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
 
-    admin.initializeApp({
-      credential: admin.credential.cert(adminConfig),
-    });
-
-    adminDb = admin.firestore();
-    adminAuth = admin.auth();
-    console.log('Firebase Admin SDK inizializzato con successo.');
+      adminDb = admin.firestore();
+      adminAuth = admin.auth();
+      console.log('Firebase Admin SDK inizializzato con successo.');
+    } else {
+      // Questo avviso apparirà nei log se le credenziali server-side mancano
+      console.warn('Credenziali Firebase Admin non trovate nei Secrets/variabili d\'ambiente. Admin SDK non sarà disponibile.');
+    }
   } catch (error) {
     console.error('ERRORE CRITICO: Impossibile inizializzare Firebase Admin SDK.', error);
   }
-} else if (admin.apps.length > 0) {
-    // Se l'app è già inizializzata, prendi semplicemente le istanze.
-    adminDb = admin.firestore();
-    adminAuth = admin.auth();
+} else {
+  // Se l'app è già inizializzata (es. in sviluppo con hot-reloading), 
+  // prendi semplicemente le istanze esistenti per evitare errori.
+  adminDb = admin.firestore();
+  adminAuth = admin.auth();
 }
 
 // Esporta tutte le istanze per usarle negli altri servizi
