@@ -2,7 +2,6 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth.js"; 
 
-// Importa tutti i servizi con l'estensione .js
 import UserService from "./user.service.js";
 import VotoService from "./voto.service.js";
 import AdminService from "./admin.service.js";
@@ -30,7 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // =========================================================
-  // ROTTE UTENTE (gestite da UserService)
+  // ROTTE UTENTE (gestite da UserService) - INVARIATO
   // =========================================================
   app.get('/api/users', requireAuth, async (req, res) => {
     try {
@@ -117,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // =========================================================
-  // ROTTE VOTO (gestite da VotoService)
+  // ROTTE VOTO (gestite da VotoService) - BLOCCO CORRETTO
   // =========================================================
 
   app.post('/api/governo/vota', requireAuth, async (req, res) => {
@@ -137,7 +136,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(classifiche);
   });
 
-  // Funzione helper generica per creare le rotte di voto
   const createVotingEndpoints = (path: string, methods: { vote: string, getUserVoti: string, removeVote?: string, getClassifica: string }, entityKey: 'nome' | 'legge' = 'nome') => {
     app.post(`/api/${path}/vota`, requireAuth, async (req, res) => {
       const { [entityKey]: name } = req.body;
@@ -166,7 +164,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   };
 
-  // Mappatura esplicita e corretta: "URL" -> { nomi ESATTI dei metodi nel servizio }
   createVotingEndpoints('capo-stato', {
     vote: 'voteCapoDiStato',
     getUserVoti: 'getUserVotiCapoDiStato',
@@ -190,18 +187,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   createVotingEndpoints('iniziativa-popolare', {
     vote: 'voteIniziativaPopolare',
-    getUserVoti: 'getUserVotiIniziativaPopolare',
-    getClassifica: 'getClassificaIniziativaPopolare'
+    getUserVoti: 'getUserVotiIniziativePopolari', // Usa il nome esatto del metodo
+    getClassifica: 'getClassificaIniziativePopolari' // Usa il nome esatto del metodo
   });
 
   createVotingEndpoints('referendum-abrogativo', {
     vote: 'voteReferendumAbrogativo',
-    getUserVoti: 'getUserVotiReferendumAbrogativo',
-    getClassifica: 'getClassificaReferendumAbrogativo'
+    getUserVoti: 'getUserVotiReferendumAbrogativi', // Usa il nome esatto del metodo
+    getClassifica: 'getClassificaReferendumAbrogativi' // Usa il nome esatto del metodo
   });
 
+
   // =========================================================
-  // ROTTE AMMINISTRAZIONE (gestite da AdminService)
+  // ROTTE AMMINISTRAZIONE, COMUNICAZIONI, ECC. (INVARIATE)
   // =========================================================
 
   app.delete('/api/users/:email', requireAdmin, async (req, res) => {
@@ -227,10 +225,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(200).json({ message: 'Utente rifiutato' });
   });
 
-  // =========================================================
-  // ROTTE COMUNICAZIONI (gestite da ComunicazioneService)
-  // =========================================================
-
   app.post('/api/comunicazioni', requireAuth, async (req, res) => {
     const result = await ComunicazioneService.createComunicazione(req.user!, req.body);
     if (!result.success) return res.status(500).json({ error: result.error });
@@ -248,10 +242,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(200).json({ message: 'Reazione registrata' });
   });
 
-  // =========================================================
-  // ROTTE NOTIFICHE (gestite da NotificaService)
-  // =========================================================
-
   app.get('/api/notifiche', requireAuth, async (req, res) => {
     const notifiche = await NotificaService.getUserNotifications(req.user!.uid!);
     return res.status(200).json(notifiche);
@@ -262,10 +252,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!result.success) return res.status(500).json({ error: result.error });
     return res.status(200).json({ message: 'Notifica letta' });
   });
-
-  // =========================================================
-  // ROTTE ELEZIONI, COMIZI, ECC.
-  // =========================================================
 
   app.get('/api/elezioni', requireAuth, async (req, res) => {
     const elezioni = await ElezioneService.getAllElezioni();
