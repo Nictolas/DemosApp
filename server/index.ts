@@ -1,17 +1,19 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { createServer } from "http";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
 import dotenv from "dotenv";
 
-// Carica le variabili d'ambiente
+// Carica le variabili d'ambiente all'inizio
 dotenv.config();
 
-// Aggiunge una chiave segreta per le sessioni se non è specificata
+// Imposta una chiave di sessione di default se non presente
 if (!process.env.SESSION_SECRET) {
-  process.env.SESSION_SECRET = "demos_application_secret_key";
+  process.env.SESSION_SECRET = "demos_application_secret_key_default";
 }
 
 const app = express();
+
+// Middleware di base (vengono eseguiti sempre)
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
@@ -22,65 +24,43 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+// Registra tutte le rotte API sull'app Express
+registerRoutes(app);
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
+// Middleware per la gestione degli errori (deve stare dopo la registrazione delle rotte)
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("ERRORE SERVER NON GESTITO:", err);
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  res.status(status).json({ message });
 });
 
-(async () => {
-  const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+// ===================================================================
+// Blocco di esecuzione per SVILUPPO LOCALE (es. su Replit)
+// Questo codice NON viene eseguito su Vercel.
+// ===================================================================
+if (process.env.NODE_ENV === "development") {
+  (async () => {
+    // Importa Vite dinamicamente solo in sviluppo
+    const { setupVite, log } = await import("./vite.js");
 
-    res.status(status).json({ message });
-    throw err;
-  });
+    // Crea un server HTTP standard che wrappa l'app Express
+    const server = createServer(app);
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+    // Collega il middleware di Vite per l'hot-reloading
     await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+    const port = 5000;
+    server.listen(port, () => {
+      log(`Server di sviluppo attivo su http://localhost:${port}`);
+    });
+  })();
+}
+
+// ===================================================================
+// Esporta l'app Express per VERCEL
+// Vercel prenderà questa 'app' e la gestirà come una funzione serverless.
+// Non ha bisogno di server.listen().
+// ===================================================================
+export default app;
