@@ -191,8 +191,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   createVotingEndpoints('iniziativa-popolare', {
     vote: 'voteIniziativaPopolare',
-    getUserVoti: 'getUserVotiIniziativePopolari', // Usa il nome esatto del tuo metodo
-    getClassifica: 'getClassificaIniziativePopolari' // Usa il nome esatto del tuo metodo
+    getUserVoti: 'getUserVotiIniziativePopolari', // Qui deve rimanere plurale perché il metodo helper è così
+    getClassifica: 'getClassificaIniziativaPopolare' // Corretto al singolare
   });
 
   createVotingEndpoints('referendum-abrogativo', {
