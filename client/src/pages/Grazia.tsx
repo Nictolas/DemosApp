@@ -32,12 +32,8 @@ export default function Grazia() {
         fetch('/api/grazia/voti'),
         fetch('/api/grazia/classifica')
       ]);
-      if (votiResponse.ok) {
-        setUserVoti(await votiResponse.json());
-      }
-      if (classificaResponse.ok) {
-        setClassifica(await classificaResponse.json());
-      }
+      if (votiResponse.ok) setUserVoti(await votiResponse.json());
+      if (classificaResponse.ok) setClassifica(await classificaResponse.json());
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
@@ -52,16 +48,13 @@ export default function Grazia() {
 
   const handleVote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nomeInput.trim()) {
-      toast({ title: "Errore", description: "Inserisci un nome valido.", variant: "destructive" });
-      return;
-    }
+    if (!nomeInput.trim()) return;
     await voteForCandidate(nomeInput.trim());
   };
 
   const voteForCandidate = async (nome: string) => {
     if (userVoti.includes(nome)) {
-      toast({ title: "Voto già registrato", description: `Hai già votato per ${nome}.` });
+      toast({ title: "Voto già registrato", description: `Hai già votato per ${nome}` });
       return;
     }
     setIsVoting(true);
@@ -72,16 +65,15 @@ export default function Grazia() {
         body: JSON.stringify({ nome }),
       });
       if (response.ok) {
-        toast({ title: "Voto registrato", description: `Hai votato per la grazia di ${nome}.` });
+        toast({ title: "Voto registrato", description: `Hai votato per la grazia di ${nome}` });
         setNomeInput("");
-        setShowSuggestions(false);
         await loadData();
       } else {
         const error = await response.json();
-        toast({ title: "Errore", description: error.error || "Errore nel registrare il voto.", variant: "destructive" });
+        toast({ title: "Errore", description: error.error, variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione.", variant: "destructive" });
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
       setIsVoting(false);
     }
@@ -93,20 +85,22 @@ export default function Grazia() {
 
     setDeletingVote(nomeDaRimuovere);
     try {
+      // ===== CORREZIONE QUI: da /voto/ a /voti/ =====
       const response = await fetch(`/api/grazia/voti/${encodeURIComponent(nomeDaRimuovere)}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        toast({ title: "Voto rimosso", description: `Hai rimosso il voto per ${nomeDaRimuovere}.`});
+        toast({ title: "Voto rimosso", description: `Hai rimosso il voto per ${nomeDaRimuovere}`});
         setUserVoti(currentVotes => currentVotes.filter(voto => voto !== nomeDaRimuovere));
-        loadData();
+        // Ricarica la classifica per aggiornare il conteggio
+        fetch('/api/grazia/classifica').then(res => res.json()).then(setClassifica);
       } else {
         const error = await response.json();
-        toast({ title: "Errore", description: error.error || "Errore nella rimozione.", variant: "destructive" });
+        toast({ title: "Errore", description: error.error || "Errore nella rimozione", variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione.", variant: "destructive" });
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
       setDeletingVote(null);
     }
@@ -222,7 +216,7 @@ export default function Grazia() {
                         <div className="flex items-center space-x-2">
                           <Badge variant="outline">{candidato.voti} voti</Badge>
                           {user?.ruolo === "Admin" && (
-                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" onClick={() => { /* Logica admin qui */ }}>
+                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" disabled={true}>
                               <X className="h-3 w-3" />
                             </Button>
                           )}
