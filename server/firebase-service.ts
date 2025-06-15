@@ -2,7 +2,7 @@
 import { db } from './firebase-config.js';
 import { ClassificaItem } from './types.js';
 
-// Import necessari da Firestore, inclusa la funzione di aggregazione 'getCountFromServer'
+// Import necessari da Firestore, INCLUSA la funzione di aggregazione 'getCountFromServer'
 import { 
   collection, 
   addDoc, 
@@ -16,27 +16,20 @@ import {
 
 /**
  * Classe base con metodi di utility condivisi per interagire con Firebase.
- * Questa classe viene estesa dagli altri servizi specifici.
  */
 export class FirebaseService {
 
-  /**
-   * Converte un'email in un ID valido per i documenti Firestore.
-   */
   protected static emailToId(email: string): string {
     return email.replace(/[.#$\[\]]/g, '_');
   }
 
-  /**
-   * Gestisce in modo centralizzato la cattura degli errori.
-   */
   protected static handleError(error: any, context: string): { success: false; error: string } {
     console.error(`Errore in ${context}:`, error);
     const message = error instanceof Error ? error.message : `Errore sconosciuto in ${context}`;
     return { success: false, error: message };
   }
 
-  // --- Metodi Helper Generici per i servizi figli ---
+  // --- Metodi Helper Generici (invariati) ---
 
   protected static async _saveDocument(collectionName: string, data: object): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
@@ -87,7 +80,7 @@ export class FirebaseService {
 
   /**
    * Calcola la classifica per una data collezione di voti.
-   * VERSIONE OTTIMIZZATA per prevenire i timeout su Vercel.
+   * === VERSIONE OTTIMIZZATA PER PREVENIRE I TIMEOUT SU VERCEL ===
    */
   protected static async _getLeaderboard(votesCollectionName: string, entityKey: string = 'nome', resultLimit: number = 10): Promise<ClassificaItem[]> {
     try {
@@ -102,7 +95,6 @@ export class FirebaseService {
       console.log(`[PERFORMANCE] Trovati ${uniqueEntityNames.length} candidati unici.`);
       if (uniqueEntityNames.length === 0) return [];
 
-      // Avviso se il numero di candidati unici è molto alto.
       if (uniqueEntityNames.length > 200) {
           console.warn(`[PERFORMANCE] Attenzione: ci sono ${uniqueEntityNames.length} candidati unici. L'operazione potrebbe richiedere tempo.`);
       }
@@ -116,7 +108,6 @@ export class FirebaseService {
         }));
       });
 
-      // Esegui tutte le query di conteggio in parallelo.
       const results = await Promise.all(countPromises);
       console.log(`[PERFORMANCE] Conteggio voti completato per ${results.length} candidati.`);
 
