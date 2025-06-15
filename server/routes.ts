@@ -178,13 +178,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   };
 
-  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const capitalize = (s: string) => s.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
 
-  setupVotingRoutes(app, 'capoDiStato', VotoService);
+  setupVotingRoutes(app, 'capo-stato', VotoService);
   setupVotingRoutes(app, 'grazia', VotoService);
   setupVotingRoutes(app, 'amnistia', VotoService);
-  setupVotingRoutes(app, 'iniziativaPopolare', VotoService);
-  setupVotingRoutes(app, 'referendumAbrogativo', VotoService);
+  setupVotingRoutes(app, 'iniziativa-popolare', VotoService);
+  setupVotingRoutes(app, 'referendum-abrogativo', VotoService);
 
   // =========================================================
   // ROTTE AMMINISTRAZIONE (gestite da AdminService)
