@@ -6,7 +6,7 @@ import { db } from './firebase-config.js';
 import { collection, query, where, getDocs, updateDoc, addDoc } from 'firebase/firestore';
 
 // Import dei tipi necessari con percorso corretto
-import { ClassificaItem } from './types.js'; // Assumendo types.ts in server/
+import { ClassificaItem } from './types.js';
 
 class VotoService extends FirebaseService {
 
