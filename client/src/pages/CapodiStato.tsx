@@ -24,6 +24,9 @@ export default function CapodiStato() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
 
+  // (La variabile userProfile non sembra usata, potresti rimuoverla)
+  // const [userProfile, setUserProfile] = useState<any>(null);
+
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoadingData(true);
@@ -85,7 +88,7 @@ export default function CapodiStato() {
 
     setDeletingVote(nomeDaRimuovere);
     try {
-      // ===== CORREZIONE DEFINITIVA QUI =====
+      // ===== CORREZIONE DEFINITIVA QUI: da /voto/ a /voti/ =====
       const response = await fetch(`/api/capo-stato/voti/${encodeURIComponent(nomeDaRimuovere)}`, {
         method: 'DELETE',
       });
@@ -111,6 +114,9 @@ export default function CapodiStato() {
       .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
       .slice(0, 5);
   };
+
+  // (La funzione deleteFromClassifica non è stata implementata e può essere rimossa se non usata)
+  // const deleteFromClassifica = ...
 
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;

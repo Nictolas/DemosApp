@@ -1,6 +1,6 @@
-// Versione con mappatura esplicita per risolvere il TypeError
+// FORCING RELOAD - v1.0.1
 import type { Express, Request, Response, NextFunction } from "express";
-import { createServer, type Server } from "http"; // <-- Correzione qui
+import { createServer, type Server } from "http";
 import { setupAuth } from "./auth.js";
 
 // Importa tutti i servizi con l'estensione .js
