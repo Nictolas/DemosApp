@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Heart, Vote, Trophy, Plus, X, ThumbsUp } from "lucide-react";
@@ -18,232 +18,135 @@ export default function Grazia() {
   const { toast } = useToast();
   const [userVoti, setUserVoti] = useState<string[]>([]);
   const [classifica, setClassifica] = useState<Classifica[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [deletingVote, setDeletingVote] = useState<string | null>(null);
 
-  // Carica i dati dell'utente e la classifica
-  useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!user) return;
     setLoadingData(true);
     try {
-      // Carica i voti dell'utente
-      const votiResponse = await fetch('/api/grazia/voti', {
-        credentials: 'include'
-      });
+      const [votiResponse, classificaResponse] = await Promise.all([
+        fetch('/api/grazia/voti'),
+        fetch('/api/grazia/classifica')
+      ]);
       if (votiResponse.ok) {
-        const voti = await votiResponse.json();
-        setUserVoti(voti);
+        setUserVoti(await votiResponse.json());
       }
-
-      // Carica la classifica
-      const classificaResponse = await fetch('/api/grazia/classifica');
       if (classificaResponse.ok) {
-        const classificaData = await classificaResponse.json();
-        setClassifica(classificaData);
-      }
-
-      // Carica il profilo utente
-      if (user) {
-        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUserProfile(userData);
-        }
+        setClassifica(await classificaResponse.json());
       }
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
+      toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [user, toast]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleVote = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!nomeInput.trim()) {
-      toast({
-        title: "Errore",
-        description: "Inserisci un nome valido",
-        variant: "destructive",
-      });
+      toast({ title: "Errore", description: "Inserisci un nome valido.", variant: "destructive" });
       return;
     }
-
     await voteForCandidate(nomeInput.trim());
   };
 
   const voteForCandidate = async (nome: string) => {
-    // Check if user has already voted for this person
     if (userVoti.includes(nome)) {
-      toast({
-        title: "Voto già registrato",
-        description: `Hai già votato per ${nome}`,
-        variant: "destructive",
-      });
+      toast({ title: "Voto già registrato", description: `Hai già votato per ${nome}.` });
       return;
     }
-
     setIsVoting(true);
     try {
       const response = await fetch('/api/grazia/vota', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nome }),
       });
-
       if (response.ok) {
-        toast({
-          title: "Voto registrato",
-          description: `Hai votato ${nome} per la grazia`,
-        });
-        
+        toast({ title: "Voto registrato", description: `Hai votato per la grazia di ${nome}.` });
         setNomeInput("");
         setShowSuggestions(false);
         await loadData();
       } else {
         const error = await response.json();
-        toast({
-          title: "Errore",
-          description: error.error || "Errore nel registrare il voto",
-          variant: "destructive",
-        });
+        toast({ title: "Errore", description: error.error || "Errore nel registrare il voto.", variant: "destructive" });
       }
     } catch (error) {
-      console.error('Errore nel votare:', error);
-      toast({
-        title: "Errore",
-        description: "Errore di connessione",
-        variant: "destructive",
-      });
+      toast({ title: "Errore", description: "Errore di connessione.", variant: "destructive" });
     } finally {
       setIsVoting(false);
     }
   };
 
-  const removeVote = async (nome: string) => {
-    setIsDeleting(nome);
+  const removeVote = async (nomeDaRimuovere: string) => {
+    if (deletingVote) return;
+    if (!window.confirm(`Sei sicuro di voler rimuovere il voto per la grazia di "${nomeDaRimuovere}"?`)) return;
+
+    setDeletingVote(nomeDaRimuovere);
     try {
-      const response = await fetch(`/api/grazia/voto/${encodeURIComponent(nome)}`, {
+      const response = await fetch(`/api/grazia/voti/${encodeURIComponent(nomeDaRimuovere)}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
 
       if (response.ok) {
-        toast({
-          title: "Voto rimosso",
-          description: `Hai rimosso il voto per ${nome}`,
-        });
-        
-        await loadData();
+        toast({ title: "Voto rimosso", description: `Hai rimosso il voto per ${nomeDaRimuovere}.`});
+        setUserVoti(currentVotes => currentVotes.filter(voto => voto !== nomeDaRimuovere));
+        loadData();
       } else {
         const error = await response.json();
-        toast({
-          title: "Errore",
-          description: error.error || "Errore nel rimuovere il voto",
-          variant: "destructive",
-        });
+        toast({ title: "Errore", description: error.error || "Errore nella rimozione.", variant: "destructive" });
       }
     } catch (error) {
-      console.error('Errore nel rimuovere il voto:', error);
-      toast({
-        title: "Errore",
-        description: "Errore di connessione",
-        variant: "destructive",
-      });
+      toast({ title: "Errore", description: "Errore di connessione.", variant: "destructive" });
     } finally {
-      setIsDeleting(null);
+      setDeletingVote(null);
     }
-  };
-
-  const deleteFromClassifica = async (nome: string) => {
-    if (userProfile?.ruolo !== "Admin") return;
-    
-    setIsDeleting(nome);
-    toast({
-      title: "Info", 
-      description: "Funzione di eliminazione in sviluppo",
-    });
-    setIsDeleting(null);
   };
 
   const getSuggestions = () => {
     if (!nomeInput.trim() || !showSuggestions) return [];
-    
     return classifica
-      .filter(item => 
-        item.nome.toLowerCase().includes(nomeInput.toLowerCase()) &&
-        item.nome.toLowerCase() !== nomeInput.toLowerCase()
-      )
+      .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
       .slice(0, 5);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
+  if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!user) return <Redirect to="/auth" />;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
-        <Button 
-          variant="ghost" 
-          className="mb-4 flex items-center"
-          onClick={() => window.location.href = "/menu"}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
-        </Button>
-        
+        <Link href="/menu">
+          <Button variant="ghost" className="mb-4 flex items-center">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+          </Button>
+        </Link>
+
         <Card className="mb-6">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-4 bg-gradient-to-r from-green-500 to-green-700 rounded-full">
-                <Heart className="h-12 w-12 text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
-              Grazia
-            </CardTitle>
-            <CardDescription className="text-lg">
-              Vota per i cittadini carcerati che meritano la grazia (puoi votare più persone)
-            </CardDescription>
+            <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-green-500 to-green-700 rounded-full"><Heart className="h-12 w-12 text-white" /></div></div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">Grazia</CardTitle>
+            <CardDescription className="text-lg">Vota per i cittadini carcerati che meritano la grazia (puoi esprimere più preferenze)</CardDescription>
           </CardHeader>
         </Card>
 
         {loadingData ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : (
           <div className="space-y-6">
-            {/* Form di voto */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Vote className="h-5 w-5" />
-                  <span>Vota per la Grazia</span>
-                </CardTitle>
-                <CardDescription>
-                  Inserisci il nome del cittadino carcerato che meriterebbe la grazia
-                </CardDescription>
+                <CardTitle className="flex items-center space-x-2"><Vote className="h-5 w-5" /><span>Vota per la Grazia</span></CardTitle>
+                <CardDescription>Inserisci il nome del cittadino carcerato che meriterebbe la grazia.</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleVote} className="space-y-4">
@@ -252,10 +155,7 @@ export default function Grazia() {
                       <Input
                         placeholder="Nome del cittadino carcerato..."
                         value={nomeInput}
-                        onChange={(e) => {
-                          setNomeInput(e.target.value);
-                          setShowSuggestions(true);
-                        }}
+                        onChange={(e) => { setNomeInput(e.target.value); setShowSuggestions(true); }}
                         onFocus={() => setShowSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         className="w-full"
@@ -267,10 +167,7 @@ export default function Grazia() {
                               key={index}
                               type="button"
                               className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                              onClick={() => {
-                                setNomeInput(suggestion.nome);
-                                setShowSuggestions(false);
-                              }}
+                              onClick={() => { setNomeInput(suggestion.nome); setShowSuggestions(false); }}
                             >
                               {suggestion.nome} ({suggestion.voti} voti)
                             </button>
@@ -278,15 +175,8 @@ export default function Grazia() {
                         </div>
                       )}
                     </div>
-                    <Button 
-                      type="submit" 
-                      disabled={isVoting || !nomeInput.trim()}
-                    >
-                      {isVoting ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Plus className="h-4 w-4 mr-2" />
-                      )}
+                    <Button type="submit" disabled={isVoting || !nomeInput.trim()}>
+                      {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                       Vota
                     </Button>
                   </div>
@@ -300,32 +190,24 @@ export default function Grazia() {
                         <Badge 
                           key={index} 
                           variant="default"
-                          className="cursor-pointer hover:bg-destructive/90 transition-colors"
+                          className="cursor-pointer hover:bg-destructive/90 transition-colors flex items-center gap-2"
                           onClick={() => removeVote(voto)}
                         >
-                          <Vote className="h-3 w-3 mr-1" />
+                          {deletingVote === voto ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
                           {voto}
                         </Badge>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Clicca su un nome per rimuovere il voto
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Clicca su un nome per rimuovere il voto.</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Classifica */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Trophy className="h-5 w-5 text-yellow-500" />
-                  <span>Classifica Top 10</span>
-                </CardTitle>
-                <CardDescription>
-                  I cittadini carcerati più votati per la grazia
-                </CardDescription>
+                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
+                <CardDescription>I cittadini carcerati più votati per la grazia</CardDescription>
               </CardHeader>
               <CardContent>
                 {classifica.length > 0 ? (
@@ -333,42 +215,15 @@ export default function Grazia() {
                     {classifica.map((candidato, index) => (
                       <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => voteForCandidate(candidato.nome)}
-                            disabled={isVoting}
-                            className="h-8 w-8 p-0"
-                          >
-                            <ThumbsUp className="h-3 w-3" />
-                          </Button>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                            index === 1 ? 'bg-gray-100 text-gray-700' :
-                            index === 2 ? 'bg-orange-100 text-orange-700' :
-                            'bg-blue-100 text-blue-700'
-                          }`}>
-                            #{index + 1}
-                          </div>
+                          <Button size="sm" variant="outline" onClick={() => voteForCandidate(candidato.nome)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>#{index + 1}</div>
                           <span className="font-medium">{candidato.nome}</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge variant="outline">
-                            {candidato.voti} voti
-                          </Badge>
-                          {user?.email === "polidemos@gmail.com" && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => deleteFromClassifica(candidato.nome)}
-                              disabled={isDeleting === candidato.nome}
-                              className="h-8 w-8 p-0"
-                            >
-                              {isDeleting === candidato.nome ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <X className="h-3 w-3" />
-                              )}
+                          <Badge variant="outline">{candidato.voti} voti</Badge>
+                          {user?.ruolo === "Admin" && (
+                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" onClick={() => { /* Logica admin qui */ }}>
+                              <X className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
@@ -376,9 +231,7 @@ export default function Grazia() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    Nessun voto ancora registrato. Sii il primo a votare!
-                  </p>
+                  <p className="text-center text-muted-foreground py-8">Nessun voto ancora registrato.</p>
                 )}
               </CardContent>
             </Card>
