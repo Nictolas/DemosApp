@@ -1,7 +1,7 @@
-// FORCING RELOAD - v1.0.1
+// FORCING RELOAD - v1.0.2
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth.js";
+import { setupAuth } from "./auth.js"; 
 
 // Importa tutti i servizi con l'estensione .js
 import UserService from "./user.service.js";
@@ -191,14 +191,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   createVotingEndpoints('iniziativa-popolare', {
     vote: 'voteIniziativaPopolare',
-    getUserVoti: 'getUserVotiIniziativePopolari', // Qui deve rimanere plurale perché il metodo helper è così
+    getUserVoti: 'getUserVotiIniziativaPopolare', // Corretto al singolare
     getClassifica: 'getClassificaIniziativaPopolare' // Corretto al singolare
   });
 
   createVotingEndpoints('referendum-abrogativo', {
     vote: 'voteReferendumAbrogativo',
-    getUserVoti: 'getUserVotiReferendumAbrogativi', // Usa il nome esatto del tuo metodo
-    getClassifica: 'getClassificaReferendumAbrogativi' // Usa il nome esatto del tuo metodo
+    getUserVoti: 'getUserVotiReferendumAbrogativo', // Corretto al singolare
+    getClassifica: 'getClassificaReferendumAbrogativo' // Corretto al singolare
   });
 
   // =========================================================
