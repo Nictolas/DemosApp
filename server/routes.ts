@@ -1,7 +1,7 @@
 // Versione con mappatura esplicita per risolvere il TypeError
 import type { Express, Request, Response, NextFunction } from "express";
-// ... resto del fileimport { createServer, type Server } from "http";
-import { setupAuth } from "./auth.js"; 
+import { createServer, type Server } from "http"; // <-- Correzione qui
+import { setupAuth } from "./auth.js";
 
 // Importa tutti i servizi con l'estensione .js
 import UserService from "./user.service.js";
