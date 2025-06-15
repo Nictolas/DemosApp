@@ -1,11 +1,8 @@
-// Import delle configurazioni e delle funzioni di Firebase
-import { auth } from './firebase-config.js';
+import { auth } from './firebase-config.js'; // CORRETTO
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-
-// Import della classe base e dei servizi/tipi locali con estensione .js
-import { FirebaseService } from './firebase-service.js';
-import UserService from './user.service.js';
-import { Utente } from './types.js'; // Assumendo che types.ts sia nella cartella server/
+import { FirebaseService } from './firebase-service.js'; // CORRETTO
+import UserService from './user.service.js'; // CORRETTO
+import { Utente } from './types.js'; // CORRETTO
 
 class AuthService extends FirebaseService {
 
