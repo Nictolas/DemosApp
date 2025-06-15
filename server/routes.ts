@@ -168,15 +168,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== CORREZIONE QUI: USARE IL PERCORSO AL PLURALE E I METODI CORRETTI =====
   createVotingEndpoints('iniziative-popolari', {
-    vote: 'voteIniziativaPopolare',
-    getUserVoti: 'getUserVotiIniziativePopolari',
-    getClassifica: 'getClassificaIniziativePopolari'
+    vote: 'voteIniziativaPopolare',           // Metodo Singolare
+    getUserVoti: 'getUserVotiIniziativaPopolare', // Metodo Singolare
+    getClassifica: 'getClassificaIniziativaPopolare'  // Metodo Singolare
   });
   createVotingEndpoints('referendum-abrogativi', {
-    vote: 'voteReferendumAbrogativo',
-    getUserVoti: 'getUserVotiReferendumAbrogativi',
-    getClassifica: 'getClassificaReferendumAbrogativi'
-  });
+     vote: 'voteReferendumAbrogativo',           // Metodo Singolare
+      getUserVoti: 'getUserVotiReferendumAbrogativo', // Metodo Singolare
+      getClassifica: 'getClassificaReferendumAbrogativo'  // Metodo Singolare
+    });
 
   // =========================================================
   // ROTTE AMMINISTRAZIONE
