@@ -166,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   };
 
-  // Mappatura esplicita e corretta: "URL" -> { nomi dei metodi nel servizio }
+  // Mappatura esplicita e corretta: "URL" -> { nomi ESATTI dei metodi nel servizio }
   createVotingEndpoints('capo-stato', {
     vote: 'voteCapoDiStato',
     getUserVoti: 'getUserVotiCapoDiStato',

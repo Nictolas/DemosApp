@@ -102,12 +102,12 @@ export class FirebaseService {
       console.log(`[PERFORMANCE] Trovati ${uniqueEntityNames.length} candidati unici.`);
       if (uniqueEntityNames.length === 0) return [];
 
-      // Avviso se il numero di candidati unici è molto alto, perché potrebbe comunque essere lento.
+      // Avviso se il numero di candidati unici è molto alto.
       if (uniqueEntityNames.length > 200) {
           console.warn(`[PERFORMANCE] Attenzione: ci sono ${uniqueEntityNames.length} candidati unici. L'operazione potrebbe richiedere tempo.`);
       }
 
-      // Step 2: Per ogni nome unico, esegui una query di CONTEGGIO (molto veloce) invece di scaricare tutti i documenti.
+      // Step 2: Per ogni nome unico, esegui una query di CONTEGGIO (molto veloce).
       const countPromises = uniqueEntityNames.map(name => {
         const q = query(collection(db, votesCollectionName), where(entityKey, '==', name));
         return getCountFromServer(q).then(countSnapshot => ({
