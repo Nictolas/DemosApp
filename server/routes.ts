@@ -137,46 +137,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(classifiche);
   });
 
-  // === BLOCCO DI ROUTING CORRETTO ===
-  const kebabToPascal = (s: string) => s.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
-
-  const setupVotingRoutes = (app: Express, category: string, service: typeof VotoService) => {
-    const basePath = `/api/${category}`;
-    const entityName = category === 'amnistia' ? 'legge' : 'nome';
-    const methodNamePart = kebabToPascal(category);
-
-    app.post(`${basePath}/vota`, requireAuth, async (req, res) => {
-      const { [entityName]: name } = req.body;
+  // Funzione helper generica per creare le rotte di voto
+  const createVotingEndpoints = (path: string, methods: { vote: string, getUserVoti: string, removeVote?: string, getClassifica: string }, entityKey: 'nome' | 'legge' = 'nome') => {
+    app.post(`/api/${path}/vota`, requireAuth, async (req, res) => {
+      const { [entityKey]: name } = req.body;
       if (!name) return res.status(400).json({ error: "Nome o legge mancante" });
-      const result = await (service as any)[`vote${methodNamePart}`](req.user!.uid!, name);
+      const result = await (VotoService as any)[methods.vote](req.user!.uid!, name);
       if (!result.success) return res.status(500).json({ error: result.error });
       return res.status(200).json({ message: "Voto registrato" });
     });
 
-    app.get(`${basePath}/voti`, requireAuth, async (req, res) => {
-      const voti = await (service as any)[`getUserVoti${methodNamePart}`](req.user!.uid!);
+    app.get(`/api/${path}/voti`, requireAuth, async (req, res) => {
+      const voti = await (VotoService as any)[methods.getUserVoti](req.user!.uid!);
       return res.status(200).json(voti);
     });
 
-    if (category !== 'iniziativa-popolare' && category !== 'referendum-abrogativo') {
-      app.delete(`${basePath}/voti/:name`, requireAuth, async (req, res) => {
-        const result = await (service as any)[`removeVote${methodNamePart}`](req.user!.uid!, decodeURIComponent(req.params.name));
+    if (methods.removeVote) {
+      app.delete(`/api/${path}/voti/:name`, requireAuth, async (req, res) => {
+        const result = await (VotoService as any)[methods.removeVote](req.user!.uid!, decodeURIComponent(req.params.name));
         if (!result.success) return res.status(404).json({ error: result.error });
         return res.status(200).json({ message: "Voto rimosso" });
       });
     }
 
-    app.get(`${basePath}/classifica`, async (req, res) => {
-      const classifica = await (service as any)[`getClassifica${methodNamePart}`]();
+    app.get(`/api/${path}/classifica`, async (req, res) => {
+      const classifica = await (VotoService as any)[methods.getClassifica]();
       return res.status(200).json(classifica);
     });
   };
 
-  setupVotingRoutes(app, 'capo-stato', VotoService);
-  setupVotingRoutes(app, 'grazia', VotoService);
-  setupVotingRoutes(app, 'amnistia', VotoService);
-  setupVotingRoutes(app, 'iniziativa-popolare', VotoService);
-  setupVotingRoutes(app, 'referendum-abrogativo', VotoService);
+  // Mappatura esplicita e corretta: "URL" -> { nomi dei metodi nel servizio }
+  createVotingEndpoints('capo-stato', {
+    vote: 'voteCapoDiStato',
+    getUserVoti: 'getUserVotiCapoDiStato',
+    removeVote: 'removeVoteCapoDiStato',
+    getClassifica: 'getClassificaCapoDiStato'
+  });
+
+  createVotingEndpoints('grazia', {
+    vote: 'voteGrazia',
+    getUserVoti: 'getUserVotiGrazia',
+    removeVote: 'removeVoteGrazia',
+    getClassifica: 'getClassificaGrazia'
+  });
+
+  createVotingEndpoints('amnistia', {
+    vote: 'voteAmnistia',
+    getUserVoti: 'getUserVotiAmnistia',
+    removeVote: 'removeVoteAmnistia',
+    getClassifica: 'getClassificaAmnistia'
+  }, 'legge');
+
+  createVotingEndpoints('iniziativa-popolare', {
+    vote: 'voteIniziativaPopolare',
+    getUserVoti: 'getUserVotiIniziativaPopolare',
+    getClassifica: 'getClassificaIniziativaPopolare'
+  });
+
+  createVotingEndpoints('referendum-abrogativo', {
+    vote: 'voteReferendumAbrogativo',
+    getUserVoti: 'getUserVotiReferendumAbrogativo',
+    getClassifica: 'getClassificaReferendumAbrogativo'
+  });
 
   // =========================================================
   // ROTTE AMMINISTRAZIONE (gestite da AdminService)
