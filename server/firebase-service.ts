@@ -1,6 +1,6 @@
 import { db } from './firebase-config'; // Assicurati che il percorso sia corretto
 import { collection, addDoc, getDocs, query, where, limit, deleteDoc } from 'firebase/firestore';
-import { ClassificaItem } from './types'; // Importiamo i tipi dal file types.ts
+import { ClassificaItem } from './types.js'; // Importiamo i tipi dal file types.ts
 
 /**
  * Classe base con metodi di utility condivisi per interagire con Firebase.
