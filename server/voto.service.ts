@@ -98,12 +98,11 @@ class VotoService extends FirebaseService {
   public static async removeVoteAmnistia(userId: string, legge: string) { return this._removeUserVote('voti_amnistia', userId, legge, 'legge'); }
   public static async getClassificaAmnistia() { return this._getLeaderboard('voti_amnistia', 'legge'); }
 
-  // --- Iniziative Popolari (con nomi corretti al singolare per coerenza) ---
+  // --- Iniziative Popolari (con nomi corretti al singolare) ---
   public static async saveIniziativaPopolare(data: any) { 
     const dataToSave = { ...data, voti: 0, createdAt: new Date().toISOString() };
     return this._saveDocument('iniziative_popolari', dataToSave); 
   }
-
   public static async voteIniziativaPopolare(userId: string, nome: string) { 
     const voteResult = await this._registerUserVote('voti_iniziative_popolari', userId, nome);
     if(voteResult.success) {
@@ -121,11 +120,9 @@ class VotoService extends FirebaseService {
     }
     return voteResult;
   }
-
   public static async getUserVotiIniziativaPopolare(userId: string) { 
     return this._getUserVotes('voti_iniziative_popolari', userId); 
   }
-
   public static async getClassificaIniziativaPopolare(): Promise<any[]> {
     try {
         if (!db) return [];
@@ -138,12 +135,11 @@ class VotoService extends FirebaseService {
     }
   }
 
-  // --- Referendum Abrogativi (con nomi corretti al singolare per coerenza) ---
+  // --- Referendum Abrogativi (con nomi corretti al singolare) ---
   public static async saveReferendumAbrogativo(data: any) { 
     const dataToSave = { ...data, voti: 0, createdAt: new Date().toISOString() };
     return this._saveDocument('referendum_abrogativi', dataToSave); 
   }
-
   public static async voteReferendumAbrogativo(userId: string, nome: string) { 
     const voteResult = await this._registerUserVote('voti_referendum_abrogativi', userId, nome);
     if(voteResult.success) {
@@ -161,11 +157,9 @@ class VotoService extends FirebaseService {
     }
     return voteResult;
   }
-
   public static async getUserVotiReferendumAbrogativo(userId: string) { 
     return this._getUserVotes('voti_referendum_abrogativi', userId); 
   }
-
   public static async getClassificaReferendumAbrogativo(): Promise<any[]> {
     try {
         if (!db) return [];
