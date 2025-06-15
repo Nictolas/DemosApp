@@ -138,13 +138,13 @@ class VotoService extends FirebaseService {
   // --- Referendum Abrogativi (con nomi corretti al singolare) ---
   public static async saveReferendumAbrogativo(data: any) { 
     const dataToSave = { ...data, voti: 0, createdAt: new Date().toISOString() };
-    return this._saveDocument('referendum_abrogativi', dataToSave); 
+    return this._saveDocument('referendum_abrogativo', dataToSave); 
   }
   public static async voteReferendumAbrogativo(userId: string, nome: string) { 
-    const voteResult = await this._registerUserVote('voti_referendum_abrogativi', userId, nome);
+    const voteResult = await this._registerUserVote('voti_referendum_abrogativo', userId, nome);
     if(voteResult.success) {
         try {
-            const q = query(collection(db, 'referendum_abrogativi'), where('nome', '==', nome), limit(1));
+            const q = query(collection(db, 'referendum_abrogativo'), where('nome', '==', nome), limit(1));
             const snapshot = await getDocs(q);
             if(!snapshot.empty) {
                 const docRef = snapshot.docs[0].ref;
@@ -163,11 +163,11 @@ class VotoService extends FirebaseService {
   public static async getClassificaReferendumAbrogativo(): Promise<any[]> {
     try {
         if (!db) return [];
-        const q = query(collection(db, 'referendum_abrogativi'), orderBy('voti', 'desc'), limit(10));
+        const q = query(collection(db, 'referendum_abrogativo'), orderBy('voti', 'desc'), limit(10));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        this.handleError(error, 'getClassificaReferendumAbrogativi');
+        this.handleError(error, 'getClassificaReferendumAbrogativo');
         return [];
     }
   }
