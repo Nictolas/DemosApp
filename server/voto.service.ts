@@ -98,76 +98,43 @@ class VotoService extends FirebaseService {
   public static async removeVoteAmnistia(userId: string, legge: string) { return this._removeUserVote('voti_amnistia', userId, legge, 'legge'); }
   public static async getClassificaAmnistia() { return this._getLeaderboard('voti_amnistia', 'legge'); }
 
-  // --- Iniziative Popolari (con nomi corretti al singolare) ---
+  // =========================================================
+  // LOGICA CORRETTA PER INIZIATIVE E REFERENDUM
+  // =========================================================
+
+  // --- Iniziative Popolari ---
   public static async saveIniziativaPopolare(data: any) { 
-    const dataToSave = { ...data, voti: 0, createdAt: new Date().toISOString() };
+    const dataToSave = { ...data, createdAt: new Date().toISOString() };
     return this._saveDocument('iniziative_popolari', dataToSave); 
   }
-  public static async voteIniziativaPopolare(userId: string, nome: string) { 
-    const voteResult = await this._registerUserVote('voti_iniziative_popolari', userId, nome);
-    if(voteResult.success) {
-        try {
-            const q = query(collection(db, 'iniziative_popolari'), where('nome', '==', nome), limit(1));
-            const snapshot = await getDocs(q);
-            if(!snapshot.empty) {
-                const docRef = snapshot.docs[0].ref;
-                const currentVotes = snapshot.docs[0].data().voti || 0;
-                await updateDoc(docRef, { voti: currentVotes + 1 });
-            }
-        } catch (error) {
-            console.error("Errore nell'aggiornare il conteggio dei voti per l'iniziativa:", error);
-        }
-    }
-    return voteResult;
-  }
-  public static async getUserVotiIniziativaPopolare(userId: string) { 
-    return this._getUserVotes('voti_iniziative_popolari', userId); 
-  }
-  public static async getClassificaIniziativaPopolare(): Promise<any[]> {
+
+  public static async getListaIniziativePopolari(): Promise<any[]> {
     try {
         if (!db) return [];
-        const q = query(collection(db, 'iniziative_popolari'), orderBy('voti', 'desc'), limit(10));
+        // Ordina per data di creazione per mostrare le più recenti
+        const q = query(collection(db, 'iniziative_popolari'), orderBy('createdAt', 'desc'), limit(10));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        this.handleError(error, 'getClassificaIniziativaPopolare');
+        this.handleError(error, 'getListaIniziativePopolari');
         return [];
     }
   }
 
-  // --- Referendum Abrogativi (con nomi corretti al singolare) ---
+  // --- Referendum Abrogativi ---
   public static async saveReferendumAbrogativo(data: any) { 
-    const dataToSave = { ...data, voti: 0, createdAt: new Date().toISOString() };
-    return this._saveDocument('referendum_abrogativo', dataToSave); 
+    const dataToSave = { ...data, createdAt: new Date().toISOString() };
+    return this._saveDocument('referendum_abrogativi', dataToSave); 
   }
-  public static async voteReferendumAbrogativo(userId: string, nome: string) { 
-    const voteResult = await this._registerUserVote('voti_referendum_abrogativo', userId, nome);
-    if(voteResult.success) {
-        try {
-            const q = query(collection(db, 'referendum_abrogativo'), where('nome', '==', nome), limit(1));
-            const snapshot = await getDocs(q);
-            if(!snapshot.empty) {
-                const docRef = snapshot.docs[0].ref;
-                const currentVotes = snapshot.docs[0].data().voti || 0;
-                await updateDoc(docRef, { voti: currentVotes + 1 });
-            }
-        } catch (error) {
-            console.error("Errore nell'aggiornare il conteggio dei voti per il referendum:", error);
-        }
-    }
-    return voteResult;
-  }
-  public static async getUserVotiReferendumAbrogativo(userId: string) { 
-    return this._getUserVotes('voti_referendum_abrogativi', userId); 
-  }
-  public static async getClassificaReferendumAbrogativo(): Promise<any[]> {
+
+  public static async getListaReferendumAbrogativi(): Promise<any[]> {
     try {
         if (!db) return [];
-        const q = query(collection(db, 'referendum_abrogativo'), orderBy('voti', 'desc'), limit(10));
+        const q = query(collection(db, 'referendum_abrogativi'), orderBy('createdAt', 'desc'), limit(10));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        this.handleError(error, 'getClassificaReferendumAbrogativo');
+        this.handleError(error, 'getListaReferendumAbrogativi');
         return [];
     }
   }

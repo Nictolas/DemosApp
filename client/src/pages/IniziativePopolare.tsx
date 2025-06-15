@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Vote, ExternalLink, Calendar, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,12 +19,12 @@ const iniziativaSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
   dataInizio: z.string().min(1, "La data di inizio è obbligatoria"),
   dataFine: z.string().min(1, "La data di fine è obbligatoria"),
-  sitoWeb: z.string().url("Inserisci un URL valido").or(z.literal("")),
+  sitoWeb: z.string().url("Inserisci un URL valido").or(z.literal("")).optional(),
 });
 
 type IniziativaFormData = z.infer<typeof iniziativaSchema>;
 
-// Funzione helper per le chiamate fetch
+// Funzione helper generica per le chiamate fetch
 const fetcher = async ({ queryKey }: { queryKey: readonly unknown[] }) => {
     const response = await fetch(queryKey[0] as string);
     if (!response.ok) {
@@ -49,48 +49,17 @@ export default function IniziativePopolare() {
     },
   });
 
-  // Get user's votes
-  const { data: userVotes = [] } = useQuery<string[]>({
-    queryKey: ["/api/iniziative-popolari/voti"],
+  // Carica la lista delle iniziative dal backend
+  const { data: listaIniziative = [], isLoading: isListaLoading } = useQuery<Array<{nome: string, dataInizio: string, dataFine: string, sitoWeb?: string}>>({
+    queryKey: ["/api/iniziative-popolari/lista"], // URL CORRETTO
     queryFn: fetcher,
-    enabled: !!user,
+    enabled: !!user, // Esegui la query solo se l'utente è loggato
   });
 
-  // Get ranking
-  const { data: classifica = [], isFetching: isClassificaLoading } = useQuery<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string}>>({
-    queryKey: ["/api/iniziative-popolari/classifica"],
-    queryFn: fetcher,
-    enabled: !!user,
-  });
-
-  // Vote mutation
-  const voteMutation = useMutation({
-    mutationFn: async (nome: string) => {
-      const response = await fetch("/api/iniziative-popolari/vota", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore nel voto");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Voto registrato", description: "Il tuo voto è stato registrato con successo." });
-      queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/voti"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/classifica"] });
-    },
-    onError: (error: Error) => {
-      toast({ title: "Errore", description: error.message, variant: "destructive" });
-    },
-  });
-
-  // Submit new initiative
+  // Mutazione per inviare una nuova iniziativa
   const submitInitiative = useMutation({
     mutationFn: async (data: IniziativaFormData) => {
-      const response = await fetch("/api/iniziative-popolari", {
+      const response = await fetch("/api/iniziative-popolari", { // Rotta POST per creare
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -102,13 +71,21 @@ export default function IniziativePopolare() {
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Iniziativa proposta", description: "La tua iniziativa è stata proposta con successo." });
+      toast({
+        title: "Iniziativa proposta",
+        description: "La tua iniziativa è stata proposta con successo.",
+      });
       form.reset();
       setShowForm(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/classifica"] });
+      // Invalida la query per forzare il ricaricamento della lista
+      queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/lista"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Errore", description: error.message, variant: "destructive" });
+      toast({
+        title: "Errore",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -128,14 +105,14 @@ export default function IniziativePopolare() {
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Link href="/menu">
-            <Button variant="ghost" className="mb-4 flex items-center">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
-            </Button>
+          <Button variant="ghost" className="mb-4 flex items-center">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+          </Button>
         </Link>
         <Card className="w-full max-w-6xl mx-auto">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Iniziative Popolari</CardTitle>
-            <CardDescription>Proponi e vota per le iniziative popolari. Le 10 più votate sono mostrate di seguito.</CardDescription>
+            <CardDescription>Proponi o consulta le iniziative popolari. Le 10 più recenti sono mostrate di seguito.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
@@ -144,6 +121,7 @@ export default function IniziativePopolare() {
                 {showForm ? "Annulla" : "Proponi Nuova Iniziativa"}
               </Button>
             </div>
+
             {showForm && (
               <Card>
                 <CardHeader><CardTitle>Proponi Nuova Iniziativa</CardTitle></CardHeader>
@@ -162,37 +140,30 @@ export default function IniziativePopolare() {
                 </CardContent>
               </Card>
             )}
+
             <Card>
-              <CardHeader><CardTitle>Top 10 Iniziative Popolari</CardTitle><CardDescription>Le iniziative più votate dalla comunità</CardDescription></CardHeader>
+              <CardHeader><CardTitle>Ultime Iniziative Proposte</CardTitle><CardDescription>Le iniziative più recenti proposte dalla comunità</CardDescription></CardHeader>
               <CardContent>
-                {isClassificaLoading ? (
-                    <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                {isListaLoading ? (
+                  <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : (
                   <>
                     <div className="overflow-x-auto">
                       <Table>
-                        <TableHeader><TableRow><TableHead className="w-[60px]">Pos.</TableHead><TableHead>Nome</TableHead><TableHead><div className="flex items-center space-x-2"><Calendar className="h-4 w-4" /><span>Periodo</span></div></TableHead><TableHead>Sito Web</TableHead><TableHead className="w-[100px]">Voti</TableHead><TableHead className="w-[120px]">Azione</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead><div className="flex items-center space-x-2"><Calendar className="h-4 w-4" /><span>Periodo</span></div></TableHead><TableHead>Sito Web</TableHead></TableRow></TableHeader>
                         <TableBody>
-                          {classifica.map((iniziativa, index) => (
-                            <TableRow key={iniziativa.nome}>
-                              <TableCell className="font-medium"><Badge variant={index < 3 ? "default" : "secondary"}>#{index + 1}</Badge></TableCell>
+                          {listaIniziative.map((iniziativa, index) => (
+                            <TableRow key={index}>
                               <TableCell className="font-medium">{iniziativa.nome}</TableCell>
                               <TableCell className="text-sm text-muted-foreground">{new Date(iniziativa.dataInizio).toLocaleDateString('it-IT')} - {new Date(iniziativa.dataFine).toLocaleDateString('it-IT')}</TableCell>
                               <TableCell>{iniziativa.sitoWeb ? (<a href={iniziativa.sitoWeb} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"><ExternalLink className="h-4 w-4" /><span>Visita</span></a>) : (<span className="text-muted-foreground">N/A</span>)}</TableCell>
-                              <TableCell><Badge variant="outline">{iniziativa.voti}</Badge></TableCell>
-                              <TableCell>
-                                <Button size="sm" variant={userVotes.includes(iniziativa.nome) ? "default" : "outline"} onClick={() => voteMutation.mutate(iniziativa.nome)} disabled={voteMutation.isPending || userVotes.includes(iniziativa.nome)}>
-                                  <Vote className="mr-1 h-3 w-3" />
-                                  {userVotes.includes(iniziativa.nome) ? "Votato" : "Vota"}
-                                </Button>
-                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </div>
-                    {classifica.length === 0 && (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400"><Vote className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>Nessuna iniziativa proposta al momento.</p></div>
+                    {listaIniziative.length === 0 && (
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400"><ClipboardList className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>Nessuna iniziativa proposta al momento.</p></div>
                     )}
                   </>
                 )}
