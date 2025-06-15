@@ -1,16 +1,27 @@
-import { db } from './firebase-config.js'; // Assicurati che il percorso sia corretto
-import { collection, addDoc, getDocs, query, where, limit, deleteDoc } from 'firebase/firestore';
-import { ClassificaItem } from './types.js'; // Importiamo i tipi dal file types.ts
+// Import corretti con estensione .js
+import { db } from './firebase-config.js';
+import { ClassificaItem } from './types.js';
+
+// Import necessari da Firestore, inclusa la funzione di aggregazione 'getCountFromServer'
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  limit, 
+  deleteDoc,
+  getCountFromServer 
+} from 'firebase/firestore';
 
 /**
  * Classe base con metodi di utility condivisi per interagire con Firebase.
- * Questa classe viene estesa dagli altri servizi specifici (AuthService, UserService, ecc.).
+ * Questa classe viene estesa dagli altri servizi specifici.
  */
 export class FirebaseService {
 
   /**
    * Converte un'email in un ID valido per i documenti Firestore.
-   * Protetto: accessibile solo da questa classe e dalle classi che la estendono.
    */
   protected static emailToId(email: string): string {
     return email.replace(/[.#$\[\]]/g, '_');
@@ -18,7 +29,6 @@ export class FirebaseService {
 
   /**
    * Gestisce in modo centralizzato la cattura degli errori.
-   * Protetto: accessibile solo da questa classe e dalle classi che la estendono.
    */
   protected static handleError(error: any, context: string): { success: false; error: string } {
     console.error(`Errore in ${context}:`, error);
@@ -75,22 +85,49 @@ export class FirebaseService {
       }
   }
 
+  /**
+   * Calcola la classifica per una data collezione di voti.
+   * VERSIONE OTTIMIZZATA per prevenire i timeout su Vercel.
+   */
   protected static async _getLeaderboard(votesCollectionName: string, entityKey: string = 'nome', resultLimit: number = 10): Promise<ClassificaItem[]> {
     try {
-        if (!db) return [];
-        const snapshot = await getDocs(collection(db, votesCollectionName));
-        const counts: Record<string, number> = {};
-        snapshot.forEach((doc) => {
-            const entity = doc.data()[entityKey];
-            counts[entity] = (counts[entity] || 0) + 1;
-        });
-        return Object.entries(counts)
-            .map(([nome, voti]) => ({ nome, voti }))
-            .sort((a, b) => b.voti - a.voti)
-            .slice(0, resultLimit);
+      if (!db) return [];
+      console.log(`[PERFORMANCE] Inizio _getLeaderboard ottimizzato per: ${votesCollectionName}`);
+
+      // Step 1: Ottieni la lista di tutti i nomi unici dei candidati/entità votate.
+      const snapshot = await getDocs(query(collection(db, votesCollectionName)));
+      const allEntityNames = snapshot.docs.map(doc => doc.data()[entityKey]);
+      const uniqueEntityNames = [...new Set(allEntityNames)];
+
+      console.log(`[PERFORMANCE] Trovati ${uniqueEntityNames.length} candidati unici.`);
+      if (uniqueEntityNames.length === 0) return [];
+
+      // Avviso se il numero di candidati unici è molto alto, perché potrebbe comunque essere lento.
+      if (uniqueEntityNames.length > 200) {
+          console.warn(`[PERFORMANCE] Attenzione: ci sono ${uniqueEntityNames.length} candidati unici. L'operazione potrebbe richiedere tempo.`);
+      }
+
+      // Step 2: Per ogni nome unico, esegui una query di CONTEGGIO (molto veloce) invece di scaricare tutti i documenti.
+      const countPromises = uniqueEntityNames.map(name => {
+        const q = query(collection(db, votesCollectionName), where(entityKey, '==', name));
+        return getCountFromServer(q).then(countSnapshot => ({
+          nome: name,
+          voti: countSnapshot.data().count
+        }));
+      });
+
+      // Esegui tutte le query di conteggio in parallelo.
+      const results = await Promise.all(countPromises);
+      console.log(`[PERFORMANCE] Conteggio voti completato per ${results.length} candidati.`);
+
+      // Step 3: Ordina i risultati in memoria e prendi i primi N.
+      return results
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, resultLimit);
+
     } catch (error) {
-        this.handleError(error, `_getLeaderboard (${votesCollectionName})`);
-        return [];
+      this.handleError(error, `_getLeaderboard (${votesCollectionName})`);
+      return [];
     }
   }
 }
