@@ -1,37 +1,33 @@
-modules = ["nodejs-20", "bash", "web", "postgresql-16"]
+# Versione del linguaggio e dei moduli richiesti da Replit
+modules = ["nodejs-20:v1-20230825-f01079d"]
+
+# Comando da eseguire quando clicchi sul pulsante verde "Run" per lo sviluppo
 run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
+# File e cartelle da nascondere nell'interfaccia di Replit
+hidden = [".config", ".git", "node_modules", "dist"]
+
+# Configurazione del sistema Nix di Replit (manteniamo la stabilità)
 [nix]
-channel = "stable-24_05"
-packages = ["jq"]
+channel = "stable-23_11"
 
+# =========================================================
+# SEZIONE FONDAMENTALE PER IL DEPLOYMENT
+# =========================================================
 [deployment]
+# Il tipo di deploy che hai scelto (va benissimo)
 deploymentTarget = "autoscale"
-run = ["npm", "run", "start"]
+
+# Comando che Replit eseguirà per costruire il tuo progetto prima del deploy.
+# Esegue lo script "build" del tuo package.json.
 build = ["npm", "run", "build"]
 
+# Comando che Replit eseguirà per avviare il server dopo il build.
+# Esegue lo script "start" del tuo package.json.
+run = ["npm", "run", "start"]
+
+# Dice a Replit di reindirizzare il traffico esterno dalla porta 80 (standard HTTP)
+# alla porta 5000, dove il tuo server è in ascolto.
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
