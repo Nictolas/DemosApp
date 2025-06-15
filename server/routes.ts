@@ -1,9 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-// IMPORT LOCALE CORRETTO
 import { setupAuth } from "./auth.js"; 
 
-// ===== IMPORT DAI NUOVI SERVIZI SPECIALIZZATI (CON .js) =====
+// Importa tutti i servizi con l'estensione .js
 import UserService from "./user.service.js";
 import VotoService from "./voto.service.js";
 import AdminService from "./admin.service.js";
@@ -11,14 +10,9 @@ import ComunicazioneService from "./comunicazione.service.js";
 import ElezioneService from "./elezione.service.js";
 import ComizioService from "./comizio.service.js";
 import NotificaService from "./notifica.service.js";
-
-// IMPORT LOCALE CORRETTO
 import { storage } from "./storage.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Il resto del codice rimane identico, le chiamate ai servizi sono già corrette.
-  // La modifica chiave è solo nelle righe di import all'inizio del file.
-
   setupAuth(app);
 
   const requireAuth = (req: Request, res: Response, next: NextFunction) => {
@@ -38,7 +32,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =========================================================
   // ROTTE UTENTE (gestite da UserService)
   // =========================================================
-
   app.get('/api/users', requireAuth, async (req, res) => {
     try {
       const users = await UserService.getAllUsers();
@@ -64,10 +57,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isOwnProfile = req.user?.email === email;
       const isAdmin = req.user?.ruolo === 'Admin';
       if (!isOwnProfile && !isAdmin) return res.status(403).json({ error: 'Permessi non sufficienti' });
-
       const result = await UserService.updateUserData(email, req.body);
       if (!result.success) return res.status(500).json({ error: result.error });
-
       return res.status(200).json({ message: 'Profilo aggiornato', data: result.data });
     } catch (error) {
       return res.status(500).json({ error: 'Errore interno del server' });
@@ -146,39 +137,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(classifiche);
   });
 
+  // === BLOCCO DI ROUTING CORRETTO ===
+  const kebabToPascal = (s: string) => s.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
+
   const setupVotingRoutes = (app: Express, category: string, service: typeof VotoService) => {
     const basePath = `/api/${category}`;
     const entityName = category === 'amnistia' ? 'legge' : 'nome';
-    const capitalizedCategory = capitalize(category.replace('Popolare', ''));
+    const methodNamePart = kebabToPascal(category);
 
     app.post(`${basePath}/vota`, requireAuth, async (req, res) => {
       const { [entityName]: name } = req.body;
       if (!name) return res.status(400).json({ error: "Nome o legge mancante" });
-      const result = await (service as any)[`vote${capitalizedCategory}`](req.user!.uid!, name);
+      const result = await (service as any)[`vote${methodNamePart}`](req.user!.uid!, name);
       if (!result.success) return res.status(500).json({ error: result.error });
       return res.status(200).json({ message: "Voto registrato" });
     });
 
     app.get(`${basePath}/voti`, requireAuth, async (req, res) => {
-      const voti = await (service as any)[`getUserVoti${capitalizedCategory}`](req.user!.uid!);
+      const voti = await (service as any)[`getUserVoti${methodNamePart}`](req.user!.uid!);
       return res.status(200).json(voti);
     });
 
-    if (category !== 'iniziativaPopolare' && category !== 'referendumAbrogativo') {
+    if (category !== 'iniziativa-popolare' && category !== 'referendum-abrogativo') {
       app.delete(`${basePath}/voti/:name`, requireAuth, async (req, res) => {
-        const result = await (service as any)[`removeVote${capitalizedCategory}`](req.user!.uid!, decodeURIComponent(req.params.name));
+        const result = await (service as any)[`removeVote${methodNamePart}`](req.user!.uid!, decodeURIComponent(req.params.name));
         if (!result.success) return res.status(404).json({ error: result.error });
         return res.status(200).json({ message: "Voto rimosso" });
       });
     }
 
     app.get(`${basePath}/classifica`, async (req, res) => {
-      const classifica = await (service as any)[`getClassifica${capitalizedCategory}`]();
+      const classifica = await (service as any)[`getClassifica${methodNamePart}`]();
       return res.status(200).json(classifica);
     });
   };
-
-  const capitalize = (s: string) => s.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
 
   setupVotingRoutes(app, 'capo-stato', VotoService);
   setupVotingRoutes(app, 'grazia', VotoService);
