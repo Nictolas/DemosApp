@@ -2,6 +2,7 @@
 import { db, adminDb } from './firebase-config.js';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
 import { Utente, UserOpinions } from './types.js';
+import { FirebaseService } from './firebase-service.js'; // Assicurati che l'import sia corretto
 
 class UserService extends FirebaseService {
 
