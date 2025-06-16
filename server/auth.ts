@@ -55,59 +55,45 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
       try {
-        console.log(`[AUTH-DEBUG] 1. Inizio strategia login per: ${email}`);
-
         if (!auth) {
-          console.error("[AUTH-DEBUG] CRASH: Istanza Firebase Auth non disponibile.");
-          return done(null, false, { message: "Servizio auth non disponibile" });
+          return done(null, false, { message: "Servizio di autenticazione non disponibile" });
         }
 
-        console.log("[AUTH-DEBUG] 2. Eseguo signInWithEmailAndPassword...");
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
         if (!userCredential.user) {
-          console.error("[AUTH-DEBUG] CRASH: signIn non ha restituito un utente.");
           return done(null, false, { message: "Credenziali non valide" });
         }
 
-        console.log(`[AUTH-DEBUG] 3. Login Firebase Auth OK. UID: ${userCredential.user.uid}. Cerco profilo Firestore.`);
+        // **USA IL NUOVO UserService**
         let userProfile = await UserService.getUserByEmail(email);
 
         if (!userProfile) {
-          console.log("[AUTH-DEBUG] 3a. Profilo non trovato, creo un profilo base...");
+          console.log("Profilo non trovato, creazione profilo base...");
           const basicProfile = {
-              email, uid: userCredential.user.uid, nome: '', cognome: '', data_nascita: '', genere: '', cittadinanza: '',
-              paese_residenza: '', regione_residenza: '', provincia_residenza: '', comune_residenza: '',
-            ruolo: 'Elettore' as const,
+            email: email,
+            uid: userCredential.user.uid,
+            nome: '', cognome: '', data_nascita: '', genere: '', cittadinanza: '',
+            paese_residenza: '', regione_residenza: '', provincia_residenza: '', comune_residenza: '',
+            ruolo: 'cittadino'
           };
+          // **USA IL NUOVO UserService**
           await UserService.saveUserData(basicProfile);
           userProfile = await UserService.getUserByEmail(email);
-          console.log("[AUTH-DEBUG] 3b. Profilo base creato e recuperato.");
         }
 
-        if (!userProfile) {
-            console.error("[AUTH-DEBUG] CRASH: Impossibile creare o recuperare il profilo utente dopo il login.");
-            return done(null, false, { message: "Errore interno durante il recupero del profilo." });
-        }
+        if (!userProfile) return done(null, false, { message: "Impossibile recuperare il profilo utente." });
 
-        const userForSession = { 
-          id: userProfile.uid!, 
-          email: userProfile.email,
+        return done(null, { 
+          id: userProfile.uid!,
           uid: userProfile.uid,
+          email: userProfile.email,
           nome: userProfile.nome,
           cognome: userProfile.cognome,
           ruolo: userProfile.ruolo
-        };
-
-        console.log("[AUTH-DEBUG] 4. Profilo pronto. Chiamo done() per passare a Passport.");
-        return done(null, userForSession);
-
-      } catch (error: any) {
-        console.error("[AUTH-DEBUG] CRASH: Eccezione nel blocco try-catch!", error.code, error.message);
-        if (error.code === 'auth/invalid-credential') {
-            return done(null, false, { message: "Credenziali non valide." });
-        }
-        return done(error);
+        });
+      } catch (error) {
+        console.error("Eccezione durante il login:", error);
+        return done(null, false, { message: "Credenziali non valide" });
       }
     }),
   );
@@ -167,28 +153,19 @@ export function setupAuth(app: Express) {
   });
 
   // (Endpoint /api/login, /api/logout, /api/user rimangono invariati)
-app.post("/api/login", (req, res, next) => {
-  console.log("[AUTH-DEBUG] 5. Ricevuta richiesta a /api/login. Avvio passport.authenticate.");
-  passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
-    if (err) {
-      console.error("[AUTH-DEBUG] CRASH: Errore da passport.authenticate:", err);
-      return next(err);
-    }
-    if (!user) {
-      console.error("[AUTH-DEBUG] Login fallito:", info.message);
-      return res.status(401).json({ error: info.message || "Email o password non validi" });
-    }
+  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+    res.status(200).json(req.user);
+  });
 
-    console.log("[AUTH-DEBUG] 6. Autenticazione riuscita. Avvio req.login per creare la sessione.");
-    req.login(user, (err) => {
-      if (err) {
-        // Se l'errore avviene qui, è al 99% il database delle sessioni (NeonDB)
-        console.error("[AUTH-DEBUG] CRASH: Errore durante req.login (probabile problema con session store/DB):", err);
-        return next(err);
-      }
-      console.log("[AUTH-DEBUG] 7. Sessione creata con successo. Invio risposta 200.");
-      return res.status(200).json(user);
+  app.post("/api/logout", (req, res, next) => {
+    req.logout((err) => {
+      if (err) return next(err);
+      res.sendStatus(200);
     });
-  })(req, res, next);
-});
+  });
+
+  app.get("/api/user", (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Non autenticato" });
+    res.json(req.user);
+  });
 }

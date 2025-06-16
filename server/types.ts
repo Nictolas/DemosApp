@@ -55,7 +55,7 @@ export interface Utente extends DocumentoBase {
   comune_candidatura?: string;
 
   // Ruolo e grado nell'applicazione
-  ruolo: "Elettore" | "Politico" | "Candidato" | "Candidato Politico" | "Admin";
+  ruolo: 'cittadino' | 'politico' | 'admin';
   grado_elezione?: string;
   grado_candidatura?: string;
 
