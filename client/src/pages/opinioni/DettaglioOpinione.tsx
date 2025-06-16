@@ -181,8 +181,18 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
 
         <Card>
           <CardHeader><CardTitle className="flex items-center"><MapPin className="mr-2 h-5 w-5"/>Distribuzione per Regione</CardTitle></CardHeader>
-          <CardContent><div style={{height: '400px'}}><Bar data={prepareGroupedBarData(stats.location)!} options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false }} /></div></CardContent>
+          <CardContent>
+            <div style={{height: '400px'}}>
+              <Bar data={prepareGroupedBarData(stats.location)!} options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false }} />
+            </div>
+          </CardContent>
         </Card>
-      </div>
+
+        </div> // <--- Il div principale si chiude qui
+        ) : (
+        <p>Nessun dato da mostrare.</p>
+        )}
+        </div>
+        </div>
   );
 }
