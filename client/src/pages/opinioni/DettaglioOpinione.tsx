@@ -151,37 +151,47 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
                 <Card><CardHeader><CardTitle>{stats.contrari}</CardTitle><CardDescription>Contrari</CardDescription></CardHeader></Card>
             </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader><CardTitle className="flex items-center"><PersonStanding className="mr-2"/>Distribuzione per Genere</CardTitle></CardHeader>
-          <CardContent>
-            {genderPieData && (
-              <div style={{height: '300px', width: '100%', maxWidth: '300px', margin: 'auto'}}>
-                <Pie 
-                  data={genderPieData}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
-                  }}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="flex items-center"><Users className="mr-2"/>Distribuzione per Età</CardTitle></CardHeader>
-          {/* RIGA CORRETTA */}
-          <CardContent><div style={{height: '300px'}}>{ageChartData && <Bar data={ageChartData} options={{ responsive: true, maintainAspectRatio: false }} />}</div></CardContent>
-        </Card>
-      </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader><CardTitle className="flex items-center"><PersonStanding className="mr-2"/>Distribuzione per Genere</CardTitle></CardHeader>
+                <CardContent>
+                  {genderPieData && (
+                    <div style={{height: '300px', width: '100%', maxWidth: '300px', margin: 'auto'}}>
+                      <Pie 
+                        data={genderPieData}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'bottom',
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="flex items-center"><Users className="mr-2"/>Distribuzione per Età</CardTitle></CardHeader>
+                <CardContent>
+                  <div style={{height: '300px'}}>
+                    {ageChartData && <Bar data={ageChartData} options={{ responsive: true, maintainAspectRatio: false }} />}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             <Card>
               <CardHeader><CardTitle className="flex items-center"><MapPin className="mr-2"/>Distribuzione per Regione</CardTitle></CardHeader>
-      <CardContent><div style={{height: '400px'}}>{locationChartData && <Bar data={locationChartData} options={{ responsive: true, maintainAspectRatio: false }} />}</div></CardContent>
-
-          </div>
+              <CardContent>
+                <div style={{height: '400px'}}>
+                  {locationChartData && <Bar data={locationChartData} options={{ responsive: true, maintainAspectRatio: false }} />}
+                </div>
+              </CardContent>
+            </Card>
+            </div>
         ) : (
           <p>Nessun dato da mostrare.</p>
         )}
