@@ -9,7 +9,6 @@ import { Pie, Bar } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// TIPI CORRETTI per le statistiche
 type OpinionData = { favorevole: number; contrario: number; astenuto: number; };
 type OpinionStats = Record<string, OpinionData>;
 type OpinionKey = "energia_nucleare" | "sperimentazione_animale" | "legalizzazione_canapa" | "caccia" | "unione_europea";
@@ -72,7 +71,6 @@ export default function StatisticheOpinioni() {
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
-  // Funzioni per preparare i dati dei grafici
   const preparePieChartData = (questionKey: OpinionKey) => {
     if (!stats) return null;
     const questionStats = stats[questionKey];
@@ -99,6 +97,15 @@ export default function StatisticheOpinioni() {
 
   const barChartData = prepareBarChartData();
 
+  // Mappa per i link di dettaglio
+  const detailPageLinks: Record<string, string> = {
+    'energia_nucleare': '/opinioni/energia-nucleare',
+    'sperimentazione_animale': '/opinioni/sperimentazione-animale',
+    'legalizzazione_canapa': '/opinioni/legalizzazione-canapa',
+    'caccia': '/opinioni/caccia',
+    'unione_europea': '/opinioni/unione-europea'
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-5xl">
@@ -114,8 +121,19 @@ export default function StatisticheOpinioni() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {Object.entries(opinionQuestions).map(([key, title]) => {
                     const pieData = preparePieChartData(key as OpinionKey);
+                    const detailLink = detailPageLinks[key];
                     return pieData && (
-                      <Card key={key} className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xl">{title}</CardTitle></CardHeader><CardContent className="flex justify-center"><div style={{ height: '200px', width: '100%', maxWidth: '300px' }}><Pie data={pieData} options={{ plugins: { legend: { position: 'bottom' } }, responsive: true, maintainAspectRatio: false }} /></div></CardContent></Card>
+                      // ===== LOGICA DI NAVIGAZIONE RIPRISTINATA =====
+                      <Link href={detailLink} key={key}>
+                        <Card className="shadow-sm cursor-pointer hover:shadow-md transition-shadow h-full">
+                          <CardHeader className="pb-2"><CardTitle className="text-xl hover:text-primary transition-colors">{title}</CardTitle></CardHeader>
+                          <CardContent className="flex justify-center">
+                            <div style={{ height: '200px', width: '100%', maxWidth: '300px' }}>
+                                <Pie data={pieData} options={{ plugins: { legend: { position: 'bottom' } }, responsive: true, maintainAspectRatio: false }} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
                     );
                   })}
                 </div>
