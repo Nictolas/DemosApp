@@ -2,16 +2,27 @@
 import { db, adminDb } from './firebase-config.js';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
 import { Utente, UserOpinions } from './types.js';
-import { FirebaseService } from './firebase-service.js'; // Assicurati che l'import sia corretto
+import { FirebaseService } from './firebase-service.js';
 
-const getAgeCategory = (age: number | string): string => {
-  const numAge = Number(age);
-  if (isNaN(numAge)) return 'Non specificato';
-  if (numAge <= 24) return '18-24';
-  if (numAge <= 34) return '25-34';
-  if (numAge <= 44) return '35-44';
-  if (numAge <= 54) return '45-54';
-  if (numAge <= 64) return '55-64';
+// MANTIENI SOLO QUESTA VERSIONE DELLA FUNZIONE
+const getAgeCategory = (birthDateString: string): string => {
+  if (!birthDateString) return 'Non specificato';
+  const birthDate = new Date(birthDateString);
+  if (isNaN(birthDate.getTime())) return 'Non specificato';
+
+  // Calcolo preciso dell'età
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  if (age <= 24) return '18-24';
+  if (age <= 34) return '25-34';
+  if (age <= 44) return '35-44';
+  if (age <= 54) return '45-54';
+  if (age <= 64) return '55-64';
   return '65+';
 };
 
@@ -137,7 +148,7 @@ class UserService extends FirebaseService {
             }
 
             // Selezioniamo solo i campi che ci servono per le statistiche
-            const snapshot = await adminDb.collection('utenti').select(opinionField, 'genere', 'eta', 'regione_residenza').get();
+            const snapshot = await adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita', 'regione_residenza').get();
             if (snapshot.empty) return {};
 
             // Nuova struttura dati per contenere tutte le suddivisioni
@@ -165,7 +176,7 @@ class UserService extends FirebaseService {
               if (!['favorevole', 'contrario', 'astenuto'].includes(normalizedOpinion)) return;
 
               const gender = (data.genere || 'Non specificato').toLowerCase();
-              const ageCategory = getAgeCategory(data.eta);
+              const ageCategory = getAgeCategory(data.data_nascita);
               const location = data.regione_residenza || 'Non specificato';
 
               incrementStat(stats.gender, gender, normalizedOpinion);
@@ -179,33 +190,5 @@ class UserService extends FirebaseService {
             return {};
           }
         }
-      };
-
-      // Cicla sui documenti per calcolare le statistiche
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        const opinion = data[opinionField];
-        const gender = (data.genere || 'Non specificato').toLowerCase(); // Normalizziamo il genere
-
-        if (typeof opinion === 'string') {
-          const normalizedOpinion = opinion.toLowerCase();
-
-          if (normalizedOpinion === 'favorevole') {
-            stats.genderDistributionByOpinion.favorevole[gender] = (stats.genderDistributionByOpinion.favorevole[gender] || 0) + 1;
-          } else if (normalizedOpinion === 'contrario') {
-            stats.genderDistributionByOpinion.contrario[gender] = (stats.genderDistributionByOpinion.contrario[gender] || 0) + 1;
-          } else if (normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') {
-            stats.genderDistributionByOpinion.astenuto[gender] = (stats.genderDistributionByOpinion.astenuto[gender] || 0) + 1;
-          }
-        }
-      });
-
-      return stats;
-    } catch (error) {
-      this.handleError(error, 'getOpinionDetailStats');
-      return {};
-    }
-  }
-}
 
 export default UserService;
