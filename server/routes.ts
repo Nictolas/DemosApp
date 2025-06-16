@@ -52,6 +52,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Aggiungi questo blocco di codice dopo la rotta per /api/statistiche-opinioni
+
+  app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+    try {
+        const { opinionField } = req.params;
+        const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
+
+        if (!validFields.includes(opinionField)) {
+            return res.status(400).json({ error: "Campo opinione non valido" });
+        }
+
+        const stats = await UserService.getOpinionDetailStats(opinionField);
+        return res.status(200).json(stats);
+    } catch (error) {
+        console.error(`Errore nel recuperare i dettagli per l'opinione:`, error);
+        return res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   // =========================================================
   // ROTTE VOTO (gestite da VotoService)
   // =========================================================
