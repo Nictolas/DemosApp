@@ -122,52 +122,50 @@ class UserService extends FirebaseService {
     try {
       if (!adminDb) {
         console.error("Admin SDK non inizializzato, impossibile recuperare statistiche dettagliate.");
-        return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0 };
+        return {};
       }
 
-      // Usa l'Admin SDK per leggere i dati necessari da tutti gli utenti
-      const snapshot = await adminDb.collection('utenti').select(opinionField, 'eta', 'genere', 'regione_residenza').get();
+      // Selezioniamo solo i campi che ci servono per le statistiche
+      const snapshot = await adminDb.collection('utenti').select(opinionField, 'genere').get();
 
       if (snapshot.empty) {
-        return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0, ageDistribution: {}, genderDistribution: {}, locationDistribution: {} };
+        return { 
+          genderDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} }
+        };
       }
 
-      // Inizializza la struttura per le statistiche
+      // Nuova struttura dati per contenere le suddivisioni
       const stats = {
-        favorevoli: 0,
-        contrari: 0,
-        astenuti: 0,
-        ageDistribution: {} as Record<string, number>,
-        genderDistribution: {} as Record<string, number>,
-        locationDistribution: {} as Record<string, number>,
+        genderDistributionByOpinion: {
+          favorevole: {} as Record<string, number>,
+          contrario: {} as Record<string, number>,
+          astenuto: {} as Record<string, number>
+        }
       };
 
       // Cicla sui documenti per calcolare le statistiche
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         const opinion = data[opinionField];
+        const gender = (data.genere || 'Non specificato').toLowerCase(); // Normalizziamo il genere
 
         if (typeof opinion === 'string') {
           const normalizedOpinion = opinion.toLowerCase();
-          if(normalizedOpinion === 'favorevole') stats.favorevoli++;
-          else if(normalizedOpinion === 'contrario') stats.contrari++;
-          else if(normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') stats.astenuti++;
+
+          if (normalizedOpinion === 'favorevole') {
+            stats.genderDistributionByOpinion.favorevole[gender] = (stats.genderDistributionByOpinion.favorevole[gender] || 0) + 1;
+          } else if (normalizedOpinion === 'contrario') {
+            stats.genderDistributionByOpinion.contrario[gender] = (stats.genderDistributionByOpinion.contrario[gender] || 0) + 1;
+          } else if (normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') {
+            stats.genderDistributionByOpinion.astenuto[gender] = (stats.genderDistributionByOpinion.astenuto[gender] || 0) + 1;
+          }
         }
-
-        const age = data.eta || 'Non specificato';
-        stats.ageDistribution[age] = (stats.ageDistribution[age] || 0) + 1;
-
-        const gender = data.genere || 'Non specificato';
-        stats.genderDistribution[gender] = (stats.genderDistribution[gender] || 0) + 1;
-
-        const location = data.regione_residenza || 'Non specificato';
-        stats.locationDistribution[location] = (stats.locationDistribution[location] || 0) + 1;
       });
 
-      return { total: snapshot.size, ...stats };
+      return stats;
     } catch (error) {
       this.handleError(error, 'getOpinionDetailStats');
-      return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0 };
+      return {};
     }
   }
 }
