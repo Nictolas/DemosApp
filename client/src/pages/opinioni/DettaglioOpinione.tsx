@@ -7,7 +7,7 @@ import { Redirect, Link } from 'wouter';
 import { Loader2, ArrowLeft, BarChart3, Users, MapPin, PersonStanding } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Bar } from 'react-chartjs-2';
+import { Bar, Pie } from 'react-chartjs-2';
 // (Chart.js viene registrato altrove, quindi non serve qui)
 
 // =========================================================
@@ -90,6 +90,38 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
     };
   };
 
+  const prepareGenderPieChartData = () => {
+    if (!stats || !stats.genderDistribution) return null;
+
+    const labels = Object.keys(stats.genderDistribution);
+    const data = Object.values(stats.genderDistribution);
+
+    const genderColors: Record<string, string> = {
+      'uomo': 'rgba(54, 162, 235, 0.7)',
+      'donna': 'rgba(255, 99, 132, 0.7)',
+      'altro': 'rgba(255, 206, 86, 0.7)',
+      'non specificato': 'rgba(201, 203, 207, 0.7)'
+    };
+
+    const backgroundColors = labels.map(label => genderColors[label.toLowerCase()] || genderColors['non specificato']);
+    const borderColors = backgroundColors.map(color => color.replace('0.7', '1'));
+
+    return {
+      labels,
+      datasets: [{
+        label: 'Distribuzione per Genere',
+        data,
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 1,
+      }]
+    };
+  };
+
+  const ageChartData = stats ? prepareChartData(stats.ageDistribution) : null;
+  const locationChartData = stats ? prepareChartData(stats.locationDistribution) : null;
+  const genderPieData = prepareGenderPieChartData();
+  
   // Il JSX per la visualizzazione rimane qui
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
@@ -119,21 +151,35 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
                 <Card><CardHeader><CardTitle>{stats.contrari}</CardTitle><CardDescription>Contrari</CardDescription></CardHeader></Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader><CardTitle className="flex items-center"><PersonStanding className="mr-2"/>Distribuzione per Genere</CardTitle></CardHeader>
-                <CardContent><div style={{height: '300px'}}><Bar data={prepareChartData(stats.genderDistribution)} options={{ indexAxis: 'y', responsive: true, maintainAspectRatio: false }} /></div></CardContent>
-              </Card>
-              <Card>
-                <CardHeader><CardTitle className="flex items-center"><Users className="mr-2"/>Distribuzione per Età</CardTitle></CardHeader>
-                <CardContent><div style={{height: '300px'}}><Bar data={prepareChartData(stats.ageDistribution)} options={{ responsive: true, maintainAspectRatio: false }} /></div></CardContent>
-              </Card>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader><CardTitle className="flex items-center"><PersonStanding className="mr-2"/>Distribuzione per Genere</CardTitle></CardHeader>
+          <CardContent>
+            {genderPieData && (
+              <div style={{height: '300px', width: '100%', maxWidth: '300px', margin: 'auto'}}>
+                <Pie 
+                  data={genderPieData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                  }}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="flex items-center"><Users className="mr-2"/>Distribuzione per Età</CardTitle></CardHeader>
+          {/* RIGA CORRETTA */}
+          <CardContent><div style={{height: '300px'}}>{ageChartData && <Bar data={ageChartData} options={{ responsive: true, maintainAspectRatio: false }} />}</div></CardContent>
+        </Card>
+      </div>
 
             <Card>
               <CardHeader><CardTitle className="flex items-center"><MapPin className="mr-2"/>Distribuzione per Regione</CardTitle></CardHeader>
-              <CardContent><div style={{height: '400px'}}><Bar data={prepareChartData(stats.locationDistribution)} options={{ responsive: true, maintainAspectRatio: false }} /></div></CardContent>
-            </Card>
+      <CardContent><div style={{height: '400px'}}>{locationChartData && <Bar data={locationChartData} options={{ responsive: true, maintainAspectRatio: false }} />}</div></CardContent>
 
           </div>
         ) : (
