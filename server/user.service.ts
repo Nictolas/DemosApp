@@ -135,8 +135,6 @@ class UserService extends FirebaseService {
       (`${user.nome} ${user.cognome}`.toLowerCase().includes(q))
     );
   }
-  // Aggiungi questo intero blocco di codice dentro la classe UserService
-
   /**
    * Recupera statistiche dettagliate per un singolo campo di opinione.
    */
