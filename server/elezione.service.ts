@@ -3,7 +3,7 @@ import { FirebaseService } from './firebase-service.js';
 import { db } from './firebase-config.js';
 
 // Import necessari da 'firebase/firestore'
-import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, orderBy, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, orderBy, getDoc, query } from 'firebase/firestore';
 
 interface ElezioneData {
   tipo: 'sovranazione' | 'stato' | 'regione' | 'provincia' | 'comune';
