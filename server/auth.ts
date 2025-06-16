@@ -78,7 +78,7 @@ export function setupAuth(app: Express) {
           const basicProfile = {
               email, uid: userCredential.user.uid, nome: '', cognome: '', data_nascita: '', genere: '', cittadinanza: '',
               paese_residenza: '', regione_residenza: '', provincia_residenza: '', comune_residenza: '',
-              ruolo: 'cittadino'
+          ruolo: 'Elettore' // <--- CORRETTO! Usa la stringa esatta del tuo database.
           };
           await UserService.saveUserData(basicProfile);
           userProfile = await UserService.getUserByEmail(email);
