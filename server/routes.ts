@@ -41,6 +41,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/candidati', requireAuth, async (req, res) => { try { const candidati = await UserService.getCandidati(); return res.status(200).json(candidati); } catch (error) { return res.status(500).json({ error: 'Errore nel recupero candidati' }); } });
   app.get('/api/search-politicians', requireAuth, async (req, res) => { try { const { q } = req.query; if (!q || typeof q !== 'string') return res.status(400).json({ error: 'Query mancante' }); const politicians = await UserService.searchPoliticians(q); return res.status(200).json(politicians); } catch (error) { return res.status(500).json({ error: 'Internal server error' }); } });
 
+  // ===== NUOVA ROTTA PER STATISTICHE =====
+  app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => {
+    try {
+        const allUsersData = await UserService.getAllUsers();
+        return res.status(200).json(allUsersData);
+    } catch (error) {
+        console.error("Errore nel recuperare le statistiche opinioni:", error);
+        return res.status(500).json({ error: "Errore interno del server" });
+    }
+  });
+
   // =========================================================
   // ROTTE VOTO (gestite da VotoService)
   // =========================================================
@@ -58,29 +69,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   createVotingEndpoints('capo-stato', { vote: 'voteCapoDiStato', getUserVoti: 'getUserVotiCapoDiStato', removeVote: 'removeVoteCapoDiStato', getClassifica: 'getClassificaCapoDiStato' });
   createVotingEndpoints('grazia', { vote: 'voteGrazia', getUserVoti: 'getUserVotiGrazia', removeVote: 'removeVoteGrazia', getClassifica: 'getClassificaGrazia' });
   createVotingEndpoints('amnistia', { vote: 'voteAmnistia', getUserVoti: 'getUserVotiAmnistia', removeVote: 'removeVoteAmnistia', getClassifica: 'getClassificaAmnistia' }, 'legge');
-
-  // =========================================================
-  // ROTTE SPECIFICHE PER INIZIATIVE E REFERENDUM (SENZA VOTO)
-  // =========================================================
-  app.post('/api/iniziative-popolari', requireAuth, async (req, res) => {
-    const result = await VotoService.saveIniziativaPopolare(req.body);
-    if (!result.success) return res.status(500).json({ error: result.error });
-    return res.status(201).json(result.data);
-  });
-  app.get('/api/iniziative-popolari/lista', async (req, res) => {
-    const lista = await VotoService.getListaIniziativePopolari();
-    return res.status(200).json(lista);
-  });
-
-  app.post('/api/referendum-abrogativi', requireAuth, async (req, res) => {
-    const result = await VotoService.saveReferendumAbrogativo(req.body);
-    if (!result.success) return res.status(500).json({ error: result.error });
-    return res.status(201).json(result.data);
-  });
-  app.get('/api/referendum-abrogativi/lista', async (req, res) => {
-    const lista = await VotoService.getListaReferendumAbrogativi();
-    return res.status(200).json(lista);
-  });
+  createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativaPopolare', getClassifica: 'getClassificaIniziativaPopolare' });
+  createVotingEndpoints('referendum-abrogativo', { vote: 'voteReferendumAbrogativo', getUserVoti: 'getUserVotiReferendumAbrogativo', getClassifica: 'getClassificaReferendumAbrogativo' });
 
   // =========================================================
   // ALTRE ROTTE
