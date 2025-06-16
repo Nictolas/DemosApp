@@ -113,6 +113,63 @@ class UserService extends FirebaseService {
       (`${user.nome} ${user.cognome}`.toLowerCase().includes(q))
     );
   }
+  // Aggiungi questo intero blocco di codice dentro la classe UserService
+
+  /**
+   * Recupera statistiche dettagliate per un singolo campo di opinione.
+   */
+  public static async getOpinionDetailStats(opinionField: string): Promise<any> {
+    try {
+      if (!adminDb) {
+        console.error("Admin SDK non inizializzato, impossibile recuperare statistiche dettagliate.");
+        return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0 };
+      }
+
+      // Usa l'Admin SDK per leggere i dati necessari da tutti gli utenti
+      const snapshot = await adminDb.collection('utenti').select(opinionField, 'eta', 'genere', 'regione_residenza').get();
+
+      if (snapshot.empty) {
+        return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0, ageDistribution: {}, genderDistribution: {}, locationDistribution: {} };
+      }
+
+      // Inizializza la struttura per le statistiche
+      const stats = {
+        favorevoli: 0,
+        contrari: 0,
+        astenuti: 0,
+        ageDistribution: {} as Record<string, number>,
+        genderDistribution: {} as Record<string, number>,
+        locationDistribution: {} as Record<string, number>,
+      };
+
+      // Cicla sui documenti per calcolare le statistiche
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const opinion = data[opinionField];
+
+        if (typeof opinion === 'string') {
+          const normalizedOpinion = opinion.toLowerCase();
+          if(normalizedOpinion === 'favorevole') stats.favorevoli++;
+          else if(normalizedOpinion === 'contrario') stats.contrari++;
+          else if(normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') stats.astenuti++;
+        }
+
+        const age = data.eta || 'Non specificato';
+        stats.ageDistribution[age] = (stats.ageDistribution[age] || 0) + 1;
+
+        const gender = data.genere || 'Non specificato';
+        stats.genderDistribution[gender] = (stats.genderDistribution[gender] || 0) + 1;
+
+        const location = data.regione_residenza || 'Non specificato';
+        stats.locationDistribution[location] = (stats.locationDistribution[location] || 0) + 1;
+      });
+
+      return { total: snapshot.size, ...stats };
+    } catch (error) {
+      this.handleError(error, 'getOpinionDetailStats');
+      return { total: 0, favorevoli: 0, contrari: 0, astenuti: 0 };
+    }
+  }
 }
 
 export default UserService;
