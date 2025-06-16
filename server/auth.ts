@@ -111,11 +111,6 @@ export function setupAuth(app: Express) {
       }
     }),
   );
-  
-  return done(null, false, { message: "Credenziali non valide" });
-      }
-    }),
-  );
 
   // (serializeUser e deserializeUser rimangono invariati)
   passport.serializeUser((user, done) => {
