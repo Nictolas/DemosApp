@@ -106,11 +106,11 @@ export default function StatisticheOpinioni() {
 
   // Mappa per i link di dettaglio
   const detailPageLinks: Record<string, string> = {
-    'energia_nucleare': '/opinioni/energia-nucleare',
-    'sperimentazione_animale': '/opinioni/sperimentazione-animale',
-    'legalizzazione_canapa': '/opinioni/legalizzazione-canapa',
+    'energia_nucleare': '/opinioni/energia_nucleare',
+    'sperimentazione_animale': '/opinioni/sperimentazione_animale',
+    'legalizzazione_canapa': '/opinioni/legalizzazione_canapa',
     'caccia': '/opinioni/caccia',
-    'unione_europea': '/opinioni/unione-europea'
+    'unione_europea': '/opinioni/unione_europea'
   };
 
   return (
