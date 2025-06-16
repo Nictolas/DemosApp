@@ -4,6 +4,17 @@ import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDo
 import { Utente, UserOpinions } from './types.js';
 import { FirebaseService } from './firebase-service.js'; // Assicurati che l'import sia corretto
 
+const getAgeCategory = (age: number | string): string => {
+  const numAge = Number(age);
+  if (isNaN(numAge)) return 'Non specificato';
+  if (numAge <= 24) return '18-24';
+  if (numAge <= 34) return '25-34';
+  if (numAge <= 44) return '35-44';
+  if (numAge <= 54) return '45-54';
+  if (numAge <= 64) return '55-64';
+  return '65+';
+};
+
 class UserService extends FirebaseService {
 
   public static async saveUserData(userData: Utente): Promise<{ success: boolean; data?: any; error?: string }> {
@@ -118,28 +129,55 @@ class UserService extends FirebaseService {
   /**
    * Recupera statistiche dettagliate per un singolo campo di opinione.
    */
-  public static async getOpinionDetailStats(opinionField: string): Promise<any> {
-    try {
-      if (!adminDb) {
-        console.error("Admin SDK non inizializzato, impossibile recuperare statistiche dettagliate.");
-        return {};
-      }
+        public static async getOpinionDetailStats(opinionField: string): Promise<any> {
+          try {
+            if (!adminDb) {
+              console.error("Admin SDK non inizializzato.");
+              return {};
+            }
 
-      // Selezioniamo solo i campi che ci servono per le statistiche
-      const snapshot = await adminDb.collection('utenti').select(opinionField, 'genere').get();
+            // Selezioniamo solo i campi che ci servono per le statistiche
+            const snapshot = await adminDb.collection('utenti').select(opinionField, 'genere', 'eta', 'regione_residenza').get();
+            if (snapshot.empty) return {};
 
-      if (snapshot.empty) {
-        return { 
-          genderDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} }
-        };
-      }
+            // Nuova struttura dati per contenere tutte le suddivisioni
+            const stats = {
+              gender: {} as Record<string, { favorevole: number; contrario: number; astenuto: number }>,
+              age: {} as Record<string, { favorevole: number; contrario: number; astenuto: number }>,
+              location: {} as Record<string, { favorevole: number; contrario: number; astenuto: number }>
+            };
 
-      // Nuova struttura dati per contenere le suddivisioni
-      const stats = {
-        genderDistributionByOpinion: {
-          favorevole: {} as Record<string, number>,
-          contrario: {} as Record<string, number>,
-          astenuto: {} as Record<string, number>
+            // Funzione helper interna per incrementare i contatori
+            const incrementStat = (obj: Record<string, any>, key: string, opinion: string) => {
+              if (!obj[key]) {
+                obj[key] = { favorevole: 0, contrario: 0, astenuto: 0 };
+              }
+              obj[key][opinion]++;
+            };
+
+            // Cicla sui documenti per calcolare le statistiche
+            snapshot.docs.forEach(doc => {
+              const data = doc.data();
+              const opinionValue = data[opinionField];
+              if (typeof opinionValue !== 'string') return;
+
+              const normalizedOpinion = (opinionValue === 'Indeciso' ? 'astenuto' : opinionValue.toLowerCase());
+              if (!['favorevole', 'contrario', 'astenuto'].includes(normalizedOpinion)) return;
+
+              const gender = (data.genere || 'Non specificato').toLowerCase();
+              const ageCategory = getAgeCategory(data.eta);
+              const location = data.regione_residenza || 'Non specificato';
+
+              incrementStat(stats.gender, gender, normalizedOpinion);
+              incrementStat(stats.age, ageCategory, normalizedOpinion);
+              incrementStat(stats.location, location, normalizedOpinion);
+            });
+
+            return stats;
+          } catch (error) {
+            this.handleError(error, 'getOpinionDetailStats');
+            return {};
+          }
         }
       };
 
