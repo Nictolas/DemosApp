@@ -26,7 +26,7 @@ const getAgeCategory = (birthDateString: string): string => {
   return '65+';
 };
 
-class UserService extends FirebaseService {
+  export class UserService extends FirebaseService {
 
   public static async saveUserData(userData: Utente): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
@@ -190,5 +190,3 @@ class UserService extends FirebaseService {
             return {};
           }
         }
-
-export default UserService;
