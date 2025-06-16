@@ -49,8 +49,15 @@ export default function StatisticheOpinioni() {
       users.forEach(user => {
         Object.keys(opinionQuestions).forEach(question => {
           const opinion = user[question as OpinionKey];
-          if (opinion && ['favorevole', 'contrario', 'astenuto'].includes(opinion)) {
-            initialStats[question][opinion as keyof OpinionData]++;
+
+          // La condizione controlla il valore con la maiuscola, come arriva dal DB
+          if (typeof opinion === 'string' && ['Favorevole', 'Contrario', 'Indeciso'].includes(opinion)) {
+
+            // MA per aggiornare il nostro stato, usiamo la versione in minuscolo
+            // e convertiamo "Indeciso" in "astenuto"
+            const keyToIncrement = (opinion === 'Indeciso' ? 'astenuto' : opinion.toLowerCase()) as OpinionValue;
+
+            initialStats[question][keyToIncrement]++;
           }
         });
       });
