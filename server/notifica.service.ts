@@ -3,7 +3,7 @@ import { FirebaseService } from './firebase-service.js';
 import { db } from './firebase-config.js';
 
 // Import necessari da 'firebase/firestore'
-import { collection, query, where, getDocs, doc, addDoc, updateDoc, getDoc, DocumentReference, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, addDoc, updateDoc, getDoc, DocumentReference } from 'firebase/firestore';
 
 class NotificaService extends FirebaseService {
 
@@ -77,12 +77,9 @@ class NotificaService extends FirebaseService {
       const notifications = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
       // Ordina per data decrescente
-      notifications.sort((a: any, b: any) => {
-        // Controlla se le date esistono per evitare crash
-        const dateA = a.data_creazione ? new Date(a.data_creazione).getTime() : 0;
-        const dateB = b.data_creazione ? new Date(b.data_creazione).getTime() : 0;
-        return dateB - dateA;
-      });
+      notifications.sort((a, b) => 
+        new Date(b.data_creazione).getTime() - new Date(a.data_creazione).getTime()
+      );
 
       return notifications;
     } catch (error) {
