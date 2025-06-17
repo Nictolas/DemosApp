@@ -27,8 +27,8 @@ export default function StatisticheOpinioni() {
     unione_europea: "Unione Europea"
   };
 
-  const backgroundColors = { favorevole: 'rgba(75, 192, 192, 0.6)', astenuto: 'rgba(255, 206, 86, 0.6)', contrario: 'rgba(255, 99, 132, 0.6)' };
-  const borderColors = { favorevole: 'rgba(75, 192, 192, 1)', astenuto: 'rgba(255, 206, 86, 1)', contrario: 'rgba(255, 99, 132, 1)' };
+  const backgroundColors = { favorevole: 'rgba(75, 192, 192, 0.6)', contrario: 'rgba(255, 99, 132, 0.6)', astenuto: 'rgba(255, 206, 86, 0.6)' };
+  const borderColors = { favorevole: 'rgba(75, 192, 192, 1)', contrario: 'rgba(255, 99, 132, 1)', astenuto: 'rgba(255, 206, 86, 1)' };
 
   const fetchStats = useCallback(async () => {
     setIsLoadingStats(true);
@@ -83,9 +83,23 @@ export default function StatisticheOpinioni() {
     const questionStats = stats[questionKey];
     const labels = ['Favorevole', 'Contrario', 'Astenuto'];
     const data = [questionStats.favorevole, questionStats.contrario, questionStats.astenuto];
+
     return {
       labels,
-      datasets: [{ data, backgroundColor: Object.values(backgroundColors), borderColor: Object.values(borderColors), borderWidth: 1 }]
+      datasets: [{ 
+        data, 
+        backgroundColor: [
+          backgroundColors.favorevole,
+          backgroundColors.contrario,
+          backgroundColors.astenuto
+        ], 
+        borderColor: [
+          borderColors.favorevole,
+          borderColors.contrario,
+          borderColors.astenuto
+        ], 
+        borderWidth: 1 
+      }]
     };
   };
 
