@@ -126,18 +126,7 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/opinioni/:opinionField/:regionName">
-        {(params) => (
-          <PageTransition location={location} type="fade-side">
-            <ProtectedRoute 
-              path="/opinioni/:opinionField/:regionName" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} regionName={params.regionName} />} 
-            />
-          </PageTransition>
-        )}
-      </Route>
 
-      {/* 2. La rotta generica che avevi già (ora gestisce il caso senza regione) */}
       <Route path="/opinioni/:opinionField">
         {(params) => (
           <PageTransition location={location} type="fade-side">
