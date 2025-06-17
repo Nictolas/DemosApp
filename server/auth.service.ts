@@ -26,12 +26,12 @@ class AuthService extends FirebaseService {
       }
 
       // 2. Prepara l'oggetto completo da salvare su Firestore
-      const userDataToSave: Partial<Utente> = {
+      const userDataToSave = {
         email: email,
         uid: user.uid,
         status: 'pending_approval',
         ...profileData,
-      };
+      } as Utente;
 
       // 3. Salva il documento utente iniziale su Firestore
       await UserService.saveUserData(userDataToSave);
