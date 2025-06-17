@@ -127,23 +127,16 @@ function Router() {
         )}
       </Route>
 
-      <Route path="/opinioni/:opinionField/:regionName">
-        {(params) => (
-          <PageTransition location={location} type="fade-side">
-            <ProtectedRoute 
-              path="/opinioni/:opinionField/:regionName" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} regionName={params.regionName} />} 
-            />
-          </PageTransition>
-        )}
-      </Route>
-
       <Route path="/opinioni/:opinionField">
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
               path="/opinioni/:opinionField" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} />} 
+              component={() => {
+                const searchParams = new URLSearchParams(window.location.search);
+                const region = searchParams.get('regione');
+                return <DettaglioOpinione opinionField={params.opinionField} regionName={region || undefined} />;
+              }} 
             />
           </PageTransition>
         )}
