@@ -1,3 +1,4 @@
+import { Utente } from './types.js';
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth.js"; 
