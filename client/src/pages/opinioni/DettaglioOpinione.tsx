@@ -180,7 +180,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
         {
           label: 'Astenuto',
           data: allAgeRanges.map(range => astenuto[range] || 0),
-          backgroundColor: 'rgba(201, 203, 207, 0.7)',
+          backgroundColor: 'rgba(255, 99, 132, 0.7)',
         },
       ],
     };
