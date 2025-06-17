@@ -81,20 +81,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
       try {
           const { opinionField } = req.params;
-          // Aggiunta la lettura del parametro 'regione' dalla query string
           const regione = req.query.regione as string | undefined;
 
           const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
 
-          if (!validFields.includes(opinionField)) {
-              return res.status(400).json({ error: "Campo opinione non valido" });
+          // Controllo di sicurezza
+          if (!opinionField || !validFields.includes(opinionField)) {
+              return res.status(400).json({ error: "Campo opinione non valido o mancante" });
           }
 
-          // Passiamo la regione (che può essere undefined) al servizio
           const stats = await UserService.getOpinionDetailStats(opinionField, regione);
           return res.status(200).json(stats);
       } catch (error) {
-          console.error(`Errore nel recuperare i dettagli per l'opinione:`, error);
+          // Aggiungiamo un log più dettagliato dell'errore
+          const errorMessage = error instanceof Error ? error.message : "Errore sconosciuto";
+          console.error(`Errore in /api/opinioni-dettaglio: ${errorMessage}`, error);
           return res.status(500).json({ error: "Errore interno del server" });
       }
   });
