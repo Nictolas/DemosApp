@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings, Crown, Building2, Scale, Users, FileText, Calendar, Megaphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
+import appIcon from '/icona.png';
 
 export default function Menu() {
   const { user, isLoading, logoutMutation } = useAuth();
@@ -74,6 +75,11 @@ export default function Menu() {
         <div className="container mx-auto px-4 py-8">
           <Card className="w-full max-w-4xl mx-auto">
             <CardHeader className="text-center">
+              <img 
+                src={appIcon} 
+                alt="Logo Demos" 
+                className="w-24 h-24 mx-auto mb-4" 
+              />
               <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                 Menu Principale
               </CardTitle>

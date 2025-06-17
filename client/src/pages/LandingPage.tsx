@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import appIcon from '/icona.png';
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();
@@ -30,6 +31,11 @@ export default function LandingPage() {
         <section className="py-16 md:py-24">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl mx-auto text-center">
+              <img 
+                src={appIcon} 
+                alt="Logo Demos" 
+                className="w-28 h-28 mx-auto mb-6" 
+              />
               <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
                 Benvenuto in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">DEMOS</span>
               </h1>
