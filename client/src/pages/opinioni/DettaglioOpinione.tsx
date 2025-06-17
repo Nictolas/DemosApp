@@ -61,14 +61,21 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     setIsLoading(true);
     setError(null);
     try {
-      let apiUrl = `/api/opinioni-dettaglio/${opinionField}`;
+      // Costruiamo la URL con i query parameters
+      const params = new URLSearchParams();
+      params.append('opinion', opinionField); // Aggiunge ?opinion=...
+
       if (regionName) {
         const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
-        apiUrl += `?regione=${encodeURIComponent(formattedRegionName)}`;
+        params.append('regione', formattedRegionName); // Aggiunge ®ione=...
       }
 
+      const apiUrl = `/api/opinioni-dettaglio?${params.toString()}`;
+
       const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error(`Errore API: ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Errore API: ${response.statusText}`);
+      }
       const data = await response.json();
       setStats(data);
     } catch (err) {
@@ -291,7 +298,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                   {ITALIAN_REGIONS.map(region => (
-                <Link key={region} href={`/opinioni/${opinionField}/${formatRegionForUrl(region)}`}>
+                  <Link key={region} href={`/opinioni/${opinionField}?regione=${formatRegionForUrl(region)}`}>
                   <Button variant="outline">{region}</Button>
                 </Link>
                   ))}
