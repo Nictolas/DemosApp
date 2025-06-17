@@ -94,7 +94,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
 
     const genderColors: Record<string, string> = {
       'uomo': 'rgba(54, 162, 235, 0.7)',
-      'donna': 'rgba(255, 99, 132, 0.7)',
+      'donna': 'rgba(255, 182, 193, 0.7)',
       'altro': 'rgba(255, 206, 86, 0.7)',
       'non specificato': 'rgba(201, 203, 207, 0.7)'
     };
@@ -120,7 +120,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
 
     const genderColors: Record<string, string> = {
       'uomo': 'rgba(54, 162, 235, 0.7)',
-      'donna': 'rgba(255, 99, 132, 0.7)',
+      'donna': 'rgba(255, 182, 193, 0.7)',
       'altro': 'rgba(255, 206, 86, 0.7)',
       'non specificato': 'rgba(201, 203, 207, 0.7)'
     };
