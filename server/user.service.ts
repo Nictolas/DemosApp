@@ -125,18 +125,39 @@ class UserService extends FirebaseService {
         return {};
       }
 
-      // Selezioniamo solo i campi che ci servono per le statistiche
-      const snapshot = await adminDb.collection('utenti').select(opinionField, 'genere').get();
+      // Funzione helper per calcolare la fascia d'età
+      const calculateAgeRange = (birthDateString: string): string | undefined => {
+        if (!birthDateString) return undefined;
+        const birthDate = new Date(birthDateString);
+        const age = new Date().getFullYear() - birthDate.getFullYear();
+
+        if (age >= 18 && age <= 24) return '18-24';
+        if (age >= 25 && age <= 34) return '25-34';
+        if (age >= 35 && age <= 44) return '35-44';
+        if (age >= 45 && age <= 54) return '45-54';
+        if (age >= 55 && age <= 64) return '55-64';
+        if (age >= 65) return '65+';
+        return undefined; // Restituisce undefined se l'età non rientra nelle fasce
+      };
+
+      // Selezioniamo i campi che ci servono: l'opinione, il genere e la data di nascita
+      const snapshot = await adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita').get();
 
       if (snapshot.empty) {
         return { 
-          genderDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} }
+          genderDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} },
+          ageDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} }
         };
       }
 
-      // Nuova struttura dati per contenere le suddivisioni
+      // Struttura dati espansa per contenere tutte le suddivisioni
       const stats = {
         genderDistributionByOpinion: {
+          favorevole: {} as Record<string, number>,
+          contrario: {} as Record<string, number>,
+          astenuto: {} as Record<string, number>
+        },
+        ageDistributionByOpinion: {
           favorevole: {} as Record<string, number>,
           contrario: {} as Record<string, number>,
           astenuto: {} as Record<string, number>
@@ -147,17 +168,27 @@ class UserService extends FirebaseService {
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         const opinion = data[opinionField];
-        const gender = (data.genere || 'Non specificato').toLowerCase(); // Normalizziamo il genere
+        const gender = (data.genere || 'Non specificato').toLowerCase();
+
+        // Calcola la fascia d'età e gestisce il caso in cui non sia definita
+        const ageRange = calculateAgeRange(data.data_nascita);
 
         if (typeof opinion === 'string') {
           const normalizedOpinion = opinion.toLowerCase();
+          let targetOpinionGroup: keyof typeof stats.genderDistributionByOpinion | null = null;
 
-          if (normalizedOpinion === 'favorevole') {
-            stats.genderDistributionByOpinion.favorevole[gender] = (stats.genderDistributionByOpinion.favorevole[gender] || 0) + 1;
-          } else if (normalizedOpinion === 'contrario') {
-            stats.genderDistributionByOpinion.contrario[gender] = (stats.genderDistributionByOpinion.contrario[gender] || 0) + 1;
-          } else if (normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') {
-            stats.genderDistributionByOpinion.astenuto[gender] = (stats.genderDistributionByOpinion.astenuto[gender] || 0) + 1;
+          if (normalizedOpinion === 'favorevole') targetOpinionGroup = 'favorevole';
+          else if (normalizedOpinion === 'contrario') targetOpinionGroup = 'contrario';
+          else if (normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') targetOpinionGroup = 'astenuto';
+
+          if (targetOpinionGroup) {
+            // Aggiorna le statistiche per genere
+            stats.genderDistributionByOpinion[targetOpinionGroup][gender] = (stats.genderDistributionByOpinion[targetOpinionGroup][gender] || 0) + 1;
+
+            // Aggiorna le statistiche per età, SOLO SE ageRange è definito (QUESTO RISOLVE L'ERRORE)
+            if (ageRange) {
+              stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] = (stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] || 0) + 1;
+            }
           }
         }
       });
