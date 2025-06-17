@@ -74,7 +74,7 @@ export function setupAuth(app: Express) {
             uid: userCredential.user.uid,
             nome: '', cognome: '', data_nascita: '', genere: '', cittadinanza: '',
             paese_residenza: '', regione_residenza: '', provincia_residenza: '', comune_residenza: '',
-            ruolo: 'cittadino'
+            ruolo: 'Elettore'
           };
           // **USA IL NUOVO UserService**
           await UserService.saveUserData(basicProfile);
