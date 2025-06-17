@@ -115,11 +115,18 @@ class UserService extends FirebaseService {
    */
   public static async getOpinionDetailStats(opinionField: string, regione?: string): Promise<any> {
     try {
-      if (!adminDb) {
-        console.error("Admin SDK non inizializzato, impossibile recuperare statistiche dettagliate.");
-        return {};
+      // VALIDAZIONE SPOSTATA QUI
+      const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
+      if (!opinionField || !validFields.includes(opinionField)) {
+        return { error: "Campo opinione non valido o mancante" };
       }
 
+      if (!adminDb) {
+        console.error("Admin SDK non inizializzato.");
+        return { error: "Errore di configurazione del server" };
+      }
+
+      // Il resto della funzione rimane identico
       const calculateAgeRange = (birthDateString: string): string | undefined => {
         if (!birthDateString) return undefined;
         const birthDate = new Date(birthDateString);
@@ -188,7 +195,7 @@ class UserService extends FirebaseService {
       return stats;
     } catch (error) {
       this.handleError(error, 'getOpinionDetailStats');
-      return {};
+      return { error: 'Errore interno del server' };
     }
   }
 
