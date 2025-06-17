@@ -10,6 +10,18 @@ import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, T
 // Registra i componenti di Chart.js una sola volta
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// ▼▼▼ INIZIA AD AGGIUNGERE DA QUI ▼▼▼
+const ITALIAN_REGIONS = [
+  "Abruzzo", "Basilicata", "Calabria", "Campania", "Emilia-Romagna", 
+  "Friuli-Venezia Giulia", "Lazio", "Liguria", "Lombardia", "Marche", "Molise",
+  "Piemonte", "Puglia", "Sardegna", "Sicilia", "Toscana", "Trentino-Alto Adige",
+  "Umbria", "Valle d'Aosta", "Veneto"
+];
+
+const formatRegionForUrl = (region: string) => 
+  region.toLowerCase().replace(/ /g, '-').replace(/'/g, '');
+// ▲▲▲ FINO A QUI ▲▲▲
+
 // =========================================================
 // NUOVA STRUTTURA DATI
 // =========================================================
@@ -40,13 +52,17 @@ const opinionTitles: Record<string, string> = {
 // =========================================================
 // IL COMPONENTE REACT
 // =========================================================
-export default function DettaglioOpinione({ opinionField }: { opinionField: string }) {
+// Blocco modificato
+export default function DettaglioOpinione({ opinionField, regionName }: { opinionField: string, regionName?: string }) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<DetailStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const pageTitle = opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
+  const basePageTitle = opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
+  const pageTitle = regionName 
+    ? `${basePageTitle} - ${regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ')}` 
+    : basePageTitle;
 
   // Funzione per recuperare i dati dal backend
   const fetchData = useCallback(async () => {
@@ -54,7 +70,14 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/opinioni-dettaglio/${opinionField}`);
+      let apiUrl = `/api/opinioni-dettaglio/${opinionField}`;
+      if (regionName) {
+        // Ricostruisce il nome della regione con spazi e maiuscole per la query API
+        const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
+        apiUrl += `?regione=${encodeURIComponent(formattedRegionName)}`;
+      }
+
+      const response = await fetch(apiUrl);
       if (!response.ok) {
         throw new Error(`Errore API: ${response.statusText}`);
       }
@@ -65,7 +88,7 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
     } finally {
       setIsLoading(false);
     }
-  }, [user, opinionField]);
+  }, [user, opinionField, regionName]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {
@@ -178,9 +201,10 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="container mx-auto max-w-5xl">
-        <Link href="/statistiche-opinioni">
+        <Link href={regionName ? `/opinioni/${opinionField}` : "/statistiche-opinioni"}>
           <Button variant="ghost" className="mb-4 flex items-center">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Torna alle Statistiche
+            <ArrowLeft className="mr-2 h-4 w-4" /> 
+            {regionName ? `Torna a ${basePageTitle}` : "Torna alle Statistiche"}
           </Button>
         </Link>
 
@@ -193,12 +217,32 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
             <Card>
               <CardHeader>
                 <CardTitle className="text-3xl font-bold">{pageTitle}</CardTitle>
-                <CardDescription>Analisi dettagliata delle opinioni espresse dagli utenti.</CardDescription>
+              <CardDescription>
+                {regionName 
+                  ? `Analisi dettagliata per la regione selezionata.`
+                  : `Analisi dettagliata delle opinioni. Seleziona una regione per un'analisi più specifica.`}
+              </CardDescription>
               </CardHeader>
             </Card>
+             {/* ▼▼▼ AGGIUNGI QUESTO BLOCCO ▼▼▼ */}
+                        {!regionName && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Filtra per Regione</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-wrap gap-2">
+                              {ITALIAN_REGIONS.map(region => (
+                                <Link key={region} href={`/opinioni/${opinionField}/${formatRegionForUrl(region)}`}>
+                                  <Button variant="outline">{region}</Button>
+                                </Link>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        )}
+                        {/* ▲▲▲ FINE BLOCCO DA AGGIUNGERE ▲▲▲ */}
 
-            {/* Grafico per età (lo metto per primo perché è molto informativo) */}
-            {ageGroupedBarData && (
+                        {/* Grafico per età (lo metto per primo perché è molto informativo) */}
+                        {ageGroupedBarData && (
               <Card>
                 <CardHeader>
                   <CardTitle>Suddivisione per Fascia d'Età</CardTitle>
