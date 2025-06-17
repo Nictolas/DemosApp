@@ -6,7 +6,7 @@ import { type Server } from "http";
 import { nanoid } from "nanoid";
 
 // ===== IMPORT LOCALE CORRETTO CON .js =====
-import viteConfig from "./vite.config.js";
+import viteConfig from "../vite.config.js";
 
 const viteLogger = createLogger();
 
