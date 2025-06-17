@@ -7,7 +7,7 @@ import { FirebaseService } from './firebase-service.js';
 
 class UserService extends FirebaseService {
 
-  public static async saveUserData(userData: Utente): Promise<{ success: boolean; data?: any; error?: string }> {
+  public static async saveUserData(userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
       if (!db || !userData.email) return { success: false, error: "DB non conf. o email mancante" };
       const emailId = this.emailToId(userData.email);
