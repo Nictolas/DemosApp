@@ -10,7 +10,6 @@ import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, T
 // Registra i componenti di Chart.js una sola volta
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// ▼▼▼ INIZIA AD AGGIUNGERE DA QUI ▼▼▼
 const ITALIAN_REGIONS = [
   "Abruzzo", "Basilicata", "Calabria", "Campania", "Emilia-Romagna", 
   "Friuli-Venezia Giulia", "Lazio", "Liguria", "Lombardia", "Marche", "Molise",
@@ -20,11 +19,7 @@ const ITALIAN_REGIONS = [
 
 const formatRegionForUrl = (region: string) => 
   region.toLowerCase().replace(/ /g, '-').replace(/'/g, '');
-// ▲▲▲ FINO A QUI ▲▲▲
 
-// =========================================================
-// NUOVA STRUTTURA DATI
-// =========================================================
 // Definizione del tipo di dati che ci aspettiamo dal backend
 interface DetailStats {
   genderDistributionByOpinion: {
@@ -32,7 +27,6 @@ interface DetailStats {
     contrario: Record<string, number>;
     astenuto: Record<string, number>;
   };
-  // Aggiungiamo la nuova struttura per la distribuzione per età
   ageDistributionByOpinion?: {
     favorevole: Record<string, number>;
     contrario: Record<string, number>;
@@ -49,10 +43,7 @@ const opinionTitles: Record<string, string> = {
   unione_europea: "Unione Europea"
 };
 
-// =========================================================
 // IL COMPONENTE REACT
-// =========================================================
-// Blocco modificato
 export default function DettaglioOpinione({ opinionField, regionName }: { opinionField: string, regionName?: string }) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<DetailStats | null>(null);
@@ -72,7 +63,6 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     try {
       let apiUrl = `/api/opinioni-dettaglio/${opinionField}`;
       if (regionName) {
-        // Ricostruisce il nome della regione con spazi e maiuscole per la query API
         const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
         apiUrl += `?regione=${encodeURIComponent(formattedRegionName)}`;
       }
@@ -149,19 +139,15 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     };
   };
 
-  // =========================================================
-  // NUOVA FUNZIONE PER IL GRAFICO A BARRE PER ETÀ
-  // =========================================================
+  // Funzione per preparare i dati per il grafico a barre per età
   const prepareAgeGroupedBarData = () => {
     if (!stats || !stats.ageDistributionByOpinion) return null;
     const { favorevole, contrario, astenuto } = stats.ageDistributionByOpinion;
 
-    // Estraiamo tutte le fasce d'età uniche e le ordiniamo
     const allAgeRanges = Array.from(
       new Set([...Object.keys(favorevole), ...Object.keys(contrario), ...Object.keys(astenuto)])
     ).sort();
 
-    // Se non ci sono dati, non mostrare il grafico
     if (allAgeRanges.length === 0) return null;
 
     return {
@@ -175,22 +161,20 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
         {
           label: 'Contrario',
           data: allAgeRanges.map(range => contrario[range] || 0),
-         backgroundColor: 'rgba(255, 0, 0, 0.7)',
+          backgroundColor: 'rgba(255, 99, 132, 0.7)', // Colore rosso/rosa coerente
         },
         {
           label: 'Astenuto',
           data: allAgeRanges.map(range => astenuto[range] || 0),
-          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+          backgroundColor: 'rgba(201, 203, 207, 0.7)', // Colore grigio
         },
       ],
     };
   };
 
   const stackedBarData = prepareStackedBarData();
-  // Chiamiamo la nuova funzione
   const ageGroupedBarData = prepareAgeGroupedBarData();
 
-  // Gestione degli stati di caricamento e autenticazione
   if (isAuthLoading) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
@@ -217,32 +201,16 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
             <Card>
               <CardHeader>
                 <CardTitle className="text-3xl font-bold">{pageTitle}</CardTitle>
-              <CardDescription>
-                {regionName 
-                  ? `Analisi dettagliata per la regione selezionata.`
-                  : `Analisi dettagliata delle opinioni. Seleziona una regione per un'analisi più specifica.`}
-              </CardDescription>
+                <CardDescription>
+                  {regionName 
+                    ? `Analisi dettagliata per la regione selezionata.`
+                    : `Analisi dettagliata delle opinioni. Seleziona una regione per un'analisi più specifica.`}
+                </CardDescription>
               </CardHeader>
             </Card>
-             {/* ▼▼▼ AGGIUNGI QUESTO BLOCCO ▼▼▼ */}
-                        {!regionName && (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Filtra per Regione</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex flex-wrap gap-2">
-                              {ITALIAN_REGIONS.map(region => (
-                                <Link key={region} href={`/opinioni/${opinionField}/${formatRegionForUrl(region)}`}>
-                                  <Button variant="outline">{region}</Button>
-                                </Link>
-                              ))}
-                            </CardContent>
-                          </Card>
-                        )}
-                        {/* ▲▲▲ FINE BLOCCO DA AGGIUNGERE ▲▲▲ */}
 
-                        {/* Grafico per età (lo metto per primo perché è molto informativo) */}
-                        {ageGroupedBarData && (
+            {/* Grafico per età */}
+            {ageGroupedBarData && (
               <Card>
                 <CardHeader>
                   <CardTitle>Suddivisione per Fascia d'Età</CardTitle>
@@ -255,25 +223,10 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
                       options={{
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: 'top',
-                          },
-                        },
+                        plugins: { legend: { position: 'top' } },
                         scales: {
-                          y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Numero di Voti'
-                            }
-                          },
-                          x: {
-                             title: {
-                                display: true,
-                                text: "Fasce d'Età"
-                            }
-                          }
+                          y: { beginAtZero: true, title: { display: true, text: 'Numero di Voti' } },
+                          x: { title: { display: true, text: "Fasce d'Età" } }
                         },
                       }}
                     />
@@ -324,15 +277,28 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
                            indexAxis: 'y',
                            responsive: true,
                            maintainAspectRatio: false,
-                           scales: {
-                             x: { stacked: true },
-                             y: { stacked: true }
-                           }
+                           scales: { x: { stacked: true }, y: { stacked: true } }
                          }}
                        />
                      </div>
                    </CardContent>
                  </Card>
+            )}
+
+            {/* Sezione Filtra per Regione spostata qui in fondo */}
+            {!regionName && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Filtra per Regione</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  {ITALIAN_REGIONS.map(region => (
+                    <Link key={region} href={`/opinioni/${opinionField}/${formatRegionForUrl(region)}`}>
+                      <Button variant="outline">{region}</Button>
+                    </Link>
+                  ))}
+                </CardContent>
+              </Card>
             )}
 
           </div>
