@@ -178,7 +178,6 @@ class UserService extends FirebaseService {
           if (targetOpinionGroup) {
             stats.genderDistributionByOpinion[targetOpinionGroup][gender] = (stats.genderDistributionByOpinion[targetOpinionGroup][gender] || 0) + 1;
 
-            // AGGIUNTO CONTROLLO: Esegui questo solo se ageRange ha un valore
             if (ageRange) {
               stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] = (stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] || 0) + 1;
             }
@@ -193,6 +192,6 @@ class UserService extends FirebaseService {
     }
   }
 
-} // <-- Chiusura della classe UserService
+}
 
 export default UserService;
