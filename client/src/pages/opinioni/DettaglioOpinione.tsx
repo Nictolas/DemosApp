@@ -175,7 +175,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
         {
           label: 'Contrario',
           data: allAgeRanges.map(range => contrario[range] || 0),
-          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+         backgroundColor: 'rgba(255, 0, 0, 0.7)',
         },
         {
           label: 'Astenuto',
