@@ -415,13 +415,27 @@ export default function AuthPage() {
                       <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                         <FormField
                           control={loginForm.control}
-                          name="email"
+                          name="password"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Inserisci la tua email" {...field} />
-                              </FormControl>
+                              <FormLabel>Password</FormLabel>
+                              <div className="relative">
+                                <FormControl>
+                                  <Input
+                                    type={showPassword ? 'text' : 'password'}
+                                    placeholder="Inserisci la tua password"
+                                    className="pr-10"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <div
+                                  className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                >
+                                  {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
+                                </div>
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}
