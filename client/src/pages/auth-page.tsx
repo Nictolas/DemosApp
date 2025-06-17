@@ -527,7 +527,6 @@ export default function AuthPage() {
                                         <div 
                                           className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
                                           onClick={() => setShowPassword(!showPassword)}
-                                          // Aggiungi questo per evitare che il click sull'icona attivi il submit del form
                                           onMouseDown={(e) => e.preventDefault()} 
                                         >
                                           {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
@@ -567,7 +566,6 @@ export default function AuthPage() {
                                     </FormItem>
                                   )}
                                 />
-                          </div>
                         </div>
                         
                         {/* Sezione dati personali */}
