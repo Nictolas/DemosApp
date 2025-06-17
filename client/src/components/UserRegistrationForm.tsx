@@ -88,7 +88,7 @@ export default function UserRegistrationForm() {
   // Mutation for submitting the form
   const { mutate, isPending } = useMutation({
     mutationFn: async (formData: FormValues) => {
-      const response = await fetch('/api/utenti', {
+        const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
