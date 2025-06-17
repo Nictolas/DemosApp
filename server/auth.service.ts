@@ -15,6 +15,9 @@ class AuthService extends FirebaseService {
     userDetails: Omit<Utente, 'email' | 'uid' | 'id'>
   ): Promise<{ success: boolean; user?: any; error?: string; }> {
     try {
+      // ▼▼▼ AGGIUNGI QUESTA RIGA ESATTA ▼▼▼
+      console.log("NUOVA VERSIONE DEL FILE AUTH.SERVICE IN ESECUZIONE:", userDetails);
+      // ▲▲▲ FINE DELLA RIGA DA AGGIUNGERE ▲▲▲
       if (!auth) return { success: false, error: "Firebase Auth non è configurato" };
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
