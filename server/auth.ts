@@ -114,7 +114,7 @@ export function setupAuth(app: Express) {
       }
 
       // **USA IL NUOVO AuthService**
-      const result = await AuthService.registerUserOnFirebaseAuth(email, password, userDetails);
+      const result = await AuthService.registerUser(req.body);
 
       if (!result.success || !result.user) {
         return res.status(400).json({ error: result.error || "Errore durante la registrazione" });
