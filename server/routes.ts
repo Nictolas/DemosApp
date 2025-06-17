@@ -81,13 +81,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/opinioni-dettaglio', requireAdmin, async (req, res) => {
     try {
       const { opinion, regione } = req.query;
-
       const stats = await UserService.getOpinionDetailStats(opinion as string, regione as string | undefined);
-
       if (stats.error) {
         return res.status(400).json({ error: stats.error });
       }
-
       return res.status(200).json(stats);
     } catch (error) {
       console.error(`Errore in /api/opinioni-dettaglio:`, error);

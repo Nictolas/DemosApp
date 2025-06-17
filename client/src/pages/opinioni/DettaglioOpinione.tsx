@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { useLocation } from "wouter"; // Aggiungi questo import
 
 // Registra i componenti di Chart.js una sola volta
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -44,11 +45,14 @@ const opinionTitles: Record<string, string> = {
 };
 
 // IL COMPONENTE REACT
-export default function DettaglioOpinione({ opinionField, regionName }: { opinionField: string, regionName?: string }) {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const [stats, setStats] = useState<DetailStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  export default function DettaglioOpinione({ opinionField }: { opinionField: string }) { // Rimuovi regionName dalle props
+    const { user, isLoading: isAuthLoading } = useAuth();
+    const [stats, setStats] = useState<DetailStats | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [, setLocation] = useLocation();
+    const searchParams = new URLSearchParams(window.location.search);
+    const regionName = searchParams.get('regione');
 
   const basePageTitle = opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
   const pageTitle = regionName 
@@ -63,18 +67,13 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     try {
       const params = new URLSearchParams();
       params.append('opinion', opinionField);
-
       if (regionName) {
         const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
         params.append('regione', formattedRegionName);
       }
-
       const apiUrl = `/api/opinioni-dettaglio?${params.toString()}`;
-
       const response = await fetch(apiUrl);
-      if (!response.ok) {
-        throw new Error(`Errore API: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Errore API: ${response.statusText}`);
       const data = await response.json();
       setStats(data);
     } catch (err) {

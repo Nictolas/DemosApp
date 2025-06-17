@@ -132,11 +132,7 @@ function Router() {
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
               path="/opinioni/:opinionField" 
-              component={() => {
-                const searchParams = new URLSearchParams(window.location.search);
-                const region = searchParams.get('regione');
-                return <DettaglioOpinione opinionField={params.opinionField} regionName={region || undefined} />;
-              }} 
+              component={() => <DettaglioOpinione opinionField={params.opinionField} />} 
             />
           </PageTransition>
         )}
