@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Redirect, Link } from 'wouter';
-import { Loader2, ArrowLeft, PersonStanding } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bar, Pie } from 'react-chartjs-2';
@@ -10,9 +10,18 @@ import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, T
 // Registra i componenti di Chart.js una sola volta
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// =========================================================
+// NUOVA STRUTTURA DATI
+// =========================================================
 // Definizione del tipo di dati che ci aspettiamo dal backend
 interface DetailStats {
   genderDistributionByOpinion: {
+    favorevole: Record<string, number>;
+    contrario: Record<string, number>;
+    astenuto: Record<string, number>;
+  };
+  // Aggiungiamo la nuova struttura per la distribuzione per età
+  ageDistributionByOpinion?: {
     favorevole: Record<string, number>;
     contrario: Record<string, number>;
     astenuto: Record<string, number>;
@@ -90,7 +99,7 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
     };
   };
 
-  // Funzione per preparare i dati per il grafico a barre impilate
+  // Funzione per preparare i dati per il grafico a barre impilate per genere
   const prepareStackedBarData = () => {
     if (!stats) return null;
     const { favorevole, contrario, astenuto } = stats.genderDistributionByOpinion;
@@ -117,7 +126,46 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
     };
   };
 
+  // =========================================================
+  // NUOVA FUNZIONE PER IL GRAFICO A BARRE PER ETÀ
+  // =========================================================
+  const prepareAgeGroupedBarData = () => {
+    if (!stats || !stats.ageDistributionByOpinion) return null;
+    const { favorevole, contrario, astenuto } = stats.ageDistributionByOpinion;
+
+    // Estraiamo tutte le fasce d'età uniche e le ordiniamo
+    const allAgeRanges = Array.from(
+      new Set([...Object.keys(favorevole), ...Object.keys(contrario), ...Object.keys(astenuto)])
+    ).sort();
+
+    // Se non ci sono dati, non mostrare il grafico
+    if (allAgeRanges.length === 0) return null;
+
+    return {
+      labels: allAgeRanges,
+      datasets: [
+        {
+          label: 'Favorevole',
+          data: allAgeRanges.map(range => favorevole[range] || 0),
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+        },
+        {
+          label: 'Contrario',
+          data: allAgeRanges.map(range => contrario[range] || 0),
+          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+        },
+        {
+          label: 'Astenuto',
+          data: allAgeRanges.map(range => astenuto[range] || 0),
+          backgroundColor: 'rgba(201, 203, 207, 0.7)',
+        },
+      ],
+    };
+  };
+
   const stackedBarData = prepareStackedBarData();
+  // Chiamiamo la nuova funzione
+  const ageGroupedBarData = prepareAgeGroupedBarData();
 
   // Gestione degli stati di caricamento e autenticazione
   if (isAuthLoading) {
@@ -140,60 +188,108 @@ export default function DettaglioOpinione({ opinionField }: { opinionField: stri
           <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : error ? (
           <p className="text-center text-red-500">{error}</p>
-        ) : stats && stats.genderDistributionByOpinion ? (
+        ) : stats ? (
           <div className="space-y-8">
             <Card>
               <CardHeader>
                 <CardTitle className="text-3xl font-bold">{pageTitle}</CardTitle>
-                <CardDescription>Suddivisione delle opinioni per genere.</CardDescription>
+                <CardDescription>Analisi dettagliata delle opinioni espresse dagli utenti.</CardDescription>
               </CardHeader>
             </Card>
 
-            <Card>
-              <CardHeader><CardTitle>Distribuzione per Genere e Opinione</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <h3 className="font-semibold mb-2">Favorevoli</h3>
-                  <div style={{ height: '250px' }}>
-                    {prepareGenderPieData(stats.genderDistributionByOpinion.favorevole) ? <Pie data={prepareGenderPieData(stats.genderDistributionByOpinion.favorevole)!} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' }} }} /> : <p>Nessun dato</p>}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <h3 className="font-semibold mb-2">Contrari</h3>
-                  <div style={{ height: '250px' }}>
-                    {prepareGenderPieData(stats.genderDistributionByOpinion.contrario) ? <Pie data={prepareGenderPieData(stats.genderDistributionByOpinion.contrario)!} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' }} }} /> : <p>Nessun dato</p>}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <h3 className="font-semibold mb-2">Astenuti</h3>
-                  <div style={{ height: '250px' }}>
-                    {prepareGenderPieData(stats.genderDistributionByOpinion.astenuto) ? <Pie data={prepareGenderPieData(stats.genderDistributionByOpinion.astenuto)!} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' }} }} /> : <p>Nessun dato</p>}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader><CardTitle>Riepilogo Complessivo</CardTitle></CardHeader>
-              <CardContent>
-                <div style={{ height: '200px' }}>
-                  {stackedBarData && (
+            {/* Grafico per età (lo metto per primo perché è molto informativo) */}
+            {ageGroupedBarData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Suddivisione per Fascia d'Età</CardTitle>
+                  <CardDescription>Confronto delle opinioni tra le diverse fasce d'età.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[350px]">
                     <Bar 
-                      data={stackedBarData} 
+                      data={ageGroupedBarData}
                       options={{
-                        indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: 'top',
+                          },
+                        },
                         scales: {
-                          x: { stacked: true },
-                          y: { stacked: true }
-                        }
+                          y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Numero di Voti'
+                            }
+                          },
+                          x: {
+                             title: {
+                                display: true,
+                                text: "Fasce d'Età"
+                            }
+                          }
+                        },
                       }}
                     />
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Grafici per genere */}
+            {stats.genderDistributionByOpinion && (
+              <Card>
+                <CardHeader>
+                    <CardTitle>Distribuzione per Genere e Opinione</CardTitle>
+                    <CardDescription>Come si distribuiscono i generi per ogni tipo di opinione.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <h3 className="font-semibold mb-2">Favorevoli</h3>
+                    <div className="h-[250px]">
+                      {prepareGenderPieData(stats.genderDistributionByOpinion.favorevole) ? <Pie data={prepareGenderPieData(stats.genderDistributionByOpinion.favorevole)!} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' }} }} /> : <p>Nessun dato</p>}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-semibold mb-2">Contrari</h3>
+                    <div className="h-[250px]">
+                      {prepareGenderPieData(stats.genderDistributionByOpinion.contrario) ? <Pie data={prepareGenderPieData(stats.genderDistributionByOpinion.contrario)!} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' }} }} /> : <p>Nessun dato</p>}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-semibold mb-2">Astenuti</h3>
+                    <div className="h-[250px]">
+                      {prepareGenderPieData(stats.genderDistributionByOpinion.astenuto) ? <Pie data={prepareGenderPieData(stats.genderDistributionByOpinion.astenuto)!} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom' }} }} /> : <p>Nessun dato</p>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Grafico di riepilogo per genere */}
+            {stackedBarData && (
+                 <Card>
+                   <CardHeader><CardTitle>Riepilogo Complessivo per Genere</CardTitle></CardHeader>
+                   <CardContent>
+                     <div className="h-[200px]">
+                       <Bar 
+                         data={stackedBarData} 
+                         options={{
+                           indexAxis: 'y',
+                           responsive: true,
+                           maintainAspectRatio: false,
+                           scales: {
+                             x: { stacked: true },
+                             y: { stacked: true }
+                           }
+                         }}
+                       />
+                     </div>
+                   </CardContent>
+                 </Card>
+            )}
 
           </div>
         ) : (
