@@ -29,18 +29,18 @@ export interface Utente extends DocumentoBase {
   status?: 'pending' | 'active' | 'rejected';
   premium?: boolean;
 
-  // Dati anagrafici e del profilo
-  nome: string;
-  cognome: string;
-  data_nascita: string;
-  genere: string;
-  cittadinanza: string;
+  // Dati anagrafici e del profilo (resi opzionali con '?')
+  nome?: string;
+  cognome?: string;
+  data_nascita?: string;
+  genere?: string;
+  cittadinanza?: string;
 
-  // Dati di residenza
-  paese_residenza: string;
-  regione_residenza: string;
-  provincia_residenza: string;
-  comune_residenza: string;
+  // Dati di residenza (resi opzionali con '?')
+  paese_residenza?: string;
+  regione_residenza?: string;
+  provincia_residenza?: string;
+  comune_residenza?: string;
 
   // Dati di elezione (dove l'utente vota)
   paese_elezione?: string;
