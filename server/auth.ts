@@ -65,23 +65,11 @@ export function setupAuth(app: Express) {
         }
 
         // **USA IL NUOVO UserService**
-        let userProfile = await UserService.getUserByEmail(email);
+        const userProfile = await UserService.getUserByEmail(email);
 
         if (!userProfile) {
-          console.log("Profilo non trovato, creazione profilo base...");
-          const basicProfile = {
-            email: email,
-            uid: userCredential.user.uid,
-            nome: '', cognome: '', data_nascita: '', genere: '', cittadinanza: '',
-            paese_residenza: '', regione_residenza: '', provincia_residenza: '', comune_residenza: '',
-            ruolo: 'Elettore'
-          };
-          // **USA IL NUOVO UserService**
-          await UserService.saveUserData(basicProfile);
-          userProfile = await UserService.getUserByEmail(email);
+          return done(null, false, { message: "Profilo utente non trovato nel database." });
         }
-
-        if (!userProfile) return done(null, false, { message: "Impossibile recuperare il profilo utente." });
 
         return done(null, { 
           id: userProfile.uid!,
