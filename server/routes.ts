@@ -78,9 +78,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Aggiungi questo blocco di codice dopo la rotta per /api/statistiche-opinioni
 
-  app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+  app.get('/api/opinioni-dettaglio', requireAdmin, async (req, res) => {
     try {
-      const stats = await UserService.getOpinionDetailStats(req.params.opinionField, req.query.regione as string | undefined);
+      // Leggiamo i parametri dalla query string invece che dall'URL
+      const opinion = req.query.opinion as string;
+      const regione = req.query.regione as string | undefined;
+
+      // La validazione ora è nel servizio, quindi la rotta è più pulita
+      const stats = await UserService.getOpinionDetailStats(opinion, regione);
 
       if (stats.error) {
         return res.status(400).json({ error: stats.error });
