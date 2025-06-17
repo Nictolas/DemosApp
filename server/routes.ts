@@ -41,6 +41,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/candidati', requireAuth, async (req, res) => { try { const candidati = await UserService.getCandidati(); return res.status(200).json(candidati); } catch (error) { return res.status(500).json({ error: 'Errore nel recupero candidati' }); } });
   app.get('/api/search-politicians', requireAuth, async (req, res) => { try { const { q } = req.query; if (!q || typeof q !== 'string') return res.status(400).json({ error: 'Query mancante' }); const politicians = await UserService.searchPoliticians(q); return res.status(200).json(politicians); } catch (error) { return res.status(500).json({ error: 'Internal server error' }); } });
 
+  // Nuova rotta per completare il profilo con dati di elezione/candidatura
+  app.post('/api/complete-politician-profile', requireAuth, async (req, res) => {
+    try {
+      if (!req.user?.email) {
+        return res.status(401).json({ error: "Utente non autenticato." });
+      }
+
+      const politicianData: Partial<Utente> = req.body;
+
+      const result = await UserService.updateUserData(req.user.email, politicianData);
+
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      return res.status(200).json({ message: "Profilo completato con successo." });
+    } catch (error) {
+      console.error("Errore nel completamento del profilo:", error);
+      return res.status(500).json({ error: "Errore interno del server." });
+    }
+  });
+
+  
   // ===== NUOVA ROTTA PER STATISTICHE =====
   app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => {
     try {

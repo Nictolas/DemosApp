@@ -505,9 +505,23 @@ export default function AuthPage() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="required-field">Password</FormLabel>
-                                  <FormControl>
-                                    <Input type="password" placeholder="Crea una password" {...field} />
-                                  </FormControl>
+                                  <div className="relative">
+                                    <FormControl>
+                                      <Input 
+                                        type={showPassword ? 'text' : 'password'}
+                                        placeholder="Crea una password"
+                                        className="pr-10"
+                                        {...field} 
+                                      />
+                                    </FormControl>
+                                    <div 
+                                      className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                      onMouseDown={(e) => e.preventDefault()} 
+                                    >
+                                      {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
+                                    </div>
+                                  </div>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -518,9 +532,26 @@ export default function AuthPage() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="required-field">Conferma password</FormLabel>
-                                  <FormControl>
-                                    <Input type="password" placeholder="Ripeti la password" {...field} />
-                                  </FormControl>
+                                  <div className="relative">
+                                    <FormControl>
+                                      <Input
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        placeholder="Ripeti la password"
+                                        className="pr-10"
+                                        {...field}
+                                      />
+                                    </FormControl>
+                                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
+                                      {passwordsMatch && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                                      <div
+                                        className="cursor-pointer"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                      >
+                                       {showConfirmPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
+                                      </div>
+                                    </div>
+                                  </div>
                                   <FormMessage />
                                 </FormItem>
                               )}
