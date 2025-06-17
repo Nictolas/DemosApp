@@ -1,0 +1,1 @@
+Aggiornamento per forzare il deploy su Vercel.
