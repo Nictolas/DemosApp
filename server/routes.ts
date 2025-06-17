@@ -78,24 +78,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Aggiungi questo blocco di codice dopo la rotta per /api/statistiche-opinioni
 
-  app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+  app.get('/api/opinioni-dettaglio', requireAdmin, async (req, res) => {
     try {
-      const { opinionField } = req.params;
-      const regione = req.query.regione as string | undefined;
+      const { opinion, regione } = req.query;
 
-      // Controllo di sicurezza che forza il compilatore a riconoscere il tipo
-      if (typeof opinionField !== 'string' || opinionField.trim() === '') {
-        return res.status(400).json({ error: "Campo opinione non valido o mancante" });
-      }
-
-      const stats = await UserService.getOpinionDetailStats(opinionField, regione);
+      const stats = await UserService.getOpinionDetailStats(opinion as string, regione as string | undefined);
 
       if (stats.error) {
         return res.status(400).json({ error: stats.error });
       }
 
       return res.status(200).json(stats);
-
     } catch (error) {
       console.error(`Errore in /api/opinioni-dettaglio:`, error);
       return res.status(500).json({ error: "Errore interno del server" });
