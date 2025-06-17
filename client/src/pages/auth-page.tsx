@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
 
 const loginSchema = z.object({
@@ -63,6 +63,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const { user, loginMutation, registerMutation } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -113,6 +115,10 @@ export default function AuthPage() {
       grado_candidatura: "",
     },
   });
+
+  const passwordValue = registerForm.watch("password");
+  const confirmPasswordValue = registerForm.watch("confirmPassword");
+  const passwordsMatch = passwordValue && confirmPasswordValue && passwordValue === confirmPasswordValue;
   
   // Gestione delle selezioni a cascata per la residenza
   useEffect(() => {
@@ -503,28 +509,64 @@ export default function AuthPage() {
                               control={registerForm.control}
                               name="password"
                               render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Password</FormLabel>
-                                  <FormControl>
-                                    <Input type="password" placeholder="Crea una password" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="confirmPassword"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Conferma password</FormLabel>
-                                  <FormControl>
-                                    <Input type="password" placeholder="Ripeti la password" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                                <FormField
+                                  control={registerForm.control}
+                                  name="password"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="required-field">Password</FormLabel>
+                                      <div className="relative">
+                                        <FormControl>
+                                          <Input 
+                                            type={showPassword ? 'text' : 'password'}
+                                            placeholder="Crea una password"
+                                            className="pr-10"
+                                            {...field} 
+                                          />
+                                        </FormControl>
+                                        <div 
+                                          className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+                                          onClick={() => setShowPassword(!showPassword)}
+                                          // Aggiungi questo per evitare che il click sull'icona attivi il submit del form
+                                          onMouseDown={(e) => e.preventDefault()} 
+                                        >
+                                          {showPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
+                                        </div>
+                                      </div>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={registerForm.control}
+                                  name="confirmPassword"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel className="required-field">Conferma password</FormLabel>
+                                      <div className="relative">
+                                        <FormControl>
+                                          <Input
+                                            type={showConfirmPassword ? 'text' : 'password'}
+                                            placeholder="Ripeti la password"
+                                            className="pr-10"
+                                            {...field}
+                                          />
+                                        </FormControl>
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
+                                          {passwordsMatch && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                                          <div
+                                            className="cursor-pointer"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                          >
+                                           {showConfirmPassword ? <EyeOff className="h-5 w-5 text-gray-400" /> : <Eye className="h-5 w-5 text-gray-400" />}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
                           </div>
                         </div>
                         
