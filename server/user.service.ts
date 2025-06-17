@@ -115,7 +115,6 @@ class UserService extends FirebaseService {
    */
   public static async getOpinionDetailStats(opinionField: string, regione?: string): Promise<any> {
     try {
-      // VALIDAZIONE SPOSTATA QUI
       const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
       if (!opinionField || !validFields.includes(opinionField)) {
         return { error: "Campo opinione non valido o mancante" };
