@@ -95,20 +95,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
     try {
       const { opinionField } = req.params;
-      const regione = req.query.regione as string | undefined;
 
-      // Controllo di sicurezza che forza il compilatore a riconoscere il tipo
-      if (typeof opinionField !== 'string' || opinionField.trim() === '') {
-        return res.status(400).json({ error: "Campo opinione non valido o mancante" });
+      // PRIMO CONTROLLO: Assicuriamoci che il parametro esista e sia una stringa
+      if (opinionField && typeof opinionField === 'string') {
+
+        // SECONDO CONTROLLO: Validiamo il contenuto della stringa
+        const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
+        if (validFields.includes(opinionField)) {
+
+          const regione = req.query.regione as string | undefined;
+          const stats = await UserService.getOpinionDetailStats(opinionField, regione);
+
+          if (stats.error) {
+            return res.status(400).json({ error: stats.error });
+          }
+
+          return res.status(200).json(stats);
+        }
       }
 
-      const stats = await UserService.getOpinionDetailStats(opinionField, regione);
-
-      if (stats.error) {
-        return res.status(400).json({ error: stats.error });
-      }
-
-      return res.status(200).json(stats);
+      // Se uno dei controlli fallisce, arriviamo qui
+      return res.status(400).json({ error: "Campo opinione non valido o mancante" });
 
     } catch (error) {
       console.error(`Errore in /api/opinioni-dettaglio:`, error);
