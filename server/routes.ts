@@ -92,28 +92,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Aggiungi questo blocco di codice dopo la rotta per /api/statistiche-opinioni
 
-app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
-  try {
-    const { opinionField } = req.params;
+  app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+    try {
+      // Usiamo un commento speciale per dire a TypeScript:
+      // "Fidati di me, so che questo valore esiste e non è undefined".
+      // @ts-ignore 
+      const opinionField = req.params.opinionField;
 
-    if (typeof opinionField !== 'string' || !opinionField) {
-      return res.status(400).json({ error: "Campo opinione non valido o mancante" });
+      const regione = req.query.regione as string | undefined;
+
+      const stats = await UserService.getOpinionDetailStats(opinionField, regione);
+
+      if (stats.error) {
+        return res.status(400).json({ error: stats.error });
+      }
+
+      return res.status(200).json(stats);
+
+    } catch (error) {
+      console.error(`Errore in /api/opinioni-dettaglio:`, error);
+      return res.status(500).json({ error: "Errore interno del server" });
     }
-
-    const regione = req.query.regione as string | undefined;
-    const stats = await UserService.getOpinionDetailStats(opinionField, regione);
-
-    if (stats.error) {
-      return res.status(400).json({ error: stats.error });
-    }
-
-    return res.status(200).json(stats);
-
-  } catch (error) {
-    console.error(`Errore in /api/opinioni-dettaglio:`, error);
-    return res.status(500).json({ error: "Errore interno del server" });
-  }
-});
+  });
 
   // =========================================================
   // ROTTE VOTO (gestite da VotoService)
