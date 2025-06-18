@@ -92,36 +92,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Aggiungi questo blocco di codice dopo la rotta per /api/statistiche-opinioni
 
-  app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+  public static async getOpinionDetailStats(opinionField: string, regione?: string): Promise<any> {
     try {
-      const { opinionField } = req.params;
-
-      // PRIMO CONTROLLO: Assicuriamoci che il parametro esista e sia una stringa
-      if (opinionField && typeof opinionField === 'string') {
-
-        // SECONDO CONTROLLO: Validiamo il contenuto della stringa
-        const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
-        if (validFields.includes(opinionField)) {
-
-          const regione = req.query.regione as string | undefined;
-          const stats = await UserService.getOpinionDetailStats(opinionField, regione);
-
-          if (stats.error) {
-            return res.status(400).json({ error: stats.error });
-          }
-
-          return res.status(200).json(stats);
-        }
+      // VALIDAZIONE SPOSTATA QUI ALL'INIZIO
+      const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
+      if (!opinionField || !validFields.includes(opinionField)) {
+        return { error: "Campo opinione non valido o mancante" };
       }
 
-      // Se uno dei controlli fallisce, arriviamo qui
-      return res.status(400).json({ error: "Campo opinione non valido o mancante" });
+      if (!adminDb) {
+        console.error("Admin SDK non inizializzato.");
+        return { error: "Errore di configurazione del server" };
+      }
 
+      // Il resto della funzione rimane identico a prima
+      const calculateAgeRange = (birthDateString: string): string | undefined => {
+        if (!birthDateString) return undefined;
+        const birthDate = new Date(birthDateString);
+        const age = new Date().getFullYear() - birthDate.getFullYear();
+        if (age >= 18 && age <= 24) return '18-24';
+        if (age >= 25 && age <= 34) return '25-34';
+        if (age >= 35 && age <= 44) return '35-44';
+        if (age >= 45 && age <= 54) return '45-54';
+        if (age >= 55 && age <= 64) return '55-64';
+        if (age >= 65) return '65+';
+        return undefined;
+      };
+
+      let firestoreQuery: Query = 
+          adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita', 'regione_residenza');
+
+      if (regione) {
+        firestoreQuery = firestoreQuery.where('regione_residenza', '==', regione);
+      }
+
+      const snapshot = await firestoreQuery.get();
+
+      if (snapshot.empty) {
+        return { 
+          genderDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} },
+          ageDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} }
+        };
+      }
+
+      const stats = {
+        genderDistributionByOpinion: {
+          favorevole: {} as Record<string, number>,
+          contrario: {} as Record<string, number>,
+          astenuto: {} as Record<string, number>
+        },
+        ageDistributionByOpinion: {
+          favorevole: {} as Record<string, number>,
+          contrario: {} as Record<string, number>,
+          astenuto: {} as Record<string, number>
+        }
+      };
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const opinion = data[opinionField];
+        const gender = (data.genere || 'Non specificato').toLowerCase();
+        const ageRange = calculateAgeRange(data.data_nascita);
+
+        if (typeof opinion === 'string') {
+          const normalizedOpinion = opinion.toLowerCase();
+          let targetOpinionGroup: keyof typeof stats.genderDistributionByOpinion | null = null;
+          if (normalizedOpinion === 'favorevole') targetOpinionGroup = 'favorevole';
+          else if (normalizedOpinion === 'contrario') targetOpinionGroup = 'contrario';
+          else if (normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') targetOpinionGroup = 'astenuto';
+
+          if (targetOpinionGroup) {
+            stats.genderDistributionByOpinion[targetOpinionGroup][gender] = (stats.genderDistributionByOpinion[targetOpinionGroup][gender] || 0) + 1;
+
+            if (ageRange) {
+              stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] = (stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] || 0) + 1;
+            }
+          }
+        }
+      });
+
+      return stats;
     } catch (error) {
-      console.error(`Errore in /api/opinioni-dettaglio:`, error);
-      return res.status(500).json({ error: "Errore interno del server" });
+      return this.handleError(error, 'getOpinionDetailStats');
     }
-  });
+  }
 
   // =========================================================
   // ROTTE VOTO (gestite da VotoService)
