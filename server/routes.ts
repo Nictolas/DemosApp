@@ -92,19 +92,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Aggiungi questo blocco di codice dopo la rotta per /api/statistiche-opinioni
 
-  app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+  app.get('/api/opinioni-dettaglio', requireAdmin, async (req, res) => {
     try {
-      // 1. Isola il parametro in una nuova costante.
-      const fieldFromParams = req.params.opinionField;
+      // Leggiamo TUTTO dalla query string
+      const { opinion, regione } = req.query;
 
-      // 2. Controlla il TIPO e il VALORE della nuova costante.
-      if (typeof fieldFromParams !== 'string' || fieldFromParams.trim() === '') {
-        return res.status(400).json({ error: "Campo opinione non valido o mancante" });
+      // Unico controllo: assicuriamoci che 'opinion' esista
+      if (typeof opinion !== 'string' || !opinion) {
+        return res.status(400).json({ error: "Parametro 'opinion' mancante o non valido." });
       }
 
-      // 3. Da qui in poi, usa SOLO la nuova costante sicura.
-      const regione = req.query.regione as string | undefined;
-      const stats = await UserService.getOpinionDetailStats(fieldFromParams, regione);
+      const stats = await UserService.getOpinionDetailStats(opinion, regione as string | undefined);
 
       if (stats.error) {
         return res.status(400).json({ error: stats.error });
