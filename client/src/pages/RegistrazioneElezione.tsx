@@ -4,8 +4,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { useRegistration } from "@/hooks/use-registration";
-import { useLocation } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -18,6 +19,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -31,7 +33,6 @@ import {
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query"; // Aggiunto import per useMutation
 
 // Schema per la parte di elezione del form
 const elezioneSchema = z.object({
@@ -46,37 +47,13 @@ type ElezioneFormValues = z.infer<typeof elezioneSchema>;
 
 export default function RegistrazioneElezione() {
   const { toast } = useToast();
+  const { registerMutation } = useAuth();
   const { formData, clearFormData } = useRegistration();
   const [, navigate] = useLocation();
 
   const [regioniElezione, setRegioniElezione] = useState<string[]>([]);
   const [provinceElezione, setProvinceElezione] = useState<string[]>([]);
   const [comuniElezione, setComuniElezione] = useState<string[]>([]);
-
-  // Definiamo una nuova mutation per l'aggiornamento del profilo
-  const { mutate: updateProfileMutation, isPending } = useMutation({
-    mutationFn: async (politicianData: ElezioneFormValues) => {
-      const response = await fetch('/api/complete-politician-profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(politicianData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore durante l'aggiornamento del profilo");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Profilo completato!", description: "La tua registrazione è ora completa.", variant: "success" });
-      clearFormData(); // Pulisce i dati temporanei
-      navigate("/menu"); // Reindirizza al menu
-    },
-    onError: (error) => {
-      toast({ title: "Errore", description: error.message, variant: "destructive" });
-    }
-  });
 
   const form = useForm<ElezioneFormValues>({
     resolver: zodResolver(elezioneSchema),
@@ -89,7 +66,7 @@ export default function RegistrazioneElezione() {
     },
   });
 
-  const { watch, setValue } = form; // Aggiunto setValue
+  const { watch } = form;
 
   const paeseElezione = watch("paese_elezione");
   const regioneElezione = watch("regione_elezione");
@@ -97,7 +74,6 @@ export default function RegistrazioneElezione() {
 
   useEffect(() => {
     if (!formData) {
-      // Se non ci sono dati dal primo step, reindirizza all'autenticazione
       navigate("/auth");
     }
   }, [formData, navigate]);
@@ -108,13 +84,13 @@ export default function RegistrazioneElezione() {
       setRegioniElezione(regioni);
     } else {
       setRegioniElezione([]);
-      setValue("regione_elezione", "");
+      form.setValue("regione_elezione", "");
     }
     setProvinceElezione([]);
     setComuniElezione([]);
-    setValue("provincia_elezione", "");
-    setValue("comune_elezione", "");
-  }, [paeseElezione, setValue]);
+    form.setValue("provincia_elezione", "");
+    form.setValue("comune_elezione", "");
+  }, [paeseElezione]);
 
   useEffect(() => {
     if (paeseElezione === "Italia" && regioneElezione) {
@@ -132,9 +108,9 @@ export default function RegistrazioneElezione() {
       setProvinceElezione([]);
     }
     setComuniElezione([]);
-    setValue("provincia_elezione", "");
-    setValue("comune_elezione", "");
-  }, [regioneElezione, paeseElezione, setValue]);
+    form.setValue("provincia_elezione", "");
+    form.setValue("comune_elezione", "");
+  }, [regioneElezione, paeseElezione]);
 
   useEffect(() => {
     if (paeseElezione === "Italia" && regioneElezione && provinciaElezione) {
@@ -154,13 +130,21 @@ export default function RegistrazioneElezione() {
     } else {
       setComuniElezione([]);
     }
-    setValue("comune_elezione", "");
-  }, [provinciaElezione, regioneElezione, paeseElezione, setValue]);
+    form.setValue("comune_elezione", "");
+  }, [provinciaElezione, regioneElezione, paeseElezione]);
 
   const onSubmit = (values: ElezioneFormValues) => {
-    // Invia solo i nuovi dati raccolti in questo form.
-    // Il backend sa già chi è l'utente grazie alla sessione/autenticazione.
-    updateProfileMutation(values);
+    const completeData = {
+      ...formData,
+      ...values,
+    };
+
+    registerMutation.mutate(completeData as any, {
+      onSuccess: () => {
+        clearFormData(); // Pulisci i dati temporanei dopo l'invio
+        navigate("/menu"); // Reindirizza direttamente al menu dopo la registrazione
+      }
+    });
   };
 
   return (
@@ -180,7 +164,8 @@ export default function RegistrazioneElezione() {
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <div className="space-y-4">
                       <h3 className="text-lg font-medium border-b pb-2">Informazioni di Elezione</h3>
-
+                      
+                      {/* Grado di Elezione */}
                       <FormField
                         control={form.control}
                         name="grado_elezione"
@@ -208,7 +193,8 @@ export default function RegistrazioneElezione() {
                           </FormItem>
                         )}
                       />
-
+                      
+                      {/* Paese di Elezione */}
                       <FormField
                         control={form.control}
                         name="paese_elezione"
@@ -232,7 +218,8 @@ export default function RegistrazioneElezione() {
                           </FormItem>
                         )}
                       />
-
+                      
+                      {/* Regione di Elezione */}
                       <FormField
                         control={form.control}
                         name="regione_elezione"
@@ -261,7 +248,8 @@ export default function RegistrazioneElezione() {
                           </FormItem>
                         )}
                       />
-
+                      
+                      {/* Provincia di Elezione */}
                       <FormField
                         control={form.control}
                         name="provincia_elezione"
@@ -290,7 +278,8 @@ export default function RegistrazioneElezione() {
                           </FormItem>
                         )}
                       />
-
+                      
+                      {/* Comune di Elezione */}
                       <FormField
                         control={form.control}
                         name="comune_elezione"
@@ -320,15 +309,15 @@ export default function RegistrazioneElezione() {
                         )}
                       />
                     </div>
-
-                    <Button type="submit" className="w-full" disabled={isPending}>
-                      {isPending ? (
+                    
+                    <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                      {registerMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Salvataggio in corso...
+                          Registrazione in corso...
                         </>
                       ) : (
-                        "Completa Registrazione"
+                        "Registrati"
                       )}
                     </Button>
                   </form>
