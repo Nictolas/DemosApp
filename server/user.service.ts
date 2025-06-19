@@ -118,8 +118,16 @@
                   };
 
                   const stats = {
-                    genderDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} },
-                    ageDistributionByOpinion: { favorevole: {}, contrario: {}, astenuto: {} }
+                    genderDistributionByOpinion: {
+                      favorevole: {} as Record<string, number>,
+                      contrario: {} as Record<string, number>,
+                      astenuto: {} as Record<string, number>
+                    },
+                    ageDistributionByOpinion: {
+                      favorevole: {} as Record<string, number>,
+                      contrario: {} as Record<string, number>,
+                      astenuto: {} as Record<string, number>
+                    }
                   };
 
                   snapshot.docs.forEach(doc => {
