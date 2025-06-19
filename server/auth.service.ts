@@ -9,39 +9,26 @@ class AuthService extends FirebaseService {
   /**
    * Registra un nuovo utente in Firebase Auth e chiama UserService per salvare i dati in Firestore.
    */
-  public static async registerUser(
-    // Accetta tutti i dati del primo form, che sono parziali rispetto al modello Utente finale
-    initialUserData: Partial<Utente>
+  public static async registerUserOnFirebaseAuth(
+    email: string,
+    password: string,
+    userDetails: Omit<Utente, 'email' | 'uid' | 'id'>
   ): Promise<{ success: boolean; user?: any; error?: string; }> {
     try {
-      const { email, password, ...profileData } = initialUserData;
-      if (!auth || !email || !password) {
-        return { success: false, error: "Email, password e dati del profilo sono obbligatori" };
-      }
+      // ▼▼▼ AGGIUNGI QUESTA RIGA ESATTA ▼▼▼
+      console.log("NUOVA VERSIONE DEL FILE AUTH.SERVICE IN ESECUZIONE:", userDetails);
+      // ▲▲▲ FINE DELLA RIGA DA AGGIUNGERE ▲▲▲
+      if (!auth) return { success: false, error: "Firebase Auth non è configurato" };
 
-      // 1. Crea l'utente in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      if (!user) {
-        return { success: false, error: "Creazione utente Firebase fallita" };
-      }
+      if (!userCredential.user) return { success: false, error: "Nessun utente restituito dalla registrazione" };
 
-      // 2. Prepara l'oggetto completo da salvare su Firestore
       const userDataToSave: Utente = {
-        email: email,
-        uid: user.uid,
-        status: 'pending_approval', // L'utente è in attesa, ma il profilo base è creato
-        ...profileData,
+        email,
+        uid: userCredential.user.uid,
+        ...userDetails,
+        status: 'pending'
       };
-
-      // 3. Salva il documento utente iniziale su Firestore
-      await UserService.saveUserData(userDataToSave);
-
-      return { success: true, user: user };
-    } catch (error) {
-      return this.handleError(error, 'registerUser');
-    }
-  }
 
       // Delega il salvataggio dei dati a UserService
       const saveResult = await UserService.saveUserData(userDataToSave);

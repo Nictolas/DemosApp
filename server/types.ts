@@ -47,14 +47,12 @@ export interface Utente extends DocumentoBase {
   regione_elezione?: string;
   provincia_elezione?: string;
   comune_elezione?: string;
-  grado_elezione?: string;
 
   // Dati di candidatura (se l'utente è un politico)
   paese_candidatura?: string;
   regione_candidatura?: string;
   provincia_candidatura?: string;
   comune_candidatura?: string;
-  grado_candidatura?: string;
 
   // Ruolo e grado nell'applicazione
   ruolo: 'Elettore' | 'Politico' | 'Candidato' | 'Candidato Politico' | 'Admin';
