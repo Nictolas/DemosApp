@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { useLocation } from "wouter"; // Aggiungi questo import
 
 // Registra i componenti di Chart.js una sola volta
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -46,10 +45,10 @@ const opinionTitles: Record<string, string> = {
 
 // IL COMPONENTE REACT
 export default function DettaglioOpinione({ opinionField, regionName }: { opinionField: string, regionName?: string }) {
-    const { user, isLoading: isAuthLoading } = useAuth();
-    const [stats, setStats] = useState<DetailStats | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const [stats, setStats] = useState<DetailStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const basePageTitle = opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
   const pageTitle = regionName 
@@ -57,31 +56,29 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     : basePageTitle;
 
   // Funzione per recuperare i dati dal backend
-    const fetchData = useCallback(async () => {
-      if (!user || !opinionField) return;
-      setIsLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams();
-        params.append('opinion', opinionField); // Aggiunge ?opinion=...
-
-        if (regionName) {
-          const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
-          params.append('regione', formattedRegionName); // Aggiunge ®ione=...
-        }
-
-        const apiUrl = `/api/opinioni-dettaglio?${params.toString()}`;
-
-        const response = await fetch(apiUrl);
-        if (!response.ok) throw new Error(`Errore API: ${response.statusText}`);
-        const data = await response.json();
-        setStats(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Errore sconosciuto");
-      } finally {
-        setIsLoading(false);
+  const fetchData = useCallback(async () => {
+    if (!user || !opinionField) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      let apiUrl = `/api/opinioni-dettaglio/${opinionField}`;
+      if (regionName) {
+        const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
+        apiUrl += `?regione=${encodeURIComponent(formattedRegionName)}`;
       }
-    }, [user, opinionField]);
+
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`Errore API: ${response.statusText}`);
+      }
+      const data = await response.json();
+      setStats(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore sconosciuto");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, opinionField, regionName]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {
@@ -296,7 +293,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                   {ITALIAN_REGIONS.map(region => (
-                    <Link key={region} href={`/opinioni/${opinionField}?regione=${formatRegionForUrl(region)}`}>
+                    <Link key={region} href={`/opinioni/${opinionField}/${formatRegionForUrl(region)}`}>
                       <Button variant="outline">{region}</Button>
                     </Link>
                   ))}

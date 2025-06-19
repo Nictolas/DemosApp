@@ -1,4 +1,3 @@
-import { Utente } from './types.js';
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth.js"; 
@@ -35,23 +34,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =========================================================
   app.get('/api/users', requireAuth, async (req, res) => { try { const users = await UserService.getAllUsers(); return res.status(200).json(users); } catch (error) { return res.status(500).json({ error: 'Errore nel recupero utenti' }); } });
   app.get('/api/users/:email', requireAuth, async (req, res) => { try { const userData = await UserService.getUserByEmail(decodeURIComponent(req.params.email)); if (!userData) return res.status(404).json({ error: 'Utente non trovato' }); return res.status(200).json(userData); } catch (error) { return res.status(500).json({ error: 'Errore nel recupero utente' }); } });
-  app.put('/api/users/:email', requireAuth, async (req, res) => { 
-    try { 
-      const { email } = req.params; 
-      const isOwnProfile = req.user?.email === email; 
-      const isAdmin = req.user?.ruolo === 'Admin'; 
-      if (!isOwnProfile && !isAdmin) return res.status(403).json({ error: 'Permessi non sufficienti' }); 
-
-      const result = await UserService.saveUserData({ email, ...req.body });
-
-      if (!result.success) return res.status(500).json({ error: result.error }); 
-      return res.status(200).json({ message: 'Profilo aggiornato', data: result.data }); 
-    } catch (error) { 
-      return res.status(500).json({ error: 'Errore interno del server' }); 
-    } 
-  });
-  app.post('/api/users/:email/avatar', requireAuth, async (req, res) => { try { const { email } = req.params; const { avatar_config } = req.body; const result = await UserService.saveUserData({ email: decodeURIComponent(email), avatar_config }); if (!result.success) return res.status(500).json({ error: result.error }); res.json({ success: true, message: 'Configurazione avatar salvata' }); } catch (error) { return res.status(500).json({ error: 'Errore interno del server' }); } });
-   app.post('/api/opinioni', requireAuth, async (req, res) => { try { const result = await UserService.saveUserData({ email: req.user!.email!, ...req.body }); if (!result.success) return res.status(500).json({ error: result.error }); return res.status(200).json({ message: 'Opinioni salvate', data: result.data }); } catch (error) { return res.status(500).json({ error: 'Errore interno del server' }); } });
+  app.put('/api/users/:email', requireAuth, async (req, res) => { try { const { email } = req.params; const isOwnProfile = req.user?.email === email; const isAdmin = req.user?.ruolo === 'Admin'; if (!isOwnProfile && !isAdmin) return res.status(403).json({ error: 'Permessi non sufficienti' }); const result = await UserService.updateUserData(email, req.body); if (!result.success) return res.status(500).json({ error: result.error }); return res.status(200).json({ message: 'Profilo aggiornato', data: result.data }); } catch (error) { return res.status(500).json({ error: 'Errore interno del server' }); } });
+  app.post('/api/users/:email/avatar', requireAuth, async (req, res) => { try { const { email } = req.params; const { avatar_config } = req.body; const result = await UserService.updateUserData(decodeURIComponent(email), { avatar_config }); if (!result.success) return res.status(500).json({ error: result.error }); res.json({ success: true, message: 'Configurazione avatar salvata' }); } catch (error) { return res.status(500).json({ error: 'Errore interno del server' }); } });
+  app.post('/api/opinioni', requireAuth, async (req, res) => { try { const result = await UserService.saveUserOpinions(req.user!.email!, req.body); if (!result.success) return res.status(500).json({ error: result.error }); return res.status(200).json({ message: 'Opinioni salvate', data: result.data }); } catch (error) { return res.status(500).json({ error: 'Errore interno del server' }); } });
   app.get('/api/opinioni', requireAuth, async (req, res) => { try { const opinions = await UserService.getUserOpinions(req.user!.email!); return res.status(200).json(opinions || {}); } catch (error) { return res.status(500).json({ error: 'Errore interno del server' }); } });
   app.get('/api/candidati', requireAuth, async (req, res) => { try { const candidati = await UserService.getCandidati(); return res.status(200).json(candidati); } catch (error) { return res.status(500).json({ error: 'Errore nel recupero candidati' }); } });
   app.get('/api/search-politicians', requireAuth, async (req, res) => { try { const { q } = req.query; if (!q || typeof q !== 'string') return res.status(400).json({ error: 'Query mancante' }); const politicians = await UserService.searchPoliticians(q); return res.status(200).json(politicians); } catch (error) { return res.status(500).json({ error: 'Internal server error' }); } });
@@ -65,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const politicianData: Partial<Utente> = req.body;
 
-      const result = await UserService.saveUserData({ email: req.user.email, ...politicianData });
+      const result = await UserService.updateUserData(req.user.email, politicianData);
 
       if (!result.success) {
         return res.status(500).json({ error: result.error });
@@ -80,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   
   // ===== NUOVA ROTTA PER STATISTICHE =====
-  app.get('/api/statistiche-opinioni', requireAuth, async (req, res) => {
+  app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => {
     try {
         const allUsersData = await UserService.getAllUsers();
         return res.status(200).json(allUsersData);
@@ -94,24 +79,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
       try {
-        const { opinionField } = req.params;
-        const regione = req.query.regione as string | undefined;
+          const { opinionField } = req.params;
+          // Aggiunta la lettura del parametro 'regione' dalla query string
+          const regione = req.query.regione as string | undefined;
 
-        const stats = await UserService.getOpinionDetailStats(opinionField, regione);
+          const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
 
-        if (stats.error) {
-          return res.status(400).json({ error: stats.error });
-        }
+          if (!validFields.includes(opinionField)) {
+              return res.status(400).json({ error: "Campo opinione non valido" });
+          }
 
-        return res.status(200).json(stats);
-
+          // Passiamo la regione (che può essere undefined) al servizio
+          const stats = await UserService.getOpinionDetailStats(opinionField, regione);
+          return res.status(200).json(stats);
       } catch (error) {
-        console.error(`Errore in /api/opinioni-dettaglio:`, error);
-        return res.status(500).json({ error: "Errore interno del server" });
+          console.error(`Errore nel recuperare i dettagli per l'opinione:`, error);
+          return res.status(500).json({ error: "Errore interno del server" });
       }
-    });
-
-
+  });
 
   // =========================================================
   // ROTTE VOTO (gestite da VotoService)
