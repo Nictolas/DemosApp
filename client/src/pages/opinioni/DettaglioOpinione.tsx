@@ -60,28 +60,31 @@ const opinionTitles: Record<string, string> = {
     : basePageTitle;
 
   // Funzione per recuperare i dati dal backend
-  const fetchData = useCallback(async () => {
-    if (!user || !opinionField) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-      params.append('opinion', opinionField);
-      if (regionName) {
-        const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
-        params.append('regione', formattedRegionName);
+    const fetchData = useCallback(async () => {
+      if (!user || !opinionField) return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams();
+        params.append('opinion', opinionField); // Aggiunge ?opinion=...
+
+        if (regionName) {
+          const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
+          params.append('regione', formattedRegionName); // Aggiunge ®ione=...
+        }
+
+        const apiUrl = `/api/opinioni-dettaglio?${params.toString()}`;
+
+        const response = await fetch(apiUrl);
+        if (!response.ok) throw new Error(`Errore API: ${response.statusText}`);
+        const data = await response.json();
+        setStats(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Errore sconosciuto");
+      } finally {
+        setIsLoading(false);
       }
-      const apiUrl = `/api/opinioni-dettaglio?${params.toString()}`;
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error(`Errore API: ${response.statusText}`);
-      const data = await response.json();
-      setStats(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Errore sconosciuto");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, opinionField, regionName]);
+    }, [user, opinionField, regionName]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {

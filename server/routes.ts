@@ -92,16 +92,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Aggiungi questo blocco di codice dopo la rotta per /api/statistiche-opinioni
 
-  app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+  app.get('/api/opinioni-dettaglio', requireAdmin, async (req, res) => {
     try {
-      // Usiamo un commento speciale per dire a TypeScript:
-      // "Fidati di me, so che questo valore esiste e non è undefined".
-      // @ts-ignore 
-      const opinionField = req.params.opinionField;
+      // Leggiamo TUTTO dalla query string
+      const { opinion, regione } = req.query;
 
-      const regione = req.query.regione as string | undefined;
+      // Unico controllo: assicuriamoci che 'opinion' esista
+      if (typeof opinion !== 'string' || !opinion) {
+        return res.status(400).json({ error: "Parametro 'opinion' mancante o non valido." });
+      }
 
-      const stats = await UserService.getOpinionDetailStats(opinionField, regione);
+      const stats = await UserService.getOpinionDetailStats(opinion, regione as string | undefined);
 
       if (stats.error) {
         return res.status(400).json({ error: stats.error });
@@ -114,6 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: "Errore interno del server" });
     }
   });
+
 
   // =========================================================
   // ROTTE VOTO (gestite da VotoService)

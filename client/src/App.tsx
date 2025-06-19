@@ -132,17 +132,12 @@ function Router() {
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
               path="/opinioni/:opinionField" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} />} 
+              component={() => {
+                const searchParams = new URLSearchParams(window.location.search);
+                const region = searchParams.get('regione');
+                return <DettaglioOpinione opinionField={params.opinionField} regionName={region || undefined} />;
+              }} 
             />
-          </PageTransition>
-        )}
-      </Route>
-
-      {/* 2. La rotta generica per la pagina principale delle opinioni va DOPO */}
-      <Route path="/opinioni">
-        {(params) => (
-          <PageTransition location={location} type="fade-side">
-            <ProtectedRoute path="/opinioni" component={Opinioni} />
           </PageTransition>
         )}
       </Route>
