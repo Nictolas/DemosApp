@@ -11,8 +11,7 @@
          * Salva o aggiorna i dati di un utente in Firestore.
          * Usa `setDoc` con `merge: true` per gestire entrambi i casi.
          */
-        public static async saveUserData(userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
-          try {
+        ppublic static async saveUserData(userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
             if (!db || !userData.email) {
               return { success: false, error: "Dati essenziali (email) mancanti per il salvataggio" };
             }
