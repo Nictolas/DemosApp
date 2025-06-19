@@ -299,7 +299,9 @@ const opinionTitles: Record<string, string> = {
                 </CardHeader>
                 <CardContent className="flex flex-wrap gap-2">
                   {ITALIAN_REGIONS.map(region => (
-                <Link key={region} href={`/opinioni/${opinionField}?regione=${formatRegionForUrl(region)}`}>
+                    <Link key={region} href={`/opinioni/${opinionField}?regione=${formatRegionForUrl(region)}`}>
+                      <Button variant="outline">{region}</Button>
+                    </Link>
                   ))}
                 </CardContent>
               </Card>
