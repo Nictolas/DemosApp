@@ -94,14 +94,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
     try {
-      // Usiamo un commento speciale per dire a TypeScript:
-      // "Fidati di me, so che questo valore esiste."
-      // @ts-ignore 
-      const opinionField = req.params.opinionField;
+      // 1. Isola il parametro in una nuova costante.
+      const fieldFromParams = req.params.opinionField;
 
+      // 2. Controlla il TIPO e il VALORE della nuova costante.
+      if (typeof fieldFromParams !== 'string' || fieldFromParams.trim() === '') {
+        return res.status(400).json({ error: "Campo opinione non valido o mancante" });
+      }
+
+      // 3. Da qui in poi, usa SOLO la nuova costante sicura.
       const regione = req.query.regione as string | undefined;
-
-      const stats = await UserService.getOpinionDetailStats(opinionField, regione);
+      const stats = await UserService.getOpinionDetailStats(fieldFromParams, regione);
 
       if (stats.error) {
         return res.status(400).json({ error: stats.error });
@@ -114,6 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: "Errore interno del server" });
     }
   });
+
 
 
   // =========================================================
