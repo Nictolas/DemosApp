@@ -11,9 +11,10 @@
          * Salva o aggiorna i dati di un utente in Firestore.
          * Usa `setDoc` con `merge: true` per gestire entrambi i casi.
          */
-        ppublic static async saveUserData(userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
+        public static async saveUserData(userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
+          try {
             if (!db || !userData.email) {
-              return { success: false, error: "Dati essenziali (email) mancanti per il salvataggio" };
+              return { success: false, error: "Dati essenziali (email) mancanti." };
             }
 
             const emailId = this.emailToId(userData.email);
@@ -34,26 +35,21 @@
             // Questo sostituisce la necessità di avere una funzione separata 'updateUserData'.
             await setDoc(userDocRef, dataToSave, { merge: true });
 
-            return { success: true, data: dataToSave };
-          } catch (error) {
-            return this.handleError(error, 'saveUserData');
-          }
-        }
-
-        public static async getUserByEmail(email: string): Promise<Utente | null> {
-          try {
-            if (!db) return null;
-            const emailId = this.emailToId(email);
-            const userDocRef = doc(db, 'utenti', emailId);
-            const docSnap = await getDoc(userDocRef);
-            if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() } as Utente;
-            const q = query(collection(db, 'utenti'), where('email', '==', email), limit(1));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Utente;
-            return null;
-          } catch (error) {
-            this.handleError(error, 'getUserByEmail');
-            return null;
+          public static async getUserByEmail(email: string): Promise<Utente | null> {
+            try {
+              if (!db) return null;
+              const emailId = this.emailToId(email);
+              const userDocRef = doc(db, 'utenti', emailId);
+              const docSnap = await getDoc(userDocRef);
+              if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() } as Utente;
+              const q = query(collection(db, 'utenti'), where('email', '==', email), limit(1));
+              const querySnapshot = await getDocs(q);
+              if (!querySnapshot.empty) return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Utente;
+              return null;
+            } catch (error) {
+              this.handleError(error, 'getUserByEmail');
+              return null;
+            }
           }
         }
 
