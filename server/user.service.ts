@@ -33,25 +33,30 @@
 
             // Usa { merge: true } per creare o aggiornare il documento senza cancellare i campi esistenti.
             // Questo sostituisce la necessità di avere una funzione separata 'updateUserData'.
-            await setDoc(userDocRef, dataToSave, { merge: true });
+await setDoc(userDocRef, dataToSave, { merge: true });
 
-          public static async getUserByEmail(email: string): Promise<Utente | null> {
-            try {
-              if (!db) return null;
-              const emailId = this.emailToId(email);
-              const userDocRef = doc(db, 'utenti', emailId);
-              const docSnap = await getDoc(userDocRef);
-              if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() } as Utente;
-              const q = query(collection(db, 'utenti'), where('email', '==', email), limit(1));
-              const querySnapshot = await getDocs(q);
-              if (!querySnapshot.empty) return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Utente;
-              return null;
-            } catch (error) {
-              this.handleError(error, 'getUserByEmail');
-              return null;
-            }
-          }
-        }
+    return { success: true, data: dataToSave };
+  } catch (error) {
+    return this.handleError(error, 'saveUserData');
+  }
+}
+
+public static async getUserByEmail(email: string): Promise<Utente | null> {
+  try {
+    if (!db) return null;
+    const emailId = this.emailToId(email);
+    const userDocRef = doc(db, 'utenti', emailId);
+    const docSnap = await getDoc(userDocRef);
+    if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() } as Utente;
+    const q = query(collection(db, 'utenti'), where('email', '==', email), limit(1));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Utente;
+    return null;
+  } catch (error) {
+    return this.handleError(error, 'getUserByEmail');
+    return null;
+  }
+}
 
         public static async getAllUsers(): Promise<Utente[]> {
           try {
