@@ -58,7 +58,7 @@ class ComunicazioneService extends FirebaseService {
         data: new Date().toISOString()
       };
       await UserService.saveUserData({ email: user.email, ultimaComunicazione });
-
+      
       // 4. Invia le notifiche ai sostenitori
       if (userData.nome && userData.cognome) { // <-- AGGIUNGI QUESTO CONTROLLO
           await NotificaService.sendNotificationsForComunicazione(
