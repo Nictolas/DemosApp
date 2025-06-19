@@ -45,14 +45,11 @@ const opinionTitles: Record<string, string> = {
 };
 
 // IL COMPONENTE REACT
-  export default function DettaglioOpinione({ opinionField }: { opinionField: string }) { // Rimuovi regionName dalle props
+export default function DettaglioOpinione({ opinionField, regionName }: { opinionField: string, regionName?: string }) {
     const { user, isLoading: isAuthLoading } = useAuth();
     const [stats, setStats] = useState<DetailStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [, setLocation] = useLocation();
-    const searchParams = new URLSearchParams(window.location.search);
-    const regionName = searchParams.get('regione');
 
   const basePageTitle = opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
   const pageTitle = regionName 
@@ -84,7 +81,7 @@ const opinionTitles: Record<string, string> = {
       } finally {
         setIsLoading(false);
       }
-    }, [user, opinionField, regionName]);
+    }, [user, opinionField]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {
