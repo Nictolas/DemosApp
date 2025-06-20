@@ -11,6 +11,9 @@ import ElezioneService from "./elezione.service.js";
 import ComizioService from "./comizio.service.js";
 import NotificaService from "./notifica.service.js";
 import { storage } from "./storage.js";
+import { db } from "./db.js";
+import { sostenitori } from "./db/schema.js";
+import { count, eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
@@ -80,17 +83,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // =========================================================
   app.get('/api/sostenitori', requireAuth, async (req, res, next) => {
     try {
-      // Sostituisci `req.user.id` se l'ID nel tuo oggetto user ha un altro nome
-      const politicianId = req.user.id; 
+      const politicianId = (req.user as any).id;
 
       if (!politicianId) {
         return res.status(401).json({ message: "ID utente non trovato nella sessione." });
       }
-
-      // Importa dinamicamente solo ciò che serve da Drizzle
-      const { db } = await import("./db.js");
-      const { sostenitori } = await import("./db/schema.js");
-      const { count, eq } = await import("drizzle-orm");
 
       const [totalResult] = await db.select({ value: count() })
                                     .from(sostenitori)
@@ -103,19 +100,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                       .from(sostenitori)
                                       .where(eq(sostenitori.politicoId, politicianId));
 
-      const genderDistribution = sostenitoriData.reduce((acc, curr) => {
+      const genderDistribution = sostenitoriData.reduce((acc: Record<string, number>, curr) => {
         const gender = curr.genere || 'Non specificato';
         acc[gender] = (acc[gender] || 0) + 1;
         return acc;
       }, {});
 
-      const ageDistribution = {
+      const ageDistribution: Record<string, number> = {
         '18-25': 0, '26-35': 0, '36-50': 0, '51-65': 0, '65+': 0, 'Non specificata': 0,
       };
       const now = new Date();
-      sostenitoriData.forEach(sostenitore => {
+
+      sostenitoriData.forEach((sostenitore: { data_nascita: string | null }) => {
         if (!sostenitore.data_nascita) {
-          ageDistribution['Non specificata']++; return;
+          ageDistribution['Non specificata']++;
+          return;
         }
         const birthDate = new Date(sostenitore.data_nascita);
         let age = now.getFullYear() - birthDate.getFullYear();
