@@ -3,11 +3,11 @@ import { db, adminDb } from './firebase-config.js';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
 import type { FirebaseFirestore } from 'firebase-admin/firestore'; // Aggiunto per il tipo della query
 import { Utente, UserOpinions } from './types.js';
-import type { Query } from 'firebase-admin/firestore';
+import { FirebaseService } from './firebase-service.js';
 
 class UserService extends FirebaseService {
 
-    public static async saveUserData(userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
+  public static async saveUserData(userData: Utente): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
       if (!db || !userData.email) return { success: false, error: "DB non conf. o email mancante" };
       const emailId = this.emailToId(userData.email);
@@ -18,6 +18,19 @@ class UserService extends FirebaseService {
       return { success: true, data: dataToSave };
     } catch (error) {
       return this.handleError(error, 'saveUserData');
+    }
+  }
+
+  public static async updateUserData(email: string, userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      if (!db) return { success: false, error: "Database non configurato" };
+      const emailId = this.emailToId(email);
+      const userDocRef = doc(db, 'utenti', emailId);
+      const dataToUpdate = { ...userData, updatedAt: new Date().toISOString() };
+      await updateDoc(userDocRef, dataToUpdate);
+      return { success: true, data: dataToUpdate };
+    } catch (error) {
+      return this.handleError(error, 'updateUserData');
     }
   }
 
@@ -120,7 +133,7 @@ class UserService extends FirebaseService {
         return undefined;
       };
 
-      let firestoreQuery: Query = 
+      let firestoreQuery: FirebaseFirestore.Query = 
           adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita', 'regione_residenza');
 
       if (regione) {
