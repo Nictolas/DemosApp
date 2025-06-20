@@ -244,7 +244,7 @@ export default function Comunica() {
 
   // Check if user has the right role
   const userRole = (userData as any)?.ruolo;
-  if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico")) {
+  if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico" && userRole !== "Admin")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />
