@@ -26,7 +26,7 @@ export interface DocumentoBase {
 export interface Utente extends DocumentoBase {
   // Campi di sistema e autenticazione
   email: string;
-  status?: 'pending' | 'active' | 'rejected';
+  status?: 'pending_approval' | 'active' | 'rejected';
   premium?: boolean;
 
   // Dati anagrafici e del profilo (OBBLIGATORI)
