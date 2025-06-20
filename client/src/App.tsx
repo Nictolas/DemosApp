@@ -21,6 +21,7 @@ import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
 import RegistrazioneElezioneCandidatura from "@/pages/RegistrazioneElezioneCandidatura";
 import Comunica from "@/pages/Comunica";
+import StatistichePersonali from "./pages/StatistichePersonali";
 import PodioTrasparenza from "@/pages/PodioTrasparenza";
 import Notifiche from "@/pages/Notifiche";
 import ModificaImmagine from "@/pages/ModificaImmagine";
@@ -206,6 +207,7 @@ function Router() {
           </PageTransition>
         )}
       </Route>
+       <Route path="/statistiche-personali" component={StatistichePersonali} />
       <Route path="/podio-trasparenza">
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
