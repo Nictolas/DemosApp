@@ -206,6 +206,13 @@ function Router() {
           </PageTransition>
         )}
       </Route>
+      <Route path="/sostenitori">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/sostenitori" component={Sostenitori} />
+          </PageTransition>
+        )}
+      </Route>
       <Route path="/podio-trasparenza">
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>

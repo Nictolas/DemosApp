@@ -76,6 +76,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // =========================================================
+  // ROTTA SOSTENITORI
+  // =========================================================
+  app.get('/api/sostenitori', requireAuth, async (req, res, next) => {
+    try {
+      // Sostituisci `req.user.id` se l'ID nel tuo oggetto user ha un altro nome
+      const politicianId = req.user.id; 
+
+      if (!politicianId) {
+        return res.status(401).json({ message: "ID utente non trovato nella sessione." });
+      }
+
+      // Importa dinamicamente solo ciò che serve da Drizzle
+      const { db } = await import("./db.js");
+      const { sostenitori } = await import("./db/schema.js");
+      const { count, eq } = await import("drizzle-orm");
+
+      const [totalResult] = await db.select({ value: count() })
+                                    .from(sostenitori)
+                                    .where(eq(sostenitori.politicoId, politicianId));
+
+      const sostenitoriData = await db.select({ 
+                                        genere: sostenitori.genere, 
+                                        data_nascita: sostenitori.data_nascita 
+                                      })
+                                      .from(sostenitori)
+                                      .where(eq(sostenitori.politicoId, politicianId));
+
+      const genderDistribution = sostenitoriData.reduce((acc, curr) => {
+        const gender = curr.genere || 'Non specificato';
+        acc[gender] = (acc[gender] || 0) + 1;
+        return acc;
+      }, {});
+
+      const ageDistribution = {
+        '18-25': 0, '26-35': 0, '36-50': 0, '51-65': 0, '65+': 0, 'Non specificata': 0,
+      };
+      const now = new Date();
+      sostenitoriData.forEach(sostenitore => {
+        if (!sostenitore.data_nascita) {
+          ageDistribution['Non specificata']++; return;
+        }
+        const birthDate = new Date(sostenitore.data_nascita);
+        let age = now.getFullYear() - birthDate.getFullYear();
+        const m = now.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && now.getDate() < birthDate.getDate())) { age--; }
+
+        if (age >= 18 && age <= 25) ageDistribution['18-25']++;
+        else if (age >= 26 && age <= 35) ageDistribution['26-35']++;
+        else if (age >= 36 && age <= 50) ageDistribution['36-50']++;
+        else if (age >= 51 && age <= 65) ageDistribution['51-65']++;
+        else if (age > 65) ageDistribution['65+']++;
+      });
+
+      res.json({
+        totalSostenitori: totalResult.value,
+        genderDistribution,
+        ageDistribution,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  
+  // =========================================================
   // ROTTE VOTO (gestite da VotoService)
   // =========================================================
   app.post('/api/governo/vota', requireAuth, async (req, res) => { const { categoria, nomeMinistro } = req.body; const result = await VotoService.voteMinistro(req.user!.uid!, categoria, nomeMinistro); if (!result.success) return res.status(500).json({ error: result.error }); return res.status(200).json({ message: 'Voto registrato' }); });
