@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth.js"; 
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Importa tutti i servizi con l'estensione .js
 import UserService from "./user.service.js";
@@ -32,6 +34,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   };
 
+  app.get('/api/debug-file-system', (req, res) => {
+      const currentDir = path.resolve(__dirname);
+      const parentDir = path.resolve(__dirname, '..');
+
+      try {
+          const filesInCurrentDir = fs.readdirSync(currentDir);
+          const filesInParentDir = fs.readdirSync(parentDir);
+
+          res.json({
+              message: "File System Debug Info",
+              currentDirectory: currentDir,
+              filesInCurrentDir: filesInCurrentDir,
+              parentDirectory: parentDir,
+              filesInParentDir: filesInParentDir
+          });
+      } catch (error) {
+          res.status(500).json({ 
+              error: "Failed to read directory",
+              message: (error as Error).message,
+              stack: (error as Error).stack
+          });
+      }
+  });
+  
   // =========================================================
   // ROTTE UTENTE (gestite da UserService)
   // =========================================================
