@@ -9,36 +9,38 @@ class AuthService extends FirebaseService {
   /**
    * Registra un nuovo utente in Firebase Auth e chiama UserService per salvare i dati in Firestore.
    */
-  public static async registerUser(
-    initialUserData: Partial<Utente>
+  public static async registerUserOnFirebaseAuth(
+    email: string,
+    password: string,
+    userDetails: Omit<Utente, 'email' | 'uid' | 'id'>
   ): Promise<{ success: boolean; user?: any; error?: string; }> {
     try {
-      const { email, password, ...profileData } = initialUserData;
-      if (!auth || !email || !password) {
-        return { success: false, error: "Email e password sono obbligatori" };
-      }
+      // ▼▼▼ AGGIUNGI QUESTA RIGA ESATTA ▼▼▼
+      console.log("NUOVA VERSIONE DEL FILE AUTH.SERVICE IN ESECUZIONE:", userDetails);
+      // ▲▲▲ FINE DELLA RIGA DA AGGIUNGERE ▲▲▲
+      if (!auth) return { success: false, error: "Firebase Auth non è configurato" };
 
-      // 1. Crea l'utente in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      if (!user) {
-        return { success: false, error: "Creazione utente Firebase fallita" };
+      if (!userCredential.user) return { success: false, error: "Nessun utente restituito dalla registrazione" };
+
+      const userDataToSave: Utente = {
+        email,
+        uid: userCredential.user.uid,
+        ...userDetails,
+        status: 'pending'
+      };
+
+      // Delega il salvataggio dei dati a UserService
+      const saveResult = await UserService.saveUserData(userDataToSave);
+      if (!saveResult.success) {
+        // Qui si potrebbe implementare una logica di rollback per cancellare l'utente da Auth
+        // se il salvataggio su Firestore fallisce, ma per ora lo segnaliamo.
+        return { success: false, error: `Utente Auth creato, ma errore nel salvataggio dei dati: ${saveResult.error}` };
       }
 
-      // 2. Prepara l'oggetto completo da salvare su Firestore
-      const userDataToSave = {
-        email: email,
-        uid: user.uid,
-        status: 'pending_approval',
-        ...profileData,
-      } as Utente;
-
-      // 3. Salva il documento utente iniziale su Firestore
-      await UserService.saveUserData(userDataToSave);
-
-      return { success: true, user: user };
+      return { success: true, user: userCredential.user };
     } catch (error) {
-      return this.handleError(error, 'registerUser');
+      return this.handleError(error, 'registerUserOnFirebaseAuth');
     }
   }
 
