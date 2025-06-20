@@ -11,8 +11,8 @@ import ElezioneService from "./elezione.service.js";
 import ComizioService from "./comizio.service.js";
 import NotificaService from "./notifica.service.js";
 import { storage } from "./storage.js";
-import { db } from "./db/index.js";
-import { sostenitori } from "./db/schema.js";
+import { db } from "../db/index.js";
+import { sostenitori } from "../db/schema.js";
 import { count, eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
