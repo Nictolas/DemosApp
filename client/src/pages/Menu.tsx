@@ -157,16 +157,6 @@ export default function Menu() {
                   Comunica
                 </Button>
               </Link>
-
-              <Link href="/statistiche-personali">
-                <Card className="cursor-pointer transition-transform transform hover:scale-105 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <CardHeader className="flex flex-col items-center text-center">
-                    <BarChart3 className="h-8 w-8 mb-2 text-blue-600" />
-                    <CardTitle>Statistiche Personali</CardTitle>
-                    <CardDescription>Analizza i tuoi sostenitori</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
               
               <Link href="/podio-trasparenza">
                 <Button 
