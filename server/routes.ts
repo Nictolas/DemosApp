@@ -40,17 +40,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/opinioni', requireAuth, async (req, res) => { try { const opinions = await UserService.getUserOpinions(req.user!.email!); return res.status(200).json(opinions || {}); } catch (error) { return res.status(500).json({ error: 'Errore interno del server' }); } });
   app.get('/api/candidati', requireAuth, async (req, res) => { try { const candidati = await UserService.getCandidati(); return res.status(200).json(candidati); } catch (error) { return res.status(500).json({ error: 'Errore nel recupero candidati' }); } });
   app.get('/api/search-politicians', requireAuth, async (req, res) => { try { const { q } = req.query; if (!q || typeof q !== 'string') return res.status(400).json({ error: 'Query mancante' }); const politicians = await UserService.searchPoliticians(q); return res.status(200).json(politicians); } catch (error) { return res.status(500).json({ error: 'Internal server error' }); } });
-  app.get('/api/sostenitori/:email', requireAuth, async (req, res) => {
-    try {
-      // Usiamo il UserService per mantenere la logica organizzata
-      const sostenitori = await UserService.getSostenitoriByPoliticoEmail(decodeURIComponent(req.params.email));
-      return res.status(200).json(sostenitori);
-    } catch (error) {
-      // In caso di errore nel servizio, restituiamo un 500
-      console.error(`Errore nel recuperare i sostenitori:`, error);
-      return res.status(500).json({ error: 'Errore nel recupero dei sostenitori' });
-    }
-  });
 
   // ===== NUOVA ROTTA PER STATISTICHE =====
   app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => {
