@@ -4,13 +4,20 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+
+  // Specifica che la root del progetto Vite è la cartella 'client'
+  root: "client",
+
   resolve: {
+    // L'alias '@' ora punta correttamente a 'client/src'
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(__dirname, "./client/src"),
     },
   },
+
   build: {
-    outDir: "dist/public",
+    // Dalla root ('client'), vai su di un livello (..) e poi in 'dist/public'
+    outDir: "../dist/public",
     emptyOutDir: true,
   },
 });
