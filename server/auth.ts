@@ -91,19 +91,27 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  // (serializeUser e deserializeUser rimangono invariati)
-  passport.serializeUser((user, done) => {
-    if (user && typeof user === 'object' && 'id' in user) {
-      done(null, JSON.stringify(user));
+  // Serializza solo l'ID dell'utente nella sessione, come da standard Passport
+  passport.serializeUser((user: Express.User, done) => {
+    // Aggiungiamo un controllo per assicurarci che l'utente e l'ID esistano
+    if (user && user.id) {
+      done(null, user.id);
     } else {
-      done(new Error("Oggetto utente non serializzabile"));
+      done(new Error("Impossibile serializzare l'utente: ID mancante."));
     }
   });
 
-  passport.deserializeUser(async (userDataStr, done) => {
+  // Deserializza l'utente recuperandolo dal DB tramite l'ID salvato in sessione
+  passport.deserializeUser(async (id: string, done) => {
     try {
-      const userData = JSON.parse(String(userDataStr));
-      done(null, userData);
+      // Usa il nostro servizio per trovare l'utente tramite il suo ID.
+      // Dobbiamo creare un metodo apposito in UserService.
+      const userProfile = await UserService.getUserById(id);
+      if (userProfile) {
+        done(null, userProfile);
+      } else {
+        done(null, false); // Utente non trovato nel DB
+      }
     } catch (error) {
       done(error);
     }

@@ -34,6 +34,21 @@ class UserService extends FirebaseService {
     }
   }
 
+  public static async getUserById(id: string): Promise<Utente | null> {
+    try {
+      if (!adminDb) return null;
+      const userDocRef = adminDb.collection('utenti').doc(id);
+      const docSnap = await userDocRef.get();
+      if (docSnap.exists) {
+        return { id: docSnap.id, ...docSnap.data() } as Utente;
+      }
+      return null;
+    } catch (error) {
+      this.handleError(error, 'getUserById');
+      return null;
+    }
+  }
+
   public static async getUserByEmail(email: string): Promise<Utente | null> {
     try {
       if (!adminDb) {
