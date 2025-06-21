@@ -40,6 +40,19 @@ app.use((req, res, next) => {
   next();
 });
 
+// Middleware di debug per la sessione
+app.use((req, res, next) => {
+  console.log('--- Inizio Debug Richiesta ---');
+  console.log('Metodo e URL:', req.method, req.originalUrl);
+  console.log('Session ID:', req.sessionID);
+  console.log('Sessione esiste:', !!req.session);
+  // @ts-ignore
+  console.log('Utente in sessione (prima di Passport):', req.session?.passport?.user);
+  console.log('Cookie header:', req.headers.cookie);
+  console.log('--- Fine Debug Richiesta ---');
+  next();
+});
+
 // Setup di Passport e Session (deve venire DOPO il middleware CORS)
 setupAuth(app);
 
