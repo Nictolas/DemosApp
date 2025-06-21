@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/:match*",
-      "destination": "/server/:match*"
+      "source": "/api/:path*",
+      "destination": "/server/index.ts"
     },
     {
       "source": "/:path((?!api/|assets/|icona.png|manifest.json).*)",
