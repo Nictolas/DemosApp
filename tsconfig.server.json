@@ -9,10 +9,10 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@db/*": ["src/db/*"],
-      "@shared/*": ["src/shared/*"]
+      "@db/*": ["db/*"],
+      "@shared/*": ["shared/*"]
     }
   },
-  "include": ["src/server/**/*.ts", "src/db/**/*.ts", "src/shared/**/*.ts"],
+  "include": ["server/**/*.ts", "db/**/*.ts", "shared/**/*.ts"],
   "exclude": ["node_modules"]
 }
