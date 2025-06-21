@@ -191,47 +191,6 @@ class UserService extends FirebaseService {
     }
   }
 
-    // AGGIUNGI QUESTO NUOVO METODO QUI, PRIMA DELLA PARENTESI DI CHIUSURA DELLA CLASSE
-  public static async getSostenitoriByPoliticoEmail(politicoEmail: string): Promise<Utente[]> {
-    try {
-      // MODIFICA CHIAVE: Importiamo 'adminDb' QUI, dentro la funzione,
-      // invece di fare affidamento sull'import all'inizio del file.
-      // Questo risolve i problemi di dipendenze circolari o di ordine di caricamento.
-      const { adminDb } = await import('./firebase-config.js');
-
-      // Ora siamo sicuri al 100% che adminDb non sia undefined.
-      if (!adminDb) {
-        console.error("Admin SDK non inizializzato o importazione fallita.");
-        return [];
-      }
-
-      const q = query(
-        collection(adminDb, 'utenti'), 
-        where('sostenitoreDi', '==', politicoEmail)
-      );
-
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        return [];
-      }
-
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          nome: data.nome,
-          cognome: data.cognome,
-          email: data.email,
-          avatar_config: data.avatar_config,
-        } as Utente;
-      });
-
-    } catch (error) {
-      this.handleError(error, 'getSostenitoriByPoliticoEmail');
-      return [];
-    }
-  }
 } // <-- Chiusura della classe UserService
 
 export default UserService;

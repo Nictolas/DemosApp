@@ -30,36 +30,39 @@ const auth = getAuth(app);
 // ==============================================================
 // CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
 // ==============================================================
-function initializeAdmin() {
-  if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-    console.error("ERRORE FATALE: Variabili d'ambiente per Firebase Admin mancanti.");
-    return null; 
-  }
+let adminDb: admin.firestore.Firestore | null = null;
+let adminAuth: admin.auth.Auth | null = null;
 
+// LOGICA DI INIZIALIZZAZIONE CORRETTA
+// Controlla se ci sono app admin già inizializzate in modo sicuro
+if (admin.apps.length === 0) { 
   try {
-    if (admin.apps.length > 0) {
-      return admin.app();
+    // Prova a inizializzare solo se le credenziali del server esistono
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          // La sostituzione di \n è fondamentale
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
+
+      adminDb = admin.firestore();
+      adminAuth = admin.auth();
+      console.log('Firebase Admin SDK inizializzato con successo.');
+    } else {
+      // Questo avviso apparirà nei log se le credenziali server-side mancano
+      console.warn('Credenziali Firebase Admin non trovate nei Secrets/variabili d\'ambiente. Admin SDK non sarà disponibile.');
     }
-    return admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      }),
-    });
   } catch (error) {
-    console.error("ERRORE CRITICO INIZIALIZZAZIONE ADMIN:", error);
-    return null;
+    console.error('ERRORE CRITICO: Impossibile inizializzare Firebase Admin SDK.', error);
   }
-}
-
-const adminApp = initializeAdmin();
-
-const adminDb = adminApp ? admin.firestore(adminApp) : null;
-const adminAuth = adminApp ? admin.auth(adminApp) : null;
-
-if (!adminDb) {
-  console.warn("ATTENZIONE: 'adminDb' è null. Inizializzazione fallita.");
+} else {
+  // Se l'app è già inizializzata (es. in sviluppo con hot-reloading), 
+  // prendi semplicemente le istanze esistenti per evitare errori.
+  adminDb = admin.firestore();
+  adminAuth = admin.auth();
 }
 
 // Esporta tutte le istanze per usarle negli altri servizi

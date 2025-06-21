@@ -286,11 +286,7 @@ function Router() {
       <Route path="/sostenitori">
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute
-              path="/sostenitori"
-              component={Sostenitori}
-              roles={['Politico', 'Candidato', 'Candidato Politico']}
-            />
+            <ProtectedRoute path="/sostenitori" component={Sostenitori} />
           </PageTransition>
         )}
       </Route>
