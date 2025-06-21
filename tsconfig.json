@@ -12,7 +12,10 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./client/src/*"],
+      "@db/*": ["./db/*"],
+      "@server/*": ["./server/*"],
+      "@shared/*": ["./shared/*"]
     }
   },
   "include": ["src"],
