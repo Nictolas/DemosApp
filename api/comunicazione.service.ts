@@ -1,6 +1,7 @@
 // Import della classe base e delle configurazioni con .js
 import { FirebaseService } from './firebase-service.js';
 import { db } from './firebase-config.js';
+import { Utente } from './types.js';
 
 // Import dei servizi con cui questo deve interagire
 import NotificaService from './notifica.service.js';
@@ -17,23 +18,23 @@ class ComunicazioneService extends FirebaseService {
    * @param data Dati della comunicazione dal body della richiesta.
    */
   public static async createComunicazione(
-    user: Express.User, 
+    user: Utente, 
     data: { titolo: string, voto_dato: string, commento?: string, vincitore: string, zona: string, isDuplicate?: boolean }
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      if (!user.uid || !user.email) return { success: false, error: "Dati utente in sessione incompleti" };
+      if (!user.id || !user.email) return { success: false, error: "Dati utente in sessione incompleti" };
 
-      const userData = await UserService.getUserByEmail(user.email);
+      const userData = await UserService.getUserById(user.id);
       if (!userData || (userData.ruolo !== 'Politico' && userData.ruolo !== 'Candidato Politico')) {
         return { success: false, error: "Permessi non sufficienti per creare una comunicazione" };
       }
 
       // 1. Elimina le comunicazioni precedenti e le loro notifiche
-      await this.deletePreviousComunicazioni(user.uid);
+      await this.deletePreviousComunicazioni(user.id);
 
       // 2. Prepara e salva la nuova comunicazione
       const comunicazioneData = {
-        id_utente: user.uid,
+        id_utente: user.id,
         nome: userData.nome,
         cognome: userData.cognome,
         ruolo: userData.ruolo,
@@ -57,10 +58,10 @@ class ComunicazioneService extends FirebaseService {
         vincitore: data.vincitore,
         data: new Date().toISOString()
       };
-      await UserService.updateUserData(user.email, { ultimaComunicazione });
+      await UserService.updateUserData(user.id, { ultimaComunicazione });
 
       // 4. Invia le notifiche ai sostenitori
-      if (userData.nome && userData.cognome) { // <-- AGGIUNGI QUESTO CONTROLLO
+      if (userData.nome && userData.cognome) {
           await NotificaService.sendNotificationsForComunicazione(
             user.email,
             userData.nome,

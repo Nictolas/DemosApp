@@ -139,20 +139,22 @@ app.post("/api/logout", (req, res, next) => {
 app.get('/api/user', requireAuth, (req, res) => res.json(req.user));
 app.get('/api/users', requireAuth, async (req, res) => res.json(await UserService.getAllUsers()));
 app.get('/api/users/:email', requireAuth, async (req, res) => res.json(await UserService.getUserByEmail(decodeURIComponent(req.params.email))));
-app.put('/api/users/:email', requireAuth, async (req, res) => {
-    const { email } = req.params;
-    if (req.user?.email !== email && req.user?.ruolo !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
-    const result = await UserService.updateUserData(email, req.body);
+app.put('/api/users/:uid', requireAuth, async (req, res) => {
+    const { uid } = req.params;
+    if (req.user?.id !== uid && req.user?.ruolo !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+    const result = await UserService.updateUserData(uid, req.body);
     res.status(result.success ? 200 : 500).json(result);
 });
-app.post('/api/users/:email/avatar', requireAuth, async (req, res) => {
-    const result = await UserService.updateUserData(decodeURIComponent(req.params.email), { avatar_config: req.body.avatar_config });
+app.post('/api/users/:uid/avatar', requireAuth, async (req, res) => {
+    const { uid } = req.params;
+    if (req.user?.id !== uid) return res.status(403).json({ error: 'Forbidden' });
+    const result = await UserService.updateUserData(uid, { avatar_config: req.body.avatar_config });
     res.json(result);
 });
 
 // Opinioni
-app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user!.email!, req.body)));
-app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user!.email!)));
+app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user!.id, req.body)));
+app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user!.id)));
 app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
 app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
     const { opinionField } = req.params;
@@ -165,15 +167,21 @@ app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) 
 // Sostenitori & Politici
 app.get('/api/candidati', requireAuth, async (req, res) => res.json(await UserService.getCandidati()));
 app.get('/api/search-politicians', requireAuth, async (req, res) => res.json(await UserService.searchPoliticians(req.query.q as string)));
-app.get('/api/sostenitori/:email', requireAuth, async (req, res) => {
-    const { email } = req.params;
+app.get('/api/sostenitori/:uid', requireAuth, async (req, res) => {
+    const { uid } = req.params;
     if (req.user?.ruolo !== 'Politico' && req.user?.ruolo !== 'Candidato' && req.user?.ruolo !== 'Candidato Politico') return res.status(403).json({ error: "Forbidden" });
-    if (req.user?.email !== decodeURIComponent(email)) return res.status(403).json({ error: "Forbidden" });
-    res.json(await SostenitoriService.getSupporterStats(decodeURIComponent(email)));
+    if (req.user?.id !== uid) return res.status(403).json({ error: "Forbidden" });
+    const user = await UserService.getUserById(uid);
+    if (!user?.email) return res.status(404).json({ error: "User not found" });
+    res.json(await SostenitoriService.getSupporterStats(user.email));
 });
 
 // Admin
-app.delete('/api/users/:email', requireAdmin, async (req, res) => res.json(await AdminService.deleteUserByEmail(req.params.email)));
+app.delete('/api/users/:uid', requireAdmin, async (req, res) => {
+    const user = await UserService.getUserById(req.params.uid);
+    if (!user?.email) return res.status(404).json({ error: "User not found" });
+    res.json(await AdminService.deleteUserByEmail(user.email));
+});
 app.get('/api/pending-users', requireAdmin, async (req, res) => res.json(await AdminService.getPendingUsers()));
 app.post('/api/approve-user', requireAdmin, async (req, res) => res.json(await AdminService.approveUser(req.body.userId)));
 app.post('/api/reject-user', requireAdmin, async (req, res) => res.json(await AdminService.rejectUser(req.body.userId, req.body.reason)));
@@ -214,7 +222,7 @@ const createVotingEndpoints = (path: string, methods: { vote: string, getUserVot
 
   if (methods.removeVote) {
     app.delete(`/api/${path}/voti/:name`, requireAuth, async (req, res) => {
-        const removeVoteMethod = methods.removeVote;
+        const removeVoteMethod = methods.removeVote!;
         if (typeof (VotoService as any)[removeVoteMethod] !== 'function') {
             return res.status(500).json({ error: "Invalid removeVote method configured" });
         }
