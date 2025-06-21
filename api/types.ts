@@ -13,7 +13,7 @@
  * Interfaccia base per tutti i documenti Firestore, con campi comuni.
  */
 export interface DocumentoBase {
-  id?: string; // ID del documento Firestore
+  id: string; // ID del documento Firestore (NON opzionale)
   uid?: string; // UID dell'utente Firebase Auth, se applicabile
   createdAt?: string; // Timestamp ISO di creazione
   updatedAt?: string; // Timestamp ISO dell'ultimo aggiornamento
