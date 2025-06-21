@@ -1,10 +1,11 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": false,
-    "outDir": "dist",
     "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "noEmit": false,
+    "outDir": "dist"
   },
-  "include": ["src/server", "src/db", "src/shared"]
+  "include": ["src/server", "src/db", "src/shared"],
+  "exclude": ["node_modules", "dist"]
 }
