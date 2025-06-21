@@ -84,9 +84,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const createVotingEndpoints = (path: string, methods: { vote: string, getUserVoti: string, removeVote?: string, getClassifica: string }, entityKey: 'nome' | 'legge' = 'nome') => {
     app.post(`/api/${path}/vota`, requireAuth, async (req, res) => { 
-      const key = entityKey ?? 'nome';
-      const { [key]: name } = req.body;
-      if (!name) return res.status(400).json({ error: "Nome o legge mancante" }); 
+      const key: 'nome' | 'legge' = entityKey ?? 'nome';
+      const name = req.body[key];
+      if (typeof name !== 'string' || !name) {
+        return res.status(400).json({ error: "Nome o legge mancante" });
+      }
       const result = await (VotoService as any)[methods.vote](req.user!.uid!, name); 
       if (!result.success) return res.status(500).json({ error: result.error }); 
       return res.status(200).json({ message: "Voto registrato" }); 
