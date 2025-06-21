@@ -39,7 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         try {
           // Verifica che la sessione sia ancora valida facendo una richiesta all'API
-          const response = await fetch('/api/user');
+          const response = await fetch('/api/user', {
+            credentials: 'include',
+          });
           if (!response.ok) {
             console.log("Sessione scaduta o non valida, esecuzione logout");
             queryClient.setQueryData(["/api/user"], null);
