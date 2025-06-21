@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:match*",
+      "destination": "/server/:match*"
+    },
+    {
+      "source": "/:path((?!api/|assets/|icona.png|manifest.json).*)",
+      "destination": "/index.html"
+    }
+  ]
+} 
