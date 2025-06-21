@@ -5,6 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "../db/index.js"; // Aggiunto .js
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { storage } from "./storage.js";
 
 // ===== IMPORT CORRETTI DAI NUOVI SERVIZI E CONFIGURAZIONI =====
 import AuthService from "./auth.service.js";
@@ -29,28 +30,29 @@ declare global {
 }
 
 export function setupAuth(app: Express) {
-  app.set('trust proxy', 1);
+  // Imposta trust proxy per far funzionare secure cookies dietro Vercel
+  // Questo dice a Express di fidarsi degli header X-Forwarded-* impostati dal proxy di Vercel
+  app.set('trust proxy', 1); 
 
-  const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "DEMOS_secret_key",
-    resave: false,
-    saveUninitialized: false,
-    store: new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: true,
-      tableName: 'user_sessions'
+  app.use(
+    session({
+      store: storage.sessionStore,
+      secret: process.env.SESSION_SECRET!,
+      resave: false,
+      saveUninitialized: false,
+      // L'opzione proxy a livello di sessione è fondamentale
+      proxy: true, 
+      cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 giorni
+        // In produzione, il cookie deve essere secure per funzionare con sameSite: 'none'
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        // sameSite: 'none' è necessario per richieste cross-domain (es. client e server su sottodomini diversi)
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      },
     }),
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      proxy: true,
-      domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined,
-    }
-  };
+  );
 
-  app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
 
