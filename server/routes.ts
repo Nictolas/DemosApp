@@ -93,13 +93,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!name) {
         return res.status(400).json({ error: "Nome o legge mancante" });
       }
-      const result = await (VotoService as any)[methods.vote](req.user!.uid!, name); 
+      const voteMethod = methods.vote;
+      if (!voteMethod || typeof (VotoService as any)[voteMethod] !== 'function') {
+        return res.status(500).json({ error: "Metodo di voto non valido" });
+      }
+      const result = await (VotoService as any)[voteMethod](req.user!.uid!, name); 
       if (!result.success) return res.status(500).json({ error: result.error }); 
       return res.status(200).json({ message: "Voto registrato" }); 
     });
-    app.get(`/api/${path}/voti`, requireAuth, async (req, res) => { const voti = await (VotoService as any)[methods.getUserVoti](req.user!.uid!); return res.status(200).json(voti); });
-    if (methods.removeVote) { app.delete(`/api/${path}/voti/:name`, requireAuth, async (req, res) => { const result = await (VotoService as any)[methods.removeVote](req.user!.uid!, decodeURIComponent(req.params.name)); if (!result.success) return res.status(404).json({ error: result.error }); return res.status(200).json({ message: "Voto rimosso" }); }); }
-    app.get(`/api/${path}/classifica`, async (req, res) => { const classifica = await (VotoService as any)[methods.getClassifica](); return res.status(200).json(classifica); });
+    app.get(`/api/${path}/voti`, requireAuth, async (req, res) => { 
+      const getUserVotiMethod = methods.getUserVoti;
+      if (!getUserVotiMethod || typeof (VotoService as any)[getUserVotiMethod] !== 'function') {
+        return res.status(500).json({ error: "Metodo getUserVoti non valido" });
+      }
+      const voti = await (VotoService as any)[getUserVotiMethod](req.user!.uid!);
+      return res.status(200).json(voti); 
+    });
+    if (methods.removeVote) { 
+      app.delete(`/api/${path}/voti/:name`, requireAuth, async (req, res) => { 
+        const removeVoteMethod = methods.removeVote;
+        if (!removeVoteMethod || typeof (VotoService as any)[removeVoteMethod] !== 'function') {
+          return res.status(500).json({ error: "Metodo removeVote non valido" });
+        }
+        const result = await (VotoService as any)[removeVoteMethod](req.user!.uid!, decodeURIComponent(req.params.name)); 
+        if (!result.success) return res.status(404).json({ error: result.error }); 
+        return res.status(200).json({ message: "Voto rimosso" }); 
+      }); 
+    }
+    app.get(`/api/${path}/classifica`, async (req, res) => { 
+      const getClassificaMethod = methods.getClassifica;
+      if (!getClassificaMethod || typeof (VotoService as any)[getClassificaMethod] !== 'function') {
+        return res.status(500).json({ error: "Metodo getClassifica non valido" });
+      }
+      const classifica = await (VotoService as any)[getClassificaMethod]();
+      return res.status(200).json(classifica); 
+    });
   };
 
   createVotingEndpoints('capo-stato', { vote: 'voteCapoDiStato', getUserVoti: 'getUserVotiCapoDiStato', removeVote: 'removeVoteCapoDiStato', getClassifica: 'getClassificaCapoDiStato' });
