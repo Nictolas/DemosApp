@@ -79,24 +79,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== ROTTA PER SOSTENITORI =====
   app.get('/api/sostenitori/:email', requireAuth, async (req, res) => {
     try {
+      console.log('🔍 Endpoint /api/sostenitori chiamato per email:', req.params.email);
       const { email } = req.params;
       const decodedEmail = decodeURIComponent(email);
       
       // Verifica che l'utente richiedente sia autorizzato (politico/candidato)
       const userData = await UserService.getUserByEmail(req.user!.email!);
+      console.log('👤 Dati utente richiedente:', userData?.ruolo);
+      
       if (!userData || (userData.ruolo !== 'Politico' && userData.ruolo !== 'Candidato' && userData.ruolo !== 'Candidato Politico')) {
+        console.log('❌ Accesso negato - ruolo non autorizzato:', userData?.ruolo);
         return res.status(403).json({ error: "Accesso negato. Solo politici e candidati possono visualizzare le statistiche dei sostenitori." });
       }
       
       // Verifica che l'utente stia richiedendo le proprie statistiche
       if (req.user!.email !== decodedEmail) {
+        console.log('❌ Accesso negato - email non corrisponde');
         return res.status(403).json({ error: "Puoi visualizzare solo le tue statistiche di sostenitori." });
       }
       
+      console.log('✅ Autorizzazione OK, calcolo statistiche...');
       const stats = await SostenitoriService.getSupporterStats(decodedEmail);
+      console.log('📊 Statistiche calcolate:', stats);
       return res.status(200).json(stats);
     } catch (error) {
-      console.error("Errore nel recuperare le statistiche dei sostenitori:", error);
+      console.error("❌ Errore nel recuperare le statistiche dei sostenitori:", error);
       return res.status(500).json({ error: "Errore interno del server" });
     }
   });
