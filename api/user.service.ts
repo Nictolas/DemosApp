@@ -9,10 +9,9 @@ class UserService extends FirebaseService {
 
   public static async saveUserData(userData: Utente): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      if (!db || !userData.email) return { success: false, error: "DB non conf. o email mancante" };
-      const emailId = this.emailToId(userData.email);
-      const userDocRef = doc(db, 'utenti', emailId);
-      const dataToSave: Utente = { ...userData, id: emailId, updatedAt: new Date().toISOString() };
+      if (!db || !userData.uid) return { success: false, error: "DB non conf. o uid mancante" };
+      const userDocRef = doc(db, 'utenti', userData.uid);
+      const dataToSave: Utente = { ...userData, id: userData.uid, updatedAt: new Date().toISOString() };
       if (!dataToSave.createdAt) { dataToSave.createdAt = new Date().toISOString(); }
       await setDoc(userDocRef, dataToSave, { merge: true });
       return { success: true, data: dataToSave };
@@ -21,11 +20,10 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async updateUserData(email: string, userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
+  public static async updateUserData(uid: string, userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
-      const emailId = this.emailToId(email);
-      const userDocRef = doc(db, 'utenti', emailId);
+      const userDocRef = doc(db, 'utenti', uid);
       const dataToUpdate = { ...userData, updatedAt: new Date().toISOString() };
       await updateDoc(userDocRef, dataToUpdate);
       return { success: true, data: dataToUpdate };
@@ -54,13 +52,6 @@ class UserService extends FirebaseService {
       if (!adminDb) {
         console.error("Admin SDK non inizializzato, impossibile recuperare utente per email.");
         return null;
-      }
-      
-      const emailId = this.emailToId(email);
-      const userDocRef = adminDb.collection('utenti').doc(emailId);
-      const docSnap = await userDocRef.get();
-      if (docSnap.exists) {
-        return { id: docSnap.id, ...docSnap.data() } as Utente;
       }
       
       const q = adminDb.collection('utenti').where('email', '==', email).limit(1);
@@ -94,11 +85,10 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async saveUserOpinions(userEmail: string, opinions: UserOpinions): Promise<{ success: boolean; data?: any; error?: string; }> {
+  public static async saveUserOpinions(userUid: string, opinions: UserOpinions): Promise<{ success: boolean; data?: any; error?: string; }> {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
-      const emailId = this.emailToId(userEmail);
-      const userDocRef = doc(db, 'utenti', emailId);
+      const userDocRef = doc(db, 'utenti', userUid);
       const opinionsToSave = { ...opinions, updatedAt: new Date().toISOString() };
       await setDoc(userDocRef, opinionsToSave, { merge: true });
       return { success: true, data: opinionsToSave };
@@ -107,8 +97,8 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async getUserOpinions(userEmail: string): Promise<UserOpinions | null> {
-    const user = await this.getUserByEmail(userEmail);
+  public static async getUserOpinions(userUid: string): Promise<UserOpinions | null> {
+    const user = await this.getUserById(userUid);
     if (!user) return null;
     return {
       energia_nucleare: user.energia_nucleare,
@@ -199,12 +189,17 @@ class UserService extends FirebaseService {
           let targetOpinionGroup: keyof typeof stats.genderDistributionByOpinion | null = null;
           if (normalizedOpinion === 'favorevole') targetOpinionGroup = 'favorevole';
           else if (normalizedOpinion === 'contrario') targetOpinionGroup = 'contrario';
-          else if (normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') targetOpinionGroup = 'astenuto';
+          else if (normalizedOpinion === 'astenuto') targetOpinionGroup = 'astenuto';
 
           if (targetOpinionGroup) {
-            stats.genderDistributionByOpinion[targetOpinionGroup][gender] = (stats.genderDistributionByOpinion[targetOpinionGroup][gender] || 0) + 1;
+            // Aggiorna distribuzione per genere
+            stats.genderDistributionByOpinion[targetOpinionGroup][gender] = 
+              (stats.genderDistributionByOpinion[targetOpinionGroup][gender] || 0) + 1;
+
+            // Aggiorna distribuzione per età
             if (ageRange) {
-              stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] = (stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] || 0) + 1;
+              stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] = 
+                (stats.ageDistributionByOpinion[targetOpinionGroup][ageRange] || 0) + 1;
             }
           }
         }
@@ -217,6 +212,10 @@ class UserService extends FirebaseService {
     }
   }
 
-} // <-- Chiusura della classe UserService
+  // Metodo helper per convertire email in ID (mantenuto per compatibilità)
+  public static emailToId(email: string): string {
+    return email.replace(/[.@]/g, '_');
+  }
+}
 
 export default UserService;

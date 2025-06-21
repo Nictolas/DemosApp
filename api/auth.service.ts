@@ -24,6 +24,7 @@ class AuthService extends FirebaseService {
       if (!userCredential.user) return { success: false, error: "Nessun utente restituito dalla registrazione" };
 
       const userDataToSave: Utente = {
+        id: userCredential.user.uid,
         email,
         uid: userCredential.user.uid,
         ...userDetails,

@@ -1,6 +1,7 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import { FirebaseService } from './firebase-service.js';
 import { db } from './firebase-config.js';
+import { Utente } from './types.js';
 
 // Import necessari da 'firebase/firestore'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
@@ -14,7 +15,7 @@ class ComizioService extends FirebaseService {
    */
   public static async saveComizio(
     comizioData: { dove: string; quando: string },
-    organizer: Express.User
+    organizer: Utente
   ): Promise<{ success: boolean; data?: any; error?: string }> {
 
     const dataToSave = {
