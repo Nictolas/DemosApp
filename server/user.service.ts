@@ -36,14 +36,25 @@ class UserService extends FirebaseService {
 
   public static async getUserByEmail(email: string): Promise<Utente | null> {
     try {
-      if (!db) return null;
+      if (!adminDb) {
+        console.error("Admin SDK non inizializzato, impossibile recuperare utente per email.");
+        return null;
+      }
+      
       const emailId = this.emailToId(email);
-      const userDocRef = doc(db, 'utenti', emailId);
-      const docSnap = await getDoc(userDocRef);
-      if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() } as Utente;
-      const q = query(collection(db, 'utenti'), where('email', '==', email), limit(1));
-      const querySnapshot = await getDocs(q);
-      if (!querySnapshot.empty) return { id: querySnapshot.docs[0].id, ...querySnapshot.docs[0].data() } as Utente;
+      const userDocRef = adminDb.collection('utenti').doc(emailId);
+      const docSnap = await userDocRef.get();
+      if (docSnap.exists) {
+        return { id: docSnap.id, ...docSnap.data() } as Utente;
+      }
+      
+      const q = adminDb.collection('utenti').where('email', '==', email).limit(1);
+      const querySnapshot = await q.get();
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() } as Utente;
+      }
+
       return null;
     } catch (error) {
       this.handleError(error, 'getUserByEmail');
