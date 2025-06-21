@@ -140,9 +140,10 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // (Endpoint /api/login, /api/logout, /api/user rimangono invariati)
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  app.post("/api/login", (req, res) => {
+    console.log("RICHIESTA POST A /api/login RICEVUTA");
+    console.log("Corpo della richiesta:", req.body);
+    res.status(200).json({ message: "Test POST a /api/login riuscito", data: req.body });
   });
 
   app.post("/api/logout", (req, res, next) => {
