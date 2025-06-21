@@ -40,15 +40,15 @@ export function setupAuth(app: Express) {
       secret: process.env.SESSION_SECRET!,
       resave: false,
       saveUninitialized: false,
-      // L'opzione proxy a livello di sessione è fondamentale
-      proxy: true, 
+      proxy: true, // Fondamentale per Vercel
       cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 giorni
-        // In produzione, il cookie deve essere secure per funzionare con sameSite: 'none'
-        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        // sameSite: 'none' è necessario per richieste cross-domain (es. client e server su sottodomini diversi)
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        // Con 'trust proxy' e proxy:true, express-session imposta secure automaticamente.
+        // Esplicitarlo a 'true' forza il comportamento corretto.
+        secure: true, 
+        // 'none' è necessario per richieste cross-site e richiede secure: true.
+        sameSite: 'none', 
       },
     }),
   );
