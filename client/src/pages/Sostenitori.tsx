@@ -57,32 +57,50 @@ export default function Sostenitori() {
     const fetchUserDataAndStats = async () => {
       if (!user) return;
       
+      console.log('🔄 Inizio caricamento dati sostenitori per utente:', user.email);
+      
       try {
         // First fetch user profile to get the role
+        console.log('📡 Chiamata API per dati utente...');
         const userResponse = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        console.log('📡 Risposta API utente:', userResponse.status, userResponse.statusText);
+        
         if (userResponse.ok) {
           const userData = await userResponse.json();
+          console.log('👤 Dati utente ricevuti:', userData);
           setUserProfile(userData);
           
           // Check if user is authorized (Politico, Candidato, or Candidato Politico)
           const isAuthorized = userData.ruolo === 'Politico' || userData.ruolo === 'Candidato' || userData.ruolo === 'Candidato Politico';
+          console.log('🔐 Utente autorizzato?', isAuthorized, 'Ruolo:', userData.ruolo);
           
           if (isAuthorized) {
             // Fetch supporter stats
+            console.log('📡 Chiamata API per statistiche sostenitori...');
             const statsResponse = await fetch(`/api/sostenitori/${encodeURIComponent(user.email)}`);
+            console.log('📡 Risposta API sostenitori:', statsResponse.status, statsResponse.statusText);
+            
             if (!statsResponse.ok) {
-              throw new Error(`Errore API: ${statsResponse.statusText}`);
+              const errorText = await statsResponse.text();
+              console.error('❌ Errore API sostenitori:', errorText);
+              throw new Error(`Errore API: ${statsResponse.statusText} - ${errorText}`);
             }
             
             const supporterData = await statsResponse.json();
+            console.log('📊 Dati sostenitori ricevuti:', supporterData);
             setStats(supporterData);
+          } else {
+            console.log('❌ Utente non autorizzato per visualizzare sostenitori');
           }
+        } else {
+          console.error('❌ Errore nel recuperare dati utente:', userResponse.status, userResponse.statusText);
         }
       } catch (error) {
-        console.error("Errore:", error);
+        console.error("❌ Errore generale:", error);
         setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche sostenitori");
       } finally {
         setIsLoadingStats(false);
+        console.log('✅ Caricamento completato');
       }
     };
 
