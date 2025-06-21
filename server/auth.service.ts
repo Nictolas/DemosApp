@@ -24,42 +24,10 @@ class AuthService extends FirebaseService {
       if (!userCredential.user) return { success: false, error: "Nessun utente restituito dalla registrazione" };
 
       const userDataToSave: Utente = {
-        // Campi obbligatori che abbiamo già
         email,
         uid: userCredential.user.uid,
-        status: 'pending',
-
-        // Campi che arrivano da userDetails, con un valore di default se non presenti
-        nome: userDetails.nome || '',
-        cognome: userDetails.cognome || '',
-        data_nascita: userDetails.data_nascita || null,
-        genere: userDetails.genere || 'Non specificato',
-        cittadinanza: userDetails.cittadinanza || '',
-
-        // Campi di residenza con valori di default
-        paese_residenza: userDetails.paese_residenza || '',
-        regione_residenza: userDetails.regione_residenza || '',
-        provincia_residenza: userDetails.provincia_residenza || '',
-        comune_residenza: userDetails.comune_residenza || '',
-
-        // Altri campi che potrebbero essere nel tipo Utente, con valori di default
-        // Se non sono obbligatori, puoi rimuoverli
-        paese_elezione: userDetails.paese_elezione || null,
-        regione_elezione: userDetails.regione_elezione || null,
-        provincia_elezione: userDetails.provincia_elezione || null,
-        comune_elezione: userDetails.comune_elezione || null,
-        paese_candidatura: userDetails.paese_candidatura || null,
-        regione_candidatura: userDetails.regione_candidatura || null,
-        provincia_candidatura: userDetails.provincia_candidatura || null,
-        comune_candidatura: userDetails.comune_candidatura || null,
-        ruolo: userDetails.ruolo || 'Elettore',
-        grado_elezione: userDetails.grado_elezione || null,
-        grado_candidatura: userDetails.grado_candidatura || null,
-        energia_nucleare: userDetails.energia_nucleare || null,
-        sperimentazione_animale: userDetails.sperimentazione_animale || null,
-        legalizzazione_canapa: userDetails.legalizzazione_canapa || null,
-        caccia: userDetails.caccia || null,
-        unione_europea: userDetails.unione_europea || null
+        ...userDetails,
+        status: 'pending'
       };
 
       // Delega il salvataggio dei dati a UserService

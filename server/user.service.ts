@@ -1,7 +1,7 @@
 // Importa ANCHE l'adminDb e i tipi necessari
 import { db, adminDb } from './firebase-config.js';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
-import type { Query as FirestoreQuery } from 'firebase-admin/firestore'; // Aggiunto per il tipo della query
+import type { FirebaseFirestore } from 'firebase-admin/firestore'; // Aggiunto per il tipo della query
 import { Utente, UserOpinions } from './types.js';
 import { FirebaseService } from './firebase-service.js';
 
