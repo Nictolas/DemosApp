@@ -1,23 +1,32 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
-  plugins: [react()],
-
-  // Specifica che la root del progetto Vite è la cartella 'client'
-  root: "client",
-
+  plugins: [
+    react(),
+    runtimeErrorOverlay(),
+    ...(process.env.NODE_ENV !== "production" &&
+    process.env.REPL_ID !== undefined
+      ? [
+          await import("@replit/vite-plugin-cartographer").then((m) =>
+            m.cartographer(),
+          ),
+        ]
+      : []),
+  ],
   resolve: {
-    // L'alias '@' ora punta correttamente a 'client/src'
     alias: {
-      "@": path.resolve(__dirname, "./client/src"),
+      "@db": path.resolve(import.meta.dirname, "db"),
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
-
+  root: path.resolve(import.meta.dirname, "client"),
   build: {
-    // Dalla root ('client'), vai su di un livello (..) e poi in 'dist/public'
-    outDir: "../dist/public",
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
 });

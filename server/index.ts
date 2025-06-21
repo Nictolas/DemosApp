@@ -2,7 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { registerRoutes } from "./routes.js";
 import dotenv from "dotenv";
-import { setupAuth } from "./auth.js";
 
 // Carica le variabili d'ambiente all'inizio
 dotenv.config();
@@ -17,11 +16,15 @@ const app = express();
 // Middleware di base (vengono eseguiti sempre)
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 
-// Setup dell'autenticazione (session, passport, etc.)
-setupAuth(app);
-
-// Registra tutte le altre rotte API
+// Registra tutte le rotte API sull'app Express
 registerRoutes(app);
 
 // Middleware per la gestione degli errori (deve stare dopo la registrazione delle rotte)
@@ -31,6 +34,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const message = err.message || "Internal Server Error";
   res.status(status).json({ message });
 });
+
 
 // ===================================================================
 // Blocco di esecuzione per SVILUPPO LOCALE (es. su Replit)
