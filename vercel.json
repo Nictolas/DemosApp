@@ -1,13 +1,13 @@
 {
   "functions": {
-    "server/index.ts": {
+    "api/index.ts": {
       "maxDuration": 15
     }
   },
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/server/index.ts"
+      "destination": "/api/index.ts"
     },
     {
       "source": "/:path((?!api/|assets/|icona.png|manifest.json).*)",
