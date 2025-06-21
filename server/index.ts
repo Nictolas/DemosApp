@@ -17,7 +17,6 @@ const app = express();
 // Middleware di base (vengono eseguiti sempre)
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-});
 
 // Setup dell'autenticazione (session, passport, etc.)
 setupAuth(app);
