@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx src/server/index.ts",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build:server": "tsc src/server/index.ts --outDir dist --module NodeNext --moduleResolution NodeNext --esModuleInterop --skipLibCheck --resolveJsonModule",
     "build:client": "vite build",
     "build": "npm run build:server && npm run build:client",
     "start": "node dist/server/index.js",
