@@ -11,11 +11,6 @@ import ElezioneService from "./elezione.service.js";
 import ComizioService from "./comizio.service.js";
 import NotificaService from "./notifica.service.js";
 
-// Drizzle
-import { db } from '../db/index.js';
-import { sostenitori } from '../shared/schema.js';
-import { count, eq } from 'drizzle-orm';
-
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
@@ -72,65 +67,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`Errore nel recuperare i dettagli per l'opinione:`, error);
           return res.status(500).json({ error: "Errore interno del server" });
       }
-  });
-
-  // =========================================================
-  // ROTTA SOSTENITORI
-  // =========================================================
-  app.get('/api/sostenitori', requireAuth, async (req, res, next) => {
-    try {
-      const politicianId = (req.user as any).id;
-      if (!politicianId) {
-        return res.status(401).json({ message: "ID utente non trovato nella sessione." });
-      }
-
-      const [totalResult] = await db.select({ value: count() })
-                                    .from(sostenitori)
-                                    .where(eq(sostenitori.politicoId, politicianId));
-
-      const sostenitoriData = await db.select({ 
-                                        genere: sostenitori.genere, 
-                                        data_nascita: sostenitori.data_nascita 
-                                      })
-                                      .from(sostenitori)
-                                      .where(eq(sostenitori.politicoId, politicianId));
-
-      const genderDistribution = sostenitoriData.reduce((acc: Record<string, number>, curr: any) => {
-        const gender = curr.genere || 'Non specificato';
-        acc[gender] = (acc[gender] || 0) + 1;
-        return acc;
-      }, {});
-
-      const ageDistribution: Record<string, number> = {
-        '18-25': 0, '26-35': 0, '36-50': 0, '51-65': 0, '65+': 0, 'Non specificata': 0,
-      };
-      const now = new Date();
-
-      sostenitoriData.forEach((sostenitore: { data_nascita: string | null; }) => {
-        if (!sostenitore.data_nascita) {
-          ageDistribution['Non specificata']++;
-          return;
-        }
-        const birthDate = new Date(sostenitore.data_nascita);
-        let age = now.getFullYear() - birthDate.getFullYear();
-        const m = now.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && now.getDate() < birthDate.getDate())) { age--; }
-
-        if (age >= 18 && age <= 25) ageDistribution['18-25']++;
-        else if (age >= 26 && age <= 35) ageDistribution['26-35']++;
-        else if (age >= 36 && age <= 50) ageDistribution['36-50']++;
-        else if (age >= 51 && age <= 65) ageDistribution['51-65']++;
-        else if (age > 65) ageDistribution['65+']++;
-      });
-
-      res.json({
-        totalSostenitori: totalResult.value,
-        genderDistribution,
-        ageDistribution,
-      });
-    } catch (error) {
-      next(error);
-    }
   });
 
   // =========================================================
