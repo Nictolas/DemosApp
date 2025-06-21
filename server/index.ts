@@ -19,12 +19,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Middleware CORS avanzato per gestire le credenziali
-const allowedOrigins = [process.env.VITE_CLIENT_URL, 'http://localhost:5173'];
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  const allowedOrigins = ['http://localhost:5173'];
+
+  // Consenti origini da localhost o qualsiasi sottodominio .vercel.app
+  if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
+  
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
