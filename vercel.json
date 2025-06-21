@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "server/index.ts": {
+      "maxDuration": 15
+    }
+  },
   "rewrites": [
     {
       "source": "/api/:path*",
