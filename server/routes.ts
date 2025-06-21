@@ -1,6 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth.js"; 
 
 // Servizi
 import UserService from "./user.service.js";
@@ -12,7 +11,6 @@ import ComizioService from "./comizio.service.js";
 import NotificaService from "./notifica.service.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  setupAuth(app);
 
   const requireAuth = (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated()) {
