@@ -10,6 +10,7 @@ import ComunicazioneService from "./comunicazione.service.js";
 import ElezioneService from "./elezione.service.js";
 import ComizioService from "./comizio.service.js";
 import NotificaService from "./notifica.service.js";
+import SostenitoriService from "./sostenitori.service.js";
 import { storage } from "./storage.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -73,6 +74,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`Errore nel recuperare i dettagli per l'opinione:`, error);
           return res.status(500).json({ error: "Errore interno del server" });
       }
+  });
+
+  // ===== ROTTA PER SOSTENITORI =====
+  app.get('/api/sostenitori/:email', requireAuth, async (req, res) => {
+    try {
+      const { email } = req.params;
+      const decodedEmail = decodeURIComponent(email);
+      
+      // Verifica che l'utente richiedente sia autorizzato (politico/candidato)
+      const userData = await UserService.getUserByEmail(req.user!.email!);
+      if (!userData || (userData.ruolo !== 'Politico' && userData.ruolo !== 'Candidato' && userData.ruolo !== 'Candidato Politico')) {
+        return res.status(403).json({ error: "Accesso negato. Solo politici e candidati possono visualizzare le statistiche dei sostenitori." });
+      }
+      
+      // Verifica che l'utente stia richiedendo le proprie statistiche
+      if (req.user!.email !== decodedEmail) {
+        return res.status(403).json({ error: "Puoi visualizzare solo le tue statistiche di sostenitori." });
+      }
+      
+      const stats = await SostenitoriService.getSupporterStats(decodedEmail);
+      return res.status(200).json(stats);
+    } catch (error) {
+      console.error("Errore nel recuperare le statistiche dei sostenitori:", error);
+      return res.status(500).json({ error: "Errore interno del server" });
+    }
   });
 
   // =========================================================
