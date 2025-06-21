@@ -1,11 +1,18 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "outDir": "dist",
     "module": "NodeNext",
+    "target": "ES2022",
     "moduleResolution": "NodeNext",
-    "noEmit": false,
-    "outDir": "dist"
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@db/*": ["src/db/*"],
+      "@shared/*": ["src/shared/*"]
+    }
   },
-  "include": ["src/server", "src/db", "src/shared"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/server/**/*.ts", "src/db/**/*.ts", "src/shared/**/*.ts"],
+  "exclude": ["node_modules"]
 }
