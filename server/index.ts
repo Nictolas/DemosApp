@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { registerRoutes } from "./routes.js";
 import dotenv from "dotenv";
+import { setupAuth } from "./auth.js";
 
 // Carica le variabili d'ambiente all'inizio
 dotenv.config();
@@ -16,13 +17,28 @@ const app = express();
 // Middleware di base (vengono eseguiti sempre)
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Middleware CORS avanzato per gestire le credenziali
+const allowedOrigins = [process.env.VITE_CLIENT_URL, 'http://localhost:5173'];
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
+  // Gestisce le richieste OPTIONS (pre-flight)
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
   next();
 });
+
+// Setup di Passport e Session (deve venire DOPO il middleware CORS)
+setupAuth(app);
 
 // Registra tutte le rotte API sull'app Express
 registerRoutes(app);
