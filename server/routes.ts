@@ -86,11 +86,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.post(`/api/${path}/vota`, requireAuth, async (req, res) => { 
       let name: string | undefined;
       if (entityKey === 'nome') {
-        name = req.body.nome;
+        name = req.body && typeof req.body.nome === 'string' ? req.body.nome : undefined;
       } else if (entityKey === 'legge') {
-        name = req.body.legge;
+        name = req.body && typeof req.body.legge === 'string' ? req.body.legge : undefined;
       }
-      if (typeof name !== 'string' || !name) {
+      if (!name) {
         return res.status(400).json({ error: "Nome o legge mancante" });
       }
       const result = await (VotoService as any)[methods.vote](req.user!.uid!, name); 
