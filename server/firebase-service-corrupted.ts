@@ -10,7 +10,9 @@ import {
   deleteDoc, 
   query, 
   where,
-  orderBy 
+  orderBy, 
+  QueryDocumentSnapshot, 
+  DocumentData
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword, 
@@ -100,6 +102,13 @@ class FirebaseService {
   }
 
   /**
+   * Funzione helper per normalizzare e deduplicare un utente per email
+   */
+  private static async normalizeUserByEmail(email: string): Promise<{ id: string; data: any } | null> {
+    return await this.getUserByEmail(email);
+  }
+
+  /**
    * Salva i dati di un nuovo utente in Firebase Firestore nella collezione utenti
    * Usa l'email come ID del documento per evitare duplicazioni
    * @param userData Dati dell'utente da salvare (inclusa l'email)
@@ -125,6 +134,9 @@ class FirebaseService {
           error: "Email mancante nei dati utente"
         };
       }
+
+      // Normalizza e deduplica prima di salvare
+      await this.normalizeUserByEmail(userData.email);
 
       console.log('Salvataggio dati utente in Firestore con email come ID:', userData.email);
       
@@ -161,6 +173,7 @@ class FirebaseService {
   /**
    * Recupera un utente dal database tramite email
    * Usa l'email come ID del documento per accesso diretto
+   * Se trova duplicati, li unisce e li elimina, mantenendo solo il documento con ID sanitizzato
    */
   static async getUserByEmail(email: string) {
     try {
@@ -169,40 +182,58 @@ class FirebaseService {
         return null;
       }
 
-      // Prima prova con l'email come ID del documento
       const emailId = email.replace(/[.#$\[\]]/g, '_');
       const userDocRef = doc(db, 'utenti', emailId);
       const docSnap = await getDoc(userDocRef);
-      
+
+      // Se il documento con ID sanitizzato esiste, restituiscilo subito
       if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() };
       }
-      
-      // Se non trova il documento con email come ID, cerca con query (backward compatibility)
+
+      // Altrimenti cerca tutti i documenti con la stessa email
       const usersCollection = collection(db, 'utenti');
       const q = query(usersCollection, where('email', '==', email));
       const querySnapshot = await getDocs(q);
-      
+
       if (querySnapshot.empty) {
         return null;
       }
-      
-      // Se ci sono più documenti per la stessa email, unisci tutti i dati
-      let mergedData: any = {};
-      let primaryDocId = '';
-      
-      querySnapshot.docs.forEach((doc) => {
-        const docData = doc.data();
-        // Privilegia il documento con più campi (dati completi del profilo)
-        if (Object.keys(docData).length > Object.keys(mergedData).length) {
-          primaryDocId = doc.id;
+
+      // Scegli il documento più completo come master
+      let masterDoc = querySnapshot.docs[0];
+      querySnapshot.docs.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        if (Object.keys(doc.data()).length > Object.keys(masterDoc.data()).length) {
+          masterDoc = doc;
         }
-        // Unisce tutti i dati disponibili
-        mergedData = { ...mergedData, ...docData };
       });
-      
-      return { id: primaryDocId || querySnapshot.docs[0].id, ...mergedData };
-      
+
+      // Unisci tutti i dati disponibili
+      let mergedData: any = {};
+      querySnapshot.docs.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        mergedData = { ...mergedData, ...doc.data() };
+      });
+
+      // Se il master non ha l'ID sanitizzato, crea/aggiorna il documento corretto
+      if (masterDoc.id !== emailId) {
+        await setDoc(userDocRef, mergedData, { merge: true });
+        // Elimina i duplicati (tranne quello appena creato)
+        await Promise.all(
+          querySnapshot.docs
+            .filter((doc: QueryDocumentSnapshot<DocumentData>) => doc.id !== emailId)
+            .map((doc: QueryDocumentSnapshot<DocumentData>) => deleteDoc(doc.ref))
+        );
+        return { id: emailId, ...mergedData };
+      }
+
+      // Se il master ha già l'ID corretto, elimina eventuali altri duplicati
+      await Promise.all(
+        querySnapshot.docs
+          .filter((doc: QueryDocumentSnapshot<DocumentData>) => doc.id !== emailId)
+          .map((doc: QueryDocumentSnapshot<DocumentData>) => deleteDoc(doc.ref))
+      );
+
+      return { id: masterDoc.id, ...masterDoc.data() };
     } catch (error: any) {
       console.error('Errore nel recuperare utente da Firestore:', error);
       return null;
@@ -296,6 +327,9 @@ class FirebaseService {
         };
       }
 
+      // Normalizza e deduplica prima di aggiornare
+      await this.normalizeUserByEmail(email);
+
       // Usa l'email come ID del documento
       const emailId = email.replace(/[.#$\[\]]/g, '_');
       const userDocRef = doc(db, 'utenti', emailId);
@@ -340,18 +374,17 @@ class FirebaseService {
         };
       }
 
-      // Prima trova l'utente tramite email
-      const user = await this.getUserByEmail(email);
-      if (!user || !user.id) {
-        return {
-          success: false,
-          error: "Utente non trovato"
-        };
+      // Trova tutti i documenti con la stessa email
+      const usersCollection = collection(db, 'utenti');
+      const q = query(usersCollection, where('email', '==', email));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return { success: false, error: "Utente non trovato" };
       }
 
-      const userDocRef = doc(db, 'utenti', user.id);
-      await deleteDoc(userDocRef);
-      
+      await Promise.all(querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => deleteDoc(doc.ref)));
+
       return { success: true };
     } catch (error: any) {
       console.error('Errore nell\'eliminare utente da Firestore:', error);
@@ -463,6 +496,62 @@ class FirebaseService {
         success: false,
         error: error.message || 'Errore nel reset password'
       };
+    }
+  }
+
+  /**
+   * Migrazione batch: deduplica tutti gli utenti in Firestore mantenendo un solo documento per email (ID = email sanitizzato) e unendo i dati.
+   */
+  static async migrateAndDeduplicateUsers() {
+    if (!db) {
+      console.log('Firebase Firestore non configurato, impossibile eseguire la migrazione');
+      return { success: false, error: 'Firestore non configurato' };
+    }
+    try {
+      const usersCollection = collection(db, 'utenti');
+      const allDocsSnapshot = await getDocs(usersCollection);
+      const allDocs = allDocsSnapshot.docs;
+      // Raggruppa i documenti per email
+      const emailMap: Record<string, Array<{ id: string; data: any }>> = {};
+      allDocs.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const data = doc.data();
+        if (!data.email) return;
+        if (!emailMap[data.email]) emailMap[data.email] = [];
+        emailMap[data.email].push({ id: doc.id, data });
+      });
+      let changed = 0;
+      for (const email in emailMap) {
+        const docs = emailMap[email];
+        if (docs.length === 1) continue; // Nessun duplicato
+        // Unisci tutti i dati disponibili
+        let mergedData: any = {};
+        let masterDoc = docs[0];
+        docs.forEach((doc) => {
+          if (Object.keys(doc.data).length > Object.keys(masterDoc.data).length) {
+            masterDoc = doc;
+          }
+          mergedData = { ...mergedData, ...doc.data };
+        });
+        // ID sanitizzato
+        const emailId = email.replace(/[.#$\[\]]/g, '_');
+        const userDocRef = doc(db, 'utenti', emailId);
+        // Aggiorna/crea il documento corretto
+        await setDoc(userDocRef, mergedData, { merge: true });
+        // Elimina tutti gli altri documenti (tranne quello con ID sanitizzato)
+        await Promise.all(
+          docs
+            .filter((userDoc) => userDoc.id !== emailId)
+            .map((userDoc) => {
+              const docRef = doc(db, 'utenti', userDoc.id);
+              return deleteDoc(docRef);
+            })
+        );
+        changed++;
+      }
+      return { success: true, changed };
+    } catch (error: any) {
+      console.error('Errore durante la migrazione e deduplicazione utenti:', error);
+      return { success: false, error: error.message };
     }
   }
 }

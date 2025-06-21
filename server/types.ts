@@ -29,18 +29,18 @@ export interface Utente extends DocumentoBase {
   status?: 'pending' | 'active' | 'rejected';
   premium?: boolean;
 
-  // Dati anagrafici e del profilo (OBBLIGATORI)
-  nome: string;
-  cognome: string;
-  data_nascita: string;
-  genere: string;
-  cittadinanza: string;
+  // Dati anagrafici e del profilo (OPZIONALI)
+  nome?: string;
+  cognome?: string;
+  data_nascita?: string;
+  genere?: string;
+  cittadinanza?: string;
 
-  // Dati di residenza (OBBLIGATORI)
-  paese_residenza: string;
-  regione_residenza: string;
-  provincia_residenza: string;
-  comune_residenza: string;
+  // Dati di residenza (OPZIONALI)
+  paese_residenza?: string;
+  regione_residenza?: string;
+  provincia_residenza?: string;
+  comune_residenza?: string;
 
   // Dati di elezione (dove l'utente vota)
   paese_elezione?: string;
@@ -55,7 +55,7 @@ export interface Utente extends DocumentoBase {
   comune_candidatura?: string;
 
   // Ruolo e grado nell'applicazione
-  ruolo: 'Elettore' | 'Politico' | 'Candidato' | 'Candidato Politico' | 'Admin';
+  ruolo?: 'Elettore' | 'Politico' | 'Candidato' | 'Candidato Politico' | 'Admin';
   grado_elezione?: string;
   grado_candidatura?: string;
 

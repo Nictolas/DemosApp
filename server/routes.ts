@@ -83,7 +83,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/governo/classifiche', async (req, res) => { const classifiche = await VotoService.getAllClassificheMinistri(); return res.status(200).json(classifiche); });
 
   const createVotingEndpoints = (path: string, methods: { vote: string, getUserVoti: string, removeVote?: string, getClassifica: string }, entityKey: 'nome' | 'legge' = 'nome') => {
-    app.post(`/api/${path}/vota`, requireAuth, async (req, res) => { const { [entityKey]: name } = req.body; if (!name) return res.status(400).json({ error: "Nome o legge mancante" }); const result = await (VotoService as any)[methods.vote](req.user!.uid!, name); if (!result.success) return res.status(500).json({ error: result.error }); return res.status(200).json({ message: "Voto registrato" }); });
+    app.post(`/api/${path}/vota`, requireAuth, async (req, res) => { 
+      const key = entityKey ?? 'nome';
+      const { [key]: name } = req.body;
+      if (!name) return res.status(400).json({ error: "Nome o legge mancante" }); 
+      const result = await (VotoService as any)[methods.vote](req.user!.uid!, name); 
+      if (!result.success) return res.status(500).json({ error: result.error }); 
+      return res.status(200).json({ message: "Voto registrato" }); 
+    });
     app.get(`/api/${path}/voti`, requireAuth, async (req, res) => { const voti = await (VotoService as any)[methods.getUserVoti](req.user!.uid!); return res.status(200).json(voti); });
     if (methods.removeVote) { app.delete(`/api/${path}/voti/:name`, requireAuth, async (req, res) => { const result = await (VotoService as any)[methods.removeVote](req.user!.uid!, decodeURIComponent(req.params.name)); if (!result.success) return res.status(404).json({ error: result.error }); return res.status(200).json({ message: "Voto rimosso" }); }); }
     app.get(`/api/${path}/classifica`, async (req, res) => { const classifica = await (VotoService as any)[methods.getClassifica](); return res.status(200).json(classifica); });

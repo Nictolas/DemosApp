@@ -1,7 +1,7 @@
 // Importa ANCHE l'adminDb e i tipi necessari
 import { db, adminDb } from './firebase-config.js';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
-import type { FirebaseFirestore } from 'firebase-admin/firestore'; // Aggiunto per il tipo della query
+import type * as admin from 'firebase-admin';
 import { Utente, UserOpinions } from './types.js';
 import { FirebaseService } from './firebase-service.js';
 
@@ -133,7 +133,7 @@ class UserService extends FirebaseService {
         return undefined;
       };
 
-      let firestoreQuery: FirebaseFirestore.Query = 
+      let firestoreQuery: admin.firestore.Query = 
           adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita', 'regione_residenza');
 
       if (regione) {
@@ -162,7 +162,7 @@ class UserService extends FirebaseService {
         }
       };
 
-      snapshot.docs.forEach(doc => {
+      snapshot.docs.forEach((doc: admin.firestore.QueryDocumentSnapshot<admin.firestore.DocumentData>) => {
         const data = doc.data();
         const opinion = data[opinionField];
         const gender = (data.genere || 'Non specificato').toLowerCase();
