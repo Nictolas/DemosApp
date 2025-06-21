@@ -191,6 +191,49 @@ class UserService extends FirebaseService {
     }
   }
 
+    // AGGIUNGI QUESTO NUOVO METODO QUI, PRIMA DELLA PARENTESI DI CHIUSURA DELLA CLASSE
+    public static async getSostenitoriByPoliticoEmail(politicoEmail: string): Promise<Utente[]> {
+      try {
+        // Usiamo adminDb per avere permessi di lettura su tutti i documenti.
+        // Se non è disponibile, restituiamo un array vuoto per evitare crash.
+        if (!adminDb) {
+          console.error("Admin SDK non inizializzato. Impossibile recuperare i sostenitori.");
+          return [];
+        }
+
+        // La query cerca tutti gli utenti dove il campo 'sostenitoreDi'
+        // è uguale all'email del politico passata come parametro.
+        // ASSICURATI CHE IL CAMPO 'sostenitoreDi' ESISTA NELLA TUA COLLEZIONE 'utenti' SU FIREBASE.
+        const q = query(
+          collection(adminDb, 'utenti'), 
+          where('sostenitoreDi', '==', politicoEmail)
+        );
+
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+          return []; // È normale che un politico non abbia sostenitori, non è un errore.
+        }
+
+        // Mappiamo i risultati, selezionando solo i campi non sensibili da restituire.
+        return querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            nome: data.nome,
+            cognome: data.cognome,
+            email: data.email,
+            avatar_config: data.avatar_config,
+            // Aggiungi altri campi pubblici che vuoi mostrare nella pagina dei sostenitori
+          } as Utente; // Usiamo 'as Utente' ma in realtà è un sottoinsieme
+        });
+
+      } catch (error) {
+        // In caso di errore durante la query, lo logghiamo e restituiamo un array vuoto.
+        this.handleError(error, 'getSostenitoriByPoliticoEmail');
+        return [];
+      }
+    }  
 } // <-- Chiusura della classe UserService
 
 export default UserService;
