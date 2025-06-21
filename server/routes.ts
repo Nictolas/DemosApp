@@ -12,8 +12,8 @@ import ComizioService from "./comizio.service.js";
 import NotificaService from "./notifica.service.js";
 
 // Drizzle
-import { db } from '../db/index.js';
-import { sostenitori } from '../db/schema.js';
+import { db } from '@db/index.js';
+import { sostenitori } from '@db/schema.js';
 import { count, eq } from 'drizzle-orm';
 
 export async function registerRoutes(app: Express): Promise<Server> {
