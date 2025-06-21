@@ -42,6 +42,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/candidati', requireAuth, async (req, res) => { try { const candidati = await UserService.getCandidati(); return res.status(200).json(candidati); } catch (error) { return res.status(500).json({ error: 'Errore nel recupero candidati' }); } });
   app.get('/api/search-politicians', requireAuth, async (req, res) => { try { const { q } = req.query; if (!q || typeof q !== 'string') return res.status(400).json({ error: 'Query mancante' }); const politicians = await UserService.searchPoliticians(q); return res.status(200).json(politicians); } catch (error) { return res.status(500).json({ error: 'Internal server error' }); } });
 
+  // ===== ROTTA PER DATI UTENTE AUTENTICATO =====
+  app.get('/api/user', requireAuth, (req, res) => {
+    if (req.user) {
+      return res.status(200).json(req.user);
+    } else {
+      return res.status(404).json({ error: 'Utente non trovato in sessione' });
+    }
+  });
+
   // ===== NUOVA ROTTA PER STATISTICHE =====
   app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => {
     try {
