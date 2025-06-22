@@ -1,0 +1,1 @@
+import { db } from '../api/firebase-config.js'; 
