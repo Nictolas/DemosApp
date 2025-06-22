@@ -3,23 +3,23 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { storage } from "./storage.js";
+import { storage } from "./storage";
 import cors from 'cors';
-import { adminAuth } from './firebase-config.js';
-import { Utente } from "./types.js";
+import { adminAuth } from './firebase-config';
+import { Utente } from "./types";
 import dotenv from "dotenv";
 import { pathToFileURL } from 'url';
 
 // Servizi
-import AuthService from "./auth.service.js";
-import UserService from "./user.service.js";
-import VotoService from "./voto.service.js";
-import AdminService from "./admin.service.js";
-import ComunicazioneService from "./comunicazione.service.js";
-import ElezioneService from "./elezione.service.js";
-import ComizioService from "./comizio.service.js";
-import NotificaService from "./notifica.service.js";
-import SostenitoriService from "./sostenitori.service.js";
+import AuthService from "./auth.service";
+import UserService from "./user.service";
+import VotoService from "./voto.service";
+import AdminService from "./admin.service";
+import ComunicazioneService from "./comunicazione.service";
+import ElezioneService from "./elezione.service";
+import ComizioService from "./comizio.service";
+import NotificaService from "./notifica.service";
+import SostenitoriService from "./sostenitori.service";
 
 dotenv.config();
 
