@@ -108,10 +108,13 @@ export default function LandingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Informazioni di Residenza</h3>
-                <p className="text-gray-600">
-                  Inserisci i tuoi dati elettorali per partecipare a votazioni e iniziative nella tua zona.
-                </p>
+                <h3 className="text-xl font-semibold mb-2">Se sei un politico o un candidato, con Demos puoi:</h3>
+                <ul className="list-disc list-inside text-gray-700 mb-2">
+                  <li>allargare il tuo bacino di elettori;</li>
+                  <li>scoprire le preferenze delle persone sugli argomenti importanti;</li>
+                  <li>monitorare le opinioni per zone, genere, fasce d'età, etc.</li>
+                  <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi comizi, eventi, votazioni, etc.</li>
+                </ul>
               </div>
               
               <div className="bg-blue-50 rounded-lg p-6 shadow-md">
