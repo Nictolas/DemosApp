@@ -1,17 +1,10 @@
 import FirebaseService from './firebase-service';
 import { auth } from '../api/firebase-config';
-import { Utente } from 'api/types';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import UserService from './user.service.js'; // CORRETTO
+import UserService from './user.service.js';
 
 class AuthService extends FirebaseService {
-
-  /**
-   * Registra un nuovo utente in Firebase Auth e chiama UserService per salvare i dati in Firestore.
-   */
-  public static async registerUserOnFirebaseAuth(
-    email, password, userDetails
-  ) {
+  static async registerUserOnFirebaseAuth(email, password, userDetails) {
     try {
       console.log("NUOVA VERSIONE DEL FILE AUTH.SERVICE IN ESECUZIONE:", userDetails);
       if (!auth) return { success: false, error: "Firebase Auth non è configurato" };
@@ -38,10 +31,7 @@ class AuthService extends FirebaseService {
     }
   }
 
-  /**
-   * Invia un'email per il reset della password tramite Firebase Auth.
-   */
-  public static async resetPassword(email) {
+  static async resetPassword(email) {
     try {
       if (!auth) return { success: false, error: "Firebase Auth non è configurato" };
       await sendPasswordResetEmail(auth, email);
