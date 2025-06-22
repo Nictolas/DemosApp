@@ -99,16 +99,11 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  done(null, user.id);
+  done(null, user);
 });
 
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await UserService.getUserById(id);
-    done(null, user);
-  } catch (error) {
-    done(error);
-  }
+passport.deserializeUser(async (user, done) => {
+  done(null, user);
 });
 
 
