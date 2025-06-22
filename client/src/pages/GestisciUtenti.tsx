@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -24,17 +24,21 @@ import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 
 type User = {
-  id: number;
+  id: string;
+  uid: string;
   nome: string;
   cognome: string;
   email: string;
   ruolo: string;
+  status: 'pending' | 'active' | 'rejected';
+  [key: string]: any;
 };
 
 export default function GestisciUtenti() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,33 +51,78 @@ export default function GestisciUtenti() {
   const [showEditOpinioniDialog, setShowEditOpinioniDialog] = useState(false);
   const [selectedUserEmail, setSelectedUserEmail] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (!user) return;
-      
-      try {
-        // Carica i dati tramite API (che ora usa Firebase)
-        const response = await fetch("/api/users");
-        if (response.ok) {
-          const userData = await response.json();
-          console.log("Utenti caricati:", userData);
-          setUsers(userData as User[]);
-        } else {
-          throw new Error("Errore nel caricamento degli utenti");
-        }
-      } catch (error) {
-        console.error("Errore:", error);
-        setError("Errore nel caricamento degli utenti");
-      } finally {
-        setIsLoadingUsers(false);
+  const fetchUsers = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingUsers(true);
+    try {
+      const [allUsersResponse, pendingUsersResponse] = await Promise.all([
+        fetch("/api/users"),
+        fetch("/api/pending-users")
+      ]);
+
+      if (allUsersResponse.ok) {
+        const userData = await allUsersResponse.json();
+        setUsers(userData.filter((u: User) => u.status === 'active'));
+      } else {
+        throw new Error("Errore nel caricamento degli utenti attivi");
       }
-    };
+      
+      if (pendingUsersResponse.ok) {
+        const pendingData = await pendingUsersResponse.json();
+        setPendingUsers(pendingData);
+      } else {
+        throw new Error("Errore nel caricamento degli utenti in attesa");
+      }
 
-    if (user) {
-      fetchUsers();
+    } catch (error) {
+      console.error("Errore:", error);
+      setError("Errore nel caricamento degli utenti");
+    } finally {
+      setIsLoadingUsers(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handleApproval = async (userId: string, approve: boolean) => {
+    setActionInProgress(userId);
+    const endpoint = approve ? '/api/approve-user' : '/api/reject-user';
+    const actionText = approve ? 'approvato' : 'rifiutato';
+    
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Errore durante l'azione`);
+      }
+
+      toast({
+        title: `Utente ${actionText}`,
+        description: `L'utente è stato ${actionText} con successo.`,
+      });
+      
+      // Ricarica tutti i dati per aggiornare entrambe le liste
+      await fetchUsers();
+
+    } catch (error) {
+      toast({
+        title: 'Errore',
+        description: error instanceof Error ? error.message : `Si è verificato un errore`,
+        variant: 'destructive',
+      });
+    } finally {
+      setActionInProgress(null);
+    }
+  };
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
@@ -174,10 +223,63 @@ export default function GestisciUtenti() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
           </Button>
           
+          {/* SEZIONE UTENTI IN ATTESA */}
+          {pendingUsers.length > 0 && (
+            <Card className="mb-8 border-yellow-500">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-yellow-600 flex items-center">
+                  <AlertCircle className="mr-2 h-5 w-5" />
+                  Utenti in Attesa di Approvazione ({pendingUsers.length})
+                </CardTitle>
+                <CardDescription>
+                  Questi utenti si sono registrati e attendono la tua approvazione per accedere.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="text-right">Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingUsers.map((pendingUser) => (
+                      <TableRow key={pendingUser.id}>
+                        <TableCell>{pendingUser.nome} {pendingUser.cognome}</TableCell>
+                        <TableCell>{pendingUser.email}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => handleApproval(pendingUser.id, false)}
+                            disabled={actionInProgress === pendingUser.id}
+                          >
+                            {actionInProgress === pendingUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Rifiuta'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-green-500 hover:bg-green-600"
+                            onClick={() => handleApproval(pendingUser.id, true)}
+                            disabled={actionInProgress === pendingUser.id}
+                          >
+                            {actionInProgress === pendingUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approva'}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                Gestione Utenti
+                Gestione Utenti Attivi
               </CardTitle>
               <CardDescription>
                 Visualizza e gestisci gli utenti della piattaforma DEMOS
@@ -303,7 +405,7 @@ export default function GestisciUtenti() {
                                     size="sm"
                                     className="text-blue-500"
                                     onClick={() => {
-                                      setSelectedUserId(user.id.toString());
+                                      setSelectedUserId(user.id);
                                       setShowViewOpinioniDialog(true);
                                     }}
                                   >
@@ -314,7 +416,7 @@ export default function GestisciUtenti() {
                                     size="sm"
                                     className="text-green-600"
                                     onClick={() => {
-                                      setSelectedUserId(user.id.toString());
+                                      setSelectedUserId(user.id);
                                       setShowEditOpinioniDialog(true);
                                     }}
                                   >
