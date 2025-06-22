@@ -78,7 +78,7 @@ export default function Comunica() {
     queryKey: ["/api/users", sessionData?.email],
     queryFn: async () => {
       if (!sessionData?.email) return null;
-      const response = await fetch(`/api/users/${encodeURIComponent(sessionData.email)}`);
+      const response = await fetch(`/api/users/${encodeURIComponent(sessionData.uid)}`);
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },

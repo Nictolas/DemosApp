@@ -73,8 +73,7 @@ export default function Profilo() {
     for (const [key, email] of Object.entries(representatives)) {
       if (email && typeof email === 'string') {
         try {
-          const cleanEmail = email.replace('@gmail_com', '@gmail.com');
-          const response = await fetch(`/api/users/${encodeURIComponent(cleanEmail)}`);
+          const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
@@ -102,11 +101,11 @@ export default function Profilo() {
               }
             }
           } else {
-            names[key] = cleanEmail;
+            names[key] = email;
           }
         } catch (error) {
           console.error(`Errore nel recupero dati per ${email}:`, error);
-          names[key] = email.replace('@gmail_com', '@gmail.com');
+          names[key] = email;
         }
       }
     }
@@ -131,8 +130,7 @@ export default function Profilo() {
     for (const [key, email] of Object.entries(candidates)) {
       if (email && typeof email === 'string') {
         try {
-          const cleanEmail = email.replace('@gmail_com', '@gmail.com');
-          const response = await fetch(`/api/users/${encodeURIComponent(cleanEmail)}`);
+          const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
@@ -160,11 +158,11 @@ export default function Profilo() {
               }
             }
           } else {
-            names[key] = cleanEmail;
+            names[key] = email;
           }
         } catch (error) {
           console.error(`Errore nel recupero dati per ${email}:`, error);
-          names[key] = email.replace('@gmail_com', '@gmail.com');
+          names[key] = email;
         }
       }
     }
@@ -197,7 +195,7 @@ export default function Profilo() {
       
       try {
         // Carica i dati utente tramite API (che ora usa Firebase)
-        const response = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
         
         if (response.ok) {
           const userData = await response.json();
@@ -307,7 +305,7 @@ export default function Profilo() {
               ) : userInfo && user ? (
                 isEditing ? (
                   <EditProfileForm 
-                    userData={{...userInfo, email: user.email}} 
+                    userData={{...userInfo, uid: user.uid}} 
                     onProfileUpdated={(updatedData) => {
                       // Mostra un toast di conferma
                       toast({

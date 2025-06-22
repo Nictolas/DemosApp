@@ -27,7 +27,7 @@ export default function Elezioni() {
           const userData = await userResponse.json();
           
           // Carica i dati completi dell'utente tramite email
-          const completeUserResponse = await fetch(`/api/users/${encodeURIComponent(userData.email)}`);
+          const completeUserResponse = await fetch(`/api/users/${encodeURIComponent(userData.uid)}`);
           const completeUserData = await completeUserResponse.json();
           
           console.log("Dati utente completi caricati:", completeUserData);

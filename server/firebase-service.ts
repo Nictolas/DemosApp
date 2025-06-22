@@ -13,13 +13,6 @@ export default class FirebaseService {
   }
 
   /**
-   * Converte un'email in un ID valido per Firestore (sostituisce caratteri non validi).
-   */
-  static emailToId(email: string): string {
-    return email.replace(/[@.]/g, '_').toLowerCase();
-  }
-
-  /**
    * Salva un documento generico in una collezione Firestore.
    * Se il documento ha un campo 'id', lo usa come chiave primaria.
    */

@@ -62,7 +62,7 @@ export default function Sostenitori() {
       try {
         // First fetch user profile to get the role
         console.log('📡 Chiamata API per dati utente...');
-        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.email)}`, { credentials: 'include' });
+        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.uid)}`, { credentials: 'include' });
         console.log('📡 Risposta API utente:', userResponse.status, userResponse.statusText);
         
         if (userResponse.ok) {

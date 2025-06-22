@@ -81,11 +81,11 @@ export default function GestisciUtenti() {
   }
 
   // Funzione per eliminare un utente
-  const deleteUser = async (userEmail: string) => {
+  const deleteUser = async (userUid: string) => {
     setIsDeleting(true);
     
     try {
-      const response = await fetch(`/api/users/${userEmail}`, {
+      const response = await fetch(`/api/users/${userUid}`, {
         method: 'DELETE',
       });
       
@@ -95,7 +95,7 @@ export default function GestisciUtenti() {
       }
       
       // Aggiorna la lista degli utenti rimuovendo l'utente eliminato
-      setUsers(prevUsers => prevUsers.filter(u => u.email !== userEmail));
+      setUsers(prevUsers => prevUsers.filter(u => u.email !== userUid));
       
       toast({
         title: 'Utente eliminato',

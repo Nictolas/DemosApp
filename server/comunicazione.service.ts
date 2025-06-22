@@ -23,7 +23,7 @@ class ComunicazioneService extends FirebaseService {
     try {
       if (!user.uid || !user.email) return { success: false, error: "Dati utente in sessione incompleti" };
 
-      const userData = await UserService.getUserByEmail(user.email);
+      const userData = await UserService.getUserById(user.uid);
       if (!userData || (userData.ruolo !== 'Politico' && userData.ruolo !== 'Candidato Politico')) {
         return { success: false, error: "Permessi non sufficienti per creare una comunicazione" };
       }

@@ -43,7 +43,7 @@ export default function Opinioni() {
       setIsLoadingOpinions(true);
       
       // Carica i dati utente unificati che ora contengono anche le opinioni
-      const response = await fetch(`/api/users/${encodeURIComponent(user.email)}`, {
+      const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'

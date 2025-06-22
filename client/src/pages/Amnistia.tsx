@@ -53,7 +53,7 @@ export default function Amnistia() {
 
       // Carica il profilo utente
       if (user) {
-        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
         if (userResponse.ok) {
           const userData = await userResponse.json();
           setUserProfile(userData);
