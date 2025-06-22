@@ -82,17 +82,21 @@ export class FirebaseService {
    */
   protected static async _getLeaderboard(votesCollectionName: string, entityKey: string = 'nome', resultLimit: number = 10): Promise<ClassificaItem[]> {
     try {
-      if (!adminDb) return [];
+      const db = adminDb;
+      if (!db) {
+        console.warn('Database non configurato per _getLeaderboard');
+        return [];
+      }
       console.log(`[PERFORMANCE] Inizio _getLeaderboard ottimizzato per: ${votesCollectionName}`);
 
       // Step 1: Ottieni la lista di tutti i nomi unici dei candidati/entità votate.
-      const snapshot = await adminDb.collection(votesCollectionName).get();
+      const snapshot = await db.collection(votesCollectionName).get();
       const allEntityNames = snapshot.docs.map(doc => doc.data()[entityKey]);
       const uniqueEntityNames = [...new Set(allEntityNames)];
 
       // Step 2: Per ogni nome unico, esegui una query di CONTEGGIO (molto veloce).
       const countPromises = uniqueEntityNames.map(name => {
-        const q = adminDb.collection(votesCollectionName).where(entityKey, '==', name);
+        const q = db.collection(votesCollectionName).where(entityKey, '==', name);
         return q.get().then(querySnapshot => ({
           nome: name,
           voti: querySnapshot.size

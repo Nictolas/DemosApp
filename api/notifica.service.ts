@@ -66,8 +66,9 @@ class NotificaService extends FirebaseService {
    */
   public static async getUserNotifications(userId: string): Promise<any[]> {
     try {
-      if (!adminDb) return [];
-      const q = adminDb.collection('notifiche').where('destinatario_id', '==', userId);
+      const db = adminDb;
+      if (!db) return [];
+      const q = db.collection('notifiche').where('destinatario_id', '==', userId);
       const querySnapshot = await q.get();
       const notifications = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       notifications.sort((a: any, b: any) => 
@@ -85,13 +86,18 @@ class NotificaService extends FirebaseService {
    */
   public static async markNotificationAsRead(notificationId: string, userId: string): Promise<{ success: boolean; error?: string; }> {
     try {
-      if (!adminDb) return { success: false, error: "Database non configurato" };
-      const notificationDocRef = adminDb.collection('notifiche').doc(notificationId);
+      const db = adminDb;
+      if (!db) return { success: false, error: "Database non configurato" };
+      const notificationDocRef = db.collection('notifiche').doc(notificationId);
       const notificationSnapshot = await notificationDocRef.get();
       if (!notificationSnapshot.exists) {
         return { success: false, error: "Notifica non trovata" };
       }
-      if (notificationSnapshot.data().destinatario_id !== userId) {
+      const notificationData = notificationSnapshot.data();
+      if (!notificationData) {
+        return { success: false, error: "Dati notifica non validi" };
+      }
+      if (notificationData.destinatario_id !== userId) {
         return { success: false, error: "Non autorizzato a modificare questa notifica" };
       }
       await notificationDocRef.update({

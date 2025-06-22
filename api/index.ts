@@ -8,6 +8,7 @@ import cors from 'cors';
 import { adminAuth } from './firebase-config.js';
 import { Utente } from "./types.js";
 import dotenv from "dotenv";
+import { pathToFileURL } from 'url';
 
 // Servizi
 import AuthService from "./auth.service.js";
@@ -251,6 +252,14 @@ createVotingEndpoints('grazia', { vote: 'voteGrazia', getUserVoti: 'getUserVotiG
 createVotingEndpoints('amnistia', { vote: 'voteAmnistia', getUserVoti: 'getUserVotiAmnistia', removeVote: 'removeVoteAmnistia', getClassifica: 'getClassificaAmnistia' }, 'legge');
 createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativaPopolare', getClassifica: 'getClassificaIniziativaPopolare' });
 createVotingEndpoints('referendum-abrogativo', { vote: 'voteReferendumAbrogativo', getUserVoti: 'getUserVotiReferendumAbrogativo', getClassifica: 'getClassificaReferendumAbrogativo' });
+
+// Avvia il server Express in locale solo se il file viene eseguito direttamente
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server avviato su http://localhost:${PORT}`);
+  });
+}
 
 // Export dell'app per Vercel
 export default app;

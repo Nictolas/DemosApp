@@ -32,13 +32,13 @@ class SostenitoriService extends FirebaseService {
    */
   public static async getSupporterStats(politicianEmail: string): Promise<SupporterStats> {
     try {
-      if (!adminDb) {
+      const db = adminDb;
+      if (!db) {
         throw new Error('Database non configurato');
       }
 
-      // Recupera tutti gli utenti
-      const usersRef = collection(adminDb, 'utenti');
-      const usersSnapshot = await getDocs(usersRef);
+      // Recupera tutti gli utenti usando Admin SDK
+      const usersSnapshot = await db.collection('utenti').get();
       
       const supporters: any[] = [];
       

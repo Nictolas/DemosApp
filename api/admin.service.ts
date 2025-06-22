@@ -101,6 +101,7 @@ class AdminService extends FirebaseService {
       const requestDoc = await adminDb.collection('premium_requests').doc(requestId).get();
       if (!requestDoc.exists) return { success: false, error: 'Richiesta non trovata' };
       const requestData = requestDoc.data();
+      if (!requestData || !requestData.user_email) return { success: false, error: 'Dati richiesta non validi' };
       const userRef = adminDb.collection('utenti').doc(this.emailToId(requestData.user_email));
       await userRef.update({ premium: true, premium_activated_at: new Date().toISOString() });
       await adminDb.collection('premium_requests').doc(requestId).update({ status: 'approved', approved_at: new Date().toISOString() });
