@@ -1,5 +1,5 @@
 import FirebaseService from './firebase-service.js';
-import { auth } from '../api/firebase-config';
+import { auth } from '../api/firebase-config.js';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import UserService from './user.service.js';
 

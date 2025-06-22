@@ -1,0 +1,1 @@
+import { db, adminDb } from '../api/firebase-config.js'; 
