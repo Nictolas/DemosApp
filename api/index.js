@@ -99,11 +99,20 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  done(null, user);
+  // Salvo nella sessione l'ID univoco dell'utente.
+  // Assicuriamoci di usare 'uid' se esiste, altrimenti 'id'.
+  const userId = user.uid || user.id;
+  done(null, userId);
 });
 
-passport.deserializeUser(async (user, done) => {
-  done(null, user);
+passport.deserializeUser(async (id, done) => {
+  try {
+    // Ad ogni richiesta, recupero i dati aggiornati dell'utente dal DB.
+    const user = await UserService.getUserById(id);
+    done(null, user);
+  } catch (error) {
+    done(error);
+  }
 });
 
 
