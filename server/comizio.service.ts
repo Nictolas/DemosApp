@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import FirebaseService from './firebase-service';
-import { db } from '../firebase-config';
+import { db } from '../api/firebase-config';
 
 // Import necessari da 'firebase/firestore'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';

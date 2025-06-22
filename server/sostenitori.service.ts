@@ -1,7 +1,7 @@
 // Import delle configurazioni e tipi
-import { db } from '../firebase-config';
+import { db } from '../api/firebase-config';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { Utente } from '../types';
+import { Utente } from 'api/types';
 
 class SostenitoriService {
   /**
