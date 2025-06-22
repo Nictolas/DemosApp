@@ -3,8 +3,6 @@ import FirebaseService from './firebase-service';
 import { db } from '../api/firebase-config';
 // Import necessari da 'firebase/firestore'
 import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy } from 'firebase/firestore';
-// Import dei tipi necessari con percorso corretto
-import { ClassificaItem } from 'api/types';
 
 class VotoService extends FirebaseService {
 

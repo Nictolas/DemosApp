@@ -1,12 +1,11 @@
 // Importa ANCHE l'adminDb e i tipi necessari
 import { db, adminDb } from '../api/firebase-config';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
-import { Utente, UserOpinions } from 'api/types';
 import FirebaseService from './firebase-service';
 
 class UserService extends FirebaseService {
 
-  public static async saveUserData(userData) {
+  static async saveUserData(userData) {
     try {
       if (!db || !userData.uid) return { success: false, error: "DB non configurato o uid mancante" };
       const userDocRef = doc(db, 'utenti', userData.uid);
@@ -19,7 +18,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async updateUserData(uid, userData) {
+  static async updateUserData(uid, userData) {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
       const userDocRef = doc(db, 'utenti', uid);
@@ -31,7 +30,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async getUserById(uid) {
+  static async getUserById(uid) {
     try {
       if (!db) return null;
       const userDocRef = doc(db, 'utenti', uid);
@@ -44,7 +43,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async getAllUsers() {
+  static async getAllUsers() {
     try {
       if (!adminDb) {
           console.error("Admin SDK non inizializzato. Impossibile recuperare tutti gli utenti.");
@@ -61,7 +60,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async saveUserOpinions(uid, opinions) {
+  static async saveUserOpinions(uid, opinions) {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
       const userDocRef = doc(db, 'utenti', uid);
@@ -73,7 +72,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async getUserOpinions(uid) {
+  static async getUserOpinions(uid) {
     const user = await this.getUserById(uid);
     if (!user) return null;
     return {
@@ -85,14 +84,14 @@ class UserService extends FirebaseService {
     };
   }
 
-  public static async getCandidati() {
+  static async getCandidati() {
     const allUsers = await this.getAllUsers();
     return allUsers.filter(user => 
       user.ruolo === 'Candidato' || user.ruolo === 'Candidato Politico'
     );
   }
 
-  public static async searchPoliticians(searchTerm) {
+  static async searchPoliticians(searchTerm) {
     const allUsers = await this.getAllUsers();
     const q = searchTerm.toLowerCase();
     return allUsers.filter(user =>
@@ -105,7 +104,7 @@ class UserService extends FirebaseService {
    * Recupera statistiche dettagliate per un singolo campo di opinione.
    * Può essere filtrato per regione.
    */
-  public static async getOpinionDetailStats(opinionField, regione) {
+  static async getOpinionDetailStats(opinionField, regione) {
     try {
       if (!adminDb) {
         console.error("Admin SDK non inizializzato, impossibile recuperare statistiche dettagliate.");
