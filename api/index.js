@@ -5,7 +5,7 @@ import session from "express-session";
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { storage } from "./storage.js";
 import cors from 'cors';
-import { adminAuth } from './firebase-config.js';
+import { adminAuth, auth } from './firebase-config.js';
 import dotenv from "dotenv";
 import { pathToFileURL } from 'url';
 
@@ -66,15 +66,32 @@ app.use(passport.session());
 passport.use(
   new LocalStrategy({ usernameField: 'email' }, async (email, password, done) => {
     try {
-      if (!adminAuth) return done(null, false, { message: "Auth service not available" });
-      // Qui dovresti implementare la verifica della password tramite un sistema custom
-      // Per ora, accettiamo qualsiasi password se l'utente esiste
-      const userRecord = await adminAuth.getUserByEmail(email);
-      if (!userRecord) return done(null, false, { message: "User not found" });
+      // 1. Verifico che i servizi di autenticazione siano disponibili
+      if (!auth || !adminAuth) {
+        return done(null, false, { message: "Auth service not available" });
+      }
+
+      // 2. Verifico le credenziali (email e password) usando il Client SDK
+      await signInWithEmailAndPassword(auth, email, password);
+
+      // 3. Se le credenziali sono corrette, recupero il profilo utente da Firestore
       const userProfile = await UserService.getUserById(email);
-      if (!userProfile) return done(null, false, { message: "User profile not found" });
+      if (!userProfile) {
+        return done(null, false, { message: "User profile not found in Firestore" });
+      }
+      
+      // 4. Verifico che l'utente non sia 'pending' o 'banned'
+      if (userProfile.status !== 'active') {
+          return done(null, false, { message: `User status is ${userProfile.status}`});
+      }
+
       return done(null, userProfile);
+
     } catch (error) {
+      // Se signInWithEmailAndPassword fallisce, l'errore viene catturato qui
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+        return done(null, false, { message: "Invalid email or password" });
+      }
       return done(error);
     }
   }),
