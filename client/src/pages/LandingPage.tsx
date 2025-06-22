@@ -37,10 +37,10 @@ export default function LandingPage() {
                 className="w-28 h-28 mx-auto mb-6" 
               />
               <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-                Benvenuto in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">DEMOS</span>
+                La piattaforma digitale per la partecipazione democratica in Italia
               </h1>
               <p className="text-xl text-gray-700 mb-8">
-                Il sistema di registrazione per la democrazia italiana. DEMOS ti permette di registrare i tuoi dati e partecipare attivamente al processo democratico.
+                DEMOS ti permette di esprimere opinioni, partecipare a votazioni, proporre iniziative e seguire la vita politica italiana in modo trasparente, sicuro e innovativo.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 {user ? (
@@ -81,7 +81,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Registrazione Utente</h3>
                 <p className="text-gray-600">
-                  Registra le tue informazioni personali per partecipare al sistema democratico italiano.
+                  Crea il tuo profilo civico per accedere a tutte le funzionalità della piattaforma.
                 </p>
               </div>
               
@@ -93,7 +93,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Informazioni di Residenza</h3>
                 <p className="text-gray-600">
-                  Specifica i dettagli sulla tua residenza, inclusi regione, provincia e comune.
+                  Inserisci i tuoi dati elettorali per partecipare a votazioni e iniziative nella tua zona.
                 </p>
               </div>
               
@@ -105,7 +105,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Elezione e Candidatura</h3>
                 <p className="text-gray-600">
-                  Fornisci informazioni sul tuo ruolo elettorale, candidature e altre informazioni rilevanti.
+                  Partecipa come elettore, candidato o sostenitore alle elezioni e alle attività democratiche.
                 </p>
               </div>
             </div>
@@ -115,9 +115,9 @@ export default function LandingPage() {
         {/* Call to Action */}
         <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4">Entra a far parte di DEMOS oggi stesso</h2>
+            <h2 className="text-3xl font-bold mb-4">Unisciti a DEMOS e diventa protagonista della democrazia digitale italiana</h2>
             <p className="text-xl mb-8 max-w-2xl mx-auto">
-              Unisciti ai cittadini che stanno contribuendo attivamente alla democrazia italiana.
+              Vota, proponi, discuti, partecipa: la democrazia italiana ti aspetta!
             </p>
             {!user && (
               <Link href="/auth">
