@@ -11,7 +11,7 @@ class NotificaService extends FirebaseService {
    * Invia notifiche a tutti gli utenti che hanno scelto un rappresentante specifico.
    */
   public static async sendNotificationsForComunicazione(
-    rappresentanteEmail: string,
+    rappresentanteUid: string,
     rappresentanteNome: string,
     rappresentanteCognome: string,
     titolo: string,
@@ -26,7 +26,6 @@ class NotificaService extends FirebaseService {
         return;
       }
       const dbInstance = db as import('firebase/firestore').Firestore;
-      const rappresentanteIdFirebase = this.emailToId(rappresentanteEmail);
       const usersSnapshot = await getDocs(collection(dbInstance, 'utenti'));
       const notificationPromises: Promise<DocumentReference>[] = [];
 
@@ -40,11 +39,11 @@ class NotificaService extends FirebaseService {
             userData.rappresentante_comunale
         ].filter(Boolean); // Rimuove valori nulli o undefined
 
-        if (rappresentantiScelti.includes(rappresentanteIdFirebase)) {
+        if (rappresentantiScelti.includes(rappresentanteUid)) {
           const notificationData = {
             comunicazione_id: comunicazioneId,
             destinatario_id: userData.uid || userDoc.id,
-            rappresentante_id: rappresentanteIdFirebase,
+            rappresentante_id: rappresentanteUid,
             rappresentante_nome: rappresentanteNome,
             rappresentante_cognome: rappresentanteCognome,
             titolo,
