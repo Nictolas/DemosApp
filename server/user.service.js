@@ -1,7 +1,7 @@
 // Importa ANCHE l'adminDb e i tipi necessari
 import { db, adminDb } from '../api/firebase-config';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
-import FirebaseService from './firebase-service';
+import FirebaseService from './firebase-service.js';
 
 class UserService extends FirebaseService {
 
