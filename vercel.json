@@ -8,5 +8,10 @@
       "source": "/:path((?!api/|assets/|icona.png|manifest.json).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": ["api/storage.ts"]
+    }
+  }
 } 
