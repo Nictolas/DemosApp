@@ -312,6 +312,7 @@ const createVotingEndpoints = (path, methods, entityKey = 'nome') => {
 
 createVotingEndpoints('governo', { vote: 'voteMinistro', getUserVoti: 'getUserVotiMinistri', getClassifica: 'getAllClassificheMinistri' });
 createVotingEndpoints('capo-stato', { vote: 'voteCapoDiStato', getUserVoti: 'getUserVotiCapoDiStato', removeVote: 'removeVoteCapoDiStato', getClassifica: 'getClassificaCapoDiStato' });
+createVotingEndpoints('grazia', { vote: 'voteGrazia', getUserVoti: 'getUserVotiGrazia', removeVote: 'removeVoteGrazia', getClassifica: 'getClassificaGrazia' });
 createVotingEndpoints('amnistia-indulto-grazia', { vote: 'voteIniziativa', getUserVoti: 'getUserVotiIniziative', getClassifica: 'getClassificaIniziative' }, 'legge');
 createVotingEndpoints('referendum-abrogativi', { vote: 'voteReferendum', getUserVoti: 'getUserVotiReferendum', getClassifica: 'getClassificaReferendum' }, 'legge');
 createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativePopolari', getClassifica: 'getClassificaIniziativePopolari' }, 'legge');
