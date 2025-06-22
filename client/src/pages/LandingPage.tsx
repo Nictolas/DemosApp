@@ -37,10 +37,10 @@ export default function LandingPage() {
                 className="w-28 h-28 mx-auto mb-6" 
               />
               <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-                La piattaforma digitale per la partecipazione democratica in Italia
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent" style={{ WebkitTextStroke: '1px #2563eb' }}>DEMOS</span>
               </h1>
               <p className="text-xl text-gray-700 mb-8">
-                DEMOS ti permette di esprimere opinioni, partecipare a votazioni, proporre iniziative e seguire la vita politica italiana in modo trasparente, sicuro e innovativo.
+                Demos è il primo sistema operativo per la Democrazia, una piattaforma innovativa che permette di collegare elettori e rappresentanti politici.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 {user ? (
@@ -72,6 +72,21 @@ export default function LandingPage() {
         <section className="py-16 bg-white">
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold text-center mb-12">Cosa puoi fare con DEMOS</h2>
+            <div className="max-w-3xl mx-auto text-lg text-gray-700 mb-8">
+              <p className="mb-4">Attraverso Demos puoi:</p>
+              <ul className="list-disc list-inside mb-4">
+                <li>Trovare i politici e i candidati più compatibili con le tue idee,</li>
+                <li>Scoprire le opinioni dei politici su tutti gli argomenti più importanti,</li>
+                <li>Essere costantemente aggiornato sulle votazioni ed eventi dei tuoi rappresentanti;</li>
+              </ul>
+              <p className="mb-2">Se sei un politico o un candidato, con Demos puoi:</p>
+              <ul className="list-disc list-inside">
+                <li>allargare il tuo bacino di elettori;</li>
+                <li>scoprire le preferenze delle persone sugli argomenti importanti;</li>
+                <li>monitorare le opinioni per zone, genere, fasce d'età, etc.</li>
+                <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi comizi, eventi, votazioni, etc.</li>
+              </ul>
+            </div>
             <div className="grid md:grid-cols-3 gap-8">
               <div className="bg-blue-50 rounded-lg p-6 shadow-md">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
