@@ -5,7 +5,7 @@ import session from "express-session";
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { storage } from "./storage.js";
 import cors from 'cors';
-import { adminAuth } from './firebase-config';
+import { adminAuth } from './firebase-config.js';
 import { Utente } from "./types";
 import dotenv from "dotenv";
 import { pathToFileURL } from 'url';

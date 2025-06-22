@@ -6,8 +6,8 @@ import { getAuth, Auth } from "firebase/auth";
 // ==============================================================
 // CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
 // ==============================================================
-let adminDb: admin.firestore.Firestore | null = null;
-let adminAuth: admin.auth.Auth | null = null;
+let adminDb = null;
+let adminAuth = null;
 
 if (admin.apps.length === 0) { 
   try {
@@ -36,11 +36,11 @@ if (admin.apps.length === 0) {
 // ==============================================================
 // CONFIGURAZIONE FIREBASE CLIENT SDK (PER USO LATO SERVERLESS O CLIENT)
 // ==============================================================
-let db: Firestore | null = null;
-let auth: Auth | null = null;
+let db = null;
+let auth = null;
 
 try {
-  let clientApp: FirebaseApp;
+  let clientApp;
   if (getApps().length === 0) {
     clientApp = initializeApp({
       apiKey: process.env.FIREBASE_API_KEY,
@@ -51,7 +51,7 @@ try {
       appId: process.env.FIREBASE_APP_ID,
     }, 'client');
   } else {
-    clientApp = getApps().find(app => app.name === 'client')!;
+    clientApp = getApps().find(app => app.name === 'client');
   }
   db = getFirestore(clientApp);
   auth = getAuth(clientApp);
@@ -59,4 +59,4 @@ try {
   console.warn('Impossibile inizializzare Firebase Client SDK:', err);
 }
 
-export { adminDb, adminAuth, db, auth };
+export { adminDb, adminAuth, db, auth }; 
