@@ -42,16 +42,24 @@ let auth = null;
 try {
   let clientApp;
   if (getApps().length === 0) {
-    clientApp = initializeApp({
-      apiKey: process.env.FIREBASE_API_KEY,
-      authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.FIREBASE_APP_ID,
-    }, 'client');
+    // Cerca le variabili d'ambiente con e senza il prefisso VITE_ per compatibilità
+    const firebaseConfig = {
+      apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY,
+      authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID,
+      storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID,
+    };
+    
+    // Controlla che le credenziali esistano prima di inizializzare
+    if (!firebaseConfig.apiKey) {
+      throw new Error("API Key di Firebase non trovata nelle variabili d'ambiente.");
+    }
+
+    clientApp = initializeApp(firebaseConfig, 'client');
   } else {
-    clientApp = getApps().find(app => app.name === 'client');
+    clientApp = getApps().find(app => app.name === 'client') || initializeApp(firebaseConfig, 'client');
   }
   db = getFirestore(clientApp);
   auth = getAuth(clientApp);
