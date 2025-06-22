@@ -1,4 +1,4 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express from "express";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
@@ -6,7 +6,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { storage } from "./storage.js";
 import cors from 'cors';
 import { adminAuth } from './firebase-config.js';
-import { Utente } from "./types";
 import dotenv from "dotenv";
 import { pathToFileURL } from 'url';
 
@@ -24,13 +23,6 @@ import SostenitoriService from "../server/sostenitori.service.js";
 dotenv.config();
 
 const app = express();
-
-// Dichiarazione Tipi per Express User
-declare global {
-  namespace Express {
-    interface User extends Utente {}
-  }
-}
 
 // Middleware
 app.use(express.json());
@@ -54,7 +46,7 @@ app.set('trust proxy', 1);
 app.use(
   session({
     store: storage.sessionStore,
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     proxy: true,
@@ -88,11 +80,11 @@ passport.use(
   }),
 );
 
-passport.serializeUser((user: Express.User, done) => {
+passport.serializeUser((user, done) => {
   done(null, user.id);
 });
 
-passport.deserializeUser(async (id: string, done) => {
+passport.deserializeUser(async (id, done) => {
   try {
     const user = await UserService.getUserById(id);
     done(null, user);
@@ -103,12 +95,12 @@ passport.deserializeUser(async (id: string, done) => {
 
 
 // Middleware di Autenticazione
-const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+const requireAuth = (req, res, next) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
   next();
 };
 
-const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+const requireAdmin = (req, res, next) => {
   if (!req.isAuthenticated() || req.user?.ruolo !== 'Admin') return res.status(403).json({ error: "Forbidden" });
   next();
 };
@@ -160,12 +152,12 @@ app.post('/api/users/:uid/avatar', requireAuth, async (req, res) => {
 });
 
 // Opinioni
-app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user!.id, req.body)));
-app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user!.id)));
+app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
+app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.id)));
 app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
 app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
     const { opinionField } = req.params;
-    const regione = req.query.regione as string | undefined;
+    const regione = req.query.regione;
     const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
     if (!validFields.includes(opinionField)) return res.status(400).json({ error: "Invalid opinion field" });
     res.json(await UserService.getOpinionDetailStats(opinionField, regione));
@@ -173,7 +165,7 @@ app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) 
 
 // Sostenitori & Politici
 app.get('/api/candidati', requireAuth, async (req, res) => res.json(await UserService.getCandidati()));
-app.get('/api/search-politicians', requireAuth, async (req, res) => res.json(await UserService.searchPoliticians(req.query.q as string)));
+app.get('/api/search-politicians', requireAuth, async (req, res) => res.json(await UserService.searchPoliticians(req.query.q)));
 app.get('/api/sostenitori/:uid', requireAuth, async (req, res) => {
     const { uid } = req.params;
     if (req.user?.ruolo !== 'Politico' && req.user?.ruolo !== 'Candidato' && req.user?.ruolo !== 'Candidato Politico') return res.status(403).json({ error: "Forbidden" });
@@ -194,64 +186,63 @@ app.post('/api/approve-user', requireAdmin, async (req, res) => res.json(await A
 app.post('/api/reject-user', requireAdmin, async (req, res) => res.json(await AdminService.rejectUser(req.body.userId, req.body.reason)));
 
 // Comunicazioni & Notifiche
-app.post('/api/comunicazioni', requireAuth, async (req, res) => res.status(201).json(await ComunicazioneService.createComunicazione(req.user!, req.body)));
+app.post('/api/comunicazioni', requireAuth, async (req, res) => res.status(201).json(await ComunicazioneService.createComunicazione(req.user, req.body)));
 app.get('/api/podio-trasparenza', async (req, res) => res.json(await ComunicazioneService.getPodioTrasparenza()));
-app.post('/api/comunicazioni/:id/react', requireAuth, async (req, res) => res.json(await ComunicazioneService.reactToComunicazione(req.params.id, req.user!.id, req.body.reaction)));
-app.get('/api/notifiche', requireAuth, async (req, res) => res.json(await NotificaService.getUserNotifications(req.user!.id)));
-app.patch('/api/notifiche/:id/read', requireAuth, async (req, res) => res.json(await NotificaService.markNotificationAsRead(req.params.id, req.user!.id)));
+app.post('/api/comunicazioni/:id/react', requireAuth, async (req, res) => res.json(await ComunicazioneService.reactToComunicazione(req.params.id, req.user.id, req.body.reaction)));
+app.get('/api/notifiche', requireAuth, async (req, res) => res.json(await NotificaService.getUserNotifications(req.user.id)));
+app.patch('/api/notifiche/:id/read', requireAuth, async (req, res) => res.json(await NotificaService.markNotificationAsRead(req.params.id, req.user.id)));
 
 // Elezioni & Comizi
 app.get('/api/elezioni', requireAuth, async (req, res) => res.json(await ElezioneService.getAllElezioni()));
-app.post('/api/comizi', requireAuth, async (req, res) => res.status(201).json(await ComizioService.saveComizio(req.body, req.user!)));
+app.post('/api/comizi', requireAuth, async (req, res) => res.status(201).json(await ComizioService.saveComizio(req.body, req.user)));
 app.get('/api/comizi', async (req, res) => res.json(await ComizioService.getAllComizi()));
 
 // Voti
-const createVotingEndpoints = (path: string, methods: { vote: string, getUserVoti: string, removeVote?: string, getClassifica: string }, entityKey: 'nome' | 'legge' = 'nome') => {
+const createVotingEndpoints = (path, methods, entityKey = 'nome') => {
   app.post(`/api/${path}/vota`, requireAuth, async (req, res) => {
     let name = entityKey === 'nome' ? req.body.nome : req.body.legge;
     if (!name) return res.status(400).json({ error: "Missing name/law" });
     
     const voteMethod = methods.vote;
-    if (typeof (VotoService as any)[voteMethod] !== 'function') {
+    if (typeof VotoService[voteMethod] !== 'function') {
         return res.status(500).json({ error: "Invalid vote method configured" });
     }
-    const result = await (VotoService as any)[voteMethod](req.user!.id, name);
+    const result = await VotoService[voteMethod](req.user.id, name);
     res.json(result);
   });
 
   app.get(`/api/${path}/voti`, requireAuth, async (req, res) => {
     const getUserVotiMethod = methods.getUserVoti;
-    if (typeof (VotoService as any)[getUserVotiMethod] !== 'function') {
+    if (typeof VotoService[getUserVotiMethod] !== 'function') {
         return res.status(500).json({ error: "Invalid getUserVoti method configured" });
     }
-    res.json(await (VotoService as any)[getUserVotiMethod](req.user!.id));
+    res.json(await VotoService[getUserVotiMethod](req.user.id));
   });
 
   if (methods.removeVote) {
     app.delete(`/api/${path}/voti/:name`, requireAuth, async (req, res) => {
-        const removeVoteMethod = methods.removeVote!;
-        if (typeof (VotoService as any)[removeVoteMethod] !== 'function') {
+        const removeVoteMethod = methods.removeVote;
+        if (typeof VotoService[removeVoteMethod] !== 'function') {
             return res.status(500).json({ error: "Invalid removeVote method configured" });
         }
-        res.json(await (VotoService as any)[removeVoteMethod](req.user!.id, decodeURIComponent(req.params.name)))
+        res.json(await VotoService[removeVoteMethod](req.user.id, decodeURIComponent(req.params.name)))
     });
   }
   
   app.get(`/api/${path}/classifica`, async (req, res) => {
     const getClassificaMethod = methods.getClassifica;
-    if (typeof (VotoService as any)[getClassificaMethod] !== 'function') {
+    if (typeof VotoService[getClassificaMethod] !== 'function') {
         return res.status(500).json({ error: "Invalid getClassifica method configured" });
     }
-    res.json(await (VotoService as any)[getClassificaMethod]());
+    res.json(await VotoService[getClassificaMethod]());
   });
 };
 
 createVotingEndpoints('governo', { vote: 'voteMinistro', getUserVoti: 'getUserVotiMinistri', getClassifica: 'getAllClassificheMinistri' });
 createVotingEndpoints('capo-stato', { vote: 'voteCapoDiStato', getUserVoti: 'getUserVotiCapoDiStato', removeVote: 'removeVoteCapoDiStato', getClassifica: 'getClassificaCapoDiStato' });
-createVotingEndpoints('grazia', { vote: 'voteGrazia', getUserVoti: 'getUserVotiGrazia', removeVote: 'removeVoteGrazia', getClassifica: 'getClassificaGrazia' });
-createVotingEndpoints('amnistia', { vote: 'voteAmnistia', getUserVoti: 'getUserVotiAmnistia', removeVote: 'removeVoteAmnistia', getClassifica: 'getClassificaAmnistia' }, 'legge');
-createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativaPopolare', getClassifica: 'getClassificaIniziativaPopolare' });
-createVotingEndpoints('referendum-abrogativo', { vote: 'voteReferendumAbrogativo', getUserVoti: 'getUserVotiReferendumAbrogativo', getClassifica: 'getClassificaReferendumAbrogativo' });
+createVotingEndpoints('amnistia-indulto-grazia', { vote: 'voteIniziativa', getUserVoti: 'getUserVotiIniziative', getClassifica: 'getClassificaIniziative' }, 'legge');
+createVotingEndpoints('referendum-abrogativi', { vote: 'voteReferendum', getUserVoti: 'getUserVotiReferendum', getClassifica: 'getClassificaReferendum' }, 'legge');
+createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativePopolari', getClassifica: 'getClassificaIniziativePopolari' }, 'legge');
 
-// Esporta come handler per Vercel
-export default app;
+
+export default app; 
