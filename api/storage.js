@@ -5,7 +5,7 @@ import connectPg from "connect-pg-simple";
 
 // ===== IMPORT LOCALI CORRETTI CON .js =====
 import { db, pool } from "../db/index.js"; // Percorso corretto alla cartella db
-import { utenti, users } from "../shared/schema"; // Percorso corretto alla cartella shared
+import { utenti, users } from "../shared/schema.js"; // Percorso corretto alla cartella shared
 // import { Utente } from './types'; // Non serve in JS
 
 // Session store per l'autenticazione
