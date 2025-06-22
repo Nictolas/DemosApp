@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import { adminDb } from './firebase-config.js';
 import { Utente } from './types.js';
 
 // Import necessari da 'firebase/firestore'
@@ -34,19 +34,11 @@ class ComizioService extends FirebaseService {
    */
   public static async getAllComizi(): Promise<any[]> {
     try {
-      if (!db) return [];
-
-      const comiziRef = collection(db, 'comizi');
-      const q = query(comiziRef, orderBy('quando', 'asc')); // Ordina per data del comizio
-
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      if (!adminDb) return [];
+      const querySnapshot = await adminDb.collection('comizi').orderBy('quando', 'asc').get();
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-      this.handleError(error, 'getAllComizi');
+      console.error('Errore nel recupero dei comizi:', error);
       return [];
     }
   }

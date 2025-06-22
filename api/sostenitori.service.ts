@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import { adminDb } from './firebase-config.js';
 
 // Import necessari da 'firebase/firestore'
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -32,12 +32,12 @@ class SostenitoriService extends FirebaseService {
    */
   public static async getSupporterStats(politicianEmail: string): Promise<SupporterStats> {
     try {
-      if (!db) {
+      if (!adminDb) {
         throw new Error('Database non configurato');
       }
 
       // Recupera tutti gli utenti
-      const usersRef = collection(db, 'utenti');
+      const usersRef = collection(adminDb, 'utenti');
       const usersSnapshot = await getDocs(usersRef);
       
       const supporters: any[] = [];

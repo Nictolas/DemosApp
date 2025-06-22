@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con .js
 import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import { adminDb } from './firebase-config.js';
 import { Utente } from './types.js';
 
 // Import dei servizi con cui questo deve interagire
@@ -85,13 +85,13 @@ class ComunicazioneService extends FirebaseService {
    * Elimina tutte le comunicazioni e le notifiche associate per un dato utente.
    */
   private static async deletePreviousComunicazioni(userId: string): Promise<void> {
-    if (!db) return;
-    const q = query(collection(db, 'comunicazioni'), where('id_utente', '==', userId));
-    const querySnapshot = await getDocs(q);
+    if (!adminDb) return;
+    const q = adminDb.collection('comunicazioni').where('id_utente', '==', userId);
+    const querySnapshot = await q.get();
 
     const deletePromises: Promise<void>[] = [];
     querySnapshot.forEach((docToDelete) => {
-      deletePromises.push(deleteDoc(docToDelete.ref));
+      deletePromises.push(docToDelete.ref.delete());
       // Innesca l'eliminazione delle notifiche associate
       deletePromises.push(NotificaService.deleteNotificationsForComunicazione(docToDelete.id));
     });
@@ -105,8 +105,8 @@ class ComunicazioneService extends FirebaseService {
    */
   public static async getPodioTrasparenza(): Promise<any[]> {
     try {
-      if (!db) return [];
-      const querySnapshot = await getDocs(collection(db, 'comunicazioni'));
+      if (!adminDb) return [];
+      const querySnapshot = await adminDb.collection('comunicazioni').get();
 
       const userPoints: { [key: string]: any } = {};
       querySnapshot.forEach((doc) => {
@@ -139,13 +139,13 @@ class ComunicazioneService extends FirebaseService {
    * Registra una reazione (like/dislike) a una comunicazione, aggiornando i conteggi.
    */
   public static async reactToComunicazione(comunicazioneId: string, userId: string, reaction: 'like' | 'dislike'): Promise<{ success: boolean; error?: string }> {
-    if (!db) return { success: false, error: "Database non configurato" };
+    if (!adminDb) return { success: false, error: "Database non configurato" };
 
-    const comunicazioneDocRef = doc(db, 'comunicazioni', comunicazioneId);
-    const reactionDocRef = doc(collection(db, 'reazioni'), `${userId}_${comunicazioneId}`);
+    const comunicazioneDocRef = adminDb.collection('comunicazioni').doc(comunicazioneId);
+    const reactionDocRef = adminDb.collection('reazioni').doc(`${userId}_${comunicazioneId}`);
 
     try {
-      await runTransaction(db, async (transaction) => {
+      await adminDb.runTransaction(async (transaction) => {
         const comunicazioneDoc = await transaction.get(comunicazioneDocRef);
         if (!comunicazioneDoc.exists()) throw new Error("Comunicazione non trovata.");
 

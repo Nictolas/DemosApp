@@ -1,5 +1,5 @@
 // Import corretti con estensione .js
-import { db } from './firebase-config.js';
+import { adminDb } from './firebase-config.js';
 import { ClassificaItem } from './types.js';
 
 // Import necessari da Firestore, INCLUSA la funzione di aggregazione 'getCountFromServer'
@@ -23,58 +23,56 @@ export class FirebaseService {
     return email.replace(/[.#$\[\]]/g, '_');
   }
 
-  protected static handleError(error: any, context: string): { success: false; error: string } {
-    console.error(`Errore in ${context}:`, error);
-    const message = error instanceof Error ? error.message : `Errore sconosciuto in ${context}`;
-    return { success: false, error: message };
+  protected static handleError(error: any, methodName: string): { success: false; error: string } {
+    console.error(`Errore in ${methodName}:`, error);
+    return { success: false, error: error.message || 'Errore sconosciuto' };
   }
 
   // --- Metodi Helper Generici (invariati) ---
 
   protected static async _saveDocument(collectionName: string, data: object): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!adminDb) return { success: false, error: 'Database non configurato' };
       const dataToSave = { ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-      const docRef = await addDoc(collection(db, collectionName), dataToSave);
+      const docRef = await adminDb.collection(collectionName).add(dataToSave);
       return { success: true, data: { id: docRef.id, ...dataToSave } };
     } catch (error) {
-      return this.handleError(error, `_saveDocument (${collectionName})`);
+      return { success: false, error: `Errore nel salvataggio: ${error}` };
     }
   }
 
   protected static async _registerUserVote(votesCollectionName: string, userId: string, entityName: string, entityKey: string = 'nome'): Promise<{ success: boolean; error?: string }> {
      try {
-        if (!db) return { success: false, error: 'Database non configurato' };
-        const votiRef = collection(db, votesCollectionName);
-        await addDoc(votiRef, { userId, [entityKey]: entityName, timestamp: new Date().toISOString() });
-        return { success: true };
-    } catch (error) {
-        return this.handleError(error, `_registerUserVote (${votesCollectionName})`);
-    }
+       if (!adminDb) return { success: false, error: 'Database non configurato' };
+       await adminDb.collection(votesCollectionName).add({ userId, [entityKey]: entityName, timestamp: new Date().toISOString() });
+       return { success: true };
+     } catch (error) {
+       return { success: false, error: `Errore nella registrazione del voto: ${error}` };
+     }
   }
 
   protected static async _getUserVotes(votesCollectionName: string, userId: string, entityKey: string = 'nome'): Promise<string[]> {
       try {
-          if (!db) return [];
-          const q = query(collection(db, votesCollectionName), where('userId', '==', userId));
-          const snapshot = await getDocs(q);
-          return snapshot.docs.map(doc => doc.data()[entityKey]);
+        if (!adminDb) return [];
+        const q = adminDb.collection(votesCollectionName).where('userId', '==', userId);
+        const snapshot = await q.get();
+        return snapshot.docs.map(doc => doc.data()[entityKey]);
       } catch (error) {
-          this.handleError(error, `_getUserVotes (${votesCollectionName})`);
-          return [];
+        console.error(`Errore nel recupero dei voti: ${error}`);
+        return [];
       }
   }
 
   protected static async _removeUserVote(votesCollectionName: string, userId: string, entityName: string, entityKey: string = 'nome'): Promise<{ success: boolean; error?: string }> {
       try {
-          if (!db) return { success: false, error: 'Database non configurato' };
-          const q = query(collection(db, votesCollectionName), where('userId', '==', userId), where(entityKey, '==', entityName), limit(1));
-          const snapshot = await getDocs(q);
-          if (snapshot.empty) return { success: false, error: "Voto non trovato" };
-          await deleteDoc(snapshot.docs[0].ref);
-          return { success: true };
+        if (!adminDb) return { success: false, error: 'Database non configurato' };
+        const q = adminDb.collection(votesCollectionName).where('userId', '==', userId).where(entityKey, '==', entityName).limit(1);
+        const snapshot = await q.get();
+        if (snapshot.empty) return { success: false, error: "Voto non trovato" };
+        await snapshot.docs[0].ref.delete();
+        return { success: true };
       } catch (error) {
-          return this.handleError(error, `_removeUserVote (${votesCollectionName})`);
+        return { success: false, error: `Errore nella rimozione del voto: ${error}` };
       }
   }
 
@@ -84,40 +82,31 @@ export class FirebaseService {
    */
   protected static async _getLeaderboard(votesCollectionName: string, entityKey: string = 'nome', resultLimit: number = 10): Promise<ClassificaItem[]> {
     try {
-      if (!db) return [];
+      if (!adminDb) return [];
       console.log(`[PERFORMANCE] Inizio _getLeaderboard ottimizzato per: ${votesCollectionName}`);
 
       // Step 1: Ottieni la lista di tutti i nomi unici dei candidati/entità votate.
-      const snapshot = await getDocs(query(collection(db, votesCollectionName)));
+      const snapshot = await adminDb.collection(votesCollectionName).get();
       const allEntityNames = snapshot.docs.map(doc => doc.data()[entityKey]);
       const uniqueEntityNames = [...new Set(allEntityNames)];
 
-      console.log(`[PERFORMANCE] Trovati ${uniqueEntityNames.length} candidati unici.`);
-      if (uniqueEntityNames.length === 0) return [];
-
-      if (uniqueEntityNames.length > 200) {
-          console.warn(`[PERFORMANCE] Attenzione: ci sono ${uniqueEntityNames.length} candidati unici. L'operazione potrebbe richiedere tempo.`);
-      }
-
       // Step 2: Per ogni nome unico, esegui una query di CONTEGGIO (molto veloce).
       const countPromises = uniqueEntityNames.map(name => {
-        const q = query(collection(db, votesCollectionName), where(entityKey, '==', name));
-        return getCountFromServer(q).then(countSnapshot => ({
+        const q = adminDb.collection(votesCollectionName).where(entityKey, '==', name);
+        return q.get().then(querySnapshot => ({
           nome: name,
-          voti: countSnapshot.data().count
+          voti: querySnapshot.size
         }));
       });
 
       const results = await Promise.all(countPromises);
-      console.log(`[PERFORMANCE] Conteggio voti completato per ${results.length} candidati.`);
+      const sortedResults = results.sort((a, b) => b.voti - a.voti);
+      const limitedResults = sortedResults.slice(0, resultLimit);
 
-      // Step 3: Ordina i risultati in memoria e prendi i primi N.
-      return results
-        .sort((a, b) => b.voti - a.voti)
-        .slice(0, resultLimit);
-
+      console.log(`[PERFORMANCE] Fine _getLeaderboard per: ${votesCollectionName}. Risultati: ${limitedResults.length}`);
+      return limitedResults;
     } catch (error) {
-      this.handleError(error, `_getLeaderboard (${votesCollectionName})`);
+      console.error(`Errore nel recupero della classifica: ${error}`);
       return [];
     }
   }

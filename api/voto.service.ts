@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import { adminDb } from './firebase-config.js';
 
 // Import necessari da 'firebase/firestore'
 import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy } from 'firebase/firestore';
@@ -15,56 +15,65 @@ class VotoService extends FirebaseService {
   // =========================================================
 
   public static async voteMinistro(userId: string, categoria: string, nomeMinistro: string): Promise<{ success: boolean; error?: string }> {
-      try {
-          if (!db) return { success: false, error: "Database non configurato" };
-          const votiRef = collection(db, 'voti_ministri');
-          const q = query(votiRef, where('userId', '==', userId), where('categoria', '==', categoria));
-          const existingVotes = await getDocs(q);
-
-          if (!existingVotes.empty) {
-              await updateDoc(existingVotes.docs[0].ref, { nomeMinistro, timestamp: new Date().toISOString() });
-          } else {
-              await addDoc(votiRef, { userId, categoria, nomeMinistro, timestamp: new Date().toISOString() });
-          }
-          return { success: true };
-      } catch (error) {
-          return this.handleError(error, 'voteMinistro');
+    try {
+      if (!adminDb) return { success: false, error: "Database non configurato" };
+      const votiRef = adminDb.collection('voti_ministri');
+      const q = votiRef.where('userId', '==', userId).where('categoria', '==', categoria);
+      const existingVotes = await q.get();
+      
+      if (!existingVotes.empty) {
+        return { success: false, error: "Hai già votato per questa categoria" };
       }
+      
+      await votiRef.add({
+        userId,
+        categoria,
+        nomeMinistro,
+        timestamp: new Date().toISOString()
+      });
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: `Errore nel voto: ${error}` };
+    }
   }
 
   public static async getUserVotiMinistri(userId: string): Promise<Record<string, string>> {
     try {
-        if (!db) return {};
-        const q = query(collection(db, 'voti_ministri'), where('userId', '==', userId));
-        const snapshot = await getDocs(q);
-        const voti: Record<string, string> = {};
-        snapshot.forEach(doc => {
-            voti[doc.data().categoria] = doc.data().nomeMinistro;
-        });
-        return voti;
+      if (!adminDb) return {};
+      const q = adminDb.collection('voti_ministri').where('userId', '==', userId);
+      const snapshot = await q.get();
+      const voti: Record<string, string> = {};
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        voti[data.categoria] = data.nomeMinistro;
+      });
+      return voti;
     } catch (error) {
-        this.handleError(error, 'getUserVotiMinistri');
-        return {};
+      console.error('Errore nel recupero voti ministri:', error);
+      return {};
     }
   }
 
   public static async getClassificaMinistro(categoria: string): Promise<ClassificaItem[]> {
-      try {
-          if (!db) return [];
-          const q = query(collection(db, 'voti_ministri'), where('categoria', '==', categoria));
-          const snapshot = await getDocs(q);
-          const counts: Record<string, number> = {};
-          snapshot.forEach(doc => {
-              counts[doc.data().nomeMinistro] = (counts[doc.data().nomeMinistro] || 0) + 1;
-          });
-          return Object.entries(counts)
-              .map(([nome, voti]) => ({ nome, voti }))
-              .sort((a, b) => b.voti - a.voti)
-              .slice(0, 3);
-      } catch (error) {
-          this.handleError(error, `getClassificaMinistro (${categoria})`);
-          return [];
-      }
+    try {
+      if (!adminDb) return [];
+      const q = adminDb.collection('voti_ministri').where('categoria', '==', categoria);
+      const snapshot = await q.get();
+      const counts: Record<string, number> = {};
+      
+      snapshot.docs.forEach(doc => {
+        const nomeMinistro = doc.data().nomeMinistro;
+        counts[nomeMinistro] = (counts[nomeMinistro] || 0) + 1;
+      });
+      
+      return Object.entries(counts)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti);
+    } catch (error) {
+      console.error('Errore nel recupero classifica ministro:', error);
+      return [];
+    }
   }
 
   public static async getAllClassificheMinistri(): Promise<Record<string, ClassificaItem[]>> {
@@ -110,14 +119,13 @@ class VotoService extends FirebaseService {
 
   public static async getListaIniziativePopolari(): Promise<any[]> {
     try {
-        if (!db) return [];
-        // Ordina per data di creazione per mostrare le più recenti
-        const q = query(collection(db, 'iniziative_popolari'), orderBy('createdAt', 'desc'), limit(10));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (!adminDb) return [];
+      const q = adminDb.collection('iniziative_popolari').orderBy('createdAt', 'desc').limit(10);
+      const snapshot = await q.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        this.handleError(error, 'getListaIniziativePopolari');
-        return [];
+      console.error('Errore nel recupero iniziative popolari:', error);
+      return [];
     }
   }
 
@@ -129,13 +137,13 @@ class VotoService extends FirebaseService {
 
   public static async getListaReferendumAbrogativi(): Promise<any[]> {
     try {
-        if (!db) return [];
-        const q = query(collection(db, 'referendum_abrogativi'), orderBy('createdAt', 'desc'), limit(10));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (!adminDb) return [];
+      const q = adminDb.collection('referendum_abrogativi').orderBy('createdAt', 'desc').limit(10);
+      const snapshot = await q.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        this.handleError(error, 'getListaReferendumAbrogativi');
-        return [];
+      console.error('Errore nel recupero referendum abrogativi:', error);
+      return [];
     }
   }
 }

@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import { adminDb } from './firebase-config.js';
 
 // Import necessari da 'firebase/firestore'
 import { collection, query, where, getDocs, doc, updateDoc, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
@@ -17,11 +17,10 @@ class AdminService extends FirebaseService {
    */
   public static async deleteUserByEmail(email: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!db) return { success: false, error: "Database non configurato" };
-
+      if (!adminDb) return { success: false, error: "Database non configurato" };
       const emailId = this.emailToId(email);
-      const userDocRef = doc(db, 'utenti', emailId);
-      await deleteDoc(userDocRef);
+      const userDocRef = adminDb.collection('utenti').doc(emailId);
+      await userDocRef.delete();
       return { success: true };
     } catch (error) {
       return this.handleError(error, `deleteUserByEmail`);
@@ -33,9 +32,9 @@ class AdminService extends FirebaseService {
    */
   public static async getPendingUsers(): Promise<any[]> {
     try {
-      if (!db) return [];
-      const q = query(collection(db, 'utenti'), where('status', '==', 'pending'));
-      const snapshot = await getDocs(q);
+      if (!adminDb) return [];
+      const q = adminDb.collection('utenti').where('status', '==', 'pending');
+      const snapshot = await q.get();
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
       this.handleError(error, 'getPendingUsers');
@@ -48,9 +47,9 @@ class AdminService extends FirebaseService {
    */
   public static async approveUser(userId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!db) return { success: false, error: 'Database non disponibile' };
-      const userRef = doc(db, 'utenti', userId);
-      await updateDoc(userRef, { status: 'active', approved_at: new Date().toISOString() });
+      if (!adminDb) return { success: false, error: 'Database non disponibile' };
+      const userRef = adminDb.collection('utenti').doc(userId);
+      await userRef.update({ status: 'active', approved_at: new Date().toISOString() });
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'approveUser');
@@ -62,13 +61,10 @@ class AdminService extends FirebaseService {
    */
   public static async rejectUser(userId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!db) return { success: false, error: 'Database non disponibile' };
-
-      // Invia una notifica all'utente prima di eliminarlo
-      const userDoc = await getDoc(doc(db, 'utenti', userId));
-      if (userDoc.exists()) {
-        const notifRef = collection(db, 'user_notifications');
-        await addDoc(notifRef, {
+      if (!adminDb) return { success: false, error: 'Database non disponibile' };
+      const userDoc = await adminDb.collection('utenti').doc(userId).get();
+      if (userDoc.exists) {
+        await adminDb.collection('user_notifications').add({
           user_id: userId,
           type: 'account_rejected',
           title: 'Account rifiutato',
@@ -76,9 +72,7 @@ class AdminService extends FirebaseService {
           created_at: new Date().toISOString()
         });
       }
-
-      // Elimina l'account utente da Firestore
-      await deleteDoc(doc(db, 'utenti', userId));
+      await adminDb.collection('utenti').doc(userId).delete();
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'rejectUser');
@@ -91,9 +85,9 @@ class AdminService extends FirebaseService {
 
   public static async getPendingPremiumRequests(): Promise<any[]> {
     try {
-      if (!db) return [];
-      const q = query(collection(db, 'premium_requests'), where('status', '==', 'pending'));
-      const snapshot = await getDocs(q);
+      if (!adminDb) return [];
+      const q = adminDb.collection('premium_requests').where('status', '==', 'pending');
+      const snapshot = await q.get();
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
       this.handleError(error, 'getPendingPremiumRequests');
@@ -103,20 +97,13 @@ class AdminService extends FirebaseService {
 
   public static async approvePremiumRequest(requestId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!db) return { success: false, error: 'Database non disponibile' };
-
-      const requestDoc = await getDoc(doc(db, 'premium_requests', requestId));
-      if (!requestDoc.exists()) return { success: false, error: 'Richiesta non trovata' };
-
+      if (!adminDb) return { success: false, error: 'Database non disponibile' };
+      const requestDoc = await adminDb.collection('premium_requests').doc(requestId).get();
+      if (!requestDoc.exists) return { success: false, error: 'Richiesta non trovata' };
       const requestData = requestDoc.data();
-
-      // Aggiorna l'utente a premium
-      const userRef = doc(db, 'utenti', this.emailToId(requestData.user_email));
-      await updateDoc(userRef, { premium: true, premium_activated_at: new Date().toISOString() });
-
-      // Aggiorna lo stato della richiesta
-      await updateDoc(doc(db, 'premium_requests', requestId), { status: 'approved', approved_at: new Date().toISOString() });
-
+      const userRef = adminDb.collection('utenti').doc(this.emailToId(requestData.user_email));
+      await userRef.update({ premium: true, premium_activated_at: new Date().toISOString() });
+      await adminDb.collection('premium_requests').doc(requestId).update({ status: 'approved', approved_at: new Date().toISOString() });
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'approvePremiumRequest');
@@ -125,15 +112,12 @@ class AdminService extends FirebaseService {
 
   public static async rejectPremiumRequest(requestId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!db) return { success: false, error: 'Database non disponibile' };
-
-      const requestDocRef = doc(db, 'premium_requests', requestId);
-      await updateDoc(requestDocRef, {
+      if (!adminDb) return { success: false, error: 'Database non disponibile' };
+      await adminDb.collection('premium_requests').doc(requestId).update({
         status: 'rejected',
         rejected_at: new Date().toISOString(),
         rejection_reason: reason
       });
-
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'rejectPremiumRequest');
