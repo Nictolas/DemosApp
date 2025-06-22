@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
 import { useToast } from "@/hooks/use-toast";
+import './storage'
 
 // Schema per la parte di candidatura del form
 const candidaturaSchema = z.object({
