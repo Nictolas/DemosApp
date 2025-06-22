@@ -1,12 +1,13 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import FirebaseService from './firebase-service';
-import { db } from '../firebase-config';
+import { db } from '../api/firebase-config';
+import type { Firestore } from 'firebase/firestore';
 
 // Import necessari da 'firebase/firestore'
 import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy } from 'firebase/firestore';
 
 // Import dei tipi necessari con percorso corretto
-import { ClassificaItem } from '../types';
+import { ClassificaItem } from 'api/types';
 
 class VotoService extends FirebaseService {
 
@@ -136,6 +137,69 @@ class VotoService extends FirebaseService {
     } catch (error) {
         this.handleError(error, 'getListaReferendumAbrogativi');
         return [];
+    }
+  }
+
+  // === Metodi generici per votazioni ===
+  static async _registerUserVote(collectionName: string, userId: string, value: string, valueKey: string = 'nome') {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const q = query(collection(db, collectionName), where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        await updateDoc(snapshot.docs[0].ref, { [valueKey]: value, timestamp: new Date().toISOString() });
+      } else {
+        const data: any = { userId, timestamp: new Date().toISOString() };
+        data[valueKey] = value;
+        await addDoc(collection(db, collectionName), data);
+      }
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, `_registerUserVote(${collectionName})`);
+    }
+  }
+
+  static async _getUserVotes(collectionName: string, userId: string, valueKey: string = 'nome') {
+    try {
+      if (!db) return [];
+      const q = query(collection(db, collectionName), where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => doc.data()[valueKey]);
+    } catch (error) {
+      return this.handleError(error, `_getUserVotes(${collectionName})`);
+    }
+  }
+
+  static async _removeUserVote(collectionName: string, userId: string, value: string, valueKey: string = 'nome') {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const q = query(collection(db, collectionName), where('userId', '==', userId), where(valueKey, '==', value));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        await updateDoc(snapshot.docs[0].ref, { [valueKey]: null });
+      }
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, `_removeUserVote(${collectionName})`);
+    }
+  }
+
+  static async _getLeaderboard(collectionName: string, valueKey: string = 'nome') {
+    try {
+      if (!db) return [];
+      const q = query(collection(db, collectionName));
+      const snapshot = await getDocs(q);
+      const counts: Record<string, number> = {};
+      snapshot.forEach(doc => {
+        const value = doc.data()[valueKey];
+        if (value) counts[value] = (counts[value] || 0) + 1;
+      });
+      return Object.entries(counts)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti)
+        .slice(0, 10);
+    } catch (error) {
+      return this.handleError(error, `_getLeaderboard(${collectionName})`);
     }
   }
 }
