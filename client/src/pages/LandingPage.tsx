@@ -73,12 +73,6 @@ export default function LandingPage() {
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold text-center mb-12">Cosa puoi fare con DEMOS</h2>
             <div className="max-w-3xl mx-auto text-lg text-gray-700 mb-8">
-              <p className="mb-4">Attraverso Demos puoi:</p>
-              <ul className="list-disc list-inside mb-4">
-                <li>Trovare i politici e i candidati più compatibili con le tue idee,</li>
-                <li>Scoprire le opinioni dei politici su tutti gli argomenti più importanti,</li>
-                <li>Essere costantemente aggiornato sulle votazioni ed eventi dei tuoi rappresentanti;</li>
-              </ul>
               <p className="mb-2">Se sei un politico o un candidato, con Demos puoi:</p>
               <ul className="list-disc list-inside">
                 <li>allargare il tuo bacino di elettori;</li>
@@ -98,6 +92,14 @@ export default function LandingPage() {
                 <p className="text-gray-600">
                   Crea il tuo profilo civico per accedere a tutte le funzionalità della piattaforma.
                 </p>
+                <div className="mt-4 text-gray-700 text-base">
+                  <p className="mb-2">Attraverso Demos puoi:</p>
+                  <ul className="list-disc list-inside mb-2">
+                    <li>Trovare i politici e i candidati più compatibili con le tue idee,</li>
+                    <li>Scoprire le opinioni dei politici su tutti gli argomenti più importanti,</li>
+                    <li>Essere costantemente aggiornato sulle votazioni ed eventi dei tuoi rappresentanti;</li>
+                  </ul>
+                </div>
               </div>
               
               <div className="bg-blue-50 rounded-lg p-6 shadow-md">
