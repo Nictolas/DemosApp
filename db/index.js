@@ -35,4 +35,4 @@ export const pool = new Pool({
 });
 
 // Esporta l'istanza di Drizzle ORM pronta per essere usata
-export const db = drizzle({ client: pool, schema });
+export const db = drizzle({ client: pool, schema }); 

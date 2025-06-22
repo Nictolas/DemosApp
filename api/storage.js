@@ -3,10 +3,10 @@ import { eq } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 
-// ===== IMPORT LOCALI CORRETTI SENZA .js =====
-import { db, pool } from "../db/index"; // Percorso corretto alla cartella db
+// ===== IMPORT LOCALI CORRETTI CON .js =====
+import { db, pool } from "../db/index.js"; // Percorso corretto alla cartella db
 import { utenti, users } from "../shared/schema"; // Percorso corretto alla cartella shared
-import { Utente } from './types'; // Usa i tipi dal file locale al server, non dal client!
+// import { Utente } from './types'; // Non serve in JS
 
 // Session store per l'autenticazione
 const PostgresSessionStore = connectPg(session);
