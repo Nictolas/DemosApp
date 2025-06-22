@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con .js
-import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import FirebaseService from './firebase-service';
+import { db } from '../firebase-config';
 
 // Import dei servizi con cui questo deve interagire
 import NotificaService from './notifica.service.js';

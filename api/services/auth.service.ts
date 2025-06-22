@@ -1,8 +1,8 @@
-import { auth } from './firebase-config.js'; // CORRETTO
+import FirebaseService from './firebase-service';
+import { auth } from '../firebase-config';
+import { Utente } from '../types';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { FirebaseService } from './firebase-service.js'; // CORRETTO
 import UserService from './user.service.js'; // CORRETTO
-import { Utente } from './types.js'; // CORRETTO
 
 class AuthService extends FirebaseService {
 
