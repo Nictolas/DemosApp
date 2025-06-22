@@ -1,12 +1,12 @@
 // Import della classe base e delle configurazioni con l'estensione .js
-import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import FirebaseService from './firebase-service';
+import { db } from '../firebase-config';
 
 // Import necessari da 'firebase/firestore'
 import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy } from 'firebase/firestore';
 
 // Import dei tipi necessari con percorso corretto
-import { ClassificaItem } from './types.js';
+import { ClassificaItem } from '../types';
 
 class VotoService extends FirebaseService {
 

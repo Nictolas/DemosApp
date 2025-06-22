@@ -1,4 +1,7 @@
 import admin from "firebase-admin";
+import { initializeApp, getFirestore as getClientFirestore, getAuth as getClientAuth } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // ==============================================================
 // CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
@@ -30,4 +33,32 @@ if (admin.apps.length === 0) {
   adminAuth = admin.auth();
 }
 
-export { adminDb, adminAuth };
+// ==============================================================
+// CONFIGURAZIONE FIREBASE CLIENT SDK (PER USO LATO SERVERLESS O CLIENT)
+// ==============================================================
+let db = null;
+let auth = null;
+
+try {
+  const clientApp = initializeApp({
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID,
+  }, 'client');
+  db = getFirestore(clientApp);
+  auth = getAuth(clientApp);
+} catch (e) {
+  // Se già inizializzata, recupera l'app esistente
+  try {
+    const clientApp = getClientFirestore('client');
+    db = getFirestore(clientApp);
+    auth = getAuth(clientApp);
+  } catch (err) {
+    console.warn('Impossibile inizializzare Firebase Client SDK:', err);
+  }
+}
+
+export { adminDb, adminAuth, db, auth };
