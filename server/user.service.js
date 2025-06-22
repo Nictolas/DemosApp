@@ -30,17 +30,37 @@ class UserService extends FirebaseService {
     }
   }
 
-  static async getUserById(uid) {
-    try {
-      if (!db) return null;
-      const userDocRef = doc(db, 'utenti', uid);
-      const docSnap = await getDoc(userDocRef);
-      if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
-      return null;
-    } catch (error) {
-      this.handleError(error, 'getUserById');
-      return null;
+  /**
+   * Recupera un utente in modo robusto tramite il suo ID, UID o email.
+   * @param identifier L'identificatore univoco dell'utente.
+   */
+  static async getUserById(identifier) {
+    if (!db || !identifier) return null;
+
+    // 1. Prova a ottenere il documento tramite ID diretto (il più veloce).
+    const userDocRef = doc(db, 'utenti', identifier);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+      return { id: userDoc.id, ...userDoc.data() };
     }
+
+    // 2. Se non trovato, prova a cercare per campo 'uid' (Firebase Auth UID).
+    let q = query(collection(db, 'utenti'), where('uid', '==', identifier));
+    let querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() };
+    }
+
+    // 3. Come ultima risorsa, prova a cercare per campo 'email'.
+    q = query(collection(db, 'utenti'), where('email', '==', identifier));
+    querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      return { id: doc.id, ...doc.data() };
+    }
+
+    return null; // Utente non trovato con nessun metodo.
   }
 
   static async getAllUsers() {
