@@ -62,7 +62,7 @@ class ComunicazioneService extends FirebaseService {
       // 4. Invia le notifiche ai sostenitori
       if (userData.nome && userData.cognome) { // <-- AGGIUNGI QUESTO CONTROLLO
           await NotificaService.sendNotificationsForComunicazione(
-            user.email,
+            user.uid,
             userData.nome,
             userData.cognome,
             data.titolo,
