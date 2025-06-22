@@ -10,10 +10,8 @@ class AuthService extends FirebaseService {
    * Registra un nuovo utente in Firebase Auth e chiama UserService per salvare i dati in Firestore.
    */
   public static async registerUserOnFirebaseAuth(
-    email: string,
-    password: string,
-    userDetails: Omit<Utente, 'email' | 'uid' | 'id'>
-  ): Promise<{ success: boolean; user?: any; error?: string; }> {
+    email, password, userDetails
+  ) {
     try {
       console.log("NUOVA VERSIONE DEL FILE AUTH.SERVICE IN ESECUZIONE:", userDetails);
       if (!auth) return { success: false, error: "Firebase Auth non è configurato" };
@@ -21,7 +19,7 @@ class AuthService extends FirebaseService {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       if (!userCredential.user) return { success: false, error: "Nessun utente restituito dalla registrazione" };
 
-      const userDataToSave: Utente = {
+      const userDataToSave = {
         id: userCredential.user.uid,
         email,
         uid: userCredential.user.uid,
@@ -43,7 +41,7 @@ class AuthService extends FirebaseService {
   /**
    * Invia un'email per il reset della password tramite Firebase Auth.
    */
-  public static async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
+  public static async resetPassword(email) {
     try {
       if (!auth) return { success: false, error: "Firebase Auth non è configurato" };
       await sendPasswordResetEmail(auth, email);
@@ -53,7 +51,7 @@ class AuthService extends FirebaseService {
     }
   }
 
-  static async registerUser(email: string, password: string, userDetails: Omit<Utente, 'email' | 'uid' | 'id'>) {
+  static async registerUser(email, password, userDetails) {
     return this.registerUserOnFirebaseAuth(email, password, userDetails);
   }
 }

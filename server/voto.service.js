@@ -1,11 +1,8 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import FirebaseService from './firebase-service';
 import { db } from '../api/firebase-config';
-import type { Firestore } from 'firebase/firestore';
-
 // Import necessari da 'firebase/firestore'
 import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy } from 'firebase/firestore';
-
 // Import dei tipi necessari con percorso corretto
 import { ClassificaItem } from 'api/types';
 
@@ -15,7 +12,7 @@ class VotoService extends FirebaseService {
   // METODI PER IL GOVERNO IDEALE
   // =========================================================
 
-  public static async voteMinistro(userId: string, categoria: string, nomeMinistro: string): Promise<{ success: boolean; error?: string }> {
+  static async voteMinistro(userId, categoria, nomeMinistro) {
       try {
           if (!db) return { success: false, error: "Database non configurato" };
           const votiRef = collection(db, 'voti_ministri');
@@ -33,12 +30,12 @@ class VotoService extends FirebaseService {
       }
   }
 
-  public static async getUserVotiMinistri(userId: string): Promise<Record<string, string>> {
+  static async getUserVotiMinistri(userId) {
     try {
         if (!db) return {};
         const q = query(collection(db, 'voti_ministri'), where('userId', '==', userId));
         const snapshot = await getDocs(q);
-        const voti: Record<string, string> = {};
+        const voti = {};
         snapshot.forEach(doc => {
             voti[doc.data().categoria] = doc.data().nomeMinistro;
         });
@@ -49,12 +46,12 @@ class VotoService extends FirebaseService {
     }
   }
 
-  public static async getClassificaMinistro(categoria: string): Promise<ClassificaItem[]> {
+  static async getClassificaMinistro(categoria) {
       try {
           if (!db) return [];
           const q = query(collection(db, 'voti_ministri'), where('categoria', '==', categoria));
           const snapshot = await getDocs(q);
-          const counts: Record<string, number> = {};
+          const counts = {};
           snapshot.forEach(doc => {
               counts[doc.data().nomeMinistro] = (counts[doc.data().nomeMinistro] || 0) + 1;
           });
@@ -68,9 +65,9 @@ class VotoService extends FirebaseService {
       }
   }
 
-  public static async getAllClassificheMinistri(): Promise<Record<string, ClassificaItem[]>> {
+  static async getAllClassificheMinistri() {
     const categorie = ['primo_ministro', 'esteri', 'interno', 'giustizia', 'difesa', 'economia', 'lavoro', 'istruzione', 'salute', 'cultura'];
-    const classifiche: Record<string, ClassificaItem[]> = {};
+    const classifiche = {};
     for (const categoria of categorie) {
       classifiche[categoria] = await this.getClassificaMinistro(categoria);
     }
@@ -82,34 +79,34 @@ class VotoService extends FirebaseService {
   // =========================================================
 
   // --- Capo di Stato ---
-  public static async voteCapoDiStato(userId: string, nome: string) { return this._registerUserVote('voti_capo_stato', userId, nome); }
-  public static async getUserVotiCapoDiStato(userId: string) { return this._getUserVotes('voti_capo_stato', userId); }
-  public static async removeVoteCapoDiStato(userId: string, nome: string) { return this._removeUserVote('voti_capo_stato', userId, nome); }
-  public static async getClassificaCapoDiStato() { return this._getLeaderboard('voti_capo_stato'); }
+  static async voteCapoDiStato(userId, nome) { return this._registerUserVote('voti_capo_stato', userId, nome); }
+  static async getUserVotiCapoDiStato(userId) { return this._getUserVotes('voti_capo_stato', userId); }
+  static async removeVoteCapoDiStato(userId, nome) { return this._removeUserVote('voti_capo_stato', userId, nome); }
+  static async getClassificaCapoDiStato() { return this._getLeaderboard('voti_capo_stato'); }
 
   // --- Grazia ---
-  public static async voteGrazia(userId: string, nome: string) { return this._registerUserVote('voti_grazia', userId, nome); }
-  public static async getUserVotiGrazia(userId: string) { return this._getUserVotes('voti_grazia', userId); }
-  public static async removeVoteGrazia(userId: string, nome: string) { return this._removeUserVote('voti_grazia', userId, nome); }
-  public static async getClassificaGrazia() { return this._getLeaderboard('voti_grazia'); }
+  static async voteGrazia(userId, nome) { return this._registerUserVote('voti_grazia', userId, nome); }
+  static async getUserVotiGrazia(userId) { return this._getUserVotes('voti_grazia', userId); }
+  static async removeVoteGrazia(userId, nome) { return this._removeUserVote('voti_grazia', userId, nome); }
+  static async getClassificaGrazia() { return this._getLeaderboard('voti_grazia'); }
 
   // --- Amnistia ---
-  public static async voteAmnistia(userId: string, legge: string) { return this._registerUserVote('voti_amnistia', userId, legge, 'legge'); }
-  public static async getUserVotiAmnistia(userId: string) { return this._getUserVotes('voti_amnistia', userId, 'legge'); }
-  public static async removeVoteAmnistia(userId: string, legge: string) { return this._removeUserVote('voti_amnistia', userId, legge, 'legge'); }
-  public static async getClassificaAmnistia() { return this._getLeaderboard('voti_amnistia', 'legge'); }
+  static async voteAmnistia(userId, legge) { return this._registerUserVote('voti_amnistia', userId, legge, 'legge'); }
+  static async getUserVotiAmnistia(userId) { return this._getUserVotes('voti_amnistia', userId, 'legge'); }
+  static async removeVoteAmnistia(userId, legge) { return this._removeUserVote('voti_amnistia', userId, legge, 'legge'); }
+  static async getClassificaAmnistia() { return this._getLeaderboard('voti_amnistia', 'legge'); }
 
   // =========================================================
   // LOGICA CORRETTA PER INIZIATIVE E REFERENDUM
   // =========================================================
 
   // --- Iniziative Popolari ---
-  public static async saveIniziativaPopolare(data: any) { 
+  static async saveIniziativaPopolare(data) { 
     const dataToSave = { ...data, createdAt: new Date().toISOString() };
     return this._saveDocument('iniziative_popolari', dataToSave); 
   }
 
-  public static async getListaIniziativePopolari(): Promise<any[]> {
+  static async getListaIniziativePopolari() {
     try {
         if (!db) return [];
         // Ordina per data di creazione per mostrare le più recenti
@@ -123,12 +120,12 @@ class VotoService extends FirebaseService {
   }
 
   // --- Referendum Abrogativi ---
-  public static async saveReferendumAbrogativo(data: any) { 
+  static async saveReferendumAbrogativo(data) { 
     const dataToSave = { ...data, createdAt: new Date().toISOString() };
     return this._saveDocument('referendum_abrogativi', dataToSave); 
   }
 
-  public static async getListaReferendumAbrogativi(): Promise<any[]> {
+  static async getListaReferendumAbrogativi() {
     try {
         if (!db) return [];
         const q = query(collection(db, 'referendum_abrogativi'), orderBy('createdAt', 'desc'), limit(10));
@@ -141,7 +138,7 @@ class VotoService extends FirebaseService {
   }
 
   // === Metodi generici per votazioni ===
-  static async _registerUserVote(collectionName: string, userId: string, value: string, valueKey: string = 'nome') {
+  static async _registerUserVote(collectionName, userId, value, valueKey = 'nome') {
     try {
       if (!db) return { success: false, error: 'Database non configurato' };
       const q = query(collection(db, collectionName), where('userId', '==', userId));
@@ -149,7 +146,7 @@ class VotoService extends FirebaseService {
       if (!snapshot.empty) {
         await updateDoc(snapshot.docs[0].ref, { [valueKey]: value, timestamp: new Date().toISOString() });
       } else {
-        const data: any = { userId, timestamp: new Date().toISOString() };
+        const data = { userId, timestamp: new Date().toISOString() };
         data[valueKey] = value;
         await addDoc(collection(db, collectionName), data);
       }
@@ -159,7 +156,7 @@ class VotoService extends FirebaseService {
     }
   }
 
-  static async _getUserVotes(collectionName: string, userId: string, valueKey: string = 'nome') {
+  static async _getUserVotes(collectionName, userId, valueKey = 'nome') {
     try {
       if (!db) return [];
       const q = query(collection(db, collectionName), where('userId', '==', userId));
@@ -170,7 +167,7 @@ class VotoService extends FirebaseService {
     }
   }
 
-  static async _removeUserVote(collectionName: string, userId: string, value: string, valueKey: string = 'nome') {
+  static async _removeUserVote(collectionName, userId, value, valueKey = 'nome') {
     try {
       if (!db) return { success: false, error: 'Database non configurato' };
       const q = query(collection(db, collectionName), where('userId', '==', userId), where(valueKey, '==', value));
@@ -184,12 +181,12 @@ class VotoService extends FirebaseService {
     }
   }
 
-  static async _getLeaderboard(collectionName: string, valueKey: string = 'nome') {
+  static async _getLeaderboard(collectionName, valueKey = 'nome') {
     try {
       if (!db) return [];
       const q = query(collection(db, collectionName));
       const snapshot = await getDocs(q);
-      const counts: Record<string, number> = {};
+      const counts = {};
       snapshot.forEach(doc => {
         const value = doc.data()[valueKey];
         if (value) counts[value] = (counts[value] || 0) + 1;
@@ -202,6 +199,7 @@ class VotoService extends FirebaseService {
       return this.handleError(error, `_getLeaderboard(${collectionName})`);
     }
   }
+
 }
 
 export default VotoService; 
