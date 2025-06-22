@@ -8,6 +8,7 @@ import cors from 'cors';
 import { adminAuth, auth } from './firebase-config.js';
 import dotenv from "dotenv";
 import { pathToFileURL } from 'url';
+import { adminDb } from './firebase-config.js';
 
 // Servizi
 import AuthService from "../server/auth.service.js";
@@ -210,6 +211,42 @@ app.delete('/api/users/:uid', requireAdmin, async (req, res) => {
 app.get('/api/pending-users', requireAdmin, async (req, res) => res.json(await AdminService.getPendingUsers()));
 app.post('/api/approve-user', requireAdmin, async (req, res) => res.json(await AdminService.approveUser(req.body.userId)));
 app.post('/api/reject-user', requireAdmin, async (req, res) => res.json(await AdminService.rejectUser(req.body.userId, req.body.reason)));
+
+// !!! ROTTA DI MIGRAZIONE TEMPORANEA !!!
+// Da rimuovere dopo l'uso
+app.get('/api/admin/add-status-to-users', requireAdmin, async (req, res) => {
+  // Un piccolo controllo di sicurezza extra
+  if (req.query.secret_key !== 'demos_migration_2024') {
+    return res.status(403).json({ error: "Forbidden: chiave segreta non valida." });
+  }
+
+  try {
+    const usersSnapshot = await adminDb.collection('utenti').get();
+    if (usersSnapshot.empty) {
+        return res.status(200).json({ message: "Nessun utente trovato." });
+    }
+
+    const batch = adminDb.batch();
+    let updatedCount = 0;
+
+    usersSnapshot.forEach(doc => {
+      const userData = doc.data();
+      if (!userData.status) {
+        batch.update(doc.ref, { status: 'active' });
+        updatedCount++;
+      }
+    });
+
+    if (updatedCount > 0) {
+      await batch.commit();
+      res.status(200).json({ message: `Successo! Aggiornati ${updatedCount} utenti.` });
+    } else {
+      res.status(200).json({ message: "Nessuna modifica necessaria. Tutti gli utenti hanno già uno stato." });
+    }
+  } catch (error) {
+    res.status(500).json({ error: "Errore durante la migrazione", details: error.message });
+  }
+});
 
 // Comunicazioni & Notifiche
 app.post('/api/comunicazioni', requireAuth, async (req, res) => res.status(201).json(await ComunicazioneService.createComunicazione(req.user, req.body)));
