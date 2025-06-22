@@ -1,22 +1,14 @@
 // Classe base per i servizi Firebase
 import { db } from '../api/firebase-config';
-import type { Firestore } from 'firebase/firestore';
 import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
 
 export default class FirebaseService {
-  /**
-   * Gestione centralizzata degli errori per i servizi.
-   */
-  static handleError(error: any, context: string) {
+  static handleError(error, context) {
     console.error(`[${context}] Errore:`, error);
     return { success: false, error: error?.message || String(error) };
   }
 
-  /**
-   * Salva un documento generico in una collezione Firestore.
-   * Se il documento ha un campo 'id', lo usa come chiave primaria.
-   */
-  static async _saveDocument(collectionName: string, data: any): Promise<{ success: boolean; data?: any; error?: string }> {
+  static async _saveDocument(collectionName, data) {
     try {
       if (!db) return { success: false, error: 'Database non configurato' };
       if (data.id) {
@@ -31,6 +23,4 @@ export default class FirebaseService {
       return this.handleError(error, `_saveDocument(${collectionName})`);
     }
   }
-}
-
-export { FirebaseService }; 
+} 
