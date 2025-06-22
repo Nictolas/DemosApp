@@ -73,12 +73,8 @@ export default function LandingPage() {
           <div className="container mx-auto px-4">
             <h2 className="text-3xl font-bold text-center mb-12">Cosa puoi fare con DEMOS</h2>
             <div className="max-w-3xl mx-auto text-lg text-gray-700 mb-8">
-              <p className="mb-2">Se sei un politico o un candidato, con Demos puoi:</p>
+              <p className="mb-2"></p>
               <ul className="list-disc list-inside">
-                <li>allargare il tuo bacino di elettori;</li>
-                <li>scoprire le preferenze delle persone sugli argomenti importanti;</li>
-                <li>monitorare le opinioni per zone, genere, fasce d'età, etc.</li>
-                <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi comizi, eventi, votazioni, etc.</li>
               </ul>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
@@ -93,10 +89,9 @@ export default function LandingPage() {
                   Crea il tuo profilo civico per accedere a tutte le funzionalità della piattaforma.
                 </p>
                 <div className="mt-4 text-gray-700 text-base">
-                  <p className="mb-2">Attraverso Demos puoi:</p>
                   <ul className="list-disc list-inside mb-2">
-                    <li>Trovare i politici e i candidati più compatibili con le tue idee,</li>
-                    <li>Scoprire le opinioni dei politici su tutti gli argomenti più importanti,</li>
+                    <li>Trova i politici e i candidati più compatibili con le tue idee,</li>
+                    <li>Scopri le opinioni dei politici su tutti gli argomenti più importanti,</li>
                     <li>Essere costantemente aggiornato sulle votazioni ed eventi dei tuoi rappresentanti;</li>
                   </ul>
                 </div>
@@ -108,11 +103,11 @@ export default function LandingPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Se sei un politico o un candidato, con Demos puoi:</h3>
+                <h3 className="text-xl font-semibold mb-2">Se sei un politico o un candidato puoi:</h3>
                 <ul className="list-disc list-inside text-gray-700 mb-2">
                   <li>allargare il tuo bacino di elettori;</li>
-                  <li>scoprire le preferenze delle persone sugli argomenti importanti;</li>
-                  <li>monitorare le opinioni per zone, genere, fasce d'età, etc.</li>
+                  <li>scopri le preferenze delle persone sugli argomenti importanti;</li>
+                  <li>monitora le opinioni per zone, genere, fasce d'età, etc.</li>
                   <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi comizi, eventi, votazioni, etc.</li>
                 </ul>
               </div>
