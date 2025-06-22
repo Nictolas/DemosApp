@@ -1,6 +1,5 @@
 // Importa ANCHE l'adminDb e i tipi necessari
-import { db, adminDb } from './firebase-config.js';
-import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
+import { adminDb } from './firebase-config.js';
 import type * as admin from 'firebase-admin';
 import { Utente, UserOpinions } from './types.js';
 import { FirebaseService } from './firebase-service.js';
@@ -9,11 +8,11 @@ class UserService extends FirebaseService {
 
   public static async saveUserData(userData: Utente): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      if (!db || !userData.uid) return { success: false, error: "DB non conf. o uid mancante" };
-      const userDocRef = doc(db, 'utenti', userData.uid);
+      if (!adminDb || !userData.uid) return { success: false, error: "DB non conf. o uid mancante" };
+      const userDocRef = adminDb.collection('utenti').doc(userData.uid);
       const dataToSave: Utente = { ...userData, id: userData.uid, updatedAt: new Date().toISOString() };
       if (!dataToSave.createdAt) { dataToSave.createdAt = new Date().toISOString(); }
-      await setDoc(userDocRef, dataToSave, { merge: true });
+      await userDocRef.set(dataToSave, { merge: true });
       return { success: true, data: dataToSave };
     } catch (error) {
       return this.handleError(error, 'saveUserData');
@@ -22,10 +21,10 @@ class UserService extends FirebaseService {
 
   public static async updateUserData(uid: string, userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      if (!db) return { success: false, error: "Database non configurato" };
-      const userDocRef = doc(db, 'utenti', uid);
+      if (!adminDb) return { success: false, error: "Database non configurato" };
+      const userDocRef = adminDb.collection('utenti').doc(uid);
       const dataToUpdate = { ...userData, updatedAt: new Date().toISOString() };
-      await updateDoc(userDocRef, dataToUpdate);
+      await userDocRef.update(dataToUpdate);
       return { success: true, data: dataToUpdate };
     } catch (error) {
       return this.handleError(error, 'updateUserData');
@@ -53,14 +52,12 @@ class UserService extends FirebaseService {
         console.error("Admin SDK non inizializzato, impossibile recuperare utente per email.");
         return null;
       }
-      
       const q = adminDb.collection('utenti').where('email', '==', email).limit(1);
       const querySnapshot = await q.get();
       if (!querySnapshot.empty) {
         const doc = querySnapshot.docs[0];
         return { id: doc.id, ...doc.data() } as Utente;
       }
-
       return null;
     } catch (error) {
       this.handleError(error, 'getUserByEmail');
@@ -71,8 +68,8 @@ class UserService extends FirebaseService {
   public static async getAllUsers(): Promise<Utente[]> {
     try {
       if (!adminDb) {
-          console.error("Admin SDK non inizializzato. Impossibile recuperare tutti gli utenti.");
-          return [];
+        console.error("Admin SDK non inizializzato. Impossibile recuperare tutti gli utenti.");
+        return [];
       }
       const snapshot = await adminDb.collection('utenti').get();
       if (snapshot.empty) {
@@ -87,10 +84,10 @@ class UserService extends FirebaseService {
 
   public static async saveUserOpinions(userUid: string, opinions: UserOpinions): Promise<{ success: boolean; data?: any; error?: string; }> {
     try {
-      if (!db) return { success: false, error: "Database non configurato" };
-      const userDocRef = doc(db, 'utenti', userUid);
+      if (!adminDb) return { success: false, error: "Database non configurato" };
+      const userDocRef = adminDb.collection('utenti').doc(userUid);
       const opinionsToSave = { ...opinions, updatedAt: new Date().toISOString() };
-      await setDoc(userDocRef, opinionsToSave, { merge: true });
+      await userDocRef.set(opinionsToSave, { merge: true });
       return { success: true, data: opinionsToSave };
     } catch (error) {
       return this.handleError(error, 'saveUserOpinions');

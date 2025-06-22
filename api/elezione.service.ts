@@ -1,6 +1,6 @@
 // Import della classe base e delle configurazioni con l'estensione .js
 import { FirebaseService } from './firebase-service.js';
-import { db } from './firebase-config.js';
+import { adminDb } from './firebase-config.js';
 
 // Import necessari da 'firebase/firestore'
 import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, orderBy, getDoc, query } from 'firebase/firestore';
@@ -36,17 +36,11 @@ class ElezioneService extends FirebaseService {
    */
   public static async getAllElezioni(): Promise<any[]> {
     try {
-      if (!db) return [];
-      const elezioniCollection = collection(db, 'elezioni');
-      const q = query(elezioniCollection, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      if (!adminDb) return [];
+      const querySnapshot = await adminDb.collection('elezioni').orderBy('createdAt', 'desc').get();
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-      this.handleError(error, 'getAllElezioni');
+      console.error('Errore nel recupero delle elezioni:', error);
       return [];
     }
   }
@@ -56,16 +50,12 @@ class ElezioneService extends FirebaseService {
    */
   public static async getElezioneById(id: string): Promise<any | null> {
     try {
-      if (!db) return null;
-      const elezioneDoc = doc(db, 'elezioni', id);
-      const elezioneSnapshot = await getDoc(elezioneDoc);
-
-      if (elezioneSnapshot.exists()) {
-        return { id: elezioneSnapshot.id, ...elezioneSnapshot.data() };
-      }
-      return null;
+      if (!adminDb) return null;
+      const elezioneDoc = await adminDb.collection('elezioni').doc(id).get();
+      if (!elezioneDoc.exists) return null;
+      return { id: elezioneDoc.id, ...elezioneDoc.data() };
     } catch (error) {
-      this.handleError(error, 'getElezioneById');
+      console.error('Errore nel recupero elezione:', error);
       return null;
     }
   }
@@ -73,19 +63,16 @@ class ElezioneService extends FirebaseService {
   /**
    * Aggiorna i dati di un'elezione esistente.
    */
-  public static async updateElezione(id: string, elezioneData: Partial<ElezioneData>): Promise<{ success: boolean; error?: string }> {
+  public static async updateElezione(id: string, elezioneData: Partial<any>): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!db) return { success: false, error: "Database non configurato" };
-
-      const elezioneDocRef = doc(db, 'elezioni', id);
-      const dataToUpdate = {
-        ...elezioneData,
-        updatedAt: new Date().toISOString()
-      };
-      await updateDoc(elezioneDocRef, dataToUpdate);
+      if (!adminDb) return { success: false, error: "Database non configurato" };
+      const elezioneDocRef = adminDb.collection('elezioni').doc(id);
+      const dataToUpdate = { ...elezioneData, updatedAt: new Date().toISOString() };
+      await elezioneDocRef.update(dataToUpdate);
       return { success: true };
     } catch (error) {
-      return this.handleError(error, 'updateElezione');
+      console.error('Errore nell\'aggiornamento elezione:', error);
+      return { success: false, error: String(error) };
     }
   }
 
@@ -94,12 +81,13 @@ class ElezioneService extends FirebaseService {
    */
   public static async deleteElezione(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!db) return { success: false, error: "Database non configurato" };
-      const elezioneDocRef = doc(db, 'elezioni', id);
-      await deleteDoc(elezioneDocRef);
+      if (!adminDb) return { success: false, error: "Database non configurato" };
+      const elezioneDocRef = adminDb.collection('elezioni').doc(id);
+      await elezioneDocRef.delete();
       return { success: true };
     } catch (error) {
-      return this.handleError(error, 'deleteElezione');
+      console.error('Errore nella cancellazione elezione:', error);
+      return { success: false, error: String(error) };
     }
   }
 }
