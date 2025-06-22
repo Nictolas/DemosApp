@@ -49,6 +49,16 @@ class AdminService extends FirebaseService {
       if (!db) return { success: false, error: 'Database non disponibile' };
       const userRef = doc(db, 'utenti', userId);
       await updateDoc(userRef, { status: 'active', approved_at: new Date().toISOString() });
+
+      // Invia notifica di approvazione all'utente
+      await addDoc(collection(db, 'user_notifications'), {
+        user_id: userId,
+        type: 'account_approved',
+        title: 'Account Approvato!',
+        message: 'Il tuo account è stato approvato. Ora puoi accedere a tutte le funzionalità.',
+        created_at: new Date().toISOString()
+      });
+
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'approveUser');
@@ -69,8 +79,8 @@ class AdminService extends FirebaseService {
         await addDoc(notifRef, {
           user_id: userId,
           type: 'account_rejected',
-          title: 'Account rifiutato',
-          message: reason || 'La tua richiesta di account è stata rifiutata.',
+          title: 'Richiesta Rifiutata',
+          message: reason || 'La tua richiesta di registrazione non è stata approvata.',
           created_at: new Date().toISOString()
         });
       }

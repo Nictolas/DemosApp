@@ -1,7 +1,8 @@
 import FirebaseService from './firebase-service.js';
-import { auth } from '../api/firebase-config.js';
-import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { auth, adminDb, adminAuth } from '../api/firebase-config.js';
+import { createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import UserService from './user.service.js';
+import AdminService from './admin.service.js';
 
 class AuthService extends FirebaseService {
   static async registerUserOnFirebaseAuth(email, password, userDetails) {
@@ -42,7 +43,48 @@ class AuthService extends FirebaseService {
   }
 
   static async registerUser(email, password, userDetails) {
-    return this.registerUserOnFirebaseAuth(email, password, userDetails);
+    try {
+      if (!auth) throw new Error("Firebase Auth non inizializzata.");
+      
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Invia email di verifica
+      await sendEmailVerification(user);
+
+      // Crea il profilo utente in Firestore con status 'pending'
+      const userProfile = {
+        uid: user.uid,
+        email: user.email,
+        ...userDetails,
+        created_at: new Date().toISOString(),
+        status: 'pending', // Stato iniziale
+        ruolo: 'Utente' // Ruolo di default
+      };
+
+      await UserService.createUserProfile(user.uid, userProfile);
+
+      // Invia una notifica agli admin
+      const notificationData = {
+        type: 'new_user_pending',
+        title: 'Nuova Richiesta di Registrazione',
+        message: `L'utente ${userDetails.nome} ${userDetails.cognome} (${email}) ha richiesto di registrarsi.`,
+        userData: {
+            uid: user.uid,
+            nome: userDetails.nome,
+            cognome: userDetails.cognome,
+            email: email
+        },
+        createdAt: new Date().toISOString(),
+        read: false
+      };
+      await AdminService.createAdminNotification(notificationData);
+
+      return { success: true, user };
+
+    } catch (error) {
+      return this.handleError(error, 'registerUser');
+    }
   }
 }
 
