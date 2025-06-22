@@ -3,7 +3,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { storage } from "../shared/storage";
+import { storage } from "./storage";
 import cors from 'cors';
 import { adminAuth } from './firebase-config';
 import { Utente } from "./types";
