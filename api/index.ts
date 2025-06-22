@@ -123,7 +123,7 @@ app.post("/api/register", async (req, res, next) => {
     const { email, password, ...userDetails } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
     const result = await AuthService.registerUser(email, password, userDetails);
-    if (!result.success || !result.data) return res.status(400).json({ error: result.error || "Registration failed" });
+    if (!result.success || !result.user) return res.status(400).json({ error: result.error || "Registration failed" });
     const userToLogin = await UserService.getUserByEmail(email);
     if (!userToLogin) return res.status(500).json({error: "Failed to retrieve user after registration"});
     req.login(userToLogin, (err) => {
