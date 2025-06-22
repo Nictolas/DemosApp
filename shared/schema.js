@@ -14,9 +14,6 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
 // Schema for DEMOS application
 export const utenti = pgTable("utenti", {
   id: serial("id").primaryKey(),
@@ -69,6 +66,4 @@ export const utentiRelations = relations(utenti, ({ one }) => ({
   }),
 }));
 
-export const utentiInsertSchema = createInsertSchema(utenti);
-export type UtentiInsert = z.infer<typeof utentiInsertSchema>;
-export type Utenti = typeof utenti.$inferSelect;
+export const utentiInsertSchema = createInsertSchema(utenti); 
