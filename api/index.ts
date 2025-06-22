@@ -11,15 +11,15 @@ import dotenv from "dotenv";
 import { pathToFileURL } from 'url';
 
 // Servizi
-import AuthService from "../server/auth.service";
-import UserService from "../server/user.service";
-import VotoService from "../server/voto.service";
-import AdminService from "../server/admin.service";
-import ComunicazioneService from "../server/comunicazione.service";
-import ElezioneService from "../server/elezione.service";
-import ComizioService from "../server/comizio.service";
-import NotificaService from "../server/notifica.service";
-import SostenitoriService from "../server/sostenitori.service";
+import AuthService from "../server/auth.service.js";
+import UserService from "../server/user.service.js";
+import VotoService from "../server/voto.service.js";
+import AdminService from "../server/admin.service.js";
+import ComunicazioneService from "../server/comunicazione.service.js";
+import ElezioneService from "../server/elezione.service.js";
+import ComizioService from "../server/comizio.service.js";
+import NotificaService from "../server/notifica.service.js";
+import SostenitoriService from "../server/sostenitori.service.js";
 
 dotenv.config();
 

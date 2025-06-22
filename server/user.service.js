@@ -6,11 +6,11 @@ import FirebaseService from './firebase-service';
 
 class UserService extends FirebaseService {
 
-  public static async saveUserData(userData: Utente): Promise<{ success: boolean; data?: any; error?: string }> {
+  public static async saveUserData(userData) {
     try {
       if (!db || !userData.uid) return { success: false, error: "DB non configurato o uid mancante" };
       const userDocRef = doc(db, 'utenti', userData.uid);
-      const dataToSave: Utente = { ...userData, id: userData.uid, updatedAt: new Date().toISOString() };
+      const dataToSave = { ...userData, id: userData.uid, updatedAt: new Date().toISOString() };
       if (!dataToSave.createdAt) { dataToSave.createdAt = new Date().toISOString(); }
       await setDoc(userDocRef, dataToSave, { merge: true });
       return { success: true, data: dataToSave };
@@ -19,7 +19,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async updateUserData(uid: string, userData: Partial<Utente>): Promise<{ success: boolean; data?: any; error?: string }> {
+  public static async updateUserData(uid, userData) {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
       const userDocRef = doc(db, 'utenti', uid);
@@ -31,12 +31,12 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async getUserById(uid: string): Promise<Utente | null> {
+  public static async getUserById(uid) {
     try {
       if (!db) return null;
       const userDocRef = doc(db, 'utenti', uid);
       const docSnap = await getDoc(userDocRef);
-      if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() } as Utente;
+      if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
       return null;
     } catch (error) {
       this.handleError(error, 'getUserById');
@@ -44,7 +44,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async getAllUsers(): Promise<Utente[]> {
+  public static async getAllUsers() {
     try {
       if (!adminDb) {
           console.error("Admin SDK non inizializzato. Impossibile recuperare tutti gli utenti.");
@@ -54,14 +54,14 @@ class UserService extends FirebaseService {
       if (snapshot.empty) {
         return [];
       }
-      return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Utente));
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
       this.handleError(error, 'getAllUsers');
       return [];
     }
   }
 
-  public static async saveUserOpinions(uid: string, opinions: UserOpinions): Promise<{ success: boolean; data?: any; error?: string; }> {
+  public static async saveUserOpinions(uid, opinions) {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
       const userDocRef = doc(db, 'utenti', uid);
@@ -73,7 +73,7 @@ class UserService extends FirebaseService {
     }
   }
 
-  public static async getUserOpinions(uid: string): Promise<UserOpinions | null> {
+  public static async getUserOpinions(uid) {
     const user = await this.getUserById(uid);
     if (!user) return null;
     return {
@@ -85,14 +85,14 @@ class UserService extends FirebaseService {
     };
   }
 
-  public static async getCandidati(): Promise<Utente[]> {
+  public static async getCandidati() {
     const allUsers = await this.getAllUsers();
     return allUsers.filter(user => 
       user.ruolo === 'Candidato' || user.ruolo === 'Candidato Politico'
     );
   }
 
-  public static async searchPoliticians(searchTerm: string): Promise<Utente[]> {
+  public static async searchPoliticians(searchTerm) {
     const allUsers = await this.getAllUsers();
     const q = searchTerm.toLowerCase();
     return allUsers.filter(user =>
@@ -105,14 +105,14 @@ class UserService extends FirebaseService {
    * Recupera statistiche dettagliate per un singolo campo di opinione.
    * Può essere filtrato per regione.
    */
-  public static async getOpinionDetailStats(opinionField: string, regione?: string): Promise<any> {
+  public static async getOpinionDetailStats(opinionField, regione) {
     try {
       if (!adminDb) {
         console.error("Admin SDK non inizializzato, impossibile recuperare statistiche dettagliate.");
         return {};
       }
 
-      const calculateAgeRange = (birthDateString: string): string | undefined => {
+      const calculateAgeRange = (birthDateString) => {
         if (!birthDateString) return undefined;
         const birthDate = new Date(birthDateString);
         const age = new Date().getFullYear() - birthDate.getFullYear();
@@ -143,18 +143,18 @@ class UserService extends FirebaseService {
 
       const stats = {
         genderDistributionByOpinion: {
-          favorevole: {} as Record<string, number>,
-          contrario: {} as Record<string, number>,
-          astenuto: {} as Record<string, number>
+          favorevole: {},
+          contrario: {},
+          astenuto: {}
         },
         ageDistributionByOpinion: {
-          favorevole: {} as Record<string, number>,
-          contrario: {} as Record<string, number>,
-          astenuto: {} as Record<string, number>
+          favorevole: {},
+          contrario: {},
+          astenuto: {}
         }
       };
 
-      snapshot.docs.forEach((doc: any) => {
+      snapshot.docs.forEach((doc) => {
         const data = doc.data();
         const opinion = data[opinionField];
         const gender = (data.genere || 'Non specificato').toLowerCase();
@@ -162,7 +162,7 @@ class UserService extends FirebaseService {
 
         if (typeof opinion === 'string') {
           const normalizedOpinion = opinion.toLowerCase();
-          let targetOpinionGroup: keyof typeof stats.genderDistributionByOpinion | null = null;
+          let targetOpinionGroup = null;
           if (normalizedOpinion === 'favorevole') targetOpinionGroup = 'favorevole';
           else if (normalizedOpinion === 'contrario') targetOpinionGroup = 'contrario';
           else if (normalizedOpinion === 'astenuto' || normalizedOpinion === 'indeciso') targetOpinionGroup = 'astenuto';
