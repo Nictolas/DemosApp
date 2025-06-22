@@ -8,7 +8,7 @@ import NotificaService from './notifica.service.js';
 import UserService from './user.service.js';
 
 // Import necessari da 'firebase/firestore'
-import { collection, query, where, getDocs, deleteDoc, doc, addDoc, updateDoc, limit, getDoc, runTransaction } from 'firebase/firestore';
+import { collection, query, where, getDocs, deleteDoc, doc, addDoc, updateDoc, limit, getDoc } from 'firebase/firestore';
 
 class ComunicazioneService extends FirebaseService {
 
@@ -89,7 +89,7 @@ class ComunicazioneService extends FirebaseService {
     const q = adminDb.collection('comunicazioni').where('id_utente', '==', userId);
     const querySnapshot = await q.get();
 
-    const deletePromises: Promise<void>[] = [];
+    const deletePromises: Promise<any>[] = [];
     querySnapshot.forEach((docToDelete) => {
       deletePromises.push(docToDelete.ref.delete());
       // Innesca l'eliminazione delle notifiche associate
@@ -147,15 +147,21 @@ class ComunicazioneService extends FirebaseService {
     try {
       await adminDb.runTransaction(async (transaction) => {
         const comunicazioneDoc = await transaction.get(comunicazioneDocRef);
-        if (!comunicazioneDoc.exists()) throw new Error("Comunicazione non trovata.");
+        if (!comunicazioneDoc.exists) throw new Error("Comunicazione non trovata.");
 
         const reactionDoc = await transaction.get(reactionDocRef);
-        const currentLikes = comunicazioneDoc.data().likes || 0;
-        const currentDislikes = comunicazioneDoc.data().dislikes || 0;
+        const comunicazioneData = comunicazioneDoc.data();
+        if (!comunicazioneData) throw new Error("Dati comunicazione non validi");
+        
+        const currentLikes = comunicazioneData.likes || 0;
+        const currentDislikes = comunicazioneData.dislikes || 0;
         const newCounts = { likes: currentLikes, dislikes: currentDislikes };
 
-        if (reactionDoc.exists()) {
-          const oldReaction = reactionDoc.data().tipo;
+        if (reactionDoc.exists) {
+          const reactionData = reactionDoc.data();
+          if (!reactionData) throw new Error("Dati reazione non validi");
+          
+          const oldReaction = reactionData.tipo;
           if (oldReaction === reaction) { // L'utente toglie la reazione
             transaction.delete(reactionDocRef);
             if (reaction === 'like') newCounts.likes--;
