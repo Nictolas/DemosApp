@@ -41,7 +41,7 @@ export default function LandingPage() {
                 <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent" style={{ WebkitTextStroke: '1px #2563eb' }}>DEMOS</span>
               </h1>
               <p className="text-xl text-gray-700 mb-8">
-                Demos è il primo sistema operativo per la Democrazia, una piattaforma innovativa che permette di collegare elettori e rappresentanti politici.
+                Demos è un sistema operativo per la Democrazia, una piattaforma innovativa che permette di collegare elettori e rappresentanti politici.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 {user ? (
