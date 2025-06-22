@@ -253,13 +253,5 @@ createVotingEndpoints('amnistia', { vote: 'voteAmnistia', getUserVoti: 'getUserV
 createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativaPopolare', getClassifica: 'getClassificaIniziativaPopolare' });
 createVotingEndpoints('referendum-abrogativo', { vote: 'voteReferendumAbrogativo', getUserVoti: 'getUserVotiReferendumAbrogativo', getClassifica: 'getClassificaReferendumAbrogativo' });
 
-// Avvia il server Express in locale solo se il file viene eseguito direttamente
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Server avviato su http://localhost:${PORT}`);
-  });
-}
-
-// Export dell'app per Vercel
+// Esporta come handler per Vercel
 export default app;
