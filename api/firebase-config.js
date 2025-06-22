@@ -1,7 +1,7 @@
 import admin from "firebase-admin";
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
-import { getFirestore, Firestore } from "firebase/firestore";
-import { getAuth, Auth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // ==============================================================
 // CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
@@ -16,7 +16,7 @@ if (admin.apps.length === 0) {
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\n/g, '\n'),
         }),
       });
       adminDb = admin.firestore();
