@@ -6,7 +6,7 @@ import connectPg from "connect-pg-simple";
 // ===== IMPORT LOCALI CORRETTI CON .js =====
 import { db, pool } from "../db/index.js"; // Percorso corretto alla cartella db
 import { utenti, users } from "../shared/schema.js"; // Percorso corretto alla cartella shared
-import { Utente } from '../types'; // Usa i tipi dal file locale al server, non dal client!
+import { Utente } from 'api/types'; // Usa i tipi dal file locale al server, non dal client!
 
 // Session store per l'autenticazione
 const PostgresSessionStore = connectPg(session);
