@@ -1,5 +1,5 @@
 // Classe base per i servizi Firebase
-import { db } from '../api/firebase-config';
+import { db } from '../api/firebase-config.js';
 import { collection, addDoc, setDoc, doc } from 'firebase/firestore';
 
 export default class FirebaseService {
