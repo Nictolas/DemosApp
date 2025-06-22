@@ -1,8 +1,7 @@
 // Importa ANCHE l'adminDb e i tipi necessari
-import { db, adminDb } from '../firebase-config';
+import { db, adminDb } from '../api/firebase-config';
 import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
-import type { FirebaseFirestore } from 'firebase-admin/firestore'; // Aggiunto per il tipo della query
-import { Utente, UserOpinions } from '../types';
+import { Utente, UserOpinions } from 'api/types';
 import FirebaseService from './firebase-service';
 
 class UserService extends FirebaseService {
@@ -61,7 +60,7 @@ class UserService extends FirebaseService {
       if (snapshot.empty) {
         return [];
       }
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Utente));
+      return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Utente));
     } catch (error) {
       this.handleError(error, 'getAllUsers');
       return [];
@@ -133,7 +132,7 @@ class UserService extends FirebaseService {
         return undefined;
       };
 
-      let firestoreQuery: FirebaseFirestore.Query = 
+      let firestoreQuery = 
           adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita', 'regione_residenza');
 
       if (regione) {
@@ -162,7 +161,7 @@ class UserService extends FirebaseService {
         }
       };
 
-      snapshot.docs.forEach(doc => {
+      snapshot.docs.forEach((doc: any) => {
         const data = doc.data();
         const opinion = data[opinionField];
         const gender = (data.genere || 'Non specificato').toLowerCase();
@@ -188,6 +187,19 @@ class UserService extends FirebaseService {
     } catch (error) {
       this.handleError(error, 'getOpinionDetailStats');
       return {};
+    }
+  }
+
+  static async getUserById(id: string): Promise<Utente | null> {
+    try {
+      if (!db) return null;
+      const userDocRef = doc(db, 'utenti', id);
+      const docSnap = await getDoc(userDocRef);
+      if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() } as Utente;
+      return null;
+    } catch (error) {
+      this.handleError(error, 'getUserById');
+      return null;
     }
   }
 

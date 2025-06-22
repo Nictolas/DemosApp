@@ -1,6 +1,6 @@
 import FirebaseService from './firebase-service';
-import { auth } from '../firebase-config';
-import { Utente } from '../types';
+import { auth } from '../api/firebase-config';
+import { Utente } from 'api/types';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import UserService from './user.service.js'; // CORRETTO
 
@@ -22,6 +22,7 @@ class AuthService extends FirebaseService {
       if (!userCredential.user) return { success: false, error: "Nessun utente restituito dalla registrazione" };
 
       const userDataToSave: Utente = {
+        id: userCredential.user.uid,
         email,
         uid: userCredential.user.uid,
         ...userDetails,
@@ -50,6 +51,10 @@ class AuthService extends FirebaseService {
     } catch (error) {
       return this.handleError(error, 'resetPassword');
     }
+  }
+
+  static async registerUser(email: string, password: string, userDetails: Omit<Utente, 'email' | 'uid' | 'id'>) {
+    return this.registerUserOnFirebaseAuth(email, password, userDetails);
   }
 }
 
