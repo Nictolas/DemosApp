@@ -22,7 +22,7 @@ export default function Menu() {
       
       try {
         // Cerca l'utente usando l'API che ora utilizza Firebase
-        const response = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
         if (response.ok) {
           const userData = await response.json();
           setIsAdmin(userData?.ruolo === 'Admin');

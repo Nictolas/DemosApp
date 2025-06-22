@@ -79,7 +79,7 @@ passport.use(
       // Per ora, accettiamo qualsiasi password se l'utente esiste
       const userRecord = await adminAuth.getUserByEmail(email);
       if (!userRecord) return done(null, false, { message: "User not found" });
-      const userProfile = await UserService.getUserByEmail(email);
+      const userProfile = await UserService.getUserById(email);
       if (!userProfile) return done(null, false, { message: "User profile not found" });
       return done(null, userProfile);
     } catch (error) {
@@ -124,7 +124,7 @@ app.post("/api/register", async (req, res, next) => {
     if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
     const result = await AuthService.registerUser(email, password, userDetails);
     if (!result.success || !result.user) return res.status(400).json({ error: result.error || "Registration failed" });
-    const userToLogin = await UserService.getUserByEmail(email);
+    const userToLogin = await UserService.getUserById(email);
     if (!userToLogin) return res.status(500).json({error: "Failed to retrieve user after registration"});
     req.login(userToLogin, (err) => {
       if (err) return next(err);
@@ -145,7 +145,7 @@ app.post("/api/logout", (req, res, next) => {
 // User
 app.get('/api/user', requireAuth, (req, res) => res.json(req.user));
 app.get('/api/users', requireAuth, async (req, res) => res.json(await UserService.getAllUsers()));
-app.get('/api/users/:email', requireAuth, async (req, res) => res.json(await UserService.getUserByEmail(decodeURIComponent(req.params.email))));
+app.get('/api/users/:uid', requireAuth, async (req, res) => res.json(await UserService.getUserById(decodeURIComponent(req.params.uid))));
 app.put('/api/users/:uid', requireAuth, async (req, res) => {
     const { uid } = req.params;
     if (req.user?.id !== uid && req.user?.ruolo !== 'Admin') return res.status(403).json({ error: 'Forbidden' });

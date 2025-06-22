@@ -34,7 +34,7 @@ export default function ModificaImmagine() {
       if (!user) return;
       
       try {
-        const response = await fetch(`/api/users/${encodeURIComponent(user.email)}`);
+        const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
         
         if (response.ok) {
           const userData = await response.json();
@@ -88,7 +88,7 @@ export default function ModificaImmagine() {
     setIsSaving(true);
     
     try {
-      const response = await fetch(`/api/users/${encodeURIComponent(user.email)}/avatar`, {
+      const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}/avatar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

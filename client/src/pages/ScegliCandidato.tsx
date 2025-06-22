@@ -200,7 +200,7 @@ export default function ScegliCandidato() {
       };
       
       // Aggiorna i dati dell'utente
-      await apiRequest("PUT", `/api/users/${user.email}`, updateData);
+      await apiRequest("PUT", `/api/users/${user.uid}`, updateData);
       
       toast({
         title: "Candidato selezionato",

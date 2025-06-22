@@ -19,8 +19,8 @@ class AdminService extends FirebaseService {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
 
-      const emailId = this.emailToId(email);
-      const userDocRef = doc(db, 'utenti', emailId);
+      const uid = email;
+      const userDocRef = doc(db, 'utenti', uid);
       await deleteDoc(userDocRef);
       return { success: true };
     } catch (error) {
@@ -111,7 +111,7 @@ class AdminService extends FirebaseService {
       const requestData = requestDoc.data();
 
       // Aggiorna l'utente a premium
-      const userRef = doc(db, 'utenti', this.emailToId(requestData.user_email));
+      const userRef = doc(db, 'utenti', requestData.user_email);
       await updateDoc(userRef, { premium: true, premium_activated_at: new Date().toISOString() });
 
       // Aggiorna lo stato della richiesta

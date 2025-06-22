@@ -78,7 +78,7 @@ export default function ScegliRappresentante() {
         const currentUser = await userResponse.json();
         
         // Carica i dati completi dell'utente tramite email
-        const userDataResponse = await fetch(`/api/users/${encodeURIComponent(currentUser.email)}`);
+        const userDataResponse = await fetch(`/api/users/${encodeURIComponent(currentUser.uid)}`);
         const userData = await userDataResponse.json();
         
         console.log('Dati utente completi:', userData);
@@ -230,7 +230,7 @@ export default function ScegliRappresentante() {
       };
       
       // Aggiorna i dati dell'utente
-      await apiRequest("PUT", `/api/users/${user.email}`, updateData);
+      await apiRequest("PUT", `/api/users/${user.uid}`, updateData);
       
       toast({
         title: "Rappresentante selezionato",

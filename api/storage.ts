@@ -47,11 +47,6 @@ export const storage = {
   },
 
   // Metodi per la tabella di autenticazione 'users'
-  async getUserByEmail(email: string) {
-    const result = await db.select().from(users).where(eq(users.email, email));
-    return result[0] || null;
-  },
-
   async createUser(data: { email: string, password: string }) {
     const result = await db.insert(users).values(data).returning();
     return result[0];
