@@ -4,6 +4,7 @@ import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import appIcon from '/icona.png';
+import { adminAuth } from './firebase-config';
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();
