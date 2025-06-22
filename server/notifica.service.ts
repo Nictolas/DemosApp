@@ -25,9 +25,9 @@ class NotificaService extends FirebaseService {
         console.error("Firebase Firestore non è configurato per inviare notifiche.");
         return;
       }
-
+      const dbInstance = db as import('firebase/firestore').Firestore;
       const rappresentanteIdFirebase = this.emailToId(rappresentanteEmail);
-      const usersSnapshot = await getDocs(collection(db, 'utenti'));
+      const usersSnapshot = await getDocs(collection(dbInstance, 'utenti'));
       const notificationPromises: Promise<DocumentReference>[] = [];
 
       usersSnapshot.forEach((userDoc) => {
@@ -54,7 +54,7 @@ class NotificaService extends FirebaseService {
             data_creazione: new Date().toISOString(),
             letta: false
           };
-          notificationPromises.push(addDoc(collection(db, 'notifiche'), notificationData));
+          notificationPromises.push(addDoc(collection(dbInstance, 'notifiche'), notificationData));
         }
       });
 
@@ -71,7 +71,8 @@ class NotificaService extends FirebaseService {
   public static async getUserNotifications(userId: string): Promise<any[]> {
     try {
       if (!db) return [];
-      const q = query(collection(db, 'notifiche'), where('destinatario_id', '==', userId));
+      const dbInstance = db as import('firebase/firestore').Firestore;
+      const q = query(collection(dbInstance, 'notifiche'), where('destinatario_id', '==', userId));
       const querySnapshot = await getDocs(q);
 
       const notifications = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -94,8 +95,8 @@ class NotificaService extends FirebaseService {
   public static async markNotificationAsRead(notificationId: string, userId: string): Promise<{ success: boolean; error?: string; }> {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
-
-      const notificationDocRef = doc(db, 'notifiche', notificationId);
+      const dbInstance = db as import('firebase/firestore').Firestore;
+      const notificationDocRef = doc(dbInstance, 'notifiche', notificationId);
       const notificationSnapshot = await getDoc(notificationDocRef);
 
       if (!notificationSnapshot.exists()) {
@@ -127,13 +128,13 @@ class NotificaService extends FirebaseService {
             console.error("Firebase Firestore non è configurato");
             return;
         }
-
-        const q = query(collection(db, 'notifiche'), where('comunicazione_id', '==', comunicazioneId));
+        const dbInstance = db as import('firebase/firestore').Firestore;
+        const q = query(collection(dbInstance, 'notifiche'), where('comunicazione_id', '==', comunicazioneId));
         const querySnapshot = await getDocs(q);
 
         const deletePromises: Promise<void>[] = [];
         querySnapshot.forEach((notificaDoc) => {
-            deletePromises.push(deleteDoc(doc(db, 'notifiche', notificaDoc.id)));
+            deletePromises.push(deleteDoc(doc(dbInstance, 'notifiche', notificaDoc.id)));
         });
 
         await Promise.all(deletePromises);
