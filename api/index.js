@@ -114,7 +114,12 @@ const requireAuth = (req, res, next) => {
 };
 
 const requireAdmin = (req, res, next) => {
-  if (!req.isAuthenticated() || req.user?.ruolo !== 'Admin') return res.status(403).json({ error: "Forbidden" });
+  // DEBUG: Loggo l'oggetto utente per vedere cosa contiene la sessione
+  console.log('DEBUGGING ADMIN ROLE:', req.user); 
+  
+  if (!req.isAuthenticated() || req.user?.ruolo !== 'Admin') {
+    return res.status(403).json({ error: "Forbidden" });
+  }
   next();
 };
 
