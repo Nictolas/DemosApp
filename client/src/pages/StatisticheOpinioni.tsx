@@ -136,7 +136,10 @@ export default function StatisticheOpinioni() {
           <CardContent>
             {isLoadingStats && <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
             {error && <div className="text-center text-red-500 p-4">{error}</div>}
-            {!isLoadingStats && !error && stats && (
+            {!isLoadingStats && !error && stats && Object.keys(stats).length === 0 && (
+              <div className="text-center text-gray-500 p-4">Nessun dato disponibile per le statistiche.</div>
+            )}
+            {!isLoadingStats && !error && stats && Object.keys(stats).length > 0 && (
               <div className="space-y-8">
                 <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xl">Distribuzione complessiva</CardTitle></CardHeader><CardContent><div style={{ height: '300px' }}><Bar data={barChartData!} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }} /></div></CardContent></Card>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
