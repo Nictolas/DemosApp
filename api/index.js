@@ -206,7 +206,11 @@ app.get('/api/users/:uid/public', requireAdmin, async (req, res) => {
 // Opinioni
 app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
 app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.id)));
-app.get('/api/statistiche-opinioni', requireStatsRole, async (req, res) => res.json(await UserService.getAllUsers()));
+app.get('/api/statistiche-opinioni', requireStatsRole, async (req, res) => {
+  const users = await UserService.getAllUsers();
+  console.log("STATISTICHE UTENTI:", users.length, users[0]);
+  res.json(users);
+});
 app.get('/api/opinioni-dettaglio/:opinionField', requireStatsRole, async (req, res) => {
     const { opinionField } = req.params;
     const regione = req.query.regione;
