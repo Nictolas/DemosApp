@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Settings, Users, Vote, Heart } from "lucide-react";
+import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen } from "lucide-react";
 
 export default function Gestisci() {
   const { user, isLoading } = useAuth();
@@ -112,6 +112,28 @@ export default function Gestisci() {
               >
                 <Heart className="mr-2 h-4 w-4" />
                 Gestisci Grazia
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Gestisci Opinioni */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700">
+                <BookOpen className="h-5 w-5" />
+                Gestisci Opinioni
+              </CardTitle>
+              <CardDescription>
+                Aggiungi o elimina le opinioni disponibili per gli utenti
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.location.href = "/gestisci-opinioni"}
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Gestisci Opinioni
               </Button>
             </CardContent>
           </Card>

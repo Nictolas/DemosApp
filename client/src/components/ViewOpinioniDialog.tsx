@@ -4,15 +4,6 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
-// Definizione delle domande
-const questions = [
-  { id: "energia_nucleare", text: "Energia Nucleare" },
-  { id: "sperimentazione_animale", text: "Sperimentazione Animale" },
-  { id: "legalizzazione_canapa", text: "Legalizzazione Canapa" },
-  { id: "caccia", text: "Caccia" },
-  { id: "unione_europea", text: "Unione Europea" }
-];
-
 // Mappa colori per le risposte
 const responseColors = {
   "Favorevole": "bg-green-100 text-green-800 border-green-500",
@@ -34,12 +25,32 @@ export function ViewOpinioniDialog({
   const { toast } = useToast();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
+  const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+
+  // Carica le domande dinamiche
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoadingQuestions(true);
+      try {
+        const res = await fetch("/api/opinioni-list");
+        if (!res.ok) throw new Error();
+        setQuestions(await res.json());
+      } catch {
+        toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    };
+    fetchQuestions();
+  }, []);
 
   useEffect(() => {
-    if (open && utenteId) {
+    if (open && utenteId && questions.length > 0) {
       loadUserOpinions();
     }
-  }, [open, utenteId]);
+    // eslint-disable-next-line
+  }, [open, utenteId, questions]);
 
   const loadUserOpinions = async () => {
     try {
@@ -88,7 +99,7 @@ export function ViewOpinioniDialog({
         </DialogHeader>
         
         <div className="max-h-[60vh] overflow-y-auto pr-1">
-          {isLoadingOpinions ? (
+          {isLoadingOpinions || isLoadingQuestions ? (
             <div className="flex justify-center items-center h-40">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="ml-2">Caricamento opinioni...</span>

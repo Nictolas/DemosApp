@@ -44,6 +44,7 @@ import { RegistrationProvider } from "@/hooks/use-registration";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { PageTransition } from "@/components/PageTransition";
 import GestisciGrazia from "./pages/GestisciGrazia";
+import GestisciOpinioni from "./pages/GestisciOpinioni";
 
 function Router() {
   const [location] = useLocation();
@@ -330,6 +331,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/gestisci-grazia" component={GestisciGrazia} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/gestisci-opinioni">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/gestisci-opinioni" component={GestisciOpinioni} />
           </PageTransition>
         )}
       </Route>

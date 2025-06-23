@@ -18,14 +18,8 @@ export default function StatisticheOpinioni() {
   const [stats, setStats] = useState<OpinionStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const opinionQuestions: Record<OpinionKey, string> = {
-    energia_nucleare: "Energia Nucleare",
-    sperimentazione_animale: "Sperimentazione Animale",
-    legalizzazione_canapa: "Legalizzazione Canapa",
-    caccia: "Caccia",
-    unione_europea: "Unione Europea"
-  };
+  const [opinionQuestions, setOpinionQuestions] = useState<{id: string, text: string}[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
 
   const backgroundColors = { favorevole: 'rgba(75, 192, 192, 0.6)', contrario: 'rgba(255, 99, 132, 0.6)', astenuto: 'rgba(255, 206, 86, 0.6)' };
   const borderColors = { favorevole: 'rgba(75, 192, 192, 1)', contrario: 'rgba(255, 99, 132, 1)', astenuto: 'rgba(255, 206, 86, 1)' };
@@ -42,22 +36,16 @@ export default function StatisticheOpinioni() {
       const users: any[] = await response.json();
 
       const initialStats: OpinionStats = {};
-      Object.keys(opinionQuestions).forEach(key => {
-        initialStats[key] = { favorevole: 0, contrario: 0, astenuto: 0 };
+      opinionQuestions.forEach(q => {
+        initialStats[q.id] = { favorevole: 0, contrario: 0, astenuto: 0 };
       });
 
       users.forEach(user => {
-        Object.keys(opinionQuestions).forEach(question => {
-          const opinion = user[question as OpinionKey];
-
-          // La condizione controlla il valore con la maiuscola, come arriva dal DB
+        opinionQuestions.forEach(q => {
+          const opinion = user[q.id];
           if (typeof opinion === 'string' && ['Favorevole', 'Contrario', 'Indeciso'].includes(opinion)) {
-
-            // MA per aggiornare il nostro stato, usiamo la versione in minuscolo
-            // e convertiamo "Indeciso" in "astenuto"
-            const keyToIncrement = (opinion === 'Indeciso' ? 'astenuto' : opinion.toLowerCase()) as OpinionValue;
-
-            initialStats[question][keyToIncrement]++;
+            const keyToIncrement = (opinion === 'Indeciso' ? 'astenuto' : opinion.toLowerCase()) as keyof OpinionData;
+            initialStats[q.id][keyToIncrement]++;
           }
         });
       });
@@ -67,13 +55,29 @@ export default function StatisticheOpinioni() {
     } finally {
       setIsLoadingStats(false);
     }
-  }, []);
+  }, [opinionQuestions]);
 
   useEffect(() => {
     if (user) {
       fetchStats();
     }
   }, [user, fetchStats]);
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoadingQuestions(true);
+      try {
+        const res = await fetch("/api/opinioni-list");
+        if (!res.ok) throw new Error();
+        setOpinionQuestions(await res.json());
+      } catch {
+        setError("Impossibile caricare le opinioni disponibili.");
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    };
+    fetchQuestions();
+  }, []);
 
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -105,13 +109,13 @@ export default function StatisticheOpinioni() {
 
   const prepareBarChartData = () => {
     if (!stats) return null;
-    const labels = Object.values(opinionQuestions);
+    const labels = opinionQuestions.map(q => q.text);
     return {
       labels,
       datasets: [
-        { label: 'Favorevole', data: Object.keys(opinionQuestions).map(key => stats[key].favorevole), backgroundColor: backgroundColors.favorevole },
-        { label: 'Contrario', data: Object.keys(opinionQuestions).map(key => stats[key].contrario), backgroundColor: backgroundColors.contrario },
-        { label: 'Astenuto', data: Object.keys(opinionQuestions).map(key => stats[key].astenuto), backgroundColor: backgroundColors.astenuto }
+        { label: 'Favorevole', data: opinionQuestions.map(q => stats[q.id]?.favorevole ?? 0), backgroundColor: backgroundColors.favorevole },
+        { label: 'Contrario', data: opinionQuestions.map(q => stats[q.id]?.contrario ?? 0), backgroundColor: backgroundColors.contrario },
+        { label: 'Astenuto', data: opinionQuestions.map(q => stats[q.id]?.astenuto ?? 0), backgroundColor: backgroundColors.astenuto }
       ]
     };
   };
@@ -119,13 +123,9 @@ export default function StatisticheOpinioni() {
   const barChartData = prepareBarChartData();
 
   // Mappa per i link di dettaglio
-  const detailPageLinks: Record<string, string> = {
-    'energia_nucleare': '/opinioni/energia_nucleare',
-    'sperimentazione_animale': '/opinioni/sperimentazione_animale',
-    'legalizzazione_canapa': '/opinioni/legalizzazione_canapa',
-    'caccia': '/opinioni/caccia',
-    'unione_europea': '/opinioni/unione_europea'
-  };
+  const detailPageLinks: Record<string, string> = Object.fromEntries(
+    opinionQuestions.map(q => [q.id, `/opinioni/${q.id}`])
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
@@ -140,14 +140,13 @@ export default function StatisticheOpinioni() {
               <div className="space-y-8">
                 <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xl">Distribuzione complessiva</CardTitle></CardHeader><CardContent><div style={{ height: '300px' }}><Bar data={barChartData!} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }} /></div></CardContent></Card>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {Object.entries(opinionQuestions).map(([key, title]) => {
-                    const pieData = preparePieChartData(key as OpinionKey);
-                    const detailLink = detailPageLinks[key];
+                  {opinionQuestions.map(q => {
+                    const pieData = preparePieChartData(q.id as any);
+                    const detailLink = detailPageLinks[q.id];
                     return pieData && (
-                      // ===== LOGICA DI NAVIGAZIONE RIPRISTINATA =====
-                      <Link href={detailLink} key={key}>
+                      <Link href={detailLink} key={q.id}>
                         <Card className="shadow-sm cursor-pointer hover:shadow-md transition-shadow h-full">
-                          <CardHeader className="pb-2"><CardTitle className="text-xl hover:text-primary transition-colors">{title}</CardTitle></CardHeader>
+                          <CardHeader className="pb-2"><CardTitle className="text-xl hover:text-primary transition-colors">{q.text}</CardTitle></CardHeader>
                           <CardContent className="flex justify-center">
                             <div style={{ height: '200px', width: '100%', maxWidth: '300px' }}>
                                 <Pie data={pieData} options={{ plugins: { legend: { position: 'bottom' } }, responsive: true, maintainAspectRatio: false }} />
@@ -158,7 +157,7 @@ export default function StatisticheOpinioni() {
                     );
                   })}
                 </div>
-                <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xl">Dati Dettagliati</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full border-collapse"><thead><tr className="bg-secondary/30"><th className="border p-2 text-left">Argomento</th><th className="border p-2 text-center">Favorevoli</th><th className="border p-2 text-center">Astenuti</th><th className="border p-2 text-center">Contrari</th><th className="border p-2 text-center">Totale</th></tr></thead><tbody>{Object.entries(opinionQuestions).map(([key, title]) => {const questionStats = stats[key]; const total = questionStats.favorevole + questionStats.astenuto + questionStats.contrario; return (<tr key={key} className="hover:bg-secondary/10"><td className="border p-2 font-medium">{title}</td><td className="border p-2 text-center text-emerald-600">{questionStats.favorevole}</td><td className="border p-2 text-center text-amber-600">{questionStats.astenuto}</td><td className="border p-2 text-center text-red-600">{questionStats.contrario}</td><td className="border p-2 text-center font-medium">{total}</td></tr>);})}</tbody></table></div></CardContent></Card>
+                <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xl">Dati Dettagliati</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full border-collapse"><thead><tr className="bg-secondary/30"><th className="border p-2 text-left">Argomento</th><th className="border p-2 text-center">Favorevoli</th><th className="border p-2 text-center">Astenuti</th><th className="border p-2 text-center">Contrari</th><th className="border p-2 text-center">Totale</th></tr></thead><tbody>{opinionQuestions.map(q => {const questionStats = stats[q.id]; const total = questionStats.favorevole + questionStats.astenuto + questionStats.contrario; return (<tr key={q.id} className="hover:bg-secondary/10"><td className="border p-2 font-medium">{q.text}</td><td className="border p-2 text-center text-emerald-600">{questionStats.favorevole}</td><td className="border p-2 text-center text-amber-600">{questionStats.astenuto}</td><td className="border p-2 text-center text-red-600">{questionStats.contrario}</td><td className="border p-2 text-center font-medium">{total}</td></tr>);})}</tbody></table></div></CardContent></Card>
               </div>
             )}
           </CardContent>

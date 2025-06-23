@@ -6,15 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 
-// Definizione delle domande e delle opzioni
-const questions = [
-  { id: "energia_nucleare", text: "Energia Nucleare" },
-  { id: "sperimentazione_animale", text: "Sperimentazione Animale" },
-  { id: "legalizzazione_canapa", text: "Legalizzazione Canapa" },
-  { id: "caccia", text: "Caccia" },
-  { id: "unione_europea", text: "Unione Europea" }
-];
-
+// Le domande ora sono dinamiche
 const options = [
   { value: "Favorevole", color: "bg-green-100 border-green-500 hover:bg-green-200" },
   { value: "Indeciso", color: "bg-yellow-100 border-yellow-500 hover:bg-yellow-200" },
@@ -27,9 +19,19 @@ export default function Opinioni() {
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
+  const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [, setLocation] = useLocation();
 
+  // Carica le domande dinamiche
   useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoadingQuestions(true);
+      try {
+        const res = await fetch("/api/opinioni-list");
+        if (!res.ok) throw new Error();
+        setQuestions(await res.json());
+      } catch {
     // Carica le opinioni dell'utente quando la pagina viene caricata
     if (user) {
       loadUserOpinions();
