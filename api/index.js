@@ -20,6 +20,7 @@ import ElezioneService from "../server/elezione.service.js";
 import ComizioService from "../server/comizio.service.js";
 import NotificaService from "../server/notifica.service.js";
 import SostenitoriService from "../server/sostenitori.service.js";
+import OpinioniService from '../server/opinioni.service.js';
 
 dotenv.config();
 
@@ -344,6 +345,29 @@ app.post('/api/grazia/richiesta/:id/accetta', requireAdmin, async (req, res) => 
 app.post('/api/grazia/richiesta/:id/rifiuta', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const result = await VotoService.rejectGraziaRequest(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+// Opinioni dinamiche
+app.get('/api/opinioni-list', requireAuth, async (req, res) => {
+  res.json(await OpinioniService.listOpinioni());
+});
+app.post('/api/opinioni-list', requireAdmin, async (req, res) => {
+  const { id, text } = req.body;
+  if (!id || !text) return res.status(400).json({ error: 'id e text obbligatori' });
+  const result = await OpinioniService.addOpinione({ id, text });
+  if (result.success) {
+    // Notifica a tutti gli utenti
+    await NotificaService.inviaNotificaGlobale({
+      titolo: 'Nuova opinione disponibile',
+      messaggio: `È stata aggiunta una nuova opinione: ${text}. Rispondi ora!`,
+      tipo: 'info',
+    });
+  }
+  res.status(result.success ? 200 : 400).json(result);
+});
+app.delete('/api/opinioni-list/:id', requireAdmin, async (req, res) => {
+  const result = await OpinioniService.deleteOpinione(req.params.id);
   res.status(result.success ? 200 : 400).json(result);
 });
 

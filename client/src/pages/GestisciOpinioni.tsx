@@ -1,0 +1,111 @@
+import React, { useEffect, useState } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2, ArrowLeft, Trash2, Plus } from "lucide-react";
+import { useLocation } from "wouter";
+
+export default function GestisciOpinioni() {
+  const [, setLocation] = useLocation();
+  const [opinioni, setOpinioni] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newId, setNewId] = useState("");
+  const [newText, setNewText] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState("");
+  const [error, setError] = useState("");
+
+  const fetchOpinioni = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/opinioni-list");
+      if (!res.ok) throw new Error("Errore nel recupero delle opinioni");
+      setOpinioni(await res.json());
+    } catch (e) {
+      setError("Errore nel caricamento delle opinioni");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchOpinioni(); }, []);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newId.trim() || !newText.trim()) return;
+    setAdding(true);
+    setError("");
+    try {
+      const res = await fetch("/api/opinioni-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: newId.trim(), text: newText.trim() })
+      });
+      if (!res.ok) throw new Error("Errore nell'aggiunta");
+      setNewId("");
+      setNewText("");
+      await fetchOpinioni();
+    } catch (e) {
+      setError("Errore nell'aggiunta dell'opinione");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Sei sicuro di voler eliminare questa opinione? Verrà rimossa da tutto il sistema.")) return;
+    setDeleting(id);
+    setError("");
+    try {
+      const res = await fetch(`/api/opinioni-list/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Errore nell'eliminazione");
+      await fetchOpinioni();
+    } catch (e) {
+      setError("Errore nell'eliminazione dell'opinione");
+    } finally {
+      setDeleting("");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+      <div className="container mx-auto max-w-3xl">
+        <Button variant="ghost" className="mb-4 flex items-center" onClick={() => setLocation("/gestisci")}> <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Gestisci </Button>
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Gestisci Opinioni</CardTitle>
+            <CardDescription>Aggiungi o elimina le opinioni disponibili per gli utenti</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
+            ) : error ? (
+              <div className="text-center text-red-500 py-8">{error}</div>
+            ) : (
+              <>
+                <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-2 mb-6 items-center">
+                  <Input placeholder="ID opinione (es. caccia)" value={newId} onChange={e => setNewId(e.target.value)} className="max-w-xs" />
+                  <Input placeholder="Testo opinione (es. Caccia)" value={newText} onChange={e => setNewText(e.target.value)} className="flex-1" />
+                  <Button type="submit" disabled={adding || !newId.trim() || !newText.trim()} className="flex-shrink-0">
+                    {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}Aggiungi
+                  </Button>
+                </form>
+                <div className="space-y-2">
+                  {opinioni.map((op: any) => (
+                    <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-sm">
+                      <span className="font-medium">{op.text} <span className="text-xs text-muted-foreground">({op.id})</span></span>
+                      <Button size="sm" variant="destructive" disabled={deleting === op.id} onClick={() => handleDelete(op.id)}>
+                        {deleting === op.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Elimina
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+} 
