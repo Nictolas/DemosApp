@@ -1,0 +1,83 @@
+import React, { useEffect, useState } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Heart, ArrowLeft, Check, X } from "lucide-react";
+import { useLocation } from "wouter";
+
+export default function GestisciGrazia() {
+  const [, setLocation] = useLocation();
+  const [requests, setRequests] = useState<Array<{id: string, nome: string, urlProva: string, userId: string}>>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState("");
+  const [error, setError] = useState("");
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/grazia/richieste");
+      if (!res.ok) throw new Error("Errore nel recupero delle richieste");
+      setRequests(await res.json());
+    } catch (e) {
+      setError("Errore nel caricamento delle richieste");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRequests(); }, []);
+
+  const handleAction = async (id: string, action: 'accetta' | 'rifiuta') => {
+    setActionLoading(id + action);
+    setError("");
+    try {
+      const res = await fetch(`/api/grazia/richiesta/${id}/${action}`, { method: "POST" });
+      if (!res.ok) throw new Error("Errore nell'azione");
+      await fetchRequests();
+    } catch (e) {
+      setError("Errore nell'azione sull richiesta");
+    } finally {
+      setActionLoading("");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+      <div className="container mx-auto max-w-3xl">
+        <Button variant="ghost" className="mb-4 flex items-center" onClick={() => setLocation("/gestisci")}> <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Gestisci </Button>
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-green-500 to-green-700 rounded-full"><Heart className="h-10 w-10 text-white" /></div></div>
+            <CardTitle className="text-2xl font-bold">Gestisci Grazia</CardTitle>
+            <CardDescription>Gestisci le richieste di grazia e i voti associati</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8">Caricamento richieste...</div>
+            ) : error ? (
+              <div className="text-center text-red-500 py-8">{error}</div>
+            ) : requests.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">Nessuna richiesta pendente.</div>
+            ) : (
+              <div className="space-y-4">
+                {requests.map(r => (
+                  <div key={r.id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div>
+                      <div className="font-semibold">{r.nome}</div>
+                      <a href={r.urlProva} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm break-all">{r.urlProva}</a>
+                      <div className="text-xs text-muted-foreground mt-1">Richiesta da utente: {r.userId}</div>
+                    </div>
+                    <div className="flex gap-2 mt-2 md:mt-0">
+                      <Button size="sm" variant="outline" disabled={actionLoading === r.id+"accetta"} onClick={() => handleAction(r.id, "accetta")}>{actionLoading === r.id+"accetta" ? "..." : <><Check className="h-4 w-4 mr-1"/>Accetta</>}</Button>
+                      <Button size="sm" variant="destructive" disabled={actionLoading === r.id+"rifiuta"} onClick={() => handleAction(r.id, "rifiuta")}>{actionLoading === r.id+"rifiuta" ? "..." : <><X className="h-4 w-4 mr-1"/>Rifiuta</>}</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+} 

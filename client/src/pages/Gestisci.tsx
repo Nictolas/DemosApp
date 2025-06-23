@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Settings, Users, Vote } from "lucide-react";
+import { ArrowLeft, Settings, Users, Vote, Heart } from "lucide-react";
 
 export default function Gestisci() {
   const { user, isLoading } = useAuth();
@@ -90,6 +90,28 @@ export default function Gestisci() {
               >
                 <Vote className="mr-2 h-4 w-4" />
                 Gestisci Elezioni
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Gestisci Grazia */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
+                <Heart className="h-5 w-5" />
+                Gestisci Grazia
+              </CardTitle>
+              <CardDescription>
+                Gestisci le richieste di grazia e i voti associati
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-green-600 hover:bg-green-700"
+                onClick={() => window.location.href = "/gestisci-grazia"}
+              >
+                <Heart className="mr-2 h-4 w-4" />
+                Gestisci Grazia
               </Button>
             </CardContent>
           </Card>

@@ -2,7 +2,7 @@
 import FirebaseService from './firebase-service.js';
 import { db } from '../api/firebase-config.js';
 // Import necessari da 'firebase/firestore'
-import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
 
 class VotoService extends FirebaseService {
 
@@ -195,6 +195,68 @@ class VotoService extends FirebaseService {
         .slice(0, 10);
     } catch (error) {
       return this.handleError(error, `_getLeaderboard(${collectionName})`);
+    }
+  }
+
+  // ================= GESTIONE RICHIESTE GRAZIA ===================
+  static async proposeGraziaRequest(userId, nome, urlProva) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      // Salva la richiesta solo se non esiste già una identica pendente
+      const q = query(collection(db, 'grazia_requests'), where('nome', '==', nome), where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return { success: false, error: 'Richiesta già presente e in attesa di approvazione' };
+      }
+      await addDoc(collection(db, 'grazia_requests'), {
+        userId,
+        nome,
+        urlProva,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'proposeGraziaRequest');
+    }
+  }
+
+  static async getPendingGraziaRequests() {
+    try {
+      if (!db) return [];
+      const q = query(collection(db, 'grazia_requests'), where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      return this.handleError(error, 'getPendingGraziaRequests');
+    }
+  }
+
+  static async acceptGraziaRequest(requestId) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const requestRef = doc(db, 'grazia_requests', requestId);
+      const requestSnap = await getDoc(requestRef);
+      if (!requestSnap.exists()) return { success: false, error: 'Richiesta non trovata' };
+      const { nome } = requestSnap.data();
+      // Aggiorna la richiesta come accettata
+      await updateDoc(requestRef, { status: 'accepted', acceptedAt: new Date().toISOString() });
+      // Aggiungi il nome ai votabili (opzionale: qui puoi aggiungere logica per inserirlo in una collection "candidati_grazia" se serve)
+      // Per ora, il nome sarà votabile semplicemente perché l'admin lo ha accettato
+      return { success: true, nome };
+    } catch (error) {
+      return this.handleError(error, 'acceptGraziaRequest');
+    }
+  }
+
+  static async rejectGraziaRequest(requestId) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const requestRef = doc(db, 'grazia_requests', requestId);
+      await updateDoc(requestRef, { status: 'rejected', rejectedAt: new Date().toISOString() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'rejectGraziaRequest');
     }
   }
 
