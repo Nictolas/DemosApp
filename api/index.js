@@ -317,5 +317,29 @@ createVotingEndpoints('amnistia-indulto-grazia', { vote: 'voteIniziativa', getUs
 createVotingEndpoints('referendum-abrogativi', { vote: 'voteReferendum', getUserVoti: 'getUserVotiReferendum', getClassifica: 'getClassificaReferendum' }, 'legge');
 createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativePopolari', getClassifica: 'getClassificaIniziativePopolari' }, 'legge');
 
+// === GRAZIA: Richieste di nuovi individui ===
+app.post('/api/grazia/richiesta', requireAuth, async (req, res) => {
+  const { nome, urlProva } = req.body;
+  if (!nome || !urlProva) return res.status(400).json({ error: 'Nome e urlProva sono obbligatori' });
+  const result = await VotoService.proposeGraziaRequest(req.user.id, nome, urlProva);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+app.get('/api/grazia/richieste', requireAdmin, async (req, res) => {
+  const richieste = await VotoService.getPendingGraziaRequests();
+  res.json(richieste);
+});
+
+app.post('/api/grazia/richiesta/:id/accetta', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.acceptGraziaRequest(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+app.post('/api/grazia/richiesta/:id/rifiuta', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.rejectGraziaRequest(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
 
 export default app; 

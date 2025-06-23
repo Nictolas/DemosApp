@@ -23,6 +23,7 @@ export default function Grazia() {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
+  const [urlProva, setUrlProva] = useState("");
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -46,31 +47,53 @@ export default function Grazia() {
     loadData();
   }, [loadData]);
 
+  const isNomeNuovo = !!(nomeInput.trim() && !classifica.some(item => item.nome.toLowerCase() === nomeInput.trim().toLowerCase()));
+
   const handleVote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomeInput.trim()) return;
-    await voteForCandidate(nomeInput.trim());
+    if (isNomeNuovo && !urlProva.trim()) return;
+    await voteForCandidate(nomeInput.trim(), isNomeNuovo ? urlProva.trim() : undefined);
   };
 
-  const voteForCandidate = async (nome: string) => {
+  const voteForCandidate = async (nome: string, url?: string) => {
     if (userVoti.includes(nome)) {
       toast({ title: "Voto già registrato", description: `Hai già votato per ${nome}` });
       return;
     }
     setIsVoting(true);
     try {
-      const response = await fetch('/api/grazia/vota', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome }),
-      });
-      if (response.ok) {
-        toast({ title: "Voto registrato", description: `Hai votato per la grazia di ${nome}` });
-        setNomeInput("");
-        await loadData();
+      if (url) {
+        // Proposta di nuovo individuo: invia richiesta
+        const response = await fetch('/api/grazia/richiesta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, urlProva: url }),
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+          toast({ title: "Richiesta inviata", description: `La richiesta per ${nome} è stata inviata e sarà valutata da un amministratore.` });
+          setNomeInput("");
+          setUrlProva("");
+        } else {
+          toast({ title: "Errore", description: (result && result.error) ? result.error : "Errore nell'invio della richiesta", variant: "destructive" });
+        }
       } else {
-        const error = await response.json();
-        toast({ title: "Errore", description: error.error, variant: "destructive" });
+        // Voto normale
+        const response = await fetch('/api/grazia/vota', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome }),
+        });
+        if (response.ok) {
+          toast({ title: "Voto registrato", description: `Hai votato per la grazia di ${nome}` });
+          setNomeInput("");
+          setUrlProva("");
+          await loadData();
+        } else {
+          const error = await response.json();
+          toast({ title: "Errore", description: error.error, variant: "destructive" });
+        }
       }
     } catch (error) {
       toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
@@ -169,11 +192,23 @@ export default function Grazia() {
                         </div>
                       )}
                     </div>
-                    <Button type="submit" disabled={isVoting || !nomeInput.trim()}>
-                      {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                      Vota
-                    </Button>
                   </div>
+                  {isNomeNuovo && (
+                    <div>
+                      <Input
+                        placeholder="URL con prove dell'esistenza del soggetto (es. notizia, social, ecc.)"
+                        value={urlProva}
+                        onChange={e => setUrlProva(e.target.value)}
+                        className="w-full mt-2"
+                        required={isNomeNuovo}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Per nuovi soggetti è obbligatorio inserire un URL di prova.</p>
+                    </div>
+                  )}
+                  <Button type="submit" disabled={isVoting || !nomeInput.trim() || (isNomeNuovo && !urlProva.trim())}>
+                    {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Vota
+                  </Button>
                 </form>
 
                 {userVoti.length > 0 && (
