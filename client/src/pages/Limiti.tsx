@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 
-const LIMITS = [
+const LIMITS_MOCK = [
   {
     category: "Cloud Firestore",
     limits: [
@@ -75,15 +75,108 @@ function isOverLimit(value: number, max: number) {
   return value / max >= 0.8;
 }
 
+function mapApiToLimits(data: any) {
+  if (!data) return LIMITS_MOCK;
+  return [
+    {
+      category: "Cloud Firestore",
+      limits: [
+        { label: "Stored data", ...data.firestore.storedData },
+        { label: "Network egress", ...data.firestore.networkEgress },
+        { label: "Document writes", ...data.firestore.writes },
+        { label: "Document reads", ...data.firestore.reads },
+        { label: "Document deletes", ...data.firestore.deletes },
+      ],
+    },
+    {
+      category: "Realtime Database",
+      limits: [
+        { label: "Connessioni simultanee", ...data.realtimeDb.connections },
+        { label: "GB memorizzati", ...data.realtimeDb.storedGB },
+        { label: "GB download", ...data.realtimeDb.downloadGB },
+      ],
+    },
+    {
+      category: "Cloud Storage",
+      limits: [
+        { label: "GB memorizzati", ...data.storage.storedGB },
+        { label: "GB scaricati", ...data.storage.downloadGB },
+        { label: "Operazioni di upload", ...data.storage.uploads },
+        { label: "Operazioni di download", ...data.storage.downloads },
+      ],
+    },
+    {
+      category: "Hosting",
+      limits: [
+        { label: "Storage", ...data.hosting.storage },
+        { label: "Data transfer", ...data.hosting.dataTransfer },
+      ],
+    },
+    {
+      category: "Cloud Functions",
+      limits: [
+        { label: "Invocazioni", ...data.functions.invocations },
+        { label: "GB-seconds", ...data.functions.gbSeconds },
+        { label: "CPU-seconds", ...data.functions.cpuSeconds },
+        { label: "Outbound networking", ...data.functions.outbound },
+      ],
+    },
+    {
+      category: "Cloud Build / Artifact Registry",
+      limits: [
+        { label: "Cloud Build minutes", ...data.build.minutes },
+        { label: "Container storage", ...data.build.container },
+      ],
+    },
+    {
+      category: "Test Lab",
+      limits: [
+        { label: "Virtual Device Tests", ...data.testlab.virtual },
+        { label: "Physical Device Tests", ...data.testlab.physical },
+        { label: "Android Device Streaming", ...data.testlab.streaming },
+      ],
+    },
+    {
+      category: "Data Connect",
+      limits: [
+        { label: "Network egress", ...data.dataconnect.egress },
+        { label: "Operation count", ...data.dataconnect.ops },
+      ],
+    },
+  ];
+}
+
 export default function Limiti() {
   const { user } = useAuth();
-  const [limits, setLimits] = useState(LIMITS);
+  const [limits, setLimits] = useState(LIMITS_MOCK);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isAdmin = user?.ruolo === "Admin";
 
+  const fetchLimits = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/limiti");
+      if (!res.ok) throw new Error("Errore nel recupero dei limiti");
+      const data = await res.json();
+      setLimits(mapApiToLimits(data));
+      setLastUpdate(new Date());
+    } catch (e: any) {
+      setError(e.message || "Errore sconosciuto");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) fetchLimits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
   const handleRefresh = () => {
-    // Qui chiameresti una vera API, per ora aggiorniamo solo il timestamp
-    setLastUpdate(new Date());
+    fetchLimits();
   };
 
   if (!isAdmin) {
@@ -108,10 +201,11 @@ export default function Limiti() {
               <CardTitle className="text-2xl font-bold">Monitoraggio Limiti Firebase</CardTitle>
               <CardDescription>Controlla in tempo reale il superamento dei limiti del piano gratuito</CardDescription>
             </div>
-            <Button onClick={handleRefresh} variant="outline">Aggiorna dati</Button>
+            <Button onClick={handleRefresh} variant="outline" disabled={loading}>{loading ? "Aggiornamento..." : "Aggiorna dati"}</Button>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground mb-2">Ultimo aggiornamento: {lastUpdate.toLocaleString()}</div>
+            {error && <div className="text-red-500 mb-4">{error}</div>}
             {limits.map(section => (
               <div key={section.category} className="mb-6">
                 <h3 className="font-semibold text-lg mb-2">{section.category}</h3>
