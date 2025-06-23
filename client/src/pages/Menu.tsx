@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect, Link } from "wouter";
+import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings, Crown, Building2, Scale, Users, FileText, Calendar, Megaphone } from "lucide-react";
@@ -14,6 +14,7 @@ export default function Menu() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
+  const [, setLocation] = useLocation();
   
   // Verifica se l'utente è admin
   useEffect(() => {
@@ -289,6 +290,13 @@ export default function Menu() {
                   Amministrazione
                 </Button>
               )}
+              <Button
+                variant="outline"
+                className="w-full justify-start mb-2"
+                onClick={() => setLocation("/limiti")}
+              >
+                Limiti
+              </Button>
             </CardContent>
             <CardFooter className="flex justify-center p-6 pt-0">
               <Button 
