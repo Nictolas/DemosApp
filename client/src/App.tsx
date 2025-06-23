@@ -106,6 +106,13 @@ function Router() {
           </PageTransition>
         )}
       </Route>
+      <Route path="/profilo/:userId">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+            <ProtectedRoute path="/profilo/:userId" component={() => <Profilo userId={params.userId} />} />
+          </PageTransition>
+        )}
+      </Route>
       <Route path="/modifica-immagine">
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>

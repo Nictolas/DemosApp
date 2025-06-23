@@ -1,16 +1,47 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
-import { UserInfo } from "@/types";
 import { db, auth } from "@/lib/firebase";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
 
-export default function Profilo() {
+// Definizione locale del tipo UserInfo
+export type UserInfo = {
+  id?: string;
+  nome: string;
+  cognome: string;
+  data_nascita: string;
+  genere: string;
+  cittadinanza: string;
+  ruolo: string;
+  paese_residenza: string;
+  regione_residenza: string;
+  provincia_residenza: string;
+  comune_residenza: string;
+  paese_elezione?: string;
+  regione_elezione?: string;
+  provincia_elezione?: string;
+  comune_elezione?: string;
+  grado_elezione?: string;
+  paese_candidatura?: string;
+  regione_candidatura?: string;
+  provincia_candidatura?: string;
+  comune_candidatura?: string;
+  grado_candidatura?: string;
+  energia_nucleare?: string;
+  sperimentazione_animale?: string;
+  legalizzazione_canapa?: string;
+  caccia?: string;
+  unione_europea?: string;
+  avatar_config?: string;
+  [key: string]: any;
+};
+
+export default function Profilo({ userId }: { userId?: string }) {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -191,11 +222,12 @@ export default function Profilo() {
 
   useEffect(() => {
     const fetchUserInfo = async () => {
-      if (!user) return;
+      const uidToFetch = userId || (user && user.uid);
+      if (!uidToFetch) return;
       
       try {
         // Carica i dati utente tramite API (che ora usa Firebase)
-        const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+        const response = await fetch(`/api/users/${encodeURIComponent(uidToFetch)}`);
         
         if (response.ok) {
           const userData = await response.json();
@@ -261,10 +293,10 @@ export default function Profilo() {
       }
     };
 
-    if (user) {
+    if (user || userId) {
       fetchUserInfo();
     }
-  }, [user]);
+  }, [user, userId]);
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
@@ -282,18 +314,18 @@ export default function Profilo() {
           <Button 
             variant="ghost" 
             className="mb-4 flex items-center"
-            onClick={() => window.location.href = "/menu"}
+            onClick={() => window.location.href = userId ? "/gestisci-grazia" : "/menu"}
           >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+            <ArrowLeft className="mr-2 h-4 w-4" /> Torna {userId ? "a Gestisci Grazia" : "al Menu"}
           </Button>
           
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                Il tuo Profilo
+                Profilo Utente
               </CardTitle>
               <CardDescription>
-                Visualizza e gestisci le tue informazioni personali
+                {userId ? "Visualizza le informazioni di questo utente" : "Visualizza e gestisci le tue informazioni personali"}
               </CardDescription>
             </CardHeader>
             
