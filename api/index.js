@@ -123,6 +123,16 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
+// Middleware per ruoli statistici
+const requireStatsRole = (req, res, next) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+  const allowed = ["Admin", "Politico", "Candidato Politico", "Candidato"];
+  if (!allowed.includes(req.user?.ruolo)) {
+    return res.status(403).json({ error: "Forbidden: ruolo non autorizzato" });
+  }
+  next();
+};
+
 const requireAdmin = (req, res, next) => {
   // DEBUG: Loggo l'oggetto utente per vedere cosa contiene la sessione
   console.log('DEBUGGING ADMIN ROLE:', req.user); 
@@ -196,8 +206,8 @@ app.get('/api/users/:uid/public', requireAdmin, async (req, res) => {
 // Opinioni
 app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
 app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.id)));
-app.get('/api/statistiche-opinioni', requireAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
-app.get('/api/opinioni-dettaglio/:opinionField', requireAdmin, async (req, res) => {
+app.get('/api/statistiche-opinioni', requireStatsRole, async (req, res) => res.json(await UserService.getAllUsers()));
+app.get('/api/opinioni-dettaglio/:opinionField', requireStatsRole, async (req, res) => {
     const { opinionField } = req.params;
     const regione = req.query.regione;
     const validFields = ["energia_nucleare", "sperimentazione_animale", "legalizzazione_canapa", "caccia", "unione_europea"];
