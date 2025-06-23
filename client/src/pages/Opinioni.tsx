@@ -3,8 +3,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 
@@ -213,24 +211,44 @@ export default function Opinioni() {
               </div>
             ) : (
               <>
-                <div className="space-y-8">
+                <div className="space-y-8 flex flex-col items-center">
                   {questions.map((question) => (
-                    <div key={question.id} className="border rounded-lg p-4 shadow-sm">
-                      <h3 className="text-lg font-semibold mb-4">{question.text}</h3>
-                      <RadioGroup 
-                        value={opinions[question.id] || ""} 
-                        onValueChange={(value) => handleOpinionChange(question.id, value)}
-                        className="grid gap-4 grid-cols-1 sm:grid-cols-3"
-                      >
-                        {options.map((option) => (
-                          <div key={option.value} className={`flex items-center space-x-2 rounded-md border-2 p-4 ${option.color}`}>
-                            <RadioGroupItem value={option.value} id={`${question.id}-${option.value}`} />
-                            <Label htmlFor={`${question.id}-${option.value}`} className="font-medium cursor-pointer flex-grow">
-                              {option.value}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
+                    <div key={question.id} className="border rounded-lg p-4 shadow-sm w-full max-w-xl mx-auto flex flex-col items-center">
+                      <h3 className="text-lg font-semibold mb-4 text-center w-full">{question.text}</h3>
+                      <div className="w-full">
+                        <div className="flex w-full rounded-full overflow-hidden border-2 border-gray-300 bg-white shadow-sm">
+                          {["Favorevole", "Indeciso", "Contrario"].map((option, idx) => {
+                            const isSelected = opinions[question.id] === option;
+                            let base = "flex-1 py-3 text-center cursor-pointer font-semibold transition-colors ";
+                            let color =
+                              option === "Favorevole"
+                                ? isSelected
+                                  ? "bg-green-500 text-white"
+                                  : "hover:bg-green-100 text-green-700"
+                                : option === "Indeciso"
+                                ? isSelected
+                                  ? "bg-yellow-400 text-white"
+                                  : "hover:bg-yellow-100 text-yellow-700"
+                                : isSelected
+                                ? "bg-red-500 text-white"
+                                : "hover:bg-red-100 text-red-700";
+                            // Bordo destro solo tra i bottoni
+                            let border = idx < 2 ? "border-r border-gray-300" : "";
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                className={base + color + " " + border}
+                                style={{ borderRadius: idx === 0 ? "9999px 0 0 9999px" : idx === 2 ? "0 9999px 9999px 0" : "0" }}
+                                onClick={() => handleOpinionChange(question.id, option)}
+                                aria-pressed={isSelected}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
