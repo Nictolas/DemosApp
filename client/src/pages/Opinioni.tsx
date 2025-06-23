@@ -31,12 +31,26 @@ export default function Opinioni() {
         const res = await fetch("/api/opinioni-list");
         if (!res.ok) throw new Error();
         setQuestions(await res.json());
-      } catch {
-    // Carica le opinioni dell'utente quando la pagina viene caricata
-    if (user) {
+      } catch (e) {
+        toast({
+          title: "Errore",
+          description: "Non è stato possibile caricare le domande.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    };
+    fetchQuestions();
+  }, []);
+
+  // Carica le opinioni dell'utente quando la pagina viene caricata o cambiano le domande
+  useEffect(() => {
+    if (user && questions.length > 0) {
       loadUserOpinions();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, questions]);
 
   const loadUserOpinions = async () => {
     try {
