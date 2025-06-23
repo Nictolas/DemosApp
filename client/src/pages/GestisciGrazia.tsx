@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, ArrowLeft, Check, X } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 
 export default function GestisciGrazia() {
   const [, setLocation] = useLocation();
@@ -10,6 +10,7 @@ export default function GestisciGrazia() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState("");
   const [error, setError] = useState("");
+  const [userMap, setUserMap] = useState<Record<string, {nome: string, cognome: string}>>({});
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -25,7 +26,29 @@ export default function GestisciGrazia() {
     }
   };
 
-  useEffect(() => { fetchRequests(); }, []);
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  useEffect(() => {
+    // Quando cambiano le richieste, carica i dati pubblici degli utenti
+    const fetchUsers = async () => {
+      const ids = Array.from(new Set(requests.map(r => r.userId)));
+      const newMap: Record<string, {nome: string, cognome: string}> = {};
+      await Promise.all(ids.map(async (id) => {
+        if (!id) return;
+        try {
+          const res = await fetch(`/api/users/${id}/public`);
+          if (res.ok) {
+            const data = await res.json();
+            newMap[id] = { nome: data.nome, cognome: data.cognome };
+          }
+        } catch {}
+      }));
+      setUserMap(newMap);
+    };
+    if (requests.length > 0) fetchUsers();
+  }, [requests]);
 
   const handleAction = async (id: string, action: 'accetta' | 'rifiuta') => {
     setActionLoading(id + action);
@@ -65,7 +88,15 @@ export default function GestisciGrazia() {
                     <div>
                       <div className="font-semibold">{r.nome}</div>
                       <a href={r.urlProva} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm break-all">{r.urlProva}</a>
-                      <div className="text-xs text-muted-foreground mt-1">Richiesta da utente: {r.userId}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Richiesta da utente: {userMap[r.userId] ? (
+                          <Link href={`/profilo/${r.userId}`} className="text-blue-700 underline hover:text-blue-900 cursor-pointer">
+                            {userMap[r.userId].nome} {userMap[r.userId].cognome}
+                          </Link>
+                        ) : (
+                          r.userId
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2 mt-2 md:mt-0">
                       <Button size="sm" variant="outline" disabled={actionLoading === r.id+"accetta"} onClick={() => handleAction(r.id, "accetta")}>{actionLoading === r.id+"accetta" ? "..." : <><Check className="h-4 w-4 mr-1"/>Accetta</>}</Button>

@@ -186,6 +186,11 @@ app.post('/api/users/:uid/avatar', requireAuth, async (req, res) => {
     const result = await UserService.updateUserData(uid, { avatar_config: req.body.avatar_config });
     res.json(result);
 });
+app.get('/api/users/:uid/public', requireAdmin, async (req, res) => {
+  const user = await UserService.getUserById(decodeURIComponent(req.params.uid));
+  if (!user) return res.status(404).json({ error: 'Utente non trovato' });
+  res.json({ id: user.id, nome: user.nome, cognome: user.cognome });
+});
 
 // Opinioni
 app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
