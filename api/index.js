@@ -21,6 +21,7 @@ import ComizioService from "../server/comizio.service.js";
 import NotificaService from "../server/notifica.service.js";
 import SostenitoriService from "../server/sostenitori.service.js";
 import OpinioniService from '../server/opinioni.service.js';
+import firebaseUsage from '../server/firebase-usage.service.js';
 
 dotenv.config();
 
@@ -383,6 +384,104 @@ app.post('/api/opinioni-list', requireAdmin, async (req, res) => {
 app.delete('/api/opinioni-list/:id', requireAdmin, async (req, res) => {
   const result = await OpinioniService.deleteOpinione(req.params.id);
   res.status(result.success ? 200 : 400).json(result);
+});
+
+// Endpoint per limiti Firebase (mock, pronto per dati reali)
+app.get('/api/limiti', requireStatsRole, async (req, res) => {
+  try {
+    const [firestoreUsed, storageUsed] = await Promise.all([
+      firebaseUsage.getFirestoreUsage(),
+      firebaseUsage.getStorageUsage(),
+    ]);
+    res.json({
+      firestore: {
+        storedData: { value: firestoreUsed, max: 1, unit: 'GiB' },
+        networkEgress: { value: 2, max: 10, unit: 'GiB/mese' },
+        writes: { value: 5000, max: 20000, unit: '/giorno' },
+        reads: { value: 12000, max: 50000, unit: '/giorno' },
+        deletes: { value: 1000, max: 20000, unit: '/giorno' },
+      },
+      realtimeDb: {
+        connections: { value: 40, max: 100, unit: '' },
+        storedGB: { value: 0.3, max: 1, unit: 'GB' },
+        downloadGB: { value: 2, max: 10, unit: 'GB/mese' },
+      },
+      storage: {
+        storedGB: { value: storageUsed, max: 5, unit: 'GB' },
+        downloadGB: { value: 0.2, max: 1, unit: 'GB/giorno' },
+        uploads: { value: 2000, max: 20000, unit: '/giorno' },
+        downloads: { value: 5000, max: 50000, unit: '/giorno' },
+      },
+      hosting: {
+        storage: { value: 2, max: 10, unit: 'GB' },
+        dataTransfer: { value: 100, max: 360, unit: 'MB/giorno' },
+      },
+      functions: {
+        invocations: { value: 500, max: 2000, unit: '/mese' },
+        gbSeconds: { value: 100000, max: 400000, unit: 'GB-s/mese' },
+        cpuSeconds: { value: 50000, max: 200000, unit: 'CPU-s/mese' },
+        outbound: { value: 1, max: 5, unit: 'GB/mese' },
+      },
+      build: {
+        minutes: { value: 30, max: 120, unit: 'min/giorno' },
+        container: { value: 200, max: 500, unit: 'MB' },
+      },
+      testlab: {
+        virtual: { value: 2, max: 10, unit: '/giorno' },
+        physical: { value: 1, max: 5, unit: '/giorno' },
+        streaming: { value: 10, max: 30, unit: 'min/mese' },
+      },
+      dataconnect: {
+        egress: { value: 2, max: 10, unit: 'GiB/mese' },
+        ops: { value: 50000, max: 250000, unit: 'op/mese' },
+      },
+    });
+  } catch (e) {
+    // fallback ai mock
+    res.json({
+      firestore: {
+        storedData: { value: 0.7, max: 1, unit: 'GiB' },
+        networkEgress: { value: 2, max: 10, unit: 'GiB/mese' },
+        writes: { value: 5000, max: 20000, unit: '/giorno' },
+        reads: { value: 12000, max: 50000, unit: '/giorno' },
+        deletes: { value: 1000, max: 20000, unit: '/giorno' },
+      },
+      realtimeDb: {
+        connections: { value: 40, max: 100, unit: '' },
+        storedGB: { value: 0.3, max: 1, unit: 'GB' },
+        downloadGB: { value: 2, max: 10, unit: 'GB/mese' },
+      },
+      storage: {
+        storedGB: { value: 1, max: 5, unit: 'GB' },
+        downloadGB: { value: 0.2, max: 1, unit: 'GB/giorno' },
+        uploads: { value: 2000, max: 20000, unit: '/giorno' },
+        downloads: { value: 5000, max: 50000, unit: '/giorno' },
+      },
+      hosting: {
+        storage: { value: 2, max: 10, unit: 'GB' },
+        dataTransfer: { value: 100, max: 360, unit: 'MB/giorno' },
+      },
+      functions: {
+        invocations: { value: 500, max: 2000, unit: '/mese' },
+        gbSeconds: { value: 100000, max: 400000, unit: 'GB-s/mese' },
+        cpuSeconds: { value: 50000, max: 200000, unit: 'CPU-s/mese' },
+        outbound: { value: 1, max: 5, unit: 'GB/mese' },
+      },
+      build: {
+        minutes: { value: 30, max: 120, unit: 'min/giorno' },
+        container: { value: 200, max: 500, unit: 'MB' },
+      },
+      testlab: {
+        virtual: { value: 2, max: 10, unit: '/giorno' },
+        physical: { value: 1, max: 5, unit: '/giorno' },
+        streaming: { value: 10, max: 30, unit: 'min/mese' },
+      },
+      dataconnect: {
+        egress: { value: 2, max: 10, unit: 'GiB/mese' },
+        ops: { value: 50000, max: 250000, unit: 'op/mese' },
+      },
+    });
+  }
 });
 
 export default app; 
