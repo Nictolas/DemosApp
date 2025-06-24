@@ -165,19 +165,53 @@ class VotoService extends FirebaseService {
 
   // --- Referendum Abrogativi ---
   static async saveReferendumAbrogativo(data) { 
-    const dataToSave = { ...data, createdAt: new Date().toISOString() };
+    const dataToSave = { ...data, createdAt: new Date().toISOString(), status: 'pending', quorum: 'pending' };
     return this._saveDocument('referendum_abrogativi', dataToSave); 
   }
 
-  static async getListaReferendumAbrogativi() {
+  static async getPendingReferendumAbrogativi() {
     try {
-        if (!db) return [];
-        const q = query(collection(db, 'referendum_abrogativi'), orderBy('createdAt', 'desc'), limit(10));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (!db) return [];
+      const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-        this.handleError(error, 'getListaReferendumAbrogativi');
-        return [];
+      return this.handleError(error, 'getPendingReferendumAbrogativi');
+    }
+  }
+
+  static async acceptReferendumAbrogativo(requestId) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const requestRef = doc(db, 'referendum_abrogativi', requestId);
+      const requestSnap = await getDoc(requestRef);
+      if (!requestSnap.exists()) return { success: false, error: 'Richiesta non trovata' };
+      await updateDoc(requestRef, { status: 'accepted', acceptedAt: new Date().toISOString() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'acceptReferendumAbrogativo');
+    }
+  }
+
+  static async rejectReferendumAbrogativo(requestId) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const requestRef = doc(db, 'referendum_abrogativi', requestId);
+      await updateDoc(requestRef, { status: 'rejected', rejectedAt: new Date().toISOString() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'rejectReferendumAbrogativo');
+    }
+  }
+
+  static async updateQuorumReferendum(id, quorum) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const ref = doc(db, 'referendum_abrogativi', id);
+      await updateDoc(ref, { quorum });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'updateQuorumReferendum');
     }
   }
 

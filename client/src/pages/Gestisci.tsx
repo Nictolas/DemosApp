@@ -159,6 +159,28 @@ export default function Gestisci() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Gestisci Referendum Abrogativi */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600 group-hover:text-orange-700">
+                <Vote className="h-5 w-5" />
+                Gestisci Referendum Abrogativi
+              </CardTitle>
+              <CardDescription>
+                Gestisci le richieste di referendum abrogativi proposte dagli utenti
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-orange-600 hover:bg-orange-700"
+                onClick={() => window.location.href = "/gestisci-referendum-abrogativi"}
+              >
+                <Vote className="mr-2 h-4 w-4" />
+                Gestisci Referendum Abrogativi
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {user?.ruolo === 'Admin' && (
