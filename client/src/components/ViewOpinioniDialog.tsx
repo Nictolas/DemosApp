@@ -95,6 +95,29 @@ export function ViewOpinioniDialog({
     }
   };
 
+  // Funzione per categorizzare le opinioni come nel profilo
+  const categorizeOpinions = (opinions: Record<string, string>) => {
+    const opinionLabels: Record<string, string> = {
+      energia_nucleare: "Energia Nucleare",
+      sperimentazione_animale: "Sperimentazione Animale",
+      legalizzazione_canapa: "Legalizzazione Canapa",
+      caccia: "Caccia",
+      unione_europea: "Unione Europea"
+    };
+    const favorevoli: string[] = [];
+    const indecisi: string[] = [];
+    const contrari: string[] = [];
+    Object.entries(opinions).forEach(([key, value]) => {
+      if (key in opinionLabels) {
+        const label = opinionLabels[key];
+        if (value === "Favorevole") favorevoli.push(label);
+        else if (value === "Indeciso") indecisi.push(label);
+        else if (value === "Contrario") contrari.push(label);
+      }
+    });
+    return { favorevoli, indecisi, contrari };
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -124,19 +147,73 @@ export function ViewOpinioniDialog({
               Questo utente non ha ancora espresso opinioni.
             </div>
           ) : (
-            <div className="space-y-4">
-              {questions.map((question) => (
-                <div key={question.id} className="border rounded-lg p-3 shadow-sm">
-                  <h3 className="text-md font-semibold mb-2">{question.text}</h3>
-                  {opinions[question.id] ? (
-                    <div className={`rounded-md border px-3 py-2 ${responseColors[opinions[question.id] as keyof typeof responseColors] || 'bg-gray-100'}`}>
-                      {opinions[question.id]}
-                    </div>
-                  ) : (
-                    <div className="text-muted-foreground italic">Nessuna risposta</div>
-                  )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Colonna Favorevoli - Verde */}
+              <div className="space-y-3">
+                <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    Favorevole
+                  </h3>
+                  <div className="space-y-2">
+                    {categorizeOpinions(opinions).favorevoli.length > 0 ? (
+                      categorizeOpinions(opinions).favorevoli.map((opinion, index) => (
+                        <div key={index} className="bg-green-50 border border-green-200 rounded-md p-3">
+                          <span className="text-green-800 font-medium">{opinion}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-green-600 text-sm italic">
+                        Nessuna opinione favorevole
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
+              </div>
+              {/* Colonna Indecisi - Giallo */}
+              <div className="space-y-3">
+                <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    Indeciso
+                  </h3>
+                  <div className="space-y-2">
+                    {categorizeOpinions(opinions).indecisi.length > 0 ? (
+                      categorizeOpinions(opinions).indecisi.map((opinion, index) => (
+                        <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                          <span className="text-yellow-800 font-medium">{opinion}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-yellow-600 text-sm italic">
+                        Nessuna opinione indecisa
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {/* Colonna Contrari - Rosso */}
+              <div className="space-y-3">
+                <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    Contrario
+                  </h3>
+                  <div className="space-y-2">
+                    {categorizeOpinions(opinions).contrari.length > 0 ? (
+                      categorizeOpinions(opinions).contrari.map((opinion, index) => (
+                        <div key={index} className="bg-red-50 border border-red-200 rounded-md p-3">
+                          <span className="text-red-800 font-medium">{opinion}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-red-600 text-sm italic">
+                        Nessuna opinione contraria
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
