@@ -163,7 +163,7 @@ export default function ReferendumAbrogativi() {
                 Referendum Abrogativi
               </CardTitle>
               <CardDescription>
-                Proponi e vota per i referendum abrogativi. I 10 più votati sono mostrati di seguito.
+                Proponi e vota per i referendum abrogativi. I 10 più recenti sono mostrati di seguito.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

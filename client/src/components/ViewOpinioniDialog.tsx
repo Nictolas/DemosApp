@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { CustomAvatar } from "@/components/CustomAvatar";
 
 // Mappa colori per le risposte
 const responseColors = {
@@ -15,12 +16,18 @@ interface ViewOpinioniDialogProps {
   utenteId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  nome?: string;
+  cognome?: string;
+  avatarConfig?: string;
 }
 
 export function ViewOpinioniDialog({ 
   utenteId, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  nome,
+  cognome,
+  avatarConfig
 }: ViewOpinioniDialogProps) {
   const { toast } = useToast();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
@@ -92,11 +99,19 @@ export function ViewOpinioniDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Opinioni Utente</DialogTitle>
+          <DialogTitle>
+            {nome && cognome ? `Le Opinioni di ${nome} ${cognome}` : "Opinioni Utente"}
+          </DialogTitle>
           <DialogDescription>
             Visualizza le opinioni dell'utente su vari argomenti.
           </DialogDescription>
         </DialogHeader>
+        {/* Avatar se disponibile */}
+        {avatarConfig && (
+          <div className="flex justify-center mb-4">
+            <CustomAvatar config={JSON.parse(avatarConfig)} size={64} />
+          </div>
+        )}
         
         <div className="max-h-[60vh] overflow-y-auto pr-1">
           {isLoadingOpinions || isLoadingQuestions ? (
