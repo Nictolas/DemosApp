@@ -154,7 +154,7 @@ export default function Governo() {
         credentials: 'include',
         body: JSON.stringify({
           categoria,
-          nomeMinistro: nomeMinistro.trim()
+          nome: nomeMinistro.trim()
         }),
       });
 
