@@ -146,6 +146,41 @@ function mapApiToLimits(data: any) {
   ];
 }
 
+const limiti = [
+  {
+    nome: "Letture Firestore",
+    limite: "50.000/giorno",
+  },
+  {
+    nome: "Scritture Firestore",
+    limite: "20.000/giorno",
+  },
+  {
+    nome: "Eliminazioni Firestore",
+    limite: "20.000/giorno",
+  },
+  {
+    nome: "Storage",
+    limite: "1 GB",
+  },
+  {
+    nome: "Download Storage",
+    limite: "10 GB/mese",
+  },
+  {
+    nome: "Upload Storage",
+    limite: "1 GB/giorno",
+  },
+  {
+    nome: "Autenticazioni",
+    limite: "10.000/mese",
+  },
+  {
+    nome: "Cloud Functions",
+    limite: "125.000 invocazioni/mese",
+  },
+];
+
 export default function Limiti() {
   const { user } = useAuth();
   const [limits, setLimits] = useState(LIMITS_MOCK);
@@ -229,6 +264,36 @@ export default function Limiti() {
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Limiti del piano Spark (Firebase)</CardTitle>
+            <CardDescription>
+              Qui puoi consultare i principali limiti del piano gratuito di Firebase. Per vedere l'utilizzo reale e aggiornato delle risorse, clicca il pulsante qui sotto:
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <a
+              href="https://console.firebase.google.com/u/0/project/demos-finale/usage/details"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-4 py-2 mb-6 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              Vai alla pagina dei limiti e consumi su Firebase
+            </a>
+            <ul>
+              {limiti.map((l) => (
+                <li key={l.nome} className="mb-3 flex justify-between border-b pb-1">
+                  <span className="font-semibold">{l.nome}</span>
+                  <span>{l.limite}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 text-sm text-gray-600">
+              <b>Nota:</b> L'utilizzo reale delle risorse è visibile solo dalla console Firebase.<br />
+              Se superi i limiti, alcune funzionalità dell'app potrebbero essere temporaneamente bloccate.
+            </div>
           </CardContent>
         </Card>
       </div>
