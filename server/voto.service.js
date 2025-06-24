@@ -107,8 +107,8 @@ class VotoService extends FirebaseService {
   static async getListaIniziativePopolari() {
     try {
         if (!db) return [];
-        // Ordina per data di creazione per mostrare le più recenti
-        const q = query(collection(db, 'iniziative_popolari'), orderBy('createdAt', 'desc'), limit(10));
+        // Ordina per data_creazione per mostrare le più recenti
+        const q = query(collection(db, 'iniziative_popolari'), orderBy('data_creazione', 'desc'), limit(10));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
