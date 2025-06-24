@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect, useRoute } from "wouter";
+import { Redirect, useRoute, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
@@ -55,6 +55,10 @@ export default function Profilo({ userId }: { userId?: string }) {
   const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
   const [governoIdeale, setGovernoIdeale] = useState<Record<string, string>>({});
+  const [location, setLocation] = useLocation();
+
+  // Ricavo la provenienza dalla query string (es: ?from=utenti)
+  const fromGestisciUtenti = typeof window !== 'undefined' && window.location.search.includes('from=utenti');
 
   // Funzione per categorizzare le opinioni
   const categorizeOpinions = (opinions: any) => {
@@ -314,9 +318,18 @@ export default function Profilo({ userId }: { userId?: string }) {
           <Button 
             variant="ghost" 
             className="mb-4 flex items-center"
-            onClick={() => window.location.href = userId ? "/gestisci-grazia" : "/menu"}
+            onClick={() => {
+              if (fromGestisciUtenti) {
+                window.location.href = "/gestisci-utenti";
+              } else if (userId) {
+                window.location.href = "/gestisci-grazia";
+              } else {
+                window.location.href = "/menu";
+              }
+            }}
           >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Torna {userId ? "a Gestisci Grazia" : "al Menu"}
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {fromGestisciUtenti ? "Torna a Gestisci Utenti" : userId ? "Torna a Gestisci Grazia" : "Torna al Menu"}
           </Button>
           
           <Card>
