@@ -120,7 +120,7 @@ export function ViewOpinioniDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl max-w-full">
         <DialogHeader>
           <DialogTitle>
             {nome && cognome ? `Le Opinioni di ${nome} ${cognome}` : "Opinioni Utente"}
@@ -147,7 +147,7 @@ export function ViewOpinioniDialog({
               Questo utente non ha ancora espresso opinioni.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-6">
               {/* Colonna Favorevoli - Verde */}
               <div className="space-y-3">
                 <div className="bg-green-100 border border-green-200 rounded-lg p-4">
