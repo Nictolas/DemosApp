@@ -393,7 +393,7 @@ export default function ScegliRappresentante() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {renderOpinioni(rappresentante)}
+                  {/* Opinioni rimosse: ora visibili solo nel modale */}
                 </CardContent>
                 <CardFooter>
                   <Button 
