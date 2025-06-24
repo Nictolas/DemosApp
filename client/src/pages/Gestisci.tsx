@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen } from "lucide-react";
+import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen, ClipboardList } from "lucide-react";
 
 export default function Gestisci() {
   const { user, isLoading } = useAuth();
@@ -134,6 +134,28 @@ export default function Gestisci() {
               >
                 <BookOpen className="mr-2 h-4 w-4" />
                 Gestisci Opinioni
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Gestisci Iniziative Popolari */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-indigo-600 group-hover:text-indigo-700">
+                <ClipboardList className="h-5 w-5" />
+                Gestisci Iniziative Popolari
+              </CardTitle>
+              <CardDescription>
+                Gestisci le richieste di iniziative popolari proposte dagli utenti
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => window.location.href = "/gestisci-iniziative-popolari"}
+              >
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Gestisci Iniziative Popolari
               </Button>
             </CardContent>
           </Card>

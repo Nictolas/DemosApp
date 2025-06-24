@@ -442,4 +442,22 @@ app.get('/api/iniziative-popolari/lista', requireAuth, async (req, res) => {
   }
 });
 
+// === INIZIATIVE POPOLARI: Richieste di nuove iniziative ===
+app.get('/api/iniziative-popolari/richieste', requireAdmin, async (req, res) => {
+  const richieste = await VotoService.getPendingIniziativePopolari();
+  res.json(richieste);
+});
+
+app.post('/api/iniziative-popolari/:id/accetta', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.acceptIniziativaPopolare(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+app.post('/api/iniziative-popolari/:id/rifiuta', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.rejectIniziativaPopolare(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
 export default app; 

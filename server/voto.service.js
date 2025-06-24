@@ -100,7 +100,7 @@ class VotoService extends FirebaseService {
 
   // --- Iniziative Popolari ---
   static async saveIniziativaPopolare(data) { 
-    const dataToSave = { ...data, createdAt: new Date().toISOString() };
+    const dataToSave = { ...data, createdAt: new Date().toISOString(), status: 'pending' };
     return this._saveDocument('iniziative_popolari', dataToSave); 
   }
 
@@ -114,6 +114,41 @@ class VotoService extends FirebaseService {
     } catch (error) {
         this.handleError(error, 'getListaIniziativePopolari');
         return [];
+    }
+  }
+
+  static async getPendingIniziativePopolari() {
+    try {
+      if (!db) return [];
+      const q = query(collection(db, 'iniziative_popolari'), where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      return this.handleError(error, 'getPendingIniziativePopolari');
+    }
+  }
+
+  static async acceptIniziativaPopolare(requestId) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const requestRef = doc(db, 'iniziative_popolari', requestId);
+      const requestSnap = await getDoc(requestRef);
+      if (!requestSnap.exists()) return { success: false, error: 'Richiesta non trovata' };
+      await updateDoc(requestRef, { status: 'accepted', acceptedAt: new Date().toISOString() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'acceptIniziativaPopolare');
+    }
+  }
+
+  static async rejectIniziativaPopolare(requestId) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const requestRef = doc(db, 'iniziative_popolari', requestId);
+      await updateDoc(requestRef, { status: 'rejected', rejectedAt: new Date().toISOString() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'rejectIniziativaPopolare');
     }
   }
 
