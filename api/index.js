@@ -433,4 +433,13 @@ app.get('/api/limiti', requireStatsRole, async (req, res) => {
   }
 });
 
+app.get('/api/iniziative-popolari/lista', requireAuth, async (req, res) => {
+  try {
+    const lista = await VotoService.getListaIniziativePopolari();
+    res.json(lista);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel recupero delle iniziative popolari' });
+  }
+});
+
 export default app; 
