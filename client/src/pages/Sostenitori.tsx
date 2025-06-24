@@ -77,7 +77,7 @@ export default function Sostenitori() {
           if (isAuthorized) {
             // Fetch supporter stats
             console.log('📡 Chiamata API per statistiche sostenitori...');
-            const statsResponse = await fetch(`/api/sostenitori/${encodeURIComponent(user.email)}`, { credentials: 'include' });
+            const statsResponse = await fetch(`/api/sostenitori/${encodeURIComponent(user.uid)}`, { credentials: 'include' });
             console.log('📡 Risposta API sostenitori:', statsResponse.status, statsResponse.statusText);
             
             if (!statsResponse.ok) {
@@ -119,6 +119,19 @@ export default function Sostenitori() {
 
   if (user && !isAuthorized) {
     return <Redirect to="/menu" />;
+  }
+
+  if (userProfile && userProfile.status === 'pending') {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-yellow-300">
+          <Loader2 className="h-10 w-10 animate-spin text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2 text-yellow-700">Profilo in fase di approvazione</h2>
+          <p className="text-gray-700 mb-2">Il tuo profilo è in fase di approvazione da parte di un amministratore.</p>
+          <p className="text-gray-500 text-sm">Riceverai una notifica appena il tuo account sarà attivo. Attendi la conferma prima di poter accedere alle funzionalità della piattaforma.</p>
+        </div>
+      </div>
+    );
   }
 
   // Prepara dati per il grafico a torta del genere
