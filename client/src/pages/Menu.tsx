@@ -219,13 +219,13 @@ export default function Menu() {
                 </Button>
               </Link>
               
-              <Link href="/comizi">
+              <Link href="/eventi">
                 <Button 
                   className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
                   variant="outline"
                 >
                   <Megaphone className="h-5 w-5" />
-                  Comizi
+                  Eventi
                 </Button>
               </Link>
               

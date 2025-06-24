@@ -29,7 +29,7 @@ import Governo from "@/pages/Governo";
 import Grazia from "@/pages/Grazia";
 import Amnistia from "@/pages/Amnistia";
 import Vota from "@/pages/Vota";
-import Comizi from "@/pages/Comizi";
+import Eventi from "@/pages/Eventi";
 import Proponi from "@/pages/Proponi";
 import IniziativePopolare from "@/pages/IniziativePopolare";
 import ReferendumAbrogativi from "@/pages/ReferendumAbrogativi";
@@ -267,10 +267,10 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/comizi">
+      <Route path="/eventi">
         {(params) => (
           <PageTransition location={location} type="fade-side">
-            <ProtectedRoute path="/comizi" component={Comizi} />
+            <ProtectedRoute path="/eventi" component={Eventi} />
           </PageTransition>
         )}
       </Route>

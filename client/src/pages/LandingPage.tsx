@@ -109,7 +109,7 @@ export default function LandingPage() {
                   <li>allargare il tuo bacino di elettori;</li>
                   <li>scopri le preferenze delle persone sugli argomenti importanti;</li>
                   <li>monitora le opinioni per zone, genere, fasce d'età, etc.</li>
-                  <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi comizi, eventi, votazioni, etc.</li>
+                  <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi eventi, votazioni, etc.</li>
                 </ul>
               </div>
               
