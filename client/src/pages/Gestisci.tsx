@@ -1,6 +1,6 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen } from "lucide-react";
@@ -138,6 +138,14 @@ export default function Gestisci() {
             </CardContent>
           </Card>
         </div>
+
+        {user?.ruolo === 'Admin' && (
+          <Link href="/limiti">
+            <Button className="w-full mb-4" variant="outline">
+              Limiti Firebase
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

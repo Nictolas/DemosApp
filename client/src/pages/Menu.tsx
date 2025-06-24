@@ -139,15 +139,17 @@ export default function Menu() {
                 </Button>
               </Link>
               
-              <Link href="/gestisci">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Settings className="h-5 w-5" />
-                  Gestisci
-                </Button>
-              </Link>
+              {isAdmin && (
+                <Link href="/gestisci">
+                  <Button 
+                    className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                    variant="outline"
+                  >
+                    <Settings className="h-5 w-5" />
+                    Gestisci
+                  </Button>
+                </Link>
+              )}
               
               <Link href="/comunica">
                 <Button 
@@ -280,23 +282,6 @@ export default function Menu() {
                   </Button>
                 </Link>
               )}
-              {isAdmin && (
-                <Button 
-                  className="h-24 text-lg font-medium md:col-span-2" 
-                  variant="outline"
-                  onClick={() => {}}
-                >
-                  <ShieldCheck className="mr-2 h-5 w-5" />
-                  Amministrazione
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                className="w-full justify-start mb-2"
-                onClick={() => setLocation("/limiti")}
-              >
-                Limiti
-              </Button>
             </CardContent>
             <CardFooter className="flex justify-center p-6 pt-0">
               <Button 
