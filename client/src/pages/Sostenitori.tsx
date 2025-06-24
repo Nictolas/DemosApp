@@ -109,16 +109,28 @@ export default function Sostenitori() {
     }
   }, [user]);
 
-  // Verifica ruolo utente
-  const isAuthorized = userProfile?.ruolo === 'Politico' || userProfile?.ruolo === 'Candidato' || userProfile?.ruolo === 'Candidato Politico';
+  // Verifica ruolo utente (case-insensitive)
+  const validRoles = ['politico', 'candidato', 'candidato politico'];
+  const userRole = (userProfile?.ruolo || '').toLowerCase();
+  const isAuthorized = validRoles.includes(userRole);
 
-  // Redirect se non autorizzato
+  // Redirect se non loggato
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
   }
 
+  // Mostra errore se ruolo non valido
   if (user && !isAuthorized) {
-    return <Redirect to="/menu" />;
+    console.error('❌ Ruolo non autorizzato o mancante:', userProfile?.ruolo, userProfile);
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-red-300">
+          <h2 className="text-2xl font-bold mb-2 text-red-700">Accesso negato</h2>
+          <p className="text-gray-700 mb-2">Il tuo ruolo attuale (<b>{userProfile?.ruolo || 'N/A'}</b>) non è abilitato a visualizzare la pagina Sostenitori.</p>
+          <p className="text-gray-500 text-sm">Se pensi sia un errore, contatta l'amministratore.</p>
+        </div>
+      </div>
+    );
   }
 
   if (userProfile && userProfile.status === 'pending') {
