@@ -38,6 +38,7 @@ export type UserInfo = {
   caccia?: string;
   unione_europea?: string;
   avatar_config?: string;
+  status?: string;
   [key: string]: any;
 };
 
@@ -311,6 +312,15 @@ export default function Profilo({ userId }: { userId?: string }) {
         <div className="flex items-center justify-center min-h-[80vh]">
           <div className="text-center text-red-500 text-lg font-semibold">
             {error}
+          </div>
+        </div>
+      ) : userInfo && userInfo.status === 'pending' ? (
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-yellow-300">
+            <Loader2 className="h-10 w-10 animate-spin text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2 text-yellow-700">Profilo in fase di approvazione</h2>
+            <p className="text-gray-700 mb-2">Il tuo profilo è in fase di approvazione da parte di un amministratore.</p>
+            <p className="text-gray-500 text-sm">Riceverai una notifica appena il tuo account sarà attivo. Attendi la conferma prima di poter accedere alle funzionalità della piattaforma.</p>
           </div>
         </div>
       ) : (
