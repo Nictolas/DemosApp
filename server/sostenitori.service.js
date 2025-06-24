@@ -53,9 +53,10 @@ class SostenitoriService {
     };
 
     for (const s of supporters) {
-      // Genere
-      if (s.genere === 'Maschio') genderDistribution.Maschio++;
-      else if (s.genere === 'Femmina') genderDistribution.Femmina++;
+      // Genere (case-insensitive, mapping)
+      const genere = (s.genere || '').trim().toLowerCase();
+      if (genere === 'maschio' || genere === 'uomo') genderDistribution.Maschio++;
+      else if (genere === 'femmina' || genere === 'donna') genderDistribution.Femmina++;
       else genderDistribution.Altro++;
 
       // Località
