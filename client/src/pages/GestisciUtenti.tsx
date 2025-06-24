@@ -249,7 +249,7 @@ export default function GestisciUtenti() {
                     {pendingUsers.map((pendingUser) => (
                       <TableRow key={pendingUser.id}>
                         <TableCell>
-                          <Link href={`/profilo/${pendingUser.id}`} className="cursor-pointer text-blue-600 hover:underline">
+                          <Link href={`/profilo/${pendingUser.uid}`} className="cursor-pointer text-blue-600 hover:underline">
                             {pendingUser.nome} {pendingUser.cognome}
                           </Link>
                         </TableCell>
@@ -368,7 +368,7 @@ export default function GestisciUtenti() {
                           filteredUsers.map((user) => (
                             <TableRow key={user.id}>
                               <TableCell colSpan={2}>
-                                <Link href={`/profilo/${user.id}`} className="cursor-pointer text-blue-600 hover:underline">
+                                <Link href={`/profilo/${user.uid}`} className="cursor-pointer text-blue-600 hover:underline">
                                   {user.nome} {user.cognome}
                                 </Link>
                               </TableCell>

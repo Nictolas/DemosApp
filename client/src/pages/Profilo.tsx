@@ -278,16 +278,10 @@ export default function Profilo({ userId }: { userId?: string }) {
           // Fetch government selections
           await fetchGovernoIdeale();
         } else {
-          console.log("Dati non trovati, caricamento dal profilo locale");
-          
-          // Fallback: carica i dati dal database locale
-          const profileResponse = await fetch(`/api/users/${user.id}/profile`);
-          if (!profileResponse.ok) {
-            throw new Error("Errore nel caricamento dei dati del profilo");
-          }
-          
-          const data = await profileResponse.json();
-          setUserInfo(data);
+          // Se l'utente non viene trovato, mostra errore
+          setError("Utente non trovato o non esistente.");
+          setUserInfo(null);
+          return;
         }
       } catch (error) {
         console.error("Errore:", error);
@@ -312,6 +306,12 @@ export default function Profilo({ userId }: { userId?: string }) {
       {isLoading || isLoadingInfo ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="text-center text-red-500 text-lg font-semibold">
+            {error}
+          </div>
         </div>
       ) : (
         <div className="container mx-auto max-w-4xl">
