@@ -99,8 +99,11 @@ class ComunicazioneService extends FirebaseService {
 
   /**
    * Recupera la classifica dei politici basata sui punti trasparenza.
+   * @param tipoPodio 'europeo' | 'senato' | 'camera' | 'regionale' | 'comunale'
+   * @param regione Regione di residenza dell'utente (per podio regionale)
+   * @param comune Comune di residenza dell'utente (per podio comunale)
    */
-  static async getPodioTrasparenza() {
+  static async getPodioTrasparenza(tipoPodio = 'europeo', regione = '', comune = '') {
     try {
       if (!db) return [];
       const querySnapshot = await getDocs(collection(db, 'comunicazioni'));
@@ -108,6 +111,28 @@ class ComunicazioneService extends FirebaseService {
       const userPoints = {};
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        // Filtra in base al tipo di podio richiesto
+        let include = false;
+        switch (tipoPodio) {
+          case 'europeo':
+            include = data.ruolo === 'Politico' || data.ruolo === 'Candidato Politico';
+            break;
+          case 'senato':
+            include = data.ruolo === 'Senatore' || data.ruolo === 'Candidato Senatore';
+            break;
+          case 'camera':
+            include = data.ruolo === 'Deputato' || data.ruolo === 'Candidato Deputato';
+            break;
+          case 'regionale':
+            include = data.regione_residenza === regione;
+            break;
+          case 'comunale':
+            include = data.comune_residenza === comune;
+            break;
+          default:
+            include = true;
+        }
+        if (!include) return;
         const userId = data.id_utente;
         if (!userPoints[userId]) {
           userPoints[userId] = {
