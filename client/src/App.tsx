@@ -45,6 +45,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import { PageTransition } from "@/components/PageTransition";
 import GestisciGrazia from "./pages/GestisciGrazia";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
+import Limiti from "@/pages/Limiti";
 
 function Router() {
   const [location] = useLocation();
@@ -338,6 +339,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/gestisci-opinioni" component={GestisciOpinioni} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/limiti">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/limiti" component={() => <Limiti />} />
           </PageTransition>
         )}
       </Route>
