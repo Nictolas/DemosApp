@@ -460,4 +460,18 @@ app.post('/api/iniziative-popolari/:id/rifiuta', requireAdmin, async (req, res) 
   res.status(result.success ? 200 : 400).json(result);
 });
 
+// === INIZIATIVE POPOLARI: Proposta nuova iniziativa ===
+app.post('/api/iniziative-popolari', requireAuth, async (req, res) => {
+  const { nome, dataInizio, dataFine, sitoWeb } = req.body;
+  if (!nome || !dataInizio || !dataFine || !sitoWeb) return res.status(400).json({ error: 'Nome, dataInizio, dataFine e sitoWeb sono obbligatori' });
+  const result = await VotoService.saveIniziativaPopolare({
+    userId: req.user.id,
+    nome,
+    dataInizio,
+    dataFine,
+    sitoWeb
+  });
+  res.status(result.success === false ? 400 : 200).json(result);
+});
+
 export default app; 
