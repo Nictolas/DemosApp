@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
+import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 
 interface Rappresentante {
   id: string;
@@ -43,6 +44,8 @@ export default function ScegliRappresentante() {
   const [loading, setLoading] = useState(true);
   const [selezionando, setSelezionando] = useState(false);
   const [rappresentanteSelezionato, setRappresentanteSelezionato] = useState<string | null>(null);
+  const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
+  const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
   
   // Titolo visualizzato in base alla categoria
   const getTitolo = (): string => {
@@ -317,6 +320,15 @@ export default function ScegliRappresentante() {
 
         </div>
         
+        <ViewOpinioniDialog
+          open={!!opinioniDialogData}
+          onOpenChange={(open) => { if (!open) setOpinioniDialogOpen(false); setOpinioniDialogData(null); }}
+          utenteId={opinioniDialogData?.utenteId || ''}
+          nome={opinioniDialogData?.nome}
+          cognome={opinioniDialogData?.cognome}
+          avatarConfig={opinioniDialogData?.avatarConfig}
+        />
+        
         {rappresentanti.length === 0 ? (
           <Card className="w-full max-w-3xl mx-auto mb-6">
             <CardHeader>
@@ -367,10 +379,13 @@ export default function ScegliRappresentante() {
                       );
                     })()}
                   </div>
-                  <CardTitle className="text-xl text-center">
+                  <CardTitle className="text-xl text-center cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentante.id, nome: rappresentante.nome, cognome: rappresentante.cognome, avatarConfig: rappresentante.avatar_config })}>
                     {rappresentante.nome} {rappresentante.cognome}
                   </CardTitle>
-                  <div className="flex justify-center space-x-2">
+                  <Button variant="secondary" size="sm" className="mx-auto mt-1" onClick={() => setOpinioniDialogData({ utenteId: rappresentante.id, nome: rappresentante.nome, cognome: rappresentante.cognome, avatarConfig: rappresentante.avatar_config })}>
+                    Vedi Opinioni
+                  </Button>
+                  <div className="flex justify-center space-x-2 mt-2">
                     <Badge variant="outline">{rappresentante.ruolo}</Badge>
                     <Badge variant="secondary">
                       {rappresentante.opinioni_comuni} opinioni comuni
