@@ -139,18 +139,6 @@ export default function Menu() {
                 </Button>
               </Link>
               
-              {isAdmin && (
-                <Link href="/gestisci">
-                  <Button 
-                    className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                    variant="outline"
-                  >
-                    <Settings className="h-5 w-5" />
-                    Gestisci
-                  </Button>
-                </Link>
-              )}
-              
               <Link href="/comunica">
                 <Button 
                   className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
@@ -279,6 +267,18 @@ export default function Menu() {
                   >
                     <Users className="h-5 w-5" />
                     Sostenitori
+                  </Button>
+                </Link>
+              )}
+              
+              {isAdmin && (
+                <Link href="/gestisci">
+                  <Button 
+                    className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                    variant="outline"
+                  >
+                    <Settings className="h-5 w-5" />
+                    Gestisci
                   </Button>
                 </Link>
               )}
