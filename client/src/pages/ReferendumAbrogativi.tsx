@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Vote, ExternalLink, Calendar } from "lucide-react";
+import { Loader2, Plus, Vote, ExternalLink, Calendar, Check, Hourglass, X as XIcon } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,6 +29,14 @@ export default function ReferendumAbrogativi() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+
+  // Stato quorum persistente
+  const [updatingQuorum, setUpdatingQuorum] = useState<string | null>(null);
+  const quorumOptions = [
+    { value: 'ok', label: 'Raggiunto', icon: <Check className="text-green-600 inline" /> },
+    { value: 'pending', label: 'In attesa', icon: <Hourglass className="text-yellow-500 inline" /> },
+    { value: 'no', label: 'Non raggiunto', icon: <XIcon className="text-red-600 inline" /> },
+  ];
 
   const form = useForm<ReferendumFormData>({
     resolver: zodResolver(referendumSchema),
@@ -61,7 +69,7 @@ export default function ReferendumAbrogativi() {
   });
 
   // Get ranking
-  const { data: classifica = [] } = useQuery<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string}>>({
+  const { data: classifica = [] } = useQuery<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
     queryKey: ["/api/referendum-abrogativi/classifica"],
     enabled: !!user,
   });
@@ -117,6 +125,25 @@ export default function ReferendumAbrogativi() {
 
   const handleVote = (nome: string) => {
     voteMutation.mutate(nome);
+  };
+
+  // PATCH quorum
+  const patchQuorum = async (id: string, quorum: 'ok' | 'pending' | 'no') => {
+    setUpdatingQuorum(id);
+    try {
+      const res = await fetch(`/api/referendum-abrogativi/${id}/quorum`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ quorum })
+      });
+      if (!res.ok) throw new Error('Errore aggiornamento quorum');
+      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
+    } catch (e) {
+      toast({ title: 'Errore', description: 'Impossibile aggiornare quorum', variant: 'destructive' });
+    } finally {
+      setUpdatingQuorum(null);
+    }
   };
 
   return (
@@ -271,11 +298,12 @@ export default function ReferendumAbrogativi() {
                           </TableHead>
                           <TableHead>Sito Web</TableHead>
                           <TableHead className="w-[100px]">Voti</TableHead>
+                          <TableHead>Quorum</TableHead>
                           <TableHead className="w-[120px]">Azione</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {classifica.map((referendum, index) => (
+                        {classifica.filter(r => r.status === 'accepted').map((referendum, index) => (
                           <TableRow key={referendum.nome}>
                             <TableCell className="font-medium">
                               <Badge variant={index < 3 ? "default" : "secondary"}>
@@ -307,6 +335,25 @@ export default function ReferendumAbrogativi() {
                               <Badge variant="outline">
                                 {referendum.voti}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {user?.ruolo === 'Admin' ? (
+                                <select
+                                  className="border rounded px-2 py-1"
+                                  value={referendum.quorum || 'pending'}
+                                  disabled={updatingQuorum === referendum.id}
+                                  onChange={e => patchQuorum(referendum.id, e.target.value as 'ok' | 'pending' | 'no')}
+                                >
+                                  {quorumOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  {quorumOptions.find(opt => opt.value === (referendum.quorum || 'pending'))?.icon}
+                                  {quorumOptions.find(opt => opt.value === (referendum.quorum || 'pending'))?.label}
+                                </span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Button

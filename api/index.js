@@ -483,4 +483,47 @@ app.patch('/api/iniziative-popolari/:id/quorum', requireAdmin, async (req, res) 
   res.status(result.success ? 200 : 400).json(result);
 });
 
+// === REFERENDUM ABROGATIVI: Proposta nuovo referendum ===
+app.post('/api/referendum-abrogativi', requireAuth, async (req, res) => {
+  const { nome, dataInizio, dataFine, sitoWeb } = req.body;
+  if (!nome || !dataInizio || !dataFine || !sitoWeb) return res.status(400).json({ error: 'Nome, dataInizio, dataFine e sitoWeb sono obbligatori' });
+  const result = await VotoService.saveReferendumAbrogativo({
+    userId: req.user.id,
+    nome,
+    dataInizio,
+    dataFine,
+    sitoWeb
+  });
+  res.status(result.success === false ? 400 : 200).json(result);
+});
+
+// === REFERENDUM ABROGATIVI: Richieste pending ===
+app.get('/api/referendum-abrogativi/richieste', requireAdmin, async (req, res) => {
+  const richieste = await VotoService.getPendingReferendumAbrogativi();
+  res.json(richieste);
+});
+
+// === REFERENDUM ABROGATIVI: Accetta ===
+app.post('/api/referendum-abrogativi/:id/accetta', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.acceptReferendumAbrogativo(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+// === REFERENDUM ABROGATIVI: Rifiuta ===
+app.post('/api/referendum-abrogativi/:id/rifiuta', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.rejectReferendumAbrogativo(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
+// === REFERENDUM ABROGATIVI: Aggiorna quorum ===
+app.patch('/api/referendum-abrogativi/:id/quorum', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { quorum } = req.body;
+  if (!['ok', 'pending', 'no'].includes(quorum)) return res.status(400).json({ error: 'Valore quorum non valido' });
+  const result = await VotoService.updateQuorumReferendum(id, quorum);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
 export default app; 
