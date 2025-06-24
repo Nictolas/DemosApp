@@ -5,11 +5,17 @@ class SostenitoriService {
   /**
    * Calcola le statistiche dei sostenitori per un politico/candidato dato l'email.
    */
-  static async getSupporterStats(email) {
+  static async getSupporterStats(identifier) {
     if (!db) return null;
 
-    // Trova l'utente (politico/candidato) tramite email
-    const utentiSnapshot = await getDocs(query(collection(db, 'utenti'), where('email', '==', email)));
+    let utentiSnapshot;
+    if (identifier.includes('@')) {
+      // Cerca per email
+      utentiSnapshot = await getDocs(query(collection(db, 'utenti'), where('email', '==', identifier)));
+    } else {
+      // Cerca per uid
+      utentiSnapshot = await getDocs(query(collection(db, 'utenti'), where('uid', '==', identifier)));
+    }
     if (utentiSnapshot.empty) return null;
     const user = utentiSnapshot.docs[0].data();
     const userId = user.uid || utentiSnapshot.docs[0].id;
