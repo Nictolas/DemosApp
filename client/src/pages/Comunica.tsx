@@ -67,22 +67,16 @@ export default function Comunica() {
     },
   });
 
-  // Get user session data
-  const { data: sessionData } = useQuery({
-    queryKey: ["/api/user"],
-    enabled: !!user?.email,
-  });
-
   // Get complete user data including role
   const { data: userData } = useQuery({
-    queryKey: ["/api/users", sessionData?.email],
+    queryKey: ["/api/users", user?.email],
     queryFn: async () => {
-      if (!sessionData?.email) return null;
-      const response = await fetch(`/api/users/${encodeURIComponent(sessionData.uid)}`);
+      if (!user?.email) return null;
+      const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },
-    enabled: !!sessionData?.email,
+    enabled: !!user?.email,
   });
 
   // Get user's last communication
@@ -96,7 +90,7 @@ export default function Comunica() {
       }
       return response.json();
     },
-    enabled: !!sessionData?.email,
+    enabled: !!user?.email,
   });
 
   // Generate zona based on user's election data
@@ -225,8 +219,8 @@ export default function Comunica() {
     submitEvento.mutate(data);
   };
 
-  // Show loading while sessionData or userData is being fetched
-  if (!sessionData || !userData) {
+  // Show loading while userData is being fetched
+  if (!userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />
@@ -244,7 +238,7 @@ export default function Comunica() {
 
   // Check if user has the right role
   const userRole = (userData as any)?.ruolo;
-  if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico")) {
+  if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico" && userRole !== "Admin")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <Navbar />
@@ -253,7 +247,7 @@ export default function Comunica() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Accesso negato</AlertTitle>
             <AlertDescription>
-              Questa sezione è accessibile solo ai Politici e ai Candidati Politici. Il tuo ruolo attuale: {userRole || 'Non definito'}
+              Questa sezione è accessibile solo ai Politici, ai Candidati Politici e agli Admin. Il tuo ruolo attuale: {userRole || 'Non definito'}
             </AlertDescription>
           </Alert>
         </div>
