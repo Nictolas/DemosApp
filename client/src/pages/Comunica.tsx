@@ -27,13 +27,13 @@ const comunicaSchema = z.object({
   }),
 });
 
-const comizioSchema = z.object({
+const eventoSchema = z.object({
   dove: z.string().min(1, "Il luogo è obbligatorio"),
   quando: z.string().min(1, "La data è obbligatoria"),
 });
 
 type ComunicaFormData = z.infer<typeof comunicaSchema>;
-type ComizioFormData = z.infer<typeof comizioSchema>;
+type EventoFormData = z.infer<typeof eventoSchema>;
 
 interface ExistingComunicazione {
   titolo: string;
@@ -59,8 +59,8 @@ export default function Comunica() {
     },
   });
 
-  const comizioForm = useForm<ComizioFormData>({
-    resolver: zodResolver(comizioSchema),
+  const eventoForm = useForm<EventoFormData>({
+    resolver: zodResolver(eventoSchema),
     defaultValues: {
       dove: "",
       quando: "",
@@ -190,39 +190,39 @@ export default function Comunica() {
     submitComunicazione.mutate(data);
   };
 
-  // Submit nuovo comizio
-  const submitComizio = useMutation({
-    mutationFn: async (data: ComizioFormData) => {
-      const response = await fetch("/api/comizi", {
+  // Submit nuovo evento
+  const submitEvento = useMutation({
+    mutationFn: async (data: EventoFormData) => {
+      const response = await fetch("/api/eventi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       
       if (!response.ok) {
-        throw new Error("Errore nell'invio del comizio");
+        throw new Error("Errore nell'invio del evento");
       }
       
       return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Comizio programmato",
-        description: "Il tuo comizio è stato programmato con successo.",
+        title: "Evento programmato",
+        description: "Il tuo evento è stato programmato con successo.",
       });
-      comizioForm.reset();
+      eventoForm.reset();
     },
     onError: (error: any) => {
       toast({
         title: "Errore",
-        description: error.message || "Si è verificato un errore nella programmazione del comizio.",
+        description: error.message || "Si è verificato un errore nella programmazione del evento.",
         variant: "destructive",
       });
     },
   });
 
-  const onSubmitComizio = (data: ComizioFormData) => {
-    submitComizio.mutate(data);
+  const onSubmitEvento = (data: EventoFormData) => {
+    submitEvento.mutate(data);
   };
 
   // Show loading while sessionData or userData is being fetched
@@ -496,19 +496,19 @@ export default function Comunica() {
           </CardContent>
         </Card>
 
-        {/* Nuovo Comizio Section */}
+        {/* Nuovo Evento Section */}
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Nuovo Comizio</CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">Nuovo Evento</CardTitle>
             <CardDescription className="text-center">
-              Programma un nuovo comizio per comunicare con i tuoi elettori
+              Programma un nuovo evento per comunicare con i tuoi elettori
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Form {...comizioForm}>
-              <form onSubmit={comizioForm.handleSubmit(onSubmitComizio)} className="space-y-4">
+            <Form {...eventoForm}>
+              <form onSubmit={eventoForm.handleSubmit(onSubmitEvento)} className="space-y-4">
                 <FormField
-                  control={comizioForm.control}
+                  control={eventoForm.control}
                   name="dove"
                   render={({ field }) => (
                     <FormItem>
@@ -517,7 +517,7 @@ export default function Comunica() {
                         <Input
                           placeholder="Es: Piazza del Duomo, Milano"
                           {...field}
-                          disabled={submitComizio.isPending}
+                          disabled={submitEvento.isPending}
                         />
                       </FormControl>
                       <FormMessage />
@@ -526,7 +526,7 @@ export default function Comunica() {
                 />
 
                 <FormField
-                  control={comizioForm.control}
+                  control={eventoForm.control}
                   name="quando"
                   render={({ field }) => (
                     <FormItem>
@@ -535,7 +535,7 @@ export default function Comunica() {
                         <Input
                           type="datetime-local"
                           {...field}
-                          disabled={submitComizio.isPending}
+                          disabled={submitEvento.isPending}
                         />
                       </FormControl>
                       <FormMessage />
@@ -546,9 +546,9 @@ export default function Comunica() {
                 <Button 
                   type="submit" 
                   className="w-full" 
-                  disabled={submitComizio.isPending}
+                  disabled={submitEvento.isPending}
                 >
-                  {submitComizio.isPending ? "Programmazione in corso..." : "Programma Comizio"}
+                  {submitEvento.isPending ? "Programmazione in corso..." : "Programma Evento"}
                 </Button>
               </form>
             </Form>

@@ -17,7 +17,7 @@ import VotoService from "../server/voto.service.js";
 import AdminService from "../server/admin.service.js";
 import ComunicazioneService from "../server/comunicazione.service.js";
 import ElezioneService from "../server/elezione.service.js";
-import ComizioService from "../server/comizio.service.js";
+import EventiService from "../server/eventi.service.js";
 import NotificaService from "../server/notifica.service.js";
 import SostenitoriService from "../server/sostenitori.service.js";
 import OpinioniService from '../server/opinioni.service.js';
@@ -284,10 +284,10 @@ app.post('/api/comunicazioni/:id/react', requireAuth, async (req, res) => res.js
 app.get('/api/notifiche', requireAuth, async (req, res) => res.json(await NotificaService.getUserNotifications(req.user.id)));
 app.patch('/api/notifiche/:id/read', requireAuth, async (req, res) => res.json(await NotificaService.markNotificationAsRead(req.params.id, req.user.id)));
 
-// Elezioni & Comizi
+// Elezioni & Eventi
 app.get('/api/elezioni', requireAuth, async (req, res) => res.json(await ElezioneService.getAllElezioni()));
-app.post('/api/comizi', requireAuth, async (req, res) => res.status(201).json(await ComizioService.saveComizio(req.body, req.user)));
-app.get('/api/comizi', async (req, res) => res.json(await ComizioService.getAllComizi()));
+app.post('/api/eventi', requireAuth, async (req, res) => res.status(201).json(await EventiService.saveEvento(req.body, req.user)));
+app.get('/api/eventi', async (req, res) => res.json(await EventiService.getAllEventi()));
 
 // Voti
 const createVotingEndpoints = (path, methods, entityKey = 'nome') => {

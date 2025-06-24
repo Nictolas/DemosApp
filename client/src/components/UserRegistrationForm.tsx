@@ -426,7 +426,7 @@ export default function UserRegistrationForm() {
             <li>allargare il tuo bacino di elettori;</li>
             <li>scoprire le preferenze delle persone sugli argomenti importanti;</li>
             <li>monitorare le opinioni per zone, genere, fasce d'età, etc.</li>
-            <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi comizi, eventi, votazioni, etc.</li>
+            <li>tenere sempre aggiornati i tuoi sostenitori sui tuoi eventi, votazioni, etc.</li>
           </ul>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Paese di Residenza Field */}
