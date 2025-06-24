@@ -32,32 +32,60 @@ class UserService extends FirebaseService {
 
   /**
    * Recupera un utente in modo robusto tramite il suo ID, UID o email.
+   * Se trova un documento con chiave email ma campo uid presente, lo migra su chiave uid.
    * @param identifier L'identificatore univoco dell'utente.
    */
   static async getUserById(identifier) {
     if (!db || !identifier) return null;
 
     // 1. Prova a ottenere il documento tramite ID diretto (il più veloce).
-    const userDocRef = doc(db, 'utenti', identifier);
-    const userDoc = await getDoc(userDocRef);
+    let userDocRef = doc(db, 'utenti', identifier);
+    let userDoc = await getDoc(userDocRef);
     if (userDoc.exists()) {
-      return { id: userDoc.id, ...userDoc.data() };
+      const data = userDoc.data();
+      // Se la chiave è un'email ma c'è anche il campo uid, migra il documento
+      if (identifier.includes('@') && data.uid && data.uid !== identifier) {
+        // Copia su nuovo documento con chiave = uid
+        const newDocRef = doc(db, 'utenti', data.uid);
+        await setDoc(newDocRef, { ...data, id: data.uid });
+        await setDoc(userDocRef, { ...data, migrated: true }); // segna il vecchio come migrato
+        // Elimina il vecchio documento (opzionale, qui lo lasciamo per sicurezza)
+        // await deleteDoc(userDocRef);
+        // Ritorna il nuovo documento
+        const migratedDoc = await getDoc(newDocRef);
+        if (migratedDoc.exists()) {
+          return { id: migratedDoc.id, ...migratedDoc.data() };
+        }
+      }
+      return { id: userDoc.id, ...data };
     }
 
     // 2. Se non trovato, prova a cercare per campo 'uid' (Firebase Auth UID).
     let q = query(collection(db, 'utenti'), where('uid', '==', identifier));
     let querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      return { id: doc.id, ...doc.data() };
+      const docSnap = querySnapshot.docs[0];
+      return { id: docSnap.id, ...docSnap.data() };
     }
 
     // 3. Come ultima risorsa, prova a cercare per campo 'email'.
     q = query(collection(db, 'utenti'), where('email', '==', identifier));
     querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      return { id: doc.id, ...doc.data() };
+      const docSnap = querySnapshot.docs[0];
+      // Se il documento ha anche un campo uid, migra
+      const data = docSnap.data();
+      if (data.uid && data.uid !== docSnap.id) {
+        const newDocRef = doc(db, 'utenti', data.uid);
+        await setDoc(newDocRef, { ...data, id: data.uid });
+        await setDoc(docSnap.ref, { ...data, migrated: true });
+        // await deleteDoc(docSnap.ref);
+        const migratedDoc = await getDoc(newDocRef);
+        if (migratedDoc.exists()) {
+          return { id: migratedDoc.id, ...migratedDoc.data() };
+        }
+      }
+      return { id: docSnap.id, ...data };
     }
 
     return null; // Utente non trovato con nessun metodo.
