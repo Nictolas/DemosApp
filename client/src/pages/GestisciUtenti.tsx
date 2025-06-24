@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Eye } from "lucide-react";
@@ -361,27 +361,10 @@ export default function GestisciUtenti() {
                         {filteredUsers.length > 0 ? (
                           filteredUsers.map((user) => (
                             <TableRow key={user.id}>
-                              <TableCell>
-                                <span 
-                                  className="cursor-pointer text-blue-600 hover:underline"
-                                  onClick={() => {
-                                    setSelectedUserEmail(user.email);
-                                    setShowViewDialog(true);
-                                  }}
-                                >
-                                  {user.nome}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <span 
-                                  className="cursor-pointer text-blue-600 hover:underline"
-                                  onClick={() => {
-                                    setSelectedUserEmail(user.email);
-                                    setShowViewDialog(true);
-                                  }}
-                                >
-                                  {user.cognome}
-                                </span>
+                              <TableCell colSpan={2}>
+                                <Link href={`/profilo/${user.id}`} className="cursor-pointer text-blue-600 hover:underline">
+                                  {user.nome} {user.cognome}
+                                </Link>
                               </TableCell>
                               <TableCell>{user.email}</TableCell>
                               <TableCell>{user.ruolo}</TableCell>
@@ -395,43 +378,15 @@ export default function GestisciUtenti() {
                                       setShowEditDialog(true);
                                     }}
                                   >
-                                    <Edit className="h-4 w-4 mr-1" />
-                                    Modifica
+                                    <Edit className="h-4 w-4" />
                                   </Button>
-                                </div>
-                                <div className="flex space-x-1 mt-1 items-center justify-end">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="text-blue-500"
-                                    onClick={() => {
-                                      setSelectedUserId(user.id);
-                                      setShowViewOpinioniDialog(true);
-                                    }}
-                                  >
-                                    Visualizza Opinioni
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="text-green-600"
-                                    onClick={() => {
-                                      setSelectedUserId(user.id);
-                                      setShowEditOpinioniDialog(true);
-                                    }}
-                                  >
-                                    Modifica Opinioni
-                                  </Button>
-                                </div>
-                                <div className="flex justify-end mt-1">
                                   <Button 
                                     variant="ghost" 
                                     size="sm"
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                     onClick={() => openDeleteDialog(user)}
+                                    disabled={isDeleting && userToDelete?.id === user.id}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Elimina
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -439,9 +394,7 @@ export default function GestisciUtenti() {
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-center">
-                              Nessun utente trovato
-                            </TableCell>
+                            <TableCell colSpan={5} className="text-center">Nessun utente trovato.</TableCell>
                           </TableRow>
                         )}
                       </TableBody>
