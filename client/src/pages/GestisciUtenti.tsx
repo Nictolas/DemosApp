@@ -241,14 +241,20 @@ export default function GestisciUtenti() {
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Ruolo</TableHead>
                       <TableHead className="text-right">Azioni</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pendingUsers.map((pendingUser) => (
                       <TableRow key={pendingUser.id}>
-                        <TableCell>{pendingUser.nome} {pendingUser.cognome}</TableCell>
+                        <TableCell>
+                          <Link href={`/profilo/${pendingUser.id}`} className="cursor-pointer text-blue-600 hover:underline">
+                            {pendingUser.nome} {pendingUser.cognome}
+                          </Link>
+                        </TableCell>
                         <TableCell>{pendingUser.email}</TableCell>
+                        <TableCell>{pendingUser.ruolo}</TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
                             size="sm"
