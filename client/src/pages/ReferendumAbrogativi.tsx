@@ -19,7 +19,7 @@ const referendumSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
   dataInizio: z.string().min(1, "La data di inizio è obbligatoria"),
   dataFine: z.string().min(1, "La data di fine è obbligatoria"),
-  sitoWeb: z.string().url("Inserisci un URL valido").or(z.literal("")),
+  sitoWeb: z.string().url("Inserisci un URL valido"),
 });
 
 type ReferendumFormData = z.infer<typeof referendumSchema>;
@@ -249,7 +249,7 @@ export default function ReferendumAbrogativi() {
                           name="sitoWeb"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Sito web (opzionale)</FormLabel>
+                              <FormLabel>Sito web</FormLabel>
                               <FormControl>
                                 <Input
                                   placeholder="https://esempio.com"
@@ -275,12 +275,12 @@ export default function ReferendumAbrogativi() {
                 </Card>
               )}
 
-              {/* Top 10 ranking */}
+              {/* Ultimi Referendum Proposti */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Top 10 Referendum Abrogativi</CardTitle>
+                  <CardTitle>Ultimi Referendum Proposti</CardTitle>
                   <CardDescription>
-                    I referendum più votati dalla comunità
+                    I referendum più recenti proposti dalla comunità
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -288,7 +288,6 @@ export default function ReferendumAbrogativi() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[60px]">Pos.</TableHead>
                           <TableHead>Nome</TableHead>
                           <TableHead>
                             <div className="flex items-center space-x-2">
@@ -297,19 +296,14 @@ export default function ReferendumAbrogativi() {
                             </div>
                           </TableHead>
                           <TableHead>Sito Web</TableHead>
-                          <TableHead className="w-[100px]">Voti</TableHead>
                           <TableHead>Quorum</TableHead>
-                          <TableHead className="w-[120px]">Azione</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {classifica.filter(r => r.status === 'accepted').map((referendum, index) => (
+                        {classifica.filter(r => r.status === 'accepted')
+                          .sort((a, b) => new Date(b.dataInizio).getTime() - new Date(a.dataInizio).getTime())
+                          .map((referendum, index) => (
                           <TableRow key={referendum.nome}>
-                            <TableCell className="font-medium">
-                              <Badge variant={index < 3 ? "default" : "secondary"}>
-                                #{index + 1}
-                              </Badge>
-                            </TableCell>
                             <TableCell className="font-medium">
                               {referendum.nome}
                             </TableCell>
@@ -332,11 +326,6 @@ export default function ReferendumAbrogativi() {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline">
-                                {referendum.voti}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
                               {user?.ruolo === 'Admin' ? (
                                 <select
                                   className="border rounded px-2 py-1"
@@ -355,23 +344,12 @@ export default function ReferendumAbrogativi() {
                                 </span>
                               )}
                             </TableCell>
-                            <TableCell>
-                              <Button
-                                size="sm"
-                                variant={userVotes.includes(referendum.nome) ? "default" : "outline"}
-                                onClick={() => handleVote(referendum.nome)}
-                                disabled={voteMutation.isPending || userVotes.includes(referendum.nome)}
-                              >
-                                <Vote className="mr-1 h-3 w-3" />
-                                {userVotes.includes(referendum.nome) ? "Votato" : "Vota"}
-                              </Button>
-                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                  {classifica.length === 0 && (
+                  {classifica.filter(r => r.status === 'accepted').length === 0 && (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       <Vote className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>Nessun referendum proposto al momento.</p>
