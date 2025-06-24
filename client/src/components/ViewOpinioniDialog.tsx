@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomAvatar } from "@/components/CustomAvatar";
+import { useAuth } from "@/hooks/use-auth";
 
 // Mappa colori per le risposte
 const responseColors = {
@@ -30,10 +31,13 @@ export function ViewOpinioniDialog({
   avatarConfig
 }: ViewOpinioniDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
   const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [myOpinions, setMyOpinions] = useState<Record<string, string>>({});
+  const [isLoadingMyOpinions, setIsLoadingMyOpinions] = useState(true);
 
   // Carica le domande dinamiche
   useEffect(() => {
@@ -58,6 +62,27 @@ export function ViewOpinioniDialog({
     }
     // eslint-disable-next-line
   }, [open, utenteId, questions]);
+
+  // Carica le opinioni dell'utente loggato
+  useEffect(() => {
+    const fetchMyOpinions = async () => {
+      if (!user) return;
+      setIsLoadingMyOpinions(true);
+      try {
+        const res = await fetch("/api/opinioni", {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) throw new Error();
+        setMyOpinions(await res.json());
+      } catch {
+        setMyOpinions({});
+      } finally {
+        setIsLoadingMyOpinions(false);
+      }
+    };
+    fetchMyOpinions();
+  }, [user]);
 
   const loadUserOpinions = async () => {
     try {
@@ -137,7 +162,7 @@ export function ViewOpinioniDialog({
         )}
         
         <div className="max-h-[60vh] overflow-y-auto pr-1">
-          {isLoadingOpinions || isLoadingQuestions ? (
+          {isLoadingOpinions || isLoadingQuestions || isLoadingMyOpinions ? (
             <div className="flex justify-center items-center h-40">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="ml-2">Caricamento opinioni...</span>
@@ -157,11 +182,26 @@ export function ViewOpinioniDialog({
                   </h3>
                   <div className="space-y-2">
                     {categorizeOpinions(opinions).favorevoli.length > 0 ? (
-                      categorizeOpinions(opinions).favorevoli.map((opinion, index) => (
-                        <div key={index} className="bg-green-50 border border-green-200 rounded-md p-3">
-                          <span className="text-green-800 font-medium">{opinion}</span>
-                        </div>
-                      ))
+                      categorizeOpinions(opinions).favorevoli.map((opinion, index) => {
+                        // Trova la chiave corrispondente
+                        const key = Object.keys(opinions).find(k => {
+                          const label = {
+                            energia_nucleare: "Energia Nucleare",
+                            sperimentazione_animale: "Sperimentazione Animale",
+                            legalizzazione_canapa: "Legalizzazione Canapa",
+                            caccia: "Caccia",
+                            unione_europea: "Unione Europea"
+                          }[k];
+                          return label === opinion;
+                        });
+                        const isCommon = key && myOpinions[key] === opinions[key];
+                        return (
+                          <div key={index} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
+                            <span className="text-green-800 font-medium">{opinion}</span>
+                            {isCommon ? <Check className="text-green-600 ml-2" size={20} /> : null}
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="text-green-600 text-sm italic">
                         Nessuna opinione favorevole
@@ -179,11 +219,25 @@ export function ViewOpinioniDialog({
                   </h3>
                   <div className="space-y-2">
                     {categorizeOpinions(opinions).indecisi.length > 0 ? (
-                      categorizeOpinions(opinions).indecisi.map((opinion, index) => (
-                        <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                          <span className="text-yellow-800 font-medium">{opinion}</span>
-                        </div>
-                      ))
+                      categorizeOpinions(opinions).indecisi.map((opinion, index) => {
+                        const key = Object.keys(opinions).find(k => {
+                          const label = {
+                            energia_nucleare: "Energia Nucleare",
+                            sperimentazione_animale: "Sperimentazione Animale",
+                            legalizzazione_canapa: "Legalizzazione Canapa",
+                            caccia: "Caccia",
+                            unione_europea: "Unione Europea"
+                          }[k];
+                          return label === opinion;
+                        });
+                        const isCommon = key && myOpinions[key] === opinions[key];
+                        return (
+                          <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
+                            <span className="text-yellow-800 font-medium">{opinion}</span>
+                            {isCommon ? <Check className="text-yellow-600 ml-2" size={20} /> : null}
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="text-yellow-600 text-sm italic">
                         Nessuna opinione indecisa
@@ -201,11 +255,25 @@ export function ViewOpinioniDialog({
                   </h3>
                   <div className="space-y-2">
                     {categorizeOpinions(opinions).contrari.length > 0 ? (
-                      categorizeOpinions(opinions).contrari.map((opinion, index) => (
-                        <div key={index} className="bg-red-50 border border-red-200 rounded-md p-3">
-                          <span className="text-red-800 font-medium">{opinion}</span>
-                        </div>
-                      ))
+                      categorizeOpinions(opinions).contrari.map((opinion, index) => {
+                        const key = Object.keys(opinions).find(k => {
+                          const label = {
+                            energia_nucleare: "Energia Nucleare",
+                            sperimentazione_animale: "Sperimentazione Animale",
+                            legalizzazione_canapa: "Legalizzazione Canapa",
+                            caccia: "Caccia",
+                            unione_europea: "Unione Europea"
+                          }[k];
+                          return label === opinion;
+                        });
+                        const isCommon = key && myOpinions[key] === opinions[key];
+                        return (
+                          <div key={index} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
+                            <span className="text-red-800 font-medium">{opinion}</span>
+                            {isCommon ? <Check className="text-red-600 ml-2" size={20} /> : null}
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="text-red-600 text-sm italic">
                         Nessuna opinione contraria
