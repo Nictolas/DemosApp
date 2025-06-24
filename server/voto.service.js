@@ -340,6 +340,17 @@ class VotoService extends FirebaseService {
     }
   }
 
+  static async getClassificaReferendum() {
+    try {
+      if (!db) return [];
+      const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'accepted'), orderBy('dataInizio', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      return this.handleError(error, 'getClassificaReferendum');
+    }
+  }
+
 }
 
 export default VotoService; 
