@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
+import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 
 export default function Elezioni() {
   const { user, isLoading } = useAuth();
@@ -17,6 +18,8 @@ export default function Elezioni() {
   const [loading, setLoading] = useState(true);
   const [candidati, setCandidati] = useState<Record<string, any>>({});
   const [elezioni, setElezioni] = useState<any[]>([]);
+  const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
+  const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -197,9 +200,14 @@ export default function Elezioni() {
           
           <div className="text-center">
             {candidato ? (
-              <p className="font-medium text-primary">
-                {`${candidato.nome} ${candidato.cognome}`}
-              </p>
+              <>
+                <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: candidatoId, nome: candidato.nome, cognome: candidato.cognome, avatarConfig: candidato.avatar_config })}>
+                  {`${candidato.nome} ${candidato.cognome}`}
+                </p>
+                <Button variant="secondary" size="sm" className="mt-1" onClick={() => setOpinioniDialogData({ utenteId: candidatoId, nome: candidato.nome, cognome: candidato.cognome, avatarConfig: candidato.avatar_config })}>
+                  Vedi Opinioni
+                </Button>
+              </>
             ) : (
               <p className="text-gray-500 italic">Caricamento...</p>
             )}
@@ -297,6 +305,14 @@ export default function Elezioni() {
           })}
         </div>
       </div>
+      <ViewOpinioniDialog
+        open={!!opinioniDialogData}
+        onOpenChange={(open) => { if (!open) setOpinioniDialogOpen(false); setOpinioniDialogData(null); }}
+        utenteId={opinioniDialogData?.utenteId || ''}
+        nome={opinioniDialogData?.nome}
+        cognome={opinioniDialogData?.cognome}
+        avatarConfig={opinioniDialogData?.avatarConfig}
+      />
     </PageTransition>
   );
 }

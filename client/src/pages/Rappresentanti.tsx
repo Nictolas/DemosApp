@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
+import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 
 export default function Rappresentanti() {
   const { user, isLoading } = useAuth();
@@ -16,6 +17,8 @@ export default function Rappresentanti() {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rappresentanti, setRappresentanti] = useState<Record<string, any>>({});
+  const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
+  const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -154,9 +157,14 @@ export default function Rappresentanti() {
         
         <div className="text-center">
           {rappresentanteId && rappresentanteData ? (
-            <p className="font-medium text-primary">
-              {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
-            </p>
+            <>
+              <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}>
+                {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
+              </p>
+              <Button variant="secondary" size="sm" className="mt-1" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}>
+                Vedi Opinioni
+              </Button>
+            </>
           ) : (
             <p className="text-gray-500 italic">Assente</p>
           )}
@@ -222,6 +230,14 @@ export default function Rappresentanti() {
           })}
         </div>
       </div>
+      <ViewOpinioniDialog
+        open={!!opinioniDialogData}
+        onOpenChange={(open) => { if (!open) setOpinioniDialogOpen(false); setOpinioniDialogData(null); }}
+        utenteId={opinioniDialogData?.utenteId || ''}
+        nome={opinioniDialogData?.nome}
+        cognome={opinioniDialogData?.cognome}
+        avatarConfig={opinioniDialogData?.avatarConfig}
+      />
     </PageTransition>
   );
 }
