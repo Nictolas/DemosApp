@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList } from "lucide-react";
+import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check, Hourglass, X as XIcon } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,6 +39,14 @@ export default function IniziativePopolare() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
+  // Stato quorum persistente
+  const [updatingQuorum, setUpdatingQuorum] = useState<string | null>(null);
+  const quorumOptions = [
+    { value: 'ok', label: 'Raggiunto', icon: <Check className="text-green-600 inline" /> },
+    { value: 'pending', label: 'In attesa', icon: <Hourglass className="text-yellow-500 inline" /> },
+    { value: 'no', label: 'Non raggiunto', icon: <XIcon className="text-red-600 inline" /> },
+  ];
+
   const form = useForm<IniziativaFormData>({
     resolver: zodResolver(iniziativaSchema),
     defaultValues: {
@@ -50,7 +58,7 @@ export default function IniziativePopolare() {
   });
 
   // Carica la lista delle iniziative dal backend
-  const { data: listaIniziative = [], isLoading: isListaLoading } = useQuery<Array<{nome: string, dataInizio: string, dataFine: string, sitoWeb?: string}>>({
+  const { data: listaIniziative = [], isLoading: isListaLoading } = useQuery<Array<{nome: string, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
     queryKey: ["/api/iniziative-popolari/lista"], // URL CORRETTO
     queryFn: fetcher,
     enabled: !!user, // Esegui la query solo se l'utente è loggato
@@ -88,6 +96,25 @@ export default function IniziativePopolare() {
       });
     },
   });
+
+  // PATCH quorum
+  const patchQuorum = async (id: string, quorum: 'ok' | 'pending' | 'no') => {
+    setUpdatingQuorum(id);
+    try {
+      const res = await fetch(`/api/iniziative-popolari/${id}/quorum`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ quorum })
+      });
+      if (!res.ok) throw new Error('Errore aggiornamento quorum');
+      queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/lista"] });
+    } catch (e) {
+      toast({ title: 'Errore', description: 'Impossibile aggiornare quorum', variant: 'destructive' });
+    } finally {
+      setUpdatingQuorum(null);
+    }
+  };
 
   const onSubmit = (data: IniziativaFormData) => {
     submitInitiative.mutate(data);
@@ -150,13 +177,32 @@ export default function IniziativePopolare() {
                   <>
                     <div className="overflow-x-auto">
                       <Table>
-                        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead><div className="flex items-center space-x-2"><Calendar className="h-4 w-4" /><span>Periodo</span></div></TableHead><TableHead>Sito Web</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead><div className="flex items-center space-x-2"><Calendar className="h-4 w-4" /><span>Periodo</span></div></TableHead><TableHead>Sito Web</TableHead><TableHead>Quorum</TableHead></TableRow></TableHeader>
                         <TableBody>
                           {listaIniziative.map((iniziativa, index) => (
                             <TableRow key={index}>
                               <TableCell className="font-medium">{iniziativa.nome}</TableCell>
                               <TableCell className="text-sm text-muted-foreground">{new Date(iniziativa.dataInizio).toLocaleDateString('it-IT')} - {new Date(iniziativa.dataFine).toLocaleDateString('it-IT')}</TableCell>
                               <TableCell>{iniziativa.sitoWeb ? (<a href={iniziativa.sitoWeb} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"><ExternalLink className="h-4 w-4" /><span>Visita</span></a>) : (<span className="text-muted-foreground">N/A</span>)}</TableCell>
+                              <TableCell>
+                                {user?.ruolo === 'Admin' ? (
+                                  <select
+                                    className="border rounded px-2 py-1"
+                                    value={iniziativa.quorum || 'pending'}
+                                    disabled={updatingQuorum === iniziativa.id}
+                                    onChange={e => patchQuorum(iniziativa.id, e.target.value as 'ok' | 'pending' | 'no')}
+                                  >
+                                    {quorumOptions.map(opt => (
+                                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    {quorumOptions.find(opt => opt.value === (iniziativa.quorum || 'pending'))?.icon}
+                                    {quorumOptions.find(opt => opt.value === (iniziativa.quorum || 'pending'))?.label}
+                                  </span>
+                                )}
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

@@ -100,7 +100,7 @@ class VotoService extends FirebaseService {
 
   // --- Iniziative Popolari ---
   static async saveIniziativaPopolare(data) { 
-    const dataToSave = { ...data, createdAt: new Date().toISOString(), status: 'pending' };
+    const dataToSave = { ...data, createdAt: new Date().toISOString(), status: 'pending', quorum: 'pending' };
     return this._saveDocument('iniziative_popolari', dataToSave); 
   }
 
@@ -149,6 +149,17 @@ class VotoService extends FirebaseService {
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'rejectIniziativaPopolare');
+    }
+  }
+
+  static async updateQuorumIniziativa(id, quorum) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const ref = doc(db, 'iniziative_popolari', id);
+      await updateDoc(ref, { quorum });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'updateQuorumIniziativa');
     }
   }
 

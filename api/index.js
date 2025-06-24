@@ -474,4 +474,13 @@ app.post('/api/iniziative-popolari', requireAuth, async (req, res) => {
   res.status(result.success === false ? 400 : 200).json(result);
 });
 
+// === INIZIATIVE POPOLARI: Aggiorna quorum ===
+app.patch('/api/iniziative-popolari/:id/quorum', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { quorum } = req.body;
+  if (!['ok', 'pending', 'no'].includes(quorum)) return res.status(400).json({ error: 'Valore quorum non valido' });
+  const result = await VotoService.updateQuorumIniziativa(id, quorum);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
 export default app; 

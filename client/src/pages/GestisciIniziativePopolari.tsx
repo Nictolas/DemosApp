@@ -92,7 +92,7 @@ export default function GestisciIniziativePopolari() {
                       <TableRow key={r.id}>
                         <TableCell>{r.nome}</TableCell>
                         <TableCell>{new Date(r.dataInizio).toLocaleDateString('it-IT')} - {new Date(r.dataFine).toLocaleDateString('it-IT')}</TableCell>
-                        <TableCell>{r.sitoWeb ? (<a href={r.sitoWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.sitoWeb}</a>) : "N/A"}</TableCell>
+                        <TableCell>{r.sitoWeb ? (<a href={r.sitoWeb} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"><span>Visita</span></a>) : "N/A"}</TableCell>
                         <TableCell className="flex gap-2">
                           <Button size="sm" variant="default" onClick={() => accetta.mutate(r.id)} disabled={accetta.isPending}><Check className="h-4 w-4" /></Button>
                           <Button size="sm" variant="destructive" onClick={() => rifiuta.mutate(r.id)} disabled={rifiuta.isPending}><X className="h-4 w-4" /></Button>
