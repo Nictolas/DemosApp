@@ -122,7 +122,7 @@ export default function Governo() {
       }
 
       // Carica tutte le classifiche
-      const classificheResponse = await fetch('/api/governo/classifiche');
+      const classificheResponse = await fetch('/api/governo/classifica');
       if (classificheResponse.ok) {
         const classificheData = await classificheResponse.json();
         setClassifiche(classificheData);
