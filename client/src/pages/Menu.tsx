@@ -199,26 +199,6 @@ export default function Menu() {
                 </Button>
               </Link>
               
-              <Link href="/iniziative-popolari">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Users className="h-5 w-5" />
-                  Iniziative Popolari
-                </Button>
-              </Link>
-              
-              <Link href="/referendum-abrogativi">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Vote className="h-5 w-5" />
-                  Referendum Abrogativi
-                </Button>
-              </Link>
-              
               {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
                 <Link href="/sostenitori">
                   <Button 
