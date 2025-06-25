@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFormContext } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { useRegistration } from "@/hooks/use-registration";
@@ -13,8 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
-import Picker from "react-mobile-picker";
-import { Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
@@ -483,7 +481,289 @@ export default function AuthPage() {
                   {/* Register Form */}
                   <TabsContent value="register">
                     <Form {...registerForm}>
-                      <RegisterFormWithMigliorie />
+                      <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
+                        {/* Sezione di accesso */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium border-b pb-2">Credenziali di accesso</h3>
+                          <div className="grid grid-cols-1 gap-4">
+                            <FormField
+                              control={registerForm.control}
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Email</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Inserisci la tua email" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="password"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Password</FormLabel>
+                                  <FormControl>
+                                    <Input type="password" placeholder="Crea una password" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="confirmPassword"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Conferma password</FormLabel>
+                                  <FormControl>
+                                    <Input type="password" placeholder="Ripeti la password" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Sezione dati personali */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium border-b pb-2">Dati personali</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={registerForm.control}
+                              name="nome"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Nome</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="Inserisci il tuo nome" 
+                                      {...field}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                                        field.onChange(capitalized);
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="cognome"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Cognome</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="Inserisci il tuo cognome" 
+                                      {...field}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                                        field.onChange(capitalized);
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="data_nascita"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Data di nascita</FormLabel>
+                                  <FormControl>
+                                    <Input type="date" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="genere"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Genere</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleziona genere" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="uomo">Uomo</SelectItem>
+                                      <SelectItem value="donna">Donna</SelectItem>
+                                      <SelectItem value="altro">Altro</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="cittadinanza"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Cittadinanza</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleziona cittadinanza" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Italia">Italia</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Sezione residenza */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium border-b pb-2">Dati di residenza</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={registerForm.control}
+                              name="paese_residenza"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Paese</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleziona paese" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Italia">Italia</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="regione_residenza"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Regione</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value} disabled={regioniResidenza.length === 0}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleziona regione" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {regioniResidenza.map((regione) => (
+                                        <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="provincia_residenza"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Provincia</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value} disabled={provinceResidenza.length === 0}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleziona provincia" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {provinceResidenza.map((provincia) => (
+                                        <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={registerForm.control}
+                              name="comune_residenza"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Comune</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value} disabled={comuniResidenza.length === 0}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleziona comune" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {comuniResidenza.map((comune) => (
+                                        <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Ruolo */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium border-b pb-2">Ruolo</h3>
+                          <FormField
+                            control={registerForm.control}
+                            name="ruolo"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="required-field">Ruolo</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Seleziona ruolo" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="Elettore">Elettore</SelectItem>
+                                    <SelectItem value="Candidato">Candidato</SelectItem>
+                                    <SelectItem value="Politico">Politico</SelectItem>
+                                    <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        
+                        <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                          {registerMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Registrazione in corso...
+                            </>
+                          ) : (
+                            "Registrati"
+                          )}
+                        </Button>
+                      </form>
                     </Form>
                   </TabsContent>
                 </Tabs>
@@ -510,208 +790,5 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-// --- COMPONENTE INLINE PER LA FORM MIGLIORATA ---
-function RegisterFormWithMigliorie() {
-  const { control, setValue, watch } = useFormContext<RegisterFormValues>();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  // Picker states
-  const [birthDay, setBirthDay] = useState("");
-  const [birthMonth, setBirthMonth] = useState("");
-  const [birthYear, setBirthYear] = useState("");
-  const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
-  const months = [
-    { value: "01", label: "Gennaio" },
-    { value: "02", label: "Febbraio" },
-    { value: "03", label: "Marzo" },
-    { value: "04", label: "Aprile" },
-    { value: "05", label: "Maggio" },
-    { value: "06", label: "Giugno" },
-    { value: "07", label: "Luglio" },
-    { value: "08", label: "Agosto" },
-    { value: "09", label: "Settembre" },
-    { value: "10", label: "Ottobre" },
-    { value: "11", label: "Novembre" },
-    { value: "12", label: "Dicembre" },
-  ];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
-  // Picker sync
-  useEffect(() => {
-    const val = watch("data_nascita");
-    if (val) {
-      const [y, m, d] = val.split("-");
-      setBirthYear(y);
-      setBirthMonth(m);
-      setBirthDay(d);
-    }
-  }, [watch("data_nascita")]);
-  const handlePickerChange = (val: { day: string; month: string; year: string }) => {
-    setBirthDay(val.day);
-    setBirthMonth(val.month);
-    setBirthYear(val.year);
-    setValue("data_nascita", `${val.year}-${val.month}-${val.day}`);
-  };
-  return (
-    <>
-      <FormField
-        control={control}
-        name="email"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Email</FormLabel>
-            <FormControl>
-              <Input placeholder="Inserisci la tua email" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={control}
-        name="password"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Password</FormLabel>
-            <FormControl>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Inserisci la tua password"
-                  {...field}
-                />
-                <button
-                  type="button"
-                  className="absolute right-2 top-2 text-gray-500"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword((v) => !v)}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={control}
-        name="confirmPassword"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Conferma Password</FormLabel>
-            <FormControl>
-              <div className="relative">
-                <Input
-                  type={showConfirm ? "text" : "password"}
-                  placeholder="Conferma la password"
-                  {...field}
-                />
-                <button
-                  type="button"
-                  className="absolute right-2 top-2 text-gray-500"
-                  tabIndex={-1}
-                  onClick={() => setShowConfirm((v) => !v)}
-                >
-                  {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={control}
-        name="nome"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Nome</FormLabel>
-            <FormControl>
-              <Input placeholder="Nome" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={control}
-        name="cognome"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Cognome</FormLabel>
-            <FormControl>
-              <Input placeholder="Cognome" {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={control}
-        name="data_nascita"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Data di Nascita</FormLabel>
-            <div className="flex justify-center">
-              <Picker
-                value={{
-                  day: birthDay || days[0],
-                  month: birthMonth || months[0].value,
-                  year: birthYear || years[0],
-                }}
-                onChange={handlePickerChange}
-              >
-                <Picker.Column name="day">
-                  {days.map((d) => (
-                    <Picker.Item key={d} value={d}>{d}</Picker.Item>
-                  ))}
-                </Picker.Column>
-                <Picker.Column name="month">
-                  {months.map((m) => (
-                    <Picker.Item key={m.value} value={m.value}>{m.label}</Picker.Item>
-                  ))}
-                </Picker.Column>
-                <Picker.Column name="year">
-                  {years.map((y) => (
-                    <Picker.Item key={y} value={y}>{y}</Picker.Item>
-                  ))}
-                </Picker.Column>
-              </Picker>
-            </div>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      {/* Ruolo (senza Admin) */}
-      <FormField
-        control={control}
-        name="ruolo"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Ruolo</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona il ruolo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Elettore">Elettore</SelectItem>
-                <SelectItem value="Candidato">Candidato</SelectItem>
-                <SelectItem value="Politico">Politico</SelectItem>
-                <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      {/* ...altri campi come residenza, cittadinanza, ecc. (come già presenti) ... */}
-      <Button type="submit" className="w-full">
-        Registrati
-      </Button>
-    </>
   );
 }
