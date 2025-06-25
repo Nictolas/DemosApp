@@ -58,7 +58,7 @@ export default function IniziativePopolare() {
   });
 
   // Carica la lista delle iniziative dal backend
-  const { data: listaIniziative = [], isLoading: isListaLoading } = useQuery<Array<{nome: string, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
+  const { data: listaIniziative = [], isLoading: isListaLoading } = useQuery<Array<{id: string, nome: string, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
     queryKey: ["/api/iniziative-popolari/lista"], // URL CORRETTO
     queryFn: fetcher,
     enabled: !!user, // Esegui la query solo se l'utente è loggato
@@ -113,6 +113,27 @@ export default function IniziativePopolare() {
       toast({ title: 'Errore', description: 'Impossibile aggiornare quorum', variant: 'destructive' });
     } finally {
       setUpdatingQuorum(null);
+    }
+  };
+
+  // Funzione per cancellare un'iniziativa (solo admin)
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteIniziativa = async (id: string) => {
+    if (!user || user.ruolo !== 'Admin') return;
+    if (!window.confirm('Sei sicuro di voler cancellare questa iniziativa?')) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/iniziative-popolari/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Errore nella cancellazione');
+      toast({ title: 'Iniziativa cancellata', description: 'L\'iniziativa è stata rimossa.' });
+      queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/lista"] });
+    } catch (e) {
+      toast({ title: 'Errore', description: 'Impossibile cancellare l\'iniziativa', variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -177,10 +198,28 @@ export default function IniziativePopolare() {
                   <>
                     <div className="overflow-x-auto">
                       <Table>
-                        <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead><div className="flex items-center space-x-2"><Calendar className="h-4 w-4" /><span>Periodo</span></div></TableHead><TableHead>Sito Web</TableHead><TableHead>Quorum</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow>
+                          {user?.ruolo === 'Admin' && <TableHead></TableHead>}
+                          <TableHead>Nome</TableHead>
+                          <TableHead><div className="flex items-center space-x-2"><Calendar className="h-4 w-4" /><span>Periodo</span></div></TableHead>
+                          <TableHead>Sito Web</TableHead>
+                          <TableHead>Quorum</TableHead>
+                        </TableRow></TableHeader>
                         <TableBody>
                           {listaIniziative.map((iniziativa, index) => (
                             <TableRow key={index}>
+                              {user?.ruolo === 'Admin' && (
+                                <TableCell>
+                                  <button
+                                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                                    disabled={deletingId === iniziativa.id}
+                                    onClick={() => deleteIniziativa(iniziativa.id)}
+                                    title="Cancella iniziativa"
+                                  >
+                                    <XIcon className="h-5 w-5" />
+                                  </button>
+                                </TableCell>
+                              )}
                               <TableCell className="font-medium">{iniziativa.nome}</TableCell>
                               <TableCell className="text-sm text-muted-foreground">{new Date(iniziativa.dataInizio).toLocaleDateString('it-IT')} - {new Date(iniziativa.dataFine).toLocaleDateString('it-IT')}</TableCell>
                               <TableCell>{iniziativa.sitoWeb ? (<a href={iniziativa.sitoWeb} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"><ExternalLink className="h-4 w-4" /><span>Visita</span></a>) : (<span className="text-muted-foreground">N/A</span>)}</TableCell>

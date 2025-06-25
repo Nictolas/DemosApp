@@ -69,7 +69,7 @@ export default function ReferendumAbrogativi() {
   });
 
   // Get ranking
-  const { data: classifica = [] } = useQuery<Array<{nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
+  const { data: classifica = [] } = useQuery<Array<{id: string, nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no', status: string}>>({
     queryKey: ["/api/referendum-abrogativi/classifica"],
     enabled: !!user,
   });
@@ -143,6 +143,27 @@ export default function ReferendumAbrogativi() {
       toast({ title: 'Errore', description: 'Impossibile aggiornare quorum', variant: 'destructive' });
     } finally {
       setUpdatingQuorum(null);
+    }
+  };
+
+  // Funzione per cancellare un referendum (solo admin)
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deleteReferendum = async (id: string) => {
+    if (!user || user.ruolo !== 'Admin') return;
+    if (!window.confirm('Sei sicuro di voler cancellare questo referendum?')) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/referendum-abrogativi/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Errore nella cancellazione');
+      toast({ title: 'Referendum cancellato', description: 'Il referendum è stato rimosso.' });
+      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
+    } catch (e) {
+      toast({ title: 'Errore', description: 'Impossibile cancellare il referendum', variant: 'destructive' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -288,6 +309,7 @@ export default function ReferendumAbrogativi() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          {user?.ruolo === 'Admin' && <TableHead></TableHead>}
                           <TableHead>Nome</TableHead>
                           <TableHead>
                             <div className="flex items-center space-x-2">
@@ -304,6 +326,18 @@ export default function ReferendumAbrogativi() {
                           .sort((a, b) => new Date(b.dataInizio).getTime() - new Date(a.dataInizio).getTime())
                           .map((referendum, index) => (
                           <TableRow key={referendum.nome}>
+                            {user?.ruolo === 'Admin' && (
+                              <TableCell>
+                                <button
+                                  className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                                  disabled={deletingId === referendum.id}
+                                  onClick={() => deleteReferendum(referendum.id)}
+                                  title="Cancella referendum"
+                                >
+                                  <XIcon className="h-5 w-5" />
+                                </button>
+                              </TableCell>
+                            )}
                             <TableCell className="font-medium">
                               {referendum.nome}
                             </TableCell>
