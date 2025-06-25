@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
+import Picker from "react-mobile-picker";
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
@@ -113,6 +114,33 @@ export default function AuthPage() {
       grado_candidatura: "",
     },
   });
+  
+  // Stati per giorno, mese, anno
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const months = [
+    { value: "01", label: "Gennaio" },
+    { value: "02", label: "Febbraio" },
+    { value: "03", label: "Marzo" },
+    { value: "04", label: "Aprile" },
+    { value: "05", label: "Maggio" },
+    { value: "06", label: "Giugno" },
+    { value: "07", label: "Luglio" },
+    { value: "08", label: "Agosto" },
+    { value: "09", label: "Settembre" },
+    { value: "10", label: "Ottobre" },
+    { value: "11", label: "Novembre" },
+    { value: "12", label: "Dicembre" },
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
+  useEffect(() => {
+    if (birthDay && birthMonth && birthYear) {
+      registerForm.setValue("data_nascita", `${birthYear}-${birthMonth}-${birthDay}`);
+    }
+  }, [birthDay, birthMonth, birthYear]);
   
   // Gestione delle selezioni a cascata per la residenza
   useEffect(() => {
@@ -350,6 +378,10 @@ export default function AuthPage() {
     return <Redirect to="/menu" />;
   }
 
+  // Stati per mostra/nascondi password
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div className="container mx-auto px-4 py-16">
@@ -505,9 +537,33 @@ export default function AuthPage() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="required-field">Password</FormLabel>
-                                  <FormControl>
-                                    <Input type="password" placeholder="Crea una password" {...field} />
-                                  </FormControl>
+                                  <div className="relative">
+                                    <Input
+                                      type={showPassword ? "text" : "password"}
+                                      placeholder="Crea una password"
+                                      autoComplete="new-password"
+                                      {...field}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                                      tabIndex={-1}
+                                      onClick={() => setShowPassword((v) => !v)}
+                                      aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                                    >
+                                      {showPassword ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                                        </svg>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  </div>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -518,9 +574,33 @@ export default function AuthPage() {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="required-field">Conferma password</FormLabel>
-                                  <FormControl>
-                                    <Input type="password" placeholder="Ripeti la password" {...field} />
-                                  </FormControl>
+                                  <div className="relative">
+                                    <Input
+                                      type={showConfirmPassword ? "text" : "password"}
+                                      placeholder="Ripeti la password"
+                                      autoComplete="new-password"
+                                      {...field}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                                      tabIndex={-1}
+                                      onClick={() => setShowConfirmPassword((v) => !v)}
+                                      aria-label={showConfirmPassword ? "Nascondi password" : "Mostra password"}
+                                    >
+                                      {showConfirmPassword ? (
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                                        </svg>
+                                      ) : (
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  </div>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -579,10 +659,42 @@ export default function AuthPage() {
                               name="data_nascita"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className="required-field">Data di nascita</FormLabel>
-                                  <FormControl>
-                                    <Input type="date" {...field} />
-                                  </FormControl>
+                                  <FormLabel className="required-field">Data di Nascita</FormLabel>
+                                  <div className="max-w-full flex flex-col items-center">
+                                    <div className="w-full flex justify-center">
+                                      <Picker
+                                        value={{
+                                          day: birthDay || days[0],
+                                          month: birthMonth || months[0].value,
+                                          year: birthYear || years[0],
+                                        }}
+                                        onChange={(val: { day: string; month: string; year: string }) => {
+                                          setBirthDay(val.day);
+                                          setBirthMonth(val.month);
+                                          setBirthYear(val.year);
+                                        }}
+                                        height={120}
+                                        itemHeight={36}
+                                        wheelMode="natural"
+                                      >
+                                        <Picker.Column name="day">
+                                          {days.map((d) => (
+                                            <Picker.Item key={d} value={d}>{d}</Picker.Item>
+                                          ))}
+                                        </Picker.Column>
+                                        <Picker.Column name="month">
+                                          {months.map((m) => (
+                                            <Picker.Item key={m.value} value={m.value}>{m.label}</Picker.Item>
+                                          ))}
+                                        </Picker.Column>
+                                        <Picker.Column name="year">
+                                          {years.map((y) => (
+                                            <Picker.Item key={y} value={y}>{y}</Picker.Item>
+                                          ))}
+                                        </Picker.Column>
+                                      </Picker>
+                                    </div>
+                                  </div>
                                   <FormMessage />
                                 </FormItem>
                               )}
