@@ -48,7 +48,7 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
     setIsSubmitting(true);
 
     try {
-      const response = await apiRequest("PUT", `/api/users/${userData.email}`, formData);
+      const response = await apiRequest("PUT", `/api/users/${userData.uid || userData.id}`, formData);
       
       if (!response.ok) {
         const errorData = await response.json();

@@ -8,13 +8,13 @@ import { db, auth } from "@/lib/firebase";
 import { EditProfileForm } from "./EditProfileForm";
 
 interface EditUserDialogProps {
-  userEmail: string;
+  userId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUserUpdated: () => void;
 }
 
-export function EditUserDialog({ userEmail, open, onOpenChange, onUserUpdated }: EditUserDialogProps) {
+export function EditUserDialog({ userId, open, onOpenChange, onUserUpdated }: EditUserDialogProps) {
   const { toast } = useToast();
   const [userData, setUserData] = useState<(UserInfo & { email: string }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,10 +22,10 @@ export function EditUserDialog({ userEmail, open, onOpenChange, onUserUpdated }:
 
   // Carica i dati dell'utente quando il dialog si apre
   useEffect(() => {
-    if (open && userEmail) {
+    if (open && userId) {
       loadUserData();
     }
-  }, [open, userEmail]);
+  }, [open, userId]);
 
   const loadUserData = async () => {
     setIsLoading(true);
@@ -33,7 +33,7 @@ export function EditUserDialog({ userEmail, open, onOpenChange, onUserUpdated }:
 
     try {
       // Carica i dati tramite API
-      const response = await fetch(`/api/users/${encodeURIComponent(userEmail)}`);
+      const response = await fetch(`/api/users/${encodeURIComponent(userId)}`);
       
       if (!response.ok) {
         throw new Error("Errore nel caricamento dei dati dell'utente");
@@ -41,7 +41,7 @@ export function EditUserDialog({ userEmail, open, onOpenChange, onUserUpdated }:
       
       const data = await response.json();
       console.log("Dati utente caricati per modifica:", data);
-      setUserData({ ...data, email: userEmail });
+      setUserData({ ...data, email: userId });
     } catch (err) {
       console.error("Errore:", err);
       setError(err instanceof Error ? err.message : "Errore sconosciuto");
@@ -73,7 +73,7 @@ export function EditUserDialog({ userEmail, open, onOpenChange, onUserUpdated }:
         <DialogHeader>
           <DialogTitle>Modifica Profilo Utente</DialogTitle>
           <DialogDescription>
-            Aggiorna le informazioni del profilo per l'utente {userEmail}
+            Aggiorna le informazioni del profilo per l'utente {userId}
           </DialogDescription>
         </DialogHeader>
         
