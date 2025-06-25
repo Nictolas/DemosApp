@@ -118,6 +118,28 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
+  // Stati per giorno, mese, anno della data di nascita
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const months = [
+    { value: "01", label: "Gennaio" },
+    { value: "02", label: "Febbraio" },
+    { value: "03", label: "Marzo" },
+    { value: "04", label: "Aprile" },
+    { value: "05", label: "Maggio" },
+    { value: "06", label: "Giugno" },
+    { value: "07", label: "Luglio" },
+    { value: "08", label: "Agosto" },
+    { value: "09", label: "Settembre" },
+    { value: "10", label: "Ottobre" },
+    { value: "11", label: "Novembre" },
+    { value: "12", label: "Dicembre" },
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
+  
   // Gestione delle selezioni a cascata per la residenza
   useEffect(() => {
     const paeseResidenza = registerForm.watch("paese_residenza");
@@ -303,6 +325,12 @@ export default function AuthPage() {
     }
     registerForm.setValue("comune_candidatura", "");
   }, [registerForm.watch("provincia_candidatura")]);
+
+  useEffect(() => {
+    if (birthDay && birthMonth && birthYear) {
+      registerForm.setValue("data_nascita", `${birthDay}-${birthMonth}-${birthYear}`);
+    }
+  }, [birthDay, birthMonth, birthYear]);
 
   const onLoginSubmit = (data: LoginFormValues) => {
     loginMutation.mutate(data);
@@ -635,7 +663,38 @@ export default function AuthPage() {
                                 <FormItem>
                                   <FormLabel className="required-field">Data di nascita</FormLabel>
                                   <FormControl>
-                                    <Input type="date" {...field} />
+                                    <div className="flex gap-2">
+                                      <select
+                                        className="border rounded px-2 py-1"
+                                        value={birthDay}
+                                        onChange={e => setBirthDay(e.target.value)}
+                                      >
+                                        <option value="">Gg</option>
+                                        {days.map(d => (
+                                          <option key={d} value={d}>{d}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        className="border rounded px-2 py-1"
+                                        value={birthMonth}
+                                        onChange={e => setBirthMonth(e.target.value)}
+                                      >
+                                        <option value="">Mese</option>
+                                        {months.map(m => (
+                                          <option key={m.value} value={m.value}>{m.label}</option>
+                                        ))}
+                                      </select>
+                                      <select
+                                        className="border rounded px-2 py-1"
+                                        value={birthYear}
+                                        onChange={e => setBirthYear(e.target.value)}
+                                      >
+                                        <option value="">Anno</option>
+                                        {years.map(y => (
+                                          <option key={y} value={y}>{y}</option>
+                                        ))}
+                                      </select>
+                                    </div>
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
