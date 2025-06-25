@@ -515,7 +515,7 @@ export default function AuthPage() {
 
 // --- COMPONENTE INLINE PER LA FORM MIGLIORATA ---
 function RegisterFormWithMigliorie() {
-  const { control, handleSubmit, formState, setValue, watch } = useFormContext<RegisterFormValues>();
+  const { control, setValue, watch } = useFormContext<RegisterFormValues>();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   // Picker states
@@ -556,7 +556,7 @@ function RegisterFormWithMigliorie() {
     setValue("data_nascita", `${val.year}-${val.month}-${val.day}`);
   };
   return (
-    <form onSubmit={handleSubmit(() => {})} className="space-y-4">
+    <>
       <FormField
         control={control}
         name="email"
@@ -712,6 +712,6 @@ function RegisterFormWithMigliorie() {
       <Button type="submit" className="w-full">
         Registrati
       </Button>
-    </form>
+    </>
   );
 }
