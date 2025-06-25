@@ -24,6 +24,7 @@ export default function Amnistia() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [deletingClassifica, setDeletingClassifica] = useState<string | null>(null);
 
   // Carica i dati dell'utente e la classifica
   useEffect(() => {
@@ -167,15 +168,27 @@ export default function Amnistia() {
     }
   };
 
-  const deleteFromClassifica = async (legge: string) => {
-    if (userProfile?.ruolo !== "Admin") return;
-    
-    setIsDeleting(legge);
-    toast({
-      title: "Info", 
-      description: "Funzione di eliminazione in sviluppo",
-    });
-    setIsDeleting(null);
+  const deleteFromClassifica = async (nome: string) => {
+    if (user?.ruolo !== "Admin") return;
+    if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
+    setDeletingClassifica(nome);
+    try {
+      const response = await fetch(`/api/amnistia/classifica/${encodeURIComponent(nome)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        toast({ title: "Legge eliminata", description: `${nome} è stata rimossa dalla classifica.` });
+        await loadData();
+      } else {
+        const error = await response.json();
+        toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
+    } finally {
+      setDeletingClassifica(null);
+    }
   };
 
   const getSuggestions = () => {
@@ -356,15 +369,15 @@ export default function Amnistia() {
                           <Badge variant="outline">
                             {legge.voti} voti
                           </Badge>
-                          {user?.email === "polidemos@gmail.com" && (
+                          {user?.ruolo === "Admin" && (
                             <Button
                               size="sm"
                               variant="destructive"
                               onClick={() => deleteFromClassifica(legge.nome)}
-                              disabled={isDeleting === legge.nome}
+                              disabled={deletingClassifica === legge.nome}
                               className="h-8 w-8 p-0"
                             >
-                              {isDeleting === legge.nome ? (
+                              {deletingClassifica === legge.nome ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
                                 <X className="h-3 w-3" />
