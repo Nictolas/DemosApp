@@ -537,4 +537,15 @@ app.patch('/api/referendum-abrogativi/:id/quorum', requireAdmin, async (req, res
   res.status(result.success ? 200 : 400).json(result);
 });
 
+// Endpoint per eliminare un candidato dalla classifica Capo di Stato (solo admin)
+app.delete('/api/capo-stato/classifica/:nome', requireAdmin, async (req, res) => {
+  const nome = decodeURIComponent(req.params.nome);
+  try {
+    const result = await VotoService.deleteAllVotesForCandidate('voti_capo_stato', nome);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nella cancellazione del candidato' });
+  }
+});
+
 export default app; 

@@ -353,6 +353,23 @@ class VotoService extends FirebaseService {
     }
   }
 
+  static async deleteAllVotesForCandidate(collectionName, nome) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const q = query(collection(db, collectionName), where('nome', '==', nome));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return { success: false, error: 'Nessun voto trovato per questo candidato' };
+      const batchDeletes = [];
+      snapshot.forEach(docSnap => {
+        batchDeletes.push(deleteDoc(docSnap.ref));
+      });
+      await Promise.all(batchDeletes);
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, `deleteAllVotesForCandidate(${collectionName}, ${nome})`);
+    }
+  }
+
 }
 
 export default VotoService; 
