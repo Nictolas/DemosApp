@@ -303,7 +303,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 p-4">
       {isLoading || isLoadingInfo ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
