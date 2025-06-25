@@ -334,6 +334,7 @@ export default function AuthPage() {
   }, [birthDay, birthMonth, birthYear]);
 
   const [loginAttempted, setLoginAttempted] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const onLoginSubmit = (data: LoginFormValues) => {
     setLoginAttempted(true);
@@ -342,7 +343,8 @@ export default function AuthPage() {
         // loginAttempted resta true
       },
       onSuccess: () => {
-        setLoginAttempted(false); // resetta su successo
+        setLoginAttempted(false);
+        setLoginSuccess(true);
       }
     });
   };
@@ -388,9 +390,22 @@ export default function AuthPage() {
     }
   }, [redirectPath, navigate]);
 
-  // Redirect to menu page if already logged in
-  if (user && !(loginAttempted && loginMutation.isError)) {
+  // Redirect to menu page only after a successful login
+  if (loginSuccess) {
     return <Redirect to="/menu" />;
+  }
+
+  // If user is already logged in, show a message and a button, but do not redirect automatically
+  if (user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+        <div className="bg-white rounded-lg p-8 shadow-md border border-gray-100 text-center">
+          <h2 className="text-2xl font-bold mb-4">Sei già autenticato!</h2>
+          <p className="mb-6">Se vuoi accedere al menu principale, clicca il pulsante qui sotto.</p>
+          <Button onClick={() => window.location.href = "/menu"} className="w-full max-w-xs">Vai al Menu</Button>
+        </div>
+      </div>
+    );
   }
 
   return (
