@@ -3,70 +3,98 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, FileText, Vote } from "lucide-react";
-import { Navbar } from "@/components/Navbar";
+import { ArrowLeft, FileText, Vote } from "lucide-react";
 
 export default function Proponi() {
   const { user, isLoading } = useAuth();
 
-  // Redirect to auth page if not logged in
-  if (!user && !isLoading) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return <Redirect to="/auth" />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <Navbar />
-      {isLoading ? (
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = "/menu"}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Torna al Menu
+          </Button>
         </div>
-      ) : (
-        <div className="container mx-auto px-4 py-8">
-          <Card className="w-full max-w-4xl mx-auto">
-            <CardHeader className="text-center">
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                Proponi
+
+        {/* Titolo */}
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+              <FileText className="h-6 w-6 text-purple-600" />
+              Proponi
+            </CardTitle>
+            <CardDescription>
+              Proponi nuove iniziative democratiche. Scegli il tipo di proposta che vuoi presentare.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        {/* Pulsanti Proposta */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Iniziative Popolari */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-indigo-600 group-hover:text-indigo-700">
+                <FileText className="h-5 w-5" />
+                Iniziative Popolari
               </CardTitle>
               <CardDescription>
-                Proponi nuove iniziative democratiche. Scegli il tipo di proposta che vuoi presentare.
+                Proponi nuove leggi e iniziative
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
-              <Link href="/iniziative-popolari">
-                <Button 
-                  className="h-40 text-xl font-medium flex flex-col items-center justify-center space-y-4 w-full" 
-                  variant="default"
-                >
-                  <FileText className="h-12 w-12" />
-                  <div className="text-center">
-                    <div className="font-bold">Iniziative Popolari</div>
-                    <div className="text-sm font-normal opacity-80 mt-1">
-                      Proponi nuove leggi e iniziative
-                    </div>
-                  </div>
-                </Button>
-              </Link>
-              <Link href="/referendum-abrogativi">
-                <Button 
-                  className="h-40 text-xl font-medium flex flex-col items-center justify-center space-y-4 w-full" 
-                  variant="outline"
-                >
-                  <Vote className="h-12 w-12" />
-                  <div className="text-center">
-                    <div className="font-bold">Referendum Abrogativi</div>
-                    <div className="text-sm font-normal opacity-80 mt-1">
-                      Proponi l'abrogazione di leggi esistenti
-                    </div>
-                  </div>
-                </Button>
-              </Link>
+            <CardContent>
+              <Button 
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => window.location.href = "/iniziative-popolari"}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Proponi Iniziativa Popolare
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Referendum Abrogativi */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600 group-hover:text-orange-700">
+                <Vote className="h-5 w-5" />
+                Referendum Abrogativi
+              </CardTitle>
+              <CardDescription>
+                Proponi l'abrogazione di leggi esistenti
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-orange-600 hover:bg-orange-700"
+                onClick={() => window.location.href = "/referendum-abrogativi"}
+              >
+                <Vote className="mr-2 h-4 w-4" />
+                Proponi Referendum Abrogativo
+              </Button>
             </CardContent>
           </Card>
         </div>
-      )}
+      </div>
     </div>
   );
 }
