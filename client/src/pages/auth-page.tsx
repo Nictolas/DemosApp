@@ -396,17 +396,17 @@ export default function AuthPage() {
   }
 
   // If user is already logged in, show a message and a button, but do not redirect automatically
-  if (user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
-        <div className="bg-white rounded-lg p-8 shadow-md border border-gray-100 text-center">
-          <h2 className="text-2xl font-bold mb-4">Sei già autenticato!</h2>
-          <p className="mb-6">Se vuoi accedere al menu principale, clicca il pulsante qui sotto.</p>
-          <Button onClick={() => window.location.href = "/menu"} className="w-full max-w-xs">Vai al Menu</Button>
-        </div>
-      </div>
-    );
-  }
+  // RIMOSSO: ora il logout è automatico se user esiste
+
+  useEffect(() => {
+    if (user) {
+      fetch('/api/logout', { method: 'POST', credentials: 'include' })
+        .then(() => {
+          window.location.reload();
+        });
+    }
+    // eslint-disable-next-line
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
