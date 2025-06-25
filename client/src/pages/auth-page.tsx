@@ -354,26 +354,25 @@ export default function AuthPage() {
   const [, navigate] = useLocation();
   const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
+  const [registerError, setRegisterError] = useState<string | null>(null);
+
   const onRegisterSubmit = (data: RegisterFormValues) => {
+    setRegisterError(null); // reset errore
     const { confirmPassword, ...userData } = data;
-    
     // Capitalizza nome e cognome
     const userDataWithCapitalization = {
       ...userData,
       nome: userData.nome.charAt(0).toUpperCase() + userData.nome.slice(1).toLowerCase(),
       cognome: userData.cognome.charAt(0).toUpperCase() + userData.cognome.slice(1).toLowerCase()
     };
-    
-    // Se il ruolo è Elettore o Admin, procedi con la registrazione normale
     if (userDataWithCapitalization.ruolo === "Elettore" || userDataWithCapitalization.ruolo === "Admin") {
-      registerMutation.mutate(userDataWithCapitalization);
-    } 
-    // Per gli altri ruoli, salva i dati e reindirizza alla pagina appropriata per i dati aggiuntivi
-    else {
-      // Salva i dati del primo step nel contesto di registrazione
+      registerMutation.mutate(userDataWithCapitalization, {
+        onError: (error: any) => {
+          setRegisterError(error?.message || "Errore durante la registrazione");
+        }
+      });
+    } else {
       setFormData(userDataWithCapitalization);
-      
-      // Reindirizza in base al ruolo
       if (userDataWithCapitalization.ruolo === "Candidato") {
         setRedirectPath("/registrazione-candidatura");
       } else if (userDataWithCapitalization.ruolo === "Politico") {
@@ -900,6 +899,9 @@ export default function AuthPage() {
                             "Registrati"
                           )}
                         </Button>
+                        {registerError && (
+                          <div className="text-red-600 text-sm mt-2">{registerError}</div>
+                        )}
                       </form>
                     </Form>
                   </TabsContent>
