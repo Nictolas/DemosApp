@@ -537,6 +537,13 @@ app.patch('/api/referendum-abrogativi/:id/quorum', requireAdmin, async (req, res
   res.status(result.success ? 200 : 400).json(result);
 });
 
+// === REFERENDUM ABROGATIVI: Cancella referendum ===
+app.delete('/api/referendum-abrogativi/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.deleteReferendumAbrogativo(id);
+  res.status(result.success ? 200 : 400).json(result);
+});
+
 // Endpoint per eliminare un candidato dalla classifica Capo di Stato (solo admin)
 app.delete('/api/capo-stato/classifica/:nome', requireAdmin, async (req, res) => {
   const nome = decodeURIComponent(req.params.nome);
@@ -568,6 +575,13 @@ app.delete('/api/amnistia/classifica/:nome', requireAdmin, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Errore nella cancellazione della legge' });
   }
+});
+
+// === INIZIATIVE POPOLARI: Cancella iniziativa ===
+app.delete('/api/iniziative-popolari/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const result = await VotoService.deleteIniziativaPopolare(id);
+  res.status(result.success ? 200 : 400).json(result);
 });
 
 export default app; 

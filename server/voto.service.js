@@ -370,6 +370,28 @@ class VotoService extends FirebaseService {
     }
   }
 
+  static async deleteIniziativaPopolare(id) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const ref = doc(db, 'iniziative_popolari', id);
+      await deleteDoc(ref);
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, `deleteIniziativaPopolare(${id})`);
+    }
+  }
+
+  static async deleteReferendumAbrogativo(id) {
+    try {
+      if (!db) return { success: false, error: 'Database non configurato' };
+      const ref = doc(db, 'referendum_abrogativi', id);
+      await deleteDoc(ref);
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, `deleteReferendumAbrogativo(${id})`);
+    }
+  }
+
 }
 
 export default VotoService; 
