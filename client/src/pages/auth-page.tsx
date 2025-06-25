@@ -333,8 +333,18 @@ export default function AuthPage() {
     }
   }, [birthDay, birthMonth, birthYear]);
 
+  const [loginAttempted, setLoginAttempted] = useState(false);
+
   const onLoginSubmit = (data: LoginFormValues) => {
-    loginMutation.mutate(data);
+    setLoginAttempted(true);
+    loginMutation.mutate(data, {
+      onError: () => {
+        // loginAttempted resta true
+      },
+      onSuccess: () => {
+        setLoginAttempted(false); // resetta su successo
+      }
+    });
   };
 
   const { setFormData } = useRegistration();
@@ -379,7 +389,7 @@ export default function AuthPage() {
   }, [redirectPath, navigate]);
 
   // Redirect to menu page if already logged in
-  if (user) {
+  if (user && !(loginAttempted && loginMutation.isError)) {
     return <Redirect to="/menu" />;
   }
 
