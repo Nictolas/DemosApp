@@ -381,6 +381,7 @@ export default function GestisciUtenti() {
                                     size="sm"
                                     onClick={() => {
                                       setSelectedUserEmail(user.email);
+                                      setSelectedUserId(user.uid);
                                       setShowEditDialog(true);
                                     }}
                                   >
@@ -467,6 +468,7 @@ export default function GestisciUtenti() {
       {/* Dialog di modifica utente */}
       <EditUserDialog
         userEmail={selectedUserEmail}
+        userUid={selectedUserId}
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         onUserUpdated={() => {
