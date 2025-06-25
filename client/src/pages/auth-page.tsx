@@ -114,6 +114,10 @@ export default function AuthPage() {
     },
   });
   
+  // Stato per mostrare/nascondere password
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   // Gestione delle selezioni a cascata per la residenza
   useEffect(() => {
     const paeseResidenza = registerForm.watch("paese_residenza");
@@ -506,7 +510,32 @@ export default function AuthPage() {
                                 <FormItem>
                                   <FormLabel className="required-field">Password</FormLabel>
                                   <FormControl>
-                                    <Input type="password" placeholder="Crea una password" {...field} />
+                                    <div className="relative">
+                                      <Input
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="Crea una password"
+                                        {...field}
+                                      />
+                                      <button
+                                        type="button"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                                        tabIndex={-1}
+                                        onClick={() => setShowPassword((v) => !v)}
+                                        aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                                      >
+                                        {showPassword ? (
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                                          </svg>
+                                        ) : (
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                    </div>
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -519,7 +548,32 @@ export default function AuthPage() {
                                 <FormItem>
                                   <FormLabel className="required-field">Conferma password</FormLabel>
                                   <FormControl>
-                                    <Input type="password" placeholder="Ripeti la password" {...field} />
+                                    <div className="relative">
+                                      <Input
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        placeholder="Ripeti la password"
+                                        {...field}
+                                      />
+                                      <button
+                                        type="button"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                                        tabIndex={-1}
+                                        onClick={() => setShowConfirmPassword((v) => !v)}
+                                        aria-label={showConfirmPassword ? "Nascondi password" : "Mostra password"}
+                                      >
+                                        {showConfirmPassword ? (
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                                          </svg>
+                                        ) : (
+                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                    </div>
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
