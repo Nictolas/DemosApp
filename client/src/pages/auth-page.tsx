@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
+import './auth-page.css';
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
@@ -665,7 +666,7 @@ export default function AuthPage() {
                                   <FormControl>
                                     <div className="flex gap-2">
                                       <select
-                                        className="border rounded px-2 py-1"
+                                        className="data-nascita-select"
                                         value={birthDay}
                                         onChange={e => setBirthDay(e.target.value)}
                                       >
@@ -675,7 +676,7 @@ export default function AuthPage() {
                                         ))}
                                       </select>
                                       <select
-                                        className="border rounded px-2 py-1"
+                                        className="data-nascita-select"
                                         value={birthMonth}
                                         onChange={e => setBirthMonth(e.target.value)}
                                       >
@@ -685,7 +686,7 @@ export default function AuthPage() {
                                         ))}
                                       </select>
                                       <select
-                                        className="border rounded px-2 py-1"
+                                        className="data-nascita-select"
                                         value={birthYear}
                                         onChange={e => setBirthYear(e.target.value)}
                                       >
