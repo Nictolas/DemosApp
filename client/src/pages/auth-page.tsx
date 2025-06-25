@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
+import Picker from "react-mobile-picker";
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
@@ -117,6 +118,33 @@ export default function AuthPage() {
   // Stato per mostrare/nascondere password
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Stati per la data di nascita (rotelle)
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const months = [
+    { value: "01", label: "Gennaio" },
+    { value: "02", label: "Febbraio" },
+    { value: "03", label: "Marzo" },
+    { value: "04", label: "Aprile" },
+    { value: "05", label: "Maggio" },
+    { value: "06", label: "Giugno" },
+    { value: "07", label: "Luglio" },
+    { value: "08", label: "Agosto" },
+    { value: "09", label: "Settembre" },
+    { value: "10", label: "Ottobre" },
+    { value: "11", label: "Novembre" },
+    { value: "12", label: "Dicembre" },
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
+  useEffect(() => {
+    if (birthDay && birthMonth && birthYear) {
+      registerForm.setValue("data_nascita", `${birthYear}-${birthMonth}-${birthDay}`);
+    }
+  }, [birthDay, birthMonth, birthYear]);
   
   // Gestione delle selezioni a cascata per la residenza
   useEffect(() => {
@@ -635,7 +663,41 @@ export default function AuthPage() {
                                 <FormItem>
                                   <FormLabel className="required-field">Data di nascita</FormLabel>
                                   <FormControl>
-                                    <Input type="date" {...field} />
+                                    <div className="max-w-full flex flex-col items-center">
+                                      <div className="w-full flex justify-center">
+                                        <Picker
+                                          value={{
+                                            day: birthDay || days[0],
+                                            month: birthMonth || months[0].value,
+                                            year: birthYear || years[0],
+                                          }}
+                                          onChange={(val: { day: string; month: string; year: string }) => {
+                                            setBirthDay(val.day);
+                                            setBirthMonth(val.month);
+                                            setBirthYear(val.year);
+                                          }}
+                                          height={120}
+                                          itemHeight={36}
+                                          wheelMode="natural"
+                                        >
+                                          <Picker.Column name="day">
+                                            {days.map((d) => (
+                                              <Picker.Item key={d} value={d}>{d}</Picker.Item>
+                                            ))}
+                                          </Picker.Column>
+                                          <Picker.Column name="month">
+                                            {months.map((m) => (
+                                              <Picker.Item key={m.value} value={m.value}>{m.label}</Picker.Item>
+                                            ))}
+                                          </Picker.Column>
+                                          <Picker.Column name="year">
+                                            {years.map((y) => (
+                                              <Picker.Item key={y} value={y}>{y}</Picker.Item>
+                                            ))}
+                                          </Picker.Column>
+                                        </Picker>
+                                      </div>
+                                    </div>
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
