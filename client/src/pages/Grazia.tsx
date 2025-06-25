@@ -24,6 +24,7 @@ export default function Grazia() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
   const [urlProva, setUrlProva] = useState("");
+  const [deletingClassifica, setDeletingClassifica] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -134,6 +135,29 @@ export default function Grazia() {
     return classifica
       .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
       .slice(0, 5);
+  };
+
+  const deleteFromClassifica = async (nome: string) => {
+    if (user?.ruolo !== "Admin") return;
+    if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
+    setDeletingClassifica(nome);
+    try {
+      const response = await fetch(`/api/grazia/classifica/${encodeURIComponent(nome)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        toast({ title: "Candidato eliminato", description: `${nome} è stato rimosso dalla classifica.` });
+        await loadData();
+      } else {
+        const error = await response.json();
+        toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
+    } finally {
+      setDeletingClassifica(null);
+    }
   };
 
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -251,8 +275,8 @@ export default function Grazia() {
                         <div className="flex items-center space-x-2">
                           <Badge variant="outline">{candidato.voti} voti</Badge>
                           {user?.ruolo === "Admin" && (
-                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" disabled={true}>
-                              <X className="h-3 w-3" />
+                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" onClick={() => deleteFromClassifica(candidato.nome)} disabled={deletingClassifica === candidato.nome}>
+                              {deletingClassifica === candidato.nome ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
                             </Button>
                           )}
                         </div>
