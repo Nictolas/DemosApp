@@ -63,6 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
+      if (!res.ok) {
+        // Provo a estrarre il messaggio di errore dal body, se presente
+        let errorMsg = "Email o password errati";
+        try {
+          const data = await res.json();
+          if (data && data.message) errorMsg = data.message;
+        } catch {}
+        throw new Error(errorMsg);
+      }
       return await res.json();
     },
     onSuccess: (user: SelectUser) => {
