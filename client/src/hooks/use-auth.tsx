@@ -74,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onError: (error: Error) => {
+      queryClient.setQueryData(["/api/user"], null);
       toast({
         title: "Login fallito",
         description: error.message,

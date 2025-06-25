@@ -463,6 +463,9 @@ export default function AuthPage() {
                                 <Input type="password" placeholder="Inserisci la tua password" {...field} />
                               </FormControl>
                               <FormMessage />
+                              {loginMutation.error && (
+                                <div className="text-red-600 text-sm mt-1">{loginMutation.error.message}</div>
+                              )}
                             </FormItem>
                           )}
                         />
@@ -701,6 +704,7 @@ export default function AuthPage() {
                                 </FormItem>
                               )}
                             />
+                            <div className="w-full h-4" />
                             <FormField
                               control={registerForm.control}
                               name="genere"
