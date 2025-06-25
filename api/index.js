@@ -548,4 +548,26 @@ app.delete('/api/capo-stato/classifica/:nome', requireAdmin, async (req, res) =>
   }
 });
 
+// Endpoint per eliminare un candidato dalla classifica Grazia (solo admin)
+app.delete('/api/grazia/classifica/:nome', requireAdmin, async (req, res) => {
+  const nome = decodeURIComponent(req.params.nome);
+  try {
+    const result = await VotoService.deleteAllVotesForCandidate('voti_grazia', nome);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nella cancellazione del candidato' });
+  }
+});
+
+// Endpoint per eliminare una legge dalla classifica Amnistia (solo admin)
+app.delete('/api/amnistia/classifica/:nome', requireAdmin, async (req, res) => {
+  const nome = decodeURIComponent(req.params.nome);
+  try {
+    const result = await VotoService.deleteAllVotesForCandidate('voti_amnistia', nome);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nella cancellazione della legge' });
+  }
+});
+
 export default app; 
