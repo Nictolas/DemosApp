@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { UserInfo } from "@/types";
+import { UserInfo } from "../pages/Profilo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -160,6 +160,21 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Informazioni personali</h3>
+                
+                <div className="space-y-2">
+                  {isAdmin && (
+                    <>
+                      <Label htmlFor="email" className="required-field">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleChange("email", e.target.value)}
+                        required
+                      />
+                    </>
+                  )}
+                </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="nome" className="required-field">Nome</Label>
