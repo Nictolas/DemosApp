@@ -219,10 +219,12 @@ class VotoService extends FirebaseService {
   static async _registerUserVote(collectionName, userId, value, valueKey = 'nome') {
     try {
       if (!db) return { success: false, error: 'Database non configurato' };
-      const q = query(collection(db, collectionName), where('userId', '==', userId));
+      // Permetti più voti per utente: uno per ogni candidato
+      const q = query(collection(db, collectionName), where('userId', '==', userId), where(valueKey, '==', value));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
-        await updateDoc(snapshot.docs[0].ref, { [valueKey]: value, timestamp: new Date().toISOString() });
+        // Se già votato per questo candidato, aggiorna solo il timestamp
+        await updateDoc(snapshot.docs[0].ref, { timestamp: new Date().toISOString() });
       } else {
         const data = { userId, timestamp: new Date().toISOString() };
         data[valueKey] = value;
