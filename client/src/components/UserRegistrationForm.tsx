@@ -38,6 +38,11 @@ const formSchema = z.object({
   ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
   grado_elezione: z.string().optional(),
   grado_candidatura: z.string().optional(),
+  password: z.string().min(6, "La password deve essere di almeno 6 caratteri"),
+  confirmPassword: z.string().min(6, "Conferma la password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Le password non coincidono",
+  path: ["confirmPassword"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -68,7 +73,9 @@ export default function UserRegistrationForm() {
       comune_candidatura: "",
       ruolo: "",
       grado_elezione: "",
-      grado_candidatura: ""
+      grado_candidatura: "",
+      password: "",
+      confirmPassword: ""
     },
   });
   
@@ -84,6 +91,41 @@ export default function UserRegistrationForm() {
   const [regioniCandidatura, setRegioniCandidatura] = useState<string[]>([]);
   const [provinceCandidatura, setProvinceCandidatura] = useState<string[]>([]);
   const [comuniCandidatura, setComuniCandidatura] = useState<string[]>([]);
+  
+  // Password state
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // 1. Stati per giorno, mese, anno
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+
+  // 2. Genera opzioni
+  const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const months = [
+    { value: "01", label: "Gennaio" },
+    { value: "02", label: "Febbraio" },
+    { value: "03", label: "Marzo" },
+    { value: "04", label: "Aprile" },
+    { value: "05", label: "Maggio" },
+    { value: "06", label: "Giugno" },
+    { value: "07", label: "Luglio" },
+    { value: "08", label: "Agosto" },
+    { value: "09", label: "Settembre" },
+    { value: "10", label: "Ottobre" },
+    { value: "11", label: "Novembre" },
+    { value: "12", label: "Dicembre" },
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
+
+  // 3. Aggiorna il valore del campo data_nascita quando cambiano le select
+  useEffect(() => {
+    if (birthDay && birthMonth && birthYear) {
+      form.setValue("data_nascita", `${birthYear}-${birthMonth}-${birthDay}`);
+    }
+  }, [birthDay, birthMonth, birthYear]);
   
   // Mutation for submitting the form
   const { mutate, isPending } = useMutation({
@@ -356,16 +398,51 @@ export default function UserRegistrationForm() {
               )}
             />
             
-            {/* Data di Nascita Field */}
+            {/* Data di Nascita Field (3 select) */}
             <FormField
               control={form.control}
               name="data_nascita"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="required-field">Data di Nascita</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
+                  <div className="flex gap-2">
+                    <Select value={birthDay} onValueChange={setBirthDay}>
+                      <FormControl>
+                        <SelectTrigger className="w-20">
+                          <SelectValue placeholder="Gg" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {days.map((d) => (
+                          <SelectItem key={d} value={d}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={birthMonth} onValueChange={setBirthMonth}>
+                      <FormControl>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Mese" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {months.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={birthYear} onValueChange={setBirthYear}>
+                      <FormControl>
+                        <SelectTrigger className="w-24">
+                          <SelectValue placeholder="Anno" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {years.map((y) => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -412,6 +489,93 @@ export default function UserRegistrationForm() {
                       <SelectItem value="Italia">Italia</SelectItem>
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+        
+        {/* Password Section */}
+        <div className="bg-gray-50 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-gray-800 mb-4">Sicurezza Account</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Password Field */}
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Inserisci la password"
+                        autoComplete="new-password"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                        tabIndex={-1}
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                      >
+                        {showPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Confirm Password Field */}
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Conferma Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Conferma la password"
+                        autoComplete="new-password"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                        tabIndex={-1}
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        aria-label={showConfirmPassword ? "Nascondi password" : "Mostra password"}
+                      >
+                        {showConfirmPassword ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -801,7 +965,6 @@ export default function UserRegistrationForm() {
                       <SelectItem value="politico">Politico</SelectItem>
                       <SelectItem value="candidato">Candidato</SelectItem>
                       <SelectItem value="politico_candidato">Politico Candidato</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
