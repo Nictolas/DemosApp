@@ -230,6 +230,19 @@ class UserService extends FirebaseService {
     }
   }
 
+  static async createUserProfile(uid, userProfile) {
+    try {
+      if (!db || !uid) return { success: false, error: "DB non configurato o uid mancante" };
+      const userDocRef = doc(db, 'utenti', uid);
+      const dataToSave = { ...userProfile, id: uid, updatedAt: new Date().toISOString() };
+      if (!dataToSave.createdAt) { dataToSave.createdAt = new Date().toISOString(); }
+      await setDoc(userDocRef, dataToSave, { merge: true });
+      return { success: true, data: dataToSave };
+    } catch (error) {
+      return this.handleError(error, 'createUserProfile');
+    }
+  }
+
 } // <-- Chiusura della classe UserService
 
 export default UserService; 
