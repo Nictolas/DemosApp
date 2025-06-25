@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
 import './auth-page.css';
+import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
@@ -517,18 +518,11 @@ export default function AuthPage() {
                                 return;
                               }
                               try {
-                                const response = await fetch('/api/reset-password', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ email })
-                                });
-                                if (response.ok) {
-                                  alert("Email di reset inviata! Controlla la tua casella email.");
-                                } else {
-                                  alert("Errore nell'invio dell'email di reset");
-                                }
-                              } catch (error) {
-                                alert("Errore nell'invio dell'email di reset");
+                                const auth = getAuth();
+                                await sendPasswordResetEmail(auth, email);
+                                alert("Email di reset inviata! Controlla la tua casella email.");
+                              } catch (error: any) {
+                                alert("Errore nell'invio dell'email di reset: " + (error.message || "Errore sconosciuto"));
                               }
                             }}
                           >
