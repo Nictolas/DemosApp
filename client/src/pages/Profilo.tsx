@@ -59,7 +59,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   const [location, setLocation] = useLocation();
 
   // Ricavo la provenienza dalla query string (es: ?from=utenti)
-  const fromGestisciUtenti = typeof window !== 'undefined' && window.location.search.includes('from=utenti');
+  const fromGestisciUtenti = typeof window !== 'undefined' && (window.location.search.includes('from=utenti') || window.location.hash.includes('from=utenti'));
 
   // Funzione per categorizzare le opinioni
   const categorizeOpinions = (opinions: any) => {
