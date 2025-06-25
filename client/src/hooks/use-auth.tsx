@@ -73,7 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "success",
       });
     },
-    onError: (error: Error) => {
+    onError: async (error: Error) => {
+      await apiRequest('POST', '/api/logout');
       queryClient.setQueryData(["/api/user"], null);
       toast({
         title: "Login fallito",
