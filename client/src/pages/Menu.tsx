@@ -67,7 +67,7 @@ export default function Menu() {
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-gradient-to-b from-background to-secondary/20">
+    <div className="h-screen overflow-y-auto bg-gradient-to-b from-blue-100 to-blue-400">
       {isLoading ? (
         <div className="flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
