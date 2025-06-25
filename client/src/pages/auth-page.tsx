@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -395,18 +395,28 @@ export default function AuthPage() {
     return <Redirect to="/menu" />;
   }
 
-  // If user is already logged in, show a message and a button, but do not redirect automatically
-  // RIMOSSO: ora il logout è automatico se user esiste
+  const [hasLoggedOut, setHasLoggedOut] = useState(false);
+  const didLogout = useRef(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && !hasLoggedOut && !didLogout.current) {
+      didLogout.current = true;
       fetch('/api/logout', { method: 'POST', credentials: 'include' })
         .then(() => {
-          window.location.reload();
+          setHasLoggedOut(true);
         });
     }
     // eslint-disable-next-line
-  }, []);
+  }, [user, hasLoggedOut]);
+
+  // Mostra loading mentre si fa il logout automatico
+  if (user && !hasLoggedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+        <div className="text-center text-lg">Disconnessione in corso...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
