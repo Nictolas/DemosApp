@@ -179,46 +179,6 @@ export default function Menu() {
                 </Button>
               </Link>
               
-              <Link href="/capo-di-stato">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Crown className="h-5 w-5" />
-                  Capo di Stato
-                </Button>
-              </Link>
-              
-              <Link href="/governo">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Building2 className="h-5 w-5" />
-                  Governo
-                </Button>
-              </Link>
-              
-              <Link href="/grazia">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Scale className="h-5 w-5" />
-                  Grazia
-                </Button>
-              </Link>
-              
-              <Link href="/amnistia">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <FileText className="h-5 w-5" />
-                  Amnistia
-                </Button>
-              </Link>
-              
               <Link href="/eventi">
                 <Button 
                   className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 

@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Crown, Building2, Scale, Users } from "lucide-react";
+import { Loader2, Crown, Building2, Scale, Users, FileText } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 
 export default function Vota() {
@@ -67,7 +67,7 @@ export default function Vota() {
                   className="h-32 text-xl font-medium flex flex-col items-center justify-center space-y-2 w-full" 
                   variant="outline"
                 >
-                  <Users className="h-8 w-8" />
+                  <FileText className="h-8 w-8" />
                   <span>Amnistia</span>
                 </Button>
               </Link>
