@@ -109,7 +109,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     for (const [key, email] of Object.entries(representatives)) {
       if (email && typeof email === 'string') {
         try {
-          const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+          const response = await fetch(`/api/users/${encodeURIComponent(email)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
@@ -166,7 +166,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     for (const [key, email] of Object.entries(candidates)) {
       if (email && typeof email === 'string') {
         try {
-          const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+          const response = await fetch(`/api/users/${encodeURIComponent(email)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
