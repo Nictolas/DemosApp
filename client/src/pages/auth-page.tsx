@@ -368,7 +368,11 @@ export default function AuthPage() {
     if (userDataWithCapitalization.ruolo === "Elettore" || userDataWithCapitalization.ruolo === "Admin") {
       registerMutation.mutate(userDataWithCapitalization, {
         onError: (error: any) => {
-          setRegisterError(error?.message || "Errore durante la registrazione");
+          let msg = "Errore durante la registrazione";
+          if (error?.message?.includes("auth/email-already-in-use")) {
+            msg = "Questa email è già registrata. Vuoi recuperare la password?";
+          }
+          setRegisterError(msg);
         }
       });
     } else {
