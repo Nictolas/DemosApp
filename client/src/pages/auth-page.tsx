@@ -523,7 +523,7 @@ export default function AuthPage() {
                               try {
                                 const auth = getAuth();
                                 await sendPasswordResetEmail(auth, email);
-                                alert("Email di reset inviata! Controlla la tua casella email.");
+                                  alert("Email di reset inviata! Controlla la tua casella email.");
                               } catch (error: any) {
                                 alert("Errore nell'invio dell'email di reset: " + (error.message || "Errore sconosciuto"));
                               }

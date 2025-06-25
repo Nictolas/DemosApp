@@ -380,7 +380,7 @@ export default function GestisciUtenti() {
                                     variant="ghost" 
                                     size="sm"
                                     onClick={() => {
-                                      setSelectedUserId(user.id);
+                                      setSelectedUserEmail(user.email);
                                       setShowEditDialog(true);
                                     }}
                                   >
@@ -458,15 +458,15 @@ export default function GestisciUtenti() {
       </AlertDialog>
 
       {/* Dialog di visualizzazione utente */}
-      <ViewUserDialog
-        userId={selectedUserId}
+      <ViewUserDialog 
+        userEmail={selectedUserEmail}
         open={showViewDialog}
         onOpenChange={setShowViewDialog}
       />
 
       {/* Dialog di modifica utente */}
       <EditUserDialog
-        userId={selectedUserId}
+        userEmail={selectedUserEmail}
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         onUserUpdated={() => {
@@ -482,6 +482,7 @@ export default function GestisciUtenti() {
               console.error("Errore durante l'aggiornamento della lista utenti:", error);
             }
           };
+          
           fetchUsers();
         }}
       />
