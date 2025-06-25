@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Picker from "react-mobile-picker";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -398,50 +399,47 @@ export default function UserRegistrationForm() {
               )}
             />
             
-            {/* Data di Nascita Field (3 select) */}
+            {/* Data di Nascita Field (Picker rotella) */}
             <FormField
               control={form.control}
               name="data_nascita"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="required-field">Data di Nascita</FormLabel>
-                  <div className="flex gap-2">
-                    <Select value={birthDay} onValueChange={setBirthDay}>
-                      <FormControl>
-                        <SelectTrigger className="w-20">
-                          <SelectValue placeholder="Gg" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {days.map((d) => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={birthMonth} onValueChange={setBirthMonth}>
-                      <FormControl>
-                        <SelectTrigger className="w-32">
-                          <SelectValue placeholder="Mese" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {months.map((m) => (
-                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={birthYear} onValueChange={setBirthYear}>
-                      <FormControl>
-                        <SelectTrigger className="w-24">
-                          <SelectValue placeholder="Anno" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {years.map((y) => (
-                          <SelectItem key={y} value={y}>{y}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="max-w-full flex flex-col items-center">
+                    <div className="w-full flex justify-center">
+                      <Picker
+                        value={{
+                          day: birthDay || days[0],
+                          month: birthMonth || months[0].value,
+                          year: birthYear || years[0],
+                        }}
+                        onChange={(val: { day: string; month: string; year: string }) => {
+                          setBirthDay(val.day);
+                          setBirthMonth(val.month);
+                          setBirthYear(val.year);
+                        }}
+                        height={120}
+                        itemHeight={36}
+                        wheelMode="natural"
+                      >
+                        <Picker.Column name="day">
+                          {days.map((d) => (
+                            <Picker.Item key={d} value={d}>{d}</Picker.Item>
+                          ))}
+                        </Picker.Column>
+                        <Picker.Column name="month">
+                          {months.map((m) => (
+                            <Picker.Item key={m.value} value={m.value}>{m.label}</Picker.Item>
+                          ))}
+                        </Picker.Column>
+                        <Picker.Column name="year">
+                          {years.map((y) => (
+                            <Picker.Item key={y} value={y}>{y}</Picker.Item>
+                          ))}
+                        </Picker.Column>
+                      </Picker>
+                    </div>
                   </div>
                   <FormMessage />
                 </FormItem>
