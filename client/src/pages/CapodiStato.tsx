@@ -23,6 +23,7 @@ export default function CapodiStato() {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
+  const [deletingClassifica, setDeletingClassifica] = useState<string | null>(null);
 
   // (La variabile userProfile non sembra usata, potresti rimuoverla)
   // const [userProfile, setUserProfile] = useState<any>(null);
@@ -115,8 +116,28 @@ export default function CapodiStato() {
       .slice(0, 5);
   };
 
-  // (La funzione deleteFromClassifica non è stata implementata e può essere rimossa se non usata)
-  // const deleteFromClassifica = ...
+  // Funzione per eliminare un candidato dalla classifica (solo admin)
+  const deleteFromClassifica = async (nome: string) => {
+    if (user?.ruolo !== "Admin") return;
+    if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
+    setDeletingClassifica(nome);
+    try {
+      const response = await fetch(`/api/capo-stato/classifica/${encodeURIComponent(nome)}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        toast({ title: "Candidato eliminato", description: `${nome} è stato rimosso dalla classifica.` });
+        await loadData();
+      } else {
+        const error = await response.json();
+        toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
+    } finally {
+      setDeletingClassifica(null);
+    }
+  };
 
   if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -221,7 +242,9 @@ export default function CapodiStato() {
                         <div className="flex items-center space-x-2">
                           <Badge variant="outline">{candidato.voti} voti</Badge>
                           {user?.ruolo === "Admin" && (
-                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0"><X className="h-3 w-3" /></Button>
+                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" onClick={() => deleteFromClassifica(candidato.nome)} disabled={deletingClassifica === candidato.nome}>
+                              {deletingClassifica === candidato.nome ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                            </Button>
                           )}
                         </div>
                       </div>
