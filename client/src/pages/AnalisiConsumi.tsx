@@ -108,8 +108,7 @@ export default function AnalisiConsumi() {
                 <li className="mb-1">
                   <b>Bundle Analyzer:</b> Installa <code>vite-plugin-visualizer</code> per generare un report automatico del peso del bundle dopo ogni build. <br />
                   <span className="text-gray-500 text-xs">Esempio in <code>vite.config.ts</code>:</span>
-                  <pre className="bg-gray-100 p-2 text-xs overflow-x-auto">import visualizer from 'vite-plugin-visualizer';
-plugins: [visualizer({ open: false, filename: 'bundle-report.html' })]</pre>
+                  <pre className="bg-gray-100 p-2 text-xs overflow-x-auto">plugins: [visualizer(/* opzioni qui */)]</pre>
                   <span className="text-gray-500 text-xs">Dopo <code>npm run build</code> trovi <code>bundle-report.html</code> nella root.</span>
                 </li>
                 <li className="mb-1">
