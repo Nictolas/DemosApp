@@ -49,8 +49,29 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
   const [stats, setStats] = useState<DetailStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [opinionQuestions, setOpinionQuestions] = useState<{id: string, text: string}[]>([]);
+  const [dynamicTitle, setDynamicTitle] = useState<string | null>(null);
 
-  const basePageTitle = opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
+  // Fetch domande opinioni dinamiche e imposta il titolo
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const res = await fetch("/api/opinioni-list");
+        if (!res.ok) throw new Error();
+        const questions = await res.json();
+        setOpinionQuestions(questions);
+        const found = questions.find((q: any) => q.id === opinionField);
+        if (found) setDynamicTitle(found.text);
+        else setDynamicTitle(null);
+      } catch {
+        setOpinionQuestions([]);
+        setDynamicTitle(null);
+      }
+    };
+    fetchQuestions();
+  }, [opinionField]);
+
+  const basePageTitle = dynamicTitle || opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
   const pageTitle = regionName 
     ? `${basePageTitle} - ${regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ')}` 
     : basePageTitle;
