@@ -16,6 +16,8 @@ export default async function handler(req, res) {
       bundleSize: 420, // aggiorna se vuoi calcolare anche questo
       apiCalls: usage.apiCalls,
       bandwidth: usage.bandwidth,
+      serverlessGBhr: usage.serverlessGBhr,
+      edgeInvocations: usage.edgeInvocations,
       trafficHistory: [12, 18, 22, 30, 35, usage.bandwidth],
     };
     await db.collection('monitoring').doc('consumi').set(data);

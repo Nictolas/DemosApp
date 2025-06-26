@@ -10,8 +10,10 @@ export async function getVercelUsage() {
     return {
       bandwidth: data.bandwidth?.currentPeriod?.used / (1024 * 1024 * 1024) || 0,
       apiCalls: data.serverlessInvocations?.currentPeriod?.count || 0,
+      serverlessGBhr: data.serverlessExecution?.currentPeriod?.used || 0,
+      edgeInvocations: data.edgeFunctionInvocations?.currentPeriod?.count || 0,
     };
   } catch (e) {
-    return { bandwidth: 0, apiCalls: 0 };
+    return { bandwidth: 0, apiCalls: 0, serverlessGBhr: 0, edgeInvocations: 0 };
   }
 } 
