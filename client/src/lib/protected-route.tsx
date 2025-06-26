@@ -9,7 +9,7 @@ export function ProtectedRoute({
   component,
 }: {
   path: string;
-  component: React.ComponentType<any> | (() => React.JSX.Element);
+  component: React.ComponentType<any>;
 }) {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
@@ -36,9 +36,7 @@ export function ProtectedRoute({
     <Route path={path}>
       {(params) => (
         <PageTransition location={location}>
-          {typeof component === 'function' && (component.prototype && component.prototype.isReactComponent
-            ? React.createElement(component as React.ComponentType<any>, params)
-            : (component as () => React.JSX.Element)())}
+          {React.createElement(component, params)}
         </PageTransition>
       )}
     </Route>
