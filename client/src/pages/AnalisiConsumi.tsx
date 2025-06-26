@@ -2,6 +2,18 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Info, BarChart2, AlertTriangle, CheckCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const LIMITS = [
   { name: "Banda", value: "100 GB/mese", icon: <BarChart2 className="h-5 w-5 text-blue-600 inline" />, key: "banda", description: "Traffico totale dati (download/upload) generato dagli utenti." },
@@ -14,6 +26,30 @@ const ESTIMATES = [
   { key: "serverless", value: "~50-80 ore/mese (1M chiamate)" },
   { key: "edge", value: "~400.000/mese (2 sessioni/utente)" },
 ];
+
+const dynamicData = {
+  bundleSize: '420 KB',
+  apiCalls: '320.000/mese',
+  bandwidth: '41 GB/mese',
+};
+
+const chartData = {
+  labels: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu'],
+  datasets: [
+    {
+      label: 'Traffico (GB)',
+      data: [12, 18, 22, 30, 35, 41],
+      backgroundColor: 'rgba(37, 99, 235, 0.6)',
+    },
+  ],
+};
+const chartOptions = {
+  responsive: true,
+  plugins: {
+    legend: { display: false },
+    title: { display: true, text: 'Traffico mensile (GB)' },
+  },
+};
 
 export default function AnalisiConsumi() {
   return (
@@ -202,6 +238,29 @@ ReactGA.event(...);</pre>
               <div className="text-gray-500 text-xs">
                 Integra questi strumenti per avere dati reali e ricevere alert automatici in caso di superamento soglie.
               </div>
+            </div>
+
+            {/* Dati dinamici */}
+            <div className="bg-white border border-blue-200 rounded-lg p-4 mb-6">
+              <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">Dati dinamici (esempio)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl font-bold text-blue-700">{dynamicData.bundleSize}</span>
+                  <span className="text-xs text-gray-500">Bundle JS/CSS</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl font-bold text-blue-700">{dynamicData.apiCalls}</span>
+                  <span className="text-xs text-gray-500">Chiamate API/Edge</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl font-bold text-blue-700">{dynamicData.bandwidth}</span>
+                  <span className="text-xs text-gray-500">Banda usata</span>
+                </div>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-2">
+                <Bar data={chartData} options={chartOptions} height={180} />
+              </div>
+              <div className="text-xs text-gray-500 mt-2">* Dati di esempio. Integra una API o variabili di ambiente per valori reali.</div>
             </div>
 
             <div className="mt-4 text-sm text-gray-500">
