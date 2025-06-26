@@ -1,6 +1,7 @@
-import { exec } from 'child_process';
+import { db } from './firebase-admin.js';
+import { getVercelUsage } from './vercel-usage.js';
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -9,10 +10,17 @@ export default function handler(req, res) {
   if (apiKey !== secret) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  exec('node api/update-monitoring-data.cjs', (err, stdout, stderr) => {
-    if (err) {
-      return res.status(500).json({ error: stderr || 'Errore aggiornamento dati' });
-    }
-    res.status(200).json({ success: true, output: stdout });
-  });
+  try {
+    const usage = await getVercelUsage();
+    const data = {
+      bundleSize: 420, // aggiorna se vuoi calcolare anche questo
+      apiCalls: usage.apiCalls,
+      bandwidth: usage.bandwidth,
+      trafficHistory: [12, 18, 22, 30, 35, usage.bandwidth],
+    };
+    await db.collection('monitoring').doc('consumi').set(data);
+    res.status(200).json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Errore aggiornamento Firestore' });
+  }
 } 

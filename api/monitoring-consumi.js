@@ -1,20 +1,18 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { db } from './firebase-admin.js';
 
-export default function handler(req, res) {
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const filePath = path.join(__dirname, 'monitoring-data.json');
-  let data;
+export default async function handler(req, res) {
   try {
-    data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const doc = await db.collection('monitoring').doc('consumi').get();
+    if (!doc.exists) {
+      return res.status(200).json({
+        bundleSize: 0,
+        apiCalls: 0,
+        bandwidth: 0,
+        trafficHistory: [],
+      });
+    }
+    res.status(200).json(doc.data());
   } catch (e) {
-    data = {
-      bundleSize: 0,
-      apiCalls: 0,
-      bandwidth: 0,
-      trafficHistory: []
-    };
+    res.status(500).json({ error: 'Errore lettura Firestore' });
   }
-  res.status(200).json(data);
 } 
