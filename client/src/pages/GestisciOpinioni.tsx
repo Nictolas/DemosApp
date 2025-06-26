@@ -80,16 +80,12 @@ export default function GestisciOpinioni() {
     setSavingEdit(true);
     setError("");
     try {
-      // 1. Elimina
-      const delRes = await fetch(`/api/opinioni-list/${op.id}`, { method: "DELETE" });
-      if (!delRes.ok) throw new Error("Errore nell'eliminazione per modifica");
-      // 2. Ricrea
-      const addRes = await fetch("/api/opinioni-list", {
-        method: "POST",
+      const patchRes = await fetch(`/api/opinioni-list/${op.id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: op.id, text: editText.trim() })
+        body: JSON.stringify({ text: editText.trim() })
       });
-      if (!addRes.ok) throw new Error("Errore nel salvataggio della modifica");
+      if (!patchRes.ok) throw new Error("Errore nel salvataggio della modifica");
       setEditingId(null);
       setEditText("");
       await fetchOpinioni();
