@@ -40,6 +40,99 @@ export default function AnalisiConsumi() {
                 Ogni operazione che richiede una funzione Edge conta come una invocazione. Se ogni utente effettua 2 sessioni al mese con 2 chiamate Edge, resti sotto il limite. Se la frequenza o le chiamate aumentano, puoi superare il tetto. Usa Edge solo dove necessario.
               </p>
             </div>
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Chiamate API/Edge per sessione utente</h3>
+              <p className="mb-2">
+                Ecco una stima delle chiamate API/Edge generate da una sessione utente tipica:
+              </p>
+              <table className="w-full text-sm border border-gray-200 mb-2">
+                <thead>
+                  <tr className="bg-cyan-100">
+                    <th className="p-2 border">Azione</th>
+                    <th className="p-2 border">Chiamate API/Edge</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="p-2 border">Login</td>
+                    <td className="p-2 border">1</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 border">Registrazione</td>
+                    <td className="p-2 border">1</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 border">Navigazione menu</td>
+                    <td className="p-2 border">1</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 border">Apertura pagina dinamica (es. Gestisci Utenti)</td>
+                    <td className="p-2 border">1 per pagina</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 border">Azione (modifica, aggiunta, salvataggio)</td>
+                    <td className="p-2 border">1 per azione</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="text-gray-500 text-xs">
+                Una sessione semplice genera circa 2-4 chiamate; una sessione attiva può arrivare a 5-10 chiamate.
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Come calcolare il peso reale del bundle</h3>
+              <ol className="list-decimal ml-6 mb-2">
+                <li className="mb-1">
+                  <b>Fai la build di produzione:</b> <code>npm run build</code> nella root del progetto.
+                </li>
+                <li className="mb-1">
+                  <b>Controlla la cartella <code>dist</code>:</b> Vai in <code>client/dist</code>, tasto destro → Proprietà per vedere la dimensione totale.
+                </li>
+                <li className="mb-1">
+                  <b>Usa PowerShell per il totale:</b> <code>Get-ChildItem -Recurse | Measure-Object -Property Length -Sum</code> nella cartella <code>dist</code>.
+                </li>
+                <li className="mb-1">
+                  <b>Analizza i file JS:</b> Dopo la build, Vite mostra il peso dei bundle principali. Per analisi avanzata, installa <code>source-map-explorer</code> e lancia <code>npx source-map-explorer dist/assets/*.js</code>.
+                </li>
+                <li className="mb-1">
+                  <b>Ripeti dopo ogni modifica importante</b> per monitorare la crescita del bundle.
+                </li>
+              </ol>
+              <div className="text-gray-500 text-xs">
+                Consiglio: ottimizza immagini (WebP), minifica JS/CSS, usa CDN e cache per ridurre il traffico per utente.
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg mb-1">Monitoraggio automatico: strumenti consigliati</h3>
+              <ul className="list-disc ml-6 mb-2">
+                <li className="mb-1">
+                  <b>Bundle Analyzer:</b> Installa <code>vite-plugin-visualizer</code> per generare un report automatico del peso del bundle dopo ogni build. <br />
+                  <span className="text-gray-500 text-xs">Esempio in <code>vite.config.ts</code>:</span>
+                  <pre className="bg-gray-100 p-2 text-xs overflow-x-auto">import visualizer from 'vite-plugin-visualizer';
+plugins: [visualizer({ open: false, filename: 'bundle-report.html' })]</pre>
+                  <span className="text-gray-500 text-xs">Dopo <code>npm run build</code> trovi <code>bundle-report.html</code> nella root.</span>
+                </li>
+                <li className="mb-1">
+                  <b>Logging API/Edge:</b> Aggiungi <code>console.log</code> in ogni endpoint per tracciare le chiamate. <br />
+                  <span className="text-gray-500 text-xs">Esempio:</span>
+                  <pre className="bg-gray-100 p-2 text-xs overflow-x-auto">console.log('[API] chiamata ricevuta');</pre>
+                  <span className="text-gray-500 text-xs">Consulta i log su Vercel/Firebase dashboard.</span>
+                </li>
+                <li className="mb-1">
+                  <b>Google Analytics 4:</b> Installa <code>react-ga4</code> per tracciare pageview e azioni utente.<br />
+                  <span className="text-gray-500 text-xs">Esempio:</span>
+                  <pre className="bg-gray-100 p-2 text-xs overflow-x-auto">import ReactGA from "react-ga4";
+ReactGA.initialize("G-XXXXXXXXXX");
+ReactGA.event(...);</pre>
+                </li>
+                <li className="mb-1">
+                  <b>Dashboard provider:</b> Usa le dashboard di <a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Vercel</a> o <a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Firebase</a> per monitorare traffico, invocazioni, errori e banda in tempo reale.
+                </li>
+              </ul>
+              <div className="text-gray-500 text-xs">
+                Integra questi strumenti per avere dati reali e ricevere alert automatici in caso di superamento soglie.
+              </div>
+            </div>
             <div className="mt-4 text-sm text-gray-500">
               <b>Nota:</b> Queste stime sono indicative e vanno monitorate con dati reali di traffico e utilizzo.
             </div>
