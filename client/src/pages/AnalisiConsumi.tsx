@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Info, BarChart2, AlertTriangle, CheckCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,31 +27,50 @@ const ESTIMATES = [
   { key: "edge", value: "~400.000/mese (2 sessioni/utente)" },
 ];
 
-const dynamicData = {
-  bundleSize: '420 KB',
-  apiCalls: '320.000/mese',
-  bandwidth: '41 GB/mese',
-};
-
-const chartData = {
-  labels: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu'],
-  datasets: [
-    {
-      label: 'Traffico (GB)',
-      data: [12, 18, 22, 30, 35, 41],
-      backgroundColor: 'rgba(37, 99, 235, 0.6)',
-    },
-  ],
-};
-const chartOptions = {
-  responsive: true,
-  plugins: {
-    legend: { display: false },
-    title: { display: true, text: 'Traffico mensile (GB)' },
-  },
-};
-
 export default function AnalisiConsumi() {
+  const [dynamicData, setDynamicData] = useState({
+    bundleSize: '...',
+    apiCalls: '...',
+    bandwidth: '...',
+  });
+  const [chartDataState, setChartDataState] = useState([12, 18, 22, 30, 35, 41]);
+
+  useEffect(() => {
+    fetch('/api/monitoring-consumi')
+      .then(res => res.json())
+      .then(data => {
+        setDynamicData({
+          bundleSize: data.bundleSize + ' KB',
+          apiCalls: data.apiCalls + '/mese',
+          bandwidth: data.bandwidth + ' GB/mese',
+        });
+        if (data.trafficHistory) setChartDataState(data.trafficHistory);
+      })
+      .catch(() => setDynamicData({
+        bundleSize: 'N/A',
+        apiCalls: 'N/A',
+        bandwidth: 'N/A',
+      }));
+  }, []);
+
+  const chartData = {
+    labels: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu'],
+    datasets: [
+      {
+        label: 'Traffico (GB)',
+        data: chartDataState,
+        backgroundColor: 'rgba(37, 99, 235, 0.6)',
+      },
+    ],
+  };
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      title: { display: true, text: 'Traffico mensile (GB)' },
+    },
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-blue-100 p-4">
       <div className="max-w-2xl mx-auto space-y-6">
