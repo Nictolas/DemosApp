@@ -2,13 +2,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
+import React from "react";
 
 export function ProtectedRoute({
   path,
-  component: Component,
+  component,
 }: {
   path: string;
-  component: () => React.JSX.Element;
+  component: React.ComponentType<any> | (() => React.JSX.Element);
 }) {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
@@ -35,7 +36,9 @@ export function ProtectedRoute({
     <Route path={path}>
       {(params) => (
         <PageTransition location={location}>
-          <Component {...params} />
+          {typeof component === 'function' && (component.prototype && component.prototype.isReactComponent
+            ? React.createElement(component as React.ComponentType<any>, params)
+            : (component as () => React.JSX.Element)())}
         </PageTransition>
       )}
     </Route>
