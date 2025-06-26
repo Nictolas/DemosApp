@@ -397,6 +397,13 @@ app.delete('/api/opinioni-list/:id', requireAdmin, async (req, res) => {
   const result = await OpinioniService.deleteOpinione(req.params.id);
   res.status(result.success ? 200 : 400).json(result);
 });
+app.patch('/api/opinioni-list/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: 'text obbligatorio' });
+  const result = await OpinioniService.updateOpinione(id, text);
+  res.status(result.success ? 200 : 400).json(result);
+});
 
 // Endpoint per limiti Firebase (mock, pronto per dati reali)
 app.get('/api/limiti', requireStatsRole, async (req, res) => {

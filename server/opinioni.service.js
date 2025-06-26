@@ -36,6 +36,18 @@ class OpinioniService {
     }
     return { success: true };
   }
+
+  static async updateOpinione(opinioneId, newText) {
+    if (!db) return { success: false, error: 'Database non configurato' };
+    const opinioniRef = collection(db, 'opinioni');
+    const q = query(opinioniRef, where('id', '==', opinioneId));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return { success: false, error: 'Opinione non trovata' };
+    for (const d of snapshot.docs) {
+      await updateDoc(doc(db, 'opinioni', d.id), { text: newText });
+    }
+    return { success: true };
+  }
 }
 
 export default OpinioniService; 
