@@ -1,10 +1,9 @@
-const { exec } = require('child_process');
+import { exec } from 'child_process';
 
-module.exports = (req, res) => {
+export default function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  // Protezione semplice: richiedi header X-API-KEY
   const apiKey = req.headers['x-api-key'];
   const secret = process.env.MONITORING_UPDATE_SECRET || 'supersegreto';
   if (apiKey !== secret) {
@@ -16,4 +15,4 @@ module.exports = (req, res) => {
     }
     res.status(200).json({ success: true, output: stdout });
   });
-}; 
+} 

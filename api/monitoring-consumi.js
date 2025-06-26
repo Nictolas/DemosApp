@@ -1,7 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-module.exports = (req, res) => {
+export default function handler(req, res) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const filePath = path.join(__dirname, 'monitoring-data.json');
   let data;
   try {
@@ -15,4 +17,4 @@ module.exports = (req, res) => {
     };
   }
   res.status(200).json(data);
-}; 
+} 
