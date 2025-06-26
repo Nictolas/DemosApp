@@ -1,8 +1,18 @@
+const fs = require('fs');
+const path = require('path');
+
 export default function handler(req, res) {
-  res.status(200).json({
-    bundleSize: 420,      // in KB
-    apiCalls: 320000,     // al mese
-    bandwidth: 41,        // in GB/mese
-    trafficHistory: [12, 18, 22, 30, 35, 41] // dati per il grafico
-  });
+  const filePath = path.join(__dirname, 'monitoring-data.json');
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  } catch (e) {
+    data = {
+      bundleSize: 0,
+      apiCalls: 0,
+      bandwidth: 0,
+      trafficHistory: []
+    };
+  }
+  res.status(200).json(data);
 } 
