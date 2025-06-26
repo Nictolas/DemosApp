@@ -32,6 +32,8 @@ export default function AnalisiConsumi() {
     bundleSize: '...',
     apiCalls: '...',
     bandwidth: '...',
+    serverlessGBhr: '...',
+    edgeInvocations: '...'
   });
   const [chartDataState, setChartDataState] = useState([12, 18, 22, 30, 35, 41]);
   const [loading, setLoading] = useState(false);
@@ -42,9 +44,11 @@ export default function AnalisiConsumi() {
       .then(res => res.json())
       .then(data => {
         setDynamicData({
-          bundleSize: data.bundleSize + ' KB',
-          apiCalls: data.apiCalls + '/mese',
-          bandwidth: data.bandwidth + ' GB/mese',
+          bundleSize: (data.bundleSize || 0) + ' KB',
+          apiCalls: (data.apiCalls || 0) + '/mese',
+          bandwidth: (data.bandwidth || 0) + ' GB/mese',
+          serverlessGBhr: (data.serverlessGBhr || 0) + ' GB-hr/mese',
+          edgeInvocations: (data.edgeInvocations || 0) + '/mese',
         });
         if (data.trafficHistory) setChartDataState(data.trafficHistory);
       })
@@ -52,6 +56,8 @@ export default function AnalisiConsumi() {
         bundleSize: 'N/A',
         apiCalls: 'N/A',
         bandwidth: 'N/A',
+        serverlessGBhr: 'N/A',
+        edgeInvocations: 'N/A',
       }))
       .finally(() => setLoading(false));
   };
@@ -295,6 +301,14 @@ ReactGA.event(...);</pre>
                 <div className="flex flex-col items-center">
                   <span className="text-2xl font-bold text-blue-700">{dynamicData.bandwidth}</span>
                   <span className="text-xs text-gray-500">Banda usata</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl font-bold text-blue-700">{dynamicData.serverlessGBhr}</span>
+                  <span className="text-xs text-gray-500">Serverless GB-hr</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl font-bold text-blue-700">{dynamicData.edgeInvocations}</span>
+                  <span className="text-xs text-gray-500">Edge Invocazioni</span>
                 </div>
               </div>
               <div className="bg-blue-50 rounded-lg p-2">
