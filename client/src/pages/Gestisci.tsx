@@ -181,6 +181,28 @@ export default function Gestisci() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Analisi Consumi */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-cyan-600 group-hover:text-cyan-700">
+                <ClipboardList className="h-5 w-5" />
+                Analisi Consumi
+              </CardTitle>
+              <CardDescription>
+                Visualizza l'analisi dei consumi e delle stime di traffico dell'app
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-cyan-600 hover:bg-cyan-700"
+                onClick={() => window.location.href = "/analisi-consumi"}
+              >
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Analisi Consumi
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {user?.ruolo === 'Admin' && (
