@@ -62,7 +62,10 @@ export default function AnalisiConsumi() {
 
   const handleAggiorna = async () => {
     setLoading(true);
-    await fetch('/api/monitoring-consumi-update', { method: 'POST' });
+    await fetch('/api/monitoring-consumi-update', {
+      method: 'POST',
+      headers: { 'X-API-KEY': 'supersegreto2024!' }
+    });
     fetchData();
   };
 
