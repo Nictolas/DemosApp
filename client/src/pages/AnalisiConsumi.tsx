@@ -34,8 +34,10 @@ export default function AnalisiConsumi() {
     bandwidth: '...',
   });
   const [chartDataState, setChartDataState] = useState([12, 18, 22, 30, 35, 41]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchData = () => {
+    setLoading(true);
     fetch('/api/monitoring-consumi')
       .then(res => res.json())
       .then(data => {
@@ -50,8 +52,19 @@ export default function AnalisiConsumi() {
         bundleSize: 'N/A',
         apiCalls: 'N/A',
         bandwidth: 'N/A',
-      }));
+      }))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
+
+  const handleAggiorna = async () => {
+    setLoading(true);
+    await fetch('/api/monitoring-consumi-update', { method: 'POST' });
+    fetchData();
+  };
 
   const chartData = {
     labels: ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu'],
@@ -261,7 +274,12 @@ ReactGA.event(...);</pre>
 
             {/* Dati dinamici */}
             <div className="bg-white border border-blue-200 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">Dati dinamici (esempio)</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-lg flex items-center gap-2">Dati dinamici (reali)</h3>
+                <Button onClick={handleAggiorna} disabled={loading} variant="outline" size="sm">
+                  {loading ? 'Aggiornamento...' : 'Aggiorna'}
+                </Button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="flex flex-col items-center">
                   <span className="text-2xl font-bold text-blue-700">{dynamicData.bundleSize}</span>
