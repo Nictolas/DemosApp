@@ -57,39 +57,37 @@ export default function Profilo({ userId }: { userId?: string }) {
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
   const [governoIdeale, setGovernoIdeale] = useState<Record<string, string>>({});
   const [location, setLocation] = useLocation();
+  const [opinionQuestions, setOpinionQuestions] = useState<{id: string, text: string}[]>([]);
 
   // Ricavo la provenienza dalla query string (es: ?from=utenti)
   const fromGestisciUtenti = typeof window !== 'undefined' && (window.location.search.includes('from=utenti') || window.location.hash.includes('from=utenti'));
 
-  // Funzione per categorizzare le opinioni
-  const categorizeOpinions = (opinions: any) => {
-    if (!opinions) return { favorevoli: [], indecisi: [], contrari: [] };
-
-    const opinionLabels = {
-      energia_nucleare: "Energia Nucleare",
-      sperimentazione_animale: "Sperimentazione Animale", 
-      legalizzazione_canapa: "Legalizzazione Canapa",
-      caccia: "Caccia",
-      unione_europea: "Unione Europea"
+  // Fetch domande opinioni dinamiche
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const res = await fetch("/api/opinioni-list");
+        if (!res.ok) throw new Error();
+        setOpinionQuestions(await res.json());
+      } catch {
+        setOpinionQuestions([]);
+      }
     };
+    fetchQuestions();
+  }, []);
 
+  // Funzione per categorizzare le opinioni dinamiche
+  const categorizeOpinions = (opinions: any) => {
+    if (!opinions || opinionQuestions.length === 0) return { favorevoli: [], indecisi: [], contrari: [] };
     const favorevoli: string[] = [];
     const indecisi: string[] = [];
     const contrari: string[] = [];
-
-    Object.entries(opinions).forEach(([key, value]) => {
-      if (key in opinionLabels) {
-        const label = opinionLabels[key as keyof typeof opinionLabels];
-        if (value === "Favorevole") {
-          favorevoli.push(label);
-        } else if (value === "Indeciso") {
-          indecisi.push(label);
-        } else if (value === "Contrario") {
-          contrari.push(label);
-        }
-      }
+    opinionQuestions.forEach(q => {
+      const value = opinions[q.id];
+      if (value === "Favorevole") favorevoli.push(q.text);
+      else if (value === "Indeciso") indecisi.push(q.text);
+      else if (value === "Contrario") contrari.push(q.text);
     });
-
     return { favorevoli, indecisi, contrari };
   };
 
@@ -470,7 +468,7 @@ export default function Profilo({ userId }: { userId?: string }) {
           </Card>
 
           {/* Sezione Opinioni */}
-          {userInfo && userOpinions && (
+          {userInfo && userOpinions && opinionQuestions.length > 0 && (
             <Card className="animate-in-delay">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
