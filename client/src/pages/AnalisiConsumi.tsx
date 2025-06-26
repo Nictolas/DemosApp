@@ -1,7 +1,19 @@
 import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info, BarChart2, AlertTriangle, CheckCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const LIMITS = [
+  { name: "Banda", value: "100 GB/mese", icon: <BarChart2 className="h-5 w-5 text-blue-600 inline" />, key: "banda", description: "Traffico totale dati (download/upload) generato dagli utenti." },
+  { name: "Serverless GB-hr", value: "100 GB-hr/mese", icon: <BarChart2 className="h-5 w-5 text-green-600 inline" />, key: "serverless", description: "Tempo totale di esecuzione delle funzioni serverless (API)." },
+  { name: "Edge Invocazioni", value: "500.000/mese", icon: <BarChart2 className="h-5 w-5 text-cyan-600 inline" />, key: "edge", description: "Numero di chiamate alle funzioni Edge (API Routes, Middleware, ecc.)." },
+];
+
+const ESTIMATES = [
+  { key: "banda", value: "~30-60 GB/mese (1-2 sessioni/utente)" },
+  { key: "serverless", value: "~50-80 ore/mese (1M chiamate)" },
+  { key: "edge", value: "~400.000/mese (2 sessioni/utente)" },
+];
 
 export default function AnalisiConsumi() {
   return (
@@ -19,27 +31,82 @@ export default function AnalisiConsumi() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Analisi Consumi e Limiti</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <BarChart2 className="h-6 w-6 text-blue-600" />
+              Analisi Consumi e Limiti
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* Tabella limiti vs stime */}
             <div>
-              <h3 className="font-semibold text-lg mb-1">1. Banda (100 GB/mese)</h3>
-              <p>
-                Il consumo di banda dipende dal peso degli asset (JS, CSS, immagini) e dal numero di sessioni utente. Se ogni utente effettua 1-2 sessioni complete al mese, il traffico totale resta sotto i 100 GB. Se gli utenti accedono più spesso, si rischia di superare il limite. Ottimizza asset e usa cache/CDN per restare nei limiti.
-              </p>
+              <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">Limiti e Stime
+                <Info className="h-4 w-4 text-gray-400" aria-label="Limiti del piano e stime di consumo attuale" />
+              </h3>
+              <table className="w-full text-sm border border-gray-200 mb-2 bg-white rounded-lg overflow-hidden">
+                <thead>
+                  <tr className="bg-cyan-100">
+                    <th className="p-2 border">Risorsa</th>
+                    <th className="p-2 border">Limite</th>
+                    <th className="p-2 border">Stima attuale</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {LIMITS.map(limite => (
+                    <tr key={limite.key}>
+                      <td className="p-2 border font-medium flex items-center gap-2">{limite.icon} {limite.name}</td>
+                      <td className="p-2 border">{limite.value}</td>
+                      <td className="p-2 border">{ESTIMATES.find(e => e.key === limite.key)?.value || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="text-xs text-gray-500 flex flex-col gap-1">
+                {LIMITS.map(limite => (
+                  <span key={limite.key}><Info className="inline h-3 w-3 mr-1 text-gray-400" /> <b>{limite.name}:</b> {limite.description}</span>
+                ))}
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-1">2. Serverless GB-hr (100 GB-hr/mese)</h3>
-              <p>
-                Le funzioni serverless (API) consumano pochissimo: anche con 1.000.000 di chiamate al mese, resti molto sotto il limite. Nessun rischio di sforamento con l&apos;architettura attuale.
-              </p>
+
+            {/* Cosa succede se superi i limiti */}
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md flex gap-3 items-start">
+              <AlertTriangle className="h-6 w-6 text-yellow-500 mt-1" />
+              <div>
+                <h4 className="font-semibold mb-1">Cosa succede se superi i limiti?</h4>
+                <ul className="list-disc ml-6 text-sm">
+                  <li>Le API potrebbero essere bloccate o rallentate.</li>
+                  <li>Potresti incorrere in costi extra (se il piano lo prevede).</li>
+                  <li>Gli utenti potrebbero vedere errori o tempi di attesa più lunghi.</li>
+                  <li>Alcuni provider (es. Vercel) potrebbero sospendere temporaneamente il servizio.</li>
+                </ul>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-1">3. Edge Invocazioni (500.000/mese)</h3>
-              <p>
-                Ogni operazione che richiede una funzione Edge conta come una invocazione. Se ogni utente effettua 2 sessioni al mese con 2 chiamate Edge, resti sotto il limite. Se la frequenza o le chiamate aumentano, puoi superare il tetto. Usa Edge solo dove necessario.
-              </p>
+
+            {/* Consigli pratici */}
+            <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-md flex gap-3 items-start">
+              <CheckCircle className="h-6 w-6 text-green-500 mt-1" />
+              <div>
+                <h4 className="font-semibold mb-1">Consigli pratici per restare nei limiti</h4>
+                <ul className="list-disc ml-6 text-sm">
+                  <li>Ottimizza immagini e asset statici (usa formati moderni come WebP).</li>
+                  <li>Minimizza e splitta il bundle JS/CSS.</li>
+                  <li>Usa una CDN per asset statici.</li>
+                  <li>Riduci le chiamate API/Edge non necessarie.</li>
+                  <li>Monitora regolarmente i consumi tramite dashboard.</li>
+                </ul>
+              </div>
             </div>
+
+            {/* Link rapidi */}
+            <div className="space-y-2">
+              <h4 className="font-semibold mb-1 flex items-center gap-2">Dashboard e Monitoraggio <ExternalLink className="h-4 w-4 text-blue-500" /></h4>
+              <ul className="list-disc ml-6 text-sm">
+                <li><a href="https://vercel.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Vercel Dashboard</a></li>
+                <li><a href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Firebase Console</a></li>
+                <li><a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Google Analytics</a></li>
+              </ul>
+            </div>
+
+            {/* Chiamate API/Edge per sessione utente */}
             <div>
               <h3 className="font-semibold text-lg mb-1">Chiamate API/Edge per sessione utente</h3>
               <p className="mb-2">
@@ -79,6 +146,8 @@ export default function AnalisiConsumi() {
                 Una sessione semplice genera circa 2-4 chiamate; una sessione attiva può arrivare a 5-10 chiamate.
               </div>
             </div>
+
+            {/* Come calcolare il peso reale del bundle */}
             <div>
               <h3 className="font-semibold text-lg mb-1">Come calcolare il peso reale del bundle</h3>
               <ol className="list-decimal ml-6 mb-2">
@@ -92,7 +161,7 @@ export default function AnalisiConsumi() {
                   <b>Usa PowerShell per il totale:</b> <code>Get-ChildItem -Recurse | Measure-Object -Property Length -Sum</code> nella cartella <code>dist</code>.
                 </li>
                 <li className="mb-1">
-                  <b>Analizza i file JS:</b> Dopo la build, Vite mostra il peso dei bundle principali. Per analisi avanzata, installa <code>source-map-explorer</code> e lancia <code>npx source-map-explorer dist/assets/*.js</code>.
+                  <b>Analizza i file JS:</b> Dopo la build, Vite mostra il peso dei bundle principali. Per analisi avanzata, installa <code>vite-plugin-visualizer</code> e lancia <code>npm run build</code> per generare il report.
                 </li>
                 <li className="mb-1">
                   <b>Ripeti dopo ogni modifica importante</b> per monitorare la crescita del bundle.
@@ -102,6 +171,8 @@ export default function AnalisiConsumi() {
                 Consiglio: ottimizza immagini (WebP), minifica JS/CSS, usa CDN e cache per ridurre il traffico per utente.
               </div>
             </div>
+
+            {/* Monitoraggio automatico: strumenti consigliati */}
             <div>
               <h3 className="font-semibold text-lg mb-1">Monitoraggio automatico: strumenti consigliati</h3>
               <ul className="list-disc ml-6 mb-2">
@@ -132,6 +203,7 @@ ReactGA.event(...);</pre>
                 Integra questi strumenti per avere dati reali e ricevere alert automatici in caso di superamento soglie.
               </div>
             </div>
+
             <div className="mt-4 text-sm text-gray-500">
               <b>Nota:</b> Queste stime sono indicative e vanno monitorate con dati reali di traffico e utilizzo.
             </div>
