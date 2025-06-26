@@ -49,7 +49,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [userOpinions, setUserOpinions] = useState<any>(null);
+  const [userOpinions, setUserOpinions] = useState<Record<string, string>>({});
   const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
   const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
   const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
@@ -237,15 +237,16 @@ export default function Profilo({ userId }: { userId?: string }) {
           console.log("Dati utente caricati:", userData);
           setUserInfo(userData as UserInfo);
           
-          // Estrai le opinioni dai dati utente (ora sono unificati)
-          const opinions = {
-            energia_nucleare: userData.energia_nucleare || '',
-            sperimentazione_animale: userData.sperimentazione_animale || '',
-            legalizzazione_canapa: userData.legalizzazione_canapa || '',
-            caccia: userData.caccia || '',
-            unione_europea: userData.unione_europea || ''
-          };
-          setUserOpinions(opinions);
+          // Estrai le opinioni dinamiche dai dati utente
+          if (opinionQuestions.length > 0) {
+            const dynamicOpinions: Record<string, string> = {};
+            opinionQuestions.forEach(q => {
+              dynamicOpinions[q.id] = userData[q.id] || '';
+            });
+            setUserOpinions(dynamicOpinions);
+          } else {
+            setUserOpinions({});
+          }
           
           // Carica la configurazione avatar se presente
           if (userData.avatar_config) {
@@ -293,7 +294,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     if (user || userId) {
       fetchUserInfo();
     }
-  }, [user, userId]);
+  }, [user, userId, opinionQuestions]);
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
