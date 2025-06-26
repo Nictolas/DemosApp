@@ -114,7 +114,7 @@ function Router() {
       <Route path="/profilo/:userId">
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/profilo/:userId" component={() => <Profilo userId={params.userId} />} />
+            <ProtectedRoute path="/profilo/:userId" component={Profilo} />
           </PageTransition>
         )}
       </Route>
