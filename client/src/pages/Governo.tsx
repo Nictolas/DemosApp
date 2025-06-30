@@ -247,17 +247,20 @@ export default function Governo() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ministeri.map((ministero) => (
-              <MinisteroCard
-                key={ministero.categoria}
-                ministero={ministero}
-                userVote={userVoti[ministero.categoria] || ""}
-                classifica={classifiche[ministero.categoria] || []}
-                onVote={(nome) => handleVote(ministero.categoria, nome)}
-                isVoting={votingCategory === ministero.categoria}
-                toast={toast}
-              />
-            ))}
+            {ministeri.map((ministero) => {
+              console.log('DEBUG MINISTERO:', ministero);
+              return (
+                <MinisteroCard
+                  key={ministero.categoria}
+                  ministero={ministero}
+                  userVote={userVoti[ministero.categoria] || ""}
+                  classifica={classifiche[ministero.categoria] || []}
+                  onVote={(nome) => handleVote(ministero.categoria, nome)}
+                  isVoting={votingCategory === ministero.categoria}
+                  toast={toast}
+                />
+              );
+            })}
           </div>
         )}
       </div>
