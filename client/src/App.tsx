@@ -57,49 +57,49 @@ function Router() {
     <Switch>
       <Route path="/">
         {() => (
-          <PageTransition location={location} type="fade-up" delay={100} showLoader={true} loaderDuration={500}>
+          <PageTransition location={location} type="fade-up" delay={100}>
             <LandingPage />
           </PageTransition>
         )}
       </Route>
       <Route path="/auth">
         {() => (
-          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
+          <PageTransition location={location} type="fade-up">
             <AuthPage />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione">
         {(params) => (
-          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={500}>
+          <PageTransition location={location} type="fade-side">
             <ProtectedRoute path="/registrazione" component={Home} />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione-candidatura">
         {() => (
-          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
+          <PageTransition location={location} type="fade-up">
             <RegistrazioneCandidatura />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione-elezione">
         {() => (
-          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
+          <PageTransition location={location} type="fade-up">
             <RegistrazioneElezione />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione-elezione-candidatura">
         {() => (
-          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
+          <PageTransition location={location} type="fade-up">
             <RegistrazioneElezioneCandidatura />
           </PageTransition>
         )}
       </Route>
       <Route path="/menu">
         {(params) => (
-          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={500}>
+          <PageTransition location={location} type="fade-side">
             <ProtectedRoute path="/menu" component={Menu} />
           </PageTransition>
         )}
@@ -139,16 +139,6 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/opinioni/:opinionField/:regionName/:provinceName">
-        {(params) => (
-          <PageTransition location={location} type="fade-side">
-            <ProtectedRoute 
-              path="/opinioni/:opinionField/:regionName/:provinceName" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} regionName={params.regionName} provinceName={params.provinceName} />} 
-            />
-          </PageTransition>
-        )}
-      </Route>
       <Route path="/opinioni/:opinionField/:regionName">
         {(params) => (
           <PageTransition location={location} type="fade-side">
@@ -159,6 +149,20 @@ function Router() {
           </PageTransition>
         )}
       </Route>
+
+      {/* 2. La rotta generica che avevi già (ora gestisce il caso senza regione) */}
+      <Route path="/opinioni/:opinionField">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute 
+              path="/opinioni/:opinionField" 
+              component={() => <DettaglioOpinione opinionField={params.opinionField} />} 
+            />
+          </PageTransition>
+        )}
+      </Route>
+
+      {/* 2. La rotta generica per la pagina principale delle opinioni va DOPO */}
       <Route path="/opinioni">
         {(params) => (
           <PageTransition location={location} type="fade-side">
