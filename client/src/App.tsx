@@ -139,6 +139,16 @@ function Router() {
           </PageTransition>
         )}
       </Route>
+      <Route path="/opinioni/:opinionField/:regionName/:provinceName">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute 
+              path="/opinioni/:opinionField/:regionName/:provinceName" 
+              component={() => <DettaglioOpinione opinionField={params.opinionField} regionName={params.regionName} provinceName={params.provinceName} />} 
+            />
+          </PageTransition>
+        )}
+      </Route>
       <Route path="/opinioni/:opinionField/:regionName">
         {(params) => (
           <PageTransition location={location} type="fade-side">
@@ -149,20 +159,6 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-
-      {/* 2. La rotta generica che avevi già (ora gestisce il caso senza regione) */}
-      <Route path="/opinioni/:opinionField">
-        {(params) => (
-          <PageTransition location={location} type="fade-side">
-            <ProtectedRoute 
-              path="/opinioni/:opinionField" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} />} 
-            />
-          </PageTransition>
-        )}
-      </Route>
-
-      {/* 2. La rotta generica per la pagina principale delle opinioni va DOPO */}
       <Route path="/opinioni">
         {(params) => (
           <PageTransition location={location} type="fade-side">
