@@ -203,6 +203,28 @@ export default function Gestisci() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Gestisci Governo */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-600 group-hover:text-yellow-700">
+                <Trophy className="h-5 w-5" />
+                Gestisci Governo
+              </CardTitle>
+              <CardDescription>
+                Gestisci i dati e le funzionalità relative al Governo ideale
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-yellow-600 hover:bg-yellow-700"
+                onClick={() => window.location.href = "/gestisci-governo"}
+              >
+                <Trophy className="mr-2 h-4 w-4" />
+                Gestisci Governo
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {user?.ruolo === 'Admin' && (

@@ -49,6 +49,7 @@ import Limiti from "@/pages/Limiti";
 import GestisciIniziativePopolari from "@/pages/GestisciIniziativePopolari";
 import GestisciReferendumAbrogativi from "@/pages/GestisciReferendumAbrogativi";
 import AnalisiConsumi from "@/pages/AnalisiConsumi";
+import GestisciGoverno from "@/pages/GestisciGoverno";
 
 function Router() {
   const [location] = useLocation();
@@ -386,6 +387,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/analisi-consumi" component={AnalisiConsumi} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/gestisci-governo">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/gestisci-governo" component={GestisciGoverno} />
           </PageTransition>
         )}
       </Route>
