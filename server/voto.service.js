@@ -12,6 +12,7 @@ class VotoService extends FirebaseService {
 
   static async voteMinistro(userId, categoria, nomeMinistro) {
       try {
+          console.log('voteMinistro chiamato con:', { userId, categoria, nomeMinistro });
           if (!db) return { success: false, error: "Database non configurato" };
           // Normalizza il nome per evitare duplicati
           let nomeRaw = (nomeMinistro || '').trim();
@@ -30,6 +31,7 @@ class VotoService extends FirebaseService {
           }
           return { success: true };
       } catch (error) {
+          console.error('ERRORE in voteMinistro:', error);
           return this.handleError(error, 'voteMinistro');
       }
   }
