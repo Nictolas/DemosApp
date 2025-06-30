@@ -105,7 +105,7 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
       if (params.toString()) {
         apiUrl += `?${params.toString()}`;
       }
-      
+
       const response = await fetch(apiUrl);
       if (!response.ok) {
         throw new Error(`Errore API: ${response.statusText}`);
@@ -140,14 +140,14 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
 
     const backgroundColors = Object.keys(data).map(label => genderColors[label.toLowerCase()] || genderColors['non specificato']);
 
-    return { 
-      labels, 
-      datasets: [{ 
-        data: values, 
+    return {
+      labels,
+      datasets: [{
+        data: values,
         backgroundColor: backgroundColors,
         borderColor: backgroundColors.map(c => c.replace('0.7', '1')),
         borderWidth: 1,
-      }] 
+      }]
     };
   };
 
