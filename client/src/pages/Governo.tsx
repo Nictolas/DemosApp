@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Briefcase, GraduationCap, Heart, Palette, Vote, Trophy, Leaf } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Briefcase, GraduationCap, Heart, Palette, Vote, Trophy, Leaf, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +28,7 @@ export default function Governo() {
   const [classifiche, setClassifiche] = useState<TutteClassifiche>({});
   const [loadingVoti, setLoadingVoti] = useState(false);
   const [votingCategory, setVotingCategory] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const ministeri = [
     {
@@ -113,6 +114,14 @@ export default function Governo() {
   useEffect(() => {
     if (user) {
       loadUserData();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetch(`/api/users/${encodeURIComponent(user.uid)}`)
+        .then(res => res.json())
+        .then(data => setIsAdmin(data?.ruolo === 'Admin'));
     }
   }, [user]);
 
@@ -246,6 +255,7 @@ export default function Governo() {
                 classifica={classifiche[ministero.categoria] || []}
                 onVote={(nome) => handleVote(ministero.categoria, nome)}
                 isVoting={votingCategory === ministero.categoria}
+                toast={toast}
               />
             ))}
           </div>
@@ -267,18 +277,46 @@ interface MinisteroCardProps {
   classifica: Classifica[];
   onVote: (nome: string) => void;
   isVoting: boolean;
+  toast: any;
 }
 
-function MinisteroCard({ ministero, userVote, classifica, onVote, isVoting }: MinisteroCardProps) {
+function MinisteroCard({ ministero, userVote, classifica, onVote, isVoting, toast }: MinisteroCardProps) {
+  const { user } = useAuth();
   const [nomeInput, setNomeInput] = useState(userVote);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     setNomeInput(userVote);
   }, [userVote]);
 
+  useEffect(() => {
+    if (user) {
+      fetch(`/api/users/${encodeURIComponent(user.uid)}`)
+        .then(res => res.json())
+        .then(data => setIsAdmin(data?.ruolo === 'Admin'));
+    }
+  }, [user]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onVote(nomeInput);
+  };
+
+  const handleDelete = async (nome: string) => {
+    if (!window.confirm(`Sei sicuro di voler cancellare ${nome}?`)) return;
+    try {
+      const res = await fetch(`/api/governo/classifica/${ministero.categoria}/${encodeURIComponent(nome)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        toast({ title: 'Errore', description: 'Impossibile cancellare il candidato', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Errore', description: 'Errore di rete', variant: 'destructive' });
+    }
   };
 
   return (
@@ -345,6 +383,15 @@ function MinisteroCard({ ministero, userVote, classifica, onVote, isVoting }: Mi
                   <div className="flex items-center space-x-2">
                     <span className="font-medium text-yellow-600">#{index + 1}</span>
                     <span className="truncate">{candidato.nome}</span>
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDelete(candidato.nome)}
+                        className="ml-2 text-red-600 hover:text-red-800"
+                        title="Elimina candidato"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                   <Badge variant="outline" className="text-xs">
                     {candidato.voti} voti
