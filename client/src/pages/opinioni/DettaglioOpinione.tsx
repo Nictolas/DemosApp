@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { Redirect, Link } from 'wouter';
@@ -25,6 +24,9 @@ const formatRegionForUrl = (region: string) =>
 const formatProvinceForUrl = (province: string) =>
   province.toLowerCase().replace(/ /g, '-').replace(/'/g, '');
 
+const formatStringForCompare = (str: string) =>
+  str.charAt(0).toUpperCase() + str.slice(1).replace(/-/g, ' ');
+
 // Definizione del tipo di dati che ci aspettiamo dal backend
 interface DetailStats {
   genderDistributionByOpinion: {
@@ -49,7 +51,7 @@ const opinionTitles: Record<string, string> = {
 };
 
 // IL COMPONENTE REACT
-export default function DettaglioOpinione({ opinionField, regionName }: { opinionField: string, regionName?: string }) {
+export default function DettaglioOpinione({ opinionField, regionName, provinceName }: { opinionField: string, regionName?: string, provinceName?: string }) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<DetailStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,8 +79,11 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
   }, [opinionField]);
 
   const basePageTitle = dynamicTitle || opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
-  const pageTitle = regionName 
-    ? `${basePageTitle} - ${regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ')}` 
+
+  const pageTitle = provinceName
+    ? `${basePageTitle} - ${formatStringForCompare(provinceName)}`
+    : regionName
+    ? `${basePageTitle} - ${formatStringForCompare(regionName)}`
     : basePageTitle;
 
   // Funzione per recuperare i dati dal backend
@@ -88,11 +93,19 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     setError(null);
     try {
       let apiUrl = `/api/opinioni-dettaglio/${opinionField}`;
+      const params = new URLSearchParams();
+
       if (regionName) {
-        const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
-        apiUrl += `?regione=${encodeURIComponent(formattedRegionName)}`;
+        params.append('regione', formatStringForCompare(regionName));
+      }
+      if (provinceName) {
+        params.append('provincia', formatStringForCompare(provinceName));
       }
 
+      if (params.toString()) {
+        apiUrl += `?${params.toString()}`;
+      }
+      
       const response = await fetch(apiUrl);
       if (!response.ok) {
         throw new Error(`Errore API: ${response.statusText}`);
@@ -104,7 +117,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     } finally {
       setIsLoading(false);
     }
-  }, [user, opinionField, regionName]);
+  }, [user, opinionField, regionName, provinceName]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {
@@ -142,7 +155,11 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
   const prepareStackedBarData = () => {
     if (!stats) return null;
     const { favorevole, contrario, astenuto } = stats.genderDistributionByOpinion;
-    const allGenders = [...new Set([...Object.keys(favorevole), ...Object.keys(contrario), ...Object.keys(astenuto)])];
+
+    const allGenderKeys = Object.keys(favorevole)
+        .concat(Object.keys(contrario))
+        .concat(Object.keys(astenuto));
+    const allGenders = allGenderKeys.filter((key, index) => allGenderKeys.indexOf(key) === index);
 
     const genderColors: Record<string, string> = {
       'uomo': 'rgba(54, 162, 235, 0.7)',
@@ -170,9 +187,10 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     if (!stats || !stats.ageDistributionByOpinion) return null;
     const { favorevole, contrario, astenuto } = stats.ageDistributionByOpinion;
 
-    const allAgeRanges = Array.from(
-      new Set([...Object.keys(favorevole), ...Object.keys(contrario), ...Object.keys(astenuto)])
-    ).sort();
+    const allAgeKeys = Object.keys(favorevole)
+      .concat(Object.keys(contrario))
+      .concat(Object.keys(astenuto));
+    const allAgeRanges = allAgeKeys.filter((key, index) => allAgeKeys.indexOf(key) === index).sort();
 
     if (allAgeRanges.length === 0) return null;
 
@@ -211,33 +229,16 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="container mx-auto max-w-5xl">
-        <Link href={regionName ? `/opinioni/${opinionField}` : "/statistiche-opinioni"}>
+        <Link href={provinceName && regionName ? `/opinioni/${opinionField}/${regionName}` : regionName ? `/opinioni/${opinionField}` : "/statistiche-opinioni"}>
           <Button variant="ghost" className="mb-4 flex items-center">
-            <ArrowLeft className="mr-2 h-4 w-4" /> 
-            {regionName ? `Torna a ${basePageTitle}` : "Torna alle Statistiche"}
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {provinceName && regionName
+              ? `Torna a ${formatStringForCompare(regionName)}`
+              : regionName
+              ? `Torna a ${basePageTitle}`
+              : "Torna alle Statistiche"}
           </Button>
         </Link>
-
-        {/* Province buttons for selected region */}
-        {regionName && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Filtra per Provincia</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              {(() => {
-                // Trova la regione selezionata
-                const regionObj = ITALY_DATA.Italia.regioni.find(r => formatRegionForUrl(r.nome) === regionName);
-                if (!regionObj) return <span>Nessuna provincia trovata.</span>;
-                return regionObj.province.map(prov => (
-                  <Link key={prov.nome} href={`/opinioni/${opinionField}/${regionName}/${formatProvinceForUrl(prov.nome)}`}>
-                    <Button variant="outline">{prov.nome}</Button>
-                  </Link>
-                ));
-              })()}
-            </CardContent>
-          </Card>
-        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -249,12 +250,36 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
               <CardHeader>
                 <CardTitle className="text-3xl font-bold">{pageTitle}</CardTitle>
                 <CardDescription>
-                  {regionName 
-                    ? `Analisi dettagliata per la regione selezionata.`
+                  {provinceName
+                    ? `Analisi dettagliata per la provincia selezionata.`
+                    : regionName
+                    ? `Analisi dettagliata per la regione selezionata. Seleziona una provincia per un'analisi più specifica.`
                     : `Analisi dettagliata delle opinioni. Seleziona una regione per un'analisi più specifica.`}
                 </CardDescription>
               </CardHeader>
             </Card>
+
+            {/* Sezione Filtra per Provincia */}
+            {regionName && !provinceName && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Filtra per Provincia</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  {(() => {
+                    if (!regionName) return null;
+                    const currentRegionName = formatStringForCompare(regionName);
+                    const regionObj = ITALY_DATA.Italia.regioni.find(r => r.nome === currentRegionName);
+                    if (!regionObj) return <span>Nessuna provincia trovata.</span>;
+                    return regionObj.province.map(prov => (
+                      <Link key={prov.nome} href={`/opinioni/${opinionField}/${regionName}/${formatProvinceForUrl(prov.nome)}`}>
+                        <Button variant="outline">{prov.nome}</Button>
+                      </Link>
+                    ));
+                  })()}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Grafico per età */}
             {ageGroupedBarData && (
@@ -333,7 +358,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
             )}
 
             {/* Sezione Filtra per Regione spostata qui in fondo */}
-            {!regionName && (
+            {!regionName && !provinceName && (
               <Card>
                 <CardHeader>
                   <CardTitle>Filtra per Regione</CardTitle>
