@@ -21,6 +21,7 @@ import EventiService from "../server/eventi.service.js";
 import NotificaService from "../server/notifica.service.js";
 import SostenitoriService from "../server/sostenitori.service.js";
 import OpinioniService from '../server/opinioni.service.js';
+import { getAllMinisteri, addMinistero, updateMinistero, deleteMinistero } from './ministeri.service.js';
 
 dotenv.config();
 
@@ -620,6 +621,48 @@ app.post('/api/governo/vota', requireAuth, async (req, res) => {
   if (!categoria || !nomeCandidato) return res.status(400).json({ error: "Missing category or name" });
   const result = await VotoService.voteMinistro(req.user.id, categoria, nomeCandidato);
   res.json(result);
+});
+
+// === API CRUD per la raccolta 'ministeri' ===
+app.get('/api/ministeri', async (req, res) => {
+  try {
+    const ministeri = await getAllMinisteri();
+    res.json(ministeri);
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nel recupero dei ministeri' });
+  }
+});
+
+app.post('/api/ministeri', requireAdmin, async (req, res) => {
+  try {
+    const { nome, categoria, descrizione, icona, colore, ordine, abilitato } = req.body;
+    if (!nome || !categoria) return res.status(400).json({ error: 'Nome e categoria sono obbligatori' });
+    const result = await addMinistero({ nome, categoria, descrizione, icona, colore, ordine, abilitato });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nell\'aggiunta del ministero' });
+  }
+});
+
+app.put('/api/ministeri/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    await updateMinistero(id, data);
+    res.json({ id });
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nella modifica del ministero' });
+  }
+});
+
+app.delete('/api/ministeri/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deleteMinistero(id);
+    res.json({ id });
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nella cancellazione del ministero' });
+  }
 });
 
 export default app; 
