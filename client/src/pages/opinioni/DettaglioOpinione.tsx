@@ -49,7 +49,7 @@ const opinionTitles: Record<string, string> = {
 };
 
 // IL COMPONENTE REACT
-export default function DettaglioOpinione({ opinionField, regionName, provinceName }: { opinionField: string, regionName?: string, provinceName?: string }) {
+export default function DettaglioOpinione({ opinionField, regionName, provinceName, comuneName }: { opinionField: string, regionName?: string, provinceName?: string, comuneName?: string }) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<DetailStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,6 +84,9 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
   if (provinceName) {
     pageTitle += ' - ' + provinceName.charAt(0).toUpperCase() + provinceName.slice(1).replace(/-/g, ' ');
   }
+  if (comuneName) {
+    pageTitle += ' - ' + comuneName.charAt(0).toUpperCase() + comuneName.slice(1).replace(/-/g, ' ');
+  }
 
   // Funzione per recuperare i dati dal backend
   const fetchData = useCallback(async () => {
@@ -101,6 +104,10 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
         const formattedProvinceName = provinceName.charAt(0).toUpperCase() + provinceName.slice(1).replace(/-/g, ' ');
         params.push(`provincia=${encodeURIComponent(formattedProvinceName)}`);
       }
+      if (comuneName) {
+        const formattedComuneName = comuneName.charAt(0).toUpperCase() + comuneName.slice(1).replace(/-/g, ' ');
+        params.push(`comune=${encodeURIComponent(formattedComuneName)}`);
+      }
       if (params.length > 0) {
         apiUrl += `?${params.join('&')}`;
       }
@@ -115,7 +122,7 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
     } finally {
       setIsLoading(false);
     }
-  }, [user, opinionField, regionName, provinceName]);
+  }, [user, opinionField, regionName, provinceName, comuneName]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {
@@ -243,6 +250,29 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
                 return regionObj.province.map(prov => (
                   <Link key={prov.nome} href={`/opinioni/${opinionField}/${regionName}/${formatProvinceForUrl(prov.nome)}`}>
                     <Button variant="outline">{prov.nome}</Button>
+                  </Link>
+                ));
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Comuni buttons for selected province */}
+        {regionName && provinceName && !comuneName && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Filtra per Comune</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              {(() => {
+                // Trova la regione selezionata
+                const regionObj = ITALY_DATA.Italia.regioni.find(r => formatRegionForUrl(r.nome) === regionName);
+                if (!regionObj) return <span>Nessuna provincia trovata.</span>;
+                const provinceObj = regionObj.province.find(p => formatProvinceForUrl(p.nome) === provinceName);
+                if (!provinceObj) return <span>Nessun comune trovato.</span>;
+                return provinceObj.comuni.map(comune => (
+                  <Link key={comune} href={`/opinioni/${opinionField}/${regionName}/${provinceName}/${comune.toLowerCase().replace(/ /g, '-').replace(/'/g, '')}`}>
+                    <Button variant="outline">{comune}</Button>
                   </Link>
                 ));
               })()}

@@ -169,6 +169,16 @@ function Router() {
           </PageTransition>
         )}
       </Route>
+      <Route path="/opinioni/:opinionField/:regionName/:provinceName/:comuneName">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute 
+              path="/opinioni/:opinionField/:regionName/:provinceName/:comuneName" 
+              component={() => <DettaglioOpinione opinionField={params.opinionField} regionName={params.regionName} provinceName={params.provinceName} comuneName={params.comuneName} />} 
+            />
+          </PageTransition>
+        )}
+      </Route>
       <Route path="/opinioni">
         {(params) => (
           <PageTransition location={location} type="fade-side">
