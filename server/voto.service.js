@@ -376,10 +376,15 @@ class VotoService extends FirebaseService {
     }
   }
 
-  static async deleteAllVotesForCandidate(collectionName, nome) {
+  static async deleteAllVotesForCandidate(collectionName, nome, categoria) {
     try {
       if (!db) return { success: false, error: 'Database non configurato' };
-      const q = query(collection(db, collectionName), where('nome', '==', nome));
+      // Cancella tutti i documenti con nomeMinistro normalizzato e categoria corrispondente
+      const q = query(
+        collection(db, collectionName),
+        where('nomeMinistro', '==', nome),
+        where('categoria', '==', categoria)
+      );
       const snapshot = await getDocs(q);
       if (snapshot.empty) return { success: false, error: 'Nessun voto trovato per questo candidato' };
       const batchDeletes = [];
@@ -389,7 +394,7 @@ class VotoService extends FirebaseService {
       await Promise.all(batchDeletes);
       return { success: true };
     } catch (error) {
-      return this.handleError(error, `deleteAllVotesForCandidate(${collectionName}, ${nome})`);
+      return this.handleError(error, `deleteAllVotesForCandidate(${collectionName}, ${nome}, ${categoria})`);
     }
   }
 
