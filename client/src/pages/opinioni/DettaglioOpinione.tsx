@@ -220,10 +220,10 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
   const ageGroupedBarData = prepareAgeGroupedBarData();
 
   if (isAuthLoading) {
-    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /><span className="ml-4">Caricamento in corso...</span></div>;
   }
   if (!user) {
-    return <Redirect to="/auth" />;
+    return <div className="flex items-center justify-center min-h-screen text-red-600 font-bold">Utente non autenticato. Effettua il login.</div>;
   }
 
   return (
