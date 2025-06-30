@@ -50,11 +50,18 @@ class VotoService extends FirebaseService {
           const q = query(collection(db, 'voti_ministri'), where('categoria', '==', categoria));
           const snapshot = await getDocs(q);
           const counts = {};
+          const displayNames = {};
           snapshot.forEach(doc => {
-              counts[doc.data().nomeMinistro] = (counts[doc.data().nomeMinistro] || 0) + 1;
+              let nome = (doc.data().nomeMinistro || '').trim();
+              if (!nome) return;
+              const key = nome.toLowerCase();
+              counts[key] = (counts[key] || 0) + 1;
+              if (!displayNames[key] || nome.length > displayNames[key].length) {
+                  displayNames[key] = nome;
+              }
           });
           return Object.entries(counts)
-              .map(([nome, voti]) => ({ nome, voti }))
+              .map(([key, voti]) => ({ nome: displayNames[key] || key, voti }))
               .sort((a, b) => b.voti - a.voti)
               .slice(0, 3);
       } catch (error) {
@@ -267,12 +274,18 @@ class VotoService extends FirebaseService {
       const q = query(collection(db, collectionName));
       const snapshot = await getDocs(q);
       const counts = {};
+      const displayNames = {};
       snapshot.forEach(doc => {
-        const value = doc.data()[valueKey];
-        if (value) counts[value] = (counts[value] || 0) + 1;
+        let value = (doc.data()[valueKey] || '').trim();
+        if (!value) return;
+        const key = value.toLowerCase();
+        counts[key] = (counts[key] || 0) + 1;
+        if (!displayNames[key] || value.length > displayNames[key].length) {
+          displayNames[key] = value;
+        }
       });
       return Object.entries(counts)
-        .map(([nome, voti]) => ({ nome, voti }))
+        .map(([key, voti]) => ({ nome: displayNames[key] || key, voti }))
         .sort((a, b) => b.voti - a.voti)
         .slice(0, 10);
     } catch (error) {
