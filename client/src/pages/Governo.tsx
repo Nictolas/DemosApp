@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Briefcase, GraduationCap, Heart, Palette, Vote, Trophy } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Briefcase, GraduationCap, Heart, Palette, Vote, Trophy, Leaf } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -38,7 +38,7 @@ export default function Governo() {
       color: "bg-red-100 text-red-600"
     },
     {
-      title: "Ministero degli Esteri",
+      title: "Ministro degli Esteri",
       categoria: "esteri",
       icon: Building2,
       description: "Relazioni internazionali e cooperazione",
@@ -99,6 +99,13 @@ export default function Governo() {
       icon: Palette,
       description: "Patrimonio culturale e spettacolo",
       color: "bg-teal-100 text-teal-600"
+    },
+    {
+      title: "Ministro dell'Ambiente della Sicurezza Energetica",
+      categoria: "ambiente_sicurezza_energetica",
+      icon: Leaf,
+      description: "Tutela dell'ambiente e sicurezza energetica",
+      color: "bg-lime-100 text-lime-600"
     }
   ];
 
