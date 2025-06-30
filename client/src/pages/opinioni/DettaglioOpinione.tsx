@@ -49,7 +49,7 @@ const opinionTitles: Record<string, string> = {
 };
 
 // IL COMPONENTE REACT
-export default function DettaglioOpinione({ opinionField, regionName }: { opinionField: string, regionName?: string }) {
+export default function DettaglioOpinione({ opinionField, regionName, provinceName }: { opinionField: string, regionName?: string, provinceName?: string }) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<DetailStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -77,9 +77,13 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
   }, [opinionField]);
 
   const basePageTitle = dynamicTitle || opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
-  const pageTitle = regionName 
-    ? `${basePageTitle} - ${regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ')}` 
-    : basePageTitle;
+  let pageTitle = basePageTitle;
+  if (regionName) {
+    pageTitle += ' - ' + regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
+  }
+  if (provinceName) {
+    pageTitle += ' - ' + provinceName.charAt(0).toUpperCase() + provinceName.slice(1).replace(/-/g, ' ');
+  }
 
   // Funzione per recuperare i dati dal backend
   const fetchData = useCallback(async () => {
@@ -88,11 +92,18 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     setError(null);
     try {
       let apiUrl = `/api/opinioni-dettaglio/${opinionField}`;
+      const params: string[] = [];
       if (regionName) {
         const formattedRegionName = regionName.charAt(0).toUpperCase() + regionName.slice(1).replace(/-/g, ' ');
-        apiUrl += `?regione=${encodeURIComponent(formattedRegionName)}`;
+        params.push(`regione=${encodeURIComponent(formattedRegionName)}`);
       }
-
+      if (provinceName) {
+        const formattedProvinceName = provinceName.charAt(0).toUpperCase() + provinceName.slice(1).replace(/-/g, ' ');
+        params.push(`provincia=${encodeURIComponent(formattedProvinceName)}`);
+      }
+      if (params.length > 0) {
+        apiUrl += `?${params.join('&')}`;
+      }
       const response = await fetch(apiUrl);
       if (!response.ok) {
         throw new Error(`Errore API: ${response.statusText}`);
@@ -104,7 +115,7 @@ export default function DettaglioOpinione({ opinionField, regionName }: { opinio
     } finally {
       setIsLoading(false);
     }
-  }, [user, opinionField, regionName]);
+  }, [user, opinionField, regionName, provinceName]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {
