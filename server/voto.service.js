@@ -13,14 +13,20 @@ class VotoService extends FirebaseService {
   static async voteMinistro(userId, categoria, nomeMinistro) {
       try {
           if (!db) return { success: false, error: "Database non configurato" };
+          // Normalizza il nome per evitare duplicati
+          let nomeRaw = (nomeMinistro || '').trim();
+          if (!nomeRaw) return { success: false, error: "Nome non valido" };
+          let nomeKey = nomeRaw.toLowerCase();
+          // Capitalizza per visualizzazione
+          let nomeDisplay = nomeRaw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
           const votiRef = collection(db, 'voti_ministri');
           const q = query(votiRef, where('userId', '==', userId), where('categoria', '==', categoria));
           const existingVotes = await getDocs(q);
 
           if (!existingVotes.empty) {
-              await updateDoc(existingVotes.docs[0].ref, { nomeMinistro, timestamp: new Date().toISOString() });
+              await updateDoc(existingVotes.docs[0].ref, { nomeMinistro: nomeKey, nomeDisplay, timestamp: new Date().toISOString() });
           } else {
-              await addDoc(votiRef, { userId, categoria, nomeMinistro, timestamp: new Date().toISOString() });
+              await addDoc(votiRef, { userId, categoria, nomeMinistro: nomeKey, nomeDisplay, timestamp: new Date().toISOString() });
           }
           return { success: true };
       } catch (error) {
@@ -53,11 +59,13 @@ class VotoService extends FirebaseService {
           const displayNames = {};
           snapshot.forEach(doc => {
               let nome = (doc.data().nomeMinistro || '').trim();
+              let nomeDisplay = (doc.data().nomeDisplay || '').trim();
               if (!nome) return;
               const key = nome.toLowerCase();
               counts[key] = (counts[key] || 0) + 1;
-              if (!displayNames[key] || nome.length > displayNames[key].length) {
-                  displayNames[key] = nome;
+              // Preferisci la versione display più lunga o più recente
+              if (!displayNames[key] || nomeDisplay.length > displayNames[key].length) {
+                  displayNames[key] = nomeDisplay || nome;
               }
           });
           // Ordina per voti decrescenti, poi per nome alfabetico per stabilità
