@@ -64,7 +64,7 @@ class VotoService extends FirebaseService {
   }
 
   static async getAllClassificheMinistri() {
-    const categorie = ['primo_ministro', 'esteri', 'interno', 'giustizia', 'difesa', 'economia', 'lavoro', 'istruzione', 'salute', 'cultura'];
+    const categorie = ['primo_ministro', 'esteri', 'interno', 'giustizia', 'difesa', 'economia', 'lavoro', 'istruzione', 'salute', 'cultura', 'ambiente_sicurezza_energetica'];
     const classifiche = {};
     for (const categoria of categorie) {
       classifiche[categoria] = await this.getClassificaMinistro(categoria);
