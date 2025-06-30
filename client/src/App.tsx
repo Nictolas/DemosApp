@@ -139,22 +139,12 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/opinioni/:opinionField/:regionName/:provinceName">
+      <Route path="/opinioni/:opinionField">
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
-              path="/opinioni/:opinionField/:regionName/:provinceName" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} regionName={params.regionName} provinceName={params.provinceName} />} 
-            />
-          </PageTransition>
-        )}
-      </Route>
-      <Route path="/opinioni/:opinionField/:regionName">
-        {(params) => (
-          <PageTransition location={location} type="fade-side">
-            <ProtectedRoute 
-              path="/opinioni/:opinionField/:regionName" 
-              component={() => <DettaglioOpinione opinionField={params.opinionField} regionName={params.regionName} />} 
+              path="/opinioni/:opinionField" 
+              component={() => <DettaglioOpinione opinionField={params.opinionField} />} 
             />
           </PageTransition>
         )}
