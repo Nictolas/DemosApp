@@ -58,17 +58,16 @@ class VotoService extends FirebaseService {
           const counts = {};
           const displayNames = {};
           snapshot.forEach(doc => {
-              let nome = (doc.data().nomeMinistro || '').trim();
+              // Usa solo il campo normalizzato
+              let nomeKey = (doc.data().nomeMinistro || '').trim().toLowerCase();
               let nomeDisplay = (doc.data().nomeDisplay || '').trim();
-              if (!nome) return;
-              const key = nome.toLowerCase();
-              counts[key] = (counts[key] || 0) + 1;
-              // Preferisci la versione display più lunga o più recente
-              if (!displayNames[key] || nomeDisplay.length > displayNames[key].length) {
-                  displayNames[key] = nomeDisplay || nome;
-              }
+              if (!nomeKey) return;
+              counts[nomeKey] = (counts[nomeKey] || 0) + 1;
+              // Usa sempre il display più recente
+              displayNames[nomeKey] = nomeDisplay || nomeKey;
           });
-          // Ordina per voti decrescenti, poi per nome alfabetico per stabilità
+          // DEBUG: stampa i risultati aggregati
+          console.log('Classifica aggregata:', counts, displayNames);
           return Object.entries(counts)
               .map(([key, voti]) => ({ nome: displayNames[key] || key, voti }))
               .sort((a, b) => b.voti - a.voti || a.nome.localeCompare(b.nome))
