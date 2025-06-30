@@ -45,56 +45,56 @@ export default function Governo() {
       color: "bg-blue-100 text-blue-600"
     },
     {
-      title: "Ministero dell'Interno",
+      title: "Ministro dell'Interno",
       categoria: "interno",
       icon: Shield,
       description: "Sicurezza pubblica e amministrazione territoriale",
       color: "bg-green-100 text-green-600"
     },
     {
-      title: "Ministero della Giustizia",
+      title: "Ministro della Giustizia",
       categoria: "giustizia",
       icon: Scale,
       description: "Sistema giudiziario e carcerario",
       color: "bg-purple-100 text-purple-600"
     },
     {
-      title: "Ministero della Difesa",
+      title: "Ministro della Difesa",
       categoria: "difesa",
       icon: Shield,
       description: "Forze armate e sicurezza nazionale",
       color: "bg-gray-100 text-gray-600"
     },
     {
-      title: "Ministero dell'Economia e delle Finanze",
+      title: "Ministro dell'Economia e delle Finanze",
       categoria: "economia",
       icon: Banknote,
       description: "Politiche economiche e fiscali",
       color: "bg-yellow-100 text-yellow-600"
     },
     {
-      title: "Ministero del Lavoro e delle Politiche Sociali",
+      title: "Ministro del Lavoro e delle Politiche Sociali",
       categoria: "lavoro",
       icon: Briefcase,
       description: "Occupazione e previdenza sociale",
       color: "bg-orange-100 text-orange-600"
     },
     {
-      title: "Ministero dell'Istruzione",
+      title: "Ministro dell'Istruzione",
       categoria: "istruzione",
       icon: GraduationCap,
       description: "Sistema educativo e formazione",
       color: "bg-indigo-100 text-indigo-600"
     },
     {
-      title: "Ministero della Salute",
+      title: "Ministro della Salute",
       categoria: "salute",
       icon: Heart,
       description: "Sanità pubblica e politiche sanitarie",
       color: "bg-pink-100 text-pink-600"
     },
     {
-      title: "Ministero della Cultura",
+      title: "Ministro della Cultura",
       categoria: "cultura",
       icon: Palette,
       description: "Patrimonio culturale e spettacolo",
