@@ -22,7 +22,14 @@ class UserService extends FirebaseService {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
       const userDocRef = doc(db, 'utenti', uid);
-      const dataToUpdate = { ...userData, updatedAt: new Date().toISOString() };
+      // Recupera i dati attuali
+      const userDoc = await getDoc(userDocRef);
+      let currentData = userDoc.exists() ? userDoc.data() : {};
+      // Se data_nascita non è presente o è vuota, mantieni quella attuale
+      let dataToUpdate = { ...userData, updatedAt: new Date().toISOString() };
+      if (!('data_nascita' in userData) || !userData.data_nascita) {
+        dataToUpdate.data_nascita = currentData.data_nascita || "";
+      }
       await updateDoc(userDocRef, dataToUpdate);
       return { success: true, data: dataToUpdate };
     } catch (error) {
