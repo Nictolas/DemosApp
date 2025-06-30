@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen, ClipboardList } from "lucide-react";
+import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen, ClipboardList, Trophy } from "lucide-react";
 
 export default function Gestisci() {
   const { user, isLoading } = useAuth();
@@ -212,6 +212,17 @@ export default function Gestisci() {
             </Button>
           </Link>
         )}
+
+        <Button
+          asChild
+          variant="outline"
+          className="w-full flex items-center justify-start gap-2 mb-4"
+        >
+          <a href="/gestisci-governo">
+            <Trophy className="h-5 w-5 text-yellow-600" />
+            Gestisci Governo
+          </a>
+        </Button>
       </div>
     </div>
   );
