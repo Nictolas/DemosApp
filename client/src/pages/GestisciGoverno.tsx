@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Trophy, Plus } from "lucide-react";
+import { Trophy, Plus, Pencil, Save, X as XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,10 @@ export default function GestisciGoverno() {
   const [form, setForm] = useState({ nome: '', categoria: '', descrizione: '' });
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ nome: string; categoria: string; descrizione: string }>({ nome: '', categoria: '', descrizione: '' });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchMinisteri = () => {
     setLoading(true);
@@ -73,6 +77,54 @@ export default function GestisciGoverno() {
     }
   };
 
+  const startEdit = (m: Ministero) => {
+    setEditId(m.id);
+    setEditForm({ nome: m.nome, categoria: m.categoria, descrizione: m.descrizione || '' });
+    setEditError(null);
+  };
+
+  const handleEditInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  };
+
+  const cancelEdit = () => {
+    setEditId(null);
+    setEditForm({ nome: '', categoria: '', descrizione: '' });
+    setEditError(null);
+  };
+
+  const saveEdit = async (id: string) => {
+    setEditError(null);
+    if (!editForm.nome.trim() || !editForm.categoria.trim()) {
+      setEditError('Nome e categoria sono obbligatori');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/ministeri/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome: editForm.nome.trim(),
+          categoria: editForm.categoria.trim(),
+          descrizione: editForm.descrizione.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setEditError(err.error || 'Errore nel salvataggio');
+      } else {
+        setEditId(null);
+        setEditForm({ nome: '', categoria: '', descrizione: '' });
+        fetchMinisteri();
+      }
+    } catch {
+      setEditError('Errore di rete');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
@@ -123,21 +175,52 @@ export default function GestisciGoverno() {
                       <th className="px-3 py-2 border-b text-left">Nome</th>
                       <th className="px-3 py-2 border-b text-left">Categoria</th>
                       <th className="px-3 py-2 border-b text-left">Descrizione</th>
+                      <th className="px-3 py-2 border-b text-left">Azioni</th>
                     </tr>
                   </thead>
                   <tbody>
                     {ministeri.length === 0 && (
-                      <tr><td colSpan={3} className="text-center py-4">Nessun ministero presente.</td></tr>
+                      <tr><td colSpan={4} className="text-center py-4">Nessun ministero presente.</td></tr>
                     )}
                     {ministeri.map((m) => (
                       <tr key={m.id} className="hover:bg-yellow-50">
-                        <td className="px-3 py-2 border-b font-medium">{m.nome}</td>
-                        <td className="px-3 py-2 border-b">{m.categoria}</td>
-                        <td className="px-3 py-2 border-b text-muted-foreground">{m.descrizione}</td>
+                        {editId === m.id ? (
+                          <>
+                            <td className="px-3 py-2 border-b font-medium">
+                              <Input name="nome" value={editForm.nome} onChange={handleEditInput} required />
+                            </td>
+                            <td className="px-3 py-2 border-b">
+                              <Input name="categoria" value={editForm.categoria} onChange={handleEditInput} required />
+                            </td>
+                            <td className="px-3 py-2 border-b">
+                              <Input name="descrizione" value={editForm.descrizione} onChange={handleEditInput} />
+                            </td>
+                            <td className="px-3 py-2 border-b flex gap-2">
+                              <Button type="button" size="sm" className="bg-green-600 hover:bg-green-700" disabled={savingEdit} onClick={() => saveEdit(m.id)}>
+                                <Save className="h-4 w-4" />
+                              </Button>
+                              <Button type="button" size="sm" variant="outline" onClick={cancelEdit}>
+                                <XIcon className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-3 py-2 border-b font-medium">{m.nome}</td>
+                            <td className="px-3 py-2 border-b">{m.categoria}</td>
+                            <td className="px-3 py-2 border-b text-muted-foreground">{m.descrizione}</td>
+                            <td className="px-3 py-2 border-b">
+                              <Button type="button" size="icon" variant="ghost" onClick={() => startEdit(m)}>
+                                <Pencil className="h-4 w-4 text-yellow-600" />
+                              </Button>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {editError && <p className="text-red-600 mt-2">{editError}</p>}
               </div>
             )}
           </CardContent>
