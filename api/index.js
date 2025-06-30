@@ -612,4 +612,14 @@ app.delete('/api/governo/classifica/:categoria/:nome', requireAdmin, async (req,
   }
 });
 
+app.post('/api/governo/vota', requireAuth, async (req, res) => {
+  // Accetta sia 'nome' che 'nomeMinistro' per compatibilità
+  const { categoria, nome, nomeMinistro } = req.body;
+  console.log('POST /api/governo/vota body:', req.body);
+  const nomeCandidato = nome || nomeMinistro;
+  if (!categoria || !nomeCandidato) return res.status(400).json({ error: "Missing category or name" });
+  const result = await VotoService.voteMinistro(req.user.id, categoria, nomeCandidato);
+  res.json(result);
+});
+
 export default app; 
