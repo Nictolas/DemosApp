@@ -110,6 +110,20 @@ export default function Governo() {
     }
   ];
 
+  const CATEGORIE_VALIDE = [
+    "primo_ministro",
+    "esteri",
+    "interno",
+    "giustizia",
+    "difesa",
+    "economia",
+    "lavoro",
+    "istruzione",
+    "salute",
+    "cultura",
+    "ambiente_sicurezza_energetica"
+  ];
+
   // Carica i voti dell'utente e le classifiche
   useEffect(() => {
     if (user) {
@@ -151,6 +165,7 @@ export default function Governo() {
   };
 
   const handleVote = async (categoria: string, nomeMinistro: string) => {
+    console.log('DEBUG handleVote', { categoria, nomeMinistro });
     if (!nomeMinistro.trim()) {
       toast({
         title: "Errore",
@@ -159,7 +174,15 @@ export default function Governo() {
       });
       return;
     }
-
+    if (!CATEGORIE_VALIDE.includes(categoria)) {
+      toast({
+        title: "Errore categoria",
+        description: `Categoria non valida: ${categoria}`,
+        variant: "destructive",
+      });
+      console.error('Categoria non valida in handleVote:', categoria, nomeMinistro);
+      return;
+    }
     setVotingCategory(categoria);
     try {
       const response = await fetch('/api/governo/vota', {
