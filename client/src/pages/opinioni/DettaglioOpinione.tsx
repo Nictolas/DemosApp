@@ -243,7 +243,15 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
         {isLoading ? (
           <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : error ? (
-          <p className="text-center text-red-500">{error}</p>
+          <Card className="my-8 bg-red-50 border-red-300">
+            <CardHeader>
+              <CardTitle className="text-red-700">Errore</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-red-600 mb-4">{error || "Errore temporaneo del database, riprova tra qualche secondo."}</p>
+              <Button variant="outline" onClick={() => fetchData()}>Riprova</Button>
+            </CardContent>
+          </Card>
         ) : stats ? (
           <div className="space-y-8">
             <Card>
