@@ -57,49 +57,49 @@ function Router() {
     <Switch>
       <Route path="/">
         {() => (
-          <PageTransition location={location} type="fade-up" delay={100}>
+          <PageTransition location={location} type="fade-up" delay={100} showLoader={true} loaderDuration={500}>
             <LandingPage />
           </PageTransition>
         )}
       </Route>
       <Route path="/auth">
         {() => (
-          <PageTransition location={location} type="fade-up">
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
             <AuthPage />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione">
         {(params) => (
-          <PageTransition location={location} type="fade-side">
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={500}>
             <ProtectedRoute path="/registrazione" component={Home} />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione-candidatura">
         {() => (
-          <PageTransition location={location} type="fade-up">
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
             <RegistrazioneCandidatura />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione-elezione">
         {() => (
-          <PageTransition location={location} type="fade-up">
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
             <RegistrazioneElezione />
           </PageTransition>
         )}
       </Route>
       <Route path="/registrazione-elezione-candidatura">
         {() => (
-          <PageTransition location={location} type="fade-up">
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
             <RegistrazioneElezioneCandidatura />
           </PageTransition>
         )}
       </Route>
       <Route path="/menu">
         {(params) => (
-          <PageTransition location={location} type="fade-side">
+          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={500}>
             <ProtectedRoute path="/menu" component={Menu} />
           </PageTransition>
         )}
