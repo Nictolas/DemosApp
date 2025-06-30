@@ -58,8 +58,7 @@ class AuthService extends FirebaseService {
         email: user.email,
         ...userDetails,
         created_at: new Date().toISOString(),
-        status: 'pending', // Stato iniziale
-        ruolo: 'Utente' // Ruolo di default
+        status: 'pending' // Stato iniziale
       };
 
       await UserService.createUserProfile(user.uid, userProfile);
