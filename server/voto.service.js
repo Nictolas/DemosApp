@@ -60,9 +60,10 @@ class VotoService extends FirebaseService {
                   displayNames[key] = nome;
               }
           });
+          // Ordina per voti decrescenti, poi per nome alfabetico per stabilità
           return Object.entries(counts)
               .map(([key, voti]) => ({ nome: displayNames[key] || key, voti }))
-              .sort((a, b) => b.voti - a.voti)
+              .sort((a, b) => b.voti - a.voti || a.nome.localeCompare(b.nome))
               .slice(0, 3);
       } catch (error) {
           this.handleError(error, `getClassificaMinistro (${categoria})`);
