@@ -22,6 +22,9 @@ import NotificaService from "../server/notifica.service.js";
 import SostenitoriService from "../server/sostenitori.service.js";
 import OpinioniService from '../server/opinioni.service.js';
 
+// === API CRUD per la raccolta 'ministeri' (solo admin per POST/PUT/DELETE) ===
+const { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } = require('firebase-admin/firestore');
+
 dotenv.config();
 
 const app = express();
@@ -620,6 +623,59 @@ app.post('/api/governo/vota', requireAuth, async (req, res) => {
   if (!categoria || !nomeCandidato) return res.status(400).json({ error: "Missing category or name" });
   const result = await VotoService.voteMinistro(req.user.id, categoria, nomeCandidato);
   res.json(result);
+});
+
+// GET tutti i ministeri
+app.get('/api/ministeri', async (req, res) => {
+  try {
+    const db = getFirestore();
+    const snap = await getDocs(collection(db, 'ministeri'));
+    const result = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nel recupero dei ministeri' });
+  }
+});
+
+// POST nuovo ministero (admin)
+app.post('/api/ministeri', requireAdmin, async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { nome, categoria, descrizione, icona, colore, ordine, abilitato } = req.body;
+    if (!nome || !categoria) return res.status(400).json({ error: 'Nome e categoria obbligatori' });
+    const docRef = await addDoc(collection(db, 'ministeri'), {
+      nome, categoria, descrizione: descrizione || '', icona: icona || '', colore: colore || '', ordine: ordine || 0, abilitato: abilitato !== false
+    });
+    res.json({ id: docRef.id });
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nell\'aggiunta del ministero' });
+  }
+});
+
+// PUT modifica ministero (admin)
+app.put('/api/ministeri/:id', requireAdmin, async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { id } = req.params;
+    const { nome, categoria, descrizione, icona, colore, ordine, abilitato } = req.body;
+    const docRef = doc(db, 'ministeri', id);
+    await updateDoc(docRef, { nome, categoria, descrizione, icona, colore, ordine, abilitato });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nella modifica del ministero' });
+  }
+});
+
+// DELETE elimina ministero (admin)
+app.delete('/api/ministeri/:id', requireAdmin, async (req, res) => {
+  try {
+    const db = getFirestore();
+    const { id } = req.params;
+    await deleteDoc(doc(db, 'ministeri', id));
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Errore nella cancellazione del ministero' });
+  }
 });
 
 export default app; 
