@@ -595,4 +595,21 @@ app.delete('/api/iniziative-popolari/:id', requireAdmin, async (req, res) => {
   res.status(result.success ? 200 : 400).json(result);
 });
 
+// Endpoint per cancellare un candidato dalla classifica di una categoria (solo admin)
+app.delete('/api/governo/classifica/:categoria/:nome', requireAdmin, async (req, res) => {
+  const { categoria, nome } = req.params;
+  try {
+    // Normalizza il nome per la ricerca
+    const nomeKey = decodeURIComponent(nome).trim().toLowerCase();
+    const result = await VotoService.deleteAllVotesForCandidate('voti_ministri', nomeKey, categoria);
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Candidato non trovato o già eliminato' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nella cancellazione del candidato' });
+  }
+});
+
 export default app; 
