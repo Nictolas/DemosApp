@@ -1,0 +1,12 @@
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permetti l'accesso in lettura/scrittura alla collezione 'utenti' a tutti (solo per test, NON in produzione)
+    match /utenti/{document=**} {
+      allow read, write: if true;
+    }
+    // Tutto il resto solo per autenticati
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+} 
