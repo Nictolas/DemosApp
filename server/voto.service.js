@@ -14,18 +14,17 @@ class VotoService extends FirebaseService {
       try {
           console.log('voteMinistro chiamato con:', { userId, categoria, nomeMinistro });
           if (!db) return { success: false, error: "Database non configurato" };
-          // Normalizza il nome per evitare duplicati
           let nomeRaw = (nomeMinistro || '').trim();
           if (!nomeRaw) return { success: false, error: "Nome non valido" };
           let nomeKey = nomeRaw.toLowerCase();
-          // Capitalizza per visualizzazione
           let nomeDisplay = nomeRaw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
           const votiRef = collection(db, 'voti_ministri');
           const q = query(votiRef, where('userId', '==', userId), where('categoria', '==', categoria));
           const existingVotes = await getDocs(q);
 
           if (!existingVotes.empty) {
-              await updateDoc(existingVotes.docs[0].ref, { nomeMinistro: nomeKey, nomeDisplay, timestamp: new Date().toISOString() });
+              const docRef = existingVotes.docs[0].ref;
+              await updateDoc(docRef, { nomeMinistro: nomeKey, nomeDisplay, timestamp: new Date().toISOString() });
           } else {
               await addDoc(votiRef, { userId, categoria, nomeMinistro: nomeKey, nomeDisplay, timestamp: new Date().toISOString() });
           }
