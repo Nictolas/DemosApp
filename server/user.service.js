@@ -157,9 +157,9 @@ class UserService extends FirebaseService {
 
   /**
    * Recupera statistiche dettagliate per un singolo campo di opinione.
-   * Può essere filtrato per regione.
+   * Può essere filtrato per regione e provincia.
    */
-  static async getOpinionDetailStats(opinionField, regione) {
+  static async getOpinionDetailStats(opinionField, regione, provincia) {
     try {
       if (!adminDb) {
         console.error("Admin SDK non inizializzato, impossibile recuperare statistiche dettagliate.");
@@ -180,10 +180,13 @@ class UserService extends FirebaseService {
       };
 
       let firestoreQuery = 
-          adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita', 'regione_residenza');
+          adminDb.collection('utenti').select(opinionField, 'genere', 'data_nascita', 'regione_residenza', 'provincia_residenza');
 
       if (regione) {
         firestoreQuery = firestoreQuery.where('regione_residenza', '==', regione);
+      }
+      if (provincia) {
+        firestoreQuery = firestoreQuery.where('provincia_residenza', '==', provincia);
       }
 
       const snapshot = await firestoreQuery.get();

@@ -225,11 +225,12 @@ app.get('/api/statistiche-opinioni', requireStatsRole, async (req, res) => {
 app.get('/api/opinioni-dettaglio/:opinionField', requireStatsRole, async (req, res) => {
     const { opinionField } = req.params;
     const regione = req.query.regione;
+    const provincia = req.query.provincia;
     // Recupera la lista dinamica delle opinioni
     const opinioniList = await OpinioniService.listOpinioni();
     const validFields = opinioniList.map(o => o.id);
     if (!validFields.includes(opinionField)) return res.status(400).json({ error: "Invalid opinion field" });
-    res.json(await UserService.getOpinionDetailStats(opinionField, regione));
+    res.json(await UserService.getOpinionDetailStats(opinionField, regione, provincia));
 });
 
 // Sostenitori & Politici
