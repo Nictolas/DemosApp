@@ -3,6 +3,8 @@ import FirebaseService from './firebase-service.js';
 import { db } from '../api/firebase-config.js';
 // Import necessari da 'firebase/firestore'
 import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
+import FirestoreStore from 'connect-firestore';
+import session from 'express-session';
 
 class VotoService extends FirebaseService {
 
