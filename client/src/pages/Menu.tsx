@@ -198,6 +198,15 @@ export default function Menu() {
                   Proponi
                 </Button>
               </Link>
+              <Link href="/impostazioni">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <Settings className="h-5 w-5" />
+                  Impostazioni
+                </Button>
+              </Link>
               
               {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
                 <Link href="/sostenitori">
