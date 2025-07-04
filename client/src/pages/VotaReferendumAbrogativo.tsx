@@ -32,7 +32,7 @@ export default function VotaReferendumAbrogativo() {
       const response = await fetch("/api/referendum-abrogativi/vota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ referendumId: id }),
       });
       if (!response.ok) throw new Error("Errore nel voto");
       return response.json();

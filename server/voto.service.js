@@ -232,9 +232,8 @@ class VotoService extends FirebaseService {
   }
 
   // --- Iniziative Popolari: Voto ---
-  static async voteIniziativaPopolare(userId, legge) {
-    // legge = id o nome dell'iniziativa popolare
-    return this._registerUserVote('voti_iniziative_popolari', userId, legge, 'legge');
+  static async voteIniziativaPopolare(userId, iniziativaId) {
+    return this._registerUserVote('voti_iniziative_popolari', userId, iniziativaId, 'iniziativaId');
   }
 
   // === Metodi generici per votazioni ===
@@ -423,6 +422,10 @@ class VotoService extends FirebaseService {
     } catch (error) {
       return this.handleError(error, `deleteReferendumAbrogativo(${id})`);
     }
+  }
+
+  static async voteReferendum(userId, referendumId) {
+    return this._registerUserVote('voti_referendum_abrogativi', userId, referendumId, 'referendumId');
   }
 
 }
