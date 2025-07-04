@@ -120,7 +120,9 @@ passport.deserializeUser(async (id, done) => {
 
 // Middleware di Autenticazione
 const requireAuth = (req, res, next) => {
+  console.log("INIZIO requireAuth");
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+  console.log("FINE requireAuth");
   next();
 };
 
