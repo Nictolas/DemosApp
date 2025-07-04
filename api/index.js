@@ -462,6 +462,7 @@ app.get('/api/limiti', requireStatsRole, async (req, res) => {
   }
 });
 
+// === INIZIATIVE POPOLARI: Lista e voti utente ===
 app.get('/api/iniziative-popolari/lista', requireAuth, async (req, res) => {
   try {
     const lista = await VotoService.getListaIniziativePopolari();
@@ -470,106 +471,26 @@ app.get('/api/iniziative-popolari/lista', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Errore nel recupero delle iniziative popolari' });
   }
 });
-
-// === INIZIATIVE POPOLARI: Richieste di nuove iniziative ===
-app.get('/api/iniziative-popolari/richieste', requireAdmin, async (req, res) => {
-  const richieste = await VotoService.getPendingIniziativePopolari();
-  res.json(richieste);
+app.get('/api/iniziative-popolari/voti', requireAuth, async (req, res) => {
+  // ... (la tua logica esistente)
 });
-
-app.post('/api/iniziative-popolari/:id/accetta', requireAdmin, async (req, res) => {
+// === INIZIATIVE POPOLARI: Lista votanti per una specifica iniziativa ===
+app.get('/api/iniziative-popolari/:id/votanti', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const result = await VotoService.acceptIniziativaPopolare(id);
-  res.status(result.success ? 200 : 400).json(result);
+  res.json(await VotoService.getVotersIniziativaPopolare(id));
 });
 
-app.post('/api/iniziative-popolari/:id/rifiuta', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const result = await VotoService.rejectIniziativaPopolare(id);
-  res.status(result.success ? 200 : 400).json(result);
-});
-
-// === INIZIATIVE POPOLARI: Proposta nuova iniziativa ===
-app.post('/api/iniziative-popolari', requireAuth, async (req, res) => {
-  const { nome, dataInizio, dataFine, sitoWeb } = req.body;
-  if (!nome || !dataInizio || !dataFine || !sitoWeb) return res.status(400).json({ error: 'Nome, dataInizio, dataFine e sitoWeb sono obbligatori' });
-  const result = await VotoService.saveIniziativaPopolare({
-    userId: req.user.id,
-    nome,
-    dataInizio,
-    dataFine,
-    sitoWeb
-  });
-  res.status(result.success === false ? 400 : 200).json(result);
-});
-
-// === INIZIATIVE POPOLARI: Aggiorna quorum ===
-app.patch('/api/iniziative-popolari/:id/quorum', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { quorum } = req.body;
-  if (!['ok', 'pending', 'no'].includes(quorum)) return res.status(400).json({ error: 'Valore quorum non valido' });
-  const result = await VotoService.updateQuorumIniziativa(id, quorum);
-  res.status(result.success ? 200 : 400).json(result);
-});
-
-// === REFERENDUM ABROGATIVI: Proposta nuovo referendum ===
-app.post('/api/referendum-abrogativi', requireAuth, async (req, res) => {
-  const { nome, dataInizio, dataFine, sitoWeb } = req.body;
-  if (!nome || !dataInizio || !dataFine || !sitoWeb) return res.status(400).json({ error: 'Nome, dataInizio, dataFine e sitoWeb sono obbligatori' });
-  const result = await VotoService.saveReferendumAbrogativo({
-    userId: req.user.id,
-    nome,
-    dataInizio,
-    dataFine,
-    sitoWeb
-  });
-  res.status(result.success === false ? 400 : 200).json(result);
-});
-
-// === REFERENDUM ABROGATIVI: Richieste pending ===
-app.get('/api/referendum-abrogativi/richieste', requireAdmin, async (req, res) => {
-  const richieste = await VotoService.getPendingReferendumAbrogativi();
-  res.json(richieste);
-});
-
-// === REFERENDUM ABROGATIVI: Accetta ===
-app.post('/api/referendum-abrogativi/:id/accetta', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const result = await VotoService.acceptReferendumAbrogativo(id);
-  res.status(result.success ? 200 : 400).json(result);
-});
-
-// === REFERENDUM ABROGATIVI: Rifiuta ===
-app.post('/api/referendum-abrogativi/:id/rifiuta', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const result = await VotoService.rejectReferendumAbrogativo(id);
-  res.status(result.success ? 200 : 400).json(result);
-});
-
-// === REFERENDUM ABROGATIVI: Aggiorna quorum ===
-app.patch('/api/referendum-abrogativi/:id/quorum', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { quorum } = req.body;
-  if (!['ok', 'pending', 'no'].includes(quorum)) return res.status(400).json({ error: 'Valore quorum non valido' });
-  const result = await VotoService.updateQuorumReferendum(id, quorum);
-  res.status(result.success ? 200 : 400).json(result);
-});
-
-// === REFERENDUM ABROGATIVI: Cancella referendum ===
-app.delete('/api/referendum-abrogativi/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const result = await VotoService.deleteReferendumAbrogativo(id);
-  res.status(result.success ? 200 : 400).json(result);
-});
-
-// === REFERENDUM ABROGATIVI: Lista referendum abrogativi ===
+// === REFERENDUM ABROGATIVI: Lista e voti utente ===
 app.get('/api/referendum-abrogativi/lista', requireAuth, async (req, res) => {
-  try {
-    const lista = await VotoService.getListaReferendumAbrogativi();
-    res.json(lista);
-  } catch (error) {
-    res.status(500).json({ error: 'Errore nel recupero dei referendum abrogativi' });
-  }
+  // ... (la tua logica esistente)
+});
+app.get('/api/referendum-abrogativi/voti', requireAuth, async (req, res) => {
+  // ... (la tua logica esistente)
+});
+// === REFERENDUM ABROGATIVI: Lista votanti per uno specifico referendum ===
+app.get('/api/referendum-abrogativi/:id/votanti', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  res.json(await VotoService.getVotersReferendumAbrogativo(id));
 });
 
 // Endpoint per eliminare un candidato dalla classifica Capo di Stato (solo admin)
@@ -679,16 +600,6 @@ app.delete('/api/ministeri/:id', requireAdmin, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Errore nella cancellazione del ministero' });
   }
-});
-
-app.get('/api/iniziative-popolari/:id/votanti', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  res.json(await VotoService.getVotersIniziativaPopolare(id));
-});
-
-app.get('/api/referendum-abrogativi/:id/votanti', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  res.json(await VotoService.getVotersReferendumAbrogativo(id));
 });
 
 export default app; 
