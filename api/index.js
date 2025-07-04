@@ -488,6 +488,7 @@ app.get('/api/iniziative-popolari/:id/votanti', requireAuth, async (req, res) =>
 });
 
 // === REFERENDUM ABROGATIVI: Lista e voti utente ===
+console.log("DEFINIZIONE ENDPOINT /api/referendum-abrogativi/lista");
 app.get('/api/referendum-abrogativi/lista', requireAuth, async (req, res) => {
   // ... (la tua logica esistente)
 });
