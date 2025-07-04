@@ -85,9 +85,18 @@ export default function VotaIniziativaPopolare() {
                   {iniziativeQuorum.map((iniziativa: any) => (
                     <TableRow key={iniziativa.id}>
                       <TableCell className="font-medium">
-                        <Link href={`/iniziative-popolari/${iniziativa.id}`} className="text-blue-700 underline hover:text-blue-900 cursor-pointer">
-                          {iniziativa.nome}
-                        </Link>
+                        {iniziativa.sitoWeb ? (
+                          <a
+                            href={iniziativa.sitoWeb}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                          >
+                            {iniziativa.nome}
+                          </a>
+                        ) : (
+                          <span>{iniziativa.nome}</span>
+                        )}
                       </TableCell>
                       <TableCell>{iniziativa.voti || 0}</TableCell>
                       <TableCell>

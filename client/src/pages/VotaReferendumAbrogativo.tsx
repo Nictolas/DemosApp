@@ -84,9 +84,18 @@ export default function VotaReferendumAbrogativo() {
                   {referendumQuorum.map((referendum) => (
                     <TableRow key={referendum.id}>
                       <TableCell className="font-medium">
-                        <Link href={`/referendum-abrogativi/${referendum.id}`} className="text-blue-700 underline hover:text-blue-900 cursor-pointer">
-                          {referendum.nome}
-                        </Link>
+                        {referendum.sitoWeb ? (
+                          <a
+                            href={referendum.sitoWeb}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                          >
+                            {referendum.nome}
+                          </a>
+                        ) : (
+                          <span>{referendum.nome}</span>
+                        )}
                       </TableCell>
                       <TableCell>{referendum.voti || 0}</TableCell>
                       <TableCell>
