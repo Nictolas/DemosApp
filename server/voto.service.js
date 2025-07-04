@@ -231,6 +231,12 @@ class VotoService extends FirebaseService {
     }
   }
 
+  // --- Iniziative Popolari: Voto ---
+  static async voteIniziativaPopolare(userId, legge) {
+    // legge = id o nome dell'iniziativa popolare
+    return this._registerUserVote('voti_iniziative_popolari', userId, legge, 'legge');
+  }
+
   // === Metodi generici per votazioni ===
   static async _registerUserVote(collectionName, userId, value, valueKey = 'nome') {
     try {
