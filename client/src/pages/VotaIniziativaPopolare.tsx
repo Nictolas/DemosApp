@@ -33,7 +33,7 @@ export default function VotaIniziativaPopolare() {
       const response = await fetch("/api/iniziative-popolari/vota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ iniziativaId: id }),
       });
       if (!response.ok) throw new Error("Errore nel voto");
       return response.json();

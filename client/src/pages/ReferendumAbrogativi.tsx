@@ -76,11 +76,11 @@ export default function ReferendumAbrogativi() {
 
   // Vote mutation
   const voteMutation = useMutation({
-    mutationFn: async (nome: string) => {
+    mutationFn: async (id: string) => {
       const response = await fetch("/api/referendum-abrogativi/vota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome }),
+        body: JSON.stringify({ referendumId: id }),
       });
       if (!response.ok) throw new Error("Errore nel voto");
       return response.json();
