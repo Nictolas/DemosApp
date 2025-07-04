@@ -436,7 +436,7 @@ class VotoService extends FirebaseService {
   static async getListaReferendumAbrogativi() {
     try {
       if (!db) return [];
-      const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'accepted'));
+      const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'accepted'), limit(10));
       const snapshot = await getDocs(q);
       const referendum = await Promise.all(snapshot.docs.map(async doc => {
         try {
