@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Impostazioni() {
   const { user, isLoading, logoutMutation } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
-  const { toast } = require("@/hooks/use-toast").useToast();
+  const { toast } = useToast();
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
