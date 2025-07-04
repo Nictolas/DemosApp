@@ -472,7 +472,14 @@ app.get('/api/iniziative-popolari/lista', requireAuth, async (req, res) => {
   }
 });
 app.get('/api/iniziative-popolari/voti', requireAuth, async (req, res) => {
-  // ... (la tua logica esistente)
+  try {
+    console.log("Chiamata a /api/iniziative-popolari/voti da utente:", req.user?.id, req.user?.email);
+    const result = await VotoService.getUserVotiIniziativePopolari(req.user.id);
+    res.json(result);
+  } catch (error) {
+    console.error("Errore in /api/iniziative-popolari/voti:", error);
+    res.status(500).json({ error: error.message || "Errore interno" });
+  }
 });
 // === INIZIATIVE POPOLARI: Lista votanti per una specifica iniziativa ===
 app.get('/api/iniziative-popolari/:id/votanti', requireAuth, async (req, res) => {
@@ -485,7 +492,14 @@ app.get('/api/referendum-abrogativi/lista', requireAuth, async (req, res) => {
   // ... (la tua logica esistente)
 });
 app.get('/api/referendum-abrogativi/voti', requireAuth, async (req, res) => {
-  // ... (la tua logica esistente)
+  try {
+    console.log("Chiamata a /api/referendum-abrogativi/voti da utente:", req.user?.id, req.user?.email);
+    const result = await VotoService.getUserVotiReferendum(req.user.id);
+    res.json(result);
+  } catch (error) {
+    console.error("Errore in /api/referendum-abrogativi/voti:", error);
+    res.status(500).json({ error: error.message || "Errore interno" });
+  }
 });
 // === REFERENDUM ABROGATIVI: Lista votanti per uno specifico referendum ===
 app.get('/api/referendum-abrogativi/:id/votanti', requireAuth, async (req, res) => {
