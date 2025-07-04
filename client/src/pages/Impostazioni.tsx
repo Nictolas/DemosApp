@@ -3,11 +3,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Settings, Shield, User, Bell, Lock, FileText } from "lucide-react";
+import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 
 export default function Impostazioni() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, logoutMutation } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const { toast } = require("@/hooks/use-toast").useToast();
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
@@ -21,6 +23,26 @@ export default function Impostazioni() {
       </div>
     );
   }
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logoutMutation.mutateAsync();
+      toast({
+        title: "Logout effettuato",
+        description: "Sei stato disconnesso con successo.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Errore durante il logout:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante il logout.",
+        variant: "destructive",
+      });
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
@@ -130,8 +152,26 @@ export default function Impostazioni() {
               </div>
             </div>
           </CardContent>
-          <div className="flex justify-end p-4">
+          <div className="flex justify-end p-4 gap-2">
             <Button variant="default">Test</Button>
+            <Button 
+              variant="destructive" 
+              className="max-w-sm"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Disconnessione in corso...
+                </>
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Disconnetti
+                </>
+              )}
+            </Button>
           </div>
         </Card>
       </div>

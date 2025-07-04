@@ -232,26 +232,6 @@ export default function Menu() {
                 </Link>
               )}
             </CardContent>
-            <CardFooter className="flex justify-center p-6 pt-0">
-              <Button 
-                variant="destructive" 
-                className="w-full max-w-sm"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-              >
-                {isLoggingOut ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Disconnessione in corso...
-                  </>
-                ) : (
-                  <>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Disconnetti
-                  </>
-                )}
-              </Button>
-            </CardFooter>
           </Card>
         </div>
       )}
