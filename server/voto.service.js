@@ -440,7 +440,12 @@ class VotoService extends FirebaseService {
         console.log("DB non configurato");
         return [];
       }
-      const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'accepted'), limit(10));
+      const q = query(
+        collection(db, 'referendum_abrogativi'),
+        where('status', '==', 'accepted'),
+        where('quorum', '==', 'ok'),
+        limit(10)
+      );
       const snapshot = await getDocs(q);
       console.log("Snapshot referendum_abrogativi:", snapshot.size);
 
