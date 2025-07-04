@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,9 @@ export default function VotaReferendumAbrogativo() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState<{open: boolean, names: string[]}>({open: false, names: []});
+  // Stato centralizzato per i sostegni
+  const [sostegni, setSostegni] = useState<{[id: string]: {count: number, supporters: string[]}}>({});
+  const [loadingSostegni, setLoadingSostegni] = useState(false);
 
   // Recupera la lista dei referendum abrogativi
   const { data: listaReferendum = [], isLoading: isListaLoading } = useQuery<any[]>({
@@ -65,7 +68,6 @@ export default function VotaReferendumAbrogativo() {
       user.candidato_comunale,
     ].filter(Boolean);
   };
-  const myPeople = getMyPeople(user);
 
   // Funzione per recuperare i nomi dei sostenitori (API /api/users/:id)
   const fetchNames = async (ids: string[]) => {
@@ -81,6 +83,24 @@ export default function VotaReferendumAbrogativo() {
     }));
     return results;
   };
+
+  useEffect(() => {
+    if (!listaReferendum || !user) return;
+    setLoadingSostegni(true);
+    const myPeople = getMyPeople(user);
+    Promise.all(
+      listaReferendum.map(async (r: any) => {
+        const res = await fetch(`/api/referendum-abrogativi/${r.id}/votanti`);
+        if (!res.ok) return [r.id, {count: 0, supporters: []}];
+        const ids = await res.json();
+        const filtered = ids.filter((id: string) => myPeople.includes(id));
+        return [r.id, {count: filtered.length, supporters: filtered}];
+      })
+    ).then(results => {
+      setSostegni(Object.fromEntries(results));
+      setLoadingSostegni(false);
+    });
+  }, [JSON.stringify(listaReferendum), user && getMyPeople(user).join(",")]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -118,18 +138,6 @@ export default function VotaReferendumAbrogativo() {
                 </TableHeader>
                 <TableBody>
                   {referendumQuorum.map((referendum) => {
-                    const [supportCount, setSupportCount] = useState<number>(0);
-                    const [supporters, setSupporters] = useState<string[]>([]);
-                    React.useEffect(() => {
-                      fetch(`/api/referendum-abrogativi/${referendum.id}/votanti`).then(async res => {
-                        if (res.ok) {
-                          const ids = await res.json();
-                          const filtered = ids.filter((id: string) => myPeople.includes(id));
-                          setSupportCount(filtered.length);
-                          setSupporters(filtered);
-                        }
-                      });
-                    }, [referendum.id, myPeople.join(",")]);
                     return (
                       <TableRow key={referendum.id}>
                         <TableCell className="font-medium">
@@ -158,12 +166,16 @@ export default function VotaReferendumAbrogativo() {
                           </Button>
                         </TableCell>
                         <TableCell>
-                          {supportCount > 0 ? (
-                            <Button variant="outline" size="sm" onClick={async () => {
-                              const names = await fetchNames(supporters);
-                              setOpenDialog({open: true, names});
-                            }}>
-                              Sostenuta da {supportCount} tuoi rappresentanti/candidati
+                          {sostegni[referendum.id]?.count > 0 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                const names = await fetchNames(sostegni[referendum.id].supporters);
+                                setOpenDialog({open: true, names});
+                              }}
+                            >
+                              Sostenuta da {sostegni[referendum.id].count} tuoi rappresentanti/candidati
                             </Button>
                           ) : (
                             <span className="text-muted-foreground">-</span>

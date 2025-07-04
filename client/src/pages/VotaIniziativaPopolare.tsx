@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,9 @@ export default function VotaIniziativaPopolare() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [openDialog, setOpenDialog] = useState<{open: boolean, names: string[]}>({open: false, names: []});
+  // Stato centralizzato per i sostegni
+  const [sostegni, setSostegni] = useState<{[id: string]: {count: number, supporters: string[]}}>({});
+  const [loadingSostegni, setLoadingSostegni] = useState(false);
 
   // Recupera la lista delle iniziative popolari
   const { data: listaIniziative = [], isLoading: isListaLoading } = useQuery<any[]>({
@@ -66,7 +69,6 @@ export default function VotaIniziativaPopolare() {
       user.candidato_comunale,
     ].filter(Boolean);
   };
-  const myPeople = getMyPeople(user);
 
   // Funzione per recuperare i nomi dei sostenitori (API /api/users/:id)
   const fetchNames = async (ids: string[]) => {
@@ -82,6 +84,24 @@ export default function VotaIniziativaPopolare() {
     }));
     return results;
   };
+
+  useEffect(() => {
+    if (!listaIniziative || !user) return;
+    setLoadingSostegni(true);
+    const myPeople = getMyPeople(user);
+    Promise.all(
+      listaIniziative.map(async (i: any) => {
+        const res = await fetch(`/api/iniziative-popolari/${i.id}/votanti`);
+        if (!res.ok) return [i.id, {count: 0, supporters: []}];
+        const ids = await res.json();
+        const filtered = ids.filter((id: string) => myPeople.includes(id));
+        return [i.id, {count: filtered.length, supporters: filtered}];
+      })
+    ).then(results => {
+      setSostegni(Object.fromEntries(results));
+      setLoadingSostegni(false);
+    });
+  }, [JSON.stringify(listaIniziative), user && getMyPeople(user).join(",")]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -119,18 +139,6 @@ export default function VotaIniziativaPopolare() {
                 </TableHeader>
                 <TableBody>
                   {iniziativeQuorum.map((iniziativa: any) => {
-                    const [supportCount, setSupportCount] = useState<number>(0);
-                    const [supporters, setSupporters] = useState<string[]>([]);
-                    React.useEffect(() => {
-                      fetch(`/api/iniziative-popolari/${iniziativa.id}/votanti`).then(async res => {
-                        if (res.ok) {
-                          const ids = await res.json();
-                          const filtered = ids.filter((id: string) => myPeople.includes(id));
-                          setSupportCount(filtered.length);
-                          setSupporters(filtered);
-                        }
-                      });
-                    }, [iniziativa.id, myPeople.join(",")]);
                     return (
                       <TableRow key={iniziativa.id}>
                         <TableCell className="font-medium">
@@ -159,12 +167,16 @@ export default function VotaIniziativaPopolare() {
                           </Button>
                         </TableCell>
                         <TableCell>
-                          {supportCount > 0 ? (
-                            <Button variant="outline" size="sm" onClick={async () => {
-                              const names = await fetchNames(supporters);
-                              setOpenDialog({open: true, names});
-                            }}>
-                              Sostenuta da {supportCount} tuoi rappresentanti/candidati
+                          {sostegni[iniziativa.id]?.count > 0 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                const names = await fetchNames(sostegni[iniziativa.id].supporters);
+                                setOpenDialog({open: true, names});
+                              }}
+                            >
+                              Sostenuta da {sostegni[iniziativa.id].count} tuoi rappresentanti/candidati
                             </Button>
                           ) : (
                             <span className="text-muted-foreground">-</span>
