@@ -130,6 +130,9 @@ export default function Impostazioni() {
               </div>
             </div>
           </CardContent>
+          <div className="flex justify-end p-4">
+            <Button variant="default">Test</Button>
+          </div>
         </Card>
       </div>
     </div>
