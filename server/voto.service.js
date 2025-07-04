@@ -451,6 +451,22 @@ class VotoService extends FirebaseService {
     }
   }
 
+  // Restituisce la lista degli userId che hanno votato una specifica iniziativa popolare
+  static async getVotersIniziativaPopolare(iniziativaId) {
+    if (!db) return [];
+    const q = query(collection(db, 'voti_iniziative_popolari'), where('iniziativaId', '==', iniziativaId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data().userId);
+  }
+
+  // Restituisce la lista degli userId che hanno votato un referendum abrogativo
+  static async getVotersReferendumAbrogativo(referendumId) {
+    if (!db) return [];
+    const q = query(collection(db, 'voti_referendum_abrogativi'), where('referendumId', '==', referendumId));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data().userId);
+  }
+
 }
 
 export default VotoService; 

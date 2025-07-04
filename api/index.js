@@ -681,4 +681,14 @@ app.delete('/api/ministeri/:id', requireAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/iniziative-popolari/:id/votanti', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  res.json(await VotoService.getVotersIniziativaPopolare(id));
+});
+
+app.get('/api/referendum-abrogativi/:id/votanti', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  res.json(await VotoService.getVotersReferendumAbrogativo(id));
+});
+
 export default app; 
