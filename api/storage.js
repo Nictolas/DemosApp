@@ -1,21 +1,17 @@
 // Import da librerie esterne
 import { eq } from "drizzle-orm";
 import session from "express-session";
-import connectPg from "connect-pg-simple";
+import FirestoreStore from 'connect-firestore';
 
 // ===== IMPORT LOCALI CORRETTI CON .js =====
-import { db, pool } from "../db/index.js"; // Percorso corretto alla cartella db
+import { db } from './firebase-config.js'; // Assicurati che questa sia la tua istanza Firestore
 import { utenti, users } from "../shared/schema.js"; // Percorso corretto alla cartella shared
 // import { Utente } from './types'; // Non serve in JS
 
-// Session store per l'autenticazione
-const PostgresSessionStore = connectPg(session);
-
 export const storage = {
-  sessionStore: new PostgresSessionStore({
-    pool,
-    createTableIfMissing: true,
-    tableName: 'user_sessions'
+  sessionStore: new FirestoreStore({
+    database: db, // la tua istanza Firestore
+    // collection: 'sessions', // opzionale, default 'sessions'
   }),
 
   /**
