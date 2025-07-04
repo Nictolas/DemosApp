@@ -562,6 +562,16 @@ app.delete('/api/referendum-abrogativi/:id', requireAdmin, async (req, res) => {
   res.status(result.success ? 200 : 400).json(result);
 });
 
+// === REFERENDUM ABROGATIVI: Lista referendum abrogativi ===
+app.get('/api/referendum-abrogativi/lista', requireAuth, async (req, res) => {
+  try {
+    const lista = await VotoService.getListaReferendumAbrogativi();
+    res.json(lista);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel recupero dei referendum abrogativi' });
+  }
+});
+
 // Endpoint per eliminare un candidato dalla classifica Capo di Stato (solo admin)
 app.delete('/api/capo-stato/classifica/:nome', requireAdmin, async (req, res) => {
   const nome = decodeURIComponent(req.params.nome);
