@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,11 @@ export default function VotaIniziativaPopolare() {
                 <TableBody>
                   {iniziativeQuorum.map((iniziativa: any) => (
                     <TableRow key={iniziativa.id}>
-                      <TableCell className="font-medium">{iniziativa.nome}</TableCell>
+                      <TableCell className="font-medium">
+                        <Link href={`/iniziative-popolari/${iniziativa.id}`} className="text-blue-700 underline hover:text-blue-900 cursor-pointer">
+                          {iniziativa.nome}
+                        </Link>
+                      </TableCell>
                       <TableCell>{iniziativa.voti || 0}</TableCell>
                       <TableCell>
                         <Button

@@ -1,6 +1,6 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,11 @@ export default function VotaReferendumAbrogativo() {
                 <TableBody>
                   {referendumQuorum.map((referendum) => (
                     <TableRow key={referendum.id}>
-                      <TableCell className="font-medium">{referendum.nome}</TableCell>
+                      <TableCell className="font-medium">
+                        <Link href={`/referendum-abrogativi/${referendum.id}`} className="text-blue-700 underline hover:text-blue-900 cursor-pointer">
+                          {referendum.nome}
+                        </Link>
+                      </TableCell>
                       <TableCell>{referendum.voti || 0}</TableCell>
                       <TableCell>
                         <Button
