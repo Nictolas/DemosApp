@@ -308,9 +308,15 @@ app.get('/api/eventi', async (req, res) => res.json(await EventiService.getAllEv
 // Voti
 const createVotingEndpoints = (path, methods, entityKey = 'nome') => {
   app.post(`/api/${path}/vota`, requireAuth, async (req, res) => {
-    let name = entityKey === 'nome' ? req.body.nome : req.body.legge;
+    let name;
+    if (path === 'iniziative-popolari') {
+      name = req.body.iniziativaId;
+    } else if (path === 'referendum-abrogativi') {
+      name = req.body.referendumId;
+    } else {
+      name = entityKey === 'nome' ? req.body.nome : req.body.legge;
+    }
     if (!name) return res.status(400).json({ error: "Missing name/law" });
-    
     const voteMethod = methods.vote;
     if (typeof VotoService[voteMethod] !== 'function') {
         return res.status(500).json({ error: "Invalid vote method configured" });
