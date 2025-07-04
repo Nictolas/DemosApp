@@ -3,6 +3,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { storage } from "./storage.js";
 import cors from 'cors';
 import { adminAuth, auth } from './firebase-config.js';
 import dotenv from "dotenv";
@@ -42,6 +43,24 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
+
+// Configurazione Sessione
+app.set('trust proxy', 1);
+app.use(
+  session({
+    store: storage.sessionStore,
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    proxy: true,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    },
+  }),
+);
 
 // Configurazione Passport
 app.use(passport.initialize());
