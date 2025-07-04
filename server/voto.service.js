@@ -123,10 +123,15 @@ class VotoService extends FirebaseService {
   static async getListaIniziativePopolari() {
     try {
         if (!db) return [];
-        // Mostra solo le iniziative approvate (status: 'accepted'), senza orderBy su data_creazione per evitare errori di indice
         const q = query(collection(db, 'iniziative_popolari'), where('status', '==', 'accepted'), limit(10));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const iniziative = await Promise.all(snapshot.docs.map(async doc => {
+          const id = doc.id;
+          const votiQ = query(collection(db, 'voti_iniziative_popolari'), where('iniziativaId', '==', id));
+          const votiSnap = await getDocs(votiQ);
+          return { id, ...doc.data(), voti: votiSnap.size };
+        }));
+        return iniziative;
     } catch (error) {
         this.handleError(error, 'getListaIniziativePopolari');
         return [];
