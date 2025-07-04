@@ -467,6 +467,16 @@ class VotoService extends FirebaseService {
     return snapshot.docs.map(doc => doc.data().userId);
   }
 
+  // Recupera i voti dell'utente per i referendum abrogativi
+  static async getUserVotiReferendum(userId) {
+    return this._getUserVotes('voti_referendum_abrogativi', userId, 'referendumId');
+  }
+
+  // Recupera i voti dell'utente per le iniziative popolari
+  static async getUserVotiIniziativePopolari(userId) {
+    return this._getUserVotes('voti_iniziative_popolari', userId, 'iniziativaId');
+  }
+
 }
 
 export default VotoService; 
