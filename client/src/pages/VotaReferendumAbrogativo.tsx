@@ -15,8 +15,8 @@ export default function VotaReferendumAbrogativo() {
   const queryClient = useQueryClient();
 
   // Recupera la lista dei referendum abrogativi
-  const { data: classifica = [], isLoading: isListaLoading } = useQuery<Array<{id: string, nome: string, voti: number, quorum?: 'ok' | 'pending' | 'no'}>>({
-    queryKey: ["/api/referendum-abrogativi/classifica"],
+  const { data: listaReferendum = [], isLoading: isListaLoading } = useQuery<any[]>({
+    queryKey: ["/api/referendum-abrogativi/lista"],
     enabled: !!user,
   });
 
@@ -39,7 +39,7 @@ export default function VotaReferendumAbrogativo() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/voti"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/lista"] });
       toast({ title: "Voto registrato", description: "Il tuo voto è stato registrato con successo." });
     },
     onError: (error: any) => {
@@ -55,7 +55,7 @@ export default function VotaReferendumAbrogativo() {
   }
 
   // Filtro solo quelli con quorum raggiunto
-  const referendumQuorum = classifica.filter(r => r.quorum === 'ok');
+  const referendumQuorum = listaReferendum.filter(r => r.quorum === 'ok');
   // Ordino per più votati
   referendumQuorum.sort((a, b) => (b.voti || 0) - (a.voti || 0));
 

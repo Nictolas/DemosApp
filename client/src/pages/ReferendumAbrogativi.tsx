@@ -69,8 +69,8 @@ export default function ReferendumAbrogativi() {
   });
 
   // Get ranking
-  const { data: classifica = [] } = useQuery<Array<{id: string, nome: string, voti: number, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no', status: string}>>({
-    queryKey: ["/api/referendum-abrogativi/classifica"],
+  const { data: listaReferendum = [], isLoading: isListaLoading } = useQuery<any[]>({
+    queryKey: ["/api/referendum-abrogativi/lista"],
     enabled: !!user,
   });
 
@@ -87,7 +87,7 @@ export default function ReferendumAbrogativi() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/voti"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/lista"] });
       toast({
         title: "Voto registrato",
         description: "Il tuo voto è stato registrato con successo.",
@@ -114,7 +114,7 @@ export default function ReferendumAbrogativi() {
       });
       form.reset();
       setShowForm(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/lista"] });
     },
     onError: (error: any) => handleMutationError(error, "invio del referendum"),
   });
@@ -138,7 +138,7 @@ export default function ReferendumAbrogativi() {
         body: JSON.stringify({ quorum })
       });
       if (!res.ok) throw new Error('Errore aggiornamento quorum');
-      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/lista"] });
     } catch (e) {
       toast({ title: 'Errore', description: 'Impossibile aggiornare quorum', variant: 'destructive' });
     } finally {
@@ -159,7 +159,7 @@ export default function ReferendumAbrogativi() {
       });
       if (!res.ok) throw new Error('Errore nella cancellazione');
       toast({ title: 'Referendum cancellato', description: 'Il referendum è stato rimosso.' });
-      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/classifica"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/lista"] });
     } catch (e) {
       toast({ title: 'Errore', description: 'Impossibile cancellare il referendum', variant: 'destructive' });
     } finally {
@@ -322,7 +322,7 @@ export default function ReferendumAbrogativi() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {classifica.filter(r => r.status === 'accepted')
+                        {listaReferendum.filter(r => r.status === 'accepted')
                           .sort((a, b) => new Date(b.dataInizio).getTime() - new Date(a.dataInizio).getTime())
                           .map((referendum, index) => (
                           <TableRow key={referendum.nome}>
@@ -383,7 +383,7 @@ export default function ReferendumAbrogativi() {
                       </TableBody>
                     </Table>
                   </div>
-                  {classifica.filter(r => r.status === 'accepted').length === 0 && (
+                  {listaReferendum.filter(r => r.status === 'accepted').length === 0 && (
                     <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       <Vote className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>Nessun referendum proposto al momento.</p>
