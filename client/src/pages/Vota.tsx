@@ -137,6 +137,50 @@ export default function Vota() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Iniziativa Popolare */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700">
+                <FileText className="h-5 w-5" />
+                Iniziativa Popolare
+              </CardTitle>
+              <CardDescription>
+                Vota tra le iniziative popolari che hanno raggiunto il quorum
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.location.href = "/vota-iniziativa-popolare"}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Vota Iniziativa Popolare
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Referendum Abrogativo */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-600 group-hover:text-orange-700">
+                <FileText className="h-5 w-5" />
+                Referendum Abrogativo
+              </CardTitle>
+              <CardDescription>
+                Vota tra i referendum abrogativi che hanno raggiunto il quorum
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-orange-600 hover:bg-orange-700"
+                onClick={() => window.location.href = "/vota-referendum-abrogativo"}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Vota Referendum Abrogativo
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
