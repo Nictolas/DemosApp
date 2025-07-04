@@ -439,12 +439,18 @@ class VotoService extends FirebaseService {
       const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'accepted'));
       const snapshot = await getDocs(q);
       const referendum = await Promise.all(snapshot.docs.map(async doc => {
-        const id = doc.id;
-        const votiQ = query(collection(db, 'voti_referendum_abrogativi'), where('referendumId', '==', id));
-        const votiSnap = await getDocs(votiQ);
-        return { id, ...doc.data(), voti: votiSnap.size };
+        try {
+          const id = doc.id;
+          const votiQ = query(collection(db, 'voti_referendum_abrogativi'), where('referendumId', '==', id));
+          const votiSnap = await getDocs(votiQ);
+          return { id, ...doc.data(), voti: votiSnap.size };
+        } catch (e) {
+          // Se c'è un errore su un singolo referendum, lo ignoro e continuo
+          return null;
+        }
       }));
-      return referendum;
+      // Filtro eventuali null
+      return referendum.filter(Boolean);
     } catch (error) {
       this.handleError(error, 'getListaReferendumAbrogativi');
       return [];
