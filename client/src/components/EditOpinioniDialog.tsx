@@ -69,22 +69,18 @@ export function EditOpinioniDialog({
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
-      
       if (!response.ok) {
         throw new Error('Errore nel caricamento delle opinioni');
       }
-      
       const data = await response.json();
-      
       if (data) {
-        // Filtra solo le proprietà che corrispondono alle domande
+        // Prendi tutte le opinioni con valore valido
         const filteredOpinions: Record<string, string> = {};
-        questions.forEach(question => {
-          if (data[question.id]) {
-            filteredOpinions[question.id] = data[question.id];
+        Object.keys(data).forEach(key => {
+          if (["Favorevole", "Indeciso", "Contrario"].includes(data[key])) {
+            filteredOpinions[key] = data[key];
           }
         });
-        
         setOpinions(filteredOpinions);
       }
     } catch (error) {
@@ -195,36 +191,39 @@ export function EditOpinioniDialog({
             </div>
           ) : (
             <div className="space-y-6">
-              {questions.map((question) => (
-                <div key={question.id} className="border rounded-lg p-4 shadow-sm">
-                  <h3 className="text-lg font-semibold mb-2">{question.text}</h3>
-                  <RadioGroup 
-                    value={opinions[question.id] || ""} 
-                    onValueChange={(value) => handleOpinionChange(question.id, value)}
-                    className="grid gap-2 grid-cols-1 sm:grid-cols-3"
-                  >
-                    {options.map((option) => (
-                      <div key={option.value} className={`flex items-center space-x-2 rounded-md border p-2 ${option.color}`}>
-                        <RadioGroupItem value={option.value} id={`${question.id}-${option.value}`} />
-                        <Label htmlFor={`${question.id}-${option.value}`} className="font-medium cursor-pointer flex-grow">
-                          {option.value}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                  <div className="mt-2">
-                    <Label htmlFor={`fonte-${question.id}`}>Fonte (URL)</Label>
-                    <Input
-                      id={`fonte-${question.id}`}
-                      type="url"
-                      placeholder="https://..."
-                      value={fonti[question.id] || ""}
-                      onChange={e => handleFonteChange(question.id, e.target.value)}
-                      className="mt-1"
-                    />
+              {Object.keys(opinions).map((key) => {
+                const question = questions.find(q => q.id === key);
+                const label = question ? question.text : key;
+                return (
+                  <div key={key} className="border rounded-lg p-4 shadow-sm">
+                    <h3 className="text-lg font-semibold mb-2">{label}</h3>
+                    <RadioGroup
+                      value={opinions[key] || ""}
+                      onValueChange={(value) => handleOpinionChange(key, value)}
+                      className="flex gap-4 mb-2"
+                    >
+                      {options.map((option) => (
+                        <RadioGroupItem
+                          key={option.value}
+                          value={option.value}
+                          className={option.color + " px-4 py-2 rounded-full border-2 focus:outline-none"}
+                        >
+                          <Label className="cursor-pointer select-none">{option.value}</Label>
+                        </RadioGroupItem>
+                      ))}
+                    </RadioGroup>
+                    <div className="mt-2">
+                      <Label className="block text-sm mb-1">Fonte (URL)</Label>
+                      <Input
+                        type="text"
+                        value={fonti[key] || ""}
+                        onChange={e => handleFonteChange(key, e.target.value)}
+                        placeholder="https://..."
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
