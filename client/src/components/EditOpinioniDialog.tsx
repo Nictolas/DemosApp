@@ -202,15 +202,19 @@ export function EditOpinioniDialog({
                       onValueChange={(value) => handleOpinionChange(key, value)}
                       className="flex gap-4 mb-2"
                     >
-                      {options.map((option) => (
-                        <RadioGroupItem
-                          key={option.value}
-                          value={option.value}
-                          className={option.color + " px-4 py-2 rounded-full border-2 focus:outline-none"}
-                        >
-                          <Label className="cursor-pointer select-none">{option.value}</Label>
-                        </RadioGroupItem>
-                      ))}
+                      {options.map((option) => {
+                        const radioId = `${key}-${option.value}`;
+                        return (
+                          <div key={option.value} className="flex items-center gap-2">
+                            <RadioGroupItem
+                              id={radioId}
+                              value={option.value}
+                              className={option.color + " px-4 py-2 rounded-full border-2 focus:outline-none"}
+                            />
+                            <Label htmlFor={radioId} className="cursor-pointer select-none">{option.value}</Label>
+                          </div>
+                        );
+                      })}
                     </RadioGroup>
                     <div className="mt-2">
                       <Label className="block text-sm mb-1">Fonte (URL)</Label>
