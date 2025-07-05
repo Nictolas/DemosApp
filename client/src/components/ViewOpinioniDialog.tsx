@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useAuth } from "@/hooks/use-auth";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // Mappa colori per le risposte
 const responseColors = {
@@ -38,6 +40,9 @@ export function ViewOpinioniDialog({
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [myOpinions, setMyOpinions] = useState<Record<string, string>>({});
   const [isLoadingMyOpinions, setIsLoadingMyOpinions] = useState(true);
+  const [likedIniziative, setLikedIniziative] = useState<string[]>([]);
+  const [likedReferendum, setLikedReferendum] = useState<string[]>([]);
+  const [isLoadingLikes, setIsLoadingLikes] = useState(false);
 
   // Carica le domande dinamiche
   useEffect(() => {
@@ -83,6 +88,49 @@ export function ViewOpinioniDialog({
     };
     fetchMyOpinions();
   }, [user]);
+
+  // Carica le iniziative e i referendum a cui l'utente ha messo Like
+  useEffect(() => {
+    const fetchLikes = async () => {
+      if (!utenteId) return;
+      setIsLoadingLikes(true);
+      try {
+        // Recupera i Like alle iniziative popolari
+        const qIniz = query(collection(db, "voti_iniziative_popolari"), where("userId", "==", utenteId));
+        const snapIniz = await getDocs(qIniz);
+        const iniziativaIds = snapIniz.docs.map(doc => doc.data().iniziativaId);
+        // Recupera i nomi delle iniziative
+        const iniziativeNomi = await Promise.all(
+          iniziativaIds.map(async (id: string) => {
+            const docRef = doc(db, "iniziative_popolari", id);
+            const docSnap = await getDoc(docRef);
+            return docSnap.exists() ? docSnap.data().nome : null;
+          })
+        );
+        setLikedIniziative(iniziativeNomi.filter(Boolean));
+
+        // Recupera i Like ai referendum abrogativi
+        const qRef = query(collection(db, "voti_referendum_abrogativi"), where("userId", "==", utenteId));
+        const snapRef = await getDocs(qRef);
+        const referendumIds = snapRef.docs.map(doc => doc.data().referendumId);
+        // Recupera i nomi dei referendum
+        const referendumNomi = await Promise.all(
+          referendumIds.map(async (id: string) => {
+            const docRef = doc(db, "referendum_abrogativi", id);
+            const docSnap = await getDoc(docRef);
+            return docSnap.exists() ? docSnap.data().nome : null;
+          })
+        );
+        setLikedReferendum(referendumNomi.filter(Boolean));
+      } catch (e) {
+        setLikedIniziative([]);
+        setLikedReferendum([]);
+      } finally {
+        setIsLoadingLikes(false);
+      }
+    };
+    if (open) fetchLikes();
+  }, [utenteId, open]);
 
   const loadUserOpinions = async () => {
     try {
@@ -283,6 +331,34 @@ export function ViewOpinioniDialog({
                 </div>
               </div>
             </div>
+          )}
+        </div>
+        
+        {/* Nuova sezione: Iniziative e Referendum a cui l'utente ha messo Like */}
+        <div className="mt-8">
+          <h3 className="font-semibold text-lg mb-2">Iniziative popolari a cui ha messo Like</h3>
+          {isLoadingLikes ? (
+            <div className="text-center text-muted-foreground">Caricamento iniziative...</div>
+          ) : likedIniziative.length === 0 ? (
+            <div className="text-center text-muted-foreground">Nessuna iniziativa popolare con Like.</div>
+          ) : (
+            <ul className="list-disc ml-6">
+              {likedIniziative.map((nome, idx) => (
+                <li key={idx}>{nome}</li>
+              ))}
+            </ul>
+          )}
+          <h3 className="font-semibold text-lg mt-6 mb-2">Referendum abrogativi a cui ha messo Like</h3>
+          {isLoadingLikes ? (
+            <div className="text-center text-muted-foreground">Caricamento referendum...</div>
+          ) : likedReferendum.length === 0 ? (
+            <div className="text-center text-muted-foreground">Nessun referendum abrogativo con Like.</div>
+          ) : (
+            <ul className="list-disc ml-6">
+              {likedReferendum.map((nome, idx) => (
+                <li key={idx}>{nome}</li>
+              ))}
+            </ul>
           )}
         </div>
         
