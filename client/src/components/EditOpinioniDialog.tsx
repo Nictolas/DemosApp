@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 
 // Le domande ora sono dinamiche
 const options = [
@@ -32,6 +33,7 @@ export function EditOpinioniDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
+  const [fonti, setFonti] = useState<Record<string, string>>({});
 
   // Carica le domande dinamiche
   useEffect(() => {
@@ -53,6 +55,7 @@ export function EditOpinioniDialog({
   useEffect(() => {
     if (open && utenteId && questions.length > 0) {
       loadUserOpinions();
+      loadFonti();
     }
     // eslint-disable-next-line
   }, [open, utenteId, questions]);
@@ -94,8 +97,29 @@ export function EditOpinioniDialog({
     }
   };
 
+  const loadFonti = async () => {
+    try {
+      const response = await fetch(`/api/opinioni-fonti/${utenteId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      setFonti(data || {});
+    } catch {
+      setFonti({});
+    }
+  };
+
   const handleOpinionChange = (questionId: string, value: string) => {
     setOpinions(prev => ({
+      ...prev,
+      [questionId]: value
+    }));
+  };
+
+  const handleFonteChange = (questionId: string, value: string) => {
+    setFonti(prev => ({
       ...prev,
       [questionId]: value
     }));
@@ -104,23 +128,19 @@ export function EditOpinioniDialog({
   const saveOpinions = async () => {
     try {
       setIsSubmitting(true);
-      
       const response = await fetch(`/api/opinioni/${utenteId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(opinions)
+        body: JSON.stringify({ opinions, fonti })
       });
-      
       if (!response.ok) {
         throw new Error('Errore nell\'aggiornamento delle opinioni');
       }
-      
       toast({
         title: "Successo",
         description: "Le opinioni dell'utente sono state aggiornate con successo.",
         variant: "default",
       });
-      
       onOpinioniUpdated();
       onOpenChange(false);
     } catch (error) {
@@ -170,6 +190,17 @@ export function EditOpinioniDialog({
                       </div>
                     ))}
                   </RadioGroup>
+                  <div className="mt-2">
+                    <Label htmlFor={`fonte-${question.id}`}>Fonte (URL)</Label>
+                    <Input
+                      id={`fonte-${question.id}`}
+                      type="url"
+                      placeholder="https://..."
+                      value={fonti[question.id] || ""}
+                      onChange={e => handleFonteChange(question.id, e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
                 </div>
               ))}
             </div>

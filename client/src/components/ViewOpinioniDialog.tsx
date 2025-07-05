@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomAvatar } from "@/components/CustomAvatar";
@@ -43,6 +43,8 @@ export function ViewOpinioniDialog({
   const [likedIniziative, setLikedIniziative] = useState<string[]>([]);
   const [likedReferendum, setLikedReferendum] = useState<string[]>([]);
   const [isLoadingLikes, setIsLoadingLikes] = useState(false);
+  const [fonti, setFonti] = useState<Record<string, string>>({});
+  const [isLoadingFonti, setIsLoadingFonti] = useState(false);
 
   // Carica le domande dinamiche
   useEffect(() => {
@@ -130,6 +132,28 @@ export function ViewOpinioniDialog({
       }
     };
     if (open) fetchLikes();
+  }, [utenteId, open]);
+
+  // Carica le fonti delle opinioni
+  useEffect(() => {
+    const fetchFonti = async () => {
+      if (!utenteId) return;
+      setIsLoadingFonti(true);
+      try {
+        const response = await fetch(`/api/opinioni-fonti/${utenteId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) throw new Error();
+        const data = await response.json();
+        setFonti(data || {});
+      } catch {
+        setFonti({});
+      } finally {
+        setIsLoadingFonti(false);
+      }
+    };
+    if (open) fetchFonti();
   }, [utenteId, open]);
 
   const loadUserOpinions = async () => {
@@ -247,6 +271,11 @@ export function ViewOpinioniDialog({
                           <div key={index} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
                             <span className="text-green-800 font-medium">{opinion}</span>
                             {isCommon ? <Check className="text-green-600 ml-2" size={20} /> : null}
+                            {key && fonti[key] ? (
+                              <a href={fonti[key]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                                <AlertCircle className="text-blue-600" size={18} />
+                              </a>
+                            ) : null}
                           </div>
                         );
                       })
@@ -283,6 +312,11 @@ export function ViewOpinioniDialog({
                           <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
                             <span className="text-yellow-800 font-medium">{opinion}</span>
                             {isCommon ? <Check className="text-yellow-600 ml-2" size={20} /> : null}
+                            {key && fonti[key] ? (
+                              <a href={fonti[key]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                                <AlertCircle className="text-blue-600" size={18} />
+                              </a>
+                            ) : null}
                           </div>
                         );
                       })
@@ -319,6 +353,11 @@ export function ViewOpinioniDialog({
                           <div key={index} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
                             <span className="text-red-800 font-medium">{opinion}</span>
                             {isCommon ? <Check className="text-red-600 ml-2" size={20} /> : null}
+                            {key && fonti[key] ? (
+                              <a href={fonti[key]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                                <AlertCircle className="text-blue-600" size={18} />
+                              </a>
+                            ) : null}
                           </div>
                         );
                       })
