@@ -163,21 +163,18 @@ export function ViewOpinioniDialog({
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
-      
       if (!response.ok) {
         throw new Error('Errore nel caricamento delle opinioni');
       }
-      
       const data = await response.json();
-      
       if (data) {
+        // Mostra tutte le opinioni con valore valido
         const filteredOpinions: Record<string, string> = {};
-        questions.forEach(question => {
-          if (data[question.id]) {
-            filteredOpinions[question.id] = data[question.id];
+        Object.keys(data).forEach(key => {
+          if (["Favorevole", "Indeciso", "Contrario"].includes(data[key])) {
+            filteredOpinions[key] = data[key];
           }
         });
-        
         setOpinions(filteredOpinions);
       }
     } catch (error) {
@@ -192,18 +189,13 @@ export function ViewOpinioniDialog({
     }
   };
 
-  // Funzione aggiornata per categorizzare tutte le opinioni, anche quelle nuove
+  // Funzione aggiornata per categorizzare tutte le opinioni, anche quelle non in questions
   const categorizeAllOpinions = () => {
     const favorevoli: { id: string, label: string }[] = [];
     const indecisi: { id: string, label: string }[] = [];
     const contrari: { id: string, label: string }[] = [];
-    const allKeys = Array.from(new Set([
-      ...questions.map(q => q.id),
-      ...Object.keys(opinions)
-    ]));
-    allKeys.forEach((key) => {
-      const value = opinions[key];
-      if (!value) return;
+    Object.entries(opinions).forEach(([key, value]) => {
+      // Trova il testo della domanda dalla lista questions, altrimenti mostra l'ID
       const q = questions.find(q => q.id === key);
       const label = q ? q.text : key;
       if (value === "Favorevole") favorevoli.push({ id: key, label });
@@ -261,7 +253,7 @@ export function ViewOpinioniDialog({
                               <AlertCircle className="text-blue-600" size={18} />
                             </a>
                           ) : null}
-                        </div>
+                          </div>
                       ))
                     ) : (
                       <div className="text-green-600 text-sm italic">
@@ -289,7 +281,7 @@ export function ViewOpinioniDialog({
                               <AlertCircle className="text-blue-600" size={18} />
                             </a>
                           ) : null}
-                        </div>
+                          </div>
                       ))
                     ) : (
                       <div className="text-yellow-600 text-sm italic">
@@ -317,7 +309,7 @@ export function ViewOpinioniDialog({
                               <AlertCircle className="text-blue-600" size={18} />
                             </a>
                           ) : null}
-                        </div>
+                          </div>
                       ))
                     ) : (
                       <div className="text-red-600 text-sm italic">
