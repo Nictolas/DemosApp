@@ -297,6 +297,23 @@ export default function Profilo({ userId }: { userId?: string }) {
     return q ? q.text : id;
   };
 
+  // Funzione per suddividere le opinioni in colonne
+  const categorizeAllOpinions = () => {
+    const favorevoli: { id: string, label: string }[] = [];
+    const indecisi: { id: string, label: string }[] = [];
+    const contrari: { id: string, label: string }[] = [];
+    allOpinionKeys.forEach((key) => {
+      const value = userOpinions[key];
+      if (!value) return;
+      const q = opinionQuestions.find(q => q.id === key);
+      const label = q ? q.text : key;
+      if (value === "Favorevole") favorevoli.push({ id: key, label });
+      else if (value === "Indeciso") indecisi.push({ id: key, label });
+      else if (value === "Contrario") contrari.push({ id: key, label });
+    });
+    return { favorevoli, indecisi, contrari };
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 p-4">
       {isLoading || isLoadingInfo ? (
@@ -356,16 +373,38 @@ export default function Profilo({ userId }: { userId?: string }) {
                 isEditing ? (
                   <EditProfileForm 
                     userData={{...userInfo, uid: user.uid}} 
-                    onProfileUpdated={(updatedData) => {
-                      // Mostra un toast di conferma
+                    onProfileUpdated={async (updatedData) => {
                       toast({
                         title: "Profilo aggiornato",
                         description: "Il profilo è stato aggiornato con successo",
                         variant: "default",
                       });
-                      
-                      // Reindirizza al menu invece di aggiornare lo stato locale
-                      window.location.href = "/menu";
+                      // Ricarica le opinioni e i dati utente dopo la modifica
+                      setIsEditing(false);
+                      setIsLoadingInfo(true);
+                      // Refresha le domande e le opinioni
+                      try {
+                        const res = await fetch("/api/opinioni-list");
+                        if (res.ok) setOpinionQuestions(await res.json());
+                      } catch {}
+                      // Refresha i dati utente
+                      try {
+                        const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+                        if (response.ok) {
+                          const userData = await response.json();
+                          setUserInfo(userData as UserInfo);
+                          if (opinionQuestions.length > 0) {
+                            const dynamicOpinions: Record<string, string> = {};
+                            opinionQuestions.forEach(q => {
+                              dynamicOpinions[q.id] = userData[q.id] || '';
+                            });
+                            setUserOpinions(dynamicOpinions);
+                          } else {
+                            setUserOpinions({});
+                          }
+                        }
+                      } catch {}
+                      setIsLoadingInfo(false);
                     }}
                     onCancel={() => setIsEditing(false)}
                   />
@@ -477,21 +516,73 @@ export default function Profilo({ userId }: { userId?: string }) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {allOpinionKeys.map((key) => {
-                    const value = userOpinions[key];
-                    if (!value) return null;
-                    let colorClass = "";
-                    if (value === "Favorevole") colorClass = "bg-green-100 border-green-200 text-green-800";
-                    else if (value === "Indeciso") colorClass = "bg-yellow-100 border-yellow-200 text-yellow-800";
-                    else if (value === "Contrario") colorClass = "bg-red-100 border-red-200 text-red-800";
-                    return (
-                      <div key={key} className={`rounded-lg p-4 border mb-2 flex items-center justify-between ${colorClass}`}>
-                        <span className="font-medium">{getOpinionLabel(key)}</span>
-                        <span className="ml-2">{value}</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-6">
+                  {/* Colonna Favorevoli - Verde */}
+                  <div className="space-y-3">
+                    <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        Favorevole
+                      </h3>
+                      <div className="space-y-2">
+                        {categorizeAllOpinions().favorevoli.length > 0 ? (
+                          categorizeAllOpinions().favorevoli.map(({ id, label }) => (
+                            <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
+                              <span className="text-green-800 font-medium">{label}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-green-600 text-sm italic">
+                            Nessuna opinione favorevole
+                          </div>
+                        )}
                       </div>
-                    );
-                  })}
+                    </div>
+                  </div>
+                  {/* Colonna Indecisi - Giallo */}
+                  <div className="space-y-3">
+                    <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                        Indeciso
+                      </h3>
+                      <div className="space-y-2">
+                        {categorizeAllOpinions().indecisi.length > 0 ? (
+                          categorizeAllOpinions().indecisi.map(({ id, label }) => (
+                            <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
+                              <span className="text-yellow-800 font-medium">{label}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-yellow-600 text-sm italic">
+                            Nessuna opinione indecisa
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Colonna Contrari - Rosso */}
+                  <div className="space-y-3">
+                    <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        Contrario
+                      </h3>
+                      <div className="space-y-2">
+                        {categorizeAllOpinions().contrari.length > 0 ? (
+                          categorizeAllOpinions().contrari.map(({ id, label }) => (
+                            <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
+                              <span className="text-red-800 font-medium">{label}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-red-600 text-sm italic">
+                            Nessuna opinione contraria
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
