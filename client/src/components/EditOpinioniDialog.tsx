@@ -129,8 +129,8 @@ export function EditOpinioniDialog({
     try {
       setIsSubmitting(true);
       // Salva prima le opinioni
-      const responseOpinioni = await fetch(`/api/opinioni/${utenteId}`, {
-        method: 'PUT',
+      const responseOpinioni = await fetch(`/api/opinioni`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(opinions)
       });
