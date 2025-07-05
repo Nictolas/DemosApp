@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
 
 // Le domande ora sono dinamiche
 const options = [
@@ -34,6 +35,7 @@ export function EditOpinioniDialog({
   const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [fonti, setFonti] = useState<Record<string, string>>({});
+  const { user } = useAuth();
 
   // Carica le domande dinamiche
   useEffect(() => {
@@ -128,12 +130,22 @@ export function EditOpinioniDialog({
   const saveOpinions = async () => {
     try {
       setIsSubmitting(true);
-      // Salva prima le opinioni
-      const responseOpinioni = await fetch(`/api/opinioni`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(opinions)
-      });
+      let responseOpinioni;
+      // Se admin e sta modificando un altro utente, usa PUT su /api/opinioni/:utenteId
+      if (user && user.ruolo === "Admin" && user.id !== utenteId) {
+        responseOpinioni = await fetch(`/api/opinioni/${utenteId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(opinions)
+        });
+      } else {
+        // Altrimenti POST su /api/opinioni
+        responseOpinioni = await fetch(`/api/opinioni`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(opinions)
+        });
+      }
       if (!responseOpinioni.ok) {
         throw new Error('Errore nell\'aggiornamento delle opinioni');
       }

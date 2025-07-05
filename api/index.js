@@ -630,4 +630,10 @@ app.put('/api/opinioni-fonti/:id', requireAdmin, async (req, res) => {
   res.status(result.success ? 200 : 500).json(result);
 });
 
+// Aggiorna le opinioni di un utente specifico (solo admin)
+app.put('/api/opinioni/:id', requireAdmin, async (req, res) => {
+  const result = await UserService.saveUserOpinions(req.params.id, req.body);
+  res.status(result.success ? 200 : 500).json(result);
+});
+
 export default app; 
