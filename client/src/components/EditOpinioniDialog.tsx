@@ -65,7 +65,7 @@ export function EditOpinioniDialog({
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const response = await fetch(`/api/opinioni/${utenteId}`, {
+      const response = await fetch(`/api/users/${utenteId}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
