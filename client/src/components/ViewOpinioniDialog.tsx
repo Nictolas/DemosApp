@@ -168,7 +168,7 @@ export function ViewOpinioniDialog({
       }
       const data = await response.json();
       if (data) {
-        // Mostra tutte le opinioni con valore valido
+        // Prendi tutte le opinioni con valore valido
         const filteredOpinions: Record<string, string> = {};
         Object.keys(data).forEach(key => {
           if (["Favorevole", "Indeciso", "Contrario"].includes(data[key])) {
