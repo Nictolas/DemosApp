@@ -619,4 +619,15 @@ app.delete('/api/ministeri/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Recupera le fonti delle opinioni di un utente
+app.get('/api/opinioni-fonti/:id', requireAuth, async (req, res) => {
+  const fonti = await UserService.getUserFonti(req.params.id);
+  res.json(fonti);
+});
+// Salva le fonti delle opinioni di un utente (solo admin)
+app.put('/api/opinioni-fonti/:id', requireAdmin, async (req, res) => {
+  const result = await UserService.saveUserFonti(req.params.id, req.body);
+  res.status(result.success ? 200 : 500).json(result);
+});
+
 export default app; 

@@ -256,6 +256,23 @@ class UserService extends FirebaseService {
     }
   }
 
+  static async saveUserFonti(uid, fonti) {
+    try {
+      if (!db) return { success: false, error: "Database non configurato" };
+      const userDocRef = doc(db, 'utenti', uid);
+      await setDoc(userDocRef, { fonti_opinioni: fonti, updatedAt: new Date().toISOString() }, { merge: true });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'saveUserFonti');
+    }
+  }
+
+  static async getUserFonti(uid) {
+    const user = await this.getUserById(uid);
+    if (!user) return {};
+    return user.fonti_opinioni || {};
+  }
+
 } // <-- Chiusura della classe UserService
 
 export default UserService; 
