@@ -215,6 +215,18 @@ export function ViewOpinioniDialog({
     return { favorevoli, indecisi, contrari };
   };
 
+  // Unione dinamica di tutte le opinioni (da questions e da opinions)
+  const allOpinionKeys = Array.from(new Set([
+    ...questions.map(q => q.id),
+    ...Object.keys(opinions)
+  ]));
+
+  // Funzione per ottenere la label di una opinione
+  const getOpinionLabel = (id: string) => {
+    const q = questions.find(q => q.id === id);
+    return q ? q.text : id;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-w-full">
@@ -244,131 +256,27 @@ export function ViewOpinioniDialog({
               Questo utente non ha ancora espresso opinioni.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-6">
-              {/* Colonna Favorevoli - Verde */}
-              <div className="space-y-3">
-                <div className="bg-green-100 border border-green-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    Favorevole
-                  </h3>
-                  <div className="space-y-2">
-                    {categorizeOpinions(opinions).favorevoli.length > 0 ? (
-                      categorizeOpinions(opinions).favorevoli.map((opinion, index) => {
-                        // Trova la chiave corrispondente
-                        const key = Object.keys(opinions).find(k => {
-                          const label = {
-                            energia_nucleare: "Energia Nucleare",
-                            sperimentazione_animale: "Sperimentazione Animale",
-                            legalizzazione_canapa: "Legalizzazione Canapa",
-                            caccia: "Caccia",
-                            unione_europea: "Unione Europea"
-                          }[k];
-                          return label === opinion;
-                        });
-                        const isCommon = key && myOpinions[key] === opinions[key];
-                        return (
-                          <div key={index} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
-                            <span className="text-green-800 font-medium">{opinion}</span>
-                            {isCommon ? <Check className="text-green-600 ml-2" size={20} /> : null}
-                            {key && fonti[key] ? (
-                              <a href={fonti[key]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                <AlertCircle className="text-blue-600" size={18} />
-                              </a>
-                            ) : null}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-green-600 text-sm italic">
-                        Nessuna opinione favorevole
-                      </div>
-                    )}
+            <div className="space-y-6">
+              {allOpinionKeys.map((key) => {
+                const value = opinions[key];
+                if (!value) return null;
+                let colorClass = "";
+                if (value === "Favorevole") colorClass = "bg-green-100 border-green-200 text-green-800";
+                else if (value === "Indeciso") colorClass = "bg-yellow-100 border-yellow-200 text-yellow-800";
+                else if (value === "Contrario") colorClass = "bg-red-100 border-red-200 text-red-800";
+                return (
+                  <div key={key} className={`rounded-lg p-4 border mb-2 flex items-center justify-between ${colorClass}`}>
+                    <span className="font-medium">{getOpinionLabel(key)}</span>
+                    <span className="ml-2">{value}</span>
+                    {myOpinions[key] === value ? <Check className="ml-2 text-green-600" size={20} /> : null}
+                    {fonti[key] ? (
+                      <a href={fonti[key]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                        <AlertCircle className="text-blue-600" size={18} />
+                      </a>
+                    ) : null}
                   </div>
-                </div>
-              </div>
-              {/* Colonna Indecisi - Giallo */}
-              <div className="space-y-3">
-                <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    Indeciso
-                  </h3>
-                  <div className="space-y-2">
-                    {categorizeOpinions(opinions).indecisi.length > 0 ? (
-                      categorizeOpinions(opinions).indecisi.map((opinion, index) => {
-                        const key = Object.keys(opinions).find(k => {
-                          const label = {
-                            energia_nucleare: "Energia Nucleare",
-                            sperimentazione_animale: "Sperimentazione Animale",
-                            legalizzazione_canapa: "Legalizzazione Canapa",
-                            caccia: "Caccia",
-                            unione_europea: "Unione Europea"
-                          }[k];
-                          return label === opinion;
-                        });
-                        const isCommon = key && myOpinions[key] === opinions[key];
-                        return (
-                          <div key={index} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
-                            <span className="text-yellow-800 font-medium">{opinion}</span>
-                            {isCommon ? <Check className="text-yellow-600 ml-2" size={20} /> : null}
-                            {key && fonti[key] ? (
-                              <a href={fonti[key]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                <AlertCircle className="text-blue-600" size={18} />
-                              </a>
-                            ) : null}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-yellow-600 text-sm italic">
-                        Nessuna opinione indecisa
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {/* Colonna Contrari - Rosso */}
-              <div className="space-y-3">
-                <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    Contrario
-                  </h3>
-                  <div className="space-y-2">
-                    {categorizeOpinions(opinions).contrari.length > 0 ? (
-                      categorizeOpinions(opinions).contrari.map((opinion, index) => {
-                        const key = Object.keys(opinions).find(k => {
-                          const label = {
-                            energia_nucleare: "Energia Nucleare",
-                            sperimentazione_animale: "Sperimentazione Animale",
-                            legalizzazione_canapa: "Legalizzazione Canapa",
-                            caccia: "Caccia",
-                            unione_europea: "Unione Europea"
-                          }[k];
-                          return label === opinion;
-                        });
-                        const isCommon = key && myOpinions[key] === opinions[key];
-                        return (
-                          <div key={index} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
-                            <span className="text-red-800 font-medium">{opinion}</span>
-                            {isCommon ? <Check className="text-red-600 ml-2" size={20} /> : null}
-                            {key && fonti[key] ? (
-                              <a href={fonti[key]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                <AlertCircle className="text-blue-600" size={18} />
-                              </a>
-                            ) : null}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-red-600 text-sm italic">
-                        Nessuna opinione contraria
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           )}
         </div>
