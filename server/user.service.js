@@ -157,13 +157,30 @@ class UserService extends FirebaseService {
   static async getUserOpinions(uid) {
     const user = await this.getUserById(uid);
     if (!user) return null;
-    return {
-      energia_nucleare: user.energia_nucleare,
-      sperimentazione_animale: user.sperimentazione_animale,
-      legalizzazione_canapa: user.legalizzazione_canapa,
-      caccia: user.caccia,
-      unione_europea: user.unione_europea,
-    };
+    // Recupera la lista delle domande dinamiche
+    let opinioniList = [];
+    try {
+      const res = await import('../api/opinioni.service.js');
+      if (res && res.default && typeof res.default.listOpinioni === 'function') {
+        opinioniList = await res.default.listOpinioni();
+      }
+    } catch (e) {
+      // fallback: nessuna domanda dinamica
+    }
+    // Restituisci tutte le opinioni (vecchie e nuove)
+    const opinioni = {};
+    for (const key of Object.keys(user)) {
+      if (opinioniList.find(q => q.id === key) || [
+        'energia_nucleare',
+        'sperimentazione_animale',
+        'legalizzazione_canapa',
+        'caccia',
+        'unione_europea'
+      ].includes(key)) {
+        opinioni[key] = user[key];
+      }
+    }
+    return opinioni;
   }
 
   static async getCandidati() {
