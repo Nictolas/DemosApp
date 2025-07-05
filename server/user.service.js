@@ -56,8 +56,6 @@ class UserService extends FirebaseService {
         const newDocRef = doc(db, 'utenti', data.uid);
         await setDoc(newDocRef, { ...data, id: data.uid });
         await setDoc(userDocRef, { ...data, migrated: true }); // segna il vecchio come migrato
-        // Elimina il vecchio documento (opzionale, qui lo lasciamo per sicurezza)
-        // await deleteDoc(userDocRef);
         // Ritorna il nuovo documento
         const migratedDoc = await getDoc(newDocRef);
         if (migratedDoc.exists()) {
@@ -80,13 +78,19 @@ class UserService extends FirebaseService {
     querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
       const docSnap = querySnapshot.docs[0];
-      // Se il documento ha anche un campo uid, migra
       const data = docSnap.data();
+      // Se il documento ha anche un campo uid, migra TUTTI i dati su chiave UID
       if (data.uid && data.uid !== docSnap.id) {
         const newDocRef = doc(db, 'utenti', data.uid);
-        await setDoc(newDocRef, { ...data, id: data.uid });
+        // Unisci i dati esistenti su UID (se c'è già un documento)
+        let mergedData = { ...data, id: data.uid };
+        const existingDoc = await getDoc(newDocRef);
+        if (existingDoc.exists()) {
+          mergedData = { ...existingDoc.data(), ...data, id: data.uid };
+        }
+        await setDoc(newDocRef, mergedData);
         await setDoc(docSnap.ref, { ...data, migrated: true });
-        // await deleteDoc(docSnap.ref);
+        // Ritorna il nuovo documento
         const migratedDoc = await getDoc(newDocRef);
         if (migratedDoc.exists()) {
           return { id: migratedDoc.id, ...migratedDoc.data() };
@@ -118,7 +122,30 @@ class UserService extends FirebaseService {
   static async saveUserOpinions(uid, opinions) {
     try {
       if (!db) return { success: false, error: "Database non configurato" };
-      const userDocRef = doc(db, 'utenti', uid);
+      // PATCH: Se il documento con UID non esiste, ma esiste quello con email, migra prima di aggiornare
+      let userDocRef = doc(db, 'utenti', uid);
+      let userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+        // Cerca per campo email
+        let q = query(collection(db, 'utenti'), where('email', '==', uid));
+        let querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+          const docSnap = querySnapshot.docs[0];
+          const data = docSnap.data();
+          if (data.uid && data.uid !== docSnap.id) {
+            // Unisci i dati esistenti su UID (se c'è già un documento)
+            const newDocRef = doc(db, 'utenti', data.uid);
+            let mergedData = { ...data, id: data.uid };
+            const existingDoc = await getDoc(newDocRef);
+            if (existingDoc.exists()) {
+              mergedData = { ...existingDoc.data(), ...data, id: data.uid };
+            }
+            await setDoc(newDocRef, mergedData);
+            await setDoc(docSnap.ref, { ...data, migrated: true });
+            userDocRef = newDocRef;
+          }
+        }
+      }
       const opinionsToSave = { ...opinions, updatedAt: new Date().toISOString() };
       await setDoc(userDocRef, opinionsToSave, { merge: true });
       return { success: true, data: opinionsToSave };
