@@ -395,6 +395,16 @@ export default function GestisciUtenti() {
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUserId(user.uid);
+                                      setShowEditOpinioniDialog(true);
+                                    }}
+                                  >
+                                    📝 Opinioni
+                                  </Button>
                                 </div>
                               </TableCell>
                             </TableRow>
