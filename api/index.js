@@ -210,15 +210,9 @@ app.get('/api/users/:uid/public', requireAdmin, async (req, res) => {
 app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
 app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.id)));
 app.get('/api/opinioni/:id', requireAuth, async (req, res) => {
-  const user = await UserService.getUserById(req.params.id);
-  if (!user) return res.status(404).json({ error: "Utente non trovato" });
-  res.json({
-    energia_nucleare: user.energia_nucleare,
-    sperimentazione_animale: user.sperimentazione_animale,
-    legalizzazione_canapa: user.legalizzazione_canapa,
-    caccia: user.caccia,
-    unione_europea: user.unione_europea,
-  });
+  const opinioni = await UserService.getUserOpinions(req.params.id);
+  if (!opinioni) return res.status(404).json({ error: "Utente non trovato" });
+  res.json(opinioni);
 });
 app.get('/api/statistiche-opinioni', requireStatsRole, async (req, res) => {
   const users = await UserService.getAllUsers();
