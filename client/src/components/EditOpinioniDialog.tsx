@@ -128,26 +128,36 @@ export function EditOpinioniDialog({
   const saveOpinions = async () => {
     try {
       setIsSubmitting(true);
-      const response = await fetch(`/api/opinioni/${utenteId}`, {
+      // Salva prima le opinioni
+      const responseOpinioni = await fetch(`/api/opinioni/${utenteId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ opinions, fonti })
+        body: JSON.stringify(opinions)
       });
-      if (!response.ok) {
+      if (!responseOpinioni.ok) {
         throw new Error('Errore nell\'aggiornamento delle opinioni');
+      }
+      // Poi salva le fonti
+      const responseFonti = await fetch(`/api/opinioni-fonti/${utenteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fonti)
+      });
+      if (!responseFonti.ok) {
+        throw new Error('Errore nell\'aggiornamento delle fonti');
       }
       toast({
         title: "Successo",
-        description: "Le opinioni dell'utente sono state aggiornate con successo.",
+        description: "Le opinioni e le fonti dell'utente sono state aggiornate con successo.",
         variant: "default",
       });
       onOpinioniUpdated();
       onOpenChange(false);
     } catch (error) {
-      console.error('Errore nell\'aggiornamento delle opinioni:', error);
+      console.error('Errore nell\'aggiornamento delle opinioni/fonti:', error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'aggiornamento delle opinioni.",
+        description: "Si è verificato un errore durante l'aggiornamento delle opinioni o delle fonti.",
         variant: "destructive",
       });
     } finally {
