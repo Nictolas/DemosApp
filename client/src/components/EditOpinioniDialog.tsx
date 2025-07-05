@@ -197,25 +197,30 @@ export function EditOpinioniDialog({
                 return (
                   <div key={key} className="border rounded-lg p-4 shadow-sm">
                     <h3 className="text-lg font-semibold mb-2">{label}</h3>
-                    <RadioGroup
-                      value={opinions[key] || ""}
-                      onValueChange={(value) => handleOpinionChange(key, value)}
-                      className="flex gap-4 mb-2"
-                    >
+                    <div className="flex gap-2 mb-2">
                       {options.map((option) => {
-                        const radioId = `${key}-${option.value}`;
+                        const selected = opinions[key] === option.value;
                         return (
-                          <div key={option.value} className="flex items-center gap-2">
-                            <RadioGroupItem
-                              id={radioId}
-                              value={option.value}
-                              className={option.color + " px-4 py-2 rounded-full border-2 focus:outline-none"}
-                            />
-                            <Label htmlFor={radioId} className="cursor-pointer select-none">{option.value}</Label>
-                          </div>
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => handleOpinionChange(key, option.value)}
+                            className={
+                              "px-4 py-2 rounded-full border-2 font-semibold transition " +
+                              (option.color + " ") +
+                              (selected
+                                ? " text-white ring-2 ring-offset-2 "
+                                : " bg-white text-black opacity-80 hover:opacity-100 ")
+                            }
+                            style={{
+                              borderColor: selected ? "#000" : undefined,
+                            }}
+                          >
+                            {option.value}
+                          </button>
                         );
                       })}
-                    </RadioGroup>
+                    </div>
                     <div className="mt-2">
                       <Label className="block text-sm mb-1">Fonte (URL)</Label>
                       <Input
