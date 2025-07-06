@@ -313,21 +313,23 @@ export default function Comunica() {
               </Button>
             </CardContent>
           </Card>
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700">
-                Programma
-              </CardTitle>
-              <CardDescription>
-                Visualizza o modifica il programma
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => setLocation('/programma')}>
-                Programma
-              </Button>
-            </CardContent>
-          </Card>
+          {userData?.ruolo === 'Admin' || userData?.ruolo === 'Candidato' || userData?.ruolo === 'Candidato Politico' ? (
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700">
+                  Programma
+                </CardTitle>
+                <CardDescription>
+                  Visualizza o modifica il programma
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => setLocation('/programma')}>
+                  Programma
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         {/* Ultima Votazione Section */}
