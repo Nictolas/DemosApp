@@ -111,11 +111,12 @@ export function EditOpinioniDialog({
 
   const handleOpinionChange = (questionId: string, value: string) => {
     setOpinions(prev => {
-      // Se la preferenza è già selezionata, la rimuovo (deseleziono)
+      // Se la preferenza è già selezionata, la imposto a null (per eliminare il campo su Firestore)
       if (prev[questionId] === value) {
-        const updated = { ...prev };
-        delete updated[questionId];
-        return updated;
+        return {
+          ...prev,
+          [questionId]: null
+        };
       }
       // Altrimenti la imposto normalmente
       return {
