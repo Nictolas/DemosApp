@@ -256,9 +256,80 @@ export default function Comunica() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <Navbar />
-      <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/menu")}
+            className="flex items-center gap-2"
+          >
+            Torna al Menu
+          </Button>
+        </div>
+
+        {/* Titolo */}
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+              Comunica
+            </CardTitle>
+            <CardDescription>
+              Invia comunicazioni, programma eventi o votazioni
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        {/* Pulsanti Navigazione */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700">
+                Votazione
+              </CardTitle>
+              <CardDescription>
+                Comunica una nuova votazione
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setLocation('/votazione')}>
+                Votazione
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
+                Evento
+              </CardTitle>
+              <CardDescription>
+                Programma un nuovo evento
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => setLocation('/evento')}>
+                Evento
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700">
+                Programma
+              </CardTitle>
+              <CardDescription>
+                Visualizza o modifica il programma
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => setLocation('/programma')}>
+                Programma
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Ultima Votazione Section */}
         {ultimaComunicazione && (
           <Card className="max-w-2xl mx-auto">
@@ -345,16 +416,6 @@ export default function Comunica() {
             </CardContent>
           </Card>
         )}
-
-        {/* Nuovi pulsanti per navigare alle nuove pagine */}
-        <div className="flex flex-col md:flex-row gap-6 max-w-2xl mx-auto mt-8">
-          <Button className="flex-1 text-lg py-6" onClick={() => setLocation('/votazione')}>
-            Votazione
-          </Button>
-          <Button className="flex-1 text-lg py-6" onClick={() => setLocation('/evento')}>
-            Evento
-          </Button>
-        </div>
       </div>
     </div>
   );
