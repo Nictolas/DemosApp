@@ -208,7 +208,8 @@ export default function Menu() {
                 </Button>
               </Link>
               
-              {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
+              {/* Sostenitori: rimuovere da qui */}
+              {/* {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
                 <Link href="/sostenitori">
                   <Button 
                     className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
@@ -218,7 +219,7 @@ export default function Menu() {
                     Sostenitori
                   </Button>
                 </Link>
-              )}
+              )} */}
               
               {isAdmin && (
                 <Link href="/gestisci">

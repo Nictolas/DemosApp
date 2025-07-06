@@ -330,6 +330,23 @@ export default function Comunica() {
               </CardContent>
             </Card>
           ) : null}
+          {(userData?.ruolo === 'Politico' || userData?.ruolo === 'Candidato' || userData?.ruolo === 'Candidato Politico' || userData?.ruolo === 'Admin') && (
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-pink-600 group-hover:text-pink-700">
+                  <span className="inline-flex items-center"><svg xmlns='http://www.w3.org/2000/svg' className='h-5 w-5 mr-1' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M17 20h5v-2a4 4 0 00-3-3.87M9 20h6M3 20h5v-2a4 4 0 013-3.87M16 3.13a4 4 0 010 7.75M8 3.13a4 4 0 010 7.75' /></svg>Sostenitori</span>
+                </CardTitle>
+                <CardDescription>
+                  Visualizza i tuoi sostenitori
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full bg-pink-600 hover:bg-pink-700" onClick={() => setLocation('/sostenitori')}>
+                  Sostenitori
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Ultima Votazione Section */}
