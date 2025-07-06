@@ -191,9 +191,9 @@ export function EditOpinioniDialog({
             </div>
           ) : (
             <div className="space-y-6">
-              {Object.keys(opinions).map((key) => {
-                const question = questions.find(q => q.id === key);
-                const label = question ? question.text : key;
+              {questions.map((question) => {
+                const key = question.id;
+                const label = question.text;
                 return (
                   <div key={key} className="border rounded-lg p-4 shadow-sm">
                     <h3 className="text-lg font-semibold mb-2">{label}</h3>
