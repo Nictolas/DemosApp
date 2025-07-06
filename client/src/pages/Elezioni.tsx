@@ -10,6 +10,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
+import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
 
 export default function Elezioni() {
   const { user, isLoading } = useAuth();
@@ -20,6 +21,8 @@ export default function Elezioni() {
   const [elezioni, setElezioni] = useState<any[]>([]);
   const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
+  const [programmaDialogOpen, setProgrammaDialogOpen] = useState(false);
+  const [programmaDialogData, setProgrammaDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -204,9 +207,14 @@ export default function Elezioni() {
                 <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: candidatoId, nome: candidato.nome, cognome: candidato.cognome, avatarConfig: candidato.avatar_config })}>
                   {`${candidato.nome} ${candidato.cognome}`}
                 </p>
-                <Button variant="secondary" size="sm" className="mt-1" onClick={() => setOpinioniDialogData({ utenteId: candidatoId, nome: candidato.nome, cognome: candidato.cognome, avatarConfig: candidato.avatar_config })}>
-                  Vedi Opinioni
-                </Button>
+                <div className="flex flex-row gap-2 justify-center mt-1">
+                  <Button variant="secondary" size="sm" onClick={() => setOpinioniDialogData({ utenteId: candidatoId, nome: candidato.nome, cognome: candidato.cognome, avatarConfig: candidato.avatar_config })}>
+                    Vedi Opinioni
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setProgrammaDialogData({ utenteId: candidatoId, nome: candidato.nome, cognome: candidato.cognome, avatarConfig: candidato.avatar_config })}>
+                    Vedi Programma
+                  </Button>
+                </div>
               </>
             ) : (
               <p className="text-gray-500 italic">Caricamento...</p>
@@ -312,6 +320,14 @@ export default function Elezioni() {
         nome={opinioniDialogData?.nome}
         cognome={opinioniDialogData?.cognome}
         avatarConfig={opinioniDialogData?.avatarConfig}
+      />
+      <ViewProgrammaDialog
+        open={!!programmaDialogData}
+        onOpenChange={(open) => { if (!open) setProgrammaDialogOpen(false); setProgrammaDialogData(null); }}
+        utenteId={programmaDialogData?.utenteId || ''}
+        nome={programmaDialogData?.nome}
+        cognome={programmaDialogData?.cognome}
+        avatarConfig={programmaDialogData?.avatarConfig}
       />
     </PageTransition>
   );
