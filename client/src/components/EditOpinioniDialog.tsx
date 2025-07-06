@@ -110,10 +110,19 @@ export function EditOpinioniDialog({
   };
 
   const handleOpinionChange = (questionId: string, value: string) => {
-    setOpinions(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
+    setOpinions(prev => {
+      // Se la preferenza è già selezionata, la rimuovo (deseleziono)
+      if (prev[questionId] === value) {
+        const updated = { ...prev };
+        delete updated[questionId];
+        return updated;
+      }
+      // Altrimenti la imposto normalmente
+      return {
+        ...prev,
+        [questionId]: value
+      };
+    });
   };
 
   const handleFonteChange = (questionId: string, value: string) => {
