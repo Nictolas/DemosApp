@@ -54,6 +54,7 @@ import VotaIniziativaPopolare from "@/pages/VotaIniziativaPopolare";
 import VotaReferendumAbrogativo from "@/pages/VotaReferendumAbrogativo";
 import Votazione from "@/pages/Votazione";
 import Evento from "@/pages/Evento";
+import Programma from "@/pages/Programma";
 
 function Router() {
   const [location] = useLocation();
@@ -426,6 +427,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/evento" component={Evento} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/programma">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/programma" component={Programma} />
           </PageTransition>
         )}
       </Route>
