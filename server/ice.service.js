@@ -10,11 +10,12 @@ class ICEService {
   }
 
   // Aggiunge una nuova ICE
-  static async addICE({ nome, dataInizio, dataFine, sitoWeb }) {
+  static async addICE({ nome, descrizione, dataInizio, dataFine, sitoWeb }) {
     if (!db) return { success: false, error: 'Database non configurato' };
     try {
       const docRef = await addDoc(collection(db, 'ice'), {
         nome,
+        descrizione,
         dataInizio,
         dataFine,
         sitoWeb,
@@ -32,6 +33,23 @@ class ICEService {
     if (!db) return { success: false, error: 'Database non configurato' };
     try {
       await updateDoc(doc(db, 'ice', id), { quorum });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Modifica una ICE
+  static async updateICE(id, { nome, descrizione, dataInizio, dataFine, sitoWeb }) {
+    if (!db) return { success: false, error: 'Database non configurato' };
+    try {
+      await updateDoc(doc(db, 'ice', id), {
+        nome,
+        descrizione,
+        dataInizio,
+        dataFine,
+        sitoWeb
+      });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
