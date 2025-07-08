@@ -167,6 +167,17 @@ const requireFirebaseAuth = async (req, res, next) => {
   }
 };
 
+// Middleware di controllo ruolo Admin dopo verifica token Firebase
+const requireFirebaseAdmin = async (req, res, next) => {
+  await requireFirebaseAuth(req, res, async () => {
+    // Dopo la verifica del token, controllo il ruolo
+    if (req.user?.role !== 'Admin' && req.user?.ruolo !== 'Admin') {
+      return res.status(403).json({ error: 'Forbidden: solo Admin' });
+    }
+    next();
+  });
+};
+
 
 // ROTTE
 // ===============================================
@@ -207,40 +218,40 @@ app.post("/api/logout", (req, res, next) => {
 
 // User
 app.get('/api/user', requireFirebaseAuth, (req, res) => res.json(req.user));
-app.get('/api/users', requireAuth, async (req, res) => res.json(await UserService.getAllUsers()));
-app.get('/api/users/:uid', requireAuth, async (req, res) => res.json(await UserService.getUserById(decodeURIComponent(req.params.uid))));
-app.put('/api/users/:uid', requireAuth, async (req, res) => {
+app.get('/api/users', requireFirebaseAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
+app.get('/api/users/:uid', requireFirebaseAdmin, async (req, res) => res.json(await UserService.getUserById(decodeURIComponent(req.params.uid))));
+app.put('/api/users/:uid', requireFirebaseAdmin, async (req, res) => {
     const { uid } = req.params;
-    if (req.user?.id !== uid && req.user?.ruolo !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
+    if (req.user?.id !== uid && req.user?.role !== 'Admin' && req.user?.ruolo !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
     const result = await UserService.updateUserData(uid, req.body);
     res.status(result.success ? 200 : 500).json(result);
 });
-app.post('/api/users/:uid/avatar', requireAuth, async (req, res) => {
+app.post('/api/users/:uid/avatar', requireFirebaseAuth, async (req, res) => {
     const { uid } = req.params;
     if (req.user?.id !== uid) return res.status(403).json({ error: 'Forbidden' });
     const result = await UserService.updateUserData(uid, { avatar_config: req.body.avatar_config });
     res.json(result);
 });
-app.get('/api/users/:uid/public', requireAdmin, async (req, res) => {
+app.get('/api/users/:uid/public', requireFirebaseAdmin, async (req, res) => {
   const user = await UserService.getUserById(decodeURIComponent(req.params.uid));
   if (!user) return res.status(404).json({ error: 'Utente non trovato' });
   res.json({ id: user.id, nome: user.nome, cognome: user.cognome });
 });
 
 // Opinioni
-app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
-app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.id)));
-app.get('/api/opinioni/:id', requireAuth, async (req, res) => {
+app.post('/api/opinioni', requireFirebaseAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
+app.get('/api/opinioni', requireFirebaseAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.id)));
+app.get('/api/opinioni/:id', requireFirebaseAuth, async (req, res) => {
   const opinioni = await UserService.getUserOpinions(req.params.id);
   if (!opinioni) return res.status(404).json({ error: "Utente non trovato" });
   res.json(opinioni);
 });
-app.get('/api/statistiche-opinioni', requireStatsRole, async (req, res) => {
+app.get('/api/statistiche-opinioni', requireFirebaseAdmin, async (req, res) => {
   const users = await UserService.getAllUsers();
   console.log("STATISTICHE UTENTI:", users.length, users[0]);
   res.json(users);
 });
-app.get('/api/opinioni-dettaglio/:opinionField', requireStatsRole, async (req, res) => {
+app.get('/api/opinioni-dettaglio/:opinionField', requireFirebaseAdmin, async (req, res) => {
     const { opinionField } = req.params;
     const regione = req.query.regione;
     const provincia = req.query.provincia;
@@ -265,18 +276,18 @@ app.get('/api/sostenitori/:uid', requireAuth, async (req, res) => {
 });
 
 // Admin
-app.delete('/api/users/:uid', requireAdmin, async (req, res) => {
+app.delete('/api/users/:uid', requireFirebaseAdmin, async (req, res) => {
     const user = await UserService.getUserById(req.params.uid);
-    if (!user?.email) return res.status(404).json({ error: "User not found" });
+    if (!user?.email) return res.status(404).json({ error: 'User not found' });
     res.json(await AdminService.deleteUserByEmail(user.email));
 });
-app.get('/api/pending-users', requireAdmin, async (req, res) => res.json(await AdminService.getPendingUsers()));
-app.post('/api/approve-user', requireAdmin, async (req, res) => res.json(await AdminService.approveUser(req.body.userId)));
-app.post('/api/reject-user', requireAdmin, async (req, res) => res.json(await AdminService.rejectUser(req.body.userId, req.body.reason)));
+app.get('/api/pending-users', requireFirebaseAdmin, async (req, res) => res.json(await AdminService.getPendingUsers()));
+app.post('/api/approve-user', requireFirebaseAdmin, async (req, res) => res.json(await AdminService.approveUser(req.body.userId)));
+app.post('/api/reject-user', requireFirebaseAdmin, async (req, res) => res.json(await AdminService.rejectUser(req.body.userId, req.body.reason)));
 
 // !!! ROTTA DI MIGRAZIONE TEMPORANEA !!!
 // Da rimuovere dopo l'uso
-app.get('/api/admin/add-status-to-users', requireAdmin, async (req, res) => {
+app.get('/api/admin/add-status-to-users', requireFirebaseAdmin, async (req, res) => {
   // Un piccolo controllo di sicurezza extra
   if (req.query.secret_key !== 'demos_migration_2024') {
     return res.status(403).json({ error: "Forbidden: chiave segreta non valida." });
@@ -384,18 +395,18 @@ app.post('/api/grazia/richiesta', requireAuth, async (req, res) => {
   res.status(result.success ? 200 : 400).json(result);
 });
 
-app.get('/api/grazia/richieste', requireAdmin, async (req, res) => {
+app.get('/api/grazia/richieste', requireFirebaseAdmin, async (req, res) => {
   const richieste = await VotoService.getPendingGraziaRequests();
   res.json(richieste);
 });
 
-app.post('/api/grazia/richiesta/:id/accetta', requireAdmin, async (req, res) => {
+app.post('/api/grazia/richiesta/:id/accetta', requireFirebaseAdmin, async (req, res) => {
   const { id } = req.params;
   const result = await VotoService.acceptGraziaRequest(id);
   res.status(result.success ? 200 : 400).json(result);
 });
 
-app.post('/api/grazia/richiesta/:id/rifiuta', requireAdmin, async (req, res) => {
+app.post('/api/grazia/richiesta/:id/rifiuta', requireFirebaseAdmin, async (req, res) => {
   const { id } = req.params;
   const result = await VotoService.rejectGraziaRequest(id);
   res.status(result.success ? 200 : 400).json(result);
@@ -405,7 +416,7 @@ app.post('/api/grazia/richiesta/:id/rifiuta', requireAdmin, async (req, res) => 
 app.get('/api/opinioni-list', requireAuth, async (req, res) => {
   res.json(await OpinioniService.listOpinioni());
 });
-app.post('/api/opinioni-list', requireAdmin, async (req, res) => {
+app.post('/api/opinioni-list', requireFirebaseAdmin, async (req, res) => {
   const { id, text } = req.body;
   if (!id || !text) return res.status(400).json({ error: 'id e text obbligatori' });
   const result = await OpinioniService.addOpinione({ id, text });
@@ -419,11 +430,11 @@ app.post('/api/opinioni-list', requireAdmin, async (req, res) => {
   }
   res.status(result.success ? 200 : 400).json(result);
 });
-app.delete('/api/opinioni-list/:id', requireAdmin, async (req, res) => {
+app.delete('/api/opinioni-list/:id', requireFirebaseAdmin, async (req, res) => {
   const result = await OpinioniService.deleteOpinione(req.params.id);
   res.status(result.success ? 200 : 400).json(result);
 });
-app.patch('/api/opinioni-list/:id', requireAdmin, async (req, res) => {
+app.patch('/api/opinioni-list/:id', requireFirebaseAdmin, async (req, res) => {
   const { id } = req.params;
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: 'text obbligatorio' });
@@ -492,7 +503,7 @@ app.get('/api/opinioni-proposte/voti', requireAuth, async (req, res) => {
   }
 });
 
-app.delete('/api/opinioni-proposte/:id', requireAdmin, async (req, res) => {
+app.delete('/api/opinioni-proposte/:id', requireFirebaseAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await OpinioniProposteService.deleteOpinioneProposta(id);
@@ -507,7 +518,7 @@ app.delete('/api/opinioni-proposte/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/opinioni-proposte/:id/accetta', requireAdmin, async (req, res) => {
+app.post('/api/opinioni-proposte/:id/accetta', requireFirebaseAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await OpinioniProposteService.accettaOpinioneProposta(id);
@@ -523,7 +534,7 @@ app.post('/api/opinioni-proposte/:id/accetta', requireAdmin, async (req, res) =>
 });
 
 // Endpoint per limiti Firebase (mock, pronto per dati reali)
-app.get('/api/limiti', requireStatsRole, async (req, res) => {
+app.get('/api/limiti', requireFirebaseAdmin, async (req, res) => {
   try {
     // Dati statici/mock, senza chiamate a firebaseUsage
     res.json({
@@ -617,7 +628,7 @@ app.get('/api/referendum-abrogativi/:id/votanti', requireAuth, async (req, res) 
 });
 
 // Endpoint per eliminare un candidato dalla classifica Capo di Stato (solo admin)
-app.delete('/api/capo-stato/classifica/:nome', requireAdmin, async (req, res) => {
+app.delete('/api/capo-stato/classifica/:nome', requireFirebaseAdmin, async (req, res) => {
   const nome = decodeURIComponent(req.params.nome);
   try {
     const result = await VotoService.deleteAllVotesForCandidate('voti_capo_stato', nome);
@@ -628,7 +639,7 @@ app.delete('/api/capo-stato/classifica/:nome', requireAdmin, async (req, res) =>
 });
 
 // Endpoint per eliminare un candidato dalla classifica Grazia (solo admin)
-app.delete('/api/grazia/classifica/:nome', requireAdmin, async (req, res) => {
+app.delete('/api/grazia/classifica/:nome', requireFirebaseAdmin, async (req, res) => {
   const nome = decodeURIComponent(req.params.nome);
   try {
     const result = await VotoService.deleteAllVotesForCandidate('voti_grazia', nome);
@@ -639,7 +650,7 @@ app.delete('/api/grazia/classifica/:nome', requireAdmin, async (req, res) => {
 });
 
 // Endpoint per eliminare una legge dalla classifica Amnistia (solo admin)
-app.delete('/api/amnistia/classifica/:nome', requireAdmin, async (req, res) => {
+app.delete('/api/amnistia/classifica/:nome', requireFirebaseAdmin, async (req, res) => {
   const nome = decodeURIComponent(req.params.nome);
   try {
     const result = await VotoService.deleteAllVotesForCandidate('voti_amnistia', nome);
@@ -650,14 +661,14 @@ app.delete('/api/amnistia/classifica/:nome', requireAdmin, async (req, res) => {
 });
 
 // === INIZIATIVE POPOLARI: Cancella iniziativa ===
-app.delete('/api/iniziative-popolari/:id', requireAdmin, async (req, res) => {
+app.delete('/api/iniziative-popolari/:id', requireFirebaseAdmin, async (req, res) => {
   const { id } = req.params;
   const result = await VotoService.deleteIniziativaPopolare(id);
   res.status(result.success ? 200 : 400).json(result);
 });
 
 // Endpoint per cancellare un candidato dalla classifica di una categoria (solo admin)
-app.delete('/api/governo/classifica/:categoria/:nome', requireAdmin, async (req, res) => {
+app.delete('/api/governo/classifica/:categoria/:nome', requireFirebaseAdmin, async (req, res) => {
   const { categoria, nome } = req.params;
   try {
     // Normalizza il nome per la ricerca
@@ -693,7 +704,7 @@ app.get('/api/ministeri', async (req, res) => {
   }
 });
 
-app.post('/api/ministeri', requireAdmin, async (req, res) => {
+app.post('/api/ministeri', requireFirebaseAdmin, async (req, res) => {
   try {
     const { nome, categoria, descrizione, icona, colore, ordine, abilitato } = req.body;
     if (!nome || !categoria) return res.status(400).json({ error: 'Nome e categoria sono obbligatori' });
@@ -704,7 +715,7 @@ app.post('/api/ministeri', requireAdmin, async (req, res) => {
   }
 });
 
-app.put('/api/ministeri/:id', requireAdmin, async (req, res) => {
+app.put('/api/ministeri/:id', requireFirebaseAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
@@ -715,7 +726,7 @@ app.put('/api/ministeri/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/ministeri/:id', requireAdmin, async (req, res) => {
+app.delete('/api/ministeri/:id', requireFirebaseAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await deleteMinistero(id);
@@ -731,13 +742,13 @@ app.get('/api/opinioni-fonti/:id', requireAuth, async (req, res) => {
   res.json(fonti);
 });
 // Salva le fonti delle opinioni di un utente (solo admin)
-app.put('/api/opinioni-fonti/:id', requireAdmin, async (req, res) => {
+app.put('/api/opinioni-fonti/:id', requireFirebaseAdmin, async (req, res) => {
   const result = await UserService.saveUserFonti(req.params.id, req.body);
   res.status(result.success ? 200 : 500).json(result);
 });
 
 // Aggiorna le opinioni di un utente specifico (solo admin)
-app.put('/api/opinioni/:id', requireAdmin, async (req, res) => {
+app.put('/api/opinioni/:id', requireFirebaseAdmin, async (req, res) => {
   const result = await UserService.saveUserOpinions(req.params.id, req.body);
   res.status(result.success ? 200 : 500).json(result);
 });
@@ -769,7 +780,7 @@ app.post('/api/ice', requireAuth, async (req, res) => {
   }
 });
 
-app.patch('/api/ice/:id/quorum', requireAdmin, async (req, res) => {
+app.patch('/api/ice/:id/quorum', requireFirebaseAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { quorum } = req.body;
@@ -781,7 +792,7 @@ app.patch('/api/ice/:id/quorum', requireAdmin, async (req, res) => {
   }
 });
 
-app.patch('/api/ice/:id', requireAdmin, async (req, res) => {
+app.patch('/api/ice/:id', requireFirebaseAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
@@ -795,7 +806,7 @@ app.patch('/api/ice/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/ice/:id', requireAdmin, async (req, res) => {
+app.delete('/api/ice/:id', requireFirebaseAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await ICEService.deleteICE(id);
