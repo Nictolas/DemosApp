@@ -68,14 +68,26 @@ export default function RegistrazioneWizard() {
   const [provinceCandidatura, setProvinceCandidatura] = useState<string[]>([]);
   const [comuniCandidatura, setComuniCandidatura] = useState<string[]>([]);
   const { registerMutation } = useAuth();
+  const { formData, clearFormData } = useRegistration();
   const [, navigate] = useLocation();
   const methods = useForm<WizardFormValues>({
     resolver: zodResolver(fullSchema),
-    defaultValues: {},
+    defaultValues: {
+      email: formData?.email || "",
+      password: formData?.password || "",
+      ruolo: formData?.ruolo || "",
+    },
     mode: "onTouched"
   });
   const { watch, handleSubmit, formState, setValue } = methods;
   const ruolo = watch("ruolo");
+
+  useEffect(() => {
+    // Se i dati account sono già presenti, vai direttamente allo step 2
+    if (formData?.email && formData?.password && formData?.ruolo) {
+      setStep(1);
+    }
+  }, [formData]);
 
   // --- LOGICA REGIONI/PROVINCE/COMUNI ELEZIONE ---
   const paeseElezione = watch("paese_elezione");
@@ -159,21 +171,21 @@ export default function RegistrazioneWizard() {
       <FormField control={methods.control} name="email" render={({ field }) => (
         <FormItem>
           <FormLabel>Email</FormLabel>
-          <FormControl><Input {...field} /></FormControl>
+          <FormControl><Input {...field} disabled={!!formData?.email} /></FormControl>
           <FormMessage />
         </FormItem>
       )} />
       <FormField control={methods.control} name="password" render={({ field }) => (
         <FormItem>
           <FormLabel>Password</FormLabel>
-          <FormControl><Input type="password" {...field} /></FormControl>
+          <FormControl><Input type="password" {...field} disabled={!!formData?.password} /></FormControl>
           <FormMessage />
         </FormItem>
       )} />
       <FormField control={methods.control} name="ruolo" render={({ field }) => (
         <FormItem>
           <FormLabel>Ruolo</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!formData?.ruolo}>
             <FormControl>
               <SelectTrigger><SelectValue placeholder="Seleziona ruolo" /></SelectTrigger>
             </FormControl>
