@@ -157,7 +157,6 @@ export default function ProponiOpinione() {
                       <li key={op.id} className="flex items-center justify-between border-b pb-2">
                         <div>
                           <span className="font-medium">{op.testo}</span>
-                          <span className="block text-xs text-muted-foreground">Proposta da: {op.proponente}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-fuchsia-700 font-bold">{op.voti}</span>
