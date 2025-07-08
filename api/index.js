@@ -58,8 +58,11 @@ app.use(
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: true, // PATCH: sempre true per HTTPS (Vercel)
+      sameSite: 'none', // PATCH: sempre none per compatibilità cross-site
+      // Se vuoi tornare alla versione condizionata:
+      // secure: process.env.NODE_ENV === 'production',
+      // sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     },
   }),
 );
