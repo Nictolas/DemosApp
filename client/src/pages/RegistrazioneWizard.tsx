@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,19 +12,14 @@ import { useRegistration } from "@/hooks/use-registration";
 import { useLocation } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
 
-// Schema combinato per tutti gli step
-const schema = z.object({
-  // Step 1: Account
+// Nuovo schema dinamico per la validazione in base al ruolo
+const baseSchema = z.object({
   email: z.string().email("Email non valida"),
   password: z.string().min(6, "Minimo 6 caratteri"),
   ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
-  // Step 2: Elezione/Candidatura
-  grado_elezione: z.string().min(1, "Il grado di elezione è obbligatorio"),
-  aula_elezione: z.string().optional(),
-  paese_elezione: z.string().min(1, "Il paese di elezione è obbligatorio"),
-  regione_elezione: z.string().min(1, "La regione di elezione è obbligatoria"),
-  provincia_elezione: z.string().min(1, "La provincia di elezione è obbligatoria"),
-  comune_elezione: z.string().min(1, "Il comune di elezione è obbligatorio"),
+});
+
+const candidaturaSchema = z.object({
   grado_candidatura: z.string().min(1, "Il grado di candidatura è obbligatorio"),
   aula_candidatura: z.string().optional(),
   paese_candidatura: z.string().min(1, "Il paese di candidatura è obbligatorio"),
@@ -32,15 +27,33 @@ const schema = z.object({
   provincia_candidatura: z.string().min(1, "La provincia di candidatura è obbligatoria"),
   comune_candidatura: z.string().min(1, "Il comune di candidatura è obbligatorio"),
 }).refine((data) => {
-  if (data.grado_elezione === "Nazionale" && !data.aula_elezione) return false;
   if (data.grado_candidatura === "Nazionale" && !data.aula_candidatura) return false;
   return true;
 }, {
   message: "L'aula è obbligatoria per il grado nazionale",
-  path: ["aula_elezione", "aula_candidatura"]
+  path: ["aula_candidatura"]
 });
 
-type WizardFormValues = z.infer<typeof schema>;
+const elezioneSchema = z.object({
+  grado_elezione: z.string().min(1, "Il grado di elezione è obbligatorio"),
+  aula_elezione: z.string().optional(),
+  paese_elezione: z.string().min(1, "Il paese di elezione è obbligatorio"),
+  regione_elezione: z.string().min(1, "La regione di elezione è obbligatoria"),
+  provincia_elezione: z.string().min(1, "La provincia di elezione è obbligatoria"),
+  comune_elezione: z.string().min(1, "Il comune di elezione è obbligatorio"),
+}).refine((data) => {
+  if (data.grado_elezione === "Nazionale" && !data.aula_elezione) return false;
+  return true;
+}, {
+  message: "L'aula è obbligatoria per il grado nazionale",
+  path: ["aula_elezione"]
+});
+
+const fullSchema = baseSchema
+  .merge(elezioneSchema.partial())
+  .merge(candidaturaSchema.partial());
+
+type WizardFormValues = z.infer<typeof fullSchema>;
 
 const steps = ["Account", "Elezione/Candidatura", "Riepilogo"];
 
@@ -55,18 +68,18 @@ export default function RegistrazioneWizard() {
   const { registerMutation } = useAuth();
   const [, navigate] = useLocation();
   const methods = useForm<WizardFormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(fullSchema),
     defaultValues: {},
     mode: "onTouched"
   });
   const { watch, handleSubmit, formState, setValue } = methods;
+  const ruolo = watch("ruolo");
 
   // --- LOGICA REGIONI/PROVINCE/COMUNI ELEZIONE ---
   const paeseElezione = watch("paese_elezione");
   const regioneElezione = watch("regione_elezione");
   const provinciaElezione = watch("provincia_elezione");
-  // Aggiorna regioni elezione
-  useState(() => {
+  useEffect(() => {
     if (paeseElezione === "Italia") {
       setRegioniElezione(ITALY_DATA.Italia.regioni.map(r => r.nome));
     } else {
@@ -78,8 +91,7 @@ export default function RegistrazioneWizard() {
     setValue("provincia_elezione", "");
     setValue("comune_elezione", "");
   }, [paeseElezione]);
-  // Aggiorna province elezione
-  useState(() => {
+  useEffect(() => {
     if (paeseElezione === "Italia" && regioneElezione) {
       const regione = ITALY_DATA.Italia.regioni.find(r => r.nome === regioneElezione);
       setProvinceElezione(regione ? regione.province.map(p => p.nome) : []);
@@ -90,8 +102,7 @@ export default function RegistrazioneWizard() {
     setValue("provincia_elezione", "");
     setValue("comune_elezione", "");
   }, [regioneElezione, paeseElezione]);
-  // Aggiorna comuni elezione
-  useState(() => {
+  useEffect(() => {
     if (paeseElezione === "Italia" && regioneElezione && provinciaElezione) {
       const regione = ITALY_DATA.Italia.regioni.find(r => r.nome === regioneElezione);
       const provincia = regione?.province.find(p => p.nome === provinciaElezione);
@@ -106,8 +117,7 @@ export default function RegistrazioneWizard() {
   const paeseCandidatura = watch("paese_candidatura");
   const regioneCandidatura = watch("regione_candidatura");
   const provinciaCandidatura = watch("provincia_candidatura");
-  // Aggiorna regioni candidatura
-  useState(() => {
+  useEffect(() => {
     if (paeseCandidatura === "Italia") {
       setRegioniCandidatura(ITALY_DATA.Italia.regioni.map(r => r.nome));
     } else {
@@ -119,8 +129,7 @@ export default function RegistrazioneWizard() {
     setValue("provincia_candidatura", "");
     setValue("comune_candidatura", "");
   }, [paeseCandidatura]);
-  // Aggiorna province candidatura
-  useState(() => {
+  useEffect(() => {
     if (paeseCandidatura === "Italia" && regioneCandidatura) {
       const regione = ITALY_DATA.Italia.regioni.find(r => r.nome === regioneCandidatura);
       setProvinceCandidatura(regione ? regione.province.map(p => p.nome) : []);
@@ -131,8 +140,7 @@ export default function RegistrazioneWizard() {
     setValue("provincia_candidatura", "");
     setValue("comune_candidatura", "");
   }, [regioneCandidatura, paeseCandidatura]);
-  // Aggiorna comuni candidatura
-  useState(() => {
+  useEffect(() => {
     if (paeseCandidatura === "Italia" && regioneCandidatura && provinciaCandidatura) {
       const regione = ITALY_DATA.Italia.regioni.find(r => r.nome === regioneCandidatura);
       const provincia = regione?.province.find(p => p.nome === provinciaCandidatura);
@@ -179,215 +187,215 @@ export default function RegistrazioneWizard() {
     </>
   );
 
-  // Step 2: Elezione/Candidatura (puoi copiare la logica dei tuoi form esistenti qui)
+  // Step 2: Elezione/Candidatura (dinamico)
   const renderStep2 = () => (
     <>
-      {/* Grado di Elezione */}
-      <FormField control={methods.control} name="grado_elezione" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Grado di Elezione</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona grado di elezione" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              <SelectItem value="Comunale">Comunale</SelectItem>
-              <SelectItem value="Provinciale">Provinciale</SelectItem>
-              <SelectItem value="Regionale">Regionale</SelectItem>
-              <SelectItem value="Nazionale">Nazionale</SelectItem>
-              <SelectItem value="Europeo">Europeo</SelectItem>
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Aula Elezione */}
-      {watch("grado_elezione") === "Nazionale" && (
-        <FormField control={methods.control} name="aula_elezione" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Aula</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger><SelectValue placeholder="Seleziona aula" /></SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="Camera">Camera</SelectItem>
-                <SelectItem value="Senato">Senato</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )} />
+      {/* Sezione Elezione solo per Politico e Candidato Politico */}
+      {(ruolo === "Politico" || ruolo === "Candidato Politico") && (
+        <>
+          <FormField control={methods.control} name="grado_elezione" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Grado di Elezione</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona grado di elezione" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Comunale">Comunale</SelectItem>
+                  <SelectItem value="Provinciale">Provinciale</SelectItem>
+                  <SelectItem value="Regionale">Regionale</SelectItem>
+                  <SelectItem value="Nazionale">Nazionale</SelectItem>
+                  <SelectItem value="Europeo">Europeo</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          {watch("grado_elezione") === "Nazionale" && (
+            <FormField control={methods.control} name="aula_elezione" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Aula</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Seleziona aula" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Camera">Camera</SelectItem>
+                    <SelectItem value="Senato">Senato</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+          )}
+          {/* Paese, Regione, Provincia, Comune Elezione */}
+          <FormField control={methods.control} name="paese_elezione" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Paese di Elezione</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona paese" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Italia">Italia</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={methods.control} name="regione_elezione" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Regione di Elezione</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={regioniElezione.length === 0}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona regione" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {regioniElezione.map(regione => (
+                    <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={methods.control} name="provincia_elezione" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Provincia di Elezione</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={provinceElezione.length === 0}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona provincia" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {provinceElezione.map(provincia => (
+                    <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={methods.control} name="comune_elezione" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Comune di Elezione</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={comuniElezione.length === 0}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona comune" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {comuniElezione.map(comune => (
+                    <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </>
       )}
-      {/* Paese di Elezione */}
-      <FormField control={methods.control} name="paese_elezione" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Paese di Elezione</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona paese" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              <SelectItem value="Italia">Italia</SelectItem>
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Regione di Elezione */}
-      <FormField control={methods.control} name="regione_elezione" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Regione di Elezione</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={regioniElezione.length === 0}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona regione" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {regioniElezione.map(regione => (
-                <SelectItem key={regione} value={regione}>{regione}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Provincia di Elezione */}
-      <FormField control={methods.control} name="provincia_elezione" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Provincia di Elezione</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={provinceElezione.length === 0}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona provincia" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {provinceElezione.map(provincia => (
-                <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Comune di Elezione */}
-      <FormField control={methods.control} name="comune_elezione" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Comune di Elezione</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={comuniElezione.length === 0}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona comune" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {comuniElezione.map(comune => (
-                <SelectItem key={comune} value={comune}>{comune}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Grado di Candidatura */}
-      <FormField control={methods.control} name="grado_candidatura" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Grado di Candidatura</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona grado di candidatura" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              <SelectItem value="Comunale">Comunale</SelectItem>
-              <SelectItem value="Provinciale">Provinciale</SelectItem>
-              <SelectItem value="Regionale">Regionale</SelectItem>
-              <SelectItem value="Nazionale">Nazionale</SelectItem>
-              <SelectItem value="Europeo">Europeo</SelectItem>
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Aula Candidatura */}
-      {watch("grado_candidatura") === "Nazionale" && (
-        <FormField control={methods.control} name="aula_candidatura" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Aula</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger><SelectValue placeholder="Seleziona aula" /></SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="Camera">Camera</SelectItem>
-                <SelectItem value="Senato">Senato</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )} />
+      {/* Sezione Candidatura solo per Candidato e Candidato Politico */}
+      {(ruolo === "Candidato" || ruolo === "Candidato Politico") && (
+        <>
+          <FormField control={methods.control} name="grado_candidatura" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Grado di Candidatura</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona grado di candidatura" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Comunale">Comunale</SelectItem>
+                  <SelectItem value="Provinciale">Provinciale</SelectItem>
+                  <SelectItem value="Regionale">Regionale</SelectItem>
+                  <SelectItem value="Nazionale">Nazionale</SelectItem>
+                  <SelectItem value="Europeo">Europeo</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          {watch("grado_candidatura") === "Nazionale" && (
+            <FormField control={methods.control} name="aula_candidatura" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Aula</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Seleziona aula" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Camera">Camera</SelectItem>
+                    <SelectItem value="Senato">Senato</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+          )}
+          {/* Paese, Regione, Provincia, Comune Candidatura */}
+          <FormField control={methods.control} name="paese_candidatura" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Paese di Candidatura</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona paese" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Italia">Italia</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={methods.control} name="regione_candidatura" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Regione di Candidatura</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={regioniCandidatura.length === 0}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona regione" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {regioniCandidatura.map(regione => (
+                    <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={methods.control} name="provincia_candidatura" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Provincia di Candidatura</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={provinceCandidatura.length === 0}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona provincia" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {provinceCandidatura.map(provincia => (
+                    <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+          <FormField control={methods.control} name="comune_candidatura" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Comune di Candidatura</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={comuniCandidatura.length === 0}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Seleziona comune" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {comuniCandidatura.map(comune => (
+                    <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </>
       )}
-      {/* Paese di Candidatura */}
-      <FormField control={methods.control} name="paese_candidatura" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Paese di Candidatura</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona paese" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              <SelectItem value="Italia">Italia</SelectItem>
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Regione di Candidatura */}
-      <FormField control={methods.control} name="regione_candidatura" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Regione di Candidatura</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={regioniCandidatura.length === 0}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona regione" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {regioniCandidatura.map(regione => (
-                <SelectItem key={regione} value={regione}>{regione}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Provincia di Candidatura */}
-      <FormField control={methods.control} name="provincia_candidatura" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Provincia di Candidatura</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={provinceCandidatura.length === 0}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona provincia" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {provinceCandidatura.map(provincia => (
-                <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
-      {/* Comune di Candidatura */}
-      <FormField control={methods.control} name="comune_candidatura" render={({ field }) => (
-        <FormItem>
-          <FormLabel>Comune di Candidatura</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={comuniCandidatura.length === 0}>
-            <FormControl>
-              <SelectTrigger><SelectValue placeholder="Seleziona comune" /></SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {comuniCandidatura.map(comune => (
-                <SelectItem key={comune} value={comune}>{comune}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <FormMessage />
-        </FormItem>
-      )} />
     </>
   );
 
