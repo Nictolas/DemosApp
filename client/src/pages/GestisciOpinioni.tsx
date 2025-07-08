@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Trash2, Plus, Edit } from "lucide-react";
+import { Loader2, ArrowLeft, Trash2, Plus, Edit, MessageSquare, ThumbsUp, Check, X } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function GestisciOpinioni() {
@@ -17,6 +17,9 @@ export default function GestisciOpinioni() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [proposte, setProposte] = useState([]);
+  const [loadingProposte, setLoadingProposte] = useState(true);
+  const [processingId, setProcessingId] = useState("");
 
   const fetchOpinioni = async () => {
     setLoading(true);
@@ -32,7 +35,21 @@ export default function GestisciOpinioni() {
     }
   };
 
+  const fetchProposte = async () => {
+    setLoadingProposte(true);
+    try {
+      const res = await fetch("/api/opinioni-proposte");
+      if (!res.ok) throw new Error();
+      setProposte(await res.json());
+    } catch {
+      setProposte([]);
+    } finally {
+      setLoadingProposte(false);
+    }
+  };
+
   useEffect(() => { fetchOpinioni(); }, []);
+  useEffect(() => { fetchProposte(); }, []);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,6 +118,26 @@ export default function GestisciOpinioni() {
     setEditText("");
   };
 
+  const handleAccetta = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const res = await fetch(`/api/opinioni-proposte/${id}/accetta`, { method: "POST" });
+      await fetchProposte();
+      await fetchOpinioni();
+    } finally {
+      setProcessingId("");
+    }
+  };
+  const handleRifiuta = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const res = await fetch(`/api/opinioni-proposte/${id}`, { method: "DELETE" });
+      await fetchProposte();
+    } finally {
+      setProcessingId("");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-3xl">
@@ -111,6 +148,33 @@ export default function GestisciOpinioni() {
             <CardDescription>Aggiungi o elimina le opinioni disponibili per gli utenti</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Opinioni proposte dagli utenti */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="h-5 w-5 text-fuchsia-600" />
+                <span className="font-semibold">Opinioni proposte dagli utenti</span>
+              </div>
+              {loadingProposte ? (
+                <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Caricamento...</div>
+              ) : proposte.length === 0 ? (
+                <div className="text-muted-foreground text-sm">Nessuna opinione proposta in attesa.</div>
+              ) : (
+                <ul className="space-y-2">
+                  {proposte.map((op: any) => (
+                    <li key={op.id} className="flex items-center justify-between border rounded px-3 py-2 bg-fuchsia-50">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{op.testo}</span>
+                        <span className="text-xs text-muted-foreground">Voti: {op.voti}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="default" onClick={() => handleAccetta(op.id)} disabled={processingId === op.id}><Check className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleRifiuta(op.id)} disabled={processingId === op.id}><X className="h-4 w-4" /></Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {loading ? (
               <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
             ) : error ? (
