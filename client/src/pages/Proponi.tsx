@@ -102,13 +102,13 @@ export default function Proponi() {
                 Opinioni
               </CardTitle>
               <CardDescription>
-                Esprimi la tua opinione su temi importanti
+                Proponi nuove opinioni per Demos
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button 
                 className="w-full bg-fuchsia-600 hover:bg-fuchsia-700"
-                onClick={() => window.location.href = "/opinioni"}
+                onClick={() => window.location.href = "/proponi-opinione"}
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Esprimi Opinione
