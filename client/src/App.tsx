@@ -59,6 +59,7 @@ import Dona from "@/pages/Dona";
 import ProponiOpinione from "@/pages/ProponiOpinione";
 import ICE from "@/pages/ICE";
 import GestisciICE from "@/pages/GestisciICE";
+import VotaICE from "@/pages/VotaICE";
 
 function Router() {
   const [location] = useLocation();
@@ -466,6 +467,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/gestisci-ice" component={GestisciICE} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/vota-ice">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/vota-ice" component={VotaICE} />
           </PageTransition>
         )}
       </Route>
