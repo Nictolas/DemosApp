@@ -207,6 +207,12 @@ export default function GestisciUtenti() {
       return 0;
     });
 
+  // Stato per la paginazione
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 20;
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       {isLoading || isLoadingUsers ? (
@@ -364,8 +370,8 @@ export default function GestisciUtenti() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredUsers.length > 0 ? (
-                          filteredUsers.map((user) => (
+                        {paginatedUsers.length > 0 ? (
+                          paginatedUsers.map((user) => (
                             <TableRow key={user.id}>
                               <TableCell colSpan={2}>
                                 <Link href={`/profilo/${user.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
@@ -417,6 +423,14 @@ export default function GestisciUtenti() {
                       </TableBody>
                     </Table>
                   </div>
+                  {/* Paginazione */}
+                  {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2 mt-4">
+                      <Button size="sm" variant="outline" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>&lt;</Button>
+                      <span>Pagina {currentPage} di {totalPages}</span>
+                      <Button size="sm" variant="outline" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>&gt;</Button>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>
