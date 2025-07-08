@@ -154,7 +154,11 @@ export default function Impostazioni() {
             </div>
           </CardContent>
           <div className="flex justify-end p-4 gap-2">
-            <Button variant="default">Test</Button>
+            <Link href="/dona">
+              <Button variant="outline" className="max-w-sm">
+                Dona
+              </Button>
+            </Link>
             <Button 
               variant="destructive" 
               className="max-w-sm"
