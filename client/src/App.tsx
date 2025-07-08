@@ -55,6 +55,7 @@ import VotaReferendumAbrogativo from "@/pages/VotaReferendumAbrogativo";
 import Votazione from "@/pages/Votazione";
 import Evento from "@/pages/Evento";
 import Programma from "@/pages/Programma";
+import Dona from "@/pages/Dona";
 
 function Router() {
   const [location] = useLocation();
@@ -434,6 +435,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/programma" component={Programma} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/dona">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <Dona />
           </PageTransition>
         )}
       </Route>
