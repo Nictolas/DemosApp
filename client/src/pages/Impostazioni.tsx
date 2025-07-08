@@ -153,30 +153,30 @@ export default function Impostazioni() {
               </div>
             </div>
           </CardContent>
-          <div className="flex justify-end p-4 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
             <Link href="/dona">
-              <Button variant="outline" className="max-w-sm">
-                Dona
-              </Button>
+              <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-yellow-500">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <span className="inline-flex items-center justify-center rounded-full bg-yellow-100 p-2 mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v9m-7-7h14" /></svg>
+                  </span>
+                  <div>
+                    <h4 className="font-medium">Dona</h4>
+                    <p className="text-sm text-muted-foreground">Sostieni il progetto DEMOS</p>
+                  </div>
+                </CardContent>
+              </Card>
             </Link>
-            <Button 
-              variant="destructive" 
-              className="max-w-sm"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-            >
-              {isLoggingOut ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Disconnessione in corso...
-                </>
-              ) : (
-                <>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Disconnetti
-                </>
-              )}
-            </Button>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-500" onClick={handleLogout}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <LogOut className="h-5 w-5 text-red-500 mr-2" />
+                <div>
+                  <h4 className="font-medium">Disconnetti</h4>
+                  <p className="text-sm text-muted-foreground">Esci dal tuo account</p>
+                </div>
+                {isLoggingOut && <Loader2 className="ml-2 h-4 w-4 animate-spin text-red-500" />}
+              </CardContent>
+            </Card>
           </div>
         </Card>
       </div>
