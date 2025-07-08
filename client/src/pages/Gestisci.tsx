@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen, ClipboardList, Trophy } from "lucide-react";
+import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2 } from "lucide-react";
 
 export default function Gestisci() {
   const { user, isLoading } = useAuth();
@@ -222,6 +222,28 @@ export default function Gestisci() {
               >
                 <Trophy className="mr-2 h-4 w-4" />
                 Gestisci Governo
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Gestisci ICE */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-cyan-600 group-hover:text-cyan-700">
+                <Globe2 className="h-5 w-5" />
+                Gestisci ICE
+              </CardTitle>
+              <CardDescription>
+                Gestisci le richieste di ICE proposte dagli utenti
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-cyan-600 hover:bg-cyan-700"
+                onClick={() => window.location.href = "/gestisci-ice"}
+              >
+                <Globe2 className="mr-2 h-4 w-4" />
+                Gestisci ICE
               </Button>
             </CardContent>
           </Card>
