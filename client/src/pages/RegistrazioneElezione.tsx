@@ -230,7 +230,7 @@ export default function RegistrazioneElezione() {
                                   <SelectItem value="Senato">Senato</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <FormMessage />
+                              {form.formState.errors.aula_elezione && <FormMessage />}
                             </FormItem>
                           )}
                         />

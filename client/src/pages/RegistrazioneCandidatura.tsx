@@ -215,7 +215,7 @@ export default function RegistrazioneCandidatura() {
                                   <SelectItem value="Senato">Senato</SelectItem>
                                 </SelectContent>
                               </Select>
-                              <FormMessage />
+                              {form.formState.errors.aula_candidatura && <FormMessage />}
                             </FormItem>
                           )}
                         />
