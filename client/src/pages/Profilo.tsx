@@ -8,6 +8,7 @@ import { db, auth } from "@/lib/firebase";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 // Definizione locale del tipo UserInfo
 export type UserInfo = {
@@ -66,7 +67,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const res = await fetch("/api/opinioni-list");
+        const res = await apiRequest("GET", "/api/opinioni-list");
         if (!res.ok) throw new Error();
         setOpinionQuestions(await res.json());
       } catch {
@@ -92,7 +93,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     for (const [key, email] of Object.entries(representatives)) {
       if (email && typeof email === 'string') {
         try {
-          const response = await fetch(`/api/users/${encodeURIComponent(email)}`);
+          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(email)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
@@ -149,7 +150,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     for (const [key, email] of Object.entries(candidates)) {
       if (email && typeof email === 'string') {
         try {
-          const response = await fetch(`/api/users/${encodeURIComponent(email)}`);
+          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(email)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
@@ -195,9 +196,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     if (!user) return;
     
     try {
-      const response = await fetch(`/api/governo/voti`, {
-        credentials: 'include',
-      });
+      const response = await apiRequest("GET", `/api/governo/voti`);
       
       if (response.ok) {
         const votiGoverno = await response.json();
@@ -215,7 +214,7 @@ export default function Profilo({ userId }: { userId?: string }) {
       
       try {
         // Carica i dati utente tramite API (che ora usa Firebase)
-        const response = await fetch(`/api/users/${encodeURIComponent(uidToFetch)}`);
+        const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uidToFetch)}`);
         
         if (response.ok) {
           const userData = await response.json();
@@ -384,12 +383,12 @@ export default function Profilo({ userId }: { userId?: string }) {
                       setIsLoadingInfo(true);
                       // Refresha le domande e le opinioni
                       try {
-                        const res = await fetch("/api/opinioni-list");
+                        const res = await apiRequest("GET", "/api/opinioni-list");
                         if (res.ok) setOpinionQuestions(await res.json());
                       } catch {}
                       // Refresha i dati utente
                       try {
-                        const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+                        const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
                         if (response.ok) {
                           const userData = await response.json();
                           setUserInfo(userData as UserInfo);
