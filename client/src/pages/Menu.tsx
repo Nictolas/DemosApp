@@ -227,7 +227,7 @@ export default function Menu() {
                     className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
                     variant="outline"
                   >
-                    <Settings className="h-5 w-5" />
+                    <ShieldCheck className="h-5 w-5" />
                     Gestisci
                   </Button>
                 </Link>
