@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRegistration } from "@/hooks/use-registration";
 import { useLocation } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 // Nuovo schema combinato senza .partial()
 const fullSchema = z.object({
@@ -426,7 +427,10 @@ export default function RegistrazioneWizard() {
 
   const onSubmit = (data: WizardFormValues) => {
     registerMutation.mutate(data as any, {
-      onSuccess: () => {
+      onSuccess: async () => {
+        // Login su Firebase Auth dopo la registrazione
+        const auth = getAuth();
+        await signInWithEmailAndPassword(auth, data.email, data.password);
         navigate("/menu");
       }
     });
