@@ -57,50 +57,52 @@ export default function Sostenitori() {
     const fetchUserDataAndStats = async () => {
       if (!user) return;
       
-      console.log('🔄 Inizio caricamento dati sostenitori per utente:', user.email);
+      // In produzione, evitare log in console per performance
+      // console.log('🔄 Inizio caricamento dati sostenitori per utente:', user.email);
       
       try {
-        // First fetch user profile to get the role
-        console.log('📡 Chiamata API per dati utente...');
+        // Prima fetch user profile per ottenere il ruolo
+        // console.log('📡 Chiamata API per dati utente...');
         const userResponse = await fetch(`/api/users/${encodeURIComponent(user.uid)}`, { credentials: 'include' });
-        console.log('📡 Risposta API utente:', userResponse.status, userResponse.statusText);
+        // console.log('📡 Risposta API utente:', userResponse.status, userResponse.statusText);
         
         if (userResponse.ok) {
           const userData = await userResponse.json();
-          console.log('👤 Dati utente ricevuti:', userData);
+          // console.log('👤 Dati utente ricevuti:', userData);
           setUserProfile(userData);
           
-          // Check if user is authorized (Politico, Candidato, or Candidato Politico)
+          // Verifica autorizzazione
           const isAuthorized = userData.ruolo === 'Politico' || userData.ruolo === 'Candidato' || userData.ruolo === 'Candidato Politico';
-          console.log('🔐 Utente autorizzato?', isAuthorized, 'Ruolo:', userData.ruolo);
+          // console.log('🔐 Utente autorizzato?', isAuthorized, 'Ruolo:', userData.ruolo);
           
           if (isAuthorized) {
-            // Fetch supporter stats
-            console.log('📡 Chiamata API per statistiche sostenitori...');
+            // Suggerimento: unificare questa chiamata API con quella utente per ridurre la latenza
+            // console.log('📡 Chiamata API per statistiche sostenitori...');
             const statsResponse = await fetch(`/api/sostenitori/${encodeURIComponent(user.uid)}`, { credentials: 'include' });
-            console.log('📡 Risposta API sostenitori:', statsResponse.status, statsResponse.statusText);
+            // console.log('📡 Risposta API sostenitori:', statsResponse.status, statsResponse.statusText);
             
             if (!statsResponse.ok) {
               const errorText = await statsResponse.text();
-              console.error('❌ Errore API sostenitori:', errorText);
+              // console.error('❌ Errore API sostenitori:', errorText);
               throw new Error(`Errore API: ${statsResponse.statusText} - ${errorText}`);
             }
             
             const supporterData = await statsResponse.json();
-            console.log('📊 Dati sostenitori ricevuti:', supporterData);
+            // console.log('📊 Dati sostenitori ricevuti:', supporterData);
             setStats(supporterData);
           } else {
-            console.log('❌ Utente non autorizzato per visualizzare sostenitori');
+            // console.log('❌ Utente non autorizzato per visualizzare sostenitori');
           }
         } else {
-          console.error('❌ Errore nel recuperare dati utente:', userResponse.status, userResponse.statusText);
+          // console.error('❌ Errore nel recuperare dati utente:', userResponse.status, userResponse.statusText);
+          setError('Errore nel recuperare i dati utente. Riprova più tardi.');
         }
       } catch (error) {
-        console.error("❌ Errore generale:", error);
-        setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche sostenitori");
+        // console.error("❌ Errore generale:", error);
+        setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche sostenitori. Riprova più tardi.");
       } finally {
         setIsLoadingStats(false);
-        console.log('✅ Caricamento completato');
+        // console.log('✅ Caricamento completato');
       }
     };
 
@@ -121,13 +123,38 @@ export default function Sostenitori() {
 
   // Mostra errore se ruolo non valido
   if (user && !isAuthorized) {
-    console.error('❌ Ruolo non autorizzato o mancante:', userProfile?.ruolo, userProfile);
+    // console.error('❌ Ruolo non autorizzato o mancante:', userProfile?.ruolo, userProfile);
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-red-300">
           <h2 className="text-2xl font-bold mb-2 text-red-700">Accesso negato</h2>
           <p className="text-gray-700 mb-2">Il tuo ruolo attuale (<b>{userProfile?.ruolo || 'N/A'}</b>) non è abilitato a visualizzare la pagina Sostenitori.</p>
           <p className="text-gray-500 text-sm">Se pensi sia un errore, contatta l'amministratore.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Messaggio di caricamento dettagliato
+  if (isLoadingStats) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-blue-300">
+          <Loader2 className="h-10 w-10 animate-spin text-blue-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2 text-blue-700">Caricamento dati sostenitori...</h2>
+          <p className="text-gray-700 mb-2">Stiamo recuperando le statistiche dei tuoi sostenitori. Se il caricamento richiede più di qualche secondo, il server potrebbe essere in fase di riattivazione. Attendi oppure <Button variant="outline" onClick={() => window.location.reload()}>Riprova</Button></p>
+        </div>
+      </div>
+    );
+  }
+  // Mostra errore se presente
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-red-300">
+          <h2 className="text-2xl font-bold mb-2 text-red-700">Errore</h2>
+          <p className="text-gray-700 mb-2">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>Riprova</Button>
         </div>
       </div>
     );
