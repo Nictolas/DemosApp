@@ -151,6 +151,22 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Middleware di autenticazione Firebase
+const requireFirebaseAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token mancante' });
+  }
+  const idToken = authHeader.split('Bearer ')[1];
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Token non valido' });
+  }
+};
+
 
 // ROTTE
 // ===============================================
@@ -190,7 +206,7 @@ app.post("/api/logout", (req, res, next) => {
 });
 
 // User
-app.get('/api/user', requireAuth, (req, res) => res.json(req.user));
+app.get('/api/user', requireFirebaseAuth, (req, res) => res.json(req.user));
 app.get('/api/users', requireAuth, async (req, res) => res.json(await UserService.getAllUsers()));
 app.get('/api/users/:uid', requireAuth, async (req, res) => res.json(await UserService.getUserById(decodeURIComponent(req.params.uid))));
 app.put('/api/users/:uid', requireAuth, async (req, res) => {

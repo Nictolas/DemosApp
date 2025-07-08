@@ -7,14 +7,25 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export const apiRequest = (method: string, url: string, body?: any) => {
+export const apiRequest = async (method: string, url: string, body?: any) => {
+  let headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  // Aggiungi token Firebase se presente
+  if (typeof window !== 'undefined' && (window as any).firebase) {
+    try {
+      const user = (window as any).firebase.auth().currentUser;
+      if (user) {
+        const idToken = await user.getIdToken();
+        headers['Authorization'] = `Bearer ${idToken}`;
+      }
+    } catch (e) {}
+  }
   return fetch(url, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include',
+    // credentials: 'include', // Non serve più per Firebase Auth
   });
 };
 
