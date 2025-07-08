@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, FileText, Vote } from "lucide-react";
+import { ArrowLeft, FileText, Vote, MessageSquare, Globe2 } from "lucide-react";
 
 export default function Proponi() {
   const { user, isLoading } = useAuth();
@@ -90,6 +90,50 @@ export default function Proponi() {
               >
                 <Vote className="mr-2 h-4 w-4" />
                 Proponi Referendum Abrogativo
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Opinioni */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-fuchsia-600 group-hover:text-fuchsia-700">
+                <MessageSquare className="h-5 w-5" />
+                Opinioni
+              </CardTitle>
+              <CardDescription>
+                Esprimi la tua opinione su temi importanti
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-fuchsia-600 hover:bg-fuchsia-700"
+                onClick={() => window.location.href = "/opinioni"}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Esprimi Opinione
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* ICE */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-cyan-600 group-hover:text-cyan-700">
+                <Globe2 className="h-5 w-5" />
+                ICE
+              </CardTitle>
+              <CardDescription>
+                Proposta di Iniziativa dei Cittadini Europei (ICE)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-cyan-600 hover:bg-cyan-700"
+                onClick={() => window.location.href = "/ice"}
+              >
+                <Globe2 className="mr-2 h-4 w-4" />
+                Proponi ICE
               </Button>
             </CardContent>
           </Card>
