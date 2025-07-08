@@ -56,6 +56,7 @@ import Votazione from "@/pages/Votazione";
 import Evento from "@/pages/Evento";
 import Programma from "@/pages/Programma";
 import Dona from "@/pages/Dona";
+import ProponiOpinione from "@/pages/ProponiOpinione";
 
 function Router() {
   const [location] = useLocation();
@@ -302,6 +303,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/proponi" component={Proponi} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/proponi-opinione">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/proponi-opinione" component={ProponiOpinione} />
           </PageTransition>
         )}
       </Route>

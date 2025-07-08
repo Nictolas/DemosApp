@@ -21,6 +21,7 @@ import EventiService from "../server/eventi.service.js";
 import NotificaService from "../server/notifica.service.js";
 import SostenitoriService from "../server/sostenitori.service.js";
 import OpinioniService from '../server/opinioni.service.js';
+import OpinioniProposteService from '../server/opinioni-proposte.service.js';
 import { getAllMinisteri, addMinistero, updateMinistero, deleteMinistero } from './ministeri.service.js';
 
 dotenv.config();
@@ -408,6 +409,97 @@ app.patch('/api/opinioni-list/:id', requireAdmin, async (req, res) => {
   if (!text) return res.status(400).json({ error: 'text obbligatorio' });
   const result = await OpinioniService.updateOpinione(id, text);
   res.status(result.success ? 200 : 400).json(result);
+});
+
+// === OPINIONI PROPOSTE ===
+app.get('/api/opinioni-proposte', requireAuth, async (req, res) => {
+  try {
+    const opinioni = await OpinioniProposteService.listOpinioniProposte();
+    res.json(opinioni);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel recupero delle opinioni proposte' });
+  }
+});
+
+app.post('/api/opinioni-proposte', requireAuth, async (req, res) => {
+  try {
+    const { testo } = req.body;
+    if (!testo || !testo.trim()) {
+      return res.status(400).json({ error: 'Testo dell\'opinione richiesto' });
+    }
+    
+    const result = await OpinioniProposteService.addOpinioneProposta({
+      testo: testo.trim(),
+      proponente: req.user.id,
+      proponente_email: req.user.email
+    });
+    
+    if (result.success) {
+      res.status(201).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nell\'aggiunta dell\'opinione proposta' });
+  }
+});
+
+app.post('/api/opinioni-proposte/vota', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) {
+      return res.status(400).json({ error: 'ID opinione richiesto' });
+    }
+    
+    const result = await OpinioniProposteService.votaOpinioneProposta(id, req.user.id);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel voto dell\'opinione proposta' });
+  }
+});
+
+app.get('/api/opinioni-proposte/voti', requireAuth, async (req, res) => {
+  try {
+    const voti = await OpinioniProposteService.getUserVoti(req.user.id);
+    res.json(voti);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel recupero dei voti utente' });
+  }
+});
+
+app.delete('/api/opinioni-proposte/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await OpinioniProposteService.deleteOpinioneProposta(id);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nell\'eliminazione dell\'opinione proposta' });
+  }
+});
+
+app.post('/api/opinioni-proposte/:id/accetta', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await OpinioniProposteService.accettaOpinioneProposta(id);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nell\'accettazione dell\'opinione proposta' });
+  }
 });
 
 // Endpoint per limiti Firebase (mock, pronto per dati reali)
