@@ -198,50 +198,45 @@ export default function IniziativePopolare() {
                   <>
                     <div className="overflow-x-auto">
                       <Table>
-                        <TableHeader><TableRow>
-                          {user?.ruolo === 'Admin' && <TableHead></TableHead>}
-                          <TableHead>Nome</TableHead>
-                          <TableHead><div className="flex items-center space-x-2"><Calendar className="h-4 w-4" /><span>Periodo</span></div></TableHead>
-                          <TableHead>Sito Web</TableHead>
-                          <TableHead>Quorum</TableHead>
-                        </TableRow></TableHeader>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>Data Inizio</TableHead>
+                            <TableHead>Data Fine</TableHead>
+                            <TableHead>Quorum</TableHead>
+                            {user?.ruolo === 'Admin' && <TableHead>Azioni</TableHead>}
+                          </TableRow>
+                        </TableHeader>
                         <TableBody>
-                          {listaIniziative.map((iniziativa, index) => (
-                            <TableRow key={index}>
-                              {user?.ruolo === 'Admin' && (
-                                <TableCell>
-                                  <button
-                                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
-                                    disabled={deletingId === iniziativa.id}
-                                    onClick={() => deleteIniziativa(iniziativa.id)}
-                                    title="Cancella iniziativa"
-                                  >
-                                    <XIcon className="h-5 w-5" />
-                                  </button>
-                                </TableCell>
-                              )}
-                              <TableCell className="font-medium">{iniziativa.nome}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{new Date(iniziativa.dataInizio).toLocaleDateString('it-IT')} - {new Date(iniziativa.dataFine).toLocaleDateString('it-IT')}</TableCell>
-                              <TableCell>{iniziativa.sitoWeb ? (<a href={iniziativa.sitoWeb} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"><ExternalLink className="h-4 w-4" /><span>Visita</span></a>) : (<span className="text-muted-foreground">N/A</span>)}</TableCell>
-                              <TableCell>
-                                {user?.ruolo === 'Admin' ? (
-                                  <select
-                                    className="border rounded px-2 py-1"
-                                    value={iniziativa.quorum || 'pending'}
-                                    disabled={updatingQuorum === iniziativa.id}
-                                    onChange={e => patchQuorum(iniziativa.id, e.target.value as 'ok' | 'pending' | 'no')}
-                                  >
-                                    {quorumOptions.map(opt => (
-                                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                  </select>
+                          {listaIniziative.map((iniz: any) => (
+                            <TableRow key={iniz.id}>
+                              <TableCell className="font-medium">
+                                {iniz.sitoWeb ? (
+                                  <a href={iniz.sitoWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                                    {iniz.nome} <ExternalLink className="h-4 w-4 inline" />
+                                  </a>
                                 ) : (
-                                  <span className="flex items-center gap-1">
-                                    {quorumOptions.find(opt => opt.value === (iniziativa.quorum || 'pending'))?.icon}
-                                    {quorumOptions.find(opt => opt.value === (iniziativa.quorum || 'pending'))?.label}
-                                  </span>
+                                  iniz.nome
                                 )}
                               </TableCell>
+                              <TableCell>{iniz.dataInizio}</TableCell>
+                              <TableCell>{iniz.dataFine}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-2 items-center">
+                                  {quorumOptions.map(opt => (
+                                    <Button key={opt.value} size="sm" variant={iniz.quorum === opt.value ? "default" : "outline"} disabled={user?.ruolo !== 'Admin' || updatingQuorum === iniz.id} onClick={() => patchQuorum(iniz.id, opt.value as 'ok' | 'pending' | 'no')}>
+                                      {opt.icon} {opt.label}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              {user?.ruolo === 'Admin' && (
+                                <TableCell>
+                                  <Button size="sm" variant="destructive" disabled={deletingId === iniz.id} onClick={() => deleteIniziativa(iniz.id)}>
+                                    {deletingId === iniz.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />} Elimina
+                                  </Button>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))}
                         </TableBody>

@@ -258,7 +258,6 @@ export default function ICE() {
                             <TableHead>Descrizione</TableHead>
                             <TableHead>Data Inizio</TableHead>
                             <TableHead>Data Fine</TableHead>
-                            <TableHead>Sito Web</TableHead>
                             <TableHead>Quorum</TableHead>
                             {user?.ruolo === 'Admin' && <TableHead>Azioni</TableHead>}
                           </TableRow>
@@ -266,19 +265,18 @@ export default function ICE() {
                         <TableBody>
                           {listaICE.map((ice: any) => (
                             <TableRow key={ice.id}>
-                              <TableCell className="font-medium">{ice.nome}</TableCell>
+                              <TableCell className="font-medium">
+                                {ice.sitoWeb ? (
+                                  <a href={ice.sitoWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                                    {ice.nome} <ExternalLink className="h-4 w-4 inline" />
+                                  </a>
+                                ) : (
+                                  ice.nome
+                                )}
+                              </TableCell>
                               <TableCell>{ice.descrizione}</TableCell>
                               <TableCell>{ice.dataInizio}</TableCell>
                               <TableCell>{ice.dataFine}</TableCell>
-                              <TableCell>
-                                {ice.sitoWeb ? (
-                                  <a href={ice.sitoWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
-                                    <ExternalLink className="h-4 w-4 inline" /> Sito
-                                  </a>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </TableCell>
                               <TableCell>
                                 <div className="flex gap-2 items-center">
                                   {quorumOptions.map(opt => (
