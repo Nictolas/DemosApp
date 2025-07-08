@@ -22,13 +22,22 @@ const elezioneCandidaturaSchema = z.object({
   regione_elezione: z.string().min(1, "La regione di elezione è obbligatoria"),
   provincia_elezione: z.string().min(1, "La provincia di elezione è obbligatoria"),
   comune_elezione: z.string().min(1, "Il comune di elezione è obbligatorio"),
+  aula_elezione: z.string().optional(),
   
   // Parte candidatura
   grado_candidatura: z.string().min(1, "Il grado di candidatura è obbligatorio"),
   paese_candidatura: z.string().min(1, "Il paese di candidatura è obbligatorio"),
   regione_candidatura: z.string().min(1, "La regione di candidatura è obbligatoria"),
   provincia_candidatura: z.string().min(1, "La provincia di candidatura è obbligatoria"),
-  comune_candidatura: z.string().min(1, "Il comune di candidatura è obbligatorio")
+  comune_candidatura: z.string().min(1, "Il comune di candidatura è obbligatorio"),
+  aula_candidatura: z.string().optional(),
+}).refine((data) => {
+  if (data.grado_elezione === "Nazionale" && !data.aula_elezione) return false;
+  if (data.grado_candidatura === "Nazionale" && !data.aula_candidatura) return false;
+  return true;
+}, {
+  message: "L'aula è obbligatoria per il grado nazionale",
+  path: ["aula_elezione", "aula_candidatura"]
 });
 
 type ElezioneCandidaturaFormValues = z.infer<typeof elezioneCandidaturaSchema>;
@@ -49,6 +58,10 @@ export default function RegistrazioneElezioneCandidatura() {
   const [provinceCandidatura, setProvinceCandidatura] = useState<string[]>([]);
   const [comuniCandidatura, setComuniCandidatura] = useState<string[]>([]);
 
+  // Stati per gli aule
+  const [aulaElezione, setAulaElezione] = useState("");
+  const [aulaCandidatura, setAulaCandidatura] = useState("");
+
   // Inizializzazione del form
   const form = useForm<ElezioneCandidaturaFormValues>({
     resolver: zodResolver(elezioneCandidaturaSchema),
@@ -58,11 +71,13 @@ export default function RegistrazioneElezioneCandidatura() {
       regione_elezione: "",
       provincia_elezione: "",
       comune_elezione: "",
+      aula_elezione: "",
       grado_candidatura: "",
       paese_candidatura: "",
       regione_candidatura: "",
       provincia_candidatura: "",
       comune_candidatura: "",
+      aula_candidatura: "",
     },
   });
   
@@ -201,7 +216,9 @@ export default function RegistrazioneElezioneCandidatura() {
     // Combina i dati del form precedente con quelli di questo form
     const completeData = {
       ...formData,
-      ...values
+      ...values,
+      aula_elezione: form.watch("grado_elezione") === "Nazionale" ? aulaElezione : undefined,
+      aula_candidatura: form.watch("grado_candidatura") === "Nazionale" ? aulaCandidatura : undefined,
     };
     
     // Registra l'utente con i dati completi
@@ -240,7 +257,10 @@ export default function RegistrazioneElezioneCandidatura() {
                           <FormItem>
                             <FormLabel className="required-field">Grado di Elezione</FormLabel>
                             <Select 
-                              onValueChange={field.onChange} 
+                              onValueChange={value => {
+                                field.onChange(value);
+                                if (value !== "Nazionale") setAulaElezione("");
+                              }}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -260,6 +280,32 @@ export default function RegistrazioneElezioneCandidatura() {
                           </FormItem>
                         )}
                       />
+                      {form.watch("grado_elezione") === "Nazionale" && (
+                        <FormField
+                          control={form.control}
+                          name="aula_elezione"
+                          render={() => (
+                            <FormItem>
+                              <FormLabel className="required-field">Aula</FormLabel>
+                              <Select
+                                onValueChange={setAulaElezione}
+                                value={aulaElezione}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona aula" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Camera">Camera</SelectItem>
+                                  <SelectItem value="Senato">Senato</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Paese di Elezione */}
@@ -396,7 +442,10 @@ export default function RegistrazioneElezioneCandidatura() {
                           <FormItem>
                             <FormLabel className="required-field">Grado di Candidatura</FormLabel>
                             <Select 
-                              onValueChange={field.onChange} 
+                              onValueChange={value => {
+                                field.onChange(value);
+                                if (value !== "Nazionale") setAulaCandidatura("");
+                              }}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -416,6 +465,32 @@ export default function RegistrazioneElezioneCandidatura() {
                           </FormItem>
                         )}
                       />
+                      {form.watch("grado_candidatura") === "Nazionale" && (
+                        <FormField
+                          control={form.control}
+                          name="aula_candidatura"
+                          render={() => (
+                            <FormItem>
+                              <FormLabel className="required-field">Aula</FormLabel>
+                              <Select
+                                onValueChange={setAulaCandidatura}
+                                value={aulaCandidatura}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona aula" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Camera">Camera</SelectItem>
+                                  <SelectItem value="Senato">Senato</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Paese di Candidatura */}

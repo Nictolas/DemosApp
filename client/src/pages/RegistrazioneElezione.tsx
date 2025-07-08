@@ -41,6 +41,15 @@ const elezioneSchema = z.object({
   regione_elezione: z.string().min(1, "La regione di elezione è obbligatoria"),
   provincia_elezione: z.string().min(1, "La provincia di elezione è obbligatoria"),
   comune_elezione: z.string().min(1, "Il comune di elezione è obbligatorio"),
+  aula_elezione: z.string().optional(),
+}).refine((data) => {
+  if (data.grado_elezione === "Nazionale") {
+    return !!data.aula_elezione;
+  }
+  return true;
+}, {
+  message: "L'aula è obbligatoria per il grado nazionale",
+  path: ["aula_elezione"]
 });
 
 type ElezioneFormValues = z.infer<typeof elezioneSchema>;
@@ -54,6 +63,7 @@ export default function RegistrazioneElezione() {
   const [regioniElezione, setRegioniElezione] = useState<string[]>([]);
   const [provinceElezione, setProvinceElezione] = useState<string[]>([]);
   const [comuniElezione, setComuniElezione] = useState<string[]>([]);
+  const [aulaElezione, setAulaElezione] = useState("");
 
   const form = useForm<ElezioneFormValues>({
     resolver: zodResolver(elezioneSchema),
@@ -71,6 +81,7 @@ export default function RegistrazioneElezione() {
   const paeseElezione = watch("paese_elezione");
   const regioneElezione = watch("regione_elezione");
   const provinciaElezione = watch("provincia_elezione");
+  const gradoElezione = form.watch("grado_elezione");
 
   useEffect(() => {
     if (!formData) {
@@ -137,6 +148,7 @@ export default function RegistrazioneElezione() {
     const completeData = {
       ...formData,
       ...values,
+      aula_elezione: gradoElezione === "Nazionale" ? aulaElezione : undefined,
     };
 
     registerMutation.mutate(completeData as any, {
@@ -173,7 +185,10 @@ export default function RegistrazioneElezione() {
                           <FormItem>
                             <FormLabel className="required-field">Grado di Elezione</FormLabel>
                             <Select 
-                              onValueChange={field.onChange} 
+                              onValueChange={value => {
+                                field.onChange(value);
+                                if (value !== "Nazionale") setAulaElezione("");
+                              }}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -193,6 +208,33 @@ export default function RegistrazioneElezione() {
                           </FormItem>
                         )}
                       />
+                      
+                      {gradoElezione === "Nazionale" && (
+                        <FormField
+                          control={form.control}
+                          name="aula_elezione"
+                          render={() => (
+                            <FormItem>
+                              <FormLabel className="required-field">Aula</FormLabel>
+                              <Select
+                                onValueChange={setAulaElezione}
+                                value={aulaElezione}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona aula" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Camera">Camera</SelectItem>
+                                  <SelectItem value="Senato">Senato</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                       
                       {/* Paese di Elezione */}
                       <FormField

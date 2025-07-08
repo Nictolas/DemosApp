@@ -21,6 +21,15 @@ const candidaturaSchema = z.object({
   regione_candidatura: z.string().min(1, "La regione di candidatura è obbligatoria"),
   provincia_candidatura: z.string().min(1, "La provincia di candidatura è obbligatoria"),
   comune_candidatura: z.string().min(1, "Il comune di candidatura è obbligatorio"),
+  aula_candidatura: z.string().optional(),
+}).refine((data) => {
+  if (data.grado_candidatura === "Nazionale") {
+    return !!data.aula_candidatura;
+  }
+  return true;
+}, {
+  message: "L'aula è obbligatoria per il grado nazionale",
+  path: ["aula_candidatura"]
 });
 
 type CandidaturaFormValues = z.infer<typeof candidaturaSchema>;
@@ -35,6 +44,8 @@ export default function RegistrazioneCandidatura() {
   const [regioniCandidatura, setRegioniCandidatura] = useState<string[]>([]);
   const [provinceCandidatura, setProvinceCandidatura] = useState<string[]>([]);
   const [comuniCandidatura, setComuniCandidatura] = useState<string[]>([]);
+  const [aulaCandidatura, setAulaCandidatura] = useState("");
+  const gradoCandidatura = form.watch("grado_candidatura");
 
   // Inizializzazione del form
   const form = useForm<CandidaturaFormValues>({
@@ -121,7 +132,8 @@ export default function RegistrazioneCandidatura() {
     // Combina i dati del form precedente con quelli di questo form
     const completeData = {
       ...formData,
-      ...values
+      ...values,
+      aula_candidatura: gradoCandidatura === "Nazionale" ? aulaCandidatura : undefined,
     };
     
     // Registra l'utente con i dati completi
@@ -159,7 +171,10 @@ export default function RegistrazioneCandidatura() {
                           <FormItem>
                             <FormLabel className="required-field">Grado di Candidatura</FormLabel>
                             <Select 
-                              onValueChange={field.onChange} 
+                              onValueChange={value => {
+                                field.onChange(value);
+                                if (value !== "Nazionale") setAulaCandidatura("");
+                              }}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -179,6 +194,32 @@ export default function RegistrazioneCandidatura() {
                           </FormItem>
                         )}
                       />
+                      {gradoCandidatura === "Nazionale" && (
+                        <FormField
+                          control={form.control}
+                          name="aula_candidatura"
+                          render={() => (
+                            <FormItem>
+                              <FormLabel className="required-field">Aula</FormLabel>
+                              <Select
+                                onValueChange={setAulaCandidatura}
+                                value={aulaCandidatura}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona aula" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="Camera">Camera</SelectItem>
+                                  <SelectItem value="Senato">Senato</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )}
                       
                       {/* Paese di Candidatura */}
                       <FormField
