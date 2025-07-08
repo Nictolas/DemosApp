@@ -12,46 +12,48 @@ import { useRegistration } from "@/hooks/use-registration";
 import { useLocation } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
 
-// Nuovo schema dinamico per la validazione in base al ruolo
-const baseSchema = z.object({
+// Nuovo schema combinato senza .partial()
+const fullSchema = z.object({
+  // Account
   email: z.string().email("Email non valida"),
   password: z.string().min(6, "Minimo 6 caratteri"),
   ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
-});
-
-const candidaturaSchema = z.object({
-  grado_candidatura: z.string().min(1, "Il grado di candidatura è obbligatorio"),
-  aula_candidatura: z.string().optional(),
-  paese_candidatura: z.string().min(1, "Il paese di candidatura è obbligatorio"),
-  regione_candidatura: z.string().min(1, "La regione di candidatura è obbligatoria"),
-  provincia_candidatura: z.string().min(1, "La provincia di candidatura è obbligatoria"),
-  comune_candidatura: z.string().min(1, "Il comune di candidatura è obbligatorio"),
-}).refine((data) => {
-  if (data.grado_candidatura === "Nazionale" && !data.aula_candidatura) return false;
-  return true;
-}, {
-  message: "L'aula è obbligatoria per il grado nazionale",
-  path: ["aula_candidatura"]
-});
-
-const elezioneSchema = z.object({
-  grado_elezione: z.string().min(1, "Il grado di elezione è obbligatorio"),
+  // Elezione (tutti opzionali, validati solo se richiesti)
+  grado_elezione: z.string().optional(),
   aula_elezione: z.string().optional(),
-  paese_elezione: z.string().min(1, "Il paese di elezione è obbligatorio"),
-  regione_elezione: z.string().min(1, "La regione di elezione è obbligatoria"),
-  provincia_elezione: z.string().min(1, "La provincia di elezione è obbligatoria"),
-  comune_elezione: z.string().min(1, "Il comune di elezione è obbligatorio"),
+  paese_elezione: z.string().optional(),
+  regione_elezione: z.string().optional(),
+  provincia_elezione: z.string().optional(),
+  comune_elezione: z.string().optional(),
+  // Candidatura (tutti opzionali, validati solo se richiesti)
+  grado_candidatura: z.string().optional(),
+  aula_candidatura: z.string().optional(),
+  paese_candidatura: z.string().optional(),
+  regione_candidatura: z.string().optional(),
+  provincia_candidatura: z.string().optional(),
+  comune_candidatura: z.string().optional(),
 }).refine((data) => {
-  if (data.grado_elezione === "Nazionale" && !data.aula_elezione) return false;
+  // Validazione dinamica in base al ruolo
+  if (data.ruolo === "Politico" || data.ruolo === "Candidato Politico") {
+    if (!data.grado_elezione) return false;
+    if (!data.paese_elezione) return false;
+    if (!data.regione_elezione) return false;
+    if (!data.provincia_elezione) return false;
+    if (!data.comune_elezione) return false;
+    if (data.grado_elezione === "Nazionale" && !data.aula_elezione) return false;
+  }
+  if (data.ruolo === "Candidato" || data.ruolo === "Candidato Politico") {
+    if (!data.grado_candidatura) return false;
+    if (!data.paese_candidatura) return false;
+    if (!data.regione_candidatura) return false;
+    if (!data.provincia_candidatura) return false;
+    if (!data.comune_candidatura) return false;
+    if (data.grado_candidatura === "Nazionale" && !data.aula_candidatura) return false;
+  }
   return true;
 }, {
-  message: "L'aula è obbligatoria per il grado nazionale",
-  path: ["aula_elezione"]
+  message: "Compila tutti i campi obbligatori per il tuo ruolo (e l'aula se Nazionale)",
 });
-
-const fullSchema = baseSchema
-  .merge(elezioneSchema.partial())
-  .merge(candidaturaSchema.partial());
 
 type WizardFormValues = z.infer<typeof fullSchema>;
 
