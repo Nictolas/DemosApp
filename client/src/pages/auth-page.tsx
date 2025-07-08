@@ -384,6 +384,8 @@ export default function AuthPage() {
         setRedirectPath("/registrazione-elezione");
       } else if (userDataWithCapitalization.ruolo === "Candidato Politico") {
         setRedirectPath("/registrazione-elezione-candidatura");
+      } else {
+        setRedirectPath("/registrazione-wizard");
       }
     }
   };

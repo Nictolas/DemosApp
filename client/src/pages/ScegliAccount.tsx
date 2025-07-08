@@ -112,17 +112,8 @@ export default function ScegliAccount() {
     try {
       // Store the selected account type in localStorage for the registration process
       localStorage.setItem('selectedAccountType', accountTypeId);
-      
-      // Navigate to appropriate registration flow based on account type
-      if (accountTypeId === 'voter') {
-        setLocation('/registrazione');
-      } else if (accountTypeId === 'candidate') {
-        setLocation('/registrazione-candidatura');
-      } else if (accountTypeId === 'rep') {
-        setLocation('/registrazione-elezione');
-      } else if (accountTypeId === 'plus') {
-        setLocation('/registrazione-elezione-candidatura');
-      }
+      // Tutti i tipi di account portano ora al wizard unico
+      setLocation('/registrazione-wizard');
     } catch (error) {
       console.error('Error selecting account type:', error);
     } finally {
