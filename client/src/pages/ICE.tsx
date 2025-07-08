@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check, Hourglass, X as XIcon, Globe2 } from "lucide-react";
+import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check, Hourglass, X as XIcon, Globe2, Pencil, Trash2 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -278,21 +278,31 @@ export default function ICE() {
                               <TableCell>{ice.dataInizio}</TableCell>
                               <TableCell>{ice.dataFine}</TableCell>
                               <TableCell>
-                                <div className="flex gap-2 items-center">
-                                  {quorumOptions.map(opt => (
-                                    <Button key={opt.value} size="sm" variant={ice.quorum === opt.value ? "default" : "outline"} disabled={user?.ruolo !== 'Admin' || updatingQuorum === ice.id} onClick={() => patchQuorum(ice.id, opt.value as 'ok' | 'pending' | 'no')}>
-                                      {opt.icon} {opt.label}
-                                    </Button>
-                                  ))}
-                                </div>
+                                {user?.ruolo === 'Admin' ? (
+                                  <select
+                                    className="border rounded px-2 py-1"
+                                    value={ice.quorum || 'pending'}
+                                    disabled={updatingQuorum === ice.id}
+                                    onChange={e => patchQuorum(ice.id, e.target.value as 'ok' | 'pending' | 'no')}
+                                  >
+                                    {quorumOptions.map(opt => (
+                                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    {quorumOptions.find(opt => opt.value === (ice.quorum || 'pending'))?.icon}
+                                    {quorumOptions.find(opt => opt.value === (ice.quorum || 'pending'))?.label}
+                                  </span>
+                                )}
                               </TableCell>
                               {user?.ruolo === 'Admin' && (
                                 <TableCell>
                                   <Button size="sm" variant="outline" className="mr-2" onClick={() => openEdit(ice)}>
-                                    Modifica
+                                    <Pencil className="h-4 w-4" />
                                   </Button>
                                   <Button size="sm" variant="destructive" disabled={deletingId === ice.id} onClick={() => deleteICE(ice.id)}>
-                                    {deletingId === ice.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />} Elimina
+                                    {deletingId === ice.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                   </Button>
                                 </TableCell>
                               )}
