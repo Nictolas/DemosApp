@@ -219,7 +219,20 @@ app.post("/api/logout", (req, res, next) => {
 // User
 app.get('/api/user', requireFirebaseAuth, (req, res) => res.json(req.user));
 app.get('/api/users', requireFirebaseAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
-app.get('/api/users/:uid', requireFirebaseAdmin, async (req, res) => res.json(await UserService.getUserById(decodeURIComponent(req.params.uid))));
+app.get('/api/users/:uid', requireFirebaseAuth, async (req, res) => {
+  const { uid } = req.params;
+  // Permetti l'accesso all'admin o all'utente stesso
+  if (
+    req.user?.role !== 'Admin' &&
+    req.user?.ruolo !== 'Admin' &&
+    req.user?.uid !== uid
+  ) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const user = await UserService.getUserById(decodeURIComponent(uid));
+  if (!user) return res.status(404).json({ error: 'Utente non trovato' });
+  res.json(user);
+});
 app.put('/api/users/:uid', requireFirebaseAdmin, async (req, res) => {
     const { uid } = req.params;
     if (req.user?.id !== uid && req.user?.role !== 'Admin' && req.user?.ruolo !== 'Admin') return res.status(403).json({ error: 'Forbidden' });
