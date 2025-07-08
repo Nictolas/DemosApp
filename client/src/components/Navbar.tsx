@@ -34,11 +34,6 @@ export function Navbar() {
             <Link href="/menu">
               <span className="text-gray-600 hover:text-gray-900 cursor-pointer">Home</span>
             </Link>
-            {user && (
-              <Link href="/registrazione">
-                <span className="text-gray-600 hover:text-gray-900 cursor-pointer">Registrazione</span>
-              </Link>
-            )}
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : user ? (
