@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, MessageSquare, ThumbsUp } from "lucide-react";
+import { Loader2, ArrowLeft, MessageSquare, ThumbsUp, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
