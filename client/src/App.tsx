@@ -58,6 +58,7 @@ import Programma from "@/pages/Programma";
 import Dona from "@/pages/Dona";
 import ProponiOpinione from "@/pages/ProponiOpinione";
 import ICE from "@/pages/ICE";
+import GestisciICE from "@/pages/GestisciICE";
 
 function Router() {
   const [location] = useLocation();
@@ -458,6 +459,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/ice" component={ICE} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/gestisci-ice">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
+            <ProtectedRoute path="/gestisci-ice" component={GestisciICE} />
           </PageTransition>
         )}
       </Route>
