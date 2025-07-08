@@ -232,6 +232,15 @@ export default function Menu() {
                   </Button>
                 </Link>
               )}
+              <Link href="/registrazione-wizard">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <ShieldCheck className="h-5 w-5" />
+                  Registrazione Unica
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
