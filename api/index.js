@@ -22,6 +22,7 @@ import NotificaService from "../server/notifica.service.js";
 import SostenitoriService from "../server/sostenitori.service.js";
 import OpinioniService from '../server/opinioni.service.js';
 import OpinioniProposteService from '../server/opinioni-proposte.service.js';
+import ICEService from '../server/ice.service.js';
 import { getAllMinisteri, addMinistero, updateMinistero, deleteMinistero } from './ministeri.service.js';
 
 dotenv.config();
@@ -720,6 +721,55 @@ app.put('/api/opinioni-fonti/:id', requireAdmin, async (req, res) => {
 app.put('/api/opinioni/:id', requireAdmin, async (req, res) => {
   const result = await UserService.saveUserOpinions(req.params.id, req.body);
   res.status(result.success ? 200 : 500).json(result);
+});
+
+// === ICE: Lista e gestione ===
+app.get('/api/ice/lista', requireAuth, async (req, res) => {
+  try {
+    const lista = await ICEService.listICE();
+    res.json(lista);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nel recupero delle ICE' });
+  }
+});
+
+app.post('/api/ice', requireAuth, async (req, res) => {
+  try {
+    const { nome, dataInizio, dataFine, sitoWeb } = req.body;
+    if (!nome || !dataInizio || !dataFine) {
+      return res.status(400).json({ error: 'Tutti i campi obbligatori' });
+    }
+    const result = await ICEService.addICE({ nome, dataInizio, dataFine, sitoWeb });
+    if (result.success) {
+      res.status(201).json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nell\'aggiunta della ICE' });
+  }
+});
+
+app.patch('/api/ice/:id/quorum', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quorum } = req.body;
+    if (!quorum) return res.status(400).json({ error: 'Quorum richiesto' });
+    const result = await ICEService.patchQuorum(id, quorum);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nell\'aggiornamento del quorum' });
+  }
+});
+
+app.delete('/api/ice/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await ICEService.deleteICE(id);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nella cancellazione della ICE' });
+  }
 });
 
 export default app; 
