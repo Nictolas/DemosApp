@@ -378,15 +378,7 @@ export default function AuthPage() {
       });
     } else {
       setFormData(userDataWithCapitalization);
-      if (userDataWithCapitalization.ruolo === "Candidato") {
-        setRedirectPath("/registrazione-candidatura");
-      } else if (userDataWithCapitalization.ruolo === "Politico") {
-        setRedirectPath("/registrazione-elezione");
-      } else if (userDataWithCapitalization.ruolo === "Candidato Politico") {
-        setRedirectPath("/registrazione-elezione-candidatura");
-      } else {
-        setRedirectPath("/registrazione-wizard");
-      }
+      setRedirectPath("/registrazione-wizard");
     }
   };
 
