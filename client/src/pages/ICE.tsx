@@ -14,9 +14,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check, Hourglass, X as XIcon, Globe2 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const iceSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
+  descrizione: z.string().min(1, "La descrizione è obbligatoria"),
   dataInizio: z.string().min(1, "La data di inizio è obbligatoria"),
   dataFine: z.string().min(1, "La data di fine è obbligatoria"),
   sitoWeb: z.string().url("Inserisci un URL valido").or(z.literal("")),
@@ -48,6 +50,19 @@ export default function ICE() {
     resolver: zodResolver(iceSchema),
     defaultValues: {
       nome: "",
+      descrizione: "",
+      dataInizio: "",
+      dataFine: "",
+      sitoWeb: "",
+    },
+  });
+
+  const [editICE, setEditICE] = useState<any | null>(null);
+  const editForm = useForm<ICEFormData>({
+    resolver: zodResolver(iceSchema),
+    defaultValues: {
+      nome: "",
+      descrizione: "",
       dataInizio: "",
       dataFine: "",
       sitoWeb: "",
@@ -90,6 +105,30 @@ export default function ICE() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const patchICE = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: ICEFormData }) => {
+      const response = await fetch(`/api/ice/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Errore nella modifica della ICE");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "ICE modificata", description: "La ICE è stata aggiornata." });
+      setEditICE(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/ice/lista"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
     },
   });
 
@@ -137,6 +176,23 @@ export default function ICE() {
     submitICE.mutate(data);
   };
 
+  const openEdit = (ice: any) => {
+    setEditICE(ice);
+    editForm.reset({
+      nome: ice.nome || "",
+      descrizione: ice.descrizione || "",
+      dataInizio: ice.dataInizio || "",
+      dataFine: ice.dataFine || "",
+      sitoWeb: ice.sitoWeb || "",
+    });
+  };
+
+  const onEditSubmit = (data: ICEFormData) => {
+    if (editICE) {
+      patchICE.mutate({ id: editICE.id, data });
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -174,6 +230,7 @@ export default function ICE() {
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                       <FormField control={form.control} name="nome" render={({ field }) => (<FormItem><FormLabel>Nome della ICE</FormLabel><FormControl><Input placeholder="Es: ICE per l'ambiente" {...field} disabled={submitICE.isPending} /></FormControl><FormMessage /></FormItem>)} />
+                      <FormField control={form.control} name="descrizione" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Input placeholder="Descrizione della ICE" {...field} disabled={submitICE.isPending} /></FormControl><FormMessage /></FormItem>)} />
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="dataInizio" render={({ field }) => (<FormItem><FormLabel>Data di inizio</FormLabel><FormControl><Input type="date" {...field} disabled={submitICE.isPending} /></FormControl><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="dataFine" render={({ field }) => (<FormItem><FormLabel>Data di fine</FormLabel><FormControl><Input type="date" {...field} disabled={submitICE.isPending} /></FormControl><FormMessage /></FormItem>)} />
@@ -198,6 +255,7 @@ export default function ICE() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Nome</TableHead>
+                            <TableHead>Descrizione</TableHead>
                             <TableHead>Data Inizio</TableHead>
                             <TableHead>Data Fine</TableHead>
                             <TableHead>Sito Web</TableHead>
@@ -209,6 +267,7 @@ export default function ICE() {
                           {listaICE.map((ice: any) => (
                             <TableRow key={ice.id}>
                               <TableCell className="font-medium">{ice.nome}</TableCell>
+                              <TableCell>{ice.descrizione}</TableCell>
                               <TableCell>{ice.dataInizio}</TableCell>
                               <TableCell>{ice.dataFine}</TableCell>
                               <TableCell>
@@ -231,6 +290,9 @@ export default function ICE() {
                               </TableCell>
                               {user?.ruolo === 'Admin' && (
                                 <TableCell>
+                                  <Button size="sm" variant="outline" className="mr-2" onClick={() => openEdit(ice)}>
+                                    Modifica
+                                  </Button>
                                   <Button size="sm" variant="destructive" disabled={deletingId === ice.id} onClick={() => deleteICE(ice.id)}>
                                     {deletingId === ice.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XIcon className="h-4 w-4" />} Elimina
                                   </Button>
@@ -248,6 +310,29 @@ export default function ICE() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!editICE} onOpenChange={open => { if (!open) setEditICE(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifica ICE</DialogTitle>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField control={editForm.control} name="nome" render={({ field }) => (<FormItem><FormLabel>Nome della ICE</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={editForm.control} name="descrizione" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={editForm.control} name="dataInizio" render={({ field }) => (<FormItem><FormLabel>Data di inizio</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={editForm.control} name="dataFine" render={({ field }) => (<FormItem><FormLabel>Data di fine</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              </div>
+              <FormField control={editForm.control} name="sitoWeb" render={({ field }) => (<FormItem><FormLabel>Sito web (opzionale)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <DialogFooter>
+                <Button type="submit" disabled={patchICE.isPending}>{patchICE.isPending ? "Salvataggio..." : "Salva modifiche"}</Button>
+                <Button type="button" variant="ghost" onClick={() => setEditICE(null)}>Annulla</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

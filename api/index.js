@@ -762,6 +762,20 @@ app.patch('/api/ice/:id/quorum', requireAdmin, async (req, res) => {
   }
 });
 
+app.patch('/api/ice/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
+    if (!nome || !descrizione || !dataInizio || !dataFine) {
+      return res.status(400).json({ error: 'Tutti i campi obbligatori' });
+    }
+    const result = await ICEService.updateICE(id, { nome, descrizione, dataInizio, dataFine, sitoWeb });
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Errore nella modifica della ICE' });
+  }
+});
+
 app.delete('/api/ice/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
