@@ -7,6 +7,7 @@ import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bel
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
 import appIcon from '/icona.png';
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Menu() {
   const { user, isLoading, logoutMutation } = useAuth();
@@ -22,8 +23,8 @@ export default function Menu() {
       if (!user) return;
       
       try {
-        // Cerca l'utente usando l'API che ora utilizza Firebase
-        const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+        // Usa apiRequest per inviare il token Firebase
+        const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
         if (response.ok) {
           const userData = await response.json();
           setIsAdmin(userData?.ruolo === 'Admin');
