@@ -22,6 +22,7 @@ import { EditUserDialog } from "@/components/EditUserDialog";
 import { ViewUserDialog } from "@/components/ViewUserDialog";
 import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
+import { apiRequest } from "@/lib/queryClient";
 
 type User = {
   id: string;
@@ -58,24 +59,14 @@ export default function GestisciUtenti() {
     setIsLoadingUsers(true);
     try {
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
-        fetch("/api/users"),
-        fetch("/api/pending-users")
+        apiRequest("GET", "/api/users"),
+        apiRequest("GET", "/api/pending-users")
       ]);
 
-      if (allUsersResponse.ok) {
-        const userData = await allUsersResponse.json();
-        setUsers(userData.filter((u: User) => u.status === 'active'));
-      } else {
-        throw new Error("Errore nel caricamento degli utenti attivi");
-      }
-      
-      if (pendingUsersResponse.ok) {
-        const pendingData = await pendingUsersResponse.json();
-        setPendingUsers(pendingData);
-      } else {
-        throw new Error("Errore nel caricamento degli utenti in attesa");
-      }
-
+      const userData = await allUsersResponse.json();
+      setUsers(userData.filter((u: User) => u.status === 'active'));
+      const pendingData = await pendingUsersResponse.json();
+      setPendingUsers(pendingData);
     } catch (error) {
       console.error("Errore:", error);
       setError("Errore nel caricamento degli utenti");
@@ -134,9 +125,7 @@ export default function GestisciUtenti() {
     setIsDeleting(true);
     
     try {
-      const response = await fetch(`/api/users/${userUid}`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest("DELETE", `/api/users/${userUid}`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -499,7 +488,7 @@ export default function GestisciUtenti() {
           // Aggiorna la lista degli utenti dopo una modifica
           const fetchUsers = async () => {
             try {
-              const response = await fetch('/api/users');
+              const response = await apiRequest("GET", '/api/users');
               if (response.ok) {
                 const data = await response.json();
                 setUsers(data as User[]);
@@ -508,7 +497,6 @@ export default function GestisciUtenti() {
               console.error("Errore durante l'aggiornamento della lista utenti:", error);
             }
           };
-          
           fetchUsers();
         }}
       />
