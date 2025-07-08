@@ -33,6 +33,8 @@ type StatisticheUtenti = {
   usersByRole: Record<string, number>;
   usersByGender: Record<string, number>;
   usersByCitizenship: Record<string, number>;
+  usersByRegion: Record<string, number>;
+  usersByCity: Record<string, number>;
 };
 
 export default function StatisticheUtenti() {
@@ -82,6 +84,8 @@ export default function StatisticheUtenti() {
         const usersByRole: Record<string, number> = {};
         const usersByGender: Record<string, number> = {};
         const usersByCitizenship: Record<string, number> = {};
+        const usersByRegion: Record<string, number> = {};
+        const usersByCity: Record<string, number> = {};
 
         users.forEach(user => {
           // Conteggio per ruolo
@@ -95,6 +99,14 @@ export default function StatisticheUtenti() {
           // Conteggio per cittadinanza
           const citizenship = user.cittadinanza || 'Non specificata';
           usersByCitizenship[citizenship] = (usersByCitizenship[citizenship] || 0) + 1;
+
+          // Conteggio per regione di residenza
+          const region = user.regione_residenza || 'Non specificata';
+          usersByRegion[region] = (usersByRegion[region] || 0) + 1;
+
+          // Conteggio per città di residenza
+          const city = user.comune_residenza || 'Non specificato';
+          usersByCity[city] = (usersByCity[city] || 0) + 1;
         });
 
         // Ordina le cittadinanze per conteggio e prendi le prime 5
@@ -106,11 +118,30 @@ export default function StatisticheUtenti() {
             return obj;
           }, {} as Record<string, number>);
 
+        // Ordina le regioni per conteggio (tutte)
+        const sortedRegions = Object.entries(usersByRegion)
+          .sort((a, b) => b[1] - a[1])
+          .reduce((obj, [key, value]) => {
+            obj[key] = value;
+            return obj;
+          }, {} as Record<string, number>);
+
+        // Ordina le città per conteggio e prendi le prime 10
+        const sortedCities = Object.entries(usersByCity)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .reduce((obj, [key, value]) => {
+            obj[key] = value;
+            return obj;
+          }, {} as Record<string, number>);
+
         setStats({
           totalUsers: users.length,
           usersByRole,
           usersByGender,
-          usersByCitizenship: sortedCitizenships
+          usersByCitizenship: sortedCitizenships,
+          usersByRegion: sortedRegions,
+          usersByCity: sortedCities
         });
       } catch (error) {
         console.error("Errore:", error);
@@ -149,6 +180,8 @@ export default function StatisticheUtenti() {
   const roleChartData = stats ? prepareChartData(stats.usersByRole) : null;
   const genderChartData = stats ? prepareChartData(stats.usersByGender) : null;
   const citizenshipChartData = stats ? prepareChartData(stats.usersByCitizenship) : null;
+  const regionChartData = stats ? prepareChartData(stats.usersByRegion) : null;
+  const cityChartData = stats ? prepareChartData(stats.usersByCity) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
@@ -281,6 +314,72 @@ export default function StatisticheUtenti() {
                         )}
                       </CardContent>
                     </Card>
+
+                    {/* Distribuzione per Regione */}
+                    <Card className="shadow-sm lg:col-span-2">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xl">Distribuzione per Regione</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex justify-center">
+                        {regionChartData && (
+                          <div style={{ height: '250px', width: '100%' }}>
+                            <Bar 
+                              data={regionChartData} 
+                              options={{
+                                plugins: {
+                                  legend: {
+                                    display: false,
+                                  }
+                                },
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                  y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                      precision: 0
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Top 10 Città con più iscritti */}
+                    <Card className="shadow-sm lg:col-span-2">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xl">Top 10 Città con più iscritti</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex justify-center">
+                        {cityChartData && (
+                          <div style={{ height: '250px', width: '100%' }}>
+                            <Bar 
+                              data={cityChartData} 
+                              options={{
+                                plugins: {
+                                  legend: {
+                                    display: false,
+                                  }
+                                },
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                  y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                      precision: 0
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
                   
                   {/* Tabella dettagliata */}
@@ -321,6 +420,29 @@ export default function StatisticheUtenti() {
                             {stats && Object.entries(stats.usersByCitizenship).map(([citizenship, count]) => (
                               <div key={citizenship} className="bg-secondary/30 p-2 rounded-md">
                                 <span className="font-medium">{citizenship}:</span> {count}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Dettagli per regione */}
+                        <div>
+                          <h3 className="font-medium mb-2 text-lg">Utenti per Regione:</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {stats && Object.entries(stats.usersByRegion).map(([region, count]) => (
+                              <div key={region} className="bg-secondary/30 p-2 rounded-md">
+                                <span className="font-medium">{region}:</span> {count}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Dettagli per città */}
+                        <div>
+                          <h3 className="font-medium mb-2 text-lg">Top 10 Città con più iscritti:</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {stats && Object.entries(stats.usersByCity).map(([city, count]) => (
+                              <div key={city} className="bg-secondary/30 p-2 rounded-md">
+                                <span className="font-medium">{city}:</span> {count}
                               </div>
                             ))}
                           </div>
