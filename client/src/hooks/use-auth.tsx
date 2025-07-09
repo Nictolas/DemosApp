@@ -9,6 +9,7 @@ import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -24,6 +25,7 @@ type LoginData = Pick<InsertUser, "email" | "password">;
 export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const authReady = useAuthReady();
   const {
     data: user,
     error,
@@ -32,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<SelectUser | undefined, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: authReady,
   });
 
   // Verifica periodica dell'autenticazione
