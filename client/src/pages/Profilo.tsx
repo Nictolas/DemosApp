@@ -354,11 +354,11 @@ export default function Profilo({ userId }: { userId?: string }) {
             className="mb-4 flex items-center"
             onClick={() => {
               if (fromGestisciUtenti) {
-                window.location.href = "/gestisci-utenti";
+                setLocation("/gestisci-utenti");
               } else if (userId) {
-                window.location.href = "/gestisci-grazia";
+                setLocation("/gestisci-grazia");
               } else {
-                window.location.href = "/menu";
+                setLocation("/menu");
               }
             }}
           >
