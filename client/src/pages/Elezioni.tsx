@@ -23,6 +23,7 @@ export default function Elezioni() {
   const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
   const [programmaDialogOpen, setProgrammaDialogOpen] = useState(false);
   const [programmaDialogData, setProgrammaDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
+  const [candidatiDettagliati, setCandidatiDettagliati] = useState<Record<string, any>>({});
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -50,39 +51,30 @@ export default function Elezioni() {
             console.error("Errore durante il recupero dei dati delle elezioni:", err);
           }
 
-          // Carichiamo i dati di tutti i candidati che l'utente ha selezionato
-          const candidatiIds = [
-            completeUserData.candidato_europeo, 
-            completeUserData.candidato_camera, 
-            completeUserData.candidato_senato, 
-            completeUserData.candidato_regione, 
-            completeUserData.candidato_comune
-          ].filter(Boolean); // Filtriamo i valori nulli o undefined
-          
-          if (candidatiIds.length > 0) {
-            try {
-              // Recuperiamo i dati dei candidati tramite API
-              const response = await fetch('/api/candidati');
-              if (!response.ok) {
-                throw new Error('Errore nel caricamento candidati');
+          // Carichiamo i dati dettagliati dei candidati scelti dall'utente
+          const candidatiFields = [
+            'candidato_europeo',
+            'candidato_camera',
+            'candidato_senato',
+            'candidato_regione',
+            'candidato_comune'
+          ];
+          const candidatiDettagli: Record<string, any> = {};
+          for (const field of candidatiFields) {
+            const candidatoId = completeUserData[field];
+            if (candidatoId) {
+              try {
+                const resp = await apiRequest("GET", `/api/users/${encodeURIComponent(candidatoId)}`);
+                if (resp.ok) {
+                  const candidatoData = await resp.json();
+                  candidatiDettagli[candidatoId] = candidatoData;
+                }
+              } catch (err) {
+                console.error(`Errore nel recupero dati candidato ${candidatoId}:`, err);
               }
-              
-              const candidatiData = await response.json();
-              
-              // Filtriamo solo i candidati che ci interessano
-              const candidatiRelevanti = candidatiData.filter((c: any) => candidatiIds.includes(c.id));
-              
-              // Convertiamo l'array in un oggetto con l'ID come chiave per accesso rapido
-              const candidatiMap = candidatiRelevanti.reduce((acc: Record<string, any>, candidato: any) => {
-                acc[candidato.id] = candidato;
-                return acc;
-              }, {});
-              
-              setCandidati(candidatiMap);
-            } catch (err) {
-              console.error("Errore durante il recupero dei dati dei candidati:", err);
             }
           }
+          setCandidatiDettagliati(candidatiDettagli);
         } catch (error) {
           console.error("Errore durante il recupero dei dati utente:", error);
           toast({
@@ -161,7 +153,7 @@ export default function Elezioni() {
     const candidatoId = userData?.[categoria.field];
     
     if (candidatoId) {
-      const candidato = candidati[candidatoId];
+      const candidato = candidatiDettagliati[candidatoId];
       
       return (
         <div className="flex flex-col space-y-3 items-center">
