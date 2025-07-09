@@ -74,11 +74,8 @@ export default function Opinioni() {
         // Estrai le opinioni dai dati utente unificati
         const filteredOpinions: Record<string, string> = {};
         questions.forEach(question => {
-          if (userData[question.id]) {
-            filteredOpinions[question.id] = userData[question.id];
-          }
+          filteredOpinions[question.id] = userData[question.id] || '';
         });
-        
         setOpinions(filteredOpinions);
       }
     } catch (error) {
