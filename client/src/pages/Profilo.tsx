@@ -92,14 +92,13 @@ export default function Profilo({ userId }: { userId?: string }) {
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
 
-    for (const [key, email] of Object.entries(representatives)) {
-      if (email && typeof email === 'string') {
+    for (const [key, uid] of Object.entries(representatives)) {
+      if (uid && typeof uid === 'string') {
         try {
-          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(email)}`);
+          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
-            
             // Carica l'avatar del rappresentante se disponibile
             if (userData.avatar_config) {
               try {
@@ -123,12 +122,14 @@ export default function Profilo({ userId }: { userId?: string }) {
               }
             }
           } else {
-            names[key] = email;
+            names[key] = "Non selezionato";
           }
         } catch (error) {
-          console.error(`Errore nel recupero dati per ${email}:`, error);
-          names[key] = email;
+          console.error(`Errore nel recupero dati per ${uid}:`, error);
+          names[key] = "Non selezionato";
         }
+      } else {
+        names[key] = "Non selezionato";
       }
     }
 
@@ -149,14 +150,13 @@ export default function Profilo({ userId }: { userId?: string }) {
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
 
-    for (const [key, email] of Object.entries(candidates)) {
-      if (email && typeof email === 'string') {
+    for (const [key, uid] of Object.entries(candidates)) {
+      if (uid && typeof uid === 'string') {
         try {
-          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(email)}`);
+          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
           if (response.ok) {
             const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
-            
             // Carica l'avatar del candidato se disponibile
             if (userData.avatar_config) {
               try {
@@ -180,12 +180,14 @@ export default function Profilo({ userId }: { userId?: string }) {
               }
             }
           } else {
-            names[key] = email;
+            names[key] = "Non selezionato";
           }
         } catch (error) {
-          console.error(`Errore nel recupero dati per ${email}:`, error);
-          names[key] = email;
+          console.error(`Errore nel recupero dati per ${uid}:`, error);
+          names[key] = "Non selezionato";
         }
+      } else {
+        names[key] = "Non selezionato";
       }
     }
 
