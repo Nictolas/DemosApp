@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 import { PageTransition } from "@/components/PageTransition";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
@@ -14,6 +15,7 @@ import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 export default function Rappresentanti() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
+  const authReady = useAuthReady();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [rappresentanti, setRappresentanti] = useState<Record<string, any>>({});
@@ -28,8 +30,8 @@ export default function Rappresentanti() {
           const userResponse = await apiRequest("GET", `/api/user`);
           const userData = await userResponse.json();
           
-          // Carica i dati completi dell'utente tramite email
-          const completeUserResponse = await fetch(`/api/users/${encodeURIComponent(userData.uid)}`);
+          // Carica i dati completi dell'utente tramite UID
+          const completeUserResponse = await apiRequest("GET", `/api/users/${encodeURIComponent(userData.uid)}`);
           const completeUserData = await completeUserResponse.json();
           
           console.log("Dati utente completi caricati:", completeUserData);
@@ -69,7 +71,7 @@ export default function Rappresentanti() {
         if (rappresentanteId) {
           try {
             // Caricare i dettagli del rappresentante tramite API
-            const response = await fetch(`/api/users/${encodeURIComponent(rappresentanteId)}`);
+            const response = await apiRequest("GET", `/api/users/${encodeURIComponent(rappresentanteId)}`);
             if (response.ok) {
               const data = await response.json();
               rappresentantiData[categoria.id] = data;
@@ -94,7 +96,7 @@ export default function Rappresentanti() {
     return <Redirect to="/auth" />;
   }
 
-  if (isLoading || loading) {
+  if (!authReady) {
     return (
       <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Loader2, ArrowLeft, Check, User, ThumbsUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 import { PageTransition } from "@/components/PageTransition";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ export default function ScegliRappresentante() {
   const { categoria } = useParams<{ categoria: string }>();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
+  const authReady = useAuthReady();
   const [rappresentanti, setRappresentanti] = useState<Rappresentante[]>([]);
   const [userOpinions, setUserOpinions] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -80,8 +82,8 @@ export default function ScegliRappresentante() {
         const userResponse = await apiRequest("GET", `/api/user`);
         const currentUser = await userResponse.json();
         
-        // Carica i dati completi dell'utente tramite email
-        const userDataResponse = await fetch(`/api/users/${encodeURIComponent(currentUser.uid)}`);
+        // Carica i dati completi dell'utente tramite UID
+        const userDataResponse = await apiRequest("GET", `/api/users/${encodeURIComponent(currentUser.uid)}`);
         const userData = await userDataResponse.json();
         
         console.log('Dati utente completi:', userData);
@@ -97,11 +99,10 @@ export default function ScegliRappresentante() {
         setUserOpinions(opinionsData);
         
         // Carica tutti gli utenti con ruolo politico o politico candidato
-        const usersResponse = await fetch('/api/users');
+        const usersResponse = await apiRequest("GET", '/api/users');
         if (!usersResponse.ok) {
           throw new Error('Errore nel caricamento degli utenti');
         }
-        
         const allUsers = await usersResponse.json();
         const data = allUsers.filter((user: any) => 
           (user.ruolo === 'Politico' || user.ruolo === 'Candidato Politico') &&
@@ -150,11 +151,6 @@ export default function ScegliRappresentante() {
                   item.provincia_elezione === userData.provincia_elezione &&
                   item.comune_elezione === userData.comune_elezione)
                 );
-                console.log(`Filtro comunale - Utente corrente: ${userData.comune_elezione}, ${userData.provincia_elezione}, ${userData.regione_elezione}, ${userData.paese_elezione}`);
-                console.log(`Rappresentanti comunali trovati:`, filteredData.length);
-                filteredData.forEach((rep: any) => {
-                  console.log(`- ${rep.nome} ${rep.cognome} (${rep.email}) - ${rep.comune_elezione}, ${rep.provincia_elezione}, ${rep.regione_elezione}`);
-                });
                 break;
               default:
                 break;
@@ -199,25 +195,19 @@ export default function ScegliRappresentante() {
               opinioni_comuni: opinioniComuni
             };
           });
-          
-          // Ordina per numero di opinioni comuni (decrescente)
-          rappresentantiConOpinioniComuni.sort((a: any, b: any) => b.opinioni_comuni - a.opinioni_comuni);
-          
-          // Usa tutti i rappresentanti disponibili
           setRappresentanti(rappresentantiConOpinioniComuni);
         }
+        setLoading(false);
       } catch (error) {
-        console.error("Errore durante il recupero dei dati:", error);
+        console.error('Errore nel caricamento dati:', error);
         toast({
-          title: "Errore",
-          description: "Impossibile caricare i rappresentanti.",
-          variant: "destructive",
+          title: 'Errore',
+          description: 'Impossibile caricare i dati dei rappresentanti.',
+          variant: 'destructive',
         });
-      } finally {
         setLoading(false);
       }
     };
-    
     fetchData();
   }, [user, categoria, toast]);
 
@@ -260,7 +250,7 @@ export default function ScegliRappresentante() {
     return <Redirect to="/auth" />;
   }
 
-  if (isLoading || loading) {
+  if (!authReady) {
     return (
       <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
