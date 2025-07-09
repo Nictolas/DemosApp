@@ -62,6 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
+      // Effettua login Firebase
+      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
       const res = await apiRequest("POST", "/api/login", credentials);
       if (!res.ok) {
         // Provo a estrarre il messaggio di errore dal body, se presente
