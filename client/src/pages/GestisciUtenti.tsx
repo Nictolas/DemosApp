@@ -23,6 +23,7 @@ import { ViewUserDialog } from "@/components/ViewUserDialog";
 import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 
 type User = {
   id: string;
@@ -37,6 +38,7 @@ type User = {
 
 export default function GestisciUtenti() {
   const { user, isLoading } = useAuth();
+  const authReady = useAuthReady();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
@@ -76,8 +78,25 @@ export default function GestisciUtenti() {
   }, [user]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    if (authReady) {
+      fetchUsers();
+    }
+  }, [fetchUsers, authReady]);
+
+  // Redirect to auth page if not logged in
+  if (!authReady || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+  if (user && user.ruolo !== "Admin") {
+    return <Redirect to="/menu" />;
+  }
 
   const handleApproval = async (userId: string, approve: boolean) => {
     setActionInProgress(userId);
@@ -114,14 +133,6 @@ export default function GestisciUtenti() {
       setActionInProgress(null);
     }
   };
-
-  // Redirect to auth page if not logged in
-  if (!user && !isLoading) {
-    return <Redirect to="/auth" />;
-  }
-  if (user && user.ruolo !== "Admin") {
-    return <Redirect to="/menu" />;
-  }
 
   // Funzione per eliminare un utente
   const deleteUser = async (userUid: string) => {
