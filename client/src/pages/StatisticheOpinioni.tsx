@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { Redirect, Link } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, BarChart } from "lucide-react";
@@ -13,8 +12,7 @@ type OpinionData = { favorevole: number; contrario: number; astenuto: number; };
 type OpinionStats = Record<string, OpinionData>;
 type OpinionKey = "energia_nucleare" | "sperimentazione_animale" | "legalizzazione_canapa" | "caccia" | "unione_europea";
 
-export default function StatisticheOpinioni() {
-  const { user, isLoading } = useAuth();
+function StatisticheOpinioni() {
   const [stats, setStats] = useState<OpinionStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,10 +56,8 @@ export default function StatisticheOpinioni() {
   }, [opinionQuestions]);
 
   useEffect(() => {
-    if (user) {
-      fetchStats();
-    }
-  }, [user, fetchStats]);
+    fetchStats();
+  }, [fetchStats]);
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -78,9 +74,6 @@ export default function StatisticheOpinioni() {
     };
     fetchQuestions();
   }, []);
-
-  if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (!user) return <Redirect to="/auth" />;
 
   const preparePieChartData = (questionKey: OpinionKey) => {
     if (!stats) return null;
@@ -169,3 +162,5 @@ export default function StatisticheOpinioni() {
     </div>
   );
 }
+
+export default StatisticheOpinioni;
