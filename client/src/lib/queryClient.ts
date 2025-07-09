@@ -12,11 +12,16 @@ export const apiRequest = async (method: string, url: string, body?: any) => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+  // DEBUG: logga lo stato di auth.currentUser
+  console.log("[apiRequest] auth.currentUser:", auth.currentUser);
   // Aggiungi token Firebase se presente
   const user = auth.currentUser;
   if (user) {
     const idToken = await user.getIdToken();
+    console.log("[apiRequest] TOKEN JWT:", idToken);
     headers['Authorization'] = `Bearer ${idToken}`;
+  } else {
+    console.warn("[apiRequest] Nessun utente Firebase loggato, Authorization non aggiunto");
   }
   return fetch(url, {
     method,
@@ -35,11 +40,16 @@ export const getQueryFn: <T>(options: {
     let headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
+    // DEBUG: logga lo stato di auth.currentUser
+    console.log("[getQueryFn] auth.currentUser:", auth.currentUser);
     // Recupera token Firebase se presente
     const user = auth.currentUser;
     if (user) {
       const idToken = await user.getIdToken();
+      console.log("[getQueryFn] TOKEN JWT:", idToken);
       headers['Authorization'] = `Bearer ${idToken}`;
+    } else {
+      console.warn("[getQueryFn] Nessun utente Firebase loggato, Authorization non aggiunto");
     }
     const res = await fetch(queryKey[0] as string, {
       headers,
