@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
+import { apiRequest } from "@/lib/api";
 
 interface ViewUserDialogProps {
   userEmail: string;
@@ -31,7 +32,7 @@ export function ViewUserDialog({ userEmail, open, onOpenChange }: ViewUserDialog
 
     try {
       // Carica i dati tramite API
-      const response = await fetch(`/api/users/${encodeURIComponent(userEmail)}`);
+      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(userEmail)}`);
       
       if (!response.ok) {
         throw new Error("Errore nel caricamento dei dati dell'utente");

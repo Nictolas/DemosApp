@@ -35,8 +35,22 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    let headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    // Recupera token Firebase se presente
+    if (typeof window !== 'undefined' && (window as any).firebase) {
+      try {
+        const user = (window as any).firebase.auth().currentUser;
+        if (user) {
+          const idToken = await user.getIdToken();
+          headers['Authorization'] = `Bearer ${idToken}`;
+        }
+      } catch (e) {}
+    }
     const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
+      headers,
+      // credentials: 'include', // Non serve più per Firebase Auth
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
