@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { Link } from "wouter";
+import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Eye } from "lucide-react";
@@ -23,6 +23,7 @@ import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
+import { useAuth } from "@/hooks/use-auth";
 
 type User = {
   id: string;
@@ -37,6 +38,7 @@ type User = {
 
 function GestisciUtenti() {
   const authReady = useAuthReady();
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
@@ -63,8 +65,8 @@ function GestisciUtenti() {
     try {
       console.log("[fetchUsers] Chiamo /api/users e /api/pending-users, user:", auth.currentUser);
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
-        apiRequest("GET", "/api/users"),
-        apiRequest("GET", "/api/pending-users")
+        fetch("/api/users", { credentials: 'include' }),
+        fetch("/api/pending-users", { credentials: 'include' })
       ]);
 
       const userData = await allUsersResponse.json();
@@ -82,10 +84,20 @@ function GestisciUtenti() {
   }, [auth.currentUser]);
 
   useEffect(() => {
-    if (authReady) {
+    if (authReady && user) {
       fetchUsers();
     }
-  }, [fetchUsers, authReady]);
+  }, [fetchUsers, authReady, user]);
+
+  // Redirect to auth page if not logged in
+  if (!user && !isLoading) {
+    return <Redirect to="/auth" />;
+  }
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
 
   const handleApproval = async (userId: string, approve: boolean) => {
     setActionInProgress(userId);
@@ -96,6 +108,7 @@ function GestisciUtenti() {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ userId }),
       });
 
@@ -128,7 +141,10 @@ function GestisciUtenti() {
     setIsDeleting(true);
     
     try {
-      const response = await apiRequest("DELETE", `/api/users/${userUid}`);
+      const response = await fetch(`/api/users/${userUid}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
