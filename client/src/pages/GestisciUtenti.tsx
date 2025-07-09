@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { Redirect, Link } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Eye } from "lucide-react";
@@ -36,8 +35,7 @@ type User = {
   [key: string]: any;
 };
 
-export default function GestisciUtenti() {
-  const { user, isLoading } = useAuth();
+function GestisciUtenti() {
   const authReady = useAuthReady();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
@@ -57,13 +55,13 @@ export default function GestisciUtenti() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    if (!user) {
+    if (!auth.currentUser) {
       console.log("[fetchUsers] Nessun utente, esco");
       return;
     }
     setIsLoadingUsers(true);
     try {
-      console.log("[fetchUsers] Chiamo /api/users e /api/pending-users, user:", user);
+      console.log("[fetchUsers] Chiamo /api/users e /api/pending-users, user:", auth.currentUser);
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
         apiRequest("GET", "/api/users"),
         apiRequest("GET", "/api/pending-users")
@@ -81,28 +79,13 @@ export default function GestisciUtenti() {
     } finally {
       setIsLoadingUsers(false);
     }
-  }, [user]);
+  }, [auth.currentUser]);
 
   useEffect(() => {
     if (authReady) {
       fetchUsers();
     }
   }, [fetchUsers, authReady]);
-
-  // Redirect to auth page if not logged in
-  if (!authReady || isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[80vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
-  if (user && user.ruolo !== "Admin") {
-    return <Redirect to="/menu" />;
-  }
 
   const handleApproval = async (userId: string, approve: boolean) => {
     setActionInProgress(userId);
@@ -224,7 +207,7 @@ export default function GestisciUtenti() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
-      {isLoading || isLoadingUsers ? (
+      {isLoadingUsers ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -544,3 +527,5 @@ export default function GestisciUtenti() {
     </div>
   );
 }
+
+export default GestisciUtenti;
