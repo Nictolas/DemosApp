@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { auth } from "@/lib/firebase";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -12,14 +13,10 @@ export const apiRequest = async (method: string, url: string, body?: any) => {
     'Content-Type': 'application/json',
   };
   // Aggiungi token Firebase se presente
-  if (typeof window !== 'undefined' && (window as any).firebase) {
-    try {
-      const user = (window as any).firebase.auth().currentUser;
-      if (user) {
-        const idToken = await user.getIdToken();
-        headers['Authorization'] = `Bearer ${idToken}`;
-      }
-    } catch (e) {}
+  const user = auth.currentUser;
+  if (user) {
+    const idToken = await user.getIdToken();
+    headers['Authorization'] = `Bearer ${idToken}`;
   }
   return fetch(url, {
     method,
@@ -39,14 +36,10 @@ export const getQueryFn: <T>(options: {
       'Content-Type': 'application/json',
     };
     // Recupera token Firebase se presente
-    if (typeof window !== 'undefined' && (window as any).firebase) {
-      try {
-        const user = (window as any).firebase.auth().currentUser;
-        if (user) {
-          const idToken = await user.getIdToken();
-          headers['Authorization'] = `Bearer ${idToken}`;
-        }
-      } catch (e) {}
+    const user = auth.currentUser;
+    if (user) {
+      const idToken = await user.getIdToken();
+      headers['Authorization'] = `Bearer ${idToken}`;
     }
     const res = await fetch(queryKey[0] as string, {
       headers,
