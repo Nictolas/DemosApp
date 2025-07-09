@@ -236,6 +236,7 @@ app.get('/api/user', requireFirebaseAuth, async (req, res) => {
   }
 });
 app.get('/api/users', requireFirebaseAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
+app.get('/api/users-stats', requireFirebaseAuth, async (req, res) => res.json(await UserService.getAllUsers()));
 app.get('/api/users/:uid', requireFirebaseAuth, async (req, res) => {
   const { uid } = req.params;
   const user = await UserService.getUserById(decodeURIComponent(uid));
@@ -278,14 +279,14 @@ app.get('/api/users/:uid/public', requireFirebaseAdmin, async (req, res) => {
 });
 
 // Opinioni
-app.post('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.id, req.body)));
-app.get('/api/opinioni', requireAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.id)));
-app.get('/api/opinioni/:id', requireAuth, async (req, res) => {
+app.post('/api/opinioni', requireFirebaseAuth, async (req, res) => res.json(await UserService.saveUserOpinions(req.user.uid, req.body)));
+app.get('/api/opinioni', requireFirebaseAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.uid)));
+app.get('/api/opinioni/:id', requireFirebaseAuth, async (req, res) => {
   const opinioni = await UserService.getUserOpinions(req.params.id);
   if (!opinioni) return res.status(404).json({ error: "Utente non trovato" });
   res.json(opinioni);
 });
-app.get('/api/statistiche-opinioni', requireFirebaseAdmin, async (req, res) => {
+app.get('/api/statistiche-opinioni', requireFirebaseAuth, async (req, res) => {
   const users = await UserService.getAllUsers();
   console.log("STATISTICHE UTENTI:", users.length, users[0]);
   res.json(users);

@@ -65,8 +65,8 @@ function GestisciUtenti() {
     try {
       console.log("[fetchUsers] Chiamo /api/users e /api/pending-users, user:", auth.currentUser);
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
-        fetch("/api/users", { credentials: 'include' }),
-        fetch("/api/pending-users", { credentials: 'include' })
+        apiRequest("GET", "/api/users"),
+        apiRequest("GET", "/api/pending-users")
       ]);
 
       const userData = await allUsersResponse.json();
@@ -99,18 +99,18 @@ function GestisciUtenti() {
     return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
+  // Check if user is admin
+  if (user && user.ruolo !== 'Admin') {
+    return <Redirect to="/menu" />;
+  }
+
   const handleApproval = async (userId: string, approve: boolean) => {
     setActionInProgress(userId);
     const endpoint = approve ? '/api/approve-user' : '/api/reject-user';
     const actionText = approve ? 'approvato' : 'rifiutato';
     
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ userId }),
-      });
+      const response = await apiRequest('POST', endpoint, { userId });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -141,10 +141,7 @@ function GestisciUtenti() {
     setIsDeleting(true);
     
     try {
-      const response = await fetch(`/api/users/${userUid}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
+      const response = await apiRequest("DELETE", `/api/users/${userUid}`);
       
       if (!response.ok) {
         const errorData = await response.json();

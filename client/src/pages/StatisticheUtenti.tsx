@@ -71,9 +71,7 @@ export default function StatisticheUtenti() {
       
       try {
         // Carica i dati tramite API
-        const response = await fetch('/api/users', {
-          credentials: 'include'
-        });
+        const response = await apiRequest('GET', '/api/users-stats');
         if (!response.ok) {
           throw new Error('Errore nel caricamento degli utenti');
         }

@@ -119,14 +119,7 @@ export default function Opinioni() {
       
       console.log('Invio dati opinioni con email:', opinionPayload);
       
-      const response = await fetch('/api/opinioni', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify(opinionPayload)
-      });
+      const response = await apiRequest('POST', '/api/opinioni', opinionPayload);
       
       // Leggiamo la risposta anche se non è OK perché potrebbe contenere dati salvati temporaneamente
       const result = await response.json();
