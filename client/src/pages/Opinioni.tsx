@@ -124,6 +124,7 @@ export default function Opinioni() {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(opinionPayload)
       });
       

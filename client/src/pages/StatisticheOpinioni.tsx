@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, BarChart } from "lucide-react";
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import { apiRequest } from "@/lib/queryClient";
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -13,6 +16,7 @@ type OpinionStats = Record<string, OpinionData>;
 type OpinionKey = "energia_nucleare" | "sperimentazione_animale" | "legalizzazione_canapa" | "caccia" | "unione_europea";
 
 function StatisticheOpinioni() {
+  const { user, isLoading } = useAuth();
   const [stats, setStats] = useState<OpinionStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +30,9 @@ function StatisticheOpinioni() {
     setIsLoadingStats(true);
     setError(null);
     try {
-      const response = await fetch('/api/statistiche-opinioni');
+      const response = await fetch('/api/statistiche-opinioni', {
+        credentials: 'include'
+      });
       if (!response.ok) {
         throw new Error(`Errore API: ${response.status} ${response.statusText}`);
       }
@@ -56,14 +62,18 @@ function StatisticheOpinioni() {
   }, [opinionQuestions]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (user) {
+      fetchStats();
+    }
+  }, [fetchStats, user]);
 
   useEffect(() => {
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await fetch("/api/opinioni-list");
+        const res = await fetch("/api/opinioni-list", {
+          credentials: 'include'
+        });
         if (!res.ok) throw new Error();
         setOpinionQuestions(await res.json());
       } catch {
@@ -72,8 +82,10 @@ function StatisticheOpinioni() {
         setIsLoadingQuestions(false);
       }
     };
-    fetchQuestions();
-  }, []);
+    if (user) {
+      fetchQuestions();
+    }
+  }, [user]);
 
   const preparePieChartData = (questionKey: OpinionKey) => {
     if (!stats) return null;
@@ -119,6 +131,14 @@ function StatisticheOpinioni() {
   const detailPageLinks: Record<string, string> = Object.fromEntries(
     opinionQuestions.map(q => [q.id, `/opinioni/${q.id}`])
   );
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">

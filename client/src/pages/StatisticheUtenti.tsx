@@ -16,6 +16,7 @@ import {
   Legend 
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import { apiRequest } from "@/lib/queryClient";
 
 // Registra i componenti Chart.js necessari
 ChartJS.register(
@@ -70,7 +71,9 @@ export default function StatisticheUtenti() {
       
       try {
         // Carica i dati tramite API
-        const response = await fetch('/api/users');
+        const response = await fetch('/api/users', {
+          credentials: 'include'
+        });
         if (!response.ok) {
           throw new Error('Errore nel caricamento degli utenti');
         }
@@ -87,7 +90,7 @@ export default function StatisticheUtenti() {
         const usersByRegion: Record<string, number> = {};
         const usersByCity: Record<string, number> = {};
 
-        users.forEach(user => {
+        users.forEach((user: any) => {
           // Conteggio per ruolo
           const role = user.ruolo || 'Non specificato';
           usersByRole[role] = (usersByRole[role] || 0) + 1;
