@@ -170,8 +170,12 @@ const requireFirebaseAuth = async (req, res, next) => {
 // Middleware di controllo ruolo Admin dopo verifica token Firebase
 const requireFirebaseAdmin = async (req, res, next) => {
   await requireFirebaseAuth(req, res, async () => {
-    // Dopo la verifica del token, controllo il ruolo
-    if (req.user?.role !== 'Admin' && req.user?.ruolo !== 'Admin') {
+    // Dopo la verifica del token, controllo il ruolo O l'email admin
+    if (
+      req.user?.role !== 'Admin' &&
+      req.user?.ruolo !== 'Admin' &&
+      req.user?.email !== 'admin@admin.com'
+    ) {
       return res.status(403).json({ error: 'Forbidden: solo Admin' });
     }
     next();
