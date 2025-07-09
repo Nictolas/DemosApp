@@ -67,7 +67,7 @@ export default function Rappresentanti() {
       
       for (const categoria of categorie) {
         const rappresentanteId = userData[categoria.field];
-        console.log(`Categoria ${categoria.id}: campo ${categoria.field} = ${rappresentanteId}`);
+        console.log(`DEBUG: Categoria ${categoria.id} - campo ${categoria.field} =`, rappresentanteId);
         if (rappresentanteId) {
           try {
             // Caricare i dettagli del rappresentante tramite API
@@ -75,12 +75,12 @@ export default function Rappresentanti() {
             if (response.ok) {
               const data = await response.json();
               rappresentantiData[categoria.id] = data;
-              console.log(`Dati caricati per ${categoria.id}:`, data.nome, data.cognome);
+              console.log(`DEBUG: Dati caricati per ${categoria.id}:`, data);
             } else {
-              console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, response.statusText);
+              console.error(`DEBUG: Errore nel caricare il rappresentante ${categoria.id}:`, response.statusText);
             }
           } catch (error) {
-            console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, error);
+            console.error(`DEBUG: Errore nel caricare il rappresentante ${categoria.id}:`, error);
           }
         }
       }
