@@ -30,9 +30,7 @@ function StatisticheOpinioni() {
     setIsLoadingStats(true);
     setError(null);
     try {
-      const response = await fetch('/api/statistiche-opinioni', {
-        credentials: 'include'
-      });
+      const response = await apiRequest('GET', '/api/statistiche-opinioni');
       if (!response.ok) {
         throw new Error(`Errore API: ${response.status} ${response.statusText}`);
       }
@@ -71,9 +69,7 @@ function StatisticheOpinioni() {
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await fetch("/api/opinioni-list", {
-          credentials: 'include'
-        });
+        const res = await apiRequest('GET', "/api/opinioni-list");
         if (!res.ok) throw new Error();
         setOpinionQuestions(await res.json());
       } catch {
@@ -137,7 +133,7 @@ function StatisticheOpinioni() {
   }
 
   if (!user) {
-    return <Redirect to="/login" />;
+    return <Redirect to="/auth" />;
   }
 
   return (
