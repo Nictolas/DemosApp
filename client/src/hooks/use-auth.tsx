@@ -7,6 +7,8 @@ import {
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -94,6 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       const res = await apiRequest("POST", "/api/register", credentials);
+      // Effettua login Firebase subito dopo la registrazione
+      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
       return await res.json();
     },
     onSuccess: (user: SelectUser) => {
