@@ -9,6 +9,7 @@ import { EditProfileForm } from "@/components/EditProfileForm";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 
 // Definizione locale del tipo UserInfo
 export type UserInfo = {
@@ -44,6 +45,7 @@ export type UserInfo = {
 };
 
 export default function Profilo({ userId }: { userId?: string }) {
+  const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -283,6 +285,15 @@ export default function Profilo({ userId }: { userId?: string }) {
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
+  }
+
+  if (!authReady) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+        <div>Caricamento autenticazione...</div>
+      </div>
+    );
   }
 
   // Unione dinamica di tutte le opinioni (da opinionQuestions e da userOpinions)
