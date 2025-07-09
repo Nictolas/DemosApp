@@ -119,6 +119,9 @@ export default function GestisciUtenti() {
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
   }
+  if (user && user.ruolo !== "Admin") {
+    return <Redirect to="/menu" />;
+  }
 
   // Funzione per eliminare un utente
   const deleteUser = async (userUid: string) => {
