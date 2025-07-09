@@ -221,17 +221,26 @@ app.get('/api/user', requireFirebaseAuth, (req, res) => res.json(req.user));
 app.get('/api/users', requireFirebaseAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
 app.get('/api/users/:uid', requireFirebaseAuth, async (req, res) => {
   const { uid } = req.params;
-  // Permetti l'accesso all'admin o all'utente stesso
-  if (
-    req.user?.role !== 'Admin' &&
-    req.user?.ruolo !== 'Admin' &&
-    req.user?.uid !== uid
-  ) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
   const user = await UserService.getUserById(decodeURIComponent(uid));
   if (!user) return res.status(404).json({ error: 'Utente non trovato' });
-  res.json(user);
+
+  // Se l'utente è admin o sta chiedendo i propri dati, restituisci tutto
+  if (
+    req.user?.role === 'Admin' ||
+    req.user?.ruolo === 'Admin' ||
+    req.user?.uid === uid
+  ) {
+    return res.json(user);
+  }
+
+  // Altrimenti restituisci solo i dati pubblici
+  return res.json({
+    id: user.id,
+    nome: user.nome,
+    cognome: user.cognome,
+    avatar_config: user.avatar_config,
+    ruolo: user.ruolo
+  });
 });
 app.put('/api/users/:uid', requireFirebaseAdmin, async (req, res) => {
     const { uid } = req.params;
