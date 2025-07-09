@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import { Redirect } from "wouter";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, ArrowLeft, Check, X } from "lucide-react";
+import { Heart, ArrowLeft, Check, X, Loader2 } from "lucide-react";
 import { useLocation, Link } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function GestisciGrazia() {
+  const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [requests, setRequests] = useState<Array<{id: string, nome: string, urlProva: string, userId: string}>>([]);
   const [loading, setLoading] = useState(true);
@@ -16,7 +20,7 @@ export default function GestisciGrazia() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/grazia/richieste");
+      const res = await apiRequest('GET', "/api/grazia/richieste");
       if (!res.ok) throw new Error("Errore nel recupero delle richieste");
       setRequests(await res.json());
     } catch (e) {
@@ -27,8 +31,10 @@ export default function GestisciGrazia() {
   };
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    if (user) {
+      fetchRequests();
+    }
+  }, [user]);
 
   useEffect(() => {
     // Quando cambiano le richieste, carica i dati pubblici degli utenti
@@ -38,7 +44,7 @@ export default function GestisciGrazia() {
       await Promise.all(ids.map(async (id) => {
         if (!id) return;
         try {
-          const res = await fetch(`/api/users/${id}/public`);
+          const res = await apiRequest('GET', `/api/users/${id}/public`);
           if (res.ok) {
             const data = await res.json();
             newMap[id] = { nome: data.nome, cognome: data.cognome };
@@ -54,7 +60,7 @@ export default function GestisciGrazia() {
     setActionLoading(id + action);
     setError("");
     try {
-      const res = await fetch(`/api/grazia/richiesta/${id}/${action}`, { method: "POST" });
+      const res = await apiRequest('POST', `/api/grazia/richiesta/${id}/${action}`);
       if (!res.ok) throw new Error("Errore nell'azione");
       await fetchRequests();
     } catch (e) {
@@ -63,6 +69,21 @@ export default function GestisciGrazia() {
       setActionLoading("");
     }
   };
+
+  // Redirect to auth page if not logged in
+  if (!user && !isLoading) {
+    return <Redirect to="/auth" />;
+  }
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  // Check if user is admin
+  if (user && user.ruolo !== 'Admin') {
+    return <Redirect to="/menu" />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
