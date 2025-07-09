@@ -160,6 +160,7 @@ const requireFirebaseAuth = async (req, res, next) => {
   const idToken = authHeader.split('Bearer ')[1];
   try {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
+    console.log('DEBUG decodedToken:', decodedToken); // <-- LOG AGGIUNTO
     req.user = decodedToken;
     next();
   } catch (error) {
