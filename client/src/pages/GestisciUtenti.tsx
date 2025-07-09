@@ -57,20 +57,26 @@ export default function GestisciUtenti() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("[fetchUsers] Nessun utente, esco");
+      return;
+    }
     setIsLoadingUsers(true);
     try {
+      console.log("[fetchUsers] Chiamo /api/users e /api/pending-users, user:", user);
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
         apiRequest("GET", "/api/users"),
         apiRequest("GET", "/api/pending-users")
       ]);
 
       const userData = await allUsersResponse.json();
+      console.log("[fetchUsers] Risposta /api/users:", userData);
       setUsers(userData.filter((u: User) => u.status === 'active'));
       const pendingData = await pendingUsersResponse.json();
+      console.log("[fetchUsers] Risposta /api/pending-users:", pendingData);
       setPendingUsers(pendingData);
     } catch (error) {
-      console.error("Errore:", error);
+      console.error("[fetchUsers] Errore:", error);
       setError("Errore nel caricamento degli utenti");
     } finally {
       setIsLoadingUsers(false);
