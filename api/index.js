@@ -1,3 +1,4 @@
+// Server DEMOS - Configurazione autenticazione Firebase
 import express from "express";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
@@ -50,8 +51,8 @@ app.use((req, res, next) => {
 app.set('trust proxy', 1);
 app.use(
   session({
-    store: storage.sessionStore,
-    secret: process.env.SESSION_SECRET,
+    store: storage.sessionStore || undefined, // Usa undefined se sessionStore è null
+    secret: process.env.SESSION_SECRET || 'fallback-secret',
     resave: false,
     saveUninitialized: false,
     proxy: true,
@@ -304,12 +305,12 @@ app.get('/api/opinioni-dettaglio/:opinionField', requireFirebaseAdmin, async (re
 });
 
 // Sostenitori & Politici
-app.get('/api/candidati', requireAuth, async (req, res) => res.json(await UserService.getCandidati()));
-app.get('/api/search-politicians', requireAuth, async (req, res) => res.json(await UserService.searchPoliticians(req.query.q)));
-app.get('/api/sostenitori/:uid', requireAuth, async (req, res) => {
+app.get('/api/candidati', requireFirebaseAuth, async (req, res) => res.json(await UserService.getCandidati()));
+app.get('/api/search-politicians', requireFirebaseAuth, async (req, res) => res.json(await UserService.searchPoliticians(req.query.q)));
+app.get('/api/sostenitori/:uid', requireFirebaseAuth, async (req, res) => {
     const { uid } = req.params;
     if (req.user?.ruolo !== 'Politico' && req.user?.ruolo !== 'Candidato' && req.user?.ruolo !== 'Candidato Politico') return res.status(403).json({ error: "Forbidden" });
-    if (req.user?.id !== uid) return res.status(403).json({ error: "Forbidden" });
+    if (req.user?.uid !== uid) return res.status(403).json({ error: "Forbidden" });
     const user = await UserService.getUserById(uid);
     if (!user?.email) return res.status(404).json({ error: "User not found" });
     res.json(await SostenitoriService.getSupporterStats(user.email));
@@ -428,10 +429,10 @@ createVotingEndpoints('referendum-abrogativi', { vote: 'voteReferendum', getUser
 createVotingEndpoints('iniziative-popolari', { vote: 'voteIniziativaPopolare', getUserVoti: 'getUserVotiIniziativePopolari', getClassifica: 'getClassificaIniziativePopolari' }, 'legge');
 
 // === GRAZIA: Richieste di nuovi individui ===
-app.post('/api/grazia/richiesta', requireAuth, async (req, res) => {
+app.post('/api/grazia/richiesta', requireFirebaseAuth, async (req, res) => {
   const { nome, urlProva } = req.body;
   if (!nome || !urlProva) return res.status(400).json({ error: 'Nome e urlProva sono obbligatori' });
-  const result = await VotoService.proposeGraziaRequest(req.user.id, nome, urlProva);
+  const result = await VotoService.proposeGraziaRequest(req.user.uid, nome, urlProva);
   res.status(result.success ? 200 : 400).json(result);
 });
 
@@ -453,7 +454,7 @@ app.post('/api/grazia/richiesta/:id/rifiuta', requireFirebaseAdmin, async (req, 
 });
 
 // Opinioni dinamiche
-app.get('/api/opinioni-list', requireAuth, async (req, res) => {
+app.get('/api/opinioni-list', requireFirebaseAuth, async (req, res) => {
   res.json(await OpinioniService.listOpinioni());
 });
 app.post('/api/opinioni-list', requireFirebaseAdmin, async (req, res) => {

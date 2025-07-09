@@ -5,9 +5,9 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "tsx api/index.ts",
+    "dev": "node api/index.js",
     "build": "vite build",
-    "start": "NODE_ENV=production tsx api/index.ts",
+    "start": "NODE_ENV=production node api/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push --force --config=./drizzle.config.ts",
     "db:seed": "tsx db/seed.ts"
