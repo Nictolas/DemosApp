@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 // Le domande ora sono dinamiche
 const options = [
@@ -57,12 +58,7 @@ export default function Opinioni() {
       setIsLoadingOpinions(true);
       
       // Carica i dati utente unificati che ora contengono anche le opinioni
-      const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
       
       if (!response.ok) {
         throw new Error('Errore nel caricamento dei dati utente');
