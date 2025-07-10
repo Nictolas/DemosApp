@@ -1,3 +1,4 @@
+// Patch di debug: aggiunto box di debug per authReady, isLoading, user, error
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -16,6 +17,7 @@ import { ITALY_DATA } from "@/data/italyData";
 import './auth-page.css';
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
@@ -65,7 +67,19 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  const { user, loginMutation, registerMutation } = useAuth();
+  const authReady = useAuthReady();
+  const { user, isLoading, error } = useAuth();
+
+  // DEBUG BOX A SCHERMO
+  const debugBox = (
+    <div style={{ background: '#fffbe6', color: '#b36b00', border: '1px solid #ffe58f', padding: 12, marginBottom: 16, fontSize: 13, borderRadius: 6 }}>
+      <b>DEBUG AUTH:</b><br/>
+      <b>authReady:</b> {String(authReady)}<br/>
+      <b>isLoading:</b> {String(isLoading)}<br/>
+      <b>user:</b> <pre style={{ display: 'inline', whiteSpace: 'pre-wrap' }}>{user ? JSON.stringify(user, null, 2) : 'null'}</pre><br/>
+      <b>error:</b> {error ? error.toString() : 'null'}
+    </div>
+  );
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -409,6 +423,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {debugBox}
       <div className="container mx-auto px-4 py-16">
         <div className="flex flex-col lg:flex-row items-center gap-8">
           {/* Hero Section */}
@@ -929,3 +944,5 @@ export default function AuthPage() {
     </div>
   );
 }
+
+// TODO: Forzare commit - rimuovere questo commento dopo il debug
