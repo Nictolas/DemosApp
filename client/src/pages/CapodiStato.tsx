@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Crown, Vote, Trophy, Plus, X, ThumbsUp } from "luci
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Classifica {
   nome: string;
@@ -33,11 +34,11 @@ export default function CapodiStato() {
     setLoadingData(true);
     try {
       const [votiResponse, classificaResponse] = await Promise.all([
-        fetch('/api/capo-stato/voti'),
-        fetch('/api/capo-stato/classifica')
+        apiRequest("GET", "/api/capo-stato/voti"),
+        apiRequest("GET", "/api/capo-stato/classifica")
       ]);
-      if (votiResponse.ok) setUserVoti(await votiResponse.json());
-      if (classificaResponse.ok) setClassifica(await classificaResponse.json());
+      if (votiResponse.ok) setUserVoti(votiResponse.data);
+      if (classificaResponse.ok) setClassifica(classificaResponse.data);
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
@@ -63,17 +64,13 @@ export default function CapodiStato() {
     }
     setIsVoting(true);
     try {
-      const response = await fetch('/api/capo-stato/vota', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome }),
-      });
+      const response = await apiRequest("POST", "/api/capo-stato/vota", { nome });
       if (response.ok) {
         toast({ title: "Voto registrato", description: `Hai votato ${nome}` });
         setNomeInput("");
         await loadData();
       } else {
-        const error = await response.json();
+        const error = response.data;
         toast({ title: "Errore", description: error.error, variant: "destructive" });
       }
     } catch (error) {
@@ -90,16 +87,14 @@ export default function CapodiStato() {
     setDeletingVote(nomeDaRimuovere);
     try {
       // ===== CORREZIONE DEFINITIVA QUI: da /voto/ a /voti/ =====
-      const response = await fetch(`/api/capo-stato/voti/${encodeURIComponent(nomeDaRimuovere)}`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest("DELETE", `/api/capo-stato/voti/${encodeURIComponent(nomeDaRimuovere)}`);
 
       if (response.ok) {
         toast({ title: "Voto rimosso", description: `Hai rimosso il voto per ${nomeDaRimuovere}`});
         setUserVoti(currentVotes => currentVotes.filter(voto => voto !== nomeDaRimuovere));
         loadData(); // Ricarica i dati per aggiornare anche la classifica
       } else {
-        const error = await response.json();
+        const error = response.data;
         toast({ title: "Errore", description: error.error || "Errore nella rimozione", variant: "destructive" });
       }
     } catch (error) {
@@ -122,14 +117,12 @@ export default function CapodiStato() {
     if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
     setDeletingClassifica(nome);
     try {
-      const response = await fetch(`/api/capo-stato/classifica/${encodeURIComponent(nome)}`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest("DELETE", `/api/capo-stato/classifica/${encodeURIComponent(nome)}`);
       if (response.ok) {
         toast({ title: "Candidato eliminato", description: `${nome} è stato rimosso dalla classifica.` });
         await loadData();
       } else {
-        const error = await response.json();
+        const error = response.data;
         toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
       }
     } catch (error) {

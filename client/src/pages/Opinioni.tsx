@@ -29,7 +29,7 @@ export default function Opinioni() {
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await fetch("/api/opinioni-list");
+        const res = await apiRequest("GET", "/api/opinioni-list");
         if (!res.ok) throw new Error();
         setQuestions(await res.json());
       } catch (e) {

@@ -14,6 +14,7 @@ import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { apiRequest } from "@/lib/api";
 
 interface Elezione {
   id: string;
@@ -73,7 +74,7 @@ export default function GestisciElezioni() {
   const loadElezioni = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/elezioni');
+      const response = await apiRequest('GET', '/api/elezioni');
       if (response.ok) {
         const data = await response.json();
         setElezioni(data);
@@ -104,14 +105,7 @@ export default function GestisciElezioni() {
 
       const url = editingElezione ? `/api/elezioni/${editingElezione.id}` : '/api/elezioni';
       const method = editingElezione ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(elezioneData),
-      });
+      const response = await apiRequest(method, url, elezioneData);
 
       if (response.ok) {
         toast({
@@ -155,9 +149,7 @@ export default function GestisciElezioni() {
     }
 
     try {
-      const response = await fetch(`/api/elezioni/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest('DELETE', `/api/elezioni/${id}`);
 
       if (response.ok) {
         toast({

@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/apiRequest";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -72,7 +73,7 @@ export default function Comunica() {
     queryKey: ["/api/users", user?.email],
     queryFn: async () => {
       if (!user?.email) return null;
-      const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },
@@ -83,7 +84,7 @@ export default function Comunica() {
   const { data: ultimaComunicazione } = useQuery({
     queryKey: ["/api/ultima-comunicazione"],
     queryFn: async () => {
-      const response = await fetch('/api/ultima-comunicazione');
+      const response = await apiRequest("GET", '/api/ultima-comunicazione');
       if (!response.ok) {
         if (response.status === 404) return null; // No previous communication
         throw new Error('Failed to fetch last communication');
@@ -121,7 +122,7 @@ export default function Comunica() {
     setCheckingDuplicate(true);
     try {
       const zona = generateZona();
-      const response = await fetch(`/api/comunicazioni/check-duplicate?titolo=${encodeURIComponent(titolo)}&zona=${encodeURIComponent(zona)}`);
+      const response = await apiRequest("GET", `/api/comunicazioni/check-duplicate?titolo=${encodeURIComponent(titolo)}&zona=${encodeURIComponent(zona)}`);
       const data = await response.json();
       
       if (data.exists) {
@@ -147,11 +148,7 @@ export default function Comunica() {
         isDuplicate: !!existingComunicazione,
       };
       
-      const response = await fetch("/api/comunicazioni", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(comunicazioneData),
-      });
+      const response = await apiRequest("POST", "/api/comunicazioni", comunicazioneData);
       
       if (!response.ok) {
         throw new Error("Errore nell'invio della comunicazione");
@@ -187,11 +184,7 @@ export default function Comunica() {
   // Submit nuovo evento
   const submitEvento = useMutation({
     mutationFn: async (data: EventoFormData) => {
-      const response = await fetch("/api/eventi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest("POST", "/api/eventi", data);
       
       if (!response.ok) {
         throw new Error("Errore nell'invio del evento");
