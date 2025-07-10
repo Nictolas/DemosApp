@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<SelectUser | undefined, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: authReady && !!auth.currentUser,
+    enabled: authReady, // Modificato: ora la query parte sempre quando authReady è true
   });
 
   // Verifica periodica dell'autenticazione
