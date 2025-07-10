@@ -236,7 +236,9 @@ app.get('/api/user', requireFirebaseAuth, async (req, res) => {
     res.status(500).json({ error: "Errore nel recupero del profilo utente" });
   }
 });
+// /api/users
 app.get('/api/users', requireFirebaseAdmin, async (req, res) => res.json(await UserService.getAllUsers()));
+// /api/users-stats
 app.get('/api/users-stats', requireFirebaseAuth, async (req, res) => res.json(await UserService.getAllUsers()));
 app.get('/api/users/:uid', requireFirebaseAuth, async (req, res) => {
   const { uid } = req.params;
@@ -287,6 +289,7 @@ app.get('/api/opinioni/:id', requireFirebaseAuth, async (req, res) => {
   if (!opinioni) return res.status(404).json({ error: "Utente non trovato" });
   res.json(opinioni);
 });
+// /api/statistiche-opinioni
 app.get('/api/statistiche-opinioni', requireFirebaseAuth, async (req, res) => {
   const users = await UserService.getAllUsers();
   console.log("STATISTICHE UTENTI:", users.length, users[0]);
@@ -322,9 +325,24 @@ app.delete('/api/users/:uid', requireFirebaseAdmin, async (req, res) => {
     if (!user?.email) return res.status(404).json({ error: 'User not found' });
     res.json(await AdminService.deleteUserByEmail(user.email));
 });
-app.get('/api/pending-users', requireFirebaseAdmin, async (req, res) => res.json(await AdminService.getPendingUsers()));
-app.post('/api/approve-user', requireFirebaseAdmin, async (req, res) => res.json(await AdminService.approveUser(req.body.userId)));
-app.post('/api/reject-user', requireFirebaseAdmin, async (req, res) => res.json(await AdminService.rejectUser(req.body.userId, req.body.reason)));
+// /api/pending-users
+app.get('/api/pending-users', requireFirebaseAdmin, async (req, res) => {
+  const users = await UserService.getAllUsers();
+  const pending = users.filter(u => u.status === 'pending');
+  res.json(pending);
+});
+// /api/approve-user
+app.post('/api/approve-user', requireFirebaseAdmin, async (req, res) => {
+  const { userId } = req.body;
+  await adminDb.collection('utenti').doc(userId).update({ status: 'active' });
+  res.json({ success: true });
+});
+// /api/reject-user
+app.post('/api/reject-user', requireFirebaseAdmin, async (req, res) => {
+  const { userId } = req.body;
+  await adminDb.collection('utenti').doc(userId).update({ status: 'rejected' });
+  res.json({ success: true });
+});
 
 // !!! ROTTA DI MIGRAZIONE TEMPORANEA !!!
 // Da rimuovere dopo l'uso

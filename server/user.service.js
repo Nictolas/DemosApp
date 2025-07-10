@@ -104,17 +104,14 @@ class UserService extends FirebaseService {
 
   static async getAllUsers() {
     try {
-      if (!adminDb) {
-          console.error("Admin SDK non inizializzato. Impossibile recuperare tutti gli utenti.");
-          return [];
-      }
+      // Usa solo Firestore
       const snapshot = await adminDb.collection('utenti').get();
       if (snapshot.empty) {
         return [];
       }
       return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-      this.handleError(error, 'getAllUsers');
+      console.error("Errore Firestore:", error);
       return [];
     }
   }
