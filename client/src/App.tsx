@@ -62,6 +62,7 @@ import GestisciICE from "@/pages/GestisciICE";
 import VotaICE from "@/pages/VotaICE";
 import RegistrazioneWizard from "@/pages/RegistrazioneWizard";
 import DebugAuth from "@/pages/debug-auth";
+import ProfiloTest from "@/pages/ProfiloTest";
 
 function Router() {
   const [location] = useLocation();
@@ -490,6 +491,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/vota-ice" component={VotaICE} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/profilo-test">
+        {(params) => (
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+            <ProtectedRoute path="/profilo-test" component={ProfiloTest} />
           </PageTransition>
         )}
       </Route>
