@@ -424,523 +424,535 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {debugBox}
-      <div className="container mx-auto px-4 py-16">
-        <div className="flex flex-col lg:flex-row items-center gap-8">
-          {/* Hero Section */}
-          <div className="lg:w-1/2">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Benvenuto in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">DEMOS</span>
-            </h1>
-            <p className="text-xl text-gray-700 mb-6">
-              Registrati per entrare a far parte del sistema di registrazione per gli utenti DEMOS.
-            </p>
-            <div className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
-              <h3 className="text-lg font-medium mb-2">Cosa puoi fare con DEMOS:</h3>
-              <ul className="space-y-2 text-gray-600">
-                <li className="flex items-center">
-                  <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  Registrare le tue informazioni personali
-                </li>
-                <li className="flex items-center">
-                  <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  Specificare dati di residenza e informazioni elettorali
-                </li>
-                <li className="flex items-center">
-                  <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                  Partecipare al sistema democratico italiano
-                </li>
-              </ul>
+      {!authReady ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : user ? (
+        // Se l'utente è autenticato, puoi mostrare un redirect o altro
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        // Mostra SEMPRE il form di login/registrazione se authReady è true e user è null
+        <div className="container mx-auto px-4 py-16">
+          <div className="flex flex-col lg:flex-row items-center gap-8">
+            {/* Hero Section */}
+            <div className="lg:w-1/2">
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                Benvenuto in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">DEMOS</span>
+              </h1>
+              <p className="text-xl text-gray-700 mb-6">
+                Registrati per entrare a far parte del sistema di registrazione per gli utenti DEMOS.
+              </p>
+              <div className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
+                <h3 className="text-lg font-medium mb-2">Cosa puoi fare con DEMOS:</h3>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex items-center">
+                    <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Registrare le tue informazioni personali
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Specificare dati di residenza e informazioni elettorali
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Partecipare al sistema democratico italiano
+                  </li>
+                </ul>
+              </div>
             </div>
-          </div>
 
-          {/* Auth Forms */}
-          <div className="lg:w-1/2 w-full max-w-md">
-            <Card className="shadow-xl border-t-4 border-t-blue-600">
-              <CardHeader>
-                <CardTitle className="text-2xl text-center">Account</CardTitle>
-                <CardDescription className="text-center">
-                  Accedi o crea un nuovo account
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")}>
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
-                    <TabsTrigger value="login">Accedi</TabsTrigger>
-                    <TabsTrigger value="register">Registrati</TabsTrigger>
-                  </TabsList>
+            {/* Auth Forms */}
+            <div className="lg:w-1/2 w-full max-w-md">
+              <Card className="shadow-xl border-t-4 border-t-blue-600">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-center">Account</CardTitle>
+                  <CardDescription className="text-center">
+                    Accedi o crea un nuovo account
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")}>
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger value="login">Accedi</TabsTrigger>
+                      <TabsTrigger value="register">Registrati</TabsTrigger>
+                    </TabsList>
 
-                  {/* Login Form */}
-                  <TabsContent value="login">
-                    <Form {...loginForm}>
-                      <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                        <FormField
-                          control={loginForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Inserisci la tua email" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={loginForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Password</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="Inserisci la tua password" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                              {loginMutation.error && (
-                                <div className="text-red-600 text-sm mt-1">{loginMutation.error.message}</div>
-                              )}
-                            </FormItem>
-                          )}
-                        />
-                        <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-                          {loginMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Accesso in corso...
-                            </>
-                          ) : (
-                            "Accedi"
-                          )}
-                        </Button>
-                        
-                        <div className="text-center mt-4">
-                          <Button 
-                            type="button" 
-                            variant="link" 
-                            className="text-sm text-blue-600 hover:text-blue-800"
-                            onClick={async () => {
-                              const email = loginForm.getValues("email");
-                              if (!email) {
-                                alert("Inserisci prima la tua email");
-                                return;
-                              }
-                              try {
-                                await sendPasswordResetEmail(auth, email);
-                                  alert("Email di reset inviata! Controlla la tua casella email.");
-                              } catch (error: any) {
-                                alert("Errore nell'invio dell'email di reset: " + (error.message || "Errore sconosciuto"));
-                              }
-                            }}
-                          >
-                            Password dimenticata?
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </TabsContent>
-
-                  {/* Register Form */}
-                  <TabsContent value="register">
-                    <Form {...registerForm}>
-                      <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
-                        {/* Sezione di accesso */}
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium border-b pb-2">Credenziali di accesso</h3>
-                          <div className="grid grid-cols-1 gap-4">
-                            <FormField
-                              control={registerForm.control}
-                              name="email"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Email</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="Inserisci la tua email" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="password"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Password</FormLabel>
-                                  <FormControl>
-                                    <div className="relative">
-                                      <Input
-                                        type={showPassword ? "text" : "password"}
-                                        placeholder="Crea una password"
-                                        {...field}
-                                      />
-                                      <button
-                                        type="button"
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
-                                        tabIndex={-1}
-                                        onClick={() => setShowPassword((v) => !v)}
-                                        aria-label={showPassword ? "Nascondi password" : "Mostra password"}
-                                      >
-                                        {showPassword ? (
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
-                                          </svg>
-                                        ) : (
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
-                                          </svg>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="confirmPassword"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Conferma password</FormLabel>
-                                  <FormControl>
-                                    <div className="relative">
-                                      <Input
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        placeholder="Ripeti la password"
-                                        {...field}
-                                      />
-                                      <button
-                                        type="button"
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
-                                        tabIndex={-1}
-                                        onClick={() => setShowConfirmPassword((v) => !v)}
-                                        aria-label={showConfirmPassword ? "Nascondi password" : "Mostra password"}
-                                      >
-                                        {showConfirmPassword ? (
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
-                                          </svg>
-                                        ) : (
-                                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
-                                          </svg>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* Sezione dati personali */}
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium border-b pb-2">Dati personali</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={registerForm.control}
-                              name="nome"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Nome</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="Inserisci il tuo nome" 
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = e.target.value;
-                                        const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-                                        field.onChange(capitalized);
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="cognome"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Cognome</FormLabel>
-                                  <FormControl>
-                                    <Input 
-                                      placeholder="Inserisci il tuo cognome" 
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = e.target.value;
-                                        const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-                                        field.onChange(capitalized);
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="data_nascita"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Data di nascita</FormLabel>
-                                  <FormControl>
-                                    <div className="flex gap-2">
-                                      <select
-                                        className="data-nascita-select"
-                                        value={birthDay}
-                                        onChange={e => setBirthDay(e.target.value)}
-                                      >
-                                        <option value="">Gg</option>
-                                        {days.map(d => (
-                                          <option key={d} value={d}>{d}</option>
-                                        ))}
-                                      </select>
-                                      <select
-                                        className="data-nascita-select"
-                                        value={birthMonth}
-                                        onChange={e => setBirthMonth(e.target.value)}
-                                      >
-                                        <option value="">Mese</option>
-                                        {months.map(m => (
-                                          <option key={m.value} value={m.value}>{m.label}</option>
-                                        ))}
-                                      </select>
-                                      <select
-                                        className="data-nascita-select"
-                                        value={birthYear}
-                                        onChange={e => setBirthYear(e.target.value)}
-                                      >
-                                        <option value="">Anno</option>
-                                        {years.map(y => (
-                                          <option key={y} value={y}>{y}</option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <div className="w-full h-4" />
-                            <FormField
-                              control={registerForm.control}
-                              name="genere"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Genere</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleziona genere" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="uomo">Uomo</SelectItem>
-                                      <SelectItem value="donna">Donna</SelectItem>
-                                      <SelectItem value="altro">Altro</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="cittadinanza"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Cittadinanza</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleziona cittadinanza" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="Italia">Italia</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* Sezione residenza */}
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium border-b pb-2">Dati di residenza</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={registerForm.control}
-                              name="paese_residenza"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Paese</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleziona paese" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="Italia">Italia</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="regione_residenza"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Regione</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value} disabled={regioniResidenza.length === 0}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleziona regione" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {regioniResidenza.map((regione) => (
-                                        <SelectItem key={regione} value={regione}>{regione}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="provincia_residenza"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Provincia</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value} disabled={provinceResidenza.length === 0}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleziona provincia" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {provinceResidenza.map((provincia) => (
-                                        <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={registerForm.control}
-                              name="comune_residenza"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="required-field">Comune</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value} disabled={comuniResidenza.length === 0}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleziona comune" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {comuniResidenza.map((comune) => (
-                                        <SelectItem key={comune} value={comune}>{comune}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* Ruolo */}
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium border-b pb-2">Ruolo</h3>
+                    {/* Login Form */}
+                    <TabsContent value="login">
+                      <Form {...loginForm}>
+                        <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
                           <FormField
-                            control={registerForm.control}
-                            name="ruolo"
+                            control={loginForm.control}
+                            name="email"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="required-field">Ruolo</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Seleziona ruolo" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="Elettore">Elettore</SelectItem>
-                                    <SelectItem value="Candidato">Candidato</SelectItem>
-                                    <SelectItem value="Politico">Politico</SelectItem>
-                                    <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Inserisci la tua email" {...field} />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                        </div>
-                        
-                        <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
-                          {registerMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Registrazione in corso...
-                            </>
-                          ) : (
-                            "Registrati"
+                          <FormField
+                            control={loginForm.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Password</FormLabel>
+                                <FormControl>
+                                  <Input type="password" placeholder="Inserisci la tua password" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                {loginMutation.error && (
+                                  <div className="text-red-600 text-sm mt-1">{loginMutation.error.message}</div>
+                                )}
+                              </FormItem>
+                            )}
+                          />
+                          <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+                            {loginMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Accesso in corso...
+                              </>
+                            ) : (
+                              "Accedi"
+                            )}
+                          </Button>
+                          
+                          <div className="text-center mt-4">
+                            <Button 
+                              type="button" 
+                              variant="link" 
+                              className="text-sm text-blue-600 hover:text-blue-800"
+                              onClick={async () => {
+                                const email = loginForm.getValues("email");
+                                if (!email) {
+                                  alert("Inserisci prima la tua email");
+                                  return;
+                                }
+                                try {
+                                  await sendPasswordResetEmail(auth, email);
+                                    alert("Email di reset inviata! Controlla la tua casella email.");
+                                } catch (error: any) {
+                                  alert("Errore nell'invio dell'email di reset: " + (error.message || "Errore sconosciuto"));
+                                }
+                              }}
+                            >
+                              Password dimenticata?
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    </TabsContent>
+
+                    {/* Register Form */}
+                    <TabsContent value="register">
+                      <Form {...registerForm}>
+                        <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
+                          {/* Sezione di accesso */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium border-b pb-2">Credenziali di accesso</h3>
+                            <div className="grid grid-cols-1 gap-4">
+                              <FormField
+                                control={registerForm.control}
+                                name="email"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Email</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="Inserisci la tua email" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="password"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Password</FormLabel>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <Input
+                                          type={showPassword ? "text" : "password"}
+                                          placeholder="Crea una password"
+                                          {...field}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                                          tabIndex={-1}
+                                          onClick={() => setShowPassword((v) => !v)}
+                                          aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                                        >
+                                          {showPassword ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                                            </svg>
+                                          ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="confirmPassword"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Conferma password</FormLabel>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <Input
+                                          type={showConfirmPassword ? "text" : "password"}
+                                          placeholder="Ripeti la password"
+                                          {...field}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                                          tabIndex={-1}
+                                          onClick={() => setShowConfirmPassword((v) => !v)}
+                                          aria-label={showConfirmPassword ? "Nascondi password" : "Mostra password"}
+                                        >
+                                          {showConfirmPassword ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                                            </svg>
+                                          ) : (
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Sezione dati personali */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium border-b pb-2">Dati personali</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={registerForm.control}
+                                name="nome"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Nome</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="Inserisci il tuo nome" 
+                                        {...field}
+                                        onChange={(e) => {
+                                          const value = e.target.value;
+                                          const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                                          field.onChange(capitalized);
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="cognome"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Cognome</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="Inserisci il tuo cognome" 
+                                        {...field}
+                                        onChange={(e) => {
+                                          const value = e.target.value;
+                                          const capitalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                                          field.onChange(capitalized);
+                                        }}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="data_nascita"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Data di nascita</FormLabel>
+                                    <FormControl>
+                                      <div className="flex gap-2">
+                                        <select
+                                          className="data-nascita-select"
+                                          value={birthDay}
+                                          onChange={e => setBirthDay(e.target.value)}
+                                        >
+                                          <option value="">Gg</option>
+                                          {days.map(d => (
+                                            <option key={d} value={d}>{d}</option>
+                                          ))}
+                                        </select>
+                                        <select
+                                          className="data-nascita-select"
+                                          value={birthMonth}
+                                          onChange={e => setBirthMonth(e.target.value)}
+                                        >
+                                          <option value="">Mese</option>
+                                          {months.map(m => (
+                                            <option key={m.value} value={m.value}>{m.label}</option>
+                                          ))}
+                                        </select>
+                                        <select
+                                          className="data-nascita-select"
+                                          value={birthYear}
+                                          onChange={e => setBirthYear(e.target.value)}
+                                        >
+                                          <option value="">Anno</option>
+                                          {years.map(y => (
+                                            <option key={y} value={y}>{y}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <div className="w-full h-4" />
+                              <FormField
+                                control={registerForm.control}
+                                name="genere"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Genere</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleziona genere" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="uomo">Uomo</SelectItem>
+                                        <SelectItem value="donna">Donna</SelectItem>
+                                        <SelectItem value="altro">Altro</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="cittadinanza"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Cittadinanza</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleziona cittadinanza" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="Italia">Italia</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Sezione residenza */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium border-b pb-2">Dati di residenza</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <FormField
+                                control={registerForm.control}
+                                name="paese_residenza"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Paese</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleziona paese" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="Italia">Italia</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="regione_residenza"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Regione</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={regioniResidenza.length === 0}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleziona regione" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {regioniResidenza.map((regione) => (
+                                          <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="provincia_residenza"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Provincia</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={provinceResidenza.length === 0}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleziona provincia" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {provinceResidenza.map((provincia) => (
+                                          <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={registerForm.control}
+                                name="comune_residenza"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="required-field">Comune</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={comuniResidenza.length === 0}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Seleziona comune" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        {comuniResidenza.map((comune) => (
+                                          <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Ruolo */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium border-b pb-2">Ruolo</h3>
+                            <FormField
+                              control={registerForm.control}
+                              name="ruolo"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="required-field">Ruolo</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleziona ruolo" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="Elettore">Elettore</SelectItem>
+                                      <SelectItem value="Candidato">Candidato</SelectItem>
+                                      <SelectItem value="Politico">Politico</SelectItem>
+                                      <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          
+                          <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                            {registerMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Registrazione in corso...
+                              </>
+                            ) : (
+                              "Registrati"
+                            )}
+                          </Button>
+                          {registerError && (
+                            <div className="text-red-600 text-sm mt-2">{registerError}</div>
                           )}
-                        </Button>
-                        {registerError && (
-                          <div className="text-red-600 text-sm mt-2">{registerError}</div>
-                        )}
-                      </form>
-                    </Form>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-              <CardFooter className="flex justify-center text-sm text-gray-500">
-                {activeTab === "login" ? (
-                  <p>
-                    Non hai un account?{" "}
-                    <Button variant="link" className="p-0" onClick={() => setActiveTab("register")}>
-                      Registrati
-                    </Button>
-                  </p>
-                ) : (
-                  <p>
-                    Hai già un account?{" "}
-                    <Button variant="link" className="p-0" onClick={() => setActiveTab("login")}>
-                      Accedi
-                    </Button>
-                  </p>
-                )}
-              </CardFooter>
-            </Card>
+                        </form>
+                      </Form>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+                <CardFooter className="flex justify-center text-sm text-gray-500">
+                  {activeTab === "login" ? (
+                    <p>
+                      Non hai un account?{" "}
+                      <Button variant="link" className="p-0" onClick={() => setActiveTab("register")}>
+                        Registrati
+                      </Button>
+                    </p>
+                  ) : (
+                    <p>
+                      Hai già un account?{" "}
+                      <Button variant="link" className="p-0" onClick={() => setActiveTab("login")}>
+                        Accedi
+                      </Button>
+                    </p>
+                  )}
+                </CardFooter>
+              </Card>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
