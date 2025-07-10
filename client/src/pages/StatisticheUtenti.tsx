@@ -39,9 +39,9 @@ type StatisticheUtenti = {
 };
 
 export default function StatisticheUtenti() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<StatisticheUtenti | null>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Colori per i grafici
@@ -66,102 +66,16 @@ export default function StatisticheUtenti() {
   ];
 
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!user) return;
-      
-      try {
-        // Carica i dati tramite API
-        const response = await apiRequest('GET', '/api/users-stats');
-        if (!response.ok) {
-          throw new Error('Errore nel caricamento degli utenti');
-        }
-        
-        const users = await response.json();
-        console.log('[StatisticheUtenti] Risposta /api/users-stats:', users);
-        if (!users || users.length === 0) {
-          setStats(null);
-          setError('Nessun dato utente trovato');
-          return;
-        }
-
-        // Calcola statistiche
-        const usersByRole: Record<string, number> = {};
-        const usersByGender: Record<string, number> = {};
-        const usersByCitizenship: Record<string, number> = {};
-        const usersByRegion: Record<string, number> = {};
-        const usersByCity: Record<string, number> = {};
-
-        users.forEach((user: any) => {
-          // Conteggio per ruolo
-          const role = user.ruolo || 'Non specificato';
-          usersByRole[role] = (usersByRole[role] || 0) + 1;
-
-          // Conteggio per genere
-          const gender = user.genere || 'Non specificato';
-          usersByGender[gender] = (usersByGender[gender] || 0) + 1;
-
-          // Conteggio per cittadinanza
-          const citizenship = user.cittadinanza || 'Non specificata';
-          usersByCitizenship[citizenship] = (usersByCitizenship[citizenship] || 0) + 1;
-
-          // Conteggio per regione di residenza
-          const region = user.regione_residenza || 'Non specificata';
-          usersByRegion[region] = (usersByRegion[region] || 0) + 1;
-
-          // Conteggio per città di residenza
-          const city = user.comune_residenza || 'Non specificato';
-          usersByCity[city] = (usersByCity[city] || 0) + 1;
-        });
-
-        // Ordina le cittadinanze per conteggio e prendi le prime 5
-        const sortedCitizenships = Object.entries(usersByCitizenship)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .reduce((obj, [key, value]) => {
-            obj[key] = value;
-            return obj;
-          }, {} as Record<string, number>);
-
-        // Ordina le regioni per conteggio (tutte)
-        const sortedRegions = Object.entries(usersByRegion)
-          .sort((a, b) => b[1] - a[1])
-          .reduce((obj, [key, value]) => {
-            obj[key] = value;
-            return obj;
-          }, {} as Record<string, number>);
-
-        // Ordina le città per conteggio e prendi le prime 10
-        const sortedCities = Object.entries(usersByCity)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .reduce((obj, [key, value]) => {
-            obj[key] = value;
-            return obj;
-          }, {} as Record<string, number>);
-
-        setStats({
-          totalUsers: users.length,
-          usersByRole,
-          usersByGender,
-          usersByCitizenship: sortedCitizenships,
-          usersByRegion: sortedRegions,
-          usersByCity: sortedCities
-        });
-        setError(null);
-      } catch (error) {
-        console.error("Errore:", error);
-        setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche");
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
-
-    if (user) {
-      fetchStats();
-    }
+    if (!user) return;
+    setIsLoadingStats(true);
+    apiRequest('GET', '/api/users-stats')
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => setStats(data))
+      .catch(() => setError('Errore nel caricamento dati'))
+      .finally(() => setIsLoadingStats(false));
   }, [user]);
 
-  if (isLoading) {
+  if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -173,11 +87,20 @@ export default function StatisticheUtenti() {
     return <Redirect to="/auth" />;
   }
 
+  // Da qui in poi, NON fare redirect su errori di fetch secondarie
+  if (isLoadingStats) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (error) {
     return <div className="text-center text-red-500 p-8">{error}</div>;
   }
 
-  if (!stats && !isLoadingStats) {
+  if (!stats) {
     return <div className="text-center text-gray-500 p-8">Nessun dato disponibile per le statistiche utenti.</div>;
   }
 
