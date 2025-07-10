@@ -17,9 +17,28 @@ interface EditProfileFormProps {
   isAdmin?: boolean;
 }
 
+// Funzione di utilità per normalizzare la data nel formato YYYY-MM-DD
+function normalizeDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  // Se già in formato YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  // Se in formato DD/MM/YYYY o D/M/YYYY
+  const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (match) {
+    const [, d, m, y] = match;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  // Altri formati: prova a restituire la stringa originale
+  return dateStr;
+}
+
 export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin = false }: EditProfileFormProps) {
   const { toast } = useToast();
-  const [formData, setFormData] = useState<UserInfo & { email: string }>(userData);
+  // Inizializza formData normalizzando la data di nascita
+  const [formData, setFormData] = useState<UserInfo & { email: string }>({
+    ...userData,
+    data_nascita: normalizeDate(userData.data_nascita),
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedPaeseResidenza, setSelectedPaeseResidenza] = useState(userData.paese_residenza || "");
   const [selectedRegioneResidenza, setSelectedRegioneResidenza] = useState(userData.regione_residenza || "");
