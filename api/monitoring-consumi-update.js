@@ -23,6 +23,6 @@ export default async function handler(req, res) {
     await db.collection('monitoring').doc('consumi').set(data);
     res.status(200).json({ success: true });
   } catch (e) {
-    res.status(500).json({ error: 'Errore aggiornamento Firestore' });
+    res.json({}); // 200 con oggetto vuoto
   }
 } 

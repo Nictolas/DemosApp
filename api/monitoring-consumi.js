@@ -13,6 +13,6 @@ export default async function handler(req, res) {
     }
     res.status(200).json(doc.data());
   } catch (e) {
-    res.status(500).json({ error: 'Errore lettura Firestore' });
+    res.json({}); // 200 con oggetto vuoto
   }
 } 

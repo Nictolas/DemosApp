@@ -248,7 +248,7 @@ app.get('/api/users-stats', requireFirebaseAuth, async (req, res) => res.json(aw
 app.get('/api/users/:uid', requireFirebaseAuth, async (req, res) => {
   const { uid } = req.params;
   const user = await UserService.getUserById(decodeURIComponent(uid));
-  if (!user) return res.status(404).json({ error: 'Utente non trovato' });
+  if (!user) return res.json({}); // 200 con oggetto vuoto
 
   // Se l'utente è admin o sta chiedendo i propri dati, restituisci tutto
   if (
@@ -291,14 +291,18 @@ app.post('/api/opinioni', requireFirebaseAuth, async (req, res) => res.json(awai
 app.get('/api/opinioni', requireFirebaseAuth, async (req, res) => res.json(await UserService.getUserOpinions(req.user.uid)));
 app.get('/api/opinioni/:id', requireFirebaseAuth, async (req, res) => {
   const opinioni = await UserService.getUserOpinions(req.params.id);
-  if (!opinioni) return res.status(404).json({ error: "Utente non trovato" });
+  if (!opinioni) return res.json({}); // 200 con oggetto vuoto
   res.json(opinioni);
 });
 // /api/statistiche-opinioni
 app.get('/api/statistiche-opinioni', requireFirebaseAuth, async (req, res) => {
-  const users = await UserService.getAllUsers();
-  console.log("STATISTICHE UTENTI:", users.length, users[0]);
-  res.json(users);
+  try {
+    const users = await UserService.getAllUsers();
+    console.log("STATISTICHE UTENTI:", users.length, users[0]);
+    res.json(Array.isArray(users) ? users : []);
+  } catch (e) {
+    res.json([]); // Mai 404/500 se il token è valido
+  }
 });
 app.get('/api/opinioni-dettaglio/:opinionField', requireFirebaseAdmin, async (req, res) => {
     const { opinionField } = req.params;
