@@ -83,8 +83,39 @@ export default function StatisticheUtenti() {
     );
   }
 
+  // Log temporaneo per debug
+  console.log("user:", user);
+
   if (!user) {
-    return <Redirect to="/auth" />;
+    return (
+      <div className="text-center text-red-500 p-8 bg-yellow-100 border border-yellow-400 rounded-md">
+        <h2 className="text-lg font-bold mb-2">[DEBUG] Accesso negato: utente non autenticato</h2>
+        <pre className="text-left text-xs bg-white p-2 rounded border overflow-x-auto">
+{JSON.stringify({
+  user,
+  isAuthLoading,
+  error,
+  motivo: "user null/undefined"
+}, null, 2)}
+        </pre>
+      </div>
+    );
+  }
+  if (user.ruolo !== "Admin") {
+    return (
+      <div className="text-center text-red-500 p-8 bg-yellow-100 border border-yellow-400 rounded-md">
+        <h2 className="text-lg font-bold mb-2">[DEBUG] Accesso negato: ruolo richiesto 'Admin'</h2>
+        <pre className="text-left text-xs bg-white p-2 rounded border overflow-x-auto">
+{JSON.stringify({
+  user,
+  ruolo: user.ruolo,
+  isAuthLoading,
+  error,
+  motivo: "ruolo non admin"
+}, null, 2)}
+        </pre>
+      </div>
+    );
   }
 
   // Da qui in poi, NON fare redirect su errori di fetch secondarie
@@ -128,7 +159,7 @@ export default function StatisticheUtenti() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
-      {isLoading || isLoadingStats ? (
+      {isLoadingStats ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
