@@ -193,8 +193,8 @@ export default function Impostazioni() {
                 </CardContent>
               </Card>
               {/* Pulsante Test */}
-              <Button className="w-full mt-4" variant="outline" onClick={() => alert('Test!')}>
-                Test
+              <Button className="w-full mt-4" variant="outline" onClick={() => alert('Test2!')}>
+                Test2
               </Button>
             </div>
           </CardContent>
