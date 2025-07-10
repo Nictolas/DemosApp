@@ -37,6 +37,7 @@ type User = {
 };
 
 function GestisciUtenti() {
+  console.log("[DEBUG] INIZIO COMPONENTE GestisciUtenti");
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
@@ -82,7 +83,7 @@ function GestisciUtenti() {
   }, [auth.currentUser]);
 
   useEffect(() => {
-    console.log("[DEBUG] useEffect: chiamo fetchUsers()");
+    console.log("[DEBUG] useEffect ESEGUITO - authReady:", authReady, "user:", user);
     // Forzo la fetch anche se user è null, solo per debug
     if (authReady) {
       console.log("[DEBUG] useEffect: chiamo fetchUsers()");
