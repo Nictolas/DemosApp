@@ -104,6 +104,10 @@ function GestisciUtenti() {
     return <Redirect to="/menu" />;
   }
 
+  if (error && error.toLowerCase().includes('forbidden')) {
+    return <div className="text-center text-red-500 p-8">Non hai i permessi per accedere a questa pagina.</div>;
+  }
+
   const handleApproval = async (userId: string, approve: boolean) => {
     setActionInProgress(userId);
     const endpoint = approve ? '/api/approve-user' : '/api/reject-user';
