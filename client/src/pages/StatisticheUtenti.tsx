@@ -77,8 +77,11 @@ export default function StatisticheUtenti() {
         }
         
         const users = await response.json();
+        console.log('[StatisticheUtenti] Risposta /api/users-stats:', users);
         if (!users || users.length === 0) {
-          throw new Error("Nessun dato utente trovato");
+          setStats(null);
+          setError('Nessun dato utente trovato');
+          return;
         }
 
         // Calcola statistiche
@@ -144,6 +147,7 @@ export default function StatisticheUtenti() {
           usersByRegion: sortedRegions,
           usersByCity: sortedCities
         });
+        setError(null);
       } catch (error) {
         console.error("Errore:", error);
         setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche");
@@ -157,13 +161,24 @@ export default function StatisticheUtenti() {
     }
   }, [user]);
 
-  // Redirect to auth page if not logged in
-  if (!user && !isLoading) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) {
     return <Redirect to="/auth" />;
   }
 
-  if (error && error.toLowerCase().includes('forbidden')) {
-    return <div className="text-center text-red-500 p-8">Non hai i permessi per accedere a questa pagina.</div>;
+  if (error) {
+    return <div className="text-center text-red-500 p-8">{error}</div>;
+  }
+
+  if (!stats && !isLoadingStats) {
+    return <div className="text-center text-gray-500 p-8">Nessun dato disponibile per le statistiche utenti.</div>;
   }
 
   // Prepara dati per i grafici
