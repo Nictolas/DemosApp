@@ -57,26 +57,24 @@ function GestisciUtenti() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    if (!auth.currentUser) {
-      console.log("[fetchUsers] Nessun utente, esco");
-      return;
-    }
+    console.log("[DEBUG] fetchUsers: auth.currentUser:", auth.currentUser);
     setIsLoadingUsers(true);
     try {
-      console.log("[fetchUsers] Chiamo /api/users e /api/pending-users, user:", auth.currentUser);
+      console.log("[DEBUG] fetchUsers: chiamo /api/users e /api/pending-users");
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
         apiRequest("GET", "/api/users"),
         apiRequest("GET", "/api/pending-users")
       ]);
-
+      console.log("[DEBUG] fetchUsers: allUsersResponse status:", allUsersResponse.status);
+      console.log("[DEBUG] fetchUsers: pendingUsersResponse status:", pendingUsersResponse.status);
       const userData = await allUsersResponse.json();
-      console.log("[fetchUsers] Risposta /api/users:", userData);
+      console.log("[DEBUG] fetchUsers: Risposta /api/users:", userData);
       setUsers(userData.filter((u: User) => u.status === 'active'));
       const pendingData = await pendingUsersResponse.json();
-      console.log("[fetchUsers] Risposta /api/pending-users:", pendingData);
+      console.log("[DEBUG] fetchUsers: Risposta /api/pending-users:", pendingData);
       setPendingUsers(pendingData);
     } catch (error) {
-      console.error("[fetchUsers] Errore:", error);
+      console.error("[DEBUG] fetchUsers: Errore:", error);
       setError("Errore nel caricamento degli utenti");
     } finally {
       setIsLoadingUsers(false);
@@ -84,10 +82,13 @@ function GestisciUtenti() {
   }, [auth.currentUser]);
 
   useEffect(() => {
-    if (authReady && user) {
+    console.log("[DEBUG] useEffect: chiamo fetchUsers()");
+    // Forzo la fetch anche se user è null, solo per debug
+    if (authReady) {
+      console.log("[DEBUG] useEffect: chiamo fetchUsers()");
       fetchUsers();
     }
-  }, [fetchUsers, authReady, user]);
+  }, [fetchUsers, authReady]);
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
