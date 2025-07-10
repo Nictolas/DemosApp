@@ -68,7 +68,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const authReady = useAuthReady();
-  const { user, isLoading, error } = useAuth();
+  const { user, isLoading, error, loginMutation, registerMutation } = useAuth();
 
   // DEBUG BOX A SCHERMO
   const debugBox = (
