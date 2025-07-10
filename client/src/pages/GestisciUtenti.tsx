@@ -224,8 +224,20 @@ function GestisciUtenti() {
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
+  // DEBUG BOX A SCHERMO
+  const debugBox = (
+    <div style={{ background: '#fffbe6', color: '#b36b00', border: '1px solid #ffe58f', padding: 12, marginBottom: 16, fontSize: 13, borderRadius: 6 }}>
+      <b>DEBUG AUTH:</b><br/>
+      <b>authReady:</b> {String(authReady)}<br/>
+      <b>isLoading:</b> {String(isLoading)}<br/>
+      <b>user:</b> <pre style={{ display: 'inline', whiteSpace: 'pre-wrap' }}>{user ? JSON.stringify(user, null, 2) : 'null'}</pre><br/>
+      <b>error:</b> {error ? error.toString() : 'null'}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+      {debugBox}
       {isLoadingUsers ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
