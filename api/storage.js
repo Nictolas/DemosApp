@@ -1,80 +1,40 @@
-// Import da librerie esterne
-import { eq } from "drizzle-orm";
-import session from "express-session";
-import connectPg from "connect-pg-simple";
+// Importa l'SDK Admin di Firebase
+import admin from '../api/firebase-admin.js';
 
-// ===== IMPORT LOCALI CON GESTIONE ERRORI =====
-let db, pool;
-
-try {
-  const dbModule = await import("../db/index.js");
-  db = dbModule.db;
-  pool = dbModule.pool;
-} catch (error) {
-  console.warn("Database non configurato, usando fallback per session store");
-  db = null;
-  pool = null;
-}
-
-import { utenti, users } from "../shared/schema.js"; // Percorso corretto alla cartella shared
-// import { Utente } from './types'; // Non serve in JS
-
-// Session store per l'autenticazione
-const PostgresSessionStore = connectPg(session);
+// Collezione Firestore per gli utenti
+const utentiCollection = admin.firestore().collection('utenti');
 
 export const storage = {
-  sessionStore: pool ? new PostgresSessionStore({
-    pool,
-    createTableIfMissing: true,
-    tableName: 'user_sessions'
-  }) : null,
-
-  /**
-   * Inserisce un nuovo profilo utente nel database locale.
-   * Usa il tipo 'Utente' dal nostro file di tipi condiviso.
-   */
+  // Inserisce un nuovo profilo utente in Firestore
   async insertUser(userData) {
-    if (!db) {
-      console.warn("Database non disponibile, usando fallback");
-      return { ...userData, id: Date.now() };
-    }
-
-    // Rimuoviamo i campi che potrebbero non essere nella tabella 'utenti' di Drizzle
-    const { energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, unione_europea, ...safeUserData } = userData;
-
-    try {
-      // @ts-ignore - Drizzle può dare errori di tipo se i campi non combaciano perfettamente, ignoriamo per ora
-      const result = await db.insert(utenti).values(safeUserData).returning();
-      return result[0];
-    } catch (error) {
-      console.error("Errore durante l'inserimento dell'utente nel database locale:", error);
-      // Fallback per consentire il funzionamento senza DB locale
-      return { ...safeUserData, id: Date.now() }; 
-    }
+    const docRef = await utentiCollection.add(userData);
+    const doc = await docRef.get();
+    return { id: doc.id, ...doc.data() };
   },
 
+  // Ottiene tutti gli utenti da Firestore
   async getAllUsers() {
-    if (!db) return [];
-    return await db.select().from(utenti);
+    const snapshot = await utentiCollection.get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   },
 
+  // Ottiene un utente per ID Firestore
   async getUserById(id) {
-    if (!db) return null;
-    const result = await db.select().from(utenti).where(eq(utenti.id, id));
-    return result[0] || null;
+    const doc = await utentiCollection.doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
   },
 
-  // Metodi per la tabella di autenticazione 'users'
+  // Crea un nuovo utente (autenticazione)
   async createUser(data) {
-    if (!db) return { ...data, id: Date.now() };
-    const result = await db.insert(users).values(data).returning();
-    return result[0];
+    // Qui puoi eventualmente usare admin.auth().createUser se serve anche su Firebase Auth
+    return await this.insertUser(data);
   },
 
-  // Metodi per il profilo 'utenti'
+  // Ottiene il profilo utente tramite un campo userId (se presente)
   async getUserProfile(userId) {
-    if (!db) return null;
-    const result = await db.select().from(utenti).where(eq(utenti.user_id, userId));
-    return result[0] || null;
+    const snapshot = await utentiCollection.where('user_id', '==', userId).limit(1).get();
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return { id: doc.id, ...doc.data() };
   },
 }; 
