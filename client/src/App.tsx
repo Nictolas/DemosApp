@@ -61,6 +61,7 @@ import ICE from "@/pages/ICE";
 import GestisciICE from "@/pages/GestisciICE";
 import VotaICE from "@/pages/VotaICE";
 import RegistrazioneWizard from "@/pages/RegistrazioneWizard";
+import DebugAuth from "@/pages/debug-auth";
 
 function Router() {
   const [location] = useLocation();
@@ -78,6 +79,13 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <AuthPage />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/debug-auth">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <DebugAuth />
           </PageTransition>
         )}
       </Route>
