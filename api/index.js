@@ -225,12 +225,17 @@ app.post("/api/logout", (req, res, next) => {
 // User
 app.get('/api/user', requireFirebaseAuth, async (req, res) => {
   try {
-    const userProfile = await UserService.getUserById(req.user.uid);
+    let userProfile = await UserService.getUserById(req.user.uid);
     if (!userProfile) {
-      return res.status(404).json({ error: "Profilo utente non trovato" });
+      // Se il profilo non esiste, restituisci almeno i dati base dal token
+      userProfile = {
+        uid: req.user.uid,
+        email: req.user.email,
+        ruolo: req.user.ruolo || 'Utente'
+      };
+    } else {
+      userProfile.ruolo = req.user.ruolo || userProfile.ruolo;
     }
-    // Aggiorna il ruolo con quello del token se presente
-    userProfile.ruolo = req.user.ruolo || userProfile.ruolo;
     res.json(userProfile);
   } catch (error) {
     res.status(500).json({ error: "Errore nel recupero del profilo utente" });
