@@ -155,7 +155,7 @@ export default function Impostazioni() {
           </CardContent>
           {/* Azioni finali: Dona e Disconnetti */}
           <CardContent className="space-y-4 pt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link href="/dona">
                 <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-yellow-500 h-full flex">
                   <CardContent className="p-4 flex items-center gap-3 h-full">
@@ -165,6 +165,19 @@ export default function Impostazioni() {
                     <div>
                       <h4 className="font-medium">Dona</h4>
                       <p className="text-sm text-muted-foreground">Sostieni il progetto DEMOS</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+              <Link href="/informazioni">
+                <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500 h-full flex">
+                  <CardContent className="p-4 flex items-center gap-3 h-full">
+                    <span className="inline-flex items-center justify-center rounded-full bg-blue-100 p-2 mr-2">
+                      <FileText className="h-5 w-5 text-blue-500" />
+                    </span>
+                    <div>
+                      <h4 className="font-medium">Informazioni</h4>
+                      <p className="text-sm text-muted-foreground">Scopri di più sull'app DEMOS</p>
                     </div>
                   </CardContent>
                 </Card>
