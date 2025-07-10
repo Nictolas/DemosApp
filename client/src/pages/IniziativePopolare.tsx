@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check, Hourglass, X as XIcon } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 const iniziativaSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
@@ -67,16 +68,11 @@ export default function IniziativePopolare() {
   // Mutazione per inviare una nuova iniziativa
   const submitInitiative = useMutation({
     mutationFn: async (data: IniziativaFormData) => {
-      const response = await fetch("/api/iniziative-popolari", { // Rotta POST per creare
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore nell'invio dell'iniziativa");
+      const response = await apiRequest("POST", "/api/iniziative-popolari", data);
+      if (response.error) {
+        throw new Error(response.error);
       }
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -101,13 +97,8 @@ export default function IniziativePopolare() {
   const patchQuorum = async (id: string, quorum: 'ok' | 'pending' | 'no') => {
     setUpdatingQuorum(id);
     try {
-      const res = await fetch(`/api/iniziative-popolari/${id}/quorum`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ quorum })
-      });
-      if (!res.ok) throw new Error('Errore aggiornamento quorum');
+      const res = await apiRequest("PATCH", `/api/iniziative-popolari/${id}/quorum`, { quorum });
+      if (res.error) throw new Error(res.error);
       queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/lista"] });
     } catch (e) {
       toast({ title: 'Errore', description: 'Impossibile aggiornare quorum', variant: 'destructive' });
@@ -123,11 +114,8 @@ export default function IniziativePopolare() {
     if (!window.confirm('Sei sicuro di voler cancellare questa iniziativa?')) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/iniziative-popolari/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Errore nella cancellazione');
+      const res = await apiRequest("DELETE", `/api/iniziative-popolari/${id}`);
+      if (res.error) throw new Error(res.error);
       toast({ title: 'Iniziativa cancellata', description: 'L\'iniziativa è stata rimossa.' });
       queryClient.invalidateQueries({ queryKey: ["/api/iniziative-popolari/lista"] });
     } catch (e) {

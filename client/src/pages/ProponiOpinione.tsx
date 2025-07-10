@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, MessageSquare, ThumbsUp, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface OpinioneProposta {
   id: string;
@@ -29,12 +30,10 @@ export default function ProponiOpinione() {
     if (!user) return;
     setLoadingData(true);
     try {
-      const [opinioniRes, votiRes] = await Promise.all([
-        fetch('/api/opinioni-proposte'),
-        fetch('/api/opinioni-proposte/voti')
-      ]);
-      if (opinioniRes.ok) setOpinioni(await opinioniRes.json());
-      if (votiRes.ok) setUserVoti(await votiRes.json());
+      const responseLista = await apiRequest("GET", "/api/opinioni-proposte");
+      const responseVoti = await apiRequest("GET", "/api/opinioni-proposte/voti");
+      if (responseLista.ok) setOpinioni(responseLista.data);
+      if (responseVoti.ok) setUserVoti(responseVoti.data);
     } catch (error) {
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
     } finally {
@@ -50,18 +49,14 @@ export default function ProponiOpinione() {
     if (!testoInput.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/opinioni-proposte', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ testo: testoInput.trim() })
-      });
-      const result = await res.json();
-      if (res.ok && result.success) {
+      const datiNuovaOpinione = { testo: testoInput.trim() };
+      const responseCrea = await apiRequest("POST", "/api/opinioni-proposte", datiNuovaOpinione);
+      if (responseCrea.ok && responseCrea.success) {
         toast({ title: "Opinione proposta!", description: "La tua proposta sarà valutata dall'admin." });
         setTestoInput("");
         loadData();
       } else {
-        toast({ title: "Errore", description: result.error || "Errore nell'invio della proposta", variant: "destructive" });
+        toast({ title: "Errore", description: responseCrea.error || "Errore nell'invio della proposta", variant: "destructive" });
       }
     } catch (error) {
       toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
@@ -78,16 +73,13 @@ export default function ProponiOpinione() {
     }
     setIsVoting(true);
     try {
-      const res = await fetch('/api/opinioni-proposte/vota', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
-      if (res.ok) {
+      const datiVoto = { id };
+      const responseVota = await apiRequest("POST", "/api/opinioni-proposte/vota", datiVoto);
+      if (responseVota.ok) {
         toast({ title: "Voto registrato", description: "Hai votato questa opinione." });
         loadData();
       } else {
-        const result = await res.json();
+        const result = responseVota.data;
         toast({ title: "Errore", description: result.error || "Errore nel voto", variant: "destructive" });
       }
     } catch (error) {

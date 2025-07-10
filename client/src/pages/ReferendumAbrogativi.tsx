@@ -15,6 +15,7 @@ import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check,
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { apiRequest } from "@/lib/queryClient";
 
 const referendumSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
@@ -79,16 +80,11 @@ export default function ReferendumAbrogativi() {
   // Mutazione per inviare un nuovo referendum
   const submitReferendum = useMutation({
     mutationFn: async (data: ReferendumFormData) => {
-      const response = await fetch("/api/referendum-abrogativi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore nell'invio del referendum");
+      const response = await apiRequest("POST", "/api/referendum-abrogativi", data);
+      if (response.error) {
+        throw new Error(response.error);
       }
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -110,17 +106,11 @@ export default function ReferendumAbrogativi() {
 
   const patchReferendum = useMutation({
     mutationFn: async ({ id, data }: { id: string, data: ReferendumFormData }) => {
-      const response = await fetch(`/api/referendum-abrogativi/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore nella modifica del referendum");
+      const response = await apiRequest("PATCH", `/api/referendum-abrogativi/${id}`, data);
+      if (response.error) {
+        throw new Error(response.error);
       }
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       toast({ title: "Referendum modificato", description: "Il referendum è stato aggiornato." });
@@ -136,13 +126,8 @@ export default function ReferendumAbrogativi() {
   const patchQuorum = async (id: string, quorum: 'ok' | 'pending' | 'no') => {
     setUpdatingQuorum(id);
     try {
-      const res = await fetch(`/api/referendum-abrogativi/${id}/quorum`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ quorum })
-      });
-      if (!res.ok) throw new Error('Errore aggiornamento quorum');
+      const res = await apiRequest("PATCH", `/api/referendum-abrogativi/${id}/quorum`, { quorum });
+      if (res.error) throw new Error('Errore aggiornamento quorum');
       queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/lista"] });
     } catch (e) {
       toast({ title: 'Errore', description: 'Impossibile aggiornare quorum', variant: 'destructive' });
@@ -158,11 +143,8 @@ export default function ReferendumAbrogativi() {
     if (!window.confirm('Sei sicuro di voler cancellare questo referendum?')) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/referendum-abrogativi/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Errore nella cancellazione');
+      const res = await apiRequest("DELETE", `/api/referendum-abrogativi/${id}`);
+      if (res.error) throw new Error('Errore nella cancellazione');
       toast({ title: 'Referendum cancellato', description: 'Il referendum è stato rimosso.' });
       queryClient.invalidateQueries({ queryKey: ["/api/referendum-abrogativi/lista"] });
     } catch (e) {

@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Scale, Vote, Trophy, Plus, X, ThumbsUp } from "luci
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Classifica {
   nome: string;
@@ -37,26 +38,24 @@ export default function Amnistia() {
     setLoadingData(true);
     try {
       // Carica i voti dell'utente
-      const votiResponse = await fetch('/api/amnistia/voti', {
-        credentials: 'include'
-      });
+      const votiResponse = await apiRequest("GET", "/api/amnistia/voti");
       if (votiResponse.ok) {
-        const voti = await votiResponse.json();
+        const voti = votiResponse.data;
         setUserVoti(voti);
       }
 
       // Carica la classifica
-      const classificaResponse = await fetch('/api/amnistia/classifica');
+      const classificaResponse = await apiRequest("GET", "/api/amnistia/classifica");
       if (classificaResponse.ok) {
-        const classificaData = await classificaResponse.json();
+        const classificaData = classificaResponse.data;
         setClassifica(classificaData);
       }
 
       // Carica il profilo utente
       if (user) {
-        const userResponse = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+        const userResponse = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
         if (userResponse.ok) {
-          const userData = await userResponse.json();
+          const userData = userResponse.data;
           setUserProfile(userData);
         }
       }
@@ -95,16 +94,10 @@ export default function Amnistia() {
 
     setIsVoting(true);
     try {
-      const response = await fetch('/api/amnistia/vota', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ legge }),
-      });
+      const datiVoto = { legge };
+      const responseVota = await apiRequest("POST", "/api/amnistia/vota", datiVoto);
 
-      if (response.ok) {
+      if (responseVota.ok) {
         toast({
           title: "Voto registrato",
           description: `Hai votato ${legge} per l'amnistia`,
@@ -114,7 +107,7 @@ export default function Amnistia() {
         setShowSuggestions(false);
         await loadData();
       } else {
-        const error = await response.json();
+        const error = responseVota.error;
         toast({
           title: "Errore",
           description: error.error || "Errore nel registrare il voto",
@@ -136,12 +129,9 @@ export default function Amnistia() {
   const removeVote = async (legge: string) => {
     setIsDeleting(legge);
     try {
-      const response = await fetch(`/api/amnistia/voto/${encodeURIComponent(legge)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+      const responseRemove = await apiRequest("DELETE", `/api/amnistia/voto/${encodeURIComponent(legge)}`);
 
-      if (response.ok) {
+      if (responseRemove.ok) {
         toast({
           title: "Voto rimosso",
           description: `Hai rimosso il voto per ${legge}`,
@@ -149,7 +139,7 @@ export default function Amnistia() {
         
         await loadData();
       } else {
-        const error = await response.json();
+        const error = responseRemove.error;
         toast({
           title: "Errore",
           description: error.error || "Errore nel rimuovere il voto",
@@ -173,15 +163,12 @@ export default function Amnistia() {
     if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
     setDeletingClassifica(nome);
     try {
-      const response = await fetch(`/api/amnistia/classifica/${encodeURIComponent(nome)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (response.ok) {
+      const responseClassifica = await apiRequest("DELETE", `/api/amnistia/classifica/${encodeURIComponent(nome)}`);
+      if (responseClassifica.ok) {
         toast({ title: "Legge eliminata", description: `${nome} è stata rimossa dalla classifica.` });
         await loadData();
       } else {
-        const error = await response.json();
+        const error = responseClassifica.error;
         toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
       }
     } catch (error) {

@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Heart, Vote, Trophy, Plus, X, ThumbsUp } from "luci
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Classifica {
   nome: string;
@@ -31,11 +32,11 @@ export default function Grazia() {
     setLoadingData(true);
     try {
       const [votiResponse, classificaResponse] = await Promise.all([
-        fetch('/api/grazia/voti'),
-        fetch('/api/grazia/classifica')
+        apiRequest("GET", "/api/grazia/voti"),
+        apiRequest("GET", "/api/grazia/classifica")
       ]);
-      if (votiResponse.ok) setUserVoti(await votiResponse.json());
-      if (classificaResponse.ok) setClassifica(await classificaResponse.json());
+      if (votiResponse.ok) setUserVoti(votiResponse.data);
+      if (classificaResponse.ok) setClassifica(classificaResponse.data);
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
@@ -66,12 +67,8 @@ export default function Grazia() {
     try {
       if (url) {
         // Proposta di nuovo individuo: invia richiesta
-        const response = await fetch('/api/grazia/richiesta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, urlProva: url }),
-        });
-        const result = await response.json();
+        const response = await apiRequest("POST", "/api/grazia/richiesta", { nome, urlProva: url });
+        const result = response.data;
         if (response.ok && result.success) {
           toast({ title: "Richiesta inviata", description: `La richiesta per ${nome} è stata inviata e sarà valutata da un amministratore.` });
           setNomeInput("");
@@ -81,18 +78,14 @@ export default function Grazia() {
         }
       } else {
         // Voto normale
-        const response = await fetch('/api/grazia/vota', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome }),
-        });
+        const response = await apiRequest("POST", "/api/grazia/vota", { nome });
         if (response.ok) {
           toast({ title: "Voto registrato", description: `Hai votato per la grazia di ${nome}` });
           setNomeInput("");
           setUrlProva("");
           await loadData();
         } else {
-          const error = await response.json();
+          const error = response.data;
           toast({ title: "Errore", description: error.error, variant: "destructive" });
         }
       }
@@ -110,17 +103,16 @@ export default function Grazia() {
     setDeletingVote(nomeDaRimuovere);
     try {
       // ===== CORREZIONE QUI: da /voto/ a /voti/ =====
-      const response = await fetch(`/api/grazia/voti/${encodeURIComponent(nomeDaRimuovere)}`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest("DELETE", `/api/grazia/voti/${encodeURIComponent(nomeDaRimuovere)}`);
 
       if (response.ok) {
         toast({ title: "Voto rimosso", description: `Hai rimosso il voto per ${nomeDaRimuovere}`});
         setUserVoti(currentVotes => currentVotes.filter(voto => voto !== nomeDaRimuovere));
         // Ricarica la classifica per aggiornare il conteggio
-        fetch('/api/grazia/classifica').then(res => res.json()).then(setClassifica);
+        const classificaResponse = await apiRequest("GET", "/api/grazia/classifica");
+        if (classificaResponse.ok) setClassifica(classificaResponse.data);
       } else {
-        const error = await response.json();
+        const error = response.data;
         toast({ title: "Errore", description: error.error || "Errore nella rimozione", variant: "destructive" });
       }
     } catch (error) {
@@ -142,15 +134,12 @@ export default function Grazia() {
     if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
     setDeletingClassifica(nome);
     try {
-      const response = await fetch(`/api/grazia/classifica/${encodeURIComponent(nome)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+      const response = await apiRequest("DELETE", `/api/grazia/classifica/${encodeURIComponent(nome)}`);
       if (response.ok) {
         toast({ title: "Candidato eliminato", description: `${nome} è stato rimosso dalla classifica.` });
         await loadData();
       } else {
-        const error = await response.json();
+        const error = response.data;
         toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
       }
     } catch (error) {

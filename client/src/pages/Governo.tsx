@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Br
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Classifica {
   nome: string;
@@ -143,18 +144,16 @@ export default function Governo() {
     setLoadingVoti(true);
     try {
       // Carica i voti dell'utente
-      const votiResponse = await fetch('/api/governo/voti', {
-        credentials: 'include'
-      });
+      const votiResponse = await apiRequest("GET", "/api/governo/voti");
       if (votiResponse.ok) {
-        const voti = await votiResponse.json();
+        const voti = votiResponse.data;
         setUserVoti(voti);
       }
 
       // Carica tutte le classifiche
-      const classificheResponse = await fetch('/api/governo/classifica');
+      const classificheResponse = await apiRequest("GET", "/api/governo/classifica");
       if (classificheResponse.ok) {
-        const classificheData = await classificheResponse.json();
+        const classificheData = classificheResponse.data;
         setClassifiche(classificheData);
       }
     } catch (error) {
@@ -185,16 +184,9 @@ export default function Governo() {
     }
     setVotingCategory(categoria);
     try {
-      const response = await fetch('/api/governo/vota', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          categoria,
-          nome: nomeMinistro.trim()
-        }),
+      const response = await apiRequest("POST", "/api/governo/vota", {
+        categoria,
+        nome: nomeMinistro.trim()
       });
 
       if (response.ok) {
@@ -206,7 +198,7 @@ export default function Governo() {
         // Aggiorna i dati
         await loadUserData();
       } else {
-        const error = await response.json();
+        const error = response.data;
         toast({
           title: "Errore",
           description: error.error || "Errore nel registrare il voto",
@@ -331,10 +323,7 @@ function MinisteroCard({ ministero, userVote, classifica, onVote, isVoting, toas
   const handleDelete = async (nome: string) => {
     if (!window.confirm(`Sei sicuro di voler cancellare ${nome}?`)) return;
     try {
-      const res = await fetch(`/api/governo/classifica/${ministero.categoria}/${encodeURIComponent(nome)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+      const res = await apiRequest("DELETE", `/api/governo/classifica/${ministero.categoria}/${encodeURIComponent(nome)}`);
       if (res.ok) {
         window.location.reload();
       } else {
