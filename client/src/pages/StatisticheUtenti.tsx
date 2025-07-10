@@ -17,6 +17,7 @@ import {
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import { apiRequest } from "@/lib/queryClient";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 
 // Registra i componenti Chart.js necessari
 ChartJS.register(
@@ -40,6 +41,7 @@ type StatisticheUtenti = {
 
 export default function StatisticheUtenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const authReady = useAuthReady();
   const [stats, setStats] = useState<StatisticheUtenti | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +77,14 @@ export default function StatisticheUtenti() {
       .finally(() => setIsLoadingStats(false));
   }, [user]);
 
+  if (!authReady) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div>Caricamento autenticazione...</div>
+      </div>
+    );
+  }
   if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
