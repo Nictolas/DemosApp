@@ -3,8 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
-import { useRegistration } from "@/hooks/use-registration";
-import { Redirect, useLocation } from "wouter";
+import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,9 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
 import './auth-page.css';
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { useAuthReady } from "@/hooks/use-auth-ready";
 
 const loginSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
@@ -57,27 +53,12 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  const authReady = useAuthReady();
-  const { user, isLoading, error, loginMutation, registerMutation } = useAuth();
+  const { user, isLoading, loginMutation, registerMutation } = useAuth();
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
-
-  // Stati per le opzioni dinamiche delle località
-  const [regioniResidenza, setRegioniResidenza] = useState<string[]>([]);
-  const [provinceResidenza, setProvinceResidenza] = useState<string[]>([]);
-  const [comuniResidenza, setComuniResidenza] = useState<string[]>([]);
-  const [regioniElezione, setRegioniElezione] = useState<string[]>([]);
-  const [provinceElezione, setProvinceElezione] = useState<string[]>([]);
-  const [comuniElezione, setComuniElezione] = useState<string[]>([]);
-  const [regioniCandidatura, setRegioniCandidatura] = useState<string[]>([]);
-  const [provinceCandidatura, setProvinceCandidatura] = useState<string[]>([]);
-  const [comuniCandidatura, setComuniCandidatura] = useState<string[]>([]);
 
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -108,38 +89,22 @@ export default function AuthPage() {
     },
   });
 
-  // Stato per mostrare/nascondere password
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Selezioni a cascata per residenza, elezione, candidatura
+  const [regioniResidenza, setRegioniResidenza] = useState<string[]>([]);
+  const [provinceResidenza, setProvinceResidenza] = useState<string[]>([]);
+  const [comuniResidenza, setComuniResidenza] = useState<string[]>([]);
+  const [regioniElezione, setRegioniElezione] = useState<string[]>([]);
+  const [provinceElezione, setProvinceElezione] = useState<string[]>([]);
+  const [comuniElezione, setComuniElezione] = useState<string[]>([]);
+  const [regioniCandidatura, setRegioniCandidatura] = useState<string[]>([]);
+  const [provinceCandidatura, setProvinceCandidatura] = useState<string[]>([]);
+  const [comuniCandidatura, setComuniCandidatura] = useState<string[]>([]);
 
-  // Stati per giorno, mese, anno della data di nascita
-  const [birthDay, setBirthDay] = useState("");
-  const [birthMonth, setBirthMonth] = useState("");
-  const [birthYear, setBirthYear] = useState("");
-  const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
-  const months = [
-    { value: "01", label: "Gennaio" },
-    { value: "02", label: "Febbraio" },
-    { value: "03", label: "Marzo" },
-    { value: "04", label: "Aprile" },
-    { value: "05", label: "Maggio" },
-    { value: "06", label: "Giugno" },
-    { value: "07", label: "Luglio" },
-    { value: "08", label: "Agosto" },
-    { value: "09", label: "Settembre" },
-    { value: "10", label: "Ottobre" },
-    { value: "11", label: "Novembre" },
-    { value: "12", label: "Dicembre" },
-  ];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
-
-  // Gestione delle selezioni a cascata per la residenza
+  // Effetti per le selezioni a cascata (residenza)
   useEffect(() => {
-    const paeseResidenza = registerForm.watch("paese_residenza");
-    if (paeseResidenza === "Italia") {
-      const regioni = ITALY_DATA.Italia.regioni.map(regione => regione.nome);
-      setRegioniResidenza(regioni);
+    const paese = registerForm.watch("paese_residenza");
+    if (paese === "Italia") {
+      setRegioniResidenza(ITALY_DATA.Italia.regioni.map(r => r.nome));
     } else {
       setRegioniResidenza([]);
       registerForm.setValue("regione_residenza", "");
@@ -149,18 +114,12 @@ export default function AuthPage() {
     registerForm.setValue("provincia_residenza", "");
     registerForm.setValue("comune_residenza", "");
   }, [registerForm.watch("paese_residenza")]);
-
   useEffect(() => {
-    const paeseResidenza = registerForm.watch("paese_residenza");
-    const regioneResidenza = registerForm.watch("regione_residenza");
-    if (paeseResidenza === "Italia" && regioneResidenza) {
-      const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneResidenza
-      );
-      if (selectedRegion) {
-        const province = selectedRegion.province.map(provincia => provincia.nome);
-        setProvinceResidenza(province);
-      }
+    const paese = registerForm.watch("paese_residenza");
+    const regione = registerForm.watch("regione_residenza");
+    if (paese === "Italia" && regione) {
+      const reg = ITALY_DATA.Italia.regioni.find(r => r.nome === regione);
+      if (reg) setProvinceResidenza(reg.province.map(p => p.nome));
     } else {
       setProvinceResidenza([]);
     }
@@ -168,35 +127,26 @@ export default function AuthPage() {
     registerForm.setValue("provincia_residenza", "");
     registerForm.setValue("comune_residenza", "");
   }, [registerForm.watch("regione_residenza")]);
-
   useEffect(() => {
-    const paeseResidenza = registerForm.watch("paese_residenza");
-    const regioneResidenza = registerForm.watch("regione_residenza");
-    const provinciaResidenza = registerForm.watch("provincia_residenza");
-    if (paeseResidenza === "Italia" && regioneResidenza && provinciaResidenza) {
-      const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneResidenza
-      );
-      if (selectedRegion) {
-        const selectedProvince = selectedRegion.province.find(
-          p => p.nome === provinciaResidenza
-        );
-        if (selectedProvince) {
-          setComuniResidenza(selectedProvince.comuni);
-        }
+    const paese = registerForm.watch("paese_residenza");
+    const regione = registerForm.watch("regione_residenza");
+    const provincia = registerForm.watch("provincia_residenza");
+    if (paese === "Italia" && regione && provincia) {
+      const reg = ITALY_DATA.Italia.regioni.find(r => r.nome === regione);
+      if (reg) {
+        const prov = reg.province.find(p => p.nome === provincia);
+        if (prov) setComuniResidenza(prov.comuni);
       }
     } else {
       setComuniResidenza([]);
     }
     registerForm.setValue("comune_residenza", "");
   }, [registerForm.watch("provincia_residenza")]);
-
-  // Gestione delle selezioni a cascata per il luogo di elezione
+  // Effetti per elezione
   useEffect(() => {
-    const paeseElezione = registerForm.watch("paese_elezione");
-    if (paeseElezione === "Italia") {
-      const regioni = ITALY_DATA.Italia.regioni.map(regione => regione.nome);
-      setRegioniElezione(regioni);
+    const paese = registerForm.watch("paese_elezione");
+    if (paese === "Italia") {
+      setRegioniElezione(ITALY_DATA.Italia.regioni.map(r => r.nome));
     } else {
       setRegioniElezione([]);
       registerForm.setValue("regione_elezione", "");
@@ -206,18 +156,12 @@ export default function AuthPage() {
     registerForm.setValue("provincia_elezione", "");
     registerForm.setValue("comune_elezione", "");
   }, [registerForm.watch("paese_elezione")]);
-
   useEffect(() => {
-    const paeseElezione = registerForm.watch("paese_elezione");
-    const regioneElezione = registerForm.watch("regione_elezione");
-    if (paeseElezione === "Italia" && regioneElezione) {
-      const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneElezione
-      );
-      if (selectedRegion) {
-        const province = selectedRegion.province.map(provincia => provincia.nome);
-        setProvinceElezione(province);
-      }
+    const paese = registerForm.watch("paese_elezione");
+    const regione = registerForm.watch("regione_elezione");
+    if (paese === "Italia" && regione) {
+      const reg = ITALY_DATA.Italia.regioni.find(r => r.nome === regione);
+      if (reg) setProvinceElezione(reg.province.map(p => p.nome));
     } else {
       setProvinceElezione([]);
     }
@@ -225,35 +169,26 @@ export default function AuthPage() {
     registerForm.setValue("provincia_elezione", "");
     registerForm.setValue("comune_elezione", "");
   }, [registerForm.watch("regione_elezione")]);
-
   useEffect(() => {
-    const paeseElezione = registerForm.watch("paese_elezione");
-    const regioneElezione = registerForm.watch("regione_elezione");
-    const provinciaElezione = registerForm.watch("provincia_elezione");
-    if (paeseElezione === "Italia" && regioneElezione && provinciaElezione) {
-      const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneElezione
-      );
-      if (selectedRegion) {
-        const selectedProvince = selectedRegion.province.find(
-          p => p.nome === provinciaElezione
-        );
-        if (selectedProvince) {
-          setComuniElezione(selectedProvince.comuni);
-        }
+    const paese = registerForm.watch("paese_elezione");
+    const regione = registerForm.watch("regione_elezione");
+    const provincia = registerForm.watch("provincia_elezione");
+    if (paese === "Italia" && regione && provincia) {
+      const reg = ITALY_DATA.Italia.regioni.find(r => r.nome === regione);
+      if (reg) {
+        const prov = reg.province.find(p => p.nome === provincia);
+        if (prov) setComuniElezione(prov.comuni);
       }
     } else {
       setComuniElezione([]);
     }
     registerForm.setValue("comune_elezione", "");
   }, [registerForm.watch("provincia_elezione")]);
-
-  // Gestione delle selezioni a cascata per il luogo di candidatura
+  // Effetti per candidatura
   useEffect(() => {
-    const paeseCandidatura = registerForm.watch("paese_candidatura");
-    if (paeseCandidatura === "Italia") {
-      const regioni = ITALY_DATA.Italia.regioni.map(regione => regione.nome);
-      setRegioniCandidatura(regioni);
+    const paese = registerForm.watch("paese_candidatura");
+    if (paese === "Italia") {
+      setRegioniCandidatura(ITALY_DATA.Italia.regioni.map(r => r.nome));
     } else {
       setRegioniCandidatura([]);
       registerForm.setValue("regione_candidatura", "");
@@ -263,18 +198,12 @@ export default function AuthPage() {
     registerForm.setValue("provincia_candidatura", "");
     registerForm.setValue("comune_candidatura", "");
   }, [registerForm.watch("paese_candidatura")]);
-
   useEffect(() => {
-    const paeseCandidatura = registerForm.watch("paese_candidatura");
-    const regioneCandidatura = registerForm.watch("regione_candidatura");
-    if (paeseCandidatura === "Italia" && regioneCandidatura) {
-      const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneCandidatura
-      );
-      if (selectedRegion) {
-        const province = selectedRegion.province.map(provincia => provincia.nome);
-        setProvinceCandidatura(province);
-      }
+    const paese = registerForm.watch("paese_candidatura");
+    const regione = registerForm.watch("regione_candidatura");
+    if (paese === "Italia" && regione) {
+      const reg = ITALY_DATA.Italia.regioni.find(r => r.nome === regione);
+      if (reg) setProvinceCandidatura(reg.province.map(p => p.nome));
     } else {
       setProvinceCandidatura([]);
     }
@@ -282,22 +211,15 @@ export default function AuthPage() {
     registerForm.setValue("provincia_candidatura", "");
     registerForm.setValue("comune_candidatura", "");
   }, [registerForm.watch("regione_candidatura")]);
-
   useEffect(() => {
-    const paeseCandidatura = registerForm.watch("paese_candidatura");
-    const regioneCandidatura = registerForm.watch("regione_candidatura");
-    const provinciaCandidatura = registerForm.watch("provincia_candidatura");
-    if (paeseCandidatura === "Italia" && regioneCandidatura && provinciaCandidatura) {
-      const selectedRegion = ITALY_DATA.Italia.regioni.find(
-        r => r.nome === regioneCandidatura
-      );
-      if (selectedRegion) {
-        const selectedProvince = selectedRegion.province.find(
-          p => p.nome === provinciaCandidatura
-        );
-        if (selectedProvince) {
-          setComuniCandidatura(selectedProvince.comuni);
-        }
+    const paese = registerForm.watch("paese_candidatura");
+    const regione = registerForm.watch("regione_candidatura");
+    const provincia = registerForm.watch("provincia_candidatura");
+    if (paese === "Italia" && regione && provincia) {
+      const reg = ITALY_DATA.Italia.regioni.find(r => r.nome === regione);
+      if (reg) {
+        const prov = reg.province.find(p => p.nome === provincia);
+        if (prov) setComuniCandidatura(prov.comuni);
       }
     } else {
       setComuniCandidatura([]);
@@ -305,22 +227,14 @@ export default function AuthPage() {
     registerForm.setValue("comune_candidatura", "");
   }, [registerForm.watch("provincia_candidatura")]);
 
-  useEffect(() => {
-    if (birthDay && birthMonth && birthYear) {
-      registerForm.setValue("data_nascita", `${birthDay}-${birthMonth}-${birthYear}`);
-    }
-  }, [birthDay, birthMonth, birthYear]);
-
-  // Funzioni di submit
+  // Submit
   const onLoginSubmit = (data: LoginFormValues) => {
     loginMutation.mutate(data);
   };
-
   const onRegisterSubmit = (data: RegisterFormValues) => {
     registerMutation.mutate(data);
   };
 
-  // Redirect se già autenticato
   if (user && !isLoading) {
     return <Redirect to="/menu" />;
   }
@@ -361,11 +275,8 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type={showPassword ? "text" : "password"} placeholder="Password" {...field} />
+                          <Input type="password" placeholder="Password" {...field} />
                         </FormControl>
-                        <Button type="button" variant="link" className="p-0 text-xs" onClick={() => setShowPassword((v) => !v)}>
-                          {showPassword ? "Nascondi" : "Mostra"} password
-                        </Button>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -415,7 +326,7 @@ export default function AuthPage() {
                             <FormControl>
                               <div className="relative">
                                 <Input
-                                  type={showPassword ? "text" : "password"}
+                                  type="password"
                                   placeholder="Crea una password"
                                   {...field}
                                 />
@@ -423,20 +334,13 @@ export default function AuthPage() {
                                   type="button"
                                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
                                   tabIndex={-1}
-                                  onClick={() => setShowPassword((v) => !v)}
-                                  aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                                  onClick={() => {}} // Placeholder for password visibility toggle
+                                  aria-label="Mostra password"
                                 >
-                                  {showPassword ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
-                                    </svg>
-                                  ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
-                                    </svg>
-                                  )}
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                  </svg>
                                 </button>
                               </div>
                             </FormControl>
@@ -453,7 +357,7 @@ export default function AuthPage() {
                             <FormControl>
                               <div className="relative">
                                 <Input
-                                  type={showConfirmPassword ? "text" : "password"}
+                                  type="password"
                                   placeholder="Ripeti la password"
                                   {...field}
                                 />
@@ -461,20 +365,13 @@ export default function AuthPage() {
                                   type="button"
                                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
                                   tabIndex={-1}
-                                  onClick={() => setShowConfirmPassword((v) => !v)}
-                                  aria-label={showConfirmPassword ? "Nascondi password" : "Mostra password"}
+                                  onClick={() => {}} // Placeholder for password visibility toggle
+                                  aria-label="Mostra password"
                                 >
-                                  {showConfirmPassword ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12.001C3.226 16.273 7.355 19.5 12 19.5c1.658 0 3.237-.335 4.646-.94M21.065 11.999A10.45 10.45 0 0020.02 8.22M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
-                                    </svg>
-                                  ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
-                                    </svg>
-                                  )}
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                  </svg>
                                 </button>
                               </div>
                             </FormControl>
