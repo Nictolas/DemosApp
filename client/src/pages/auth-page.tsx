@@ -954,5 +954,3 @@ export default function AuthPage() {
     </div>
   );
 }
-
-// TODO: Forzare commit - rimuovere questo commento dopo il debug
