@@ -7,6 +7,7 @@ import { CustomAvatar } from "@/components/CustomAvatar";
 import { useAuth } from "@/hooks/use-auth";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { apiRequest } from "@/lib/queryClient";
 
 // Mappa colori per le risposte
 const responseColors = {
@@ -51,7 +52,7 @@ export function ViewOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await fetch("/api/opinioni-list");
+        const res = await apiRequest("GET", "/api/opinioni-list");
         if (!res.ok) throw new Error();
         setQuestions(await res.json());
       } catch {
@@ -76,10 +77,7 @@ export function ViewOpinioniDialog({
       if (!user) return;
       setIsLoadingMyOpinions(true);
       try {
-        const res = await fetch("/api/opinioni", {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        const res = await apiRequest("GET", "/api/opinioni");
         if (!res.ok) throw new Error();
         setMyOpinions(await res.json());
       } catch {
@@ -140,10 +138,7 @@ export function ViewOpinioniDialog({
       if (!utenteId) return;
       setIsLoadingFonti(true);
       try {
-        const response = await fetch(`/api/opinioni-fonti/${utenteId}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        const response = await apiRequest("GET", `/api/opinioni-fonti/${utenteId}`);
         if (!response.ok) throw new Error();
         const data = await response.json();
         setFonti(data || {});
@@ -159,10 +154,7 @@ export function ViewOpinioniDialog({
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const response = await fetch(`/api/users/${utenteId}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const response = await apiRequest("GET", `/api/users/${utenteId}`);
       if (!response.ok) {
         throw new Error('Errore nel caricamento delle opinioni');
       }
