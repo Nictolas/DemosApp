@@ -192,6 +192,10 @@ export default function Impostazioni() {
                   {isLoggingOut && <Loader2 className="ml-2 h-4 w-4 animate-spin text-red-500" />}
                 </CardContent>
               </Card>
+              {/* Pulsante Test */}
+              <Button className="w-full mt-4" variant="outline" onClick={() => alert('Test!')}>
+                Test
+              </Button>
             </div>
           </CardContent>
         </Card>
