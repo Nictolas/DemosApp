@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Elezione {
   id: string;
