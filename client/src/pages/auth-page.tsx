@@ -403,13 +403,13 @@ export default function AuthPage() {
     }
   }, [redirectPath, navigate]);
 
-  // Redirect to menu page only after a successful login
+  // Redirect to menu page solo dopo login riuscito
   if (loginSuccess) {
     return <Redirect to="/menu" />;
   }
 
-  // If user is already logged in, show a message and a button, but do not redirect automatically
-  if (user) {
+  // Se l'utente è già loggato, mostra messaggio e pulsante
+  if (authReady && user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
         <div className="bg-white rounded-lg p-8 shadow-md border border-gray-100 text-center">
@@ -421,64 +421,72 @@ export default function AuthPage() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {debugBox}
-      {!authReady ? (
+  // Mostra loader SOLO se authReady è false
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        {debugBox}
         <div className="flex items-center justify-center min-h-screen">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : (!user ? (
-        <div className="container mx-auto px-4 py-16">
-          <div className="flex flex-col lg:flex-row items-center gap-8">
-            {/* Hero Section */}
-            <div className="lg:w-1/2">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                Benvenuto in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">DEMOS</span>
-              </h1>
-              <p className="text-xl text-gray-700 mb-6">
-                Registrati per entrare a far parte del sistema di registrazione per gli utenti DEMOS.
-              </p>
-              <div className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
-                <h3 className="text-lg font-medium mb-2">Cosa puoi fare con DEMOS:</h3>
-                <ul className="space-y-2 text-gray-600">
-                  <li className="flex items-center">
-                    <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Registrare le tue informazioni personali
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Specificare dati di residenza e informazioni elettorali
-                  </li>
-                  <li className="flex items-center">
-                    <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    Partecipare al sistema democratico italiano
-                  </li>
-                </ul>
-              </div>
-            </div>
+      </div>
+    );
+  }
 
-            {/* Auth Forms */}
-            <div className="lg:w-1/2 w-full max-w-md">
-              <Card className="shadow-xl border-t-4 border-t-blue-600">
-                <CardHeader>
-                  <CardTitle className="text-2xl text-center">Account</CardTitle>
-                  <CardDescription className="text-center">
-                    Accedi o crea un nuovo account
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")}>
-                    <TabsList className="grid w-full grid-cols-2 mb-6">
-                      <TabsTrigger value="login">Accedi</TabsTrigger>
-                      <TabsTrigger value="register">Registrati</TabsTrigger>
-                    </TabsList>
+  // Mostra il form di login/registrazione se authReady è true e user è null
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {debugBox}
+      <div className="container mx-auto px-4 py-16">
+        <div className="flex flex-col lg:flex-row items-center gap-8">
+          {/* Hero Section */}
+          <div className="lg:w-1/2">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Benvenuto in <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">DEMOS</span>
+            </h1>
+            <p className="text-xl text-gray-700 mb-6">
+              Registrati per entrare a far parte del sistema di registrazione per gli utenti DEMOS.
+            </p>
+            <div className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
+              <h3 className="text-lg font-medium mb-2">Cosa puoi fare con DEMOS:</h3>
+              <ul className="space-y-2 text-gray-600">
+                <li className="flex items-center">
+                  <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  Registrare le tue informazioni personali
+                </li>
+                <li className="flex items-center">
+                  <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  Specificare dati di residenza e informazioni elettorali
+                </li>
+                <li className="flex items-center">
+                  <svg className="h-5 w-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                  Partecipare al sistema democratico italiano
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Auth Forms */}
+          <div className="lg:w-1/2 w-full max-w-md">
+            <Card className="shadow-xl border-t-4 border-t-blue-600">
+              <CardHeader>
+                <CardTitle className="text-2xl text-center">Account</CardTitle>
+                <CardDescription className="text-center">
+                  Accedi o crea un nuovo account
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "register")}>
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="login">Accedi</TabsTrigger>
+                    <TabsTrigger value="register">Registrati</TabsTrigger>
+                  </TabsList>
 
                     {/* Login Form */}
                     <TabsContent value="login">
@@ -929,16 +937,12 @@ export default function AuthPage() {
                   {activeTab === "login" ? (
                     <p>
                       Non hai un account?{" "}
-                      <Button variant="link" className="p-0" onClick={() => setActiveTab("register")}>
-                        Registrati
-                      </Button>
+                      <Button variant="link" className="p-0" onClick={() => setActiveTab("register")}>Registrati</Button>
                     </p>
                   ) : (
                     <p>
                       Hai già un account?{" "}
-                      <Button variant="link" className="p-0" onClick={() => setActiveTab("login")}>
-                        Accedi
-                      </Button>
+                      <Button variant="link" className="p-0" onClick={() => setActiveTab("login")}>Accedi</Button>
                     </p>
                   )}
                 </CardFooter>
@@ -946,11 +950,7 @@ export default function AuthPage() {
             </div>
           </div>
         </div>
-      ) : (
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ))}
+      </div>
     </div>
   );
 }
