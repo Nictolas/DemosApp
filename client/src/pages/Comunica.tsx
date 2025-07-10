@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/apiRequest";
+import { apiRequest } from "@/lib/queryClient";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
