@@ -428,13 +428,7 @@ export default function AuthPage() {
         <div className="flex items-center justify-center min-h-screen">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : user ? (
-        // Se l'utente è autenticato, puoi mostrare un redirect o altro
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : (
-        // Mostra SEMPRE il form di login/registrazione se authReady è true e user è null
+      ) : (!user ? (
         <div className="container mx-auto px-4 py-16">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             {/* Hero Section */}
@@ -952,7 +946,11 @@ export default function AuthPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : (
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ))}
     </div>
   );
 }
