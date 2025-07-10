@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -10,13 +11,25 @@ import appIcon from '/icona.png';
 import { apiRequest } from "@/lib/queryClient";
 
 export default function Menu() {
-  const { user, isLoading, logoutMutation } = useAuth();
+  const authReady = useAuthReady();
+  const { user, isLoading, error } = useAuth();
   const { toast } = useToast();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [, setLocation] = useLocation();
   
+  // DEBUG BOX A SCHERMO
+  const debugBox = (
+    <div style={{ background: '#fffbe6', color: '#b36b00', border: '1px solid #ffe58f', padding: 12, marginBottom: 16, fontSize: 13, borderRadius: 6 }}>
+      <b>DEBUG AUTH:</b><br/>
+      <b>authReady:</b> {String(authReady)}<br/>
+      <b>isLoading:</b> {String(isLoading)}<br/>
+      <b>user:</b> <pre style={{ display: 'inline', whiteSpace: 'pre-wrap' }}>{user ? JSON.stringify(user, null, 2) : 'null'}</pre><br/>
+      <b>error:</b> {error ? error.toString() : 'null'}
+    </div>
+  );
+
   // Verifica se l'utente è admin
   useEffect(() => {
     const checkIfAdmin = async () => {
@@ -68,7 +81,8 @@ export default function Menu() {
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-gradient-to-b from-blue-100 to-blue-400">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {debugBox}
       {isLoading ? (
         <div className="flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
