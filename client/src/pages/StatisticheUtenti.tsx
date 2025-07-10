@@ -162,6 +162,10 @@ export default function StatisticheUtenti() {
     return <Redirect to="/auth" />;
   }
 
+  if (error && error.toLowerCase().includes('forbidden')) {
+    return <div className="text-center text-red-500 p-8">Non hai i permessi per accedere a questa pagina.</div>;
+  }
+
   // Prepara dati per i grafici
   const prepareChartData = (data: Record<string, number>) => {
     const labels = Object.keys(data);

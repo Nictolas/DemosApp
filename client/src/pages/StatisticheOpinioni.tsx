@@ -136,6 +136,10 @@ function StatisticheOpinioni() {
     return <Redirect to="/auth" />;
   }
 
+  if (error && error.toLowerCase().includes('forbidden')) {
+    return <div className="text-center text-red-500 p-8">Non hai i permessi per accedere a questa pagina.</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-5xl">
