@@ -138,6 +138,9 @@ export default function GestisciOpinioni() {
     }
   };
 
+  const safeOpinioni = Array.isArray(opinioni) ? opinioni : [];
+  const safeProposte = Array.isArray(proposte) ? proposte : [];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-3xl">
@@ -156,11 +159,11 @@ export default function GestisciOpinioni() {
               </div>
               {loadingProposte ? (
                 <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Caricamento...</div>
-              ) : proposte.length === 0 ? (
+              ) : safeProposte.length === 0 ? (
                 <div className="text-muted-foreground text-sm">Nessuna opinione proposta in attesa.</div>
               ) : (
                 <ul className="space-y-2">
-                  {proposte.map((op: any) => (
+                  {safeProposte.map((op: any) => (
                     <li key={op.id} className="flex items-center justify-between border rounded px-3 py-2 bg-fuchsia-50">
                       <div className="flex flex-col">
                         <span className="font-medium">{op.testo}</span>
@@ -189,7 +192,7 @@ export default function GestisciOpinioni() {
                   </Button>
                 </form>
                 <div className="space-y-2">
-                  {opinioni.map((op: any) => (
+                  {safeOpinioni.map((op: any) => (
                     <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-sm">
                       <span className="font-medium">{op.text} <span className="text-xs text-muted-foreground">({op.id})</span></span>
                       <div className="flex gap-2">

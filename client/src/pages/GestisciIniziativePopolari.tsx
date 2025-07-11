@@ -50,6 +50,8 @@ export default function GestisciIniziativePopolari() {
     }
   };
 
+  const safeRequests = Array.isArray(requests) ? requests : [];
+
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
@@ -83,7 +85,7 @@ export default function GestisciIniziativePopolari() {
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-            ) : requests.length === 0 ? (
+            ) : safeRequests.length === 0 ? (
               <div className="text-center py-8 text-gray-500"><Users className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>Nessuna richiesta pending.</p></div>
             ) : (
               <div className="overflow-x-auto">
@@ -97,7 +99,7 @@ export default function GestisciIniziativePopolari() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {requests.map((r: any) => (
+                    {safeRequests.map((r: any) => (
                       <TableRow key={r.id}>
                         <TableCell>{r.nome}</TableCell>
                         <TableCell>{new Date(r.dataInizio).toLocaleDateString('it-IT')} - {new Date(r.dataFine).toLocaleDateString('it-IT')}</TableCell>
