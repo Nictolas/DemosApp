@@ -63,6 +63,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [user]); // Esegui quando user cambia
 
+  // LOG DETTAGLIATO DELLA QUERY
+  useEffect(() => {
+    console.log("[AuthProvider] user dalla query:", user);
+    console.log("[AuthProvider] isLoading:", isLoading);
+    console.log("[AuthProvider] error:", error);
+  }, [user, isLoading, error]);
+
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       // Effettua login Firebase
@@ -149,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user: user ?? null,
+        user: user === undefined ? undefined : (user ?? null),
         isLoading,
         error,
         loginMutation,
