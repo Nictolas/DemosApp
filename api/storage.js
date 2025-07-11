@@ -1,8 +1,8 @@
 // Importa l'istanza Firestore corretta
-import { db } from '../api/firebase-admin.js';
+import { adminDb } from './firebase-config.js';
 
 // Collezione Firestore per gli utenti
-const utentiCollection = db.collection('utenti');
+const utentiCollection = adminDb.collection('utenti');
 
 export const storage = {
   // Inserisce un nuovo profilo utente in Firestore

@@ -1,4 +1,4 @@
-import { db } from './firebase-admin.js';
+import { adminDb } from './firebase-config.js';
 import { getVercelUsage } from './vercel-usage.js';
 
 export default async function handler(req, res) {
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       edgeInvocations: usage.edgeInvocations,
       trafficHistory: [12, 18, 22, 30, 35, usage.bandwidth],
     };
-    await db.collection('monitoring').doc('consumi').set(data);
+    await adminDb.collection('monitoring').doc('consumi').set(data);
     res.status(200).json({ success: true });
   } catch (e) {
     res.json({}); // 200 con oggetto vuoto
