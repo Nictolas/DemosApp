@@ -16,6 +16,9 @@ import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { useEffect } from "react";
 
 const referendumSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
@@ -70,12 +73,21 @@ export default function ReferendumAbrogativi() {
     },
   });
 
-  // Carica la lista dei referendum dal backend
-  const { data: listaReferendum = [], isLoading: isListaLoading } = useQuery<Array<{id: string, nome: string, descrizione: string, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
-    queryKey: ["/api/referendum-abrogativi/lista"],
-    queryFn: fetcher,
-    enabled: !!user,
-  });
+  const [listaReferendum, setListaReferendum] = useState<any[]>([]);
+  const [isListaLoading, setIsListaLoading] = useState(false);
+  const [listaError, setListaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setIsListaLoading(true);
+    getDocs(collection(db, "referendum_abrogativi"))
+      .then(snap => {
+        const arr = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setListaReferendum(arr);
+      })
+      .catch(() => setListaError("Errore nel caricamento dei referendum abrogativi"))
+      .finally(() => setIsListaLoading(false));
+  }, [user]);
 
   // Mutazione per inviare un nuovo referendum
   const submitReferendum = useMutation({
@@ -289,6 +301,7 @@ export default function ReferendumAbrogativi() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {listaError && <div className="text-center text-red-500 p-4">{listaError}</div>}
                   {listaReferendum.map((r: any) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">
