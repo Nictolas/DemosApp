@@ -1,285 +1,49 @@
-import { useState, useEffect, useCallback } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { Link, Redirect } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Heart, Vote, Trophy, Plus, X, ThumbsUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-
-interface Classifica {
-  nome: string;
-  voti: number;
-}
+import { useEffect, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 export default function Grazia() {
-  const { user, isLoading } = useAuth();
-  const { toast } = useToast();
-  const [userVoti, setUserVoti] = useState<string[]>([]);
-  const [classifica, setClassifica] = useState<Classifica[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [isVoting, setIsVoting] = useState(false);
-  const [nomeInput, setNomeInput] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [deletingVote, setDeletingVote] = useState<string | null>(null);
-  const [urlProva, setUrlProva] = useState("");
-  const [deletingClassifica, setDeletingClassifica] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    setLoadingData(true);
-    try {
-      const [votiResponse, classificaResponse] = await Promise.all([
-        apiRequest("GET", "/api/grazia/voti"),
-        apiRequest("GET", "/api/grazia/classifica")
-      ]);
-      if (votiResponse.ok) setUserVoti(Array.isArray(votiResponse.data) ? votiResponse.data : []);
-      if (classificaResponse.ok) setClassifica(Array.isArray(classificaResponse.data) ? classificaResponse.data : []);
-    } catch (error) {
-      console.error('Errore nel caricamento dati:', error);
-      toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
-    } finally {
-      setLoadingData(false);
-    }
-  }, [user, toast]);
+  const [classifica, setClassifica] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const isNomeNuovo = !!(nomeInput.trim() && !classifica.some(item => item.nome.toLowerCase() === nomeInput.trim().toLowerCase()));
-
-  const handleVote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nomeInput.trim()) return;
-    if (isNomeNuovo && !urlProva.trim()) return;
-    await voteForCandidate(nomeInput.trim(), isNomeNuovo ? urlProva.trim() : undefined);
-  };
-
-  const voteForCandidate = async (nome: string, url?: string) => {
-    if (userVoti.includes(nome)) {
-      toast({ title: "Voto già registrato", description: `Hai già votato per ${nome}` });
-      return;
+    async function fetchClassifica() {
+      setLoading(true);
+      const colRef = collection(db, "voti_grazia");
+      const snapshot = await getDocs(colRef);
+      const votiList = snapshot.docs.map(doc => doc.data().nome);
+      // Conta i voti per ogni nome
+      const conteggio = {};
+      votiList.forEach(nome => {
+        if (nome) conteggio[nome] = (conteggio[nome] || 0) + 1;
+      });
+      // Trasforma in array ordinato per numero di voti
+      const classificaArray = Object.entries(conteggio)
+        .map(([nome, voti]) => ({ nome, voti }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      setLoading(false);
     }
-    setIsVoting(true);
-    try {
-      if (url) {
-        // Proposta di nuovo individuo: invia richiesta
-        const response = await apiRequest("POST", "/api/grazia/richiesta", { nome, urlProva: url });
-        const result = response.data;
-        if (response.ok && result.success) {
-          toast({ title: "Richiesta inviata", description: `La richiesta per ${nome} è stata inviata e sarà valutata da un amministratore.` });
-          setNomeInput("");
-          setUrlProva("");
-        } else {
-          toast({ title: "Errore", description: (result && result.error) ? result.error : "Errore nell'invio della richiesta", variant: "destructive" });
-        }
-      } else {
-        // Voto normale
-        const response = await apiRequest("POST", "/api/grazia/vota", { nome });
-        if (response.ok) {
-          toast({ title: "Voto registrato", description: `Hai votato per la grazia di ${nome}` });
-          setNomeInput("");
-          setUrlProva("");
-          await loadData();
-        } else {
-          const error = response.data;
-          toast({ title: "Errore", description: error.error, variant: "destructive" });
-        }
-      }
-    } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
-    } finally {
-      setIsVoting(false);
-    }
-  };
+    fetchClassifica();
+  }, []);
 
-  const removeVote = async (nomeDaRimuovere: string) => {
-    if (deletingVote) return;
-    if (!window.confirm(`Sei sicuro di voler rimuovere il voto per la grazia di "${nomeDaRimuovere}"?`)) return;
-
-    setDeletingVote(nomeDaRimuovere);
-    try {
-      // ===== CORREZIONE QUI: da /voto/ a /voti/ =====
-      const response = await apiRequest("DELETE", `/api/grazia/voti/${encodeURIComponent(nomeDaRimuovere)}`);
-
-      if (response.ok) {
-        toast({ title: "Voto rimosso", description: `Hai rimosso il voto per ${nomeDaRimuovere}`});
-        setUserVoti(currentVotes => currentVotes.filter(voto => voto !== nomeDaRimuovere));
-        // Ricarica la classifica per aggiornare il conteggio
-        const classificaResponse = await apiRequest("GET", "/api/grazia/classifica");
-        if (classificaResponse.ok) setClassifica(Array.isArray(classificaResponse.data) ? classificaResponse.data : []);
-      } else {
-        const error = response.data;
-        toast({ title: "Errore", description: error.error || "Errore nella rimozione", variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
-    } finally {
-      setDeletingVote(null);
-    }
-  };
-
-  const getSuggestions = () => {
-    if (!nomeInput.trim() || !showSuggestions) return [];
-    return classifica
-      .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
-      .slice(0, 5);
-  };
-
-  const deleteFromClassifica = async (nome: string) => {
-    if (user?.ruolo !== "Admin") return;
-    if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
-    setDeletingClassifica(nome);
-    try {
-      const response = await apiRequest("DELETE", `/api/grazia/classifica/${encodeURIComponent(nome)}`);
-      if (response.ok) {
-        toast({ title: "Candidato eliminato", description: `${nome} è stato rimosso dalla classifica.` });
-        await loadData();
-      } else {
-        const error = response.data;
-        toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
-    } finally {
-      setDeletingClassifica(null);
-    }
-  };
-
-  if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (!user) return <Redirect to="/auth" />;
+  if (loading) return <div>Caricamento...</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
-      <div className="container mx-auto max-w-4xl">
-        <Link href="/menu">
-          <Button variant="ghost" className="mb-4 flex items-center">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
-          </Button>
-        </Link>
-
-        <Card className="mb-6">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-green-500 to-green-700 rounded-full"><Heart className="h-12 w-12 text-white" /></div></div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">Grazia</CardTitle>
-            <CardDescription className="text-lg">Vota per i cittadini carcerati che meritano la grazia (puoi esprimere più preferenze)</CardDescription>
-          </CardHeader>
-        </Card>
-
-        {loadingData ? (
-          <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2"><Vote className="h-5 w-5" /><span>Vota per la Grazia</span></CardTitle>
-                <CardDescription>Inserisci il nome del cittadino carcerato che meriterebbe la grazia.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleVote} className="space-y-4">
-                  <div className="flex space-x-2">
-                    <div className="flex-1 relative">
-                      <Input
-                        placeholder="Nome del cittadino carcerato..."
-                        value={nomeInput}
-                        onChange={(e) => { setNomeInput(e.target.value); setShowSuggestions(true); }}
-                        onFocus={() => setShowSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        className="w-full"
-                      />
-                      {showSuggestions && getSuggestions().length > 0 && (
-                        <div className="absolute top-full left-0 right-0 z-10 bg-white border border-gray-200 rounded-md shadow-lg mt-1">
-                          {getSuggestions().map((suggestion, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                              onClick={() => { setNomeInput(suggestion.nome); setShowSuggestions(false); }}
-                            >
-                              {suggestion.nome} ({suggestion.voti} voti)
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {isNomeNuovo && (
-                    <div>
-                      <Input
-                        placeholder="URL con prove dell'esistenza del soggetto (es. notizia, social, ecc.)"
-                        value={urlProva}
-                        onChange={e => setUrlProva(e.target.value)}
-                        className="w-full mt-2"
-                        required={isNomeNuovo}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">Per nuovi soggetti è obbligatorio inserire un URL di prova.</p>
-                    </div>
-                  )}
-                  <Button type="submit" disabled={isVoting || !nomeInput.trim() || (isNomeNuovo && !urlProva.trim())}>
-                    {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                    Vota
-                  </Button>
-                </form>
-
-                {userVoti.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-semibold mb-2">I tuoi voti:</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {userVoti.map((voto, index) => (
-                        <Badge 
-                          key={index} 
-                          variant="default"
-                          className="cursor-pointer hover:bg-destructive/90 transition-colors flex items-center gap-2"
-                          onClick={() => removeVote(voto)}
-                        >
-                          {deletingVote === voto ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
-                          {voto}
-                        </Badge>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">Clicca su un nome per rimuovere il voto.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
-                <CardDescription>I cittadini carcerati più votati per la grazia</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {classifica.length > 0 ? (
-                  <div className="space-y-3">
-                    {classifica.map((candidato, index) => (
-                      <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Button size="sm" variant="outline" onClick={() => voteForCandidate(candidato.nome)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>#{index + 1}</div>
-                          <span className="font-medium">{candidato.nome}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline">{candidato.voti} voti</Badge>
-                          {user?.ruolo === "Admin" && (
-                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" onClick={() => deleteFromClassifica(candidato.nome)} disabled={deletingClassifica === candidato.nome}>
-                              {deletingClassifica === candidato.nome ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">Nessun voto ancora registrato.</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
+    <div className="max-w-2xl mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-4">Classifica Grazia</h2>
+      {classifica.length === 0 ? (
+        <div className="text-gray-500">Nessun voto trovato.</div>
+      ) : (
+        <ul className="space-y-2">
+          {classifica.map(item => (
+            <li key={item.nome} className="border rounded p-3 bg-white shadow flex justify-between">
+              <span>{item.nome}</span>
+              <span className="font-bold">{item.voti} voto{item.voti > 1 ? "i" : ""}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
