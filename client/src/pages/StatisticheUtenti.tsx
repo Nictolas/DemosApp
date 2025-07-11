@@ -266,8 +266,67 @@ export default function StatisticheUtenti() {
                         )}
                       </CardContent>
                     </Card>
+                    {/* Distribuzione per cittadinanza */}
+                    <Card className="shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xl">Distribuzione per Cittadinanza</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex justify-center">
+                        {citizenshipChartData && (
+                          <div style={{ height: '250px', width: '100%', maxWidth: '300px' }}>
+                            <Pie 
+                              data={citizenshipChartData} 
+                              options={{
+                                plugins: { legend: { position: 'bottom' } },
+                                responsive: true,
+                                maintainAspectRatio: false,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    {/* Distribuzione per regione */}
+                    <Card className="shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xl">Distribuzione per Regione</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex justify-center">
+                        {regionChartData && (
+                          <div style={{ height: '250px', width: '100%', maxWidth: '300px' }}>
+                            <Pie 
+                              data={regionChartData} 
+                              options={{
+                                plugins: { legend: { position: 'bottom' } },
+                                responsive: true,
+                                maintainAspectRatio: false,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                    {/* Distribuzione per città */}
+                    <Card className="shadow-sm">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xl">Distribuzione per Città</CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex justify-center">
+                        {cityChartData && (
+                          <div style={{ height: '250px', width: '100%', maxWidth: '300px' }}>
+                            <Pie 
+                              data={cityChartData} 
+                              options={{
+                                plugins: { legend: { position: 'bottom' } },
+                                responsive: true,
+                                maintainAspectRatio: false,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
-                  {/* Altri grafici simili per cittadinanza, regione, città... */}
                 </div>
               )}
             </CardContent>

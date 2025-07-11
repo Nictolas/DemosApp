@@ -15,6 +15,9 @@ import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check,
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { useEffect } from "react";
 
 const iniziativaSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
@@ -58,12 +61,21 @@ export default function IniziativePopolare() {
     },
   });
 
-  // Carica la lista delle iniziative dal backend
-  const { data: listaIniziative = [], isLoading: isListaLoading } = useQuery<Array<{id: string, nome: string, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
-    queryKey: ["/api/iniziative-popolari/lista"], // URL CORRETTO
-    queryFn: fetcher,
-    enabled: !!user, // Esegui la query solo se l'utente è loggato
-  });
+  const [listaIniziative, setListaIniziative] = useState<any[]>([]);
+  const [isListaLoading, setIsListaLoading] = useState(false);
+  const [listaError, setListaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setIsListaLoading(true);
+    getDocs(collection(db, "iniziative_popolari"))
+      .then(snap => {
+        const arr = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setListaIniziative(arr);
+      })
+      .catch(() => setListaError("Errore nel caricamento delle iniziative popolari"))
+      .finally(() => setIsListaLoading(false));
+  }, [user]);
 
   // Mutazione per inviare una nuova iniziativa
   const submitInitiative = useMutation({
@@ -184,6 +196,7 @@ export default function IniziativePopolare() {
                   <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : (
                   <>
+                    {listaError && <div className="text-center text-red-500 p-4">{listaError}</div>}
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
