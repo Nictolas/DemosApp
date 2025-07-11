@@ -3,6 +3,12 @@ import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
+// DEBUG: Log variabili d'ambiente Firebase
+console.log("FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID);
+console.log("FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL);
+console.log("FIREBASE_PRIVATE_KEY exists:", !!process.env.FIREBASE_PRIVATE_KEY);
+console.log("FIREBASE_PRIVATE_KEY preview:", process.env.FIREBASE_PRIVATE_KEY?.slice(0, 30));
+
 // ==============================================================
 // CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
 // ==============================================================
