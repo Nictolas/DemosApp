@@ -7,219 +7,161 @@ import { Loader2, ArrowLeft, Building2, User, Users, Scale, Shield, Banknote, Br
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, deleteDoc, query, where } from "firebase/firestore";
 
-interface Classifica {
-  nome: string;
-  voti: number;
-}
+interface Classifica { nome: string; voti: number; }
 
-interface UserVoti {
-  [categoria: string]: string;
-}
-
-interface TutteClassifiche {
-  [categoria: string]: Classifica[];
-}
+const ministeri = [
+  { title: "Primo Ministro", categoria: "primo_ministro", icon: User, description: "Presidenza del Consiglio dei Ministri", color: "bg-red-100 text-red-600" },
+  { title: "Ministro degli Esteri", categoria: "esteri", icon: Building2, description: "Relazioni internazionali e cooperazione", color: "bg-blue-100 text-blue-600" },
+  { title: "Ministro dell'Interno", categoria: "interno", icon: Shield, description: "Sicurezza pubblica e amministrazione territoriale", color: "bg-green-100 text-green-600" },
+  { title: "Ministro della Giustizia", categoria: "giustizia", icon: Scale, description: "Sistema giudiziario e carcerario", color: "bg-purple-100 text-purple-600" },
+  { title: "Ministro della Difesa", categoria: "difesa", icon: Shield, description: "Forze armate e sicurezza nazionale", color: "bg-gray-100 text-gray-600" },
+  { title: "Ministro dell'Economia e delle Finanze", categoria: "economia", icon: Banknote, description: "Politiche economiche e fiscali", color: "bg-yellow-100 text-yellow-600" },
+  { title: "Ministro del Lavoro e delle Politiche Sociali", categoria: "lavoro", icon: Briefcase, description: "Occupazione e previdenza sociale", color: "bg-orange-100 text-orange-600" },
+  { title: "Ministro dell'Istruzione", categoria: "istruzione", icon: GraduationCap, description: "Sistema educativo e formazione", color: "bg-indigo-100 text-indigo-600" },
+  { title: "Ministro della Salute", categoria: "salute", icon: Heart, description: "Sanità pubblica e politiche sanitarie", color: "bg-pink-100 text-pink-600" },
+  { title: "Ministro della Cultura", categoria: "cultura", icon: Palette, description: "Patrimonio culturale e spettacolo", color: "bg-teal-100 text-teal-600" },
+  { title: "Ministro dell'Ambiente della Sicurezza Energetica", categoria: "ambiente_sicurezza_energetica", icon: Leaf, description: "Tutela dell'ambiente e sicurezza energetica", color: "bg-lime-100 text-lime-600" }
+];
 
 export default function Governo() {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const [userVoti, setUserVoti] = useState<UserVoti>({});
-  const [classifiche, setClassifiche] = useState<TutteClassifiche>({});
-  const [loadingVoti, setLoadingVoti] = useState(false);
-  const [votingCategory, setVotingCategory] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  const ministeri = [
-    {
-      title: "Primo Ministro",
-      categoria: "primo_ministro",
-      icon: User,
-      description: "Presidenza del Consiglio dei Ministri",
-      color: "bg-red-100 text-red-600"
-    },
-    {
-      title: "Ministro degli Esteri",
-      categoria: "esteri",
-      icon: Building2,
-      description: "Relazioni internazionali e cooperazione",
-      color: "bg-blue-100 text-blue-600"
-    },
-    {
-      title: "Ministro dell'Interno",
-      categoria: "interno",
-      icon: Shield,
-      description: "Sicurezza pubblica e amministrazione territoriale",
-      color: "bg-green-100 text-green-600"
-    },
-    {
-      title: "Ministro della Giustizia",
-      categoria: "giustizia",
-      icon: Scale,
-      description: "Sistema giudiziario e carcerario",
-      color: "bg-purple-100 text-purple-600"
-    },
-    {
-      title: "Ministro della Difesa",
-      categoria: "difesa",
-      icon: Shield,
-      description: "Forze armate e sicurezza nazionale",
-      color: "bg-gray-100 text-gray-600"
-    },
-    {
-      title: "Ministro dell'Economia e delle Finanze",
-      categoria: "economia",
-      icon: Banknote,
-      description: "Politiche economiche e fiscali",
-      color: "bg-yellow-100 text-yellow-600"
-    },
-    {
-      title: "Ministro del Lavoro e delle Politiche Sociali",
-      categoria: "lavoro",
-      icon: Briefcase,
-      description: "Occupazione e previdenza sociale",
-      color: "bg-orange-100 text-orange-600"
-    },
-    {
-      title: "Ministro dell'Istruzione",
-      categoria: "istruzione",
-      icon: GraduationCap,
-      description: "Sistema educativo e formazione",
-      color: "bg-indigo-100 text-indigo-600"
-    },
-    {
-      title: "Ministro della Salute",
-      categoria: "salute",
-      icon: Heart,
-      description: "Sanità pubblica e politiche sanitarie",
-      color: "bg-pink-100 text-pink-600"
-    },
-    {
-      title: "Ministro della Cultura",
-      categoria: "cultura",
-      icon: Palette,
-      description: "Patrimonio culturale e spettacolo",
-      color: "bg-teal-100 text-teal-600"
-    },
-    {
-      title: "Ministro dell'Ambiente della Sicurezza Energetica",
-      categoria: "ambiente_sicurezza_energetica",
-      icon: Leaf,
-      description: "Tutela dell'ambiente e sicurezza energetica",
-      color: "bg-lime-100 text-lime-600"
-    }
-  ];
-
-  const CATEGORIE_VALIDE = [
-    "primo_ministro",
-    "esteri",
-    "interno",
-    "giustizia",
-    "difesa",
-    "economia",
-    "lavoro",
-    "istruzione",
-    "salute",
-    "cultura",
-    "ambiente_sicurezza_energetica"
-  ];
-
-  // Carica i voti dell'utente e le classifiche
-  useEffect(() => {
-    if (user) {
-      loadUserData();
-    }
-  }, [user]);
+  const [userVoti, setUserVoti] = useState<{ [categoria: string]: string }>({});
+  const [classifiche, setClassifiche] = useState<{ [categoria: string]: Classifica[] }>({});
+  const [loading, setLoading] = useState(true);
+  const [isVoting, setIsVoting] = useState<{ [categoria: string]: boolean }>({});
+  const [input, setInput] = useState<{ [categoria: string]: string }>({});
+  const [deletingVote, setDeletingVote] = useState<{ [categoria: string]: boolean }>({});
 
   useEffect(() => {
-    if (user) {
-      fetch(`/api/users/${encodeURIComponent(user.uid)}`)
-        .then(res => res.json())
-        .then(data => setIsAdmin(data?.ruolo === 'Admin'));
+    if (!user) return;
+    setLoading(true);
+    async function fetchData() {
+      const snap = await getDocs(collection(db, "voti_ministri"));
+      const votiList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Classifiche per categoria
+      const classTemp: { [categoria: string]: Classifica[] } = {};
+      const userVotiTemp: { [categoria: string]: string } = {};
+      ministeri.forEach(m => {
+        const votiCat = votiList.filter(v => v.categoria === m.categoria);
+        // Classifica
+        const conteggio: Record<string, number> = {};
+        votiCat.forEach(v => {
+          if (v.nomeMinistro) conteggio[v.nomeMinistro] = (conteggio[v.nomeMinistro] || 0) + 1;
+        });
+        classTemp[m.categoria] = Object.entries(conteggio)
+          .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+          .sort((a, b) => b.voti - a.voti);
+        // Voto utente
+        const mioVoto = votiCat.find(v => v.userId === user.uid);
+        userVotiTemp[m.categoria] = mioVoto ? mioVoto.nomeMinistro : "";
+      });
+      setClassifiche(classTemp);
+      setUserVoti(userVotiTemp);
+      setInput(userVotiTemp);
+      setLoading(false);
     }
+    fetchData();
   }, [user]);
 
-  const loadUserData = async () => {
-    setLoadingVoti(true);
-    try {
-      // Carica i voti dell'utente
-      const votiResponse = await apiRequest("GET", "/api/governo/voti");
-      if (votiResponse.ok) {
-        const voti = (votiResponse.data && typeof votiResponse.data === 'object') ? votiResponse.data : {};
-        setUserVoti(voti);
-      }
-
-      // Carica tutte le classifiche
-      const classificheResponse = await apiRequest("GET", "/api/governo/classifica");
-      if (classificheResponse.ok) {
-        const classificheData = (classificheResponse.data && typeof classificheResponse.data === 'object') ? classificheResponse.data : {};
-        setClassifiche(classificheData);
-      }
-    } catch (error) {
-      console.error('Errore nel caricamento dati:', error);
-    } finally {
-      setLoadingVoti(false);
-    }
-  };
-
-  const handleVote = async (categoria: string, nomeMinistro: string) => {
-    console.log('DEBUG handleVote', { categoria, nomeMinistro });
-    if (!nomeMinistro.trim()) {
-      toast({
-        title: "Errore",
-        description: "Inserisci un nome valido",
-        variant: "destructive",
-      });
+  const handleVote = async (categoria: string) => {
+    if (!user) return;
+    const nomeMinistro = input[categoria]?.trim();
+    if (!nomeMinistro) {
+      toast({ title: "Errore", description: "Inserisci un nome valido", variant: "destructive" });
       return;
     }
-    if (!CATEGORIE_VALIDE.includes(categoria)) {
-      toast({
-        title: "Errore categoria",
-        description: `Categoria non valida: ${categoria}`,
-        variant: "destructive",
-      });
-      console.error('Categoria non valida in handleVote:', categoria, nomeMinistro);
+    if (userVoti[categoria] === nomeMinistro) {
+      toast({ title: "Voto già registrato", description: `Hai già votato per ${nomeMinistro}` });
       return;
     }
-    setVotingCategory(categoria);
+    setIsVoting(v => ({ ...v, [categoria]: true }));
     try {
-      const response = await apiRequest("POST", "/api/governo/vota", {
+      // Rimuovi eventuale voto precedente
+      const q = query(collection(db, "voti_ministri"), where("userId", "==", user.uid), where("categoria", "==", categoria));
+      const snap = await getDocs(q);
+      for (const docu of snap.docs) {
+        await deleteDoc(docu.ref);
+      }
+      // Aggiungi nuovo voto
+      await addDoc(collection(db, "voti_ministri"), {
         categoria,
-        nome: nomeMinistro.trim()
+        nomeMinistro,
+        nomeDisplay: nomeMinistro,
+        userId: user.uid,
+        timestamp: new Date().toISOString()
       });
-
-      if (response.ok) {
-        toast({
-          title: "Voto registrato",
-          description: `Hai votato ${nomeMinistro} per ${ministeri.find(m => m.categoria === categoria)?.title}`,
+      toast({ title: "Voto registrato", description: `Hai votato ${nomeMinistro}` });
+      // Ricarica dati
+      const snapAll = await getDocs(collection(db, "voti_ministri"));
+      const votiList = snapAll.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const classTemp: { [categoria: string]: Classifica[] } = {};
+      const userVotiTemp: { [categoria: string]: string } = {};
+      ministeri.forEach(m => {
+        const votiCat = votiList.filter(v => v.categoria === m.categoria);
+        const conteggio: Record<string, number> = {};
+        votiCat.forEach(v => {
+          if (v.nomeMinistro) conteggio[v.nomeMinistro] = (conteggio[v.nomeMinistro] || 0) + 1;
         });
-        
-        // Aggiorna i dati
-        await loadUserData();
-      } else {
-        const error = response.data;
-        toast({
-          title: "Errore",
-          description: error.error || "Errore nel registrare il voto",
-          variant: "destructive",
-        });
-      }
+        classTemp[m.categoria] = Object.entries(conteggio)
+          .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+          .sort((a, b) => b.voti - a.voti);
+        const mioVoto = votiCat.find(v => v.userId === user.uid);
+        userVotiTemp[m.categoria] = mioVoto ? mioVoto.nomeMinistro : "";
+      });
+      setClassifiche(classTemp);
+      setUserVoti(userVotiTemp);
+      setInput(userVotiTemp);
     } catch (error) {
-      console.error('Errore nel votare:', error);
-      toast({
-        title: "Errore",
-        description: "Errore di connessione",
-        variant: "destructive",
-      });
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
-      setVotingCategory(null);
+      setIsVoting(v => ({ ...v, [categoria]: false }));
     }
   };
 
-  if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  const removeVote = async (categoria: string) => {
+    if (!user) return;
+    setDeletingVote(v => ({ ...v, [categoria]: true }));
+    try {
+      const q = query(collection(db, "voti_ministri"), where("userId", "==", user.uid), where("categoria", "==", categoria));
+      const snap = await getDocs(q);
+      for (const docu of snap.docs) {
+        await deleteDoc(docu.ref);
+      }
+      toast({ title: "Voto rimosso", description: "Hai rimosso il tuo voto." });
+      // Ricarica dati
+      const snapAll = await getDocs(collection(db, "voti_ministri"));
+      const votiList = snapAll.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const classTemp: { [categoria: string]: Classifica[] } = {};
+      const userVotiTemp: { [categoria: string]: string } = {};
+      ministeri.forEach(m => {
+        const votiCat = votiList.filter(v => v.categoria === m.categoria);
+        const conteggio: Record<string, number> = {};
+        votiCat.forEach(v => {
+          if (v.nomeMinistro) conteggio[v.nomeMinistro] = (conteggio[v.nomeMinistro] || 0) + 1;
+        });
+        classTemp[m.categoria] = Object.entries(conteggio)
+          .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+          .sort((a, b) => b.voti - a.voti);
+        const mioVoto = votiCat.find(v => v.userId === user.uid);
+        userVotiTemp[m.categoria] = mioVoto ? mioVoto.nomeMinistro : "";
+      });
+      setClassifiche(classTemp);
+      setUserVoti(userVotiTemp);
+      setInput(userVotiTemp);
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
+    } finally {
+      setDeletingVote(v => ({ ...v, [categoria]: false }));
+    }
+  };
+
+  if (!authReady || isLoading || loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
   return (
@@ -232,7 +174,6 @@ export default function Governo() {
         >
           <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
         </Button>
-        
         <Card className="mb-6">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
@@ -248,170 +189,97 @@ export default function Governo() {
             </CardDescription>
           </CardHeader>
         </Card>
-
-        {loadingVoti ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ministeri.map((ministero) => {
-              console.log('DEBUG MINISTERO:', ministero);
-              return (
-                <MinisteroCard
-                  key={ministero.categoria}
-                  ministero={ministero}
-                  userVote={userVoti[ministero.categoria] || ""}
-                  classifica={classifiche[ministero.categoria] || []}
-                  onVote={(nome) => handleVote(ministero.categoria, nome)}
-                  isVoting={votingCategory === ministero.categoria}
-                  toast={toast}
-                />
-              );
-            })}
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {ministeri.map((ministero) => (
+            <Card key={ministero.categoria} className="hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`p-3 rounded-lg ${ministero.color}`}>
+                    <ministero.icon className="h-6 w-6" />
+                  </div>
+                  {userVoti[ministero.categoria] && (
+                    <Badge variant="default">
+                      <Vote className="h-3 w-3 mr-1" />
+                      Votato
+                    </Badge>
+                  )}
+                </div>
+                <CardTitle className="text-lg leading-tight">
+                  {ministero.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {ministero.description}
+                </p>
+                {/* Form di voto */}
+                <form onSubmit={e => { e.preventDefault(); handleVote(ministero.categoria); }} className="space-y-2">
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Nome del candidato..."
+                      value={input[ministero.categoria] || ""}
+                      onChange={e => setInput(i => ({ ...i, [ministero.categoria]: e.target.value }))}
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="submit" 
+                      size="sm" 
+                      disabled={isVoting[ministero.categoria] || !(input[ministero.categoria] && input[ministero.categoria].trim())}
+                    >
+                      {isVoting[ministero.categoria] ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Vote className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  {userVoti[ministero.categoria] && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Il tuo voto attuale: <strong>{userVoti[ministero.categoria]}</strong>
+                      </p>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="destructive"
+                        className="ml-2"
+                        onClick={() => removeVote(ministero.categoria)}
+                        disabled={deletingVote[ministero.categoria]}
+                      >
+                        {deletingVote[ministero.categoria] ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  )}
+                </form>
+                {/* Classifica */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold flex items-center">
+                    <Trophy className="h-4 w-4 mr-1 text-yellow-500" />
+                    Top 3
+                  </h4>
+                  {classifiche[ministero.categoria]?.length > 0 ? (
+                    <div className="space-y-1">
+                      {classifiche[ministero.categoria].map((candidato, index) => (
+                        <div key={candidato.nome} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-yellow-600">#{index + 1}</span>
+                            <span className="truncate">{candidato.nome}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {candidato.voti} voti
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Nessun voto ancora</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
-  );
-}
-
-interface MinisteroCardProps {
-  ministero: {
-    title: string;
-    categoria: string;
-    icon: any;
-    description: string;
-    color: string;
-  };
-  userVote: string;
-  classifica: Classifica[];
-  onVote: (nome: string) => void;
-  isVoting: boolean;
-  toast: any;
-}
-
-function MinisteroCard({ ministero, userVote, classifica, onVote, isVoting, toast }: MinisteroCardProps) {
-  const { user } = useAuth();
-  const [nomeInput, setNomeInput] = useState(userVote);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    setNomeInput(userVote);
-  }, [userVote]);
-
-  useEffect(() => {
-    if (user) {
-      fetch(`/api/users/${encodeURIComponent(user.uid)}`)
-        .then(res => res.json())
-        .then(data => setIsAdmin(data?.ruolo === 'Admin'));
-    }
-  }, [user]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onVote(nomeInput);
-  };
-
-  const handleDelete = async (nome: string) => {
-    if (!window.confirm(`Sei sicuro di voler cancellare ${nome}?`)) return;
-    try {
-      const res = await apiRequest("DELETE", `/api/governo/classifica/${ministero.categoria}/${encodeURIComponent(nome)}`);
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        toast({ title: 'Errore', description: 'Impossibile cancellare il candidato', variant: 'destructive' });
-      }
-    } catch (e) {
-      toast({ title: 'Errore', description: 'Errore di rete', variant: 'destructive' });
-    }
-  };
-
-  return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-center justify-between mb-2">
-          <div className={`p-3 rounded-lg ${ministero.color}`}>
-            <ministero.icon className="h-6 w-6" />
-          </div>
-          {userVote && (
-            <Badge variant="default">
-              <Vote className="h-3 w-3 mr-1" />
-              Votato
-            </Badge>
-          )}
-        </div>
-        <CardTitle className="text-lg leading-tight">
-          {ministero.title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          {ministero.description}
-        </p>
-
-        {/* Form di voto */}
-        <form onSubmit={handleSubmit} className="space-y-2">
-          <div className="flex space-x-2">
-            <Input
-              placeholder="Nome del candidato..."
-              value={nomeInput}
-              onChange={(e) => setNomeInput(e.target.value)}
-              className="flex-1"
-            />
-            <Button 
-              type="submit" 
-              size="sm" 
-              disabled={isVoting || !nomeInput.trim()}
-            >
-              {isVoting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Vote className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-          {userVote && (
-            <p className="text-xs text-muted-foreground">
-              Il tuo voto attuale: <strong>{userVote}</strong>
-            </p>
-          )}
-        </form>
-
-        {/* Classifica */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-semibold flex items-center">
-            <Trophy className="h-4 w-4 mr-1 text-yellow-500" />
-            Top 3
-          </h4>
-          {classifica.length > 0 ? (
-            <div className="space-y-1">
-              {classifica.map((candidato, index) => (
-                <div key={candidato.nome} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-yellow-600">#{index + 1}</span>
-                    <span className="truncate">{candidato.nome}</span>
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleDelete(candidato.nome)}
-                        className="ml-2 text-red-600 hover:text-red-800"
-                        title="Elimina candidato"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {candidato.voti} voti
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">Nessun voto ancora</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
