@@ -148,14 +148,14 @@ export default function Governo() {
       // Carica i voti dell'utente
       const votiResponse = await apiRequest("GET", "/api/governo/voti");
       if (votiResponse.ok) {
-        const voti = votiResponse.data;
+        const voti = (votiResponse.data && typeof votiResponse.data === 'object') ? votiResponse.data : {};
         setUserVoti(voti);
       }
 
       // Carica tutte le classifiche
       const classificheResponse = await apiRequest("GET", "/api/governo/classifica");
       if (classificheResponse.ok) {
-        const classificheData = classificheResponse.data;
+        const classificheData = (classificheResponse.data && typeof classificheResponse.data === 'object') ? classificheResponse.data : {};
         setClassifiche(classificheData);
       }
     } catch (error) {

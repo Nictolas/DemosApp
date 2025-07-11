@@ -39,8 +39,8 @@ export default function CapodiStato() {
         apiRequest("GET", "/api/capo-stato/voti"),
         apiRequest("GET", "/api/capo-stato/classifica")
       ]);
-      if (votiResponse.ok) setUserVoti(votiResponse.data);
-      if (classificaResponse.ok) setClassifica(classificaResponse.data);
+      if (votiResponse.ok) setUserVoti(Array.isArray(votiResponse.data) ? votiResponse.data : []);
+      if (classificaResponse.ok) setClassifica(Array.isArray(classificaResponse.data) ? classificaResponse.data : []);
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
