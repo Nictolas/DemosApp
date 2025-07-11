@@ -15,6 +15,9 @@ import { Loader2, Plus, ExternalLink, Calendar, ArrowLeft, ClipboardList, Check,
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { useEffect } from "react";
 
 const iceSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
@@ -69,12 +72,21 @@ export default function ICE() {
     },
   });
 
-  // Carica la lista delle ICE dal backend
-  const { data: listaICE = [], isLoading: isListaLoading } = useQuery<Array<{id: string, nome: string, dataInizio: string, dataFine: string, sitoWeb?: string, quorum?: 'ok' | 'pending' | 'no'}>>({
-    queryKey: ["/api/ice/lista"],
-    queryFn: fetcher,
-    enabled: !!user,
-  });
+  const [listaICE, setListaICE] = useState<any[]>([]);
+  const [isListaLoading, setIsListaLoading] = useState(false);
+  const [listaError, setListaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    setIsListaLoading(true);
+    getDocs(collection(db, "ice"))
+      .then(snap => {
+        const arr = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setListaICE(arr);
+      })
+      .catch(() => setListaError("Errore nel caricamento delle ICE"))
+      .finally(() => setIsListaLoading(false));
+  }, [user]);
 
   // Mutazione per inviare una nuova ICE
   const submitICE = useMutation({
@@ -172,8 +184,22 @@ export default function ICE() {
     }
   };
 
-  const onSubmit = (data: ICEFormData) => {
-    submitICE.mutate(data);
+  // Proponi nuova ICE direttamente su Firestore
+  const onSubmit = async (data: ICEFormData) => {
+    try {
+      await addDoc(collection(db, "ice"), {
+        ...data,
+        quorum: "pending",
+        data_creazione: new Date().toISOString(),
+      });
+      toast({ title: "ICE proposta", description: "La tua ICE è stata proposta con successo." });
+      form.reset();
+      setShowForm(false);
+      // Ricarica la lista
+      getDocs(collection(db, "ice")).then(snap => setListaICE(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore nell'invio della ICE", variant: "destructive" });
+    }
   };
 
   const openEdit = (ice: any) => {
@@ -187,9 +213,16 @@ export default function ICE() {
     });
   };
 
-  const onEditSubmit = (data: ICEFormData) => {
-    if (editICE) {
-      patchICE.mutate({ id: editICE.id, data });
+  // Modifica ICE direttamente su Firestore
+  const onEditSubmit = async (data: ICEFormData) => {
+    if (!editICE) return;
+    try {
+      await updateDoc(doc(db, "ice", editICE.id), data);
+      toast({ title: "ICE modificata", description: "La ICE è stata aggiornata." });
+      setEditICE(null);
+      getDocs(collection(db, "ice")).then(snap => setListaICE(snap.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore nella modifica della ICE", variant: "destructive" });
     }
   };
 
@@ -250,6 +283,7 @@ export default function ICE() {
                   <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : (
                   <>
+                    {listaError && <div className="text-center text-red-500 p-4">{listaError}</div>}
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
