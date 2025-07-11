@@ -70,6 +70,8 @@ export default function GestisciGrazia() {
     }
   };
 
+  const safeRequests = Array.isArray(requests) ? requests : [];
+
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
@@ -100,11 +102,11 @@ export default function GestisciGrazia() {
               <div className="text-center py-8">Caricamento richieste...</div>
             ) : error ? (
               <div className="text-center text-red-500 py-8">{error}</div>
-            ) : requests.length === 0 ? (
+            ) : safeRequests.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">Nessuna richiesta pendente.</div>
             ) : (
               <div className="space-y-4">
-                {requests.map(r => (
+                {safeRequests.map(r => (
                   <div key={r.id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                     <div>
                       <div className="font-semibold">{r.nome}</div>

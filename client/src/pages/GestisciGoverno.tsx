@@ -125,6 +125,8 @@ export default function GestisciGoverno() {
     }
   };
 
+  const safeMinisteri = Array.isArray(ministeri) ? ministeri : [];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
@@ -179,10 +181,10 @@ export default function GestisciGoverno() {
                     </tr>
                   </thead>
                   <tbody>
-                    {ministeri.length === 0 && (
+                    {safeMinisteri.length === 0 && (
                       <tr><td colSpan={4} className="text-center py-4">Nessun ministero presente.</td></tr>
                     )}
-                    {ministeri.map((m) => (
+                    {safeMinisteri.map((m) => (
                       <tr key={m.id} className="hover:bg-yellow-50">
                         {editId === m.id ? (
                           <>

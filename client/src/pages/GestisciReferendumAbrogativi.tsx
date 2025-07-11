@@ -65,6 +65,8 @@ export default function GestisciReferendumAbrogativi() {
     return <Redirect to="/menu" />;
   }
 
+  const safeRequests = Array.isArray(requests) ? requests : [];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-100 p-4">
       <div className="container mx-auto max-w-4xl">
@@ -81,7 +83,7 @@ export default function GestisciReferendumAbrogativi() {
           <CardContent>
             {loading ? (
               <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-            ) : requests.length === 0 ? (
+            ) : safeRequests.length === 0 ? (
               <div className="text-center py-8 text-gray-500"><Vote className="h-12 w-12 mx-auto mb-4 opacity-50" /><p>Nessuna richiesta pending.</p></div>
             ) : (
               <div className="overflow-x-auto">
@@ -96,7 +98,7 @@ export default function GestisciReferendumAbrogativi() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {requests.map((r: any) => (
+                    {safeRequests.map((r: any) => (
                       <TableRow key={r.id}>
                         <TableCell>{r.nome}</TableCell>
                         <TableCell>{new Date(r.dataInizio).toLocaleDateString('it-IT')} - {new Date(r.dataFine).toLocaleDateString('it-IT')}</TableCell>

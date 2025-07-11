@@ -233,6 +233,8 @@ export default function GestisciElezioni() {
     }
   };
 
+  const safeElezioni = Array.isArray(elezioni) ? elezioni : [];
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -414,7 +416,7 @@ export default function GestisciElezioni() {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Caricamento elezioni...</div>
-          ) : elezioni.length === 0 ? (
+          ) : safeElezioni.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               Nessuna elezione trovata. Aggiungi la prima elezione utilizzando il pulsante sopra.
             </div>
@@ -432,7 +434,7 @@ export default function GestisciElezioni() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {elezioni.map((elezione) => (
+                  {safeElezioni.map((elezione) => (
                     <TableRow key={elezione.id}>
                       <TableCell className="font-medium capitalize">{elezione.tipo}</TableCell>
                       <TableCell>{elezione.zona}</TableCell>

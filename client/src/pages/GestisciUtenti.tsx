@@ -224,6 +224,10 @@ function GestisciUtenti() {
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
+  const safePendingUsers = Array.isArray(pendingUsers) ? pendingUsers : [];
+  const safeUsers = Array.isArray(users) ? users : [];
+  const safePaginatedUsers = Array.isArray(paginatedUsers) ? paginatedUsers : [];
+
   // DEBUG BOX A SCHERMO ESTESO
   const debugBox = (
     <div style={{ background: '#fffbe6', color: '#b36b00', border: '1px solid #ffe58f', padding: 12, marginBottom: 16, fontSize: 13, borderRadius: 6 }}>
@@ -233,15 +237,15 @@ function GestisciUtenti() {
       <b>user:</b> <pre style={{ display: 'inline', whiteSpace: 'pre-wrap' }}>{user ? JSON.stringify(user, null, 2) : 'null'}</pre><br/>
       <b>error:</b> {error ? error.toString() : 'null'}<br/>
       <b>isLoadingUsers:</b> {String(isLoadingUsers)}<br/>
-      <b>pendingUsers.length:</b> {pendingUsers.length}<br/>
-      <b>users.length:</b> {users.length}
+      <b>pendingUsers.length:</b> {safePendingUsers.length}<br/>
+      <b>users.length:</b> {safeUsers.length}
     </div>
   );
 
   // Loggo in console questi valori all'avvio e dopo ogni fetch
   useEffect(() => {
-    console.log('[DEBUG] authReady:', authReady, 'isLoading:', isLoading, 'user:', user, 'error:', error, 'isLoadingUsers:', isLoadingUsers, 'pendingUsers.length:', pendingUsers.length, 'users.length:', users.length);
-  }, [authReady, isLoading, user, error, isLoadingUsers, pendingUsers.length, users.length]);
+    console.log('[DEBUG] authReady:', authReady, 'isLoading:', isLoading, 'user:', user, 'error:', error, 'isLoadingUsers:', isLoadingUsers, 'pendingUsers.length:', safePendingUsers.length, 'users.length:', safeUsers.length);
+  }, [authReady, isLoading, user, error, isLoadingUsers, safePendingUsers.length, safeUsers.length]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
@@ -261,12 +265,12 @@ function GestisciUtenti() {
           </Button>
           
           {/* SEZIONE UTENTI IN ATTESA */}
-          {pendingUsers.length > 0 && (
+          {safePendingUsers.length > 0 && (
             <Card className="mb-8 border-yellow-500">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-yellow-600 flex items-center">
                   <AlertCircle className="mr-2 h-5 w-5" />
-                  Utenti in Attesa di Approvazione ({pendingUsers.length})
+                  Utenti in Attesa di Approvazione ({safePendingUsers.length})
                 </CardTitle>
                 <CardDescription>
                   Questi utenti si sono registrati e attendono la tua approvazione per accedere.
@@ -283,7 +287,7 @@ function GestisciUtenti() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pendingUsers.map((pendingUser) => (
+                    {safePendingUsers.map((pendingUser) => (
                       <TableRow key={pendingUser.id}>
                         <TableCell>
                           <Link href={`/profilo/${pendingUser.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
@@ -401,8 +405,8 @@ function GestisciUtenti() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paginatedUsers.length > 0 ? (
-                          paginatedUsers.map((user) => (
+                        {safePaginatedUsers.length > 0 ? (
+                          safePaginatedUsers.map((user) => (
                             <TableRow key={user.id}>
                               <TableCell colSpan={2}>
                                 <Link href={`/profilo/${user.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
