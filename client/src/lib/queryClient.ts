@@ -13,15 +13,15 @@ export const apiRequest = async (method: string, url: string, body?: any) => {
     'Content-Type': 'application/json',
   };
   // DEBUG: logga lo stato di auth.currentUser
-  console.log("[apiRequest] auth.currentUser:", auth.currentUser);
+  console.log("[apiRequest] DEBUG: auth.currentUser:", auth.currentUser);
   // Aggiungi token Firebase se presente
   const user = auth.currentUser;
   if (user) {
     const idToken = await user.getIdToken();
-    console.log("[apiRequest] TOKEN JWT:", idToken);
+    console.log("[apiRequest] DEBUG: TOKEN JWT:", idToken);
     headers['Authorization'] = `Bearer ${idToken}`;
   } else {
-    console.warn("[apiRequest] Nessun utente Firebase loggato, Authorization non aggiunto");
+    console.warn("[apiRequest] DEBUG: Nessun utente Firebase loggato, Authorization non aggiunto");
   }
   return fetch(url, {
     method,
