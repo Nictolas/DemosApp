@@ -35,8 +35,8 @@ export default function Grazia() {
         apiRequest("GET", "/api/grazia/voti"),
         apiRequest("GET", "/api/grazia/classifica")
       ]);
-      if (votiResponse.ok) setUserVoti(votiResponse.data);
-      if (classificaResponse.ok) setClassifica(classificaResponse.data);
+      if (votiResponse.ok) setUserVoti(Array.isArray(votiResponse.data) ? votiResponse.data : []);
+      if (classificaResponse.ok) setClassifica(Array.isArray(classificaResponse.data) ? classificaResponse.data : []);
     } catch (error) {
       console.error('Errore nel caricamento dati:', error);
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
@@ -110,7 +110,7 @@ export default function Grazia() {
         setUserVoti(currentVotes => currentVotes.filter(voto => voto !== nomeDaRimuovere));
         // Ricarica la classifica per aggiornare il conteggio
         const classificaResponse = await apiRequest("GET", "/api/grazia/classifica");
-        if (classificaResponse.ok) setClassifica(classificaResponse.data);
+        if (classificaResponse.ok) setClassifica(Array.isArray(classificaResponse.data) ? classificaResponse.data : []);
       } else {
         const error = response.data;
         toast({ title: "Errore", description: error.error || "Errore nella rimozione", variant: "destructive" });
