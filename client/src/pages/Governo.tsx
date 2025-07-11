@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 
 interface Classifica {
   nome: string;
@@ -23,6 +24,7 @@ interface TutteClassifiche {
 }
 
 export default function Governo() {
+  const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [userVoti, setUserVoti] = useState<UserVoti>({});
@@ -217,17 +219,8 @@ export default function Governo() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
+  if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!user) return <Redirect to="/auth" />;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">

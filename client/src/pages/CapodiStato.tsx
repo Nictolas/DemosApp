@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ interface Classifica {
 }
 
 export default function CapodiStato() {
+  const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [userVoti, setUserVoti] = useState<string[]>([]);
@@ -132,7 +134,7 @@ export default function CapodiStato() {
     }
   };
 
-  if (isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
   return (
