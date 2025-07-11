@@ -403,7 +403,7 @@ app.get('/api/eventi', async (req, res) => res.json(await EventiService.getAllEv
 
 // Voti
 const createVotingEndpoints = (path, methods, entityKey = 'nome') => {
-  app.post(`/api/${path}/vota`, requireAuth, async (req, res) => {
+  app.post(`/api/${path}/vota`, requireFirebaseAuth, async (req, res) => {
     let name;
     if (path === 'iniziative-popolari') {
       name = req.body.iniziativaId;
@@ -421,7 +421,7 @@ const createVotingEndpoints = (path, methods, entityKey = 'nome') => {
     res.json(result);
   });
 
-  app.get(`/api/${path}/voti`, requireAuth, async (req, res) => {
+  app.get(`/api/${path}/voti`, requireFirebaseAuth, async (req, res) => {
     const getUserVotiMethod = methods.getUserVoti;
     if (typeof VotoService[getUserVotiMethod] !== 'function') {
         return res.status(500).json({ error: "Invalid getUserVoti method configured" });
@@ -430,7 +430,7 @@ const createVotingEndpoints = (path, methods, entityKey = 'nome') => {
   });
 
   if (methods.removeVote) {
-    app.delete(`/api/${path}/voti/:name`, requireAuth, async (req, res) => {
+    app.delete(`/api/${path}/voti/:name`, requireFirebaseAuth, async (req, res) => {
         const removeVoteMethod = methods.removeVote;
         if (typeof VotoService[removeVoteMethod] !== 'function') {
             return res.status(500).json({ error: "Invalid removeVote method configured" });
