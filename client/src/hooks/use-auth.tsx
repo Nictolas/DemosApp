@@ -167,5 +167,8 @@ export function useAuth() {
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
+  useEffect(() => {
+    console.log("DEBUG useAuth: user", context.user, "isLoading", context.isLoading, "error", context.error);
+  }, [context.user, context.isLoading, context.error]);
   return context;
 }
