@@ -1,249 +1,158 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect } from "wouter";
+import { useAuthReady } from "@/hooks/use-auth-ready";
+import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Scale, Vote, Trophy, Plus, X, ThumbsUp } from "lucide-react";
+import { Loader2, ArrowLeft, FileText, Trophy, Plus, X, ThumbsUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, deleteDoc, query, where } from "firebase/firestore";
 
-interface Classifica {
-  nome: string;
-  voti: number;
-}
+interface Classifica { legge: string; voti: number; }
 
 export default function Amnistia() {
+  const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [userVoti, setUserVoti] = useState<string[]>([]);
   const [classifica, setClassifica] = useState<Classifica[]>([]);
-  const [loadingData, setLoadingData] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [isVoting, setIsVoting] = useState(false);
   const [leggeInput, setLeggeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [deletingClassifica, setDeletingClassifica] = useState<string | null>(null);
+  const [deletingVote, setDeletingVote] = useState<string | null>(null);
 
-  // Carica i dati dell'utente e la classifica
+  // Carica classifica e voti utente
   useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user]);
-
-  const loadData = async () => {
+    if (!user) return;
     setLoadingData(true);
-    try {
-      // Carica i voti dell'utente
-      const votiResponse = await apiRequest("GET", "/api/amnistia/voti");
-      if (votiResponse.ok) {
-        const voti = votiResponse.data;
-        setUserVoti(voti);
-      }
-
-      // Carica la classifica
-      const classificaResponse = await apiRequest("GET", "/api/amnistia/classifica");
-      if (classificaResponse.ok) {
-        const classificaData = classificaResponse.data;
-        setClassifica(classificaData);
-      }
-
-      // Carica il profilo utente
-      if (user) {
-        const userResponse = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
-        if (userResponse.ok) {
-          const userData = userResponse.data;
-          setUserProfile(userData);
-        }
-      }
-    } catch (error) {
-      console.error('Errore nel caricamento dati:', error);
-    } finally {
+    async function fetchData() {
+      // Recupera tutti i voti
+      const snapshot = await getDocs(collection(db, "voti_amnistia"));
+      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Classifica
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.legge) conteggio[v.legge] = (conteggio[v.legge] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([legge, voti]) => ({ legge, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      // Voti utente
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.legge);
+      setUserVoti(mieiVoti);
       setLoadingData(false);
     }
-  };
+    fetchData();
+  }, [user]);
 
   const handleVote = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!leggeInput.trim()) {
-      toast({
-        title: "Errore",
-        description: "Inserisci una legge valida",
-        variant: "destructive",
-      });
+    if (!leggeInput.trim()) return;
+    if (userVoti.includes(leggeInput.trim())) {
+      toast({ title: "Voto già registrato", description: `Hai già votato per l'amnistia di: ${leggeInput.trim()}` });
       return;
     }
-
-    await voteForLaw(leggeInput.trim());
-  };
-
-  const voteForLaw = async (legge: string) => {
-    // Check if user has already voted for this law
-    if (userVoti.includes(legge)) {
-      toast({
-        title: "Voto già registrato",
-        description: `Hai già votato per ${legge}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsVoting(true);
     try {
-      const datiVoto = { legge };
-      const responseVota = await apiRequest("POST", "/api/amnistia/vota", datiVoto);
-
-      if (responseVota.ok) {
-        toast({
-          title: "Voto registrato",
-          description: `Hai votato ${legge} per l'amnistia`,
-        });
-        
-        setLeggeInput("");
-        setShowSuggestions(false);
-        await loadData();
-      } else {
-        const error = responseVota.error;
-        toast({
-          title: "Errore",
-          description: error.error || "Errore nel registrare il voto",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Errore nel votare:', error);
-      toast({
-        title: "Errore",
-        description: "Errore di connessione",
-        variant: "destructive",
+      await addDoc(collection(db, "voti_amnistia"), {
+        legge: leggeInput.trim(),
+        userId: user.uid,
+        timestamp: new Date().toISOString()
       });
+      toast({ title: "Voto registrato", description: `Hai votato per l'amnistia di: ${leggeInput.trim()}` });
+      setLeggeInput("");
+      // Ricarica dati
+      const snapshot = await getDocs(collection(db, "voti_amnistia"));
+      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.legge) conteggio[v.legge] = (conteggio[v.legge] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([legge, voti]) => ({ legge, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.legge);
+      setUserVoti(mieiVoti);
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
       setIsVoting(false);
     }
   };
 
-  const removeVote = async (legge: string) => {
-    setIsDeleting(legge);
+  const removeVote = async (leggeDaRimuovere: string) => {
+    if (deletingVote) return;
+    if (!window.confirm(`Sei sicuro di voler rimuovere il voto per l'amnistia di "${leggeDaRimuovere}"?`)) return;
+    setDeletingVote(leggeDaRimuovere);
     try {
-      const responseRemove = await apiRequest("DELETE", `/api/amnistia/voto/${encodeURIComponent(legge)}`);
-
-      if (responseRemove.ok) {
-        toast({
-          title: "Voto rimosso",
-          description: `Hai rimosso il voto per ${legge}`,
-        });
-        
-        await loadData();
-      } else {
-        const error = responseRemove.error;
-        toast({
-          title: "Errore",
-          description: error.error || "Errore nel rimuovere il voto",
-          variant: "destructive",
-        });
+      // Trova il documento da eliminare
+      const q = query(collection(db, "voti_amnistia"), where("userId", "==", user.uid), where("legge", "==", leggeDaRimuovere));
+      const snapshot = await getDocs(q);
+      for (const docu of snapshot.docs) {
+        await deleteDoc(docu.ref);
       }
-    } catch (error) {
-      console.error('Errore nel rimuovere il voto:', error);
-      toast({
-        title: "Errore",
-        description: "Errore di connessione",
-        variant: "destructive",
+      toast({ title: "Voto rimosso", description: `Hai rimosso il voto per l'amnistia di: ${leggeDaRimuovere}` });
+      // Ricarica dati
+      const allSnap = await getDocs(collection(db, "voti_amnistia"));
+      const votiList = allSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.legge) conteggio[v.legge] = (conteggio[v.legge] || 0) + 1;
       });
-    } finally {
-      setIsDeleting(null);
-    }
-  };
-
-  const deleteFromClassifica = async (nome: string) => {
-    if (user?.ruolo !== "Admin") return;
-    if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
-    setDeletingClassifica(nome);
-    try {
-      const responseClassifica = await apiRequest("DELETE", `/api/amnistia/classifica/${encodeURIComponent(nome)}`);
-      if (responseClassifica.ok) {
-        toast({ title: "Legge eliminata", description: `${nome} è stata rimossa dalla classifica.` });
-        await loadData();
-      } else {
-        const error = responseClassifica.error;
-        toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
-      }
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([legge, voti]) => ({ legge, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.legge);
+      setUserVoti(mieiVoti);
     } catch (error) {
       toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
-      setDeletingClassifica(null);
+      setDeletingVote(null);
     }
   };
 
   const getSuggestions = () => {
     if (!leggeInput.trim() || !showSuggestions) return [];
-    
     return classifica
-      .filter(item => 
-        item.nome.toLowerCase().includes(leggeInput.toLowerCase()) &&
-        item.nome.toLowerCase() !== leggeInput.toLowerCase()
-      )
+      .filter(item => item.legge.toLowerCase().includes(leggeInput.toLowerCase()) && item.legge.toLowerCase() !== leggeInput.toLowerCase())
       .slice(0, 5);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
+  if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (!user) return <Redirect to="/auth" />;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
-        <Button 
-          variant="ghost" 
-          className="mb-4 flex items-center"
-          onClick={() => window.location.href = "/menu"}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
-        </Button>
-        
+        <Link href="/menu">
+          <Button variant="ghost" className="mb-4 flex items-center">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+          </Button>
+        </Link>
+
         <Card className="mb-6">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-4 bg-gradient-to-r from-orange-500 to-orange-700 rounded-full">
-                <Scale className="h-12 w-12 text-white" />
-              </div>
-            </div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-orange-800 bg-clip-text text-transparent">
-              Amnistia
-            </CardTitle>
-            <CardDescription className="text-lg">
-              Vota per le leggi che meritano l'amnistia (puoi votare più leggi)
-            </CardDescription>
+            <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full"><FileText className="h-12 w-12 text-white" /></div></div>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">Amnistia</CardTitle>
+            <CardDescription className="text-lg">Vota per l'amnistia di una legge. Puoi esprimere più preferenze.</CardDescription>
           </CardHeader>
         </Card>
 
         {loadingData ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : (
           <div className="space-y-6">
-            {/* Form di voto */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Vote className="h-5 w-5" />
-                  <span>Vota per l'Amnistia</span>
-                </CardTitle>
-                <CardDescription>
-                  Inserisci il nome della legge che meriterebbe l'amnistia
-                </CardDescription>
+                <CardTitle className="flex items-center space-x-2"><FileText className="h-5 w-5" /><span>La tua richiesta di amnistia</span></CardTitle>
+                <CardDescription>Inserisci la legge per cui vuoi chiedere l'amnistia.</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleVote} className="space-y-4">
@@ -252,10 +161,7 @@ export default function Amnistia() {
                       <Input
                         placeholder="Nome della legge..."
                         value={leggeInput}
-                        onChange={(e) => {
-                          setLeggeInput(e.target.value);
-                          setShowSuggestions(true);
-                        }}
+                        onChange={(e) => { setLeggeInput(e.target.value); setShowSuggestions(true); }}
                         onFocus={() => setShowSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         className="w-full"
@@ -267,118 +173,66 @@ export default function Amnistia() {
                               key={index}
                               type="button"
                               className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                              onClick={() => {
-                                setLeggeInput(suggestion.nome);
-                                setShowSuggestions(false);
-                              }}
+                              onClick={() => { setLeggeInput(suggestion.legge); setShowSuggestions(false); }}
                             >
-                              {suggestion.nome} ({suggestion.voti} voti)
+                              {suggestion.legge} ({suggestion.voti} voti)
                             </button>
                           ))}
                         </div>
                       )}
                     </div>
-                    <Button 
-                      type="submit" 
-                      disabled={isVoting || !leggeInput.trim()}
-                    >
-                      {isVoting ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Plus className="h-4 w-4 mr-2" />
-                      )}
-                      Vota
+                    <Button type="submit" disabled={isVoting || !leggeInput.trim()}>
+                      {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                      Vota Amnistia
                     </Button>
                   </div>
                 </form>
 
                 {userVoti.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="text-sm font-semibold mb-2">I tuoi voti:</h4>
+                    <h4 className="text-sm font-semibold mb-2">Le tue richieste di amnistia:</h4>
                     <div className="flex flex-wrap gap-2">
                       {userVoti.map((voto, index) => (
                         <Badge 
                           key={index} 
                           variant="default"
-                          className="cursor-pointer hover:bg-destructive/90 transition-colors"
+                          className="cursor-pointer hover:bg-destructive/90 transition-colors flex items-center gap-2"
                           onClick={() => removeVote(voto)}
                         >
-                          <Vote className="h-3 w-3 mr-1" />
+                          {deletingVote === voto ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
                           {voto}
                         </Badge>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Clicca su un nome per rimuovere il voto
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">Clicca su un nome per rimuovere la richiesta.</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Classifica */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Trophy className="h-5 w-5 text-yellow-500" />
-                  <span>Classifica Top 10</span>
-                </CardTitle>
-                <CardDescription>
-                  Le leggi più votate per l'amnistia
-                </CardDescription>
+                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
+                <CardDescription>Le leggi che hanno ricevuto più richieste di amnistia</CardDescription>
               </CardHeader>
               <CardContent>
                 {classifica.length > 0 ? (
                   <div className="space-y-3">
-                    {classifica.map((legge, index) => (
-                      <div key={legge.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                    {classifica.map((item, index) => (
+                      <div key={item.legge} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => voteForLaw(legge.nome)}
-                            disabled={isVoting}
-                            className="h-8 w-8 p-0"
-                          >
-                            <ThumbsUp className="h-3 w-3" />
-                          </Button>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                            index === 1 ? 'bg-gray-100 text-gray-700' :
-                            index === 2 ? 'bg-orange-100 text-orange-700' :
-                            'bg-blue-100 text-blue-700'
-                          }`}>
-                            #{index + 1}
-                          </div>
-                          <span className="font-medium">{legge.nome}</span>
+                          <Button size="sm" variant="outline" onClick={() => setLeggeInput(item.legge)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>#{index + 1}</div>
+                          <span className="font-medium">{item.legge}</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Badge variant="outline">
-                            {legge.voti} voti
-                          </Badge>
-                          {user?.ruolo === "Admin" && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => deleteFromClassifica(legge.nome)}
-                              disabled={deletingClassifica === legge.nome}
-                              className="h-8 w-8 p-0"
-                            >
-                              {deletingClassifica === legge.nome ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <X className="h-3 w-3" />
-                              )}
-                            </Button>
-                          )}
+                          <Badge variant="outline">{item.voti} voti</Badge>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-muted-foreground py-8">
-                    Nessun voto ancora registrato. Sii il primo a votare!
-                  </p>
+                  <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
                 )}
               </CardContent>
             </Card>
