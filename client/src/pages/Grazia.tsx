@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Link, Redirect } from "wouter";
@@ -8,7 +8,8 @@ import { Loader2, ArrowLeft, Scale, Trophy, Plus, X, ThumbsUp } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, deleteDoc, query, where } from "firebase/firestore";
 
 interface Classifica { nome: string; voti: number; }
 
@@ -23,52 +24,61 @@ export default function Grazia() {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
-  const [deletingClassifica, setDeletingClassifica] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
+  // Carica classifica e voti utente
+  useEffect(() => {
     if (!user) return;
     setLoadingData(true);
-    try {
-      const [votiResponse, classificaResponse] = await Promise.all([
-        apiRequest("GET", "/api/grazia/voti"),
-        apiRequest("GET", "/api/grazia/classifica")
-      ]);
-      if (votiResponse.ok) setUserVoti(Array.isArray(votiResponse.data) ? votiResponse.data : []);
-      if (classificaResponse.ok) setClassifica(Array.isArray(classificaResponse.data) ? classificaResponse.data : []);
-    } catch (error) {
-      console.error('Errore nel caricamento dati:', error);
-      toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
-    } finally {
+    async function fetchData() {
+      // Recupera tutti i voti
+      const snapshot = await getDocs(collection(db, "voti_grazia"));
+      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Classifica
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.nome) conteggio[v.nome] = (conteggio[v.nome] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      // Voti utente
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
+      setUserVoti(mieiVoti);
       setLoadingData(false);
     }
-  }, [user, toast]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+    fetchData();
+  }, [user]);
 
   const handleVote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nomeInput.trim()) return;
-    await voteForCandidate(nomeInput.trim());
-  };
-
-  const voteForCandidate = async (nome: string) => {
-    if (userVoti.includes(nome)) {
-      toast({ title: "Voto già registrato", description: `Hai già votato per ${nome}` });
+    if (userVoti.includes(nomeInput.trim())) {
+      toast({ title: "Voto già registrato", description: `Hai già votato per ${nomeInput.trim()}` });
       return;
     }
     setIsVoting(true);
     try {
-      const response = await apiRequest("POST", "/api/grazia/vota", { nome });
-      if (response.ok) {
-        toast({ title: "Voto registrato", description: `Hai votato ${nome}` });
-        setNomeInput("");
-        await loadData();
-      } else {
-        const error = response.data;
-        toast({ title: "Errore", description: error.error, variant: "destructive" });
-      }
+      await addDoc(collection(db, "voti_grazia"), {
+        nome: nomeInput.trim(),
+        userId: user.uid,
+        timestamp: new Date().toISOString()
+      });
+      toast({ title: "Voto registrato", description: `Hai votato ${nomeInput.trim()}` });
+      setNomeInput("");
+      // Ricarica dati
+      const snapshot = await getDocs(collection(db, "voti_grazia"));
+      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.nome) conteggio[v.nome] = (conteggio[v.nome] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
+      setUserVoti(mieiVoti);
     } catch (error) {
       toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
@@ -78,20 +88,29 @@ export default function Grazia() {
 
   const removeVote = async (nomeDaRimuovere: string) => {
     if (deletingVote) return;
-    if (!window.confirm(`Sei sicuro di voler rimuovere il voto per "${nomeDaRimuovere}"?`)) return;
-
+    if (!window.confirm(`Sei sicuro di voler rimuovere la richiesta di grazia per "${nomeDaRimuovere}"?`)) return;
     setDeletingVote(nomeDaRimuovere);
     try {
-      const response = await apiRequest("DELETE", `/api/grazia/voti/${encodeURIComponent(nomeDaRimuovere)}`);
-
-      if (response.ok) {
-        toast({ title: "Voto rimosso", description: `Hai rimosso il voto per ${nomeDaRimuovere}`});
-        setUserVoti(currentVotes => currentVotes.filter(voto => voto !== nomeDaRimuovere));
-        loadData();
-      } else {
-        const error = response.data;
-        toast({ title: "Errore", description: error.error || "Errore nella rimozione", variant: "destructive" });
+      // Trova il documento da eliminare
+      const q = query(collection(db, "voti_grazia"), where("userId", "==", user.uid), where("nome", "==", nomeDaRimuovere));
+      const snapshot = await getDocs(q);
+      for (const docu of snapshot.docs) {
+        await deleteDoc(docu.ref);
       }
+      toast({ title: "Richiesta rimossa", description: `Hai rimosso la richiesta per ${nomeDaRimuovere}` });
+      // Ricarica dati
+      const allSnap = await getDocs(collection(db, "voti_grazia"));
+      const votiList = allSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.nome) conteggio[v.nome] = (conteggio[v.nome] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
+      setUserVoti(mieiVoti);
     } catch (error) {
       toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
@@ -104,27 +123,6 @@ export default function Grazia() {
     return classifica
       .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
       .slice(0, 5);
-  };
-
-  // Funzione per eliminare un carcerato dalla classifica (solo admin)
-  const deleteFromClassifica = async (nome: string) => {
-    if (user?.ruolo !== "Admin") return;
-    if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${nome} dalla classifica?`)) return;
-    setDeletingClassifica(nome);
-    try {
-      const response = await apiRequest("DELETE", `/api/grazia/classifica/${encodeURIComponent(nome)}`);
-      if (response.ok) {
-        toast({ title: "Candidato eliminato", description: `${nome} è stato rimosso dalla classifica.` });
-        await loadData();
-      } else {
-        const error = response.data;
-        toast({ title: "Errore", description: error.error || "Errore nell'eliminazione", variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
-    } finally {
-      setDeletingClassifica(null);
-    }
   };
 
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -177,7 +175,7 @@ export default function Grazia() {
                               className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 border-b border-gray-100 last:border-b-0"
                               onClick={() => { setNomeInput(suggestion.nome); setShowSuggestions(false); }}
                             >
-                              {suggestion.nome} ({suggestion.voti} voti)
+                              {suggestion.nome} ({suggestion.voti} richieste)
                             </button>
                           ))}
                         </div>
@@ -223,17 +221,12 @@ export default function Grazia() {
                     {classifica.map((carcerato, index) => (
                       <div key={carcerato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <Button size="sm" variant="outline" onClick={() => voteForCandidate(carcerato.nome)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
+                          <Button size="sm" variant="outline" onClick={() => handleVote({ preventDefault: () => {}, target: { value: carcerato.nome } } as any)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
                           <span className="font-medium">{carcerato.nome}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Badge variant="outline">{carcerato.voti} richieste</Badge>
-                          {user?.ruolo === "Admin" && (
-                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0" onClick={() => deleteFromClassifica(carcerato.nome)} disabled={deletingClassifica === carcerato.nome}>
-                              {deletingClassifica === carcerato.nome ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
-                            </Button>
-                          )}
                         </div>
                       </div>
                     ))}
