@@ -1,8 +1,8 @@
-import { db } from './firebase-admin.js';
+import { adminDb } from './firebase-config.js';
 
 export default async function handler(req, res) {
   try {
-    const doc = await db.collection('monitoring').doc('consumi').get();
+    const doc = await adminDb.collection('monitoring').doc('consumi').get();
     if (!doc.exists) {
       return res.status(200).json({
         bundleSize: 0,
