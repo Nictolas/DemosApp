@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, MessageSquare, ThumbsUp, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, doc, arrayUnion, increment } from "firebase/firestore";
 
 interface OpinioneProposta {
   id: string;
@@ -25,15 +26,21 @@ export default function ProponiOpinione() {
   const [userVoti, setUserVoti] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Carica opinioni proposte e voti utente
+  // Carica opinioni proposte e voti utente direttamente da Firestore
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoadingData(true);
     try {
-      const responseLista = await apiRequest("GET", "/api/opinioni-proposte");
-      const responseVoti = await apiRequest("GET", "/api/opinioni-proposte/voti");
-      if (responseLista.ok) setOpinioni(responseLista.data);
-      if (responseVoti.ok) setUserVoti(responseVoti.data);
+      const snap = await getDocs(collection(db, "opinioni_proposte"));
+      const arr = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+      setOpinioni(arr.map(op => ({
+        id: op.id,
+        testo: op.testo,
+        voti: op.voti || 0,
+        proponente: op.proponente || "",
+        votanti: op.votanti || [],
+      })));
+      setUserVoti(arr.filter(op => (op.votanti || []).includes(user.uid)).map(op => op.id));
     } catch (error) {
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
     } finally {
@@ -43,29 +50,31 @@ export default function ProponiOpinione() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Proponi nuova opinione
+  // Proponi nuova opinione direttamente su Firestore
   const handleProponi = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!testoInput.trim()) return;
     setSubmitting(true);
     try {
-      const datiNuovaOpinione = { testo: testoInput.trim() };
-      const responseCrea = await apiRequest("POST", "/api/opinioni-proposte", datiNuovaOpinione);
-      if (responseCrea.ok && responseCrea.success) {
-        toast({ title: "Opinione proposta!", description: "La tua proposta sarà valutata dall'admin." });
-        setTestoInput("");
-        loadData();
-      } else {
-        toast({ title: "Errore", description: responseCrea.error || "Errore nell'invio della proposta", variant: "destructive" });
-      }
+      await addDoc(collection(db, "opinioni_proposte"), {
+        testo: testoInput.trim(),
+        voti: 0,
+        proponente: user.uid,
+        proponente_email: user.email,
+        data_creazione: new Date().toISOString(),
+        votanti: [],
+      });
+      toast({ title: "Opinione proposta!", description: "La tua proposta sarà valutata dall'admin." });
+      setTestoInput("");
+      loadData();
     } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
+      toast({ title: "Errore", description: "Errore nell'invio della proposta", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Vota opinione
+  // Vota opinione direttamente su Firestore
   const handleVota = async (id: string) => {
     if (userVoti.includes(id)) {
       toast({ title: "Voto già registrato", description: "Hai già votato questa opinione." });
@@ -73,17 +82,15 @@ export default function ProponiOpinione() {
     }
     setIsVoting(true);
     try {
-      const datiVoto = { id };
-      const responseVota = await apiRequest("POST", "/api/opinioni-proposte/vota", datiVoto);
-      if (responseVota.ok) {
-        toast({ title: "Voto registrato", description: "Hai votato questa opinione." });
-        loadData();
-      } else {
-        const result = responseVota.data;
-        toast({ title: "Errore", description: result.error || "Errore nel voto", variant: "destructive" });
-      }
+      const ref = doc(db, "opinioni_proposte", id);
+      await updateDoc(ref, {
+        votanti: arrayUnion(user.uid),
+        voti: increment(1),
+      });
+      toast({ title: "Voto registrato", description: "Hai votato questa opinione." });
+      loadData();
     } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
+      toast({ title: "Errore", description: "Errore nel voto", variant: "destructive" });
     } finally {
       setIsVoting(false);
     }
