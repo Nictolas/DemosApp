@@ -318,7 +318,91 @@ export default function Votazione() {
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                {/* ...fields... */}
+                <FormField
+                  control={form.control}
+                  name="titolo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Titolo della votazione *</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Approvazione legge finanziaria 2024"
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            checkDuplicate(e.target.value);
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="voto_dato"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Il tuo voto *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona il tuo voto" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Favorevole">Favorevole</SelectItem>
+                          <SelectItem value="Contrario">Contrario</SelectItem>
+                          <SelectItem value="Astenuto">Astenuto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="commento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Commento (opzionale)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Breve commento sulla votazione (max 20 caratteri)"
+                          {...field}
+                          maxLength={20}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="vincitore"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Risultato della votazione *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona il risultato" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Favorevole">Favorevole</SelectItem>
+                          <SelectItem value="Contrario">Contrario</SelectItem>
+                          <SelectItem value="Astenuto">Astenuto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <Button 
                   type="submit" 
                   className="w-full" 
