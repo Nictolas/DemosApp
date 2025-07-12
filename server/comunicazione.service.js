@@ -111,6 +111,33 @@ class ComunicazioneService extends FirebaseService {
   }
 
   /**
+   * Controlla se esiste già una comunicazione con lo stesso titolo e zona
+   */
+  static async checkDuplicateComunicazione(titolo, zona) {
+    if (!db) return { exists: false };
+    const q = query(collection(db, 'comunicazioni'), where('titolo', '==', titolo), where('zona', '==', zona));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docData = querySnapshot.docs[0].data();
+      return { exists: true, comunicazione: docData };
+    }
+    return { exists: false };
+  }
+
+  /**
+   * Restituisce l'ultima comunicazione inviata dall'utente
+   */
+  static async getUltimaComunicazione(userId) {
+    if (!db) return null;
+    const q = query(collection(db, 'comunicazioni'), where('id_utente', '==', userId), limit(1));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      return querySnapshot.docs[0].data();
+    }
+    return null;
+  }
+
+  /**
    * Recupera la classifica dei politici basata sui punti trasparenza.
    * @param tipoPodio 'europeo' | 'senato' | 'camera' | 'regionale' | 'comunale'
    * @param regione Regione di residenza dell'utente (per podio regionale)

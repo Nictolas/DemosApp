@@ -421,6 +421,20 @@ app.get('/api/admin/add-status-to-users', requireFirebaseAdmin, async (req, res)
 
 // Comunicazioni & Notifiche
 app.post('/api/comunicazioni', requireAuth, async (req, res) => res.status(201).json(await ComunicazioneService.createComunicazione(req.user, req.body)));
+
+// Endpoint per controllo duplicati comunicazione
+app.get('/api/comunicazioni/check-duplicate', requireAuth, async (req, res) => {
+  const { titolo, zona } = req.query;
+  if (!titolo || !zona) return res.status(400).json({ error: 'Titolo e zona richiesti' });
+  const result = await ComunicazioneService.checkDuplicateComunicazione(titolo, zona);
+  res.json(result);
+});
+
+// Endpoint per recuperare l'ultima comunicazione dell'utente
+app.get('/api/ultima-comunicazione', requireAuth, async (req, res) => {
+  const result = await ComunicazioneService.getUltimaComunicazione(req.user.uid);
+  res.json(result);
+});
 app.get('/api/podio-trasparenza', async (req, res) => res.json(await ComunicazioneService.getPodioTrasparenza()));
 app.post('/api/comunicazioni/:id/react', requireAuth, async (req, res) => res.json(await ComunicazioneService.reactToComunicazione(req.params.id, req.user.id, req.body.reaction)));
 app.get('/api/notifiche', requireAuth, async (req, res) => res.json(await NotificaService.getUserNotifications(req.user.id)));
