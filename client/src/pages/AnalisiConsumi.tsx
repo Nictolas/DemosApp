@@ -197,8 +197,10 @@ export default function AnalisiConsumi() {
                           firebaseConsumi.firestoreReads.timeSeries[0] &&
                           firebaseConsumi.firestoreReads.timeSeries[0].points
                             ? firebaseConsumi.firestoreReads.timeSeries[0].points.reduce(
-                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
-                            : 'Nessun dato disponibile'
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
+                              " / " +
+                              <span className="text-xs text-gray-500">50.000</span>
+                            : 'Nessun dato disponibile / 50.000'
                         }</span>
                       </div>
                       <div className="flex justify-between">
@@ -209,8 +211,10 @@ export default function AnalisiConsumi() {
                           firebaseConsumi.firestoreWrites.timeSeries[0] &&
                           firebaseConsumi.firestoreWrites.timeSeries[0].points
                             ? firebaseConsumi.firestoreWrites.timeSeries[0].points.reduce(
-                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
-                            : 'Nessun dato disponibile'
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
+                              " / " +
+                              <span className="text-xs text-gray-500">20.000</span>
+                            : 'Nessun dato disponibile / 20.000'
                         }</span>
                       </div>
                       <div className="flex justify-between">
@@ -224,11 +228,15 @@ export default function AnalisiConsumi() {
                           firebaseConsumi.firestoreWrites.timeSeries &&
                           firebaseConsumi.firestoreWrites.timeSeries[0] &&
                           firebaseConsumi.firestoreWrites.timeSeries[0].points
-                            ? firebaseConsumi.firestoreReads.timeSeries[0].points.reduce(
-                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
-                              firebaseConsumi.firestoreWrites.timeSeries[0].points.reduce(
-                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
-                            : 'Nessun dato disponibile'
+                            ? (
+                                firebaseConsumi.firestoreReads.timeSeries[0].points.reduce(
+                                  (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
+                                firebaseConsumi.firestoreWrites.timeSeries[0].points.reduce(
+                                  (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
+                              ) +
+                              " / " +
+                              <span className="text-xs text-gray-500">70.000</span>
+                            : 'Nessun dato disponibile / 70.000'
                         }</span>
                       </div>
                       {firebaseConsumi.firestoreReadsError && <div className="text-xs text-red-600">{firebaseConsumi.firestoreReadsError}</div>}
@@ -247,8 +255,10 @@ export default function AnalisiConsumi() {
                           firebaseConsumi.functionsInvocations.timeSeries[0] &&
                           firebaseConsumi.functionsInvocations.timeSeries[0].points
                             ? firebaseConsumi.functionsInvocations.timeSeries[0].points.reduce(
-                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
-                            : 'Nessun dato disponibile'
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
+                              " / " +
+                              <span className="text-xs text-gray-500">125.000</span>
+                            : 'Nessun dato disponibile / 125.000'
                         }</span>
                       </div>
                       {firebaseConsumi.functionsInvocationsError && <div className="text-xs text-red-600">{firebaseConsumi.functionsInvocationsError}</div>}
@@ -266,8 +276,10 @@ export default function AnalisiConsumi() {
                           firebaseConsumi.hostingRequests.timeSeries[0] &&
                           firebaseConsumi.hostingRequests.timeSeries[0].points
                             ? firebaseConsumi.hostingRequests.timeSeries[0].points.reduce(
-                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
-                            : 'Nessun dato disponibile'
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
+                              " / " +
+                              <span className="text-xs text-gray-500">10 GB traffico</span>
+                            : 'Nessun dato disponibile / 10 GB traffico'
                         }</span>
                       </div>
                       {firebaseConsumi.hostingRequestsError && <div className="text-xs text-red-600">{firebaseConsumi.hostingRequestsError}</div>}
@@ -285,13 +297,19 @@ export default function AnalisiConsumi() {
                           firebaseConsumi.storageObjects.timeSeries[0] &&
                           firebaseConsumi.storageObjects.timeSeries[0].points
                             ? firebaseConsumi.storageObjects.timeSeries[0].points.reduce(
-                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
-                            : 'Nessun dato disponibile'
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
+                              " / " +
+                              <span className="text-xs text-gray-500">5 GB spazio</span>
+                            : 'Nessun dato disponibile / 5 GB spazio'
                         }</span>
                       </div>
                       {firebaseConsumi.storageObjectsError && <div className="text-xs text-red-600">{firebaseConsumi.storageObjectsError}</div>}
                     </div>
                   </div>
+                </div>
+                {/* Nota limiti */}
+                <div className="mt-4 text-xs text-gray-500">
+                  <b>Nota:</b> I limiti si azzerano automaticamente il primo giorno di ogni mese (fuso orario Pacifico, come da policy Firebase Spark).
                 </div>
               </div>
             )}
