@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
-import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown } from "lucide-react";
+import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -340,18 +340,26 @@ export default function Comunica() {
               </CardContent>
             </Card>
           )}
-        </div>
 
-        {/* Ultima Votazione Section */}
-        {ultimaComunicazione && (
-          <Card className="max-w-2xl mx-auto">
+          {/* Statistiche Opinioni */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
             <CardHeader>
-              <CardTitle className="text-xl font-bold">Ultima Votazione</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
+                <MessageSquare className="h-5 w-5" />
+                Statistiche Opinioni
+              </CardTitle>
               <CardDescription>
-                La tua ultima comunicazione inviata
+                Analizza le opinioni politiche degli utenti e le tendenze
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <Button 
+                className="w-full bg-green-600 hover:bg-green-700"
+                onClick={() => setLocation("/statistiche-opinioni")}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Visualizza Statistiche Opinioni
+              </Button>
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
                 <div>
                   <span className="font-medium">Titolo:</span>

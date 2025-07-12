@@ -247,26 +247,30 @@ export default function Gestisci() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Statistiche Utenti */}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700">
+                <Users className="h-5 w-5" />
+                Statistiche Utenti
+              </CardTitle>
+              <CardDescription>
+                Visualizza dati demografici e statistiche degli utenti registrati
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.location.href = "/statistiche-utenti"}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Visualizza Statistiche Utenti
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
-        {user?.ruolo === 'Admin' && (
-          <Link href="/limiti">
-            <Button className="w-full mb-4" variant="outline">
-              Limiti Firebase
-            </Button>
-          </Link>
-        )}
-
-        <Button
-          asChild
-          variant="outline"
-          className="w-full flex items-center justify-start gap-2 mb-4"
-        >
-          <a href="/gestisci-governo">
-            <Trophy className="h-5 w-5 text-yellow-600" />
-            Gestisci Governo
-          </a>
-        </Button>
       </div>
     </div>
   );
