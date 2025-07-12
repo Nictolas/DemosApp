@@ -51,7 +51,7 @@ export function useFCM() {
           .then((registration) => {
             // Ottieni il token FCM
             getToken(messaging!, {
-              vapidKey: 'BJKQw1Qw1w1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw1Qw', // Sostituisci con la tua VAPID KEY pubblica
+              vapidKey: 'BIHJ29xtgACTW0TrdApZa1XsV-h7LIa5qoxah13RtkWHCKU_UJLwO4vMeXeMhvpz7XEFhas-r5t4uuhLsAcOoBw',
               serviceWorkerRegistration: registration,
             })
               .then((currentToken) => {
