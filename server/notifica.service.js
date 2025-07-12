@@ -201,7 +201,7 @@ class NotificaService extends FirebaseService {
         }
       };
 
-      const response = await adminDb.app.messaging().send(message);
+      const response = await adminAuth.app.messaging().send(message);
       console.log(`Notifica push inviata a ${userId}:`, response);
       return { success: true, messageId: response };
     } catch (error) {

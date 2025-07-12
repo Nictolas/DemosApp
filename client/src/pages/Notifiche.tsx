@@ -172,6 +172,86 @@ export default function Notifiche() {
                     </AlertDescription>
                   </Alert>
                 )}
+
+                {/* Pulsante di test per notifiche push */}
+                {fcmToken && user && (
+                  <div className="mt-3 space-y-2">
+                    <Button 
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/test-push-notification', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              userId: user.id,
+                              title: 'Test Notifica DEMOS',
+                              body: 'Questa è una notifica di test inviata alle ' + new Date().toLocaleTimeString()
+                            }),
+                            credentials: 'include'
+                          });
+                          
+                          const result = await response.json();
+                          if (result.success) {
+                            toast({
+                              title: "Notifica di test inviata",
+                              description: "Controlla se hai ricevuto la notifica push",
+                            });
+                          } else {
+                            toast({
+                              title: "Errore",
+                              description: result.error || "Errore nell'invio della notifica di test",
+                              variant: "destructive",
+                            });
+                          }
+                        } catch (error) {
+                          toast({
+                            title: "Errore",
+                            description: "Errore di rete nell'invio della notifica di test",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      size="sm"
+                      className="w-full"
+                    >
+                      Test Notifica Push
+                    </Button>
+                    
+                    {/* Pulsante per visualizzare token salvati (solo per debug) */}
+                    <Button 
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/notifications/tokens');
+                          const result = await response.json();
+                          if (result.success) {
+                            console.log('Token FCM salvati:', result);
+                            toast({
+                              title: "Token FCM salvati",
+                              description: `${result.count} token trovati. Controlla la console per i dettagli.`,
+                            });
+                          } else {
+                            toast({
+                              title: "Errore",
+                              description: result.error || "Errore nel recupero dei token",
+                              variant: "destructive",
+                            });
+                          }
+                        } catch (error) {
+                          toast({
+                            title: "Errore",
+                            description: "Errore di rete nel recupero dei token",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    >
+                      Debug: Visualizza Token Salvati
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

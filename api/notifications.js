@@ -182,4 +182,48 @@ router.post('/send/all', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/notifications/tokens
+ * Lista tutti i token FCM salvati (solo per debug)
+ */
+router.get('/tokens', async (req, res) => {
+  try {
+    const { adminDb } = await import('../api/firebase-config.js');
+    
+    if (!adminDb) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Admin SDK non configurato' 
+      });
+    }
+
+    const usersSnapshot = await adminDb.collection('users').get();
+    const tokens = [];
+    
+    usersSnapshot.forEach(doc => {
+      const userData = doc.data();
+      if (userData.fcmToken) {
+        tokens.push({
+          userId: doc.id,
+          email: userData.email,
+          fcmToken: userData.fcmToken.substring(0, 20) + '...',
+          updatedAt: userData.fcmTokenUpdatedAt
+        });
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      count: tokens.length,
+      tokens 
+    });
+  } catch (error) {
+    console.error('Errore endpoint lista token:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Errore interno del server' 
+    });
+  }
+});
+
 export default router; 
