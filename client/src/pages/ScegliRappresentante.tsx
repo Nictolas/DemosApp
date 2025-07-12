@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Check, User, ThumbsUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { PageTransition } from "@/components/PageTransition";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
+import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 
 interface Rappresentante {
@@ -78,13 +78,10 @@ export default function ScegliRappresentante() {
       if (!user) return;
       
       try {
-        // Carica i dati dell'utente corrente
-        const userResponse = await apiRequest("GET", `/api/user`);
-        const currentUser = await userResponse.json();
-        
-        // Carica i dati completi dell'utente tramite UID
-        const userDataResponse = await apiRequest("GET", `/api/users/${encodeURIComponent(currentUser.uid)}`);
-        const userData = await userDataResponse.json();
+        // Carica i dati dell'utente corrente direttamente da Firestore
+        const userDocRef = doc(db, "utenti", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.data();
         
         console.log('Dati utente completi:', userData);
         
@@ -93,24 +90,27 @@ export default function ScegliRappresentante() {
           setRappresentanteSelezionato(userData[getFieldName()] || null);
         }
         
-        // Carica le opinioni dell'utente corrente
-        const opinionsResponse = await apiRequest("GET", '/api/opinioni');
-        const opinionsData = await opinionsResponse.json();
+        // Carica le opinioni dell'utente corrente direttamente da Firestore
+        const opinionsDocRef = doc(db, "opinioni", user.uid);
+        const opinionsDoc = await getDoc(opinionsDocRef);
+        const opinionsData = opinionsDoc.data() || {};
         setUserOpinions(opinionsData);
         
-        // Carica tutti gli utenti con ruolo politico o politico candidato
-        const usersResponse = await apiRequest("GET", '/api/users');
-        if (!usersResponse.ok) {
-          throw new Error('Errore nel caricamento degli utenti');
-        }
-        const allUsers = await usersResponse.json();
+        // Carica tutti gli utenti con ruolo politico o politico candidato direttamente da Firestore
+        const usersCollectionRef = collection(db, "utenti");
+        const usersSnapshot = await getDocs(usersCollectionRef);
+        const allUsers = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
         const data = allUsers.filter((user: any) => 
           (user.ruolo === 'Politico' || user.ruolo === 'Candidato Politico') &&
           user.grado_elezione === getTitolo()
         );
         
         console.log(`Utenti trovati per grado ${getTitolo()}:`, data.length);
-        console.log(`Email utente corrente: ${userData.email}`);
+        console.log(`Email utente corrente: ${userData?.email}`);
         
         if (data) {
           // Filtra i rappresentanti in base alla località di elezione dell'utente corrente
@@ -199,42 +199,39 @@ export default function ScegliRappresentante() {
         }
         setLoading(false);
       } catch (error) {
-        console.error('Errore nel caricamento dati:', error);
+        console.error("Errore durante il recupero dei dati:", error);
         toast({
-          title: 'Errore',
-          description: 'Impossibile caricare i dati dei rappresentanti.',
-          variant: 'destructive',
+          title: "Errore",
+          description: "Impossibile caricare i rappresentanti.",
+          variant: "destructive",
         });
         setLoading(false);
       }
     };
+    
     fetchData();
   }, [user, categoria, toast]);
 
-  // Funzione per selezionare un rappresentante
   const selezionaRappresentante = async (rappresentanteId: string) => {
     if (!user) return;
     
     setSelezionando(true);
     try {
-      // Crea un oggetto con il campo da aggiornare
+      // Aggiorna direttamente in Firestore
+      const userDocRef = doc(db, "utenti", user.uid);
       const updateData: Record<string, string> = {
         [getFieldName()]: rappresentanteId
       };
       
-      // Aggiorna i dati dell'utente
-      await apiRequest("PUT", `/api/users/${user.uid}`, updateData);
+      await updateDoc(userDocRef, updateData);
       
+      setRappresentanteSelezionato(rappresentanteId);
       toast({
-        title: "Rappresentante selezionato",
-        description: "Il rappresentante è stato selezionato con successo.",
-        variant: "default",
+        title: "Successo",
+        description: "Rappresentante selezionato con successo!",
       });
-      
-      // Redirect alla pagina dei rappresentanti
-      window.location.href = "/rappresentanti";
     } catch (error) {
-      console.error("Errore durante la selezione del rappresentante:", error);
+      console.error("Errore durante la selezione:", error);
       toast({
         title: "Errore",
         description: "Impossibile selezionare il rappresentante.",
