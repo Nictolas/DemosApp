@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,6 +15,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { AlertTriangle, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, addDoc, orderBy, limit } from "firebase/firestore";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -64,19 +66,24 @@ export default function Votazione() {
     enabled: !!user?.email,
   });
 
-  // Get user's last communication
-  const { data: ultimaComunicazione } = useQuery({
-    queryKey: ["/api/ultima-comunicazione"],
-    queryFn: async () => {
-      const response = await fetch('/api/ultima-comunicazione');
-      if (!response.ok) {
-        if (response.status === 404) return null; // No previous communication
-        throw new Error('Failed to fetch last communication');
-      }
-      return response.json();
-    },
-    enabled: !!user?.email,
-  });
+  // Recupera l'ultima comunicazione dell'utente
+  const [ultimaComunicazione, setUltimaComunicazione] = useState<any>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchUltima = async () => {
+      const q = query(
+        collection(db, "comunicazioni"),
+        where("id_utente", "==", user.uid),
+        orderBy("data_creazione", "desc"),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) setUltimaComunicazione(snap.docs[0].data());
+      else setUltimaComunicazione(null);
+    };
+    fetchUltima();
+  }, [user]);
 
   // Generate zona based on user's election data
   const generateZona = () => {
@@ -96,45 +103,63 @@ export default function Votazione() {
     return "Zona non specificata";
   };
 
-  // Check for existing comunicazione
+  // Controllo duplicati
   const checkDuplicate = async (titolo: string) => {
     if (!titolo.trim()) return;
     setCheckingDuplicate(true);
     try {
       const zona = generateZona();
-      const response = await fetch(`/api/comunicazioni/check-duplicate?titolo=${encodeURIComponent(titolo)}&zona=${encodeURIComponent(zona)}`);
-      const data = await response.json();
-      if (data.exists) {
-        setExistingComunicazione(data.comunicazione);
-        form.setValue("vincitore", data.comunicazione.vincitore);
+      const q = query(
+        collection(db, "comunicazioni"),
+        where("titolo", "==", titolo),
+        where("zona", "==", zona)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        setExistingComunicazione(snap.docs[0].data());
+        form.setValue("vincitore", snap.docs[0].data().vincitore);
       } else {
         setExistingComunicazione(null);
       }
-    } catch (error) {
-      console.error("Errore nel controllo duplicati:", error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setCheckingDuplicate(false);
     }
   };
 
-  // Submit comunicazione
+  // Submit comunicazione su Firestore e invio notifica push
   const submitComunicazione = useMutation({
     mutationFn: async (data: ComunicaFormData) => {
       const zona = generateZona();
       const comunicazioneData = {
         ...data,
         zona,
-        isDuplicate: !!existingComunicazione,
+        id_utente: user.uid,
+        nome: userData?.nome,
+        cognome: userData?.cognome,
+        ruolo: userData?.ruolo,
+        data_creazione: new Date().toISOString(),
+        punti_trasparenza: existingComunicazione ? 1 : 3,
+        likes: 0,
+        dislikes: 0,
       };
-      const response = await fetch("/api/comunicazioni", {
+      // Salva su Firestore
+      await addDoc(collection(db, "comunicazioni"), comunicazioneData);
+      // Chiama la Cloud Function per notifiche push
+      await fetch("https://REGIONE_CLOUD_FUNCTION_URL/sendComunicazioneNotifica", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(comunicazioneData),
+        body: JSON.stringify({
+          id_utente: user.uid,
+          titolo: data.titolo,
+          zona,
+          voto_dato: data.voto_dato,
+          vincitore: data.vincitore,
+          commento: data.commento || "",
+        })
       });
-      if (!response.ok) {
-        throw new Error("Errore nell'invio della comunicazione");
-      }
-      return response.json();
+      return true;
     },
     onSuccess: () => {
       toast({
