@@ -12,9 +12,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { analytics as analyticsAny, perf as perfAny, logEvent } from "../lib/firebase";
-const analytics: any = (require("../lib/firebase").analytics as any);
-const perf: any = (require("../lib/firebase").perf as any);
+import { analytics, perf, logEvent } from "../lib/firebase";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
