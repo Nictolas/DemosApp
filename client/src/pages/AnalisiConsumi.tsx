@@ -241,7 +241,15 @@ export default function AnalisiConsumi() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Invocazioni:</span>
-                        <span className="font-mono">{firebaseConsumi.functionsInvocations && firebaseConsumi.functionsInvocations.timeSeries && firebaseConsumi.functionsInvocations.timeSeries[0] ? firebaseConsumi.functionsInvocations.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                        <span className="font-mono">{
+                          firebaseConsumi.functionsInvocations &&
+                          firebaseConsumi.functionsInvocations.timeSeries &&
+                          firebaseConsumi.functionsInvocations.timeSeries[0] &&
+                          firebaseConsumi.functionsInvocations.timeSeries[0].points
+                            ? firebaseConsumi.functionsInvocations.timeSeries[0].points.reduce(
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
+                            : 'Nessun dato disponibile'
+                        }</span>
                       </div>
                       {firebaseConsumi.functionsInvocationsError && <div className="text-xs text-red-600">{firebaseConsumi.functionsInvocationsError}</div>}
                     </div>
@@ -252,7 +260,15 @@ export default function AnalisiConsumi() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Richieste:</span>
-                        <span className="font-mono">{firebaseConsumi.hostingRequests && firebaseConsumi.hostingRequests.timeSeries && firebaseConsumi.hostingRequests.timeSeries[0] ? firebaseConsumi.hostingRequests.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                        <span className="font-mono">{
+                          firebaseConsumi.hostingRequests &&
+                          firebaseConsumi.hostingRequests.timeSeries &&
+                          firebaseConsumi.hostingRequests.timeSeries[0] &&
+                          firebaseConsumi.hostingRequests.timeSeries[0].points
+                            ? firebaseConsumi.hostingRequests.timeSeries[0].points.reduce(
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
+                            : 'Nessun dato disponibile'
+                        }</span>
                       </div>
                       {firebaseConsumi.hostingRequestsError && <div className="text-xs text-red-600">{firebaseConsumi.hostingRequestsError}</div>}
                     </div>
@@ -263,7 +279,15 @@ export default function AnalisiConsumi() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Oggetti:</span>
-                        <span className="font-mono">{firebaseConsumi.storageObjects && firebaseConsumi.storageObjects.timeSeries && firebaseConsumi.storageObjects.timeSeries[0] ? firebaseConsumi.storageObjects.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                        <span className="font-mono">{
+                          firebaseConsumi.storageObjects &&
+                          firebaseConsumi.storageObjects.timeSeries &&
+                          firebaseConsumi.storageObjects.timeSeries[0] &&
+                          firebaseConsumi.storageObjects.timeSeries[0].points
+                            ? firebaseConsumi.storageObjects.timeSeries[0].points.reduce(
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
+                            : 'Nessun dato disponibile'
+                        }</span>
                       </div>
                       {firebaseConsumi.storageObjectsError && <div className="text-xs text-red-600">{firebaseConsumi.storageObjectsError}</div>}
                     </div>
