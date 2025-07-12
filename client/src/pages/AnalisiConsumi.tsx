@@ -12,6 +12,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
+import { analytics, perf, crashlytics, logEvent } from "../lib/firebase";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -35,6 +36,7 @@ export default function AnalisiConsumi() {
     serverlessGBhr: '...',
     edgeInvocations: '...'
   });
+  const [firebaseConsumi, setFirebaseConsumi] = useState(null);
   const [chartDataState, setChartDataState] = useState([12, 18, 22, 30, 35, 41]);
   const [loading, setLoading] = useState(false);
 
@@ -62,8 +64,34 @@ export default function AnalisiConsumi() {
       .finally(() => setLoading(false));
   };
 
+  const fetchFirebaseConsumi = async () => {
+    try {
+      const response = await fetch('/api/firebase-monitoring');
+      const data = await response.json();
+      setFirebaseConsumi(data);
+    } catch (error) {
+      console.error('Errore nel recupero consumi Firebase:', error);
+      setFirebaseConsumi({ error: 'Errore nel recupero dati' });
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchFirebaseConsumi();
+    // Traccia la visualizzazione della pagina
+    if (analytics) {
+      logEvent(analytics, "page_view", { page: "AnalisiConsumi" });
+    }
+    // Esempio: logga un errore di test su Crashlytics (decommenta per test reale)
+    // if (crashlytics) crashlytics.recordError(new Error("Test Crashlytics su AnalisiConsumi"));
+    // Esempio: custom trace per Performance Monitoring
+    if (perf) {
+      const trace = perf.trace("analisi_consumi_render");
+      trace.start();
+      setTimeout(() => {
+        trace.stop();
+      }, 1000);
+    }
   }, []);
 
   const handleAggiorna = async () => {
@@ -73,6 +101,7 @@ export default function AnalisiConsumi() {
       headers: { 'X-API-KEY': 'supersegreto2024!' }
     });
     fetchData();
+    fetchFirebaseConsumi(); // Aggiorna anche i dati Firebase
   };
 
   const chartData = {
@@ -280,6 +309,111 @@ ReactGA.event(...);</pre>
                 Integra questi strumenti per avere dati reali e ricevere alert automatici in caso di superamento soglie.
               </div>
             </div>
+
+            {/* Consumi Firebase Reali */}
+            {firebaseConsumi && (
+              <div className="bg-white border border-orange-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-orange-600" />
+                    Consumi Firebase Reali
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs text-gray-500">
+                      Ultimo aggiornamento: {firebaseConsumi.timestamp ? new Date(firebaseConsumi.timestamp).toLocaleString('it-IT') : 'N/A'}
+                    </div>
+                    <Button onClick={fetchFirebaseConsumi} disabled={loading} variant="outline" size="sm">
+                      {loading ? 'Aggiornamento...' : 'Aggiorna Firebase'}
+                    </Button>
+                  </div>
+                </div>
+                
+                {firebaseConsumi.error ? (
+                  <div className="bg-red-50 border border-red-200 rounded p-3 text-red-700">
+                    <AlertTriangle className="h-4 w-4 inline mr-2" />
+                    Errore nel recupero dati: {firebaseConsumi.error}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Firestore */}
+                    <div className="bg-blue-50 rounded-lg p-3">
+                      <h4 className="font-semibold text-blue-800 mb-2">Firestore</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Letture:</span>
+                          <span className="font-mono">{firebaseConsumi.firestore?.reads?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Scritture:</span>
+                          <span className="font-mono">{firebaseConsumi.firestore?.writes?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Totale:</span>
+                          <span className="font-mono">{firebaseConsumi.firestore?.total?.toLocaleString() || '0'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Functions */}
+                    <div className="bg-green-50 rounded-lg p-3">
+                      <h4 className="font-semibold text-green-800 mb-2">Cloud Functions</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Invocazioni:</span>
+                          <span className="font-mono">{firebaseConsumi.functions?.invocations?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Tempo esecuzione:</span>
+                          <span className="font-mono">{firebaseConsumi.functions?.executionTime?.toFixed(2) || '0'} ms</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>GB-seconds:</span>
+                          <span className="font-mono">{firebaseConsumi.functions?.gbSeconds?.toFixed(2) || '0'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Hosting */}
+                    <div className="bg-purple-50 rounded-lg p-3">
+                      <h4 className="font-semibold text-purple-800 mb-2">Hosting</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Richieste:</span>
+                          <span className="font-mono">{firebaseConsumi.hosting?.requests?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Bytes trasferiti:</span>
+                          <span className="font-mono">{firebaseConsumi.hosting?.bytesTransferred?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>GB trasferiti:</span>
+                          <span className="font-mono">{firebaseConsumi.hosting?.gbTransferred?.toFixed(2) || '0'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Storage */}
+                    <div className="bg-yellow-50 rounded-lg p-3">
+                      <h4 className="font-semibold text-yellow-800 mb-2">Storage</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Oggetti:</span>
+                          <span className="font-mono">{firebaseConsumi.storage?.objectCount?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Bytes utilizzati:</span>
+                          <span className="font-mono">{firebaseConsumi.storage?.bytesUsed?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>GB utilizzati:</span>
+                          <span className="font-mono">{firebaseConsumi.storage?.gbUsed?.toFixed(2) || '0'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Dati dinamici */}
             <div className="bg-white border border-blue-200 rounded-lg p-4 mb-6">
