@@ -26,6 +26,7 @@ import OpinioniProposteService from '../server/opinioni-proposte.service.js';
 import ICEService from '../server/ice.service.js';
 import { getAllMinisteri, addMinistero, updateMinistero, deleteMinistero } from './ministeri.service.js';
 import notificationsRouter from './notifications.js';
+import { sendNotificationToUser } from './notifications.service.js';
 
 dotenv.config();
 
@@ -930,5 +931,40 @@ app.delete('/api/ice/:id', requireFirebaseAdmin, async (req, res) => {
 
 // Router per le notifiche push
 app.use('/api/notifications', notificationsRouter);
+
+// Endpoint di test per notifiche push
+app.post('/api/test-push-notification', requireAuth, async (req, res) => {
+  try {
+    const { userId, title, body } = req.body;
+    
+    if (!userId || !title || !body) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId, title e body sono richiesti' 
+      });
+    }
+
+    const result = await sendNotificationToUser(userId, {
+      title,
+      body,
+      data: {
+        type: 'test',
+        timestamp: Date.now().toString()
+      }
+    });
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Errore endpoint test notifica push:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Errore interno del server' 
+    });
+  }
+});
 
 export default app; 

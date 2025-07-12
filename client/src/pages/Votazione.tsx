@@ -128,38 +128,30 @@ export default function Votazione() {
     }
   };
 
-  // Submit comunicazione su Firestore e invio notifica push
+  // Submit comunicazione tramite API per attivare notifiche push
   const submitComunicazione = useMutation({
     mutationFn: async (data: ComunicaFormData) => {
       const zona = generateZona();
       const comunicazioneData = {
         ...data,
         zona,
-        id_utente: user.uid,
-        nome: userData?.nome,
-        cognome: userData?.cognome,
-        ruolo: userData?.ruolo,
-        data_creazione: new Date().toISOString(),
-        punti_trasparenza: existingComunicazione ? 1 : 3,
-        likes: 0,
-        dislikes: 0,
+        commento: data.commento || "",
       };
-      // Salva su Firestore
-      await addDoc(collection(db, "comunicazioni"), comunicazioneData);
-      // Chiama la Cloud Function per notifiche push
-      await fetch("https://REGIONE_CLOUD_FUNCTION_URL/sendComunicazioneNotifica", {
+      
+      // Usa l'API per creare la comunicazione (che attiverà automaticamente le notifiche push)
+      const response = await fetch("/api/comunicazioni", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id_utente: user.uid,
-          titolo: data.titolo,
-          zona,
-          voto_dato: data.voto_dato,
-          vincitore: data.vincitore,
-          commento: data.commento || "",
-        })
+        body: JSON.stringify(comunicazioneData),
+        credentials: "include"
       });
-      return true;
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Errore nell'invio della comunicazione");
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
