@@ -360,6 +360,20 @@ export default function Comunica() {
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Visualizza Statistiche Opinioni
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Ultima Votazione Section */}
+        {ultimaComunicazione && (
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">Ultima Votazione</CardTitle>
+              <CardDescription>
+                La tua ultima comunicazione inviata
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
                 <div>
                   <span className="font-medium">Titolo:</span>
