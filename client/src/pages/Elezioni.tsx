@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { CustomAvatar } from "@/components/CustomAvatar";
-import { db, auth } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
 
@@ -29,19 +29,19 @@ export default function Elezioni() {
     const fetchUserData = async () => {
       if (user) {
         try {
-          // Carica i dati base dell'utente per ottenere l'email
-          const userResponse = await apiRequest("GET", `/api/user`);
-          const userData = await userResponse.json();
-          
-          // Carica i dati completi dell'utente tramite email
-          const completeUserResponse = await fetch(`/api/users/${encodeURIComponent(userData.uid)}`);
-          const completeUserData = await completeUserResponse.json();
-          
-          console.log("Dati utente completi caricati:", completeUserData);
+          // Carica i dati completi dell'utente direttamente da Firestore
+          const userDocRef = doc(db, "utenti", user.uid);
+          const userDoc = await getDoc(userDocRef);
+          const completeUserData = userDoc.data();
           setUserData(completeUserData);
-          
-          // Carichiamo i dati delle elezioni
+
+          // Carica i dati delle elezioni tramite Firestore (se necessario, altrimenti lascia fetch API se non hai la collezione)
           try {
+            // Se hai una collezione "elezioni" su Firestore, usa questa:
+            // const elezioniSnapshot = await getDocs(collection(db, "elezioni"));
+            // const elezioniData = elezioniSnapshot.docs.map(doc => doc.data());
+            // setElezioni(elezioniData);
+            // Altrimenti lascia la fetch API:
             const elezioniResponse = await fetch('/api/elezioni');
             if (elezioniResponse.ok) {
               const elezioniData = await elezioniResponse.json();
@@ -51,7 +51,7 @@ export default function Elezioni() {
             console.error("Errore durante il recupero dei dati delle elezioni:", err);
           }
 
-          // Carichiamo i dati dettagliati dei candidati scelti dall'utente
+          // Carica i dettagli dei candidati scelti direttamente da Firestore
           const candidatiFields = [
             'candidato_europeo',
             'candidato_camera',
@@ -61,13 +61,13 @@ export default function Elezioni() {
           ];
           const candidatiDettagli: Record<string, any> = {};
           for (const field of candidatiFields) {
-            const candidatoId = completeUserData[field];
+            const candidatoId = completeUserData?.[field];
             if (candidatoId) {
               try {
-                const resp = await apiRequest("GET", `/api/users/${encodeURIComponent(candidatoId)}`);
-                if (resp.ok) {
-                  const candidatoData = await resp.json();
-                  candidatiDettagli[candidatoId] = candidatoData;
+                const candidatoDocRef = doc(db, "utenti", candidatoId);
+                const candidatoDoc = await getDoc(candidatoDocRef);
+                if (candidatoDoc.exists()) {
+                  candidatiDettagli[candidatoId] = candidatoDoc.data();
                 }
               } catch (err) {
                 console.error(`Errore nel recupero dati candidato ${candidatoId}:`, err);
