@@ -15,7 +15,8 @@ import {
   Legend 
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
-import { apiRequest } from "@/lib/queryClient";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // Registra i componenti Chart.js necessari
 ChartJS.register(
@@ -72,31 +73,88 @@ export default function Sostenitori() {
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
-      
       try {
         setIsLoadingStats(true);
         setIsLoadingSupporters(true);
-        
-        // Carica dati utente
-        const userResponse = await apiRequest('GET', `/api/users/${encodeURIComponent(user.uid)}`);
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUserProfile(userData);
-        }
-        
-        // Carica statistiche sostenitori
-        const statsResponse = await apiRequest('GET', `/api/sostenitori/${encodeURIComponent(user.uid)}`);
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setStats(statsData);
-        }
 
-        // Carica lista sostenitori
-        const supportersResponse = await apiRequest('GET', `/api/sostenitori/${encodeURIComponent(user.uid)}/list`);
-        if (supportersResponse.ok) {
-          const supportersData = await supportersResponse.json();
-          setSupporters(supportersData);
+        // Carica dati utente direttamente da Firestore
+        const utentiRef = collection(db, "utenti");
+        const utentiSnap = await getDocs(utentiRef);
+        let myProfile = null;
+        const supportersArr: Supporter[] = [];
+        for (const doc of utentiSnap.docs) {
+          const data = doc.data();
+          if (doc.id === user.uid) {
+            myProfile = { uid: doc.id, ...data };
+          }
+          // Cerca chi ha scelto l'utente loggato come rappresentante
+          const supporterRoles: string[] = [];
+          if (data.rappresentante_europeo === user.uid) supporterRoles.push("Rappresentante Europeo");
+          if (data.rappresentante_camera === user.uid) supporterRoles.push("Rappresentante Camera");
+          if (data.rappresentante_senato === user.uid) supporterRoles.push("Rappresentante Senato");
+          if (data.rappresentante_regionale === user.uid) supporterRoles.push("Rappresentante Regionale");
+          if (data.rappresentante_comunale === user.uid) supporterRoles.push("Rappresentante Comunale");
+          if (supporterRoles.length > 0) {
+            supportersArr.push({
+              uid: doc.id,
+              nome: data.nome,
+              cognome: data.cognome,
+              email: data.email,
+              genere: data.genere,
+              data_nascita: data.data_nascita,
+              comune_residenza: data.comune_residenza,
+              supporterRoles,
+              data_registrazione: data.data_registrazione || doc.id
+            });
+          }
         }
+        setUserProfile(myProfile);
+        setSupporters(supportersArr);
+
+        // Calcola statistiche
+        let totalSupporters = supportersArr.length;
+        let genderDistribution = { Maschio: 0, Femmina: 0, Altro: 0 };
+        let locationDistribution: Record<string, number> = {};
+        let ageSum = 0;
+        let ageDistribution = {
+          '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0
+        };
+        const getAge = (birthDate: string) => {
+          if (!birthDate) return null;
+          const birth = new Date(birthDate);
+          const now = new Date();
+          return now.getFullYear() - birth.getFullYear();
+        };
+        for (const s of supportersArr) {
+          // Genere
+          const genere = (s.genere || '').trim().toLowerCase();
+          if (genere === 'maschio' || genere === 'uomo') genderDistribution.Maschio++;
+          else if (genere === 'femmina' || genere === 'donna') genderDistribution.Femmina++;
+          else genderDistribution.Altro++;
+          // Località
+          if (s.comune_residenza) {
+            locationDistribution[s.comune_residenza] = (locationDistribution[s.comune_residenza] || 0) + 1;
+          }
+          // Età
+          const age = getAge(s.data_nascita!);
+          if (age) {
+            ageSum += age;
+            if (age <= 25) ageDistribution['18-25']++;
+            else if (age <= 35) ageDistribution['26-35']++;
+            else if (age <= 45) ageDistribution['36-45']++;
+            else if (age <= 55) ageDistribution['46-55']++;
+            else if (age <= 65) ageDistribution['56-65']++;
+            else ageDistribution['65+']++;
+          }
+        }
+        const averageAge = totalSupporters > 0 ? ageSum / totalSupporters : 0;
+        setStats({
+          totalSupporters,
+          genderDistribution,
+          locationDistribution,
+          averageAge,
+          ageDistribution
+        });
       } catch (error) {
         console.error('Errore nel caricamento dei dati:', error);
         setError('Errore nel caricamento dei dati');
@@ -105,7 +163,6 @@ export default function Sostenitori() {
         setIsLoadingSupporters(false);
       }
     };
-
     if (user) {
       fetchData();
     }
