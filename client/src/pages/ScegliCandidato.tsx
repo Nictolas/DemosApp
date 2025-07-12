@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Check, User, ThumbsUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
+import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 
 interface Candidato {
   id: string;
@@ -73,31 +73,38 @@ export default function ScegliCandidato() {
       if (!user) return;
       
       try {
-        // Carica i dati dell'utente corrente
-        const userResponse = await apiRequest("GET", `/api/user`);
-        const userData = await userResponse.json();
+        // Carica i dati dell'utente corrente direttamente da Firestore
+        const userDocRef = doc(db, "utenti", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.data();
         
         // Recupera l'ID del candidato selezionato
         if (userData) {
           setCandidatoSelezionato(userData[getFieldName()] || null);
         }
         
-        // Carica le opinioni dell'utente corrente
-        const opinionsResponse = await apiRequest("GET", '/api/opinioni');
-        const opinionsData = await opinionsResponse.json();
+        // Carica le opinioni dell'utente corrente direttamente da Firestore
+        const opinionsDocRef = doc(db, "opinioni", user.uid);
+        const opinionsDoc = await getDoc(opinionsDocRef);
+        const opinionsData = opinionsDoc.data() || {};
         setUserOpinions(opinionsData);
         
-        // Carica tutti gli utenti candidati tramite API
-        const candidatiResponse = await fetch('/api/candidati');
-        if (!candidatiResponse.ok) {
-          throw new Error('Errore nel caricamento candidati');
-        }
+        // Carica tutti gli utenti candidati direttamente da Firestore
+        const usersCollectionRef = collection(db, "utenti");
+        const usersSnapshot = await getDocs(usersCollectionRef);
+        const allUsers = usersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
         
-        const data = await candidatiResponse.json();
+        // Filtra solo i candidati
+        const data = allUsers.filter((user: any) => 
+          user.ruolo === 'Candidato Politico' && 
+          user.grado_candidatura === getTitolo()
+        );
         
         if (data) {
           // Filtra i candidati in base alla località di candidatura dell'utente
-          const userData = user as any;
           let filteredData: any[] = data;
           
           // Filtra in base alla località appropriata secondo il livello
@@ -194,24 +201,21 @@ export default function ScegliCandidato() {
     
     setSelezionando(true);
     try {
-      // Crea un oggetto con il campo da aggiornare
+      // Aggiorna direttamente in Firestore
+      const userDocRef = doc(db, "utenti", user.uid);
       const updateData: Record<string, string> = {
         [getFieldName()]: candidatoId
       };
       
-      // Aggiorna i dati dell'utente
-      await apiRequest("PUT", `/api/users/${user.uid}`, updateData);
+      await updateDoc(userDocRef, updateData);
       
+      setCandidatoSelezionato(candidatoId);
       toast({
-        title: "Candidato selezionato",
-        description: "Il candidato è stato selezionato con successo.",
-        variant: "default",
+        title: "Successo",
+        description: "Candidato selezionato con successo!",
       });
-      
-      // Redirect alla pagina dei candidati
-      window.location.href = "/elezioni";
     } catch (error) {
-      console.error("Errore durante la selezione del candidato:", error);
+      console.error("Errore durante la selezione:", error);
       toast({
         title: "Errore",
         description: "Impossibile selezionare il candidato.",
