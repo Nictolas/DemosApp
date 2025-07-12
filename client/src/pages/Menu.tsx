@@ -132,16 +132,6 @@ export default function Menu() {
                 </Button>
               </Link>
               
-              <Link href="/statistiche">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <BarChart2 className="h-5 w-5" />
-                  Statistiche
-                </Button>
-              </Link>
-              
               <Link href="/comunica">
                 <Button 
                   className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
