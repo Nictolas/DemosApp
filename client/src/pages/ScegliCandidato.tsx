@@ -99,7 +99,7 @@ export default function ScegliCandidato() {
         
         // Filtra solo i candidati
         const data = allUsers.filter((user: any) => 
-          user.ruolo === 'Candidato Politico' && 
+          (user.ruolo === 'Candidato Politico' || user.ruolo === 'Candidato') && 
           user.grado_candidatura === getTitolo()
         );
         
@@ -134,13 +134,9 @@ export default function ScegliCandidato() {
                 );
                 break;
               case "comune":
-                // Per candidati comunali, filtra per comune di residenza dell'utente
+                // Per candidati comunali, mostra chi ha comune_candidatura uguale a comune_residenza dell'utente
                 filteredData = data.filter((item: any) => 
-                  !userData.comune_residenza || 
-                  (item.paese_candidatura === userData.paese_residenza && 
-                  item.regione_candidatura === userData.regione_residenza &&
-                  item.provincia_candidatura === userData.provincia_residenza &&
-                  item.comune_candidatura === userData.comune_residenza)
+                  item.comune_candidatura === userData.comune_residenza
                 );
                 break;
               default:

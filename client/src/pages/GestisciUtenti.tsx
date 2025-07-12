@@ -228,20 +228,6 @@ function GestisciUtenti() {
   const safeUsers = Array.isArray(users) ? users : [];
   const safePaginatedUsers = Array.isArray(paginatedUsers) ? paginatedUsers : [];
 
-  // DEBUG BOX A SCHERMO ESTESO
-  const debugBox = (
-    <div style={{ background: '#fffbe6', color: '#b36b00', border: '1px solid #ffe58f', padding: 12, marginBottom: 16, fontSize: 13, borderRadius: 6 }}>
-      <b>DEBUG AUTH:</b><br/>
-      <b>authReady:</b> {String(authReady)}<br/>
-      <b>isLoading:</b> {String(isLoading)}<br/>
-      <b>user:</b> <pre style={{ display: 'inline', whiteSpace: 'pre-wrap' }}>{user ? JSON.stringify(user, null, 2) : 'null'}</pre><br/>
-      <b>error:</b> {error ? error.toString() : 'null'}<br/>
-      <b>isLoadingUsers:</b> {String(isLoadingUsers)}<br/>
-      <b>pendingUsers.length:</b> {safePendingUsers.length}<br/>
-      <b>users.length:</b> {safeUsers.length}
-    </div>
-  );
-
   // Loggo in console questi valori all'avvio e dopo ogni fetch
   useEffect(() => {
     console.log('[DEBUG] authReady:', authReady, 'isLoading:', isLoading, 'user:', user, 'error:', error, 'isLoadingUsers:', isLoadingUsers, 'pendingUsers.length:', safePendingUsers.length, 'users.length:', safeUsers.length);
@@ -249,7 +235,6 @@ function GestisciUtenti() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
-      {debugBox}
       {isLoadingUsers ? (
         <div className="flex items-center justify-center min-h-[80vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
