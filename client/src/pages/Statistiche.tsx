@@ -50,49 +50,7 @@ export default function Statistiche() {
 
         {/* Pulsanti Statistiche */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Statistiche Utenti */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700">
-                <Users className="h-5 w-5" />
-                Statistiche Utenti
-              </CardTitle>
-              <CardDescription>
-                Visualizza dati demografici e statistiche degli utenti registrati
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => window.location.href = "/statistiche-utenti"}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Visualizza Statistiche Utenti
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Statistiche Opinioni */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
-                <MessageSquare className="h-5 w-5" />
-                Statistiche Opinioni
-              </CardTitle>
-              <CardDescription>
-                Analizza le opinioni politiche degli utenti e le tendenze
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={() => window.location.href = "/statistiche-opinioni"}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Visualizza Statistiche Opinioni
-              </Button>
-            </CardContent>
-          </Card>
+          
         </div>
       </div>
     </div>
