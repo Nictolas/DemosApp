@@ -64,11 +64,15 @@ export default function Sostenitori() {
   const { user, isLoading } = useAuth();
   const [stats, setStats] = useState<SupporterStats | null>(null);
   const [supporters, setSupporters] = useState<Supporter[]>([]);
+  const [supportersPolitico, setSupportersPolitico] = useState<Supporter[]>([]);
+  const [supportersCandidato, setSupportersCandidato] = useState<Supporter[]>([]);
+  const [supportersBoth, setSupportersBoth] = useState<Supporter[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingSupporters, setIsLoadingSupporters] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [showSupportersList, setShowSupportersList] = useState(false);
+  // Cambia lo stato per supportare sia booleano che stringa
+  const [showSupportersList, setShowSupportersList] = useState<false | 'politico' | 'candidato' | 'entrambi' | 'tutti'>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,19 +86,67 @@ export default function Sostenitori() {
         const utentiSnap = await getDocs(utentiRef);
         let myProfile = null;
         const supportersArr: Supporter[] = [];
+        const supportersPoliticoArr: Supporter[] = [];
+        const supportersCandidatoArr: Supporter[] = [];
+        const supportersBothArr: Supporter[] = [];
         for (const doc of utentiSnap.docs) {
           const data = doc.data();
           if (doc.id === user.uid) {
             myProfile = { uid: doc.id, ...data };
           }
-          // Cerca chi ha scelto l'utente loggato come rappresentante
+          // Politico
+          let isPolitico = false;
+          let isCandidato = false;
           const supporterRoles: string[] = [];
-          if (data.rappresentante_europeo === user.uid) supporterRoles.push("Rappresentante Europeo");
-          if (data.rappresentante_camera === user.uid) supporterRoles.push("Rappresentante Camera");
-          if (data.rappresentante_senato === user.uid) supporterRoles.push("Rappresentante Senato");
-          if (data.rappresentante_regionale === user.uid) supporterRoles.push("Rappresentante Regionale");
-          if (data.rappresentante_comunale === user.uid) supporterRoles.push("Rappresentante Comunale");
-          if (supporterRoles.length > 0) {
+          if (data.rappresentante_europeo === user.uid) { supporterRoles.push("Rappresentante Europeo"); isPolitico = true; }
+          if (data.rappresentante_camera === user.uid) { supporterRoles.push("Rappresentante Camera"); isPolitico = true; }
+          if (data.rappresentante_senato === user.uid) { supporterRoles.push("Rappresentante Senato"); isPolitico = true; }
+          if (data.rappresentante_regionale === user.uid) { supporterRoles.push("Rappresentante Regionale"); isPolitico = true; }
+          if (data.rappresentante_comunale === user.uid) { supporterRoles.push("Rappresentante Comunale"); isPolitico = true; }
+          // Candidato
+          if (data.candidato_europeo === user.uid) { supporterRoles.push("Candidato Europeo"); isCandidato = true; }
+          if (data.candidato_camera === user.uid) { supporterRoles.push("Candidato Camera"); isCandidato = true; }
+          if (data.candidato_senato === user.uid) { supporterRoles.push("Candidato Senato"); isCandidato = true; }
+          if (data.candidato_regionale === user.uid) { supporterRoles.push("Candidato Regionale"); isCandidato = true; }
+          if (data.candidato_comunale === user.uid) { supporterRoles.push("Candidato Comunale"); isCandidato = true; }
+          if (isPolitico && isCandidato) {
+            supportersBothArr.push({
+              uid: doc.id,
+              nome: data.nome,
+              cognome: data.cognome,
+              email: data.email,
+              genere: data.genere,
+              data_nascita: data.data_nascita,
+              comune_residenza: data.comune_residenza,
+              supporterRoles,
+              data_registrazione: data.data_registrazione || doc.id
+            });
+          } else if (isPolitico) {
+            supportersPoliticoArr.push({
+              uid: doc.id,
+              nome: data.nome,
+              cognome: data.cognome,
+              email: data.email,
+              genere: data.genere,
+              data_nascita: data.data_nascita,
+              comune_residenza: data.comune_residenza,
+              supporterRoles,
+              data_registrazione: data.data_registrazione || doc.id
+            });
+          } else if (isCandidato) {
+            supportersCandidatoArr.push({
+              uid: doc.id,
+              nome: data.nome,
+              cognome: data.cognome,
+              email: data.email,
+              genere: data.genere,
+              data_nascita: data.data_nascita,
+              comune_residenza: data.comune_residenza,
+              supporterRoles,
+              data_registrazione: data.data_registrazione || doc.id
+            });
+          }
+          if (isPolitico || isCandidato) {
             supportersArr.push({
               uid: doc.id,
               nome: data.nome,
@@ -110,8 +162,11 @@ export default function Sostenitori() {
         }
         setUserProfile(myProfile);
         setSupporters(supportersArr);
+        setSupportersPolitico(supportersPoliticoArr);
+        setSupportersCandidato(supportersCandidatoArr);
+        setSupportersBoth(supportersBothArr);
 
-        // Calcola statistiche
+        // Calcola statistiche (totale)
         let totalSupporters = supportersArr.length;
         let genderDistribution = { Maschio: 0, Femmina: 0, Altro: 0 };
         let locationDistribution: Record<string, number> = {};
@@ -404,7 +459,7 @@ export default function Sostenitori() {
                   </div>
 
                   {/* Pulsante per mostrare/nascondere la lista sostenitori */}
-                  {supporters.length > 0 && (
+                  {(userRole !== 'candidato politico' && supporters.length > 0) && (
                     <div className="flex justify-center">
                       <Button
                         variant="outline"
@@ -425,14 +480,31 @@ export default function Sostenitori() {
                       </Button>
                     </div>
                   )}
+                  {/* Se Candidato Politico, mostra 3 pulsanti per le 3 liste */}
+                  {userRole === 'candidato politico' && (
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <Button variant="outline" onClick={() => setShowSupportersList(showSupportersList === 'politico' ? false : 'politico')}>
+                        {showSupportersList === 'politico' ? 'Nascondi' : 'Mostra'} Solo Politico ({supportersPolitico.length})
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowSupportersList(showSupportersList === 'candidato' ? false : 'candidato')}>
+                        {showSupportersList === 'candidato' ? 'Nascondi' : 'Mostra'} Solo Candidato ({supportersCandidato.length})
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowSupportersList(showSupportersList === 'entrambi' ? false : 'entrambi')}>
+                        {showSupportersList === 'entrambi' ? 'Nascondi' : 'Mostra'} Entrambi ({supportersBoth.length})
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowSupportersList(showSupportersList === 'tutti' ? false : 'tutti')}>
+                        {showSupportersList === 'tutti' ? 'Nascondi' : 'Mostra'} Tutti ({supporters.length})
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Lista dei sostenitori */}
-                  {showSupportersList && supporters.length > 0 && (
+                  {showSupportersList && (userRole !== 'candidato politico') && supporters.length > 0 && (
                     <Card className="shadow-sm">
                       <CardHeader>
                         <CardTitle className="text-xl">Lista dei Sostenitori</CardTitle>
                         <CardDescription>
-                          Tutti coloro che ti hanno scelto come rappresentante
+                          Tutti coloro che ti hanno scelto come rappresentante/candidato
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -483,6 +555,183 @@ export default function Sostenitori() {
                         </div>
                       </CardContent>
                     </Card>
+                  )}
+                  {/* Liste separate per Candidato Politico */}
+                  {showSupportersList && userRole === 'candidato politico' && (
+                    <>
+                      {showSupportersList === 'politico' && supportersPolitico.length > 0 && (
+                        <Card className="shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-xl">Sostenitori (Solo Politico)</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="bg-secondary/30">
+                                    <th className="border p-2 text-left">Nome</th>
+                                    <th className="border p-2 text-left">Email</th>
+                                    <th className="border p-2 text-left">Genere</th>
+                                    <th className="border p-2 text-left">Età</th>
+                                    <th className="border p-2 text-left">Località</th>
+                                    <th className="border p-2 text-left">Ruoli</th>
+                                    <th className="border p-2 text-left">Data Registrazione</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {supportersPolitico.map((supporter) => (
+                                    <tr key={supporter.uid} className="hover:bg-secondary/10">
+                                      <td className="border p-2 font-medium">{supporter.nome} {supporter.cognome}</td>
+                                      <td className="border p-2 text-sm">{supporter.email}</td>
+                                      <td className="border p-2">{supporter.genere || 'N/A'}</td>
+                                      <td className="border p-2">{supporter.data_nascita ? getAge(supporter.data_nascita) : 'N/A'}</td>
+                                      <td className="border p-2">{supporter.comune_residenza || 'N/A'}</td>
+                                      <td className="border p-2">
+                                        <div className="flex flex-wrap gap-1">
+                                          {supporter.supporterRoles.map((role, index) => (
+                                            <span key={index} className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">{role}</span>
+                                          ))}
+                                        </div>
+                                      </td>
+                                      <td className="border p-2 text-sm">{formatDate(supporter.data_registrazione)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {showSupportersList === 'candidato' && supportersCandidato.length > 0 && (
+                        <Card className="shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-xl">Sostenitori (Solo Candidato)</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="bg-secondary/30">
+                                    <th className="border p-2 text-left">Nome</th>
+                                    <th className="border p-2 text-left">Email</th>
+                                    <th className="border p-2 text-left">Genere</th>
+                                    <th className="border p-2 text-left">Età</th>
+                                    <th className="border p-2 text-left">Località</th>
+                                    <th className="border p-2 text-left">Ruoli</th>
+                                    <th className="border p-2 text-left">Data Registrazione</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {supportersCandidato.map((supporter) => (
+                                    <tr key={supporter.uid} className="hover:bg-secondary/10">
+                                      <td className="border p-2 font-medium">{supporter.nome} {supporter.cognome}</td>
+                                      <td className="border p-2 text-sm">{supporter.email}</td>
+                                      <td className="border p-2">{supporter.genere || 'N/A'}</td>
+                                      <td className="border p-2">{supporter.data_nascita ? getAge(supporter.data_nascita) : 'N/A'}</td>
+                                      <td className="border p-2">{supporter.comune_residenza || 'N/A'}</td>
+                                      <td className="border p-2">
+                                        <div className="flex flex-wrap gap-1">
+                                          {supporter.supporterRoles.map((role, index) => (
+                                            <span key={index} className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">{role}</span>
+                                          ))}
+                                        </div>
+                                      </td>
+                                      <td className="border p-2 text-sm">{formatDate(supporter.data_registrazione)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {showSupportersList === 'entrambi' && supportersBoth.length > 0 && (
+                        <Card className="shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-xl">Sostenitori (Entrambi)</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="bg-secondary/30">
+                                    <th className="border p-2 text-left">Nome</th>
+                                    <th className="border p-2 text-left">Email</th>
+                                    <th className="border p-2 text-left">Genere</th>
+                                    <th className="border p-2 text-left">Età</th>
+                                    <th className="border p-2 text-left">Località</th>
+                                    <th className="border p-2 text-left">Ruoli</th>
+                                    <th className="border p-2 text-left">Data Registrazione</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {supportersBoth.map((supporter) => (
+                                    <tr key={supporter.uid} className="hover:bg-secondary/10">
+                                      <td className="border p-2 font-medium">{supporter.nome} {supporter.cognome}</td>
+                                      <td className="border p-2 text-sm">{supporter.email}</td>
+                                      <td className="border p-2">{supporter.genere || 'N/A'}</td>
+                                      <td className="border p-2">{supporter.data_nascita ? getAge(supporter.data_nascita) : 'N/A'}</td>
+                                      <td className="border p-2">{supporter.comune_residenza || 'N/A'}</td>
+                                      <td className="border p-2">
+                                        <div className="flex flex-wrap gap-1">
+                                          {supporter.supporterRoles.map((role, index) => (
+                                            <span key={index} className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">{role}</span>
+                                          ))}
+                                        </div>
+                                      </td>
+                                      <td className="border p-2 text-sm">{formatDate(supporter.data_registrazione)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {showSupportersList === 'tutti' && supporters.length > 0 && (
+                        <Card className="shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-xl">Tutti i Sostenitori</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="bg-secondary/30">
+                                    <th className="border p-2 text-left">Nome</th>
+                                    <th className="border p-2 text-left">Email</th>
+                                    <th className="border p-2 text-left">Genere</th>
+                                    <th className="border p-2 text-left">Età</th>
+                                    <th className="border p-2 text-left">Località</th>
+                                    <th className="border p-2 text-left">Ruoli</th>
+                                    <th className="border p-2 text-left">Data Registrazione</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {supporters.map((supporter) => (
+                                    <tr key={supporter.uid} className="hover:bg-secondary/10">
+                                      <td className="border p-2 font-medium">{supporter.nome} {supporter.cognome}</td>
+                                      <td className="border p-2 text-sm">{supporter.email}</td>
+                                      <td className="border p-2">{supporter.genere || 'N/A'}</td>
+                                      <td className="border p-2">{supporter.data_nascita ? getAge(supporter.data_nascita) : 'N/A'}</td>
+                                      <td className="border p-2">{supporter.comune_residenza || 'N/A'}</td>
+                                      <td className="border p-2">
+                                        <div className="flex flex-wrap gap-1">
+                                          {supporter.supporterRoles.map((role, index) => (
+                                            <span key={index} className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">{role}</span>
+                                          ))}
+                                        </div>
+                                      </td>
+                                      <td className="border p-2 text-sm">{formatDate(supporter.data_registrazione)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
                   )}
 
                   {/* Grafici */}
