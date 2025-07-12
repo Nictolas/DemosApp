@@ -87,6 +87,57 @@ class SostenitoriService {
       ageDistribution
     };
   }
+
+  /**
+   * Ottiene la lista dettagliata dei sostenitori per un politico/candidato.
+   */
+  static async getSupportersList(identifier) {
+    if (!db) return null;
+
+    let utentiSnapshot;
+    if (identifier.includes('@')) {
+      // Cerca per email
+      utentiSnapshot = await getDocs(query(collection(db, 'utenti'), where('email', '==', identifier)));
+    } else {
+      // Cerca per uid
+      utentiSnapshot = await getDocs(query(collection(db, 'utenti'), where('uid', '==', identifier)));
+    }
+    if (utentiSnapshot.empty) return null;
+    const user = utentiSnapshot.docs[0].data();
+    const userId = user.uid || utentiSnapshot.docs[0].id;
+
+    // Trova tutti gli utenti che hanno scelto questo userId come rappresentante in almeno un campo
+    const allUsersSnapshot = await getDocs(collection(db, 'utenti'));
+    const supporters = [];
+    
+    for (const doc of allUsersSnapshot.docs) {
+      const u = doc.data();
+      const supporterRoles = [];
+      
+      if (u.rappresentante_europeo === userId) supporterRoles.push('Rappresentante Europeo');
+      if (u.rappresentante_camera === userId) supporterRoles.push('Rappresentante Camera');
+      if (u.rappresentante_senato === userId) supporterRoles.push('Rappresentante Senato');
+      if (u.rappresentante_regionale === userId) supporterRoles.push('Rappresentante Regionale');
+      if (u.rappresentante_comunale === userId) supporterRoles.push('Rappresentante Comunale');
+      
+      if (supporterRoles.length > 0) {
+        supporters.push({
+          ...u,
+          supporterRoles,
+          data_registrazione: u.data_registrazione || doc.id // fallback se non c'è data_registrazione
+        });
+      }
+    }
+
+    // Ordina per data di registrazione (più recenti prima)
+    supporters.sort((a, b) => {
+      const dateA = new Date(a.data_registrazione);
+      const dateB = new Date(b.data_registrazione);
+      return dateB - dateA;
+    });
+
+    return supporters;
+  }
 }
 
 export default SostenitoriService; 

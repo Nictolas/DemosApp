@@ -359,6 +359,15 @@ app.get('/api/sostenitori/:uid', requireFirebaseAuth, async (req, res) => {
     res.json(await SostenitoriService.getSupporterStats(user.email));
 });
 
+app.get('/api/sostenitori/:uid/list', requireFirebaseAuth, async (req, res) => {
+    const { uid } = req.params;
+    if (req.user?.ruolo !== 'Politico' && req.user?.ruolo !== 'Candidato' && req.user?.ruolo !== 'Candidato Politico') return res.status(403).json({ error: "Forbidden" });
+    if (req.user?.uid !== uid) return res.status(403).json({ error: "Forbidden" });
+    const user = await UserService.getUserById(uid);
+    if (!user?.email) return res.status(404).json({ error: "User not found" });
+    res.json(await SostenitoriService.getSupportersList(user.email));
+});
+
 // Admin
 app.delete('/api/users/:uid', requireFirebaseAdmin, async (req, res) => {
     const user = await UserService.getUserById(req.params.uid);

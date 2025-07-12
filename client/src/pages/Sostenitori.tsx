@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Users, MapPin, Calendar, User } from "lucide-react";
+import { Loader2, ArrowLeft, Users, MapPin, Calendar, User, Eye, EyeOff } from "lucide-react";
 import { 
   Chart as ChartJS, 
   ArcElement, 
@@ -47,12 +47,27 @@ type SupporterStats = {
   };
 };
 
+type Supporter = {
+  uid: string;
+  nome: string;
+  cognome: string;
+  email: string;
+  genere?: string;
+  data_nascita?: string;
+  comune_residenza?: string;
+  supporterRoles: string[];
+  data_registrazione: string;
+};
+
 export default function Sostenitori() {
   const { user, isLoading } = useAuth();
   const [stats, setStats] = useState<SupporterStats | null>(null);
+  const [supporters, setSupporters] = useState<Supporter[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingSupporters, setIsLoadingSupporters] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [showSupportersList, setShowSupportersList] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,6 +75,7 @@ export default function Sostenitori() {
       
       try {
         setIsLoadingStats(true);
+        setIsLoadingSupporters(true);
         
         // Carica dati utente
         const userResponse = await apiRequest('GET', `/api/users/${encodeURIComponent(user.uid)}`);
@@ -74,11 +90,19 @@ export default function Sostenitori() {
           const statsData = await statsResponse.json();
           setStats(statsData);
         }
+
+        // Carica lista sostenitori
+        const supportersResponse = await apiRequest('GET', `/api/sostenitori/${encodeURIComponent(user.uid)}/list`);
+        if (supportersResponse.ok) {
+          const supportersData = await supportersResponse.json();
+          setSupporters(supportersData);
+        }
       } catch (error) {
         console.error('Errore nel caricamento dei dati:', error);
         setError('Errore nel caricamento dei dati');
       } finally {
         setIsLoadingStats(false);
+        setIsLoadingSupporters(false);
       }
     };
 
@@ -112,7 +136,7 @@ export default function Sostenitori() {
   }
 
   // Messaggio di caricamento dettagliato
-  if (isLoadingStats) {
+  if (isLoadingStats || isLoadingSupporters) {
     return (
       <div className="flex items-center justify-center min-h-[80vh]">
         <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-blue-300">
@@ -216,6 +240,24 @@ export default function Sostenitori() {
     };
   };
 
+  // Funzione per calcolare l'età
+  const getAge = (birthDate: string) => {
+    if (!birthDate) return null;
+    const birth = new Date(birthDate);
+    const now = new Date();
+    return now.getFullYear() - birth.getFullYear();
+  };
+
+  // Funzione per formattare la data
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('it-IT');
+    } catch {
+      return 'N/A';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       {isLoading || isLoadingStats ? (
@@ -238,7 +280,7 @@ export default function Sostenitori() {
                 <Users className="mr-2 h-6 w-6 text-primary" /> I Miei Sostenitori
               </CardTitle>
               <CardDescription>
-                Statistiche dettagliate dei tuoi sostenitori su DEMOS
+                Statistiche dettagliate e lista dei tuoi sostenitori su DEMOS
               </CardDescription>
             </CardHeader>
             
@@ -303,6 +345,88 @@ export default function Sostenitori() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {/* Pulsante per mostrare/nascondere la lista sostenitori */}
+                  {supporters.length > 0 && (
+                    <div className="flex justify-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowSupportersList(!showSupportersList)}
+                        className="flex items-center space-x-2"
+                      >
+                        {showSupportersList ? (
+                          <>
+                            <EyeOff className="h-4 w-4" />
+                            <span>Nascondi Lista Sostenitori</span>
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-4 w-4" />
+                            <span>Mostra Lista Sostenitori ({supporters.length})</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Lista dei sostenitori */}
+                  {showSupportersList && supporters.length > 0 && (
+                    <Card className="shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="text-xl">Lista dei Sostenitori</CardTitle>
+                        <CardDescription>
+                          Tutti coloro che ti hanno scelto come rappresentante
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="bg-secondary/30">
+                                <th className="border p-2 text-left">Nome</th>
+                                <th className="border p-2 text-left">Email</th>
+                                <th className="border p-2 text-left">Genere</th>
+                                <th className="border p-2 text-left">Età</th>
+                                <th className="border p-2 text-left">Località</th>
+                                <th className="border p-2 text-left">Ruoli</th>
+                                <th className="border p-2 text-left">Data Registrazione</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {supporters.map((supporter) => (
+                                <tr key={supporter.uid} className="hover:bg-secondary/10">
+                                  <td className="border p-2 font-medium">
+                                    {supporter.nome} {supporter.cognome}
+                                  </td>
+                                  <td className="border p-2 text-sm">{supporter.email}</td>
+                                  <td className="border p-2">{supporter.genere || 'N/A'}</td>
+                                  <td className="border p-2">
+                                    {supporter.data_nascita ? getAge(supporter.data_nascita) : 'N/A'}
+                                  </td>
+                                  <td className="border p-2">{supporter.comune_residenza || 'N/A'}</td>
+                                  <td className="border p-2">
+                                    <div className="flex flex-wrap gap-1">
+                                      {supporter.supporterRoles.map((role, index) => (
+                                        <span
+                                          key={index}
+                                          className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-full"
+                                        >
+                                          {role}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </td>
+                                  <td className="border p-2 text-sm">
+                                    {formatDate(supporter.data_registrazione)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Grafici */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
