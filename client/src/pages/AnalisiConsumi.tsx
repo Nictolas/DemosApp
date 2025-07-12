@@ -20,25 +20,45 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 interface FirebaseConsumi {
   timestamp?: string;
   error?: string;
-  firestore?: {
-    reads: number;
-    writes: number;
-    total: number;
+  firestoreReads?: {
+    timeSeries: {
+      points: {
+        value: { int64Value: string };
+      }[];
+    }[];
+    error?: string;
   };
-  functions?: {
-    invocations: number;
-    executionTime: number;
-    gbSeconds: number;
+  firestoreWrites?: {
+    timeSeries: {
+      points: {
+        value: { int64Value: string };
+      }[];
+    }[];
+    error?: string;
   };
-  hosting?: {
-    requests: number;
-    bytesTransferred: number;
-    gbTransferred: number;
+  functionsInvocations?: {
+    timeSeries: {
+      points: {
+        value: { int64Value: string };
+      }[];
+    }[];
+    error?: string;
   };
-  storage?: {
-    objectCount: number;
-    bytesUsed: number;
-    gbUsed: number;
+  hostingRequests?: {
+    timeSeries: {
+      points: {
+        value: { int64Value: string };
+      }[];
+    }[];
+    error?: string;
+  };
+  storageObjects?: {
+    timeSeries: {
+      points: {
+        value: { int64Value: string };
+      }[];
+    }[];
+    error?: string;
   };
 }
 
@@ -148,12 +168,7 @@ export default function AnalisiConsumi() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Consumi Firebase Reali */}
-            {firebaseConsumi && firebaseConsumi.error ? (
-              <div className="bg-red-50 border border-red-200 rounded p-3 text-red-700">
-                <AlertTriangle className="h-4 w-4 inline mr-2" />
-                Errore nel recupero dati Firebase: {firebaseConsumi.error.includes('server error') ? 'Il backend non è autorizzato a interrogare le Google Cloud Monitoring API. Sposta la funzione su Google Cloud Functions.' : firebaseConsumi.error}
-              </div>
-            ) : (
+            {firebaseConsumi && (
               <div className="bg-white border border-orange-200 rounded-lg p-4 mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -169,118 +184,63 @@ export default function AnalisiConsumi() {
                     </Button>
                   </div>
                 </div>
-                {firebaseConsumi && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Firestore */}
-                    <div className="bg-blue-50 rounded-lg p-3">
-                      <h4 className="font-semibold text-blue-800 mb-2">Firestore</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Letture:</span>
-                          <span className="font-mono">{firebaseConsumi.firestore?.reads?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Scritture:</span>
-                          <span className="font-mono">{firebaseConsumi.firestore?.writes?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Totale:</span>
-                          <span className="font-mono">{firebaseConsumi.firestore?.total?.toLocaleString() || '0'}</span>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Firestore */}
+                  <div className="bg-blue-50 rounded-lg p-3">
+                    <h4 className="font-semibold text-blue-800 mb-2">Firestore</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Letture:</span>
+                        <span className="font-mono">{firebaseConsumi.firestoreReads && firebaseConsumi.firestoreReads.timeSeries && firebaseConsumi.firestoreReads.timeSeries[0] ? firebaseConsumi.firestoreReads.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
                       </div>
-                    </div>
-                    {/* Functions */}
-                    <div className="bg-green-50 rounded-lg p-3">
-                      <h4 className="font-semibold text-green-800 mb-2">Cloud Functions</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Invocazioni:</span>
-                          <span className="font-mono">{firebaseConsumi.functions?.invocations?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Tempo esecuzione:</span>
-                          <span className="font-mono">{firebaseConsumi.functions?.executionTime?.toFixed(2) || '0'} ms</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>GB-seconds:</span>
-                          <span className="font-mono">{firebaseConsumi.functions?.gbSeconds?.toFixed(2) || '0'}</span>
-                        </div>
+                      <div className="flex justify-between">
+                        <span>Scritture:</span>
+                        <span className="font-mono">{firebaseConsumi.firestoreWrites && firebaseConsumi.firestoreWrites.timeSeries && firebaseConsumi.firestoreWrites.timeSeries[0] ? firebaseConsumi.firestoreWrites.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
                       </div>
-                    </div>
-                    {/* Hosting */}
-                    <div className="bg-purple-50 rounded-lg p-3">
-                      <h4 className="font-semibold text-purple-800 mb-2">Hosting</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Richieste:</span>
-                          <span className="font-mono">{firebaseConsumi.hosting?.requests?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Bytes trasferiti:</span>
-                          <span className="font-mono">{firebaseConsumi.hosting?.bytesTransferred?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>GB trasferiti:</span>
-                          <span className="font-mono">{firebaseConsumi.hosting?.gbTransferred?.toFixed(2) || '0'}</span>
-                        </div>
+                      <div className="flex justify-between">
+                        <span>Totale:</span>
+                        <span className="font-mono">{firebaseConsumi.firestoreReads && firebaseConsumi.firestoreReads.timeSeries && firebaseConsumi.firestoreReads.timeSeries[0] && firebaseConsumi.firestoreWrites && firebaseConsumi.firestoreWrites.timeSeries && firebaseConsumi.firestoreWrites.timeSeries[0] ? (parseInt(firebaseConsumi.firestoreReads.timeSeries[0].points[0].value.int64Value) + parseInt(firebaseConsumi.firestoreWrites.timeSeries[0].points[0].value.int64Value)) : 'Nessun dato disponibile'}</span>
                       </div>
-                    </div>
-                    {/* Storage */}
-                    <div className="bg-yellow-50 rounded-lg p-3">
-                      <h4 className="font-semibold text-yellow-800 mb-2">Storage</h4>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span>Oggetti:</span>
-                          <span className="font-mono">{firebaseConsumi.storage?.objectCount?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Bytes utilizzati:</span>
-                          <span className="font-mono">{firebaseConsumi.storage?.bytesUsed?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>GB utilizzati:</span>
-                          <span className="font-mono">{firebaseConsumi.storage?.gbUsed?.toFixed(2) || '0'}</span>
-                        </div>
-                      </div>
+                      {firebaseConsumi.firestoreReadsError && <div className="text-xs text-red-600">{firebaseConsumi.firestoreReadsError}</div>}
+                      {firebaseConsumi.firestoreWritesError && <div className="text-xs text-red-600">{firebaseConsumi.firestoreWritesError}</div>}
                     </div>
                   </div>
-                )}
+                  {/* Cloud Functions */}
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <h4 className="font-semibold text-green-800 mb-2">Cloud Functions</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Invocazioni:</span>
+                        <span className="font-mono">{firebaseConsumi.functionsInvocations && firebaseConsumi.functionsInvocations.timeSeries && firebaseConsumi.functionsInvocations.timeSeries[0] ? firebaseConsumi.functionsInvocations.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                      </div>
+                      {firebaseConsumi.functionsInvocationsError && <div className="text-xs text-red-600">{firebaseConsumi.functionsInvocationsError}</div>}
+                    </div>
+                  </div>
+                  {/* Hosting */}
+                  <div className="bg-purple-50 rounded-lg p-3">
+                    <h4 className="font-semibold text-purple-800 mb-2">Hosting</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Richieste:</span>
+                        <span className="font-mono">{firebaseConsumi.hostingRequests && firebaseConsumi.hostingRequests.timeSeries && firebaseConsumi.hostingRequests.timeSeries[0] ? firebaseConsumi.hostingRequests.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                      </div>
+                      {firebaseConsumi.hostingRequestsError && <div className="text-xs text-red-600">{firebaseConsumi.hostingRequestsError}</div>}
+                    </div>
+                  </div>
+                  {/* Storage */}
+                  <div className="bg-yellow-50 rounded-lg p-3">
+                    <h4 className="font-semibold text-yellow-800 mb-2">Storage</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span>Oggetti:</span>
+                        <span className="font-mono">{firebaseConsumi.storageObjects && firebaseConsumi.storageObjects.timeSeries && firebaseConsumi.storageObjects.timeSeries[0] ? firebaseConsumi.storageObjects.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                      </div>
+                      {firebaseConsumi.storageObjectsError && <div className="text-xs text-red-600">{firebaseConsumi.storageObjectsError}</div>}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
-            {/* Dati dinamici */}
-            <div className="bg-white border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-lg flex items-center gap-2">Dati dinamici (reali)</h3>
-                <Button onClick={handleAggiorna} disabled={loading} variant="outline" size="sm">
-                  {loading ? 'Aggiornamento...' : 'Aggiorna'}
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-blue-700">{dynamicData.bundleSize}</span>
-                  <span className="text-xs text-gray-500">Bundle JS/CSS</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-blue-700">{dynamicData.apiCalls}</span>
-                  <span className="text-xs text-gray-500">Chiamate API/Edge</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-blue-700">{dynamicData.bandwidth}</span>
-                  <span className="text-xs text-gray-500">Banda usata</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-blue-700">{dynamicData.serverlessGBhr}</span>
-                  <span className="text-xs text-gray-500">Serverless GB-hr</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-blue-700">{dynamicData.edgeInvocations}</span>
-                  <span className="text-xs text-gray-500">Edge Invocazioni</span>
-                </div>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-2">
-                <Bar data={chartData} options={chartOptions} height={180} />
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
