@@ -191,15 +191,45 @@ export default function AnalisiConsumi() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span>Letture:</span>
-                        <span className="font-mono">{firebaseConsumi.firestoreReads && firebaseConsumi.firestoreReads.timeSeries && firebaseConsumi.firestoreReads.timeSeries[0] ? firebaseConsumi.firestoreReads.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                        <span className="font-mono">{
+                          firebaseConsumi.firestoreReads &&
+                          firebaseConsumi.firestoreReads.timeSeries &&
+                          firebaseConsumi.firestoreReads.timeSeries[0] &&
+                          firebaseConsumi.firestoreReads.timeSeries[0].points
+                            ? firebaseConsumi.firestoreReads.timeSeries[0].points.reduce(
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
+                            : 'Nessun dato disponibile'
+                        }</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Scritture:</span>
-                        <span className="font-mono">{firebaseConsumi.firestoreWrites && firebaseConsumi.firestoreWrites.timeSeries && firebaseConsumi.firestoreWrites.timeSeries[0] ? firebaseConsumi.firestoreWrites.timeSeries[0].points[0].value.int64Value : 'Nessun dato disponibile'}</span>
+                        <span className="font-mono">{
+                          firebaseConsumi.firestoreWrites &&
+                          firebaseConsumi.firestoreWrites.timeSeries &&
+                          firebaseConsumi.firestoreWrites.timeSeries[0] &&
+                          firebaseConsumi.firestoreWrites.timeSeries[0].points
+                            ? firebaseConsumi.firestoreWrites.timeSeries[0].points.reduce(
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
+                            : 'Nessun dato disponibile'
+                        }</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Totale:</span>
-                        <span className="font-mono">{firebaseConsumi.firestoreReads && firebaseConsumi.firestoreReads.timeSeries && firebaseConsumi.firestoreReads.timeSeries[0] && firebaseConsumi.firestoreWrites && firebaseConsumi.firestoreWrites.timeSeries && firebaseConsumi.firestoreWrites.timeSeries[0] ? (parseInt(firebaseConsumi.firestoreReads.timeSeries[0].points[0].value.int64Value) + parseInt(firebaseConsumi.firestoreWrites.timeSeries[0].points[0].value.int64Value)) : 'Nessun dato disponibile'}</span>
+                        <span className="font-mono">{
+                          firebaseConsumi.firestoreReads &&
+                          firebaseConsumi.firestoreReads.timeSeries &&
+                          firebaseConsumi.firestoreReads.timeSeries[0] &&
+                          firebaseConsumi.firestoreReads.timeSeries[0].points &&
+                          firebaseConsumi.firestoreWrites &&
+                          firebaseConsumi.firestoreWrites.timeSeries &&
+                          firebaseConsumi.firestoreWrites.timeSeries[0] &&
+                          firebaseConsumi.firestoreWrites.timeSeries[0].points
+                            ? firebaseConsumi.firestoreReads.timeSeries[0].points.reduce(
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0) +
+                              firebaseConsumi.firestoreWrites.timeSeries[0].points.reduce(
+                                (acc, p) => acc + parseInt(p.value.int64Value || "0", 10), 0)
+                            : 'Nessun dato disponibile'
+                        }</span>
                       </div>
                       {firebaseConsumi.firestoreReadsError && <div className="text-xs text-red-600">{firebaseConsumi.firestoreReadsError}</div>}
                       {firebaseConsumi.firestoreWritesError && <div className="text-xs text-red-600">{firebaseConsumi.firestoreWritesError}</div>}
