@@ -162,7 +162,7 @@ export default function AnalisiConsumi() {
                   </h3>
                   <div className="flex items-center gap-2">
                     <div className="text-xs text-gray-500">
-                      Ultimo aggiornamento: {firebaseConsumi.timestamp ? new Date(firebaseConsumi.timestamp).toLocaleString('it-IT') : 'N/A'}
+                      Ultimo aggiornamento: {firebaseConsumi && firebaseConsumi.timestamp ? new Date(firebaseConsumi.timestamp).toLocaleString('it-IT') : 'N/A'}
                     </div>
                     <Button onClick={fetchFirebaseConsumi} disabled={loading} variant="outline" size="sm">
                       {loading ? 'Aggiornamento...' : 'Aggiorna Firebase'}
