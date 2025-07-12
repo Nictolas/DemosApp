@@ -3,10 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { ThumbsUp, ThumbsDown, Bell, Clock, User } from "lucide-react";
+import { useFCM } from "@/hooks/useFCM";
+import { ThumbsUp, ThumbsDown, Bell, Clock, User, Smartphone, Wifi } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -27,6 +29,7 @@ interface Notifica {
 export default function Notifiche() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { token: fcmToken, error: fcmError, permission } = useFCM();
   const queryClient = useQueryClient();
   const [processingReaction, setProcessingReaction] = useState<string | null>(null);
 
@@ -127,6 +130,50 @@ export default function Notifiche() {
             <p className="text-muted-foreground">
               Le comunicazioni dei tuoi rappresentanti
             </p>
+          </div>
+
+          {/* Stato notifiche push */}
+          <div className="mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Smartphone className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <h3 className="font-medium">Notifiche Push</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Ricevi notifiche anche quando l'app è chiusa
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge 
+                      variant={permission === 'granted' ? 'default' : 'secondary'}
+                      className="flex items-center space-x-1"
+                    >
+                      <Wifi className="h-3 w-3" />
+                      {permission === 'granted' ? 'Attive' : permission === 'denied' ? 'Negate' : 'Non richieste'}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {fcmError && (
+                  <Alert variant="destructive" className="mt-3">
+                    <AlertDescription>
+                      Errore notifiche: {fcmError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {fcmToken && (
+                  <Alert className="mt-3">
+                    <AlertDescription>
+                      Token FCM: {fcmToken.substring(0, 20)}...
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {!notifiche || (notifiche as any[]).length === 0 ? (

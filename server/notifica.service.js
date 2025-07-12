@@ -1,4 +1,5 @@
 import { db } from '../api/firebase-config.js'; 
+import { adminDb } from '../api/firebase-config.js';
 
 import FirebaseService from './firebase-service.js';
 import { collection, query, where, getDocs, doc, addDoc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
@@ -143,6 +144,134 @@ class NotificaService extends FirebaseService {
   // Aggiunto il metodo emailToId, che mancava
   static emailToId(email) {
     return email.replace(/[^a-zA-Z0-9]/g, '_');
+  }
+
+  /**
+   * Invia notifica push a un utente specifico
+   */
+  static async sendPushNotification(userId, title, body, data = {}) {
+    try {
+      if (!adminDb) {
+        console.error("Firebase Admin non configurato per notifiche push");
+        return { success: false, error: "Admin SDK non configurato" };
+      }
+
+      // Ottieni il token FCM dell'utente
+      const userDoc = await adminDb.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        return { success: false, error: "Utente non trovato" };
+      }
+
+      const userData = userDoc.data();
+      if (!userData.fcmToken) {
+        return { success: false, error: "Token FCM non trovato per questo utente" };
+      }
+
+      // Invia la notifica push
+      const message = {
+        token: userData.fcmToken,
+        notification: {
+          title: title,
+          body: body
+        },
+        data: {
+          ...data,
+          click_action: 'FLUTTER_NOTIFICATION_CLICK' // Per compatibilità mobile
+        },
+        webpush: {
+          headers: {
+            'Urgency': 'high'
+          },
+          notification: {
+            icon: '/icona.png',
+            badge: '/icona.png',
+            tag: 'demos-notification',
+            requireInteraction: true,
+            actions: [
+              {
+                action: 'open',
+                title: 'Apri'
+              },
+              {
+                action: 'close',
+                title: 'Chiudi'
+              }
+            ]
+          }
+        }
+      };
+
+      const response = await adminDb.app.messaging().send(message);
+      console.log(`Notifica push inviata a ${userId}:`, response);
+      return { success: true, messageId: response };
+    } catch (error) {
+      console.error('Errore invio notifica push:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Invia notifiche push a tutti gli utenti che hanno scelto un rappresentante specifico.
+   */
+  static async sendPushNotificationsForComunicazione(
+    rappresentanteEmail,
+    rappresentanteNome,
+    rappresentanteCognome,
+    titolo,
+    votoDato,
+    commento,
+    vincitore,
+    comunicazioneId
+  ) {
+    try {
+      if (!adminDb) {
+        console.error("Firebase Admin non è configurato per inviare notifiche push.");
+        return;
+      }
+
+      const rappresentanteIdFirebase = this.emailToId(rappresentanteEmail);
+      const usersSnapshot = await adminDb.collection('users').get();
+      const pushNotificationPromises = [];
+
+      usersSnapshot.forEach((userDoc) => {
+        const userData = userDoc.data();
+        const rappresentantiScelti = [
+            userData.rappresentante_europeo,
+            userData.rappresentante_camera,
+            userData.rappresentante_senato,
+            userData.rappresentante_regionale,
+            userData.rappresentante_comunale
+        ].filter(Boolean); // Rimuove valori nulli o undefined
+
+        if (rappresentantiScelti.includes(rappresentanteIdFirebase) && userData.fcmToken) {
+          const notificationTitle = `Nuova comunicazione da ${rappresentanteNome} ${rappresentanteCognome}`;
+          const notificationBody = `${titolo} - Voto: ${votoDato}`;
+          
+          pushNotificationPromises.push(
+            this.sendPushNotification(
+              userDoc.id,
+              notificationTitle,
+              notificationBody,
+              {
+                type: 'comunicazione',
+                comunicazioneId: comunicazioneId,
+                rappresentanteId: rappresentanteIdFirebase,
+                votoDato: votoDato,
+                vincitore: vincitore
+              }
+            )
+          );
+        }
+      });
+
+      const results = await Promise.allSettled(pushNotificationPromises);
+      const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+      const failureCount = results.length - successCount;
+
+      console.log(`Notifiche push inviate: ${successCount} successi, ${failureCount} fallimenti`);
+    } catch (error) {
+      this.handleError(error, 'sendPushNotificationsForComunicazione');
+    }
   }
 }
 

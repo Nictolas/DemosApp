@@ -57,9 +57,22 @@ class ComunicazioneService extends FirebaseService {
       };
       await UserService.updateUserData(user.email, { ultimaComunicazione });
 
-      // 4. Invia le notifiche ai sostenitori
+      // 4. Invia le notifiche ai sostenitori (sia in-app che push)
       if (userData.nome && userData.cognome) {
+          // Notifiche in-app (esistenti)
           await NotificaService.sendNotificationsForComunicazione(
+            user.uid,
+            userData.nome,
+            userData.cognome,
+            data.titolo,
+            data.voto_dato,
+            data.commento || "",
+            data.vincitore,
+            comunicazioneId
+          );
+
+          // Notifiche push (nuove)
+          await NotificaService.sendPushNotificationsForComunicazione(
             user.uid,
             userData.nome,
             userData.cognome,

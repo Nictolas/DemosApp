@@ -192,12 +192,26 @@ const requireFirebaseAdmin = async (req, res, next) => {
 // Auth
 app.post("/api/register", async (req, res, next) => {
   try {
-    const { email, password, ...userDetails } = req.body;
+    const { email, password, fcmToken, ...userDetails } = req.body;
     if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
     const result = await AuthService.registerUser(email, password, userDetails);
     if (!result.success || !result.user) return res.status(400).json({ error: result.error || "Registration failed" });
     const userToLogin = await UserService.getUserById(result.user.uid);
     if (!userToLogin) return res.status(500).json({error: "Failed to retrieve user after registration"});
+    
+    // Salva il token FCM se fornito
+    if (fcmToken && result.user.uid) {
+      try {
+        await adminDb.collection('users').doc(result.user.uid).update({
+          fcmToken: fcmToken,
+          fcmTokenUpdatedAt: new Date()
+        });
+        console.log(`Token FCM salvato per nuovo utente: ${result.user.uid}`);
+      } catch (error) {
+        console.error('Errore salvataggio token FCM durante registrazione:', error);
+      }
+    }
+    
     req.login(userToLogin, (err) => {
       if (err) return next(err);
       res.status(201).json(userToLogin);
@@ -206,10 +220,25 @@ app.post("/api/register", async (req, res, next) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-app.post("/api/login", (req, res, next) => {
-  passport.authenticate("local", (err, user, info) => {
+app.post("/api/login", async (req, res, next) => {
+  passport.authenticate("local", async (err, user, info) => {
     if (err) return next(err);
     if (!user) return res.status(401).json({ message: info.message || "Invalid credentials" });
+    
+    // Aggiorna il token FCM se fornito
+    const { fcmToken } = req.body;
+    if (fcmToken && user.id) {
+      try {
+        await adminDb.collection('users').doc(user.id).update({
+          fcmToken: fcmToken,
+          fcmTokenUpdatedAt: new Date()
+        });
+        console.log(`Token FCM aggiornato per utente: ${user.id}`);
+      } catch (error) {
+        console.error('Errore aggiornamento token FCM durante login:', error);
+      }
+    }
+    
     req.logIn(user, (err) => {
       if (err) return next(err);
       return res.status(200).json(req.user);
