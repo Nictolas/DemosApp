@@ -100,18 +100,23 @@ export default function ScegliCandidato() {
         // Filtra solo i candidati
         const data = allUsers.filter((user: any) => 
           (user.ruolo === 'Candidato Politico' || user.ruolo === 'Candidato') && 
-          user.grado_candidatura === getTitolo()
+          (
+            (categoria === 'comune' && (user.grado_candidatura === 'Comune' || user.grado_candidatura === 'Comunale')) ||
+            (categoria !== 'comune' && user.grado_candidatura === getTitolo())
+          )
         );
         
         if (data) {
           // Filtra i candidati in base alla località di candidatura dell'utente
           let filteredData: any[] = data;
           
+          // Funzione di normalizzazione per confronti case-insensitive e senza spazi
+          const normalize = (str: string) => (str || '').trim().toLowerCase();
+
           // Filtra in base alla località appropriata secondo il livello
           if (userData) {
             switch (categoria) {
               case "europeo":
-                // Per candidati europei, filtra per paese
                 filteredData = data.filter((item: any) => 
                   !userData.paese_candidatura || 
                   item.paese_candidatura === userData.paese_candidatura
@@ -119,14 +124,12 @@ export default function ScegliCandidato() {
                 break;
               case "camera":
               case "senato":
-                // Per candidati nazionali, filtra per paese
                 filteredData = data.filter((item: any) => 
                   !userData.paese_candidatura || 
                   item.paese_candidatura === userData.paese_candidatura
                 );
                 break;
               case "regione":
-                // Per candidati regionali, filtra per regione
                 filteredData = data.filter((item: any) => 
                   !userData.regione_candidatura || 
                   (item.paese_candidatura === userData.paese_candidatura && 
@@ -134,9 +137,12 @@ export default function ScegliCandidato() {
                 );
                 break;
               case "comune":
-                // Per candidati comunali, mostra chi ha comune_candidatura uguale a comune_residenza dell'utente
+                // Log di debug per vedere i valori confrontati
+                data.forEach((item: any) => {
+                  console.log('userData.comune_residenza:', userData.comune_residenza, 'item.comune_candidatura:', item.comune_candidatura, 'nome:', item.nome);
+                });
                 filteredData = data.filter((item: any) => 
-                  item.comune_candidatura === userData.comune_residenza
+                  normalize(item.comune_candidatura) === normalize(userData.comune_residenza)
                 );
                 break;
               default:
