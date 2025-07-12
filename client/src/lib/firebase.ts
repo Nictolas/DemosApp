@@ -3,7 +3,6 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getAnalytics, logEvent } from "firebase/analytics";
 import { getPerformance } from "firebase/performance";
-import { getCrashlytics } from "firebase/crashlytics";
 
 // Configurazione Firebase (usa i tuoi dati)
 const firebaseConfig = {
@@ -20,11 +19,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Inizializza Analytics, Performance e Crashlytics solo se siamo in ambiente browser
-let analytics, perf, crashlytics;
+let analytics, perf;
 if (typeof window !== "undefined") {
   analytics = getAnalytics(app);
   perf = getPerformance(app);
-  crashlytics = getCrashlytics(app);
 }
 
 // Inizializza Firestore e Auth
@@ -50,4 +48,4 @@ export async function checkFirebaseAuth(): Promise<boolean> {
   }
 }
 
-export { analytics, perf, crashlytics, logEvent };
+export { analytics, perf, logEvent };

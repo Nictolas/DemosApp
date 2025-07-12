@@ -12,7 +12,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { analytics as analyticsAny, perf as perfAny, crashlytics, logEvent } from "../lib/firebase";
+import { analytics as analyticsAny, perf as perfAny, logEvent } from "../lib/firebase";
 const analytics: any = (require("../lib/firebase").analytics as any);
 const perf: any = (require("../lib/firebase").perf as any);
 
@@ -98,8 +98,6 @@ export default function AnalisiConsumi() {
     if (analytics) {
       logEvent(analytics, "page_view", { page: "AnalisiConsumi" });
     }
-    // Esempio: logga un errore di test su Crashlytics (decommenta per test reale)
-    // if (crashlytics) crashlytics.recordError(new Error("Test Crashlytics su AnalisiConsumi"));
     // Esempio: custom trace per Performance Monitoring
     if (perf) {
       const trace = perf.trace("analisi_consumi_render");
