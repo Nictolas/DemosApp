@@ -80,12 +80,11 @@ export default function AnalisiConsumi() {
 
   const fetchFirebaseConsumi = async () => {
     try {
-      const response = await fetch('/api/firebase-monitoring');
+      const response = await fetch('https://us-central1-demos-finale.cloudfunctions.net/monitoring');
       const data = await response.json();
       setFirebaseConsumi(data);
     } catch (error) {
-      console.error('Errore nel recupero consumi Firebase:', error);
-      setFirebaseConsumi({ error: 'Errore nel recupero dati' });
+      setFirebaseConsumi({ error: 'Errore nel recupero dati dalla Cloud Function' });
     }
   };
 
@@ -96,14 +95,7 @@ export default function AnalisiConsumi() {
     if (analytics) {
       logEvent(analytics, "page_view", { page: "AnalisiConsumi" });
     }
-    // Esempio: custom trace per Performance Monitoring
-    if (perf) {
-      const trace = perf.trace("analisi_consumi_render");
-      trace.start();
-      setTimeout(() => {
-        trace.stop();
-      }, 1000);
-    }
+    // RIMOSSO: custom trace per Performance Monitoring (non supportato su web)
   }, []);
 
   const handleAggiorna = async () => {
@@ -156,7 +148,12 @@ export default function AnalisiConsumi() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Consumi Firebase Reali */}
-            {firebaseConsumi && (
+            {firebaseConsumi && firebaseConsumi.error ? (
+              <div className="bg-red-50 border border-red-200 rounded p-3 text-red-700">
+                <AlertTriangle className="h-4 w-4 inline mr-2" />
+                Errore nel recupero dati Firebase: {firebaseConsumi.error.includes('server error') ? 'Il backend non è autorizzato a interrogare le Google Cloud Monitoring API. Sposta la funzione su Google Cloud Functions.' : firebaseConsumi.error}
+              </div>
+            ) : (
               <div className="bg-white border border-orange-200 rounded-lg p-4 mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -172,12 +169,7 @@ export default function AnalisiConsumi() {
                     </Button>
                   </div>
                 </div>
-                {firebaseConsumi.error ? (
-                  <div className="bg-red-50 border border-red-200 rounded p-3 text-red-700">
-                    <AlertTriangle className="h-4 w-4 inline mr-2" />
-                    Errore nel recupero dati: {firebaseConsumi.error}
-                  </div>
-                ) : (
+                {firebaseConsumi && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Firestore */}
                     <div className="bg-blue-50 rounded-lg p-3">
