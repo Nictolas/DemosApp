@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings, Crown, Building2, Scale, Users, FileText, Calendar, Megaphone } from "lucide-react";
+import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings, Crown, Building2, Scale, Users, FileText, Calendar, Megaphone, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
 import appIcon from '/icona.png';
@@ -198,6 +198,17 @@ export default function Menu() {
                 >
                   <Settings className="h-5 w-5" />
                   Impostazioni
+                </Button>
+              </Link>
+
+              {/* Scadenze tecniche */}
+              <Link href="/scadenze">
+                <Button 
+                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
+                  variant="outline"
+                >
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  Scadenze
                 </Button>
               </Link>
               
