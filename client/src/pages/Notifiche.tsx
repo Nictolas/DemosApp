@@ -417,7 +417,6 @@ export default function Notifiche() {
                         >
                           <ThumbsUp className="h-4 w-4 mr-1" />
                           Mi piace
-                          <span className="ml-1 text-xs font-semibold">{comunicazione.likes || 0}</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -428,7 +427,6 @@ export default function Notifiche() {
                         >
                           <ThumbsDown className="h-4 w-4 mr-1" />
                           Non mi piace
-                          <span className="ml-1 text-xs font-semibold">{comunicazione.dislikes || 0}</span>
                         </Button>
                       </div>
                     </div>
