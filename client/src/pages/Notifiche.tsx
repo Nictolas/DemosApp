@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { useFCM } from "@/hooks/useFCM";
 import { ThumbsUp, ThumbsDown, Bell, Clock, User, Smartphone, Wifi } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface Notifica {
   id: string;
@@ -32,12 +34,25 @@ export default function Notifiche() {
   const { token: fcmToken, error: fcmError, permission } = useFCM();
   const queryClient = useQueryClient();
   const [processingReaction, setProcessingReaction] = useState<string | null>(null);
+  const [notifiche, setNotifiche] = useState<Notifica[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: notifiche, isLoading } = useQuery({
-    queryKey: ["/api/notifiche"],
-    enabled: !!user,
-  });
-
+  useEffect(() => {
+    if (!user) return;
+    setIsLoading(true);
+    // Query Firestore per notifiche indirizzate all'utente
+    const q = query(
+      collection(db, "notifiche"),
+      where("destinatario_id", "==", user.id),
+      orderBy("data_creazione", "desc")
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notifica));
+      setNotifiche(docs);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
 
   // React to communication (like/dislike)
