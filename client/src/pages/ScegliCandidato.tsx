@@ -26,7 +26,6 @@ interface Candidato {
   sperimentazione_animale?: string;
   legalizzazione_canapa?: string;
   caccia?: string;
-  unione_europea?: string;
   // Campi per la località
   paese_candidatura?: string;
   regione_candidatura?: string;
@@ -34,12 +33,19 @@ interface Candidato {
   comune_candidatura?: string;
 }
 
+interface OpinionsData {
+  energia_nucleare?: string;
+  sperimentazione_animale?: string;
+  legalizzazione_canapa?: string;
+  caccia?: string;
+}
+
 export default function ScegliCandidato() {
   const { categoria } = useParams<{ categoria: string }>();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
   const [candidati, setCandidati] = useState<Candidato[]>([]);
-  const [userOpinions, setUserOpinions] = useState<any>(null);
+  const [userOpinions, setUserOpinions] = useState<OpinionsData>(null);
   const [loading, setLoading] = useState(true);
   const [selezionando, setSelezionando] = useState(false);
   const [candidatoSelezionato, setCandidatoSelezionato] = useState<string | null>(null);
@@ -166,9 +172,6 @@ export default function ScegliCandidato() {
             if (candidato.caccia && candidato.caccia === opinionsData.caccia) {
               opinioniComuni++;
             }
-            if (candidato.unione_europea && candidato.unione_europea === opinionsData.unione_europea) {
-              opinioniComuni++;
-            }
             
             return {
               ...candidato,
@@ -248,7 +251,6 @@ export default function ScegliCandidato() {
       { key: "sperimentazione_animale", label: "Sperimentazione Animale" },
       { key: "legalizzazione_canapa", label: "Legalizzazione Canapa" },
       { key: "caccia", label: "Caccia" },
-      { key: "unione_europea", label: "Unione Europea" }
     ];
     
     return (

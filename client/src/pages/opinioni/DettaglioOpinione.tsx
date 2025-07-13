@@ -44,8 +44,7 @@ const opinionTitles: Record<string, string> = {
   energia_nucleare: "Energia Nucleare",
   sperimentazione_animale: "Sperimentazione Animale",
   legalizzazione_canapa: "Legalizzazione Canapa",
-  caccia: "Caccia",
-  unione_europea: "Unione Europea"
+  caccia: "Caccia"
 };
 
 // IL COMPONENTE REACT

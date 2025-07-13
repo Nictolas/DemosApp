@@ -38,7 +38,6 @@ export type UserInfo = {
   sperimentazione_animale?: string;
   legalizzazione_canapa?: string;
   caccia?: string;
-  unione_europea?: string;
   avatar_config?: string;
   status?: string;
   [key: string]: any;
