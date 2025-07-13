@@ -69,8 +69,8 @@ export function Navbar() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
-                      <Link href="/comunica">
-                        Comunica
+                      <Link href="/strumenti">
+                        Strumenti
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
