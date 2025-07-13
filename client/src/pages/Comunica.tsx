@@ -274,10 +274,10 @@ export default function Comunica() {
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-              Comunica
+              Strumenti
             </CardTitle>
             <CardDescription>
-              Invia comunicazioni, programma eventi o votazioni
+              Accedi agli strumenti di gestione, comunicazione e analisi
             </CardDescription>
           </CardHeader>
         </Card>
@@ -348,6 +348,21 @@ export default function Comunica() {
               </CardContent>
             </Card>
           )}
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-indigo-600 group-hover:text-indigo-700">
+                Riscontro
+              </CardTitle>
+              <CardDescription>
+                Visualizza i like/dislike della tua ultima comunicazione
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => setLocation('/riscontro')}>
+                Riscontro
+              </Button>
+            </CardContent>
+          </Card>
 
           {/* Statistiche Opinioni */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer group">

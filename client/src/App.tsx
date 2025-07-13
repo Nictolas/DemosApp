@@ -20,7 +20,7 @@ import StatisticheOpinioni from "@/pages/StatisticheOpinioni";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
 import RegistrazioneElezioneCandidatura from "@/pages/RegistrazioneElezioneCandidatura";
-import Comunica from "@/pages/Comunica";
+import Strumenti from "@/pages/Comunica";
 import PodioTrasparenza from "@/pages/PodioTrasparenza";
 import Notifiche from "@/pages/Notifiche";
 import ModificaImmagine from "@/pages/ModificaImmagine";
@@ -256,10 +256,10 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/comunica">
+      <Route path="/strumenti">
         {(params) => (
-          <PageTransition location={location} type="fade-side" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/comunica" component={Comunica} />
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/strumenti" component={Strumenti} />
           </PageTransition>
         )}
       </Route>
