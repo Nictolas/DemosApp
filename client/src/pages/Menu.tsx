@@ -202,15 +202,7 @@ export default function Menu() {
               </Link>
 
               {/* Scadenze tecniche */}
-              <Link href="/scadenze">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <AlertCircle className="h-5 w-5 text-orange-600" />
-                  Scadenze
-                </Button>
-              </Link>
+              {/* RIMOSSO: la voce Scadenze va solo nella pagina Gestisci */}
               
               {/* Sostenitori: rimuovere da qui */}
               {/* {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
