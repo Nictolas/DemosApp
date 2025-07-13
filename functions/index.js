@@ -24,9 +24,11 @@ exports.sendComunicazioneNotification = onDocumentCreated(
     const vincitore = comunicazione.vincitore;
     const comunicazioneId = event.params.comId;
 
+    console.log("Nuova comunicazione creata:", comunicazione);
     // Prendi tutti gli utenti che hanno scelto questo rappresentante
     const usersSnapshot = await admin.firestore().collection("utenti").get();
     const tokens = [];
+    const utentiDestinatari = [];
 
     usersSnapshot.forEach((doc) => {
       const user = doc.data();
@@ -43,10 +45,17 @@ exports.sendComunicazioneNotification = onDocumentCreated(
         user.fcmToken
       ) {
         tokens.push(user.fcmToken);
+        utentiDestinatari.push({ id: doc.id, ...user });
       }
     });
 
-    if (tokens.length === 0) return null;
+    console.log("Utenti destinatari trovati:", utentiDestinatari.length, utentiDestinatari.map(u => u.email || u.id));
+    console.log("Token FCM trovati:", tokens);
+
+    if (tokens.length === 0) {
+      console.log("Nessun token FCM trovato. Nessuna notifica inviata.");
+      return null;
+    }
 
     const payload = {
       notification: {
@@ -62,14 +71,19 @@ exports.sendComunicazioneNotification = onDocumentCreated(
       },
     };
 
-    const response = await admin.messaging().sendMulticast({
-      tokens,
-      ...payload,
-    });
-
-    console.log(
-      `Notifiche inviate: ${response.successCount}/${tokens.length}`,
-    );
+    try {
+      console.log("Invio notifica a:", tokens);
+      const response = await admin.messaging().sendMulticast({
+        tokens,
+        ...payload,
+      });
+      console.log(
+        `Notifiche inviate: ${response.successCount}/${tokens.length}`,
+        response.responses
+      );
+    } catch (error) {
+      console.error("Errore invio notifica:", error);
+    }
     return null;
   }
 );
