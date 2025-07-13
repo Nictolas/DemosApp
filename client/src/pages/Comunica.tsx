@@ -248,9 +248,17 @@ export default function Comunica() {
     );
   }
 
+  // Pulsante Riscontro per Politico/Candidato Politico/Admin
+  // Mostra in alto nella pagina
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Pulsante Riscontro */}
+        {(userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin") && (
+          <div className="flex justify-end mb-2">
+            <Button variant="outline" onClick={() => setLocation("/riscontro")}>Riscontro</Button>
+          </div>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button
