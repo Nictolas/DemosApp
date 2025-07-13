@@ -201,7 +201,7 @@ class NotificaService extends FirebaseService {
         }
       };
 
-      const response = await adminAuth.app.messaging().send(message);
+      const response = await adminDb.app.messaging().send(message);
       console.log(`Notifica push inviata a ${userId}:`, response);
       return { success: true, messageId: response };
     } catch (error) {
@@ -214,7 +214,7 @@ class NotificaService extends FirebaseService {
    * Invia notifiche push a tutti gli utenti che hanno scelto un rappresentante specifico.
    */
   static async sendPushNotificationsForComunicazione(
-    rappresentanteEmail,
+    rappresentanteId, // <-- ora passiamo direttamente l'ID utente del politico/candidato
     rappresentanteNome,
     rappresentanteCognome,
     titolo,
@@ -229,24 +229,25 @@ class NotificaService extends FirebaseService {
         return;
       }
 
-      const rappresentanteIdFirebase = this.emailToId(rappresentanteEmail);
+      // Query per trovare tutti i sostenitori che hanno scelto questo rappresentante
       const usersSnapshot = await adminDb.collection('users').get();
       const pushNotificationPromises = [];
 
       usersSnapshot.forEach((userDoc) => {
         const userData = userDoc.data();
+        // Controlla tutti i campi rappresentante
         const rappresentantiScelti = [
-            userData.rappresentante_europeo,
-            userData.rappresentante_camera,
-            userData.rappresentante_senato,
-            userData.rappresentante_regionale,
-            userData.rappresentante_comunale
-        ].filter(Boolean); // Rimuove valori nulli o undefined
+          userData.rappresentante_europeo,
+          userData.rappresentante_camera,
+          userData.rappresentante_senato,
+          userData.rappresentante_regionale,
+          userData.rappresentante_comunale
+        ].filter(Boolean);
 
-        if (rappresentantiScelti.includes(rappresentanteIdFirebase) && userData.fcmToken) {
+        // Se l'utente segue questo rappresentante, invia la notifica
+        if (rappresentantiScelti.includes(rappresentanteId) && userData.fcmToken) {
           const notificationTitle = `Nuova comunicazione da ${rappresentanteNome} ${rappresentanteCognome}`;
           const notificationBody = `${titolo} - Voto: ${votoDato}`;
-          
           pushNotificationPromises.push(
             this.sendPushNotification(
               userDoc.id,
@@ -255,7 +256,7 @@ class NotificaService extends FirebaseService {
               {
                 type: 'comunicazione',
                 comunicazioneId: comunicazioneId,
-                rappresentanteId: rappresentanteIdFirebase,
+                rappresentanteId: rappresentanteId,
                 votoDato: votoDato,
                 vincitore: vincitore
               }
