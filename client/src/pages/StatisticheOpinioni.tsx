@@ -54,7 +54,7 @@ function StatisticheOpinioni() {
     setError(null);
     try {
       // Query diretta a Firebase per ottenere tutti gli utenti
-      const usersRef = collection(db, "users");
+      const usersRef = collection(db, "utenti");
       const usersSnapshot = await getDocs(usersRef);
 
       const initialStats: OpinionStats = {};
