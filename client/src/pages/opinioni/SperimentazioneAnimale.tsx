@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, FlaskConical, User, Calendar } from "lucide-react";
+import { Loader2, ArrowLeft, PawPrint, User, Calendar } from "lucide-react";
 import { 
   Chart as ChartJS, 
   ArcElement, 
@@ -15,8 +15,18 @@ import {
   Legend 
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
-ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(
+  ArcElement, 
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 type OpinionDetailStats = {
   total: number;
@@ -43,6 +53,28 @@ type OpinionDetailStats = {
   };
 };
 
+// Funzione helper per calcolare l'età da data di nascita
+const calculateAge = (birthDate: string) => {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+// Funzione helper per determinare la fascia d'età
+const getAgeGroup = (age: number) => {
+  if (age < 26) return '18-25';
+  if (age < 36) return '26-35';
+  if (age < 46) return '36-45';
+  if (age < 56) return '46-55';
+  if (age < 66) return '56-65';
+  return '65+';
+};
+
 export default function SperimentazioneAnimale() {
   const { user, isLoading } = useAuth();
   const [stats, setStats] = useState<OpinionDetailStats | null>(null);
@@ -54,13 +86,93 @@ export default function SperimentazioneAnimale() {
       if (!user) return;
       
       try {
-        const response = await fetch('/api/opinioni-dettaglio/sperimentazione_animale');
-        if (!response.ok) {
-          throw new Error(`Errore API: ${response.statusText}`);
-        }
+        // Query diretta a Firebase per ottenere tutte le opinioni sulla sperimentazione animale
+        const usersRef = collection(db, "users");
+        const usersSnapshot = await getDocs(usersRef);
         
-        const opinionData = await response.json();
-        setStats(opinionData);
+        const stats: OpinionDetailStats = {
+          total: 0,
+          favorevoli: 0,
+          contrari: 0,
+          indecisi: 0,
+          genderDistribution: {
+            Maschio: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+            Femmina: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+            Altro: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
+          },
+          averageAge: {
+            Favorevole: 0,
+            Contrario: 0,
+            Indeciso: 0
+          },
+          ageDistribution: {
+            '18-25': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+            '26-35': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+            '36-45': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+            '46-55': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+            '56-65': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
+            '65+': { Favorevole: 0, Contrario: 0, Indeciso: 0 }
+          }
+        };
+
+        const ageSums = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
+        const ageCounts = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
+
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data();
+          const sperimentazioneOpinion = userData.sperimentazione_animale;
+          
+          if (sperimentazioneOpinion && sperimentazioneOpinion !== "Non risposto") {
+            stats.total++;
+            
+            // Conta per opinione generale
+            if (sperimentazioneOpinion === "Favorevole") {
+              stats.favorevoli++;
+              ageSums.Favorevole += calculateAge(userData.data_nascita || '1990-01-01');
+              ageCounts.Favorevole++;
+            } else if (sperimentazioneOpinion === "Contrario") {
+              stats.contrari++;
+              ageSums.Contrario += calculateAge(userData.data_nascita || '1990-01-01');
+              ageCounts.Contrario++;
+            } else if (sperimentazioneOpinion === "Indeciso") {
+              stats.indecisi++;
+              ageSums.Indeciso += calculateAge(userData.data_nascita || '1990-01-01');
+              ageCounts.Indeciso++;
+            }
+
+            // Distribuzione per genere
+            const gender = userData.genere || 'Altro';
+            if (stats.genderDistribution[gender]) {
+              if (sperimentazioneOpinion === "Favorevole") {
+                stats.genderDistribution[gender].Favorevole++;
+              } else if (sperimentazioneOpinion === "Contrario") {
+                stats.genderDistribution[gender].Contrario++;
+              } else if (sperimentazioneOpinion === "Indeciso") {
+                stats.genderDistribution[gender].Indeciso++;
+              }
+            }
+
+            // Distribuzione per età
+            const age = calculateAge(userData.data_nascita || '1990-01-01');
+            const ageGroup = getAgeGroup(age);
+            if (stats.ageDistribution[ageGroup]) {
+              if (sperimentazioneOpinion === "Favorevole") {
+                stats.ageDistribution[ageGroup].Favorevole++;
+              } else if (sperimentazioneOpinion === "Contrario") {
+                stats.ageDistribution[ageGroup].Contrario++;
+              } else if (sperimentazioneOpinion === "Indeciso") {
+                stats.ageDistribution[ageGroup].Indeciso++;
+              }
+            }
+          }
+        });
+
+        // Calcola età media
+        if (ageCounts.Favorevole > 0) stats.averageAge.Favorevole = ageSums.Favorevole / ageCounts.Favorevole;
+        if (ageCounts.Contrario > 0) stats.averageAge.Contrario = ageSums.Contrario / ageCounts.Contrario;
+        if (ageCounts.Indeciso > 0) stats.averageAge.Indeciso = ageSums.Indeciso / ageCounts.Indeciso;
+
+        setStats(stats);
       } catch (error) {
         console.error("Errore:", error);
         setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche");
@@ -160,7 +272,7 @@ export default function SperimentazioneAnimale() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center">
-                <FlaskConical className="mr-2 h-6 w-6 text-primary" /> Sperimentazione Animale
+                <PawPrint className="mr-2 h-6 w-6 text-primary" /> Sperimentazione Animale
               </CardTitle>
               <CardDescription>
                 Statistiche dettagliate sull'opinione riguardo la sperimentazione animale
@@ -280,7 +392,7 @@ export default function SperimentazioneAnimale() {
                 </div>
               ) : (
                 <div className="text-center text-muted-foreground p-8">
-                  <FlaskConical className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <PawPrint className="h-16 w-16 mx-auto mb-4 opacity-50" />
                   <p>Nessun dato disponibile per questa opinione.</p>
                 </div>
               )}
