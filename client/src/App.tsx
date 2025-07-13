@@ -63,6 +63,7 @@ import RegistrazioneWizard from "@/pages/RegistrazioneWizard";
 import DebugAuth from "@/pages/debug-auth";
 import ProfiloTest from "@/pages/ProfiloTest";
 import Riscontro from "@/pages/Riscontro";
+import Scadenze from "@/pages/Scadenze";
 
 function Router() {
   const [location] = useLocation();
@@ -498,6 +499,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/riscontro" component={Riscontro} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/scadenze">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/scadenze" component={Scadenze} />
           </PageTransition>
         )}
       </Route>
