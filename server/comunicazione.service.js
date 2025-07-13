@@ -61,7 +61,7 @@ class ComunicazioneService extends FirebaseService {
       if (userData.nome && userData.cognome) {
           // Notifiche in-app (esistenti)
           await NotificaService.sendNotificationsForComunicazione(
-            user.uid,
+            user.uid, // ID utente del rappresentante
             userData.nome,
             userData.cognome,
             data.titolo,
@@ -73,7 +73,7 @@ class ComunicazioneService extends FirebaseService {
 
           // Notifiche push (nuove)
           await NotificaService.sendPushNotificationsForComunicazione(
-            user.uid,
+            user.uid, // ID utente del rappresentante
             userData.nome,
             userData.cognome,
             data.titolo,
