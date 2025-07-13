@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { collection, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // Le domande ora sono dinamiche
 const options = [
@@ -24,15 +25,17 @@ export default function Opinioni() {
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [, setLocation] = useLocation();
 
-  // Carica le domande dinamiche
+  // Carica le domande dinamiche da Firebase
   useEffect(() => {
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await apiRequest("GET", "/api/opinioni-list");
-        if (!res.ok) throw new Error();
-        setQuestions(await res.json());
-      } catch (e) {
+        const opinioniRef = collection(db, "opinioni");
+        const snapshot = await getDocs(opinioniRef);
+        const questions = snapshot.docs.map(doc => ({ id: doc.id, text: doc.data().text }));
+        setQuestions(questions);
+      } catch (error) {
+        console.error("Errore nel caricamento delle opinioni:", error);
         toast({
           title: "Errore",
           description: "Non è stato possibile caricare le domande.",
@@ -57,17 +60,14 @@ export default function Opinioni() {
     try {
       setIsLoadingOpinions(true);
       
-      // Carica i dati utente unificati che ora contengono anche le opinioni
-      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
+      // Carica i dati utente direttamente da Firebase
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
       
-      if (!response.ok) {
-        throw new Error('Errore nel caricamento dei dati utente');
-      }
-      
-      const userData = await response.json();
-      
-      if (userData) {
-        // Estrai le opinioni dai dati utente unificati
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Estrai le opinioni dai dati utente
         const filteredOpinions: Record<string, string> = {};
         questions.forEach(question => {
           filteredOpinions[question.id] = userData[question.id] || '';
@@ -110,63 +110,21 @@ export default function Opinioni() {
         return;
       }
       
-      // Includiamo esplicitamente l'email dell'utente nel payload per garantire 
-      // che sia sempre presente quando si salvano le opinioni
-      const opinionPayload = {
-        ...opinions,
-        email: user?.email || (user as any)?.profile?.email // Includiamo l'email da dove disponibile
-      };
+      // Salva le opinioni direttamente in Firebase
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, opinions);
       
-      console.log('Invio dati opinioni con email:', opinionPayload);
+      toast({
+        title: "Successo",
+        description: "Le tue opinioni sono state salvate correttamente.",
+        variant: "default",
+      });
       
-      const response = await apiRequest('POST', '/api/opinioni', opinionPayload);
+      // Attendiamo un attimo per mostrare il toast, poi indirizziamo al menu
+      setTimeout(() => {
+        setLocation("/menu");
+      }, 2000);
       
-      // Leggiamo la risposta anche se non è OK perché potrebbe contenere dati salvati temporaneamente
-      const result = await response.json();
-      
-      console.log('Risposta dal server per il salvataggio delle opinioni:', result);
-      
-      if (result.error) {
-        // Se c'è un errore ma i dati sono stati comunque salvati in memoria
-        if (result.data) {
-          toast({
-            title: "Attenzione",
-            description: "Le tue opinioni sono state salvate temporaneamente, ma non nel database. " + 
-                         (result.note || "Sarà possibile accedervi fino alla fine della sessione."),
-            variant: "destructive",
-          });
-          
-          // Reindirizza comunque al menu dopo un po'
-          setTimeout(() => {
-            setLocation("/menu");
-          }, 3000);
-          return;
-        }
-        
-        throw new Error(result.error);
-      }
-      
-      if (result) {
-        // Verifica se i dati sono stati salvati temporaneamente o permanentemente
-        if (result.note && result.note.includes('memoria')) {
-          toast({
-            title: "Successo con limitazioni",
-            description: "Le tue opinioni sono state salvate, ma solo temporaneamente: " + result.note,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Successo",
-            description: "Le tue opinioni sono state salvate correttamente.",
-            variant: "default",
-          });
-        }
-        
-        // Attendiamo un attimo per mostrare il toast, poi indirizziamo al menu
-        setTimeout(() => {
-          setLocation("/menu");
-        }, 2000);
-      }
     } catch (error) {
       console.error('Errore nel salvataggio delle opinioni:', error);
       toast({
@@ -198,77 +156,55 @@ export default function Opinioni() {
         
         <Card className="w-full max-w-4xl mx-auto">
           <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-              Le Tue Opinioni
-            </CardTitle>
+            <CardTitle className="text-3xl font-bold mb-2">Le tue Opinioni</CardTitle>
             <CardDescription>
-              Rispondi alle seguenti domande selezionando l'opzione che rappresenta meglio la tua posizione.
+              Esprimi la tua opinione su temi importanti. Le tue risposte aiuteranno a trovare rappresentanti e candidati con idee simili alle tue.
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="p-6">
-            {isLoadingOpinions ? (
-              <div className="flex justify-center items-center h-60">
+          <CardContent className="space-y-6">
+            {isLoadingQuestions ? (
+              <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2">Caricamento opinioni...</span>
+                <span className="ml-2">Caricamento domande...</span>
+              </div>
+            ) : questions.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Nessuna domanda disponibile al momento.</p>
               </div>
             ) : (
               <>
-                <div className="space-y-8 flex flex-col items-center">
-                  {questions.map((question) => (
-                    <div key={question.id} className="border rounded-lg p-4 shadow-sm w-full max-w-xl mx-auto flex flex-col items-center">
-                      <h3 className="text-lg font-semibold mb-4 text-center w-full">{question.text}</h3>
-                      <div className="w-full">
-                        <div className="flex w-full rounded-full overflow-hidden border-2 border-gray-300 bg-white shadow-sm">
-                          {["Favorevole", "Indeciso", "Contrario"].map((option, idx) => {
-                            const isSelected = opinions[question.id] === option;
-                            let base = "flex-1 py-3 text-center cursor-pointer font-semibold transition-colors ";
-                            let color =
-                              option === "Favorevole"
-                                ? isSelected
-                                  ? "bg-green-500 text-white"
-                                  : "hover:bg-green-100 text-green-700"
-                                : option === "Indeciso"
-                                ? isSelected
-                                  ? "bg-yellow-400 text-white"
-                                  : "hover:bg-yellow-100 text-yellow-700"
-                                : isSelected
-                                ? "bg-red-500 text-white"
-                                : "hover:bg-red-100 text-red-700";
-                            // Bordo destro solo tra i bottoni
-                            let border = idx < 2 ? "border-r border-gray-300" : "";
-                            return (
-                              <button
-                                key={option}
-                                type="button"
-                                className={base + color + " " + border}
-                                style={{ borderRadius: idx === 0 ? "9999px 0 0 9999px" : idx === 2 ? "0 9999px 9999px 0" : "0" }}
-                                onClick={() => handleOpinionChange(question.id, option)}
-                                aria-pressed={isSelected}
-                              >
-                                {option}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                {questions.map((question) => (
+                  <div key={question.id} className="space-y-4">
+                    <h3 className="text-lg font-semibold">{question.text}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {options.map((option) => (
+                        <Button
+                          key={option.value}
+                          variant={opinions[question.id] === option.value ? "default" : "outline"}
+                          className={`h-12 ${opinions[question.id] === option.value ? option.color : ""}`}
+                          onClick={() => handleOpinionChange(question.id, option.value)}
+                        >
+                          {option.value}
+                        </Button>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
                 
-                <div className="mt-8 flex justify-center">
+                <div className="flex justify-center pt-6">
                   <Button
                     onClick={saveOpinions}
                     disabled={isSubmitting}
-                    className="w-full max-w-sm"
+                    className="px-8 py-3 text-lg"
                   >
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Salvataggio in corso...
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Salvando...
                       </>
                     ) : (
-                      "Salva Opinioni"
+                      "Salva le mie opinioni"
                     )}
                   </Button>
                 </div>

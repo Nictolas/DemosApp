@@ -7,13 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, BarChart } from "lucide-react";
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
-import { apiRequest } from "@/lib/queryClient";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 type OpinionData = { favorevole: number; contrario: number; astenuto: number; };
 type OpinionStats = Record<string, OpinionData>;
-type OpinionKey = "energia_nucleare" | "sperimentazione_animale" | "legalizzazione_canapa" | "caccia" | "unione_europea";
 
 function StatisticheOpinioni() {
   const { user, isLoading } = useAuth();
@@ -26,25 +26,46 @@ function StatisticheOpinioni() {
   const backgroundColors = { favorevole: 'rgba(75, 192, 192, 0.6)', contrario: 'rgba(255, 99, 132, 0.6)', astenuto: 'rgba(255, 206, 86, 0.6)' };
   const borderColors = { favorevole: 'rgba(75, 192, 192, 1)', contrario: 'rgba(255, 99, 132, 1)', astenuto: 'rgba(255, 206, 86, 1)' };
 
+  // Carica le domande dinamiche da Firebase
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      setIsLoadingQuestions(true);
+      try {
+        const opinioniRef = collection(db, "opinioni");
+        const snapshot = await getDocs(opinioniRef);
+        const questions = snapshot.docs.map(doc => ({ id: doc.id, text: doc.data().text }));
+        setOpinionQuestions(questions);
+      } catch (error) {
+        console.error("Errore nel caricamento delle opinioni:", error);
+        setError("Impossibile caricare le opinioni disponibili.");
+      } finally {
+        setIsLoadingQuestions(false);
+      }
+    };
+    if (user) {
+      fetchQuestions();
+    }
+  }, [user]);
+
   const fetchStats = useCallback(async () => {
+    if (!user || opinionQuestions.length === 0) return;
+    
     setIsLoadingStats(true);
     setError(null);
     try {
-      const response = await apiRequest('GET', '/api/statistiche-opinioni');
-      if (!response.ok) {
-        throw new Error(`Errore API: ${response.status} ${response.statusText}`);
-      }
-
-      const users: any[] = await response.json();
+      // Query diretta a Firebase per ottenere tutti gli utenti
+      const usersRef = collection(db, "users");
+      const usersSnapshot = await getDocs(usersRef);
 
       const initialStats: OpinionStats = {};
       opinionQuestions.forEach(q => {
         initialStats[q.id] = { favorevole: 0, contrario: 0, astenuto: 0 };
       });
 
-      users.forEach(user => {
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
         opinionQuestions.forEach(q => {
-          const opinion = user[q.id];
+          const opinion = userData[q.id];
           if (typeof opinion === 'string' && ['Favorevole', 'Contrario', 'Indeciso'].includes(opinion)) {
             const keyToIncrement = (opinion === 'Indeciso' ? 'astenuto' : opinion.toLowerCase()) as keyof OpinionData;
             initialStats[q.id][keyToIncrement]++;
@@ -57,33 +78,15 @@ function StatisticheOpinioni() {
     } finally {
       setIsLoadingStats(false);
     }
-  }, [opinionQuestions]);
+  }, [opinionQuestions, user]);
 
   useEffect(() => {
-    if (user) {
+    if (user && opinionQuestions.length > 0) {
       fetchStats();
     }
-  }, [fetchStats, user]);
+  }, [fetchStats, user, opinionQuestions]);
 
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      setIsLoadingQuestions(true);
-      try {
-        const res = await apiRequest('GET', "/api/opinioni-list");
-        if (!res.ok) throw new Error();
-        setOpinionQuestions(await res.json());
-      } catch {
-        setError("Impossibile caricare le opinioni disponibili.");
-      } finally {
-        setIsLoadingQuestions(false);
-      }
-    };
-    if (user) {
-      fetchQuestions();
-    }
-  }, [user]);
-
-  const preparePieChartData = (questionKey: OpinionKey) => {
+  const preparePieChartData = (questionKey: string) => {
     if (!stats) return null;
     const questionStats = stats[questionKey];
     const labels = ['Favorevole', 'Contrario', 'Astenuto'];
@@ -157,7 +160,7 @@ function StatisticheOpinioni() {
                 <Card className="shadow-sm"><CardHeader className="pb-2"><CardTitle className="text-xl">Distribuzione complessiva</CardTitle></CardHeader><CardContent><div style={{ height: '300px' }}><Bar data={barChartData!} options={{ responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }} /></div></CardContent></Card>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {opinionQuestions.map(q => {
-                    const pieData = preparePieChartData(q.id as any);
+                    const pieData = preparePieChartData(q.id);
                     const detailLink = detailPageLinks[q.id];
                     return pieData && (
                       <Link href={detailLink} key={q.id}>

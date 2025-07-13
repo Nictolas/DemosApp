@@ -171,8 +171,7 @@ class UserService extends FirebaseService {
         'energia_nucleare',
         'sperimentazione_animale',
         'legalizzazione_canapa',
-        'caccia',
-        'unione_europea'
+        'caccia'
       ].includes(key)) {
         opinioni[key] = user[key];
       }

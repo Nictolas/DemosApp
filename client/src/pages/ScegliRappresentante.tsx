@@ -28,7 +28,6 @@ interface Rappresentante {
   sperimentazione_animale?: string;
   legalizzazione_canapa?: string;
   caccia?: string;
-  unione_europea?: string;
   // Campi per la località
   paese_elezione?: string;
   regione_elezione?: string;
@@ -186,9 +185,6 @@ export default function ScegliRappresentante() {
             if (confrontaOpinione(rappresentante.caccia, opinionsData.caccia)) {
               opinioniComuni++;
             }
-            if (confrontaOpinione(rappresentante.unione_europea, opinionsData.unione_europea)) {
-              opinioniComuni++;
-            }
             
             return {
               ...rappresentante,
@@ -262,7 +258,6 @@ export default function ScegliRappresentante() {
       { key: "sperimentazione_animale", label: "Sperimentazione Animale" },
       { key: "legalizzazione_canapa", label: "Legalizzazione Canapa" },
       { key: "caccia", label: "Caccia" },
-      { key: "unione_europea", label: "Unione Europea" }
     ];
     
     return (
