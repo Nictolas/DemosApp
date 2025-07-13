@@ -32,7 +32,7 @@ export default function Opinioni() {
       try {
         const opinioniRef = collection(db, "opinioni");
         const snapshot = await getDocs(opinioniRef);
-        const questions = snapshot.docs.map(doc => ({ id: doc.id, text: doc.data().text }));
+        const questions = snapshot.docs.map(doc => ({ id: doc.data().id, text: doc.data().text }));
         setQuestions(questions);
       } catch (error) {
         console.error("Errore nel caricamento delle opinioni:", error);
