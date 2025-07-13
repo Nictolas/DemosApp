@@ -23,13 +23,27 @@ exports.sendComunicazioneNotification = onDocumentCreated(
     const votoDato = comunicazione.voto_dato;
     const vincitore = comunicazione.vincitore;
     const comunicazioneId = event.params.comId;
+    const tema = comunicazione.tema || null; // aggiungi il campo tema se serve
 
     console.log("Nuova comunicazione creata:", comunicazione);
-    // Prendi tutti gli utenti che hanno scelto questo rappresentante
+
+    // 1. Elimina eventuale comunicazione precedente dello stesso rappresentante e tema
+    if (tema) {
+      const comunicazioniSnapshot = await admin.firestore().collection("comunicazioni")
+        .where("id_utente", "==", rappresentanteId)
+        .where("tema", "==", tema)
+        .get();
+      comunicazioniSnapshot.forEach(doc => {
+        if (doc.id !== comunicazioneId) {
+          doc.ref.delete();
+          console.log(`Comunicazione precedente eliminata: ${doc.id}`);
+        }
+      });
+    }
+
+    // 2. Prendi tutti gli utenti che hanno scelto questo rappresentante
     const usersSnapshot = await admin.firestore().collection("utenti").get();
     const tokens = [];
-    const utentiDestinatari = [];
-
     usersSnapshot.forEach((doc) => {
       const user = doc.data();
       const rappresentantiScelti = [
@@ -39,24 +53,18 @@ exports.sendComunicazioneNotification = onDocumentCreated(
         user.rappresentante_regionale,
         user.rappresentante_comunale,
       ].filter(Boolean);
-
       if (
         rappresentantiScelti.includes(rappresentanteId) &&
         user.fcmToken
       ) {
         tokens.push(user.fcmToken);
-        utentiDestinatari.push({ id: doc.id, ...user });
       }
     });
-
-    console.log("Utenti destinatari trovati:", utentiDestinatari.length, utentiDestinatari.map(u => u.email || u.id));
     console.log("Token FCM trovati:", tokens);
-
     if (tokens.length === 0) {
       console.log("Nessun token FCM trovato. Nessuna notifica inviata.");
       return null;
     }
-
     const payload = {
       notification: {
         title: `Nuova comunicazione da ${rappresentanteNome} ${rappresentanteCognome}`,
@@ -70,7 +78,6 @@ exports.sendComunicazioneNotification = onDocumentCreated(
         vincitore,
       },
     };
-
     try {
       console.log("Invio notifica a:", tokens);
       const response = await admin.messaging().sendMulticast({

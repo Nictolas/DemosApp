@@ -11,7 +11,7 @@ import { useFCM } from "@/hooks/useFCM";
 import { ThumbsUp, ThumbsDown, Bell, Clock, User, Smartphone, Wifi } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, increment, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface Notifica {
@@ -34,26 +34,38 @@ export default function Notifiche() {
   const { token: fcmToken, error: fcmError, permission } = useFCM();
   const queryClient = useQueryClient();
   const [processingReaction, setProcessingReaction] = useState<string | null>(null);
-  const [notifiche, setNotifiche] = useState<Notifica[]>([]);
+  const [comunicazioni, setComunicazioni] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
-    // Query Firestore per notifiche indirizzate all'utente
+    // Ottieni gli ID dei rappresentanti seguiti dall'utente
+    const rappresentantiSeguiti = [
+      user.rappresentante_europeo,
+      user.rappresentante_camera,
+      user.rappresentante_senato,
+      user.rappresentante_regionale,
+      user.rappresentante_comunale,
+    ].filter(Boolean);
+    if (rappresentantiSeguiti.length === 0) {
+      setComunicazioni([]);
+      setIsLoading(false);
+      return;
+    }
+    // Query Firestore per comunicazioni dei rappresentanti seguiti
     const q = query(
-      collection(db, "notifiche"),
-      where("destinatario_id", "==", user.id),
+      collection(db, "comunicazioni"),
+      where("id_utente", "in", rappresentantiSeguiti),
       orderBy("data_creazione", "desc")
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notifica));
-      setNotifiche(docs);
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setComunicazioni(docs);
       setIsLoading(false);
     });
     return () => unsubscribe();
   }, [user]);
-
 
   // React to communication (like/dislike)
   const reactToCommunication = useMutation({
@@ -84,9 +96,42 @@ export default function Notifiche() {
     },
   });
 
-  const handleReaction = (comunicazioneId: string, reaction: "like" | "dislike") => {
+  // Funzione per mettere like/dislike con voto unico
+  const handleReaction = async (comunicazioneId: string, reaction: "like" | "dislike") => {
     setProcessingReaction(comunicazioneId);
-    reactToCommunication.mutate({ comunicazioneId, reaction });
+    try {
+      const comunicazioneRef = doc(db, "comunicazioni", comunicazioneId);
+      const comunicazioneSnap = await getDoc(comunicazioneRef);
+      const data = comunicazioneSnap.data();
+      if (!data) throw new Error("Comunicazione non trovata");
+      const voti = data.voti || {};
+      if (voti[user.id]) {
+        toast({
+          title: "Hai già votato",
+          description: `Hai già espresso la tua preferenza per questa comunicazione.`,
+          variant: "destructive",
+        });
+        setProcessingReaction(null);
+        return;
+      }
+      // Aggiorna il voto e il contatore
+      await updateDoc(comunicazioneRef, {
+        [reaction === "like" ? "likes" : "dislikes"]: increment(1),
+        [`voti.${user.id}`]: reaction,
+      });
+      toast({
+        title: "Reazione registrata",
+        description: `Hai messo ${reaction === "like" ? "mi piace" : "non mi piace"} alla comunicazione.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore nella reazione.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingReaction(null);
+    }
   };
 
   const getReactionColor = (reaction: string | null) => {
@@ -271,7 +316,7 @@ export default function Notifiche() {
             </Card>
           </div>
 
-          {!notifiche || (notifiche as any[]).length === 0 ? (
+          {!comunicazioni || (comunicazioni as any[]).length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <Bell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -283,9 +328,9 @@ export default function Notifiche() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {(notifiche as any[]).map((notifica: Notifica) => (
+              {(comunicazioni as any[]).map((comunicazione: any) => (
                 <Card 
-                  key={notifica.id} 
+                  key={comunicazione.id} 
                   className="transition-all duration-200 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
                   <CardHeader className="pb-3">
@@ -294,12 +339,12 @@ export default function Notifiche() {
                         <User className="h-5 w-5 text-blue-600" />
                         <div>
                           <CardTitle className="text-lg">
-                            {notifica.rappresentante_nome} {notifica.rappresentante_cognome}
+                            {comunicazione.rappresentante_nome} {comunicazione.rappresentante_cognome}
                           </CardTitle>
                           <div className="flex items-center space-x-2 mt-1">
                             <Clock className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground">
-                              {formatDistanceToNow(new Date(notifica.data_creazione), {
+                              {formatDistanceToNow(new Date(comunicazione.data_creazione), {
                                 addSuffix: true,
                                 locale: it,
                               })}
@@ -315,7 +360,7 @@ export default function Notifiche() {
                   <CardContent>
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border">
                       <p className="font-medium mb-2">
-                        ha comunicato una votazione: <strong>{notifica.titolo}</strong>
+                        ha comunicato una votazione: <strong>{comunicazione.titolo}</strong>
                       </p>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -323,14 +368,14 @@ export default function Notifiche() {
                           <Badge 
                             variant="outline" 
                             className={`ml-2 ${
-                              notifica.voto_dato === "Favorevole" 
+                              comunicazione.voto_dato === "Favorevole" 
                                 ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                                : notifica.voto_dato === "Contrario"
+                                : comunicazione.voto_dato === "Contrario"
                                 ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
                                 : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
                             }`}
                           >
-                            {notifica.voto_dato}
+                            {comunicazione.voto_dato}
                           </Badge>
                         </div>
                         <div>
@@ -338,22 +383,22 @@ export default function Notifiche() {
                           <Badge 
                             variant="outline" 
                             className={`ml-2 ${
-                              notifica.vincitore === "Favorevole" 
+                              comunicazione.vincitore === "Favorevole" 
                                 ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                                : notifica.vincitore === "Contrario"
+                                : comunicazione.vincitore === "Contrario"
                                 ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
                                 : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
                             }`}
                           >
-                            {notifica.vincitore}
+                            {comunicazione.vincitore}
                           </Badge>
                         </div>
                       </div>
                       
-                      {notifica.commento && (
+                      {comunicazione.commento && (
                         <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                           <span className="text-muted-foreground text-sm">Commento:</span>
-                          <p className="text-sm font-medium mt-1 italic">"{notifica.commento}"</p>
+                          <p className="text-sm font-medium mt-1 italic">"{comunicazione.commento}"</p>
                         </div>
                       )}
                     </div>
@@ -362,41 +407,41 @@ export default function Notifiche() {
                       <span className="text-sm text-muted-foreground">
                         Cosa ne pensi di questa comunicazione?
                       </span>
-                      
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleReaction(notifica.comunicazione_id, "like")}
-                          disabled={processingReaction === notifica.comunicazione_id}
-                          className={notifica.user_reaction === "like" ? getReactionColor("like") : ""}
+                          onClick={() => handleReaction(comunicazione.id, "like")}
+                          disabled={processingReaction === comunicazione.id}
+                          className={comunicazione.user_reaction === "like" ? getReactionColor("like") : ""}
                         >
                           <ThumbsUp className="h-4 w-4 mr-1" />
                           Mi piace
+                          <span className="ml-1 text-xs font-semibold">{comunicazione.likes || 0}</span>
                         </Button>
-                        
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleReaction(notifica.comunicazione_id, "dislike")}
-                          disabled={processingReaction === notifica.comunicazione_id}
-                          className={notifica.user_reaction === "dislike" ? getReactionColor("dislike") : ""}
+                          onClick={() => handleReaction(comunicazione.id, "dislike")}
+                          disabled={processingReaction === comunicazione.id}
+                          className={comunicazione.user_reaction === "dislike" ? getReactionColor("dislike") : ""}
                         >
                           <ThumbsDown className="h-4 w-4 mr-1" />
                           Non mi piace
+                          <span className="ml-1 text-xs font-semibold">{comunicazione.dislikes || 0}</span>
                         </Button>
                       </div>
                     </div>
 
-                    {notifica.user_reaction && (
+                    {comunicazione.user_reaction && (
                       <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                         <p className="text-sm text-muted-foreground">
                           Hai già reagito a questa comunicazione con: 
                           <Badge 
                             variant="outline" 
-                            className={`ml-2 ${getReactionColor(notifica.user_reaction)}`}
+                            className={`ml-2 ${getReactionColor(comunicazione.user_reaction)}`}
                           >
-                            {notifica.user_reaction === "like" ? "Mi piace" : "Non mi piace"}
+                            {comunicazione.user_reaction === "like" ? "Mi piace" : "Non mi piace"}
                           </Badge>
                         </p>
                       </div>
