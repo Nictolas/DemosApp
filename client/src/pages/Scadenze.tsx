@@ -9,6 +9,11 @@ const SCADENZE = [
     descrizione: "Aggiornare Node.js da versione 18 a 20 per le Cloud Functions Firebase (Node.js 18 va in End of Life)",
     stato: "Da fare"
   },
+  {
+    data: "25 agosto 2025",
+    descrizione: "Fine supporto Firebase Dynamic Links: tutti i link dinamici smetteranno di funzionare, le API saranno dismesse e i dati eliminati. Migrare a soluzioni alternative (App Links, Universal Links, Branch, ecc.) prima di questa data.",
+    stato: "Verificare utilizzo e pianificare migrazione"
+  },
   // Qui puoi aggiungere altre scadenze in futuro
 ];
 
