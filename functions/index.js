@@ -25,7 +25,7 @@ exports.sendComunicazioneNotification = onDocumentCreated(
     const comunicazioneId = event.params.comId;
 
     // Prendi tutti gli utenti che hanno scelto questo rappresentante
-    const usersSnapshot = await admin.firestore().collection("users").get();
+    const usersSnapshot = await admin.firestore().collection("utenti").get();
     const tokens = [];
 
     usersSnapshot.forEach((doc) => {
