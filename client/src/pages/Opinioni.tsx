@@ -61,7 +61,7 @@ export default function Opinioni() {
       setIsLoadingOpinions(true);
       
       // Carica i dati utente direttamente da Firebase
-      const userDocRef = doc(db, "users", user.uid);
+      const userDocRef = doc(db, "utenti", user.uid);
       const userDoc = await getDoc(userDocRef);
       
       if (userDoc.exists()) {
@@ -111,7 +111,7 @@ export default function Opinioni() {
       }
       
       // Salva le opinioni direttamente in Firebase
-      const userDocRef = doc(db, "users", user.uid);
+      const userDocRef = doc(db, "utenti", user.uid);
       await updateDoc(userDocRef, opinions);
       
       toast({
