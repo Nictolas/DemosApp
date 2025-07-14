@@ -60,7 +60,11 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const res = await fetch("/api/opinioni-list");
+        if (!user) return;
+        const token = await user.getIdToken();
+        const res = await fetch("/api/opinioni-list", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         if (!res.ok) throw new Error();
         const questions = await res.json();
         setOpinionQuestions(questions);
@@ -73,7 +77,7 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
       }
     };
     fetchQuestions();
-  }, [opinionField]);
+  }, [opinionField, user]);
 
   const basePageTitle = dynamicTitle || opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
   let pageTitle = basePageTitle;
@@ -110,7 +114,10 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
       if (params.length > 0) {
         apiUrl += `?${params.join('&')}`;
       }
-      const response = await fetch(apiUrl);
+      const token = await user.getIdToken();
+      const response = await fetch(apiUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       if (!response.ok) {
         throw new Error(`Errore API: ${response.statusText}`);
       }
