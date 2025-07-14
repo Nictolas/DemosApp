@@ -11,7 +11,7 @@ import { useFCM } from "@/hooks/useFCM";
 import { ThumbsUp, ThumbsDown, Bell, Clock, User, Smartphone, Wifi } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, increment, getDoc, collection as collectionRef, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, increment, getDoc, collection as collectionRef, getDocs, query as firestoreQuery, where as firestoreWhere } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { CustomAvatar } from "@/components/CustomAvatar";
 
@@ -65,13 +65,22 @@ export default function Notifiche() {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setComunicazioni(docs);
-      // Carica i dati dei rappresentanti dalla collezione utenti
-      const utentiSnapshot = await getDocs(collectionRef(db, "utenti"));
-      const utenti = {};
-      utentiSnapshot.forEach(doc => {
-        utenti[doc.id] = doc.data();
-      });
-      setUtentiMap(utenti);
+      // Carica solo i rappresentanti con ruolo Politico o Candidato Politico seguiti dall'utente
+      if (rappresentantiSeguiti.length > 0) {
+        const utentiQuery = firestoreQuery(
+          collectionRef(db, "utenti"),
+          firestoreWhere("ruolo", "in", ["Politico", "Candidato Politico"]),
+          firestoreWhere("id", "in", rappresentantiSeguiti)
+        );
+        const utentiSnapshot = await getDocs(utentiQuery);
+        const utenti: Record<string, any> = {};
+        utentiSnapshot.forEach(doc => {
+          utenti[doc.id] = doc.data();
+        });
+        setUtentiMap(utenti);
+      } else {
+        setUtentiMap({});
+      }
       setIsLoading(false);
     });
     return () => unsubscribe();
