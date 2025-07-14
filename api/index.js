@@ -962,15 +962,17 @@ app.use('/api/notifications', notificationsRouter);
 // Endpoint di test per notifiche push
 app.post('/api/test-push-notification', requireFirebaseAuth, async (req, res) => {
   try {
+    console.log('[DEBUG] BODY ricevuto su /api/test-push-notification:', req.body);
     const { userId, title, body } = req.body;
-    
+    console.log('[DEBUG] Parametri estratti:', { userId, title, body });
     if (!userId || !title || !body) {
+      console.error('[DEBUG] Parametri mancanti:', { userId, title, body });
       return res.status(400).json({ 
         success: false, 
-        error: 'userId, title e body sono richiesti' 
+        error: 'userId, title e body sono richiesti',
+        debug: { userId, title, body }
       });
     }
-
     const result = await sendNotificationToUser(userId, {
       title,
       body,
@@ -979,7 +981,6 @@ app.post('/api/test-push-notification', requireFirebaseAuth, async (req, res) =>
         timestamp: Date.now().toString()
       }
     });
-    
     if (result.success) {
       res.json(result);
     } else {
@@ -989,7 +990,8 @@ app.post('/api/test-push-notification', requireFirebaseAuth, async (req, res) =>
     console.error('Errore endpoint test notifica push:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Errore interno del server' 
+      error: 'Errore interno del server',
+      debug: error.message
     });
   }
 });

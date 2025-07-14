@@ -212,7 +212,7 @@ export default function EnergiaNucleare() {
           <Button 
             variant="ghost" 
             className="mb-4 flex items-center"
-            onClick={() => window.location.href = "/statistiche-opinioni"}
+            onClick={() => window.location.href = "/sondaggi"}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Torna alle Statistiche
           </Button>

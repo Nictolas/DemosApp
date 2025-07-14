@@ -254,11 +254,7 @@ export default function Comunica() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Pulsante Riscontro */}
-        {(userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin") && (
-          <div className="flex justify-end mb-2">
-            <Button variant="outline" onClick={() => setLocation("/riscontro")}>Riscontro</Button>
-          </div>
-        )}
+        {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button
@@ -348,6 +344,7 @@ export default function Comunica() {
               </CardContent>
             </Card>
           )}
+          {/* Card Riscontro ripristinato */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-indigo-600 group-hover:text-indigo-700">
@@ -364,24 +361,24 @@ export default function Comunica() {
             </CardContent>
           </Card>
 
-          {/* Statistiche Opinioni */}
+          {/* Sondaggi */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
                 <MessageSquare className="h-5 w-5" />
-                Statistiche Opinioni
+                Sondaggi
               </CardTitle>
               <CardDescription>
-                Analizza le opinioni politiche degli utenti e le tendenze
+                Analizza i sondaggi politici degli utenti e le tendenze
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button 
                 className="w-full bg-green-600 hover:bg-green-700"
-                onClick={() => setLocation("/statistiche-opinioni")}
+                onClick={() => setLocation("/sondaggi")}
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
-                Visualizza Statistiche Opinioni
+                Visualizza Sondaggi
               </Button>
             </CardContent>
           </Card>

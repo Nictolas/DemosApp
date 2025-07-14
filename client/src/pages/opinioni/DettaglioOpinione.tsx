@@ -239,7 +239,7 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="container mx-auto max-w-5xl">
-        <Link href={regionName ? `/opinioni/${opinionField}` : "/statistiche-opinioni"}>
+        <Link href={regionName ? `/opinioni/${opinionField}` : "/sondaggi"}>
           <Button variant="ghost" className="mb-4 flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" /> 
             {regionName ? `Torna a ${basePageTitle}` : "Torna alle Statistiche"}

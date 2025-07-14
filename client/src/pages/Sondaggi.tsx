@@ -15,7 +15,7 @@ ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tool
 type OpinionData = { favorevole: number; contrario: number; astenuto: number; };
 type OpinionStats = Record<string, OpinionData>;
 
-function StatisticheOpinioni() {
+function Sondaggi() {
   const { user, isLoading } = useAuth();
   const [stats, setStats] = useState<OpinionStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
@@ -148,7 +148,7 @@ function StatisticheOpinioni() {
       <div className="container mx-auto max-w-5xl">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu</Button></Link>
         <Card>
-          <CardHeader><CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center"><BarChart className="mr-2 h-6 w-6 text-primary" /> Statistiche Opinioni</CardTitle><CardDescription>Visualizza statistiche aggregate delle opinioni nella piattaforma DEMOS</CardDescription></CardHeader>
+          <CardHeader><CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent flex items-center"><BarChart className="mr-2 h-6 w-6 text-primary" /> Sondaggi</CardTitle><CardDescription>Visualizza statistiche aggregate dei sondaggi nella piattaforma DEMOS</CardDescription></CardHeader>
           <CardContent>
             {isLoadingStats && <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
             {error && <div className="text-center text-red-500 p-4">{error}</div>}
@@ -186,4 +186,4 @@ function StatisticheOpinioni() {
   );
 }
 
-export default StatisticheOpinioni;
+export default Sondaggi;

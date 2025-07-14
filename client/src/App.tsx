@@ -64,6 +64,7 @@ import DebugAuth from "@/pages/debug-auth";
 import ProfiloTest from "@/pages/ProfiloTest";
 import Riscontro from "@/pages/Riscontro";
 import Scadenze from "@/pages/Scadenze";
+import Sondaggi from "@/pages/Sondaggi";
 
 function Router() {
   const [location] = useLocation();
@@ -250,10 +251,10 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/statistiche-opinioni">
+      <Route path="/sondaggi">
         {(params) => (
           <PageTransition location={location} type="fade-up">
-            <ProtectedRoute path="/statistiche-opinioni" component={StatisticheOpinioni} />
+            <ProtectedRoute path="/sondaggi" component={Sondaggi} />
           </PageTransition>
         )}
       </Route>
