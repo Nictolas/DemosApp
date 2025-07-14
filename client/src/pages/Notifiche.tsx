@@ -71,7 +71,6 @@ export default function Notifiche() {
         if (rappresentantiSeguiti.length > 0) {
           const utentiQuery = firestoreQuery(
             collectionRef(db, "utenti"),
-            firestoreWhere("ruolo", "in", ["Politico", "Candidato Politico"]),
             firestoreWhere("id", "in", rappresentantiSeguiti)
           );
           const utentiSnapshot = await getDocs(utentiQuery);
@@ -79,6 +78,7 @@ export default function Notifiche() {
           utentiSnapshot.forEach(doc => {
             utenti[doc.id] = doc.data();
           });
+          console.log('Utenti trovati:', utenti);
           setUtentiMap(utenti);
         } else {
           setUtentiMap({});
@@ -368,7 +368,10 @@ export default function Notifiche() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {(comunicazioni as any[]).map((comunicazione: any) => (
+              {(comunicazioni as any[]).filter(comunicazione => {
+                const utente = utentiMap[comunicazione.id_utente];
+                return utente && (utente.ruolo === "Politico" || utente.ruolo === "Candidato Politico");
+              }).map((comunicazione: any) => (
                 <Card 
                   key={comunicazione.id} 
                   className="transition-all duration-200 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800/50"
