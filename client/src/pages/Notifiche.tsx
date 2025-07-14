@@ -14,6 +14,7 @@ import { it } from "date-fns/locale";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, increment, getDoc, collection as collectionRef, getDocs, query as firestoreQuery, where as firestoreWhere } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { CustomAvatar } from "@/components/CustomAvatar";
+import { auth } from "@/lib/firebase";
 
 interface Notifica {
   id: string;
@@ -276,17 +277,21 @@ export default function Notifiche() {
                     <Button 
                       onClick={async () => {
                         try {
+                          const currentUser = auth.currentUser;
+                          if (!currentUser) throw new Error("Utente non autenticato in Firebase");
+                          const token = await currentUser.getIdToken();
                           const response = await fetch('/api/test-push-notification', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${token}`
+                            },
                             body: JSON.stringify({
                               userId: user.id,
                               title: 'Test Notifica DEMOS',
                               body: 'Questa è una notifica di test inviata alle ' + new Date().toLocaleTimeString()
-                            }),
-                            credentials: 'include'
+                            })
                           });
-                          
                           const result = await response.json();
                           if (result.success) {
                             toast({
@@ -303,7 +308,7 @@ export default function Notifiche() {
                         } catch (error) {
                           toast({
                             title: "Errore",
-                            description: "Errore di rete nell'invio della notifica di test",
+                            description: error.message || "Errore di rete nell'invio della notifica di test",
                             variant: "destructive",
                           });
                         }

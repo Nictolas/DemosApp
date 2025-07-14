@@ -730,7 +730,7 @@ app.get('/api/iniziative-popolari/lista', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Errore nel recupero delle iniziative popolari' });
   }
 });
-app.get('/api/iniziative-popolari/voti', requireAuth, async (req, res) => {
+app.get('/api/iniziative-popolari/voti', requireFirebaseAuth, async (req, res) => {
   try {
     console.log("Chiamata a /api/iniziative-popolari/voti da utente:", req.user?.id, req.user?.email);
     const result = await VotoService.getUserVotiIniziativePopolari(req.user.id);
@@ -960,7 +960,7 @@ app.delete('/api/ice/:id', requireFirebaseAdmin, async (req, res) => {
 app.use('/api/notifications', notificationsRouter);
 
 // Endpoint di test per notifiche push
-app.post('/api/test-push-notification', requireAuth, async (req, res) => {
+app.post('/api/test-push-notification', requireFirebaseAuth, async (req, res) => {
   try {
     const { userId, title, body } = req.body;
     
