@@ -61,8 +61,8 @@ export default function Notifiche() {
     try {
       const q = query(
         collection(db, "comunicazioni"),
-        where("id_utente", "in", rappresentantiSeguiti),
-        orderBy("data_creazione", "desc")
+        where("id_utente", "in", rappresentantiSeguiti)
+        // rimosso orderBy("data_creazione", "desc")
       );
       const unsubscribe = onSnapshot(q, async (snapshot) => {
         const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -204,6 +204,15 @@ export default function Notifiche() {
       </div>
     );
   }
+
+  // Ordinamento lato client per grado_elezione
+  const ordineGradi = ["Europeo", "Nazionale", "Regionale", "Comunale"];
+  const comunicazioniOrdinate = (comunicazioni as any[]).filter(comunicazione => {
+    const utente = utentiMap[comunicazione.id_utente];
+    return utente && (utente.ruolo === "Politico" || utente.ruolo === "Candidato Politico");
+  }).sort((a, b) => {
+    return ordineGradi.indexOf(a.grado_elezione) - ordineGradi.indexOf(b.grado_elezione);
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
@@ -368,10 +377,7 @@ export default function Notifiche() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {(comunicazioni as any[]).filter(comunicazione => {
-                const utente = utentiMap[comunicazione.id_utente];
-                return utente && (utente.ruolo === "Politico" || utente.ruolo === "Candidato Politico");
-              }).map((comunicazione: any) => (
+              {comunicazioniOrdinate.map((comunicazione: any) => (
                 <Card 
                   key={comunicazione.id} 
                   className="transition-all duration-200 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800/50"
