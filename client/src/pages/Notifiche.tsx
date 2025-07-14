@@ -383,29 +383,22 @@ export default function Notifiche() {
                   className="transition-all duration-200 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-2">
-                        {utentiMap[comunicazione.id_utente]?.avatar_config ? (
-                          <CustomAvatar config={JSON.parse(utentiMap[comunicazione.id_utente].avatar_config)} size={40} className="mr-2" />
-                        ) : (
-                          <User className="h-8 w-8 text-blue-600 mr-2" />
-                        )}
-                      </div>
-                    </div>
+                    
                   </CardHeader>
                   
                   <CardContent>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border flex items-center">
-                      {utentiMap[comunicazione.id_utente]?.avatar_config ? (
-                        <CustomAvatar config={JSON.parse(utentiMap[comunicazione.id_utente].avatar_config)} size={40} className="mr-3" />
-                      ) : (
-                        <User className="h-8 w-8 text-blue-600 mr-3" />
-                      )}
-                      <div className="flex-1">
-                        <p className="font-medium mb-2">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border">
+                      <div className="flex items-center mb-2">
+                        {utentiMap[comunicazione.id_utente]?.avatar_config ? (
+                          <CustomAvatar config={JSON.parse(utentiMap[comunicazione.id_utente].avatar_config)} size={40} className="mr-3" />
+                        ) : (
+                          <User className="h-8 w-8 text-blue-600 mr-3" />
+                        )}
+                        <p className="font-medium m-0">
                           <strong>{utentiMap[comunicazione.id_utente]?.nome} {utentiMap[comunicazione.id_utente]?.cognome}</strong> ha comunicato una votazione: <strong>{comunicazione.titolo}</strong>
                         </p>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-muted-foreground">Ha votato:</span>
                             <Badge 
