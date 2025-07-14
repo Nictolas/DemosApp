@@ -360,23 +360,7 @@ export default function Notifiche() {
                         ) : (
                           <User className="h-8 w-8 text-blue-600 mr-2" />
                         )}
-                        <div>
-                          <CardTitle className="text-lg">
-                            {utentiMap[comunicazione.id_utente]?.nome} {utentiMap[comunicazione.id_utente]?.cognome}
-                          </CardTitle>
-                          <div className="flex items-center space-x-2 mt-1">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {formatDistanceToNow(new Date(comunicazione.data_creazione), {
-                                addSuffix: true,
-                                locale: it,
-                              })}
-                            </span>
-
-                          </div>
-                        </div>
                       </div>
-
                     </div>
                   </CardHeader>
                   
