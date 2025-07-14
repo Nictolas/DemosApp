@@ -383,7 +383,7 @@ export default function Notifiche() {
                   <CardContent>
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border">
                       <p className="font-medium mb-2">
-                        ha comunicato una votazione: <strong>{comunicazione.titolo}</strong>
+                        <strong>{utentiMap[comunicazione.id_utente]?.nome} {utentiMap[comunicazione.id_utente]?.cognome}</strong> ha comunicato una votazione: <strong>{comunicazione.titolo}</strong>
                       </p>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -428,7 +428,7 @@ export default function Notifiche() {
 
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">
-                        Cosa ne pensi di questa comunicazione?
+                        Cosa ne pensi di questa decisione?
                       </span>
                       <div className="flex items-center space-x-2">
                         <Button
