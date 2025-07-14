@@ -36,6 +36,7 @@ class ComunicazioneService extends FirebaseService {
         cognome: userData.cognome,
         ruolo: userData.ruolo,
         grado_elezione: data.grado_elezione, // <-- aggiungi il grado_elezione
+        avatar_config: userData.avatar_config || null, // <-- aggiungi avatar_config
         ...data,
         data_creazione: new Date().toISOString(),
         punti_trasparenza: data.isDuplicate ? 1 : 3,
