@@ -283,19 +283,19 @@ export default function Notifiche() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Rappresentante Europeo</span>
-                  <Switch checked={notifichePrefs.europeo} onCheckedChange={v => handleSwitch('europeo', v)} disabled={!notifichePrefs.tutte} />
+                  <Switch checked={notifichePrefs.europeo} onCheckedChange={v => handleSwitch('europeo', v)} />
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Rappresentante Nazionale</span>
-                  <Switch checked={notifichePrefs.nazionale} onCheckedChange={v => handleSwitch('nazionale', v)} disabled={!notifichePrefs.tutte} />
+                  <Switch checked={notifichePrefs.nazionale} onCheckedChange={v => handleSwitch('nazionale', v)} />
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Rappresentante Regionale</span>
-                  <Switch checked={notifichePrefs.regionale} onCheckedChange={v => handleSwitch('regionale', v)} disabled={!notifichePrefs.tutte} />
+                  <Switch checked={notifichePrefs.regionale} onCheckedChange={v => handleSwitch('regionale', v)} />
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Consigliere Comunale</span>
-                  <Switch checked={notifichePrefs.comunale} onCheckedChange={v => handleSwitch('comunale', v)} disabled={!notifichePrefs.tutte} />
+                  <Switch checked={notifichePrefs.comunale} onCheckedChange={v => handleSwitch('comunale', v)} />
                 </div>
               </div>
             </CardContent>
