@@ -138,10 +138,16 @@ const requireAuth = (req, res, next) => {
 const requireStatsRole = async (req, res, next) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
   const allowed = ["Admin", "Politico", "Candidato Politico", "Candidato"];
+  let ruolo = req.user?.ruolo;
+  // Se il ruolo nel token è già tra quelli consentiti, accetta subito
+  if (allowed.includes(ruolo)) {
+    req.user.ruolo = ruolo;
+    return next();
+  }
   try {
-    const adminDb = require('./firebase-config.js').adminDb;
-    const userDoc = await adminDb.collection('utenti').doc(req.user.uid).get();
-    let ruolo = req.user?.ruolo;
+    const userUid = req.user.uid;
+    if (!userUid) return res.status(403).json({ error: "Forbidden: utente senza uid" });
+    const userDoc = await adminDb.collection('utenti').doc(userUid).get();
     if (userDoc.exists) {
       const data = userDoc.data();
       if (data && data.ruolo) ruolo = data.ruolo;
