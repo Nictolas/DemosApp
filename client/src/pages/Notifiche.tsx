@@ -16,6 +16,7 @@ import { db } from "@/lib/firebase";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { auth } from "@/lib/firebase";
 import { NotificationTest } from "@/components/NotificationTest";
+import { Switch } from "@/components/ui/switch";
 
 interface Notifica {
   id: string;
@@ -40,6 +41,14 @@ export default function Notifiche() {
   const [comunicazioni, setComunicazioni] = useState<any[]>([]);
   const [utentiMap, setUtentiMap] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
+  // Stato preferenze notifiche
+  const [notifichePrefs, setNotifichePrefs] = useState({
+    tutte: true,
+    europeo: true,
+    nazionale: true,
+    regionale: true,
+    comunale: true,
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -96,6 +105,38 @@ export default function Notifiche() {
       setIsLoading(false);
     }
   }, [user]);
+
+  // Carica preferenze da Firestore
+  useEffect(() => {
+    if (!user) return;
+    const docRef = doc(db, "utenti", user.uid);
+    getDoc(docRef).then((snap) => {
+      if (snap.exists() && snap.data().notifiche_preferenze) {
+        setNotifichePrefs({ ...notifichePrefs, ...snap.data().notifiche_preferenze });
+      }
+    });
+    // eslint-disable-next-line
+  }, [user]);
+  // Salva preferenze su Firestore
+  const updatePrefs = async (newPrefs: any) => {
+    setNotifichePrefs(newPrefs);
+    if (user) {
+      const docRef = doc(db, "utenti", user.uid);
+      await updateDoc(docRef, { notifiche_preferenze: newPrefs });
+    }
+  };
+  // Gestione interruttori
+  const handleSwitch = (key: string, value: boolean) => {
+    if (key === "tutte") {
+      const all = { tutte: value, europeo: value, nazionale: value, regionale: value, comunale: value };
+      updatePrefs(all);
+    } else {
+      const newPrefs = { ...notifichePrefs, [key]: value };
+      // Se tutte sono true, aggiorna anche 'tutte'
+      newPrefs.tutte = newPrefs.europeo && newPrefs.nazionale && newPrefs.regionale && newPrefs.comunale;
+      updatePrefs(newPrefs);
+    }
+  };
 
   // React to communication (like/dislike)
   const reactToCommunication = useMutation({
@@ -231,6 +272,35 @@ export default function Notifiche() {
             </p>
           </div>
 
+          {/* Switch preferenze notifiche push */}
+          <Card className="mb-6">
+            <CardContent className="p-4 space-y-2">
+              <div className="font-medium mb-2">Preferenze Notifiche Push</div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span>Tutte le notifiche</span>
+                  <Switch checked={notifichePrefs.tutte} onCheckedChange={v => handleSwitch('tutte', v)} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Rappresentante Europeo</span>
+                  <Switch checked={notifichePrefs.europeo} onCheckedChange={v => handleSwitch('europeo', v)} disabled={!notifichePrefs.tutte} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Rappresentante Nazionale</span>
+                  <Switch checked={notifichePrefs.nazionale} onCheckedChange={v => handleSwitch('nazionale', v)} disabled={!notifichePrefs.tutte} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Rappresentante Regionale</span>
+                  <Switch checked={notifichePrefs.regionale} onCheckedChange={v => handleSwitch('regionale', v)} disabled={!notifichePrefs.tutte} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Consigliere Comunale</span>
+                  <Switch checked={notifichePrefs.comunale} onCheckedChange={v => handleSwitch('comunale', v)} disabled={!notifichePrefs.tutte} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Stato notifiche push */}
           <div className="mb-6">
             <Card>
@@ -267,7 +337,7 @@ export default function Notifiche() {
                 {fcmToken && (
                   <Alert className="mt-3">
                     <AlertDescription>
-                      Token FCM: {fcmToken.substring(0, 20)}...
+                      Token FCM: {fcmToken}
                     </AlertDescription>
                   </Alert>
                 )}
