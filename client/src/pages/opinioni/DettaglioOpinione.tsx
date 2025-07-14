@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Bar, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { ITALY_DATA } from "@/data/italyData";
+import { getAuth } from "firebase/auth";
 
 // Registra i componenti di Chart.js una sola volta
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
@@ -60,8 +61,9 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        if (!user) return;
-        const token = await user.getIdToken();
+        const firebaseUser = getAuth().currentUser;
+        if (!firebaseUser) return;
+        const token = await firebaseUser.getIdToken();
         const res = await fetch("/api/opinioni-list", {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -77,7 +79,7 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
       }
     };
     fetchQuestions();
-  }, [opinionField, user]);
+  }, [opinionField]);
 
   const basePageTitle = dynamicTitle || opinionTitles[opinionField] || opinionField.replace(/_/g, ' ');
   let pageTitle = basePageTitle;
@@ -93,7 +95,10 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
 
   // Funzione per recuperare i dati dal backend
   const fetchData = useCallback(async () => {
-    if (!user || !opinionField) return;
+    if (!opinionField) return;
+    const firebaseUser = getAuth().currentUser;
+    if (!firebaseUser) return;
+    const token = await firebaseUser.getIdToken();
     setIsLoading(true);
     setError(null);
     try {
@@ -114,7 +119,6 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
       if (params.length > 0) {
         apiUrl += `?${params.join('&')}`;
       }
-      const token = await user.getIdToken();
       const response = await fetch(apiUrl, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -128,7 +132,7 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
     } finally {
       setIsLoading(false);
     }
-  }, [user, opinionField, regionName, provinceName, comuneName]);
+  }, [opinionField, regionName, provinceName, comuneName]);
 
   // Esegui il fetch dei dati quando il componente si monta
   useEffect(() => {
