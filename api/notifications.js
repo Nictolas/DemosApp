@@ -197,7 +197,7 @@ router.get('/tokens', async (req, res) => {
       });
     }
 
-    const usersSnapshot = await adminDb.collection('users').get();
+    const usersSnapshot = await adminDb.collection('utenti').get();
     const tokens = [];
     
     usersSnapshot.forEach(doc => {
