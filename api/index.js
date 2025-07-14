@@ -135,13 +135,25 @@ const requireAuth = (req, res, next) => {
 };
 
 // Middleware per ruoli statistici
-const requireStatsRole = (req, res, next) => {
+const requireStatsRole = async (req, res, next) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
   const allowed = ["Admin", "Politico", "Candidato Politico", "Candidato"];
-  if (!allowed.includes(req.user?.ruolo)) {
-    return res.status(403).json({ error: "Forbidden: ruolo non autorizzato" });
+  try {
+    const adminDb = require('./firebase-config.js').adminDb;
+    const userDoc = await adminDb.collection('utenti').doc(req.user.uid).get();
+    let ruolo = req.user?.ruolo;
+    if (userDoc.exists) {
+      const data = userDoc.data();
+      if (data && data.ruolo) ruolo = data.ruolo;
+    }
+    if (!allowed.includes(ruolo)) {
+      return res.status(403).json({ error: "Forbidden: ruolo non autorizzato" });
+    }
+    req.user.ruolo = ruolo;
+    next();
+  } catch (e) {
+    return res.status(500).json({ error: "Errore controllo ruolo", details: e.message });
   }
-  next();
 };
 
 const requireAdmin = (req, res, next) => {
