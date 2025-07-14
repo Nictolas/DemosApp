@@ -8,7 +8,7 @@ const VAPID_PRIVATE_KEY = '<REDACTED_API_KEY>';
  */
 export async function saveUserFCMToken(userId, fcmToken) {
   try {
-    await adminDb.collection('users').doc(userId).update({
+    await adminDb.collection('utenti').doc(userId).update({
       fcmToken: fcmToken,
       fcmTokenUpdatedAt: new Date()
     });
@@ -25,7 +25,7 @@ export async function saveUserFCMToken(userId, fcmToken) {
  */
 export async function removeUserFCMToken(userId) {
   try {
-    await adminDb.collection('users').doc(userId).update({
+    await adminDb.collection('utenti').doc(userId).update({
       fcmToken: null,
       fcmTokenUpdatedAt: new Date()
     });
@@ -43,7 +43,7 @@ export async function removeUserFCMToken(userId) {
 export async function sendNotificationToUser(userId, notification) {
   try {
     // Ottieni il token FCM dell'utente
-    const userDoc = await adminDb.collection('users').doc(userId).get();
+    const userDoc = await adminDb.collection('utenti').doc(userId).get();
     if (!userDoc.exists) {
       return { success: false, error: 'Utente non trovato' };
     }
@@ -99,7 +99,7 @@ export async function sendNotificationToUser(userId, notification) {
 export async function sendNotificationToUsers(userIds, notification) {
   try {
     // Ottieni i token FCM degli utenti
-    const usersSnapshot = await adminDb.collection('users')
+    const usersSnapshot = await adminDb.collection('utenti')
       .where(adminDb.FieldPath.documentId(), 'in', userIds)
       .get();
 
@@ -175,7 +175,7 @@ export async function sendNotificationToAllUsers(notification) {
     let lastDoc = null;
 
     while (true) {
-      let query = adminDb.collection('users')
+      let query = adminDb.collection('utenti')
         .where('fcmToken', '!=', null)
         .limit(batchSize);
 

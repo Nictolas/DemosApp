@@ -287,7 +287,7 @@ export default function Notifiche() {
                               'Authorization': `Bearer ${token}`
                             },
                             body: JSON.stringify({
-                              userId: user.id,
+                              userId: user.uid,
                               title: 'Test Notifica DEMOS',
                               body: 'Questa è una notifica di test inviata alle ' + new Date().toLocaleTimeString()
                             })

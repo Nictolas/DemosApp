@@ -157,7 +157,7 @@ class NotificaService extends FirebaseService {
       }
 
       // Ottieni il token FCM dell'utente
-      const userDoc = await adminDb.collection('users').doc(userId).get();
+      const userDoc = await adminDb.collection('utenti').doc(userId).get();
       if (!userDoc.exists) {
         return { success: false, error: "Utente non trovato" };
       }
@@ -230,7 +230,7 @@ class NotificaService extends FirebaseService {
       }
 
       // Query per trovare tutti i sostenitori che hanno scelto questo rappresentante
-      const usersSnapshot = await adminDb.collection('users').get();
+      const usersSnapshot = await adminDb.collection('utenti').get();
       const pushNotificationPromises = [];
 
       usersSnapshot.forEach((userDoc) => {

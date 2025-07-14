@@ -221,7 +221,7 @@ app.post("/api/register", async (req, res, next) => {
     // Salva il token FCM se fornito
     if (fcmToken && result.user.uid) {
       try {
-        await adminDb.collection('users').doc(result.user.uid).update({
+        await adminDb.collection('utenti').doc(result.user.uid).update({
           fcmToken: fcmToken,
           fcmTokenUpdatedAt: new Date()
         });
@@ -248,7 +248,7 @@ app.post("/api/login", async (req, res, next) => {
     const { fcmToken } = req.body;
     if (fcmToken && user.id) {
       try {
-        await adminDb.collection('users').doc(user.id).update({
+        await adminDb.collection('utenti').doc(user.id).update({
           fcmToken: fcmToken,
           fcmTokenUpdatedAt: new Date()
         });
