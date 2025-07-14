@@ -15,6 +15,7 @@ import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, incremen
 import { db } from "@/lib/firebase";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { auth } from "@/lib/firebase";
+import { NotificationTest } from "@/components/NotificationTest";
 
 interface Notifica {
   id: string;
