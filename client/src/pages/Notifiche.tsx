@@ -358,6 +358,9 @@ export default function Notifiche() {
             </Card>
           </div>
 
+          {/* Test e salvataggio notifiche push (debug) */}
+          {user && <NotificationTest userId={user.uid} />}
+
           {!isLoading && comunicazioni.length === 0 && (
             <Card>
               <CardContent className="p-8 text-center">
