@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging';
 import { initializeApp } from 'firebase/app';
 
@@ -20,9 +20,10 @@ export function useFCM() {
   const [error, setError] = useState<string | null>(null);
   const [permission, setPermission] = useState<NotificationPermission | null>(null);
   const [message, setMessage] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Inizializza Firebase Messaging solo una volta
   useEffect(() => {
-    // Inizializza Firebase Messaging solo se siamo nel browser
     if (typeof window === 'undefined') return;
     try {
       const app = initializeApp(firebaseConfig);
@@ -37,51 +38,59 @@ export function useFCM() {
         }
       }
     }
+    setPermission(Notification.permission);
   }, []);
 
+  // Ottieni token solo se il permesso è già granted
   useEffect(() => {
     if (!messaging) return;
-    // Chiedi permesso all'utente
-    Notification.requestPermission().then((perm) => {
-      setPermission(perm);
-      if (perm === 'granted') {
-        // Registra il service worker
-        navigator.serviceWorker
-          .register('/firebase-messaging-sw.js')
-          .then((registration) => {
-            // Ottieni il token FCM
-            getToken(messaging!, {
-              vapidKey: 'BIHJ29xtgACTW0TrdApZa1XsV-h7LIa5qoxah13RtkWHCKU_UJLwO4vMeXeMhvpz7XEFhas-r5t4uuhLsAcOoBw',
-              serviceWorkerRegistration: registration,
-            })
-              .then((currentToken) => {
-                if (currentToken) {
-                  setToken(currentToken);
-                } else {
-                  setError('Nessun token disponibile. Permesso non concesso?');
-                }
-              })
-              .catch((err) => {
-                setError('Errore ottenimento token: ' + err.message);
-              });
+    if (permission !== 'granted') return;
+    setIsLoading(true);
+    navigator.serviceWorker
+      .register('/firebase-messaging-sw.js')
+      .then((registration) => {
+        getToken(messaging!, {
+          vapidKey: 'BIHJ29xtgACTW0TrdApZa1XsV-h7LIa5qoxah13RtkWHCKU_UJLwO4vMeXeMhvpz7XEFhas-r5t4uuhLsAcOoBw',
+          serviceWorkerRegistration: registration,
+        })
+          .then((currentToken) => {
+            if (currentToken) {
+              setToken(currentToken);
+            } else {
+              setError('Nessun token disponibile. Permesso non concesso?');
+            }
           })
           .catch((err) => {
-            setError('Errore registrazione Service Worker: ' + err.message);
-          });
-      } else {
-        setError('Permesso notifiche non concesso');
-      }
-    });
-  }, [messaging]);
+            setError('Errore ottenimento token: ' + err.message);
+          })
+          .finally(() => setIsLoading(false));
+      })
+      .catch((err) => {
+        setError('Errore registrazione Service Worker: ' + err.message);
+        setIsLoading(false);
+      });
+  }, [permission]);
 
+  // Listener per notifiche in foreground
   useEffect(() => {
     if (!messaging) return;
-    // Listener per notifiche in foreground
     const unsubscribe = onMessage(messaging, (payload) => {
       setMessage(payload);
     });
     return () => unsubscribe();
   }, [messaging]);
 
-  return { token, error, permission, message };
+  // Funzione da chiamare su click utente
+  const requestPermission = useCallback(async () => {
+    try {
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      return perm;
+    } catch (err: any) {
+      setError('Errore richiesta permesso notifiche: ' + err.message);
+      return 'default';
+    }
+  }, []);
+
+  return { token, error, permission, message, isLoading, requestPermission };
 } 
