@@ -84,12 +84,9 @@ export default function LegalizzazioneCanapa() {
   useEffect(() => {
     const fetchOpinionStats = async () => {
       if (!user) return;
-      
       try {
-        // Query diretta a Firebase per ottenere tutte le opinioni sulla legalizzazione della canapa
-        const usersRef = collection(db, "users");
+        const usersRef = collection(db, "utenti");
         const usersSnapshot = await getDocs(usersRef);
-        
         const stats: OpinionDetailStats = {
           total: 0,
           favorevoli: 0,
@@ -114,64 +111,52 @@ export default function LegalizzazioneCanapa() {
             '65+': { Favorevole: 0, Contrario: 0, Indeciso: 0 }
           }
         };
-
         const ageSums = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
         const ageCounts = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
-
         usersSnapshot.forEach((doc) => {
           const userData = doc.data();
-          const canapaOpinion = userData.legalizzazione_canapa;
-          
-          if (canapaOpinion && canapaOpinion !== "Non risposto") {
+          const opinione = userData.legalizzazione_canapa;
+          if (opinione && opinione !== "Non risposto") {
             stats.total++;
-            
-            // Conta per opinione generale
-            if (canapaOpinion === "Favorevole") {
+            if (opinione === "Favorevole") {
               stats.favorevoli++;
               ageSums.Favorevole += calculateAge(userData.data_nascita || '1990-01-01');
               ageCounts.Favorevole++;
-            } else if (canapaOpinion === "Contrario") {
+            } else if (opinione === "Contrario") {
               stats.contrari++;
               ageSums.Contrario += calculateAge(userData.data_nascita || '1990-01-01');
               ageCounts.Contrario++;
-            } else if (canapaOpinion === "Indeciso") {
+            } else if (opinione === "Indeciso") {
               stats.indecisi++;
               ageSums.Indeciso += calculateAge(userData.data_nascita || '1990-01-01');
               ageCounts.Indeciso++;
             }
-
-            // Distribuzione per genere
             const gender = userData.genere || 'Altro';
             if (stats.genderDistribution[gender]) {
-              if (canapaOpinion === "Favorevole") {
+              if (opinione === "Favorevole") {
                 stats.genderDistribution[gender].Favorevole++;
-              } else if (canapaOpinion === "Contrario") {
+              } else if (opinione === "Contrario") {
                 stats.genderDistribution[gender].Contrario++;
-              } else if (canapaOpinion === "Indeciso") {
+              } else if (opinione === "Indeciso") {
                 stats.genderDistribution[gender].Indeciso++;
               }
             }
-
-            // Distribuzione per età
             const age = calculateAge(userData.data_nascita || '1990-01-01');
             const ageGroup = getAgeGroup(age);
             if (stats.ageDistribution[ageGroup]) {
-              if (canapaOpinion === "Favorevole") {
+              if (opinione === "Favorevole") {
                 stats.ageDistribution[ageGroup].Favorevole++;
-              } else if (canapaOpinion === "Contrario") {
+              } else if (opinione === "Contrario") {
                 stats.ageDistribution[ageGroup].Contrario++;
-              } else if (canapaOpinion === "Indeciso") {
+              } else if (opinione === "Indeciso") {
                 stats.ageDistribution[ageGroup].Indeciso++;
               }
             }
           }
         });
-
-        // Calcola età media
         if (ageCounts.Favorevole > 0) stats.averageAge.Favorevole = ageSums.Favorevole / ageCounts.Favorevole;
         if (ageCounts.Contrario > 0) stats.averageAge.Contrario = ageSums.Contrario / ageCounts.Contrario;
         if (ageCounts.Indeciso > 0) stats.averageAge.Indeciso = ageSums.Indeciso / ageCounts.Indeciso;
-
         setStats(stats);
       } catch (error) {
         console.error("Errore:", error);
@@ -180,7 +165,6 @@ export default function LegalizzazioneCanapa() {
         setIsLoadingStats(false);
       }
     };
-
     if (user) {
       fetchOpinionStats();
     }
