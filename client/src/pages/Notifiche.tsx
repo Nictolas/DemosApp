@@ -50,6 +50,7 @@ export default function Notifiche() {
       user.rappresentante_regionale,
       user.rappresentante_comunale,
     ].filter(Boolean);
+    console.log('Rappresentanti seguiti:', rappresentantiSeguiti);
     if (rappresentantiSeguiti.length === 0) {
       setComunicazioni([]);
       setUtentiMap({});
@@ -57,33 +58,41 @@ export default function Notifiche() {
       return;
     }
     // Query Firestore per comunicazioni dei rappresentanti seguiti
-    const q = query(
-      collection(db, "comunicazioni"),
-      where("id_utente", "in", rappresentantiSeguiti),
-      orderBy("data_creazione", "desc")
-    );
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setComunicazioni(docs);
-      // Carica solo i rappresentanti con ruolo Politico o Candidato Politico seguiti dall'utente
-      if (rappresentantiSeguiti.length > 0) {
-        const utentiQuery = firestoreQuery(
-          collectionRef(db, "utenti"),
-          firestoreWhere("ruolo", "in", ["Politico", "Candidato Politico"]),
-          firestoreWhere("id", "in", rappresentantiSeguiti)
-        );
-        const utentiSnapshot = await getDocs(utentiQuery);
-        const utenti: Record<string, any> = {};
-        utentiSnapshot.forEach(doc => {
-          utenti[doc.id] = doc.data();
-        });
-        setUtentiMap(utenti);
-      } else {
-        setUtentiMap({});
-      }
+    try {
+      const q = query(
+        collection(db, "comunicazioni"),
+        where("id_utente", "in", rappresentantiSeguiti),
+        orderBy("data_creazione", "desc")
+      );
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setComunicazioni(docs);
+        // Carica solo i rappresentanti con ruolo Politico o Candidato Politico seguiti dall'utente
+        if (rappresentantiSeguiti.length > 0) {
+          const utentiQuery = firestoreQuery(
+            collectionRef(db, "utenti"),
+            firestoreWhere("ruolo", "in", ["Politico", "Candidato Politico"]),
+            firestoreWhere("id", "in", rappresentantiSeguiti)
+          );
+          const utentiSnapshot = await getDocs(utentiQuery);
+          const utenti: Record<string, any> = {};
+          utentiSnapshot.forEach(doc => {
+            utenti[doc.id] = doc.data();
+          });
+          setUtentiMap(utenti);
+        } else {
+          setUtentiMap({});
+        }
+        setIsLoading(false);
+      }, (error) => {
+        console.error('Errore snapshot comunicazioni:', error);
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Errore caricamento notifiche:', error);
       setIsLoading(false);
-    });
-    return () => unsubscribe();
+    }
   }, [user]);
 
   // React to communication (like/dislike)
@@ -334,6 +343,18 @@ export default function Notifiche() {
               </CardContent>
             </Card>
           </div>
+
+          {!isLoading && comunicazioni.length === 0 && (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Bell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nessuna notifica</h3>
+                <p className="text-muted-foreground">
+                  Nessuna comunicazione trovata per i rappresentanti seguiti.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {!comunicazioni || (comunicazioni as any[]).length === 0 ? (
             <Card>
