@@ -26,8 +26,8 @@ class ComunicazioneService extends FirebaseService {
         return { success: false, error: "Permessi non sufficienti per creare una comunicazione" };
       }
 
-      // 1. Elimina le comunicazioni precedenti e le loro notifiche
-      await this.deletePreviousComunicazioni(user.uid);
+      // 1. Elimina la comunicazione precedente SOLO per lo stesso grado_elezione
+      await this.deletePreviousComunicazioni(user.uid, data.grado_elezione); // <-- ora richiede anche il grado_elezione
 
       // 2. Prepara e salva la nuova comunicazione
       const comunicazioneData = {
@@ -35,6 +35,7 @@ class ComunicazioneService extends FirebaseService {
         nome: userData.nome,
         cognome: userData.cognome,
         ruolo: userData.ruolo,
+        grado_elezione: data.grado_elezione, // <-- aggiungi il grado_elezione
         ...data,
         data_creazione: new Date().toISOString(),
         punti_trasparenza: data.isDuplicate ? 1 : 3,
@@ -94,9 +95,13 @@ class ComunicazioneService extends FirebaseService {
   /**
    * Elimina tutte le comunicazioni e le notifiche associate per un dato utente.
    */
-  static async deletePreviousComunicazioni(userId) {
+  static async deletePreviousComunicazioni(userId, grado_elezione) {
     if (!db) return;
-    const q = query(collection(db, 'comunicazioni'), where('id_utente', '==', userId));
+    const q = query(
+      collection(db, 'comunicazioni'),
+      where('id_utente', '==', userId),
+      where('grado_elezione', '==', grado_elezione) // filtro per grado_elezione
+    );
     const querySnapshot = await getDocs(q);
 
     const deletePromises = [];
@@ -107,7 +112,7 @@ class ComunicazioneService extends FirebaseService {
     });
 
     await Promise.all(deletePromises);
-    console.log(`Eliminate ${querySnapshot.size} comunicazioni precedenti per utente: ${userId}`);
+    console.log(`Eliminate ${querySnapshot.size} comunicazioni precedenti per utente: ${userId} e grado_elezione: ${grado_elezione}`);
   }
 
   /**
