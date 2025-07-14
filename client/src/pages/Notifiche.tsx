@@ -11,7 +11,7 @@ import { useFCM } from "@/hooks/useFCM";
 import { ThumbsUp, ThumbsDown, Bell, Clock, User, Smartphone, Wifi } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, increment, getDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, increment, getDoc, collection as collectionRef, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { CustomAvatar } from "@/components/CustomAvatar";
 
@@ -36,6 +36,7 @@ export default function Notifiche() {
   const queryClient = useQueryClient();
   const [processingReaction, setProcessingReaction] = useState<string | null>(null);
   const [comunicazioni, setComunicazioni] = useState<any[]>([]);
+  const [utentiMap, setUtentiMap] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function Notifiche() {
     ].filter(Boolean);
     if (rappresentantiSeguiti.length === 0) {
       setComunicazioni([]);
+      setUtentiMap({});
       setIsLoading(false);
       return;
     }
@@ -60,9 +62,16 @@ export default function Notifiche() {
       where("id_utente", "in", rappresentantiSeguiti),
       orderBy("data_creazione", "desc")
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setComunicazioni(docs);
+      // Carica i dati dei rappresentanti dalla collezione utenti
+      const utentiSnapshot = await getDocs(collectionRef(db, "utenti"));
+      const utenti = {};
+      utentiSnapshot.forEach(doc => {
+        utenti[doc.id] = doc.data();
+      });
+      setUtentiMap(utenti);
       setIsLoading(false);
     });
     return () => unsubscribe();
@@ -337,14 +346,14 @@ export default function Notifiche() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2">
-                        {comunicazione.avatar_config ? (
-                          <CustomAvatar config={JSON.parse(comunicazione.avatar_config)} size={40} className="mr-2" />
+                        {utentiMap[comunicazione.id_utente]?.avatar_config ? (
+                          <CustomAvatar config={JSON.parse(utentiMap[comunicazione.id_utente].avatar_config)} size={40} className="mr-2" />
                         ) : (
                           <User className="h-8 w-8 text-blue-600 mr-2" />
                         )}
                         <div>
                           <CardTitle className="text-lg">
-                            {comunicazione.rappresentante_nome} {comunicazione.rappresentante_cognome}
+                            {utentiMap[comunicazione.id_utente]?.nome} {utentiMap[comunicazione.id_utente]?.cognome}
                           </CardTitle>
                           <div className="flex items-center space-x-2 mt-1">
                             <Clock className="h-4 w-4 text-muted-foreground" />
