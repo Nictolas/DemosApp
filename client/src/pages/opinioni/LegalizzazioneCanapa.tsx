@@ -85,89 +85,25 @@ export default function LegalizzazioneCanapa() {
     const fetchOpinionStats = async () => {
       if (!user) return;
       try {
-        const usersRef = collection(db, "utenti");
-        const usersSnapshot = await getDocs(usersRef);
-        const stats: OpinionDetailStats = {
-          total: 0,
-          favorevoli: 0,
-          contrari: 0,
-          indecisi: 0,
-          genderDistribution: {
-            Maschio: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-            Femmina: { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-            Altro: { Favorevole: 0, Contrario: 0, Indeciso: 0 }
-          },
-          averageAge: {
-            Favorevole: 0,
-            Contrario: 0,
-            Indeciso: 0
-          },
-          ageDistribution: {
-            '18-25': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-            '26-35': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-            '36-45': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-            '46-55': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-            '56-65': { Favorevole: 0, Contrario: 0, Indeciso: 0 },
-            '65+': { Favorevole: 0, Contrario: 0, Indeciso: 0 }
-          }
-        };
-        const ageSums = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
-        const ageCounts = { Favorevole: 0, Contrario: 0, Indeciso: 0 };
-        usersSnapshot.forEach((doc) => {
-          const userData = doc.data();
-          const opinione = userData.legalizzazione_canapa;
-          if (opinione && opinione !== "Non risposto") {
-            stats.total++;
-            if (opinione === "Favorevole") {
-              stats.favorevoli++;
-              ageSums.Favorevole += calculateAge(userData.data_nascita || '1990-01-01');
-              ageCounts.Favorevole++;
-            } else if (opinione === "Contrario") {
-              stats.contrari++;
-              ageSums.Contrario += calculateAge(userData.data_nascita || '1990-01-01');
-              ageCounts.Contrario++;
-            } else if (opinione === "Indeciso") {
-              stats.indecisi++;
-              ageSums.Indeciso += calculateAge(userData.data_nascita || '1990-01-01');
-              ageCounts.Indeciso++;
-            }
-            const gender = userData.genere || 'Altro';
-            if (stats.genderDistribution[gender]) {
-              if (opinione === "Favorevole") {
-                stats.genderDistribution[gender].Favorevole++;
-              } else if (opinione === "Contrario") {
-                stats.genderDistribution[gender].Contrario++;
-              } else if (opinione === "Indeciso") {
-                stats.genderDistribution[gender].Indeciso++;
-              }
-            }
-            const age = calculateAge(userData.data_nascita || '1990-01-01');
-            const ageGroup = getAgeGroup(age);
-            if (stats.ageDistribution[ageGroup]) {
-              if (opinione === "Favorevole") {
-                stats.ageDistribution[ageGroup].Favorevole++;
-              } else if (opinione === "Contrario") {
-                stats.ageDistribution[ageGroup].Contrario++;
-              } else if (opinione === "Indeciso") {
-                stats.ageDistribution[ageGroup].Indeciso++;
-              }
-            }
-          }
+        const utentiRef = collection(db, "utenti");
+        const utentiSnapshot = await getDocs(utentiRef);
+        let favorevoli = 0, contrari = 0, indecisi = 0, total = 0;
+        utentiSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.legalizzazione_canapa === "Favorevole") favorevoli++;
+          else if (data.legalizzazione_canapa === "Contrario") contrari++;
+          else if (data.legalizzazione_canapa === "Indeciso") indecisi++;
+          if (["Favorevole", "Contrario", "Indeciso"].includes(data.legalizzazione_canapa)) total++;
         });
-        if (ageCounts.Favorevole > 0) stats.averageAge.Favorevole = ageSums.Favorevole / ageCounts.Favorevole;
-        if (ageCounts.Contrario > 0) stats.averageAge.Contrario = ageSums.Contrario / ageCounts.Contrario;
-        if (ageCounts.Indeciso > 0) stats.averageAge.Indeciso = ageSums.Indeciso / ageCounts.Indeciso;
-        setStats(stats);
+        setStats({ favorevoli, contrari, indecisi, total });
+        setError(null);
       } catch (error) {
-        console.error("Errore:", error);
-        setError(error instanceof Error ? error.message : "Errore durante il caricamento delle statistiche");
+        setError("Errore durante il caricamento delle statistiche");
       } finally {
         setIsLoadingStats(false);
       }
     };
-    if (user) {
-      fetchOpinionStats();
-    }
+    if (user) fetchOpinionStats();
   }, [user]);
 
   if (!user && !isLoading) {
