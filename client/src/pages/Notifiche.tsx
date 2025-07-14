@@ -395,49 +395,56 @@ export default function Notifiche() {
                   </CardHeader>
                   
                   <CardContent>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border">
-                      <p className="font-medium mb-2">
-                        <strong>{utentiMap[comunicazione.id_utente]?.nome} {utentiMap[comunicazione.id_utente]?.cognome}</strong> ha comunicato una votazione: <strong>{comunicazione.titolo}</strong>
-                      </p>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Ha votato:</span>
-                          <Badge 
-                            variant="outline" 
-                            className={`ml-2 ${
-                              comunicazione.voto_dato === "Favorevole" 
-                                ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                                : comunicazione.voto_dato === "Contrario"
-                                ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                                : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
-                            }`}
-                          >
-                            {comunicazione.voto_dato}
-                          </Badge>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Ha vinto:</span>
-                          <Badge 
-                            variant="outline" 
-                            className={`ml-2 ${
-                              comunicazione.vincitore === "Favorevole" 
-                                ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                                : comunicazione.vincitore === "Contrario"
-                                ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                                : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
-                            }`}
-                          >
-                            {comunicazione.vincitore}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      {comunicazione.commento && (
-                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                          <span className="text-muted-foreground text-sm">Commento:</span>
-                          <p className="text-sm font-medium mt-1 italic">"{comunicazione.commento}"</p>
-                        </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border flex items-center">
+                      {utentiMap[comunicazione.id_utente]?.avatar_config ? (
+                        <CustomAvatar config={JSON.parse(utentiMap[comunicazione.id_utente].avatar_config)} size={40} className="mr-3" />
+                      ) : (
+                        <User className="h-8 w-8 text-blue-600 mr-3" />
                       )}
+                      <div className="flex-1">
+                        <p className="font-medium mb-2">
+                          <strong>{utentiMap[comunicazione.id_utente]?.nome} {utentiMap[comunicazione.id_utente]?.cognome}</strong> ha comunicato una votazione: <strong>{comunicazione.titolo}</strong>
+                        </p>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Ha votato:</span>
+                            <Badge 
+                              variant="outline" 
+                              className={`ml-2 ${
+                                comunicazione.voto_dato === "Favorevole" 
+                                  ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                                  : comunicazione.voto_dato === "Contrario"
+                                  ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
+                                  : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                              }`}
+                            >
+                              {comunicazione.voto_dato}
+                            </Badge>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Ha vinto:</span>
+                            <Badge 
+                              variant="outline" 
+                              className={`ml-2 ${
+                                comunicazione.vincitore === "Favorevole" 
+                                  ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                                  : comunicazione.vincitore === "Contrario"
+                                  ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
+                                  : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                              }`}
+                            >
+                              {comunicazione.vincitore}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {comunicazione.commento && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <span className="text-muted-foreground text-sm">Commento:</span>
+                            <p className="text-sm font-medium mt-1 italic">"{comunicazione.commento}"</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between">
