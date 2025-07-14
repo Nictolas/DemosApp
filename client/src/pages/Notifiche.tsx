@@ -382,10 +382,7 @@ export default function Notifiche() {
                   key={comunicazione.id} 
                   className="transition-all duration-200 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
-                  <CardHeader className="pb-3">
-                    
-                  </CardHeader>
-                  
+                  {/* CardHeader rimosso */}
                   <CardContent>
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4 border">
                       <div className="flex items-center mb-2">
@@ -399,45 +396,44 @@ export default function Notifiche() {
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Ha votato:</span>
-                            <Badge 
-                              variant="outline" 
-                              className={`ml-2 ${
-                                comunicazione.voto_dato === "Favorevole" 
-                                  ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                                  : comunicazione.voto_dato === "Contrario"
-                                  ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                                  : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
-                              }`}
-                            >
-                              {comunicazione.voto_dato}
-                            </Badge>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Ha vinto:</span>
-                            <Badge 
-                              variant="outline" 
-                              className={`ml-2 ${
-                                comunicazione.vincitore === "Favorevole" 
-                                  ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                                  : comunicazione.vincitore === "Contrario"
-                                  ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                                  : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
-                              }`}
-                            >
-                              {comunicazione.vincitore}
-                            </Badge>
-                          </div>
+                        <div>
+                          <span className="text-muted-foreground">Ha votato:</span>
+                          <Badge 
+                            variant="outline" 
+                            className={`ml-2 ${
+                              comunicazione.voto_dato === "Favorevole" 
+                                ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                                : comunicazione.voto_dato === "Contrario"
+                                ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
+                                : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                            }`}
+                          >
+                            {comunicazione.voto_dato}
+                          </Badge>
                         </div>
-                        
-                        {comunicazione.commento && (
-                          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                            <span className="text-muted-foreground text-sm">Commento:</span>
-                            <p className="text-sm font-medium mt-1 italic">"{comunicazione.commento}"</p>
-                          </div>
-                        )}
+                        <div>
+                          <span className="text-muted-foreground">Ha vinto:</span>
+                          <Badge 
+                            variant="outline" 
+                            className={`ml-2 ${
+                              comunicazione.vincitore === "Favorevole" 
+                                ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                                : comunicazione.vincitore === "Contrario"
+                                ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
+                                : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                            }`}
+                          >
+                            {comunicazione.vincitore}
+                          </Badge>
+                        </div>
                       </div>
+                      
+                      {comunicazione.commento && (
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                          <span className="text-muted-foreground text-sm">Commento:</span>
+                          <p className="text-sm font-medium mt-1 italic">"{comunicazione.commento}"</p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-between">
