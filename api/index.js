@@ -335,7 +335,7 @@ app.get('/api/statistiche-opinioni', requireFirebaseAuth, async (req, res) => {
     res.json([]); // Mai 404/500 se il token è valido
   }
 });
-app.get('/api/opinioni-dettaglio/:opinionField', requireFirebaseAdmin, async (req, res) => {
+app.get('/api/opinioni-dettaglio/:opinionField', requireFirebaseAuth, requireStatsRole, async (req, res) => {
     const { opinionField } = req.params;
     const regione = req.query.regione;
     const provincia = req.query.provincia;
