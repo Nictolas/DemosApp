@@ -56,17 +56,17 @@ export default function Impostazioni() {
               Impostazioni
             </CardTitle>
             <CardDescription>
-              Gestisci le impostazioni del tuo account e della piattaforma
+              Gestisci il tuo account, la sicurezza e le preferenze della piattaforma
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Account Settings Section */}
+          <CardContent className="space-y-8">
+            {/* Account e Sicurezza */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Account
+                Account e Sicurezza
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Link href="/profilo">
                   <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
                     <CardContent className="p-4">
@@ -80,34 +80,9 @@ export default function Impostazioni() {
                     </CardContent>
                   </Card>
                 </Link>
-
-                <Link href="/reclama-profilo">
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <Shield className="h-5 w-5 text-green-500" />
-                        <div>
-                          <h4 className="font-medium">Reclama Profilo</h4>
-                          <p className="text-sm text-muted-foreground">Verifica la tua identità politica</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </div>
-            </div>
-
-            {/* Privacy & Security Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Lock className="h-5 w-5" />
-                Privacy e Sicurezza
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-md transition-shadow" onClick={async () => {
                   if (!user?.email) return;
                   try {
-                    // Import dinamico per evitare problemi SSR
                     const { sendPasswordResetEmail } = await import("firebase/auth");
                     const { auth } = await import("@/lib/firebase");
                     await sendPasswordResetEmail(auth, user.email);
@@ -129,27 +104,28 @@ export default function Impostazioni() {
                       <Lock className="h-5 w-5 text-red-500" />
                       <div>
                         <h4 className="font-medium">Cambia Password</h4>
-                        <p className="text-sm text-muted-foreground">Aggiorna la tua password</p>
+                        <p className="text-sm text-muted-foreground">Riceverai una mail per cambiare la password</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-
-                <Card className="border-l-4 border-l-purple-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-purple-500" />
-                      <div>
-                        <h4 className="font-medium">Privacy Policy</h4>
-                        <p className="text-sm text-muted-foreground">Leggi la nostra privacy policy</p>
+                <Link href="/reclama-profilo">
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Shield className="h-5 w-5 text-green-500" />
+                        <div>
+                          <h4 className="font-medium">Reclama Profilo</h4>
+                          <p className="text-sm text-muted-foreground">Verifica la tua identità politica</p>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               </div>
             </div>
 
-            {/* Notifications Section */}
+            {/* Notifiche */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Bell className="h-5 w-5" />
@@ -171,50 +147,72 @@ export default function Impostazioni() {
                 </Link>
               </div>
             </div>
-          </CardContent>
-          {/* Azioni finali: Dona e Disconnetti */}
-          <CardContent className="space-y-4 pt-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link href="/dona">
-                <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-yellow-500 h-full flex">
-                  <CardContent className="p-4 flex items-center gap-3 h-full">
-                    <span className="inline-flex items-center justify-center rounded-full bg-yellow-100 p-2 mr-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v9m-7-7h14" /></svg>
-                    </span>
-                    <div>
-                      <h4 className="font-medium">Dona</h4>
-                      <p className="text-sm text-muted-foreground">Sostieni il progetto DEMOS</p>
+
+            {/* Informazioni e Privacy */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Informazioni e Privacy
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="border-l-4 border-l-purple-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-purple-500" />
+                      <div>
+                        <h4 className="font-medium">Privacy Policy</h4>
+                        <p className="text-sm text-muted-foreground">Leggi la nostra privacy policy</p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
-              <Link href="/informazioni">
-                <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500 h-full flex">
+                <Link href="/informazioni">
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500 h-full flex">
+                    <CardContent className="p-4 flex items-center gap-3 h-full">
+                      <span className="inline-flex items-center justify-center rounded-full bg-blue-100 p-2 mr-2">
+                        <FileText className="h-5 w-5 text-blue-500" />
+                      </span>
+                      <div>
+                        <h4 className="font-medium">Informazioni</h4>
+                        <p className="text-sm text-muted-foreground">Scopri di più sull'app DEMOS</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
+            </div>
+
+            {/* Azioni */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <LogOut className="h-5 w-5" />
+                Azioni
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Link href="/dona">
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-yellow-500 h-full flex">
+                    <CardContent className="p-4 flex items-center gap-3 h-full">
+                      <span className="inline-flex items-center justify-center rounded-full bg-yellow-100 p-2 mr-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v9m-7-7h14" /></svg>
+                      </span>
+                      <div>
+                        <h4 className="font-medium">Dona</h4>
+                        <p className="text-sm text-muted-foreground">Sostieni il progetto DEMOS</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-500 h-full flex" onClick={handleLogout}>
                   <CardContent className="p-4 flex items-center gap-3 h-full">
-                    <span className="inline-flex items-center justify-center rounded-full bg-blue-100 p-2 mr-2">
-                      <FileText className="h-5 w-5 text-blue-500" />
-                    </span>
+                    <LogOut className="h-5 w-5 text-red-500 mr-2" />
                     <div>
-                      <h4 className="font-medium">Informazioni</h4>
-                      <p className="text-sm text-muted-foreground">Scopri di più sull'app DEMOS</p>
+                      <h4 className="font-medium">Disconnetti</h4>
+                      <p className="text-sm text-muted-foreground">Esci dal tuo account</p>
                     </div>
+                    {isLoggingOut && <Loader2 className="ml-2 h-4 w-4 animate-spin text-red-500" />}
                   </CardContent>
                 </Card>
-              </Link>
-              <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-500 h-full flex" onClick={handleLogout}>
-                <CardContent className="p-4 flex items-center gap-3 h-full">
-                  <LogOut className="h-5 w-5 text-red-500 mr-2" />
-                  <div>
-                    <h4 className="font-medium">Disconnetti</h4>
-                    <p className="text-sm text-muted-foreground">Esci dal tuo account</p>
-                  </div>
-                  {isLoggingOut && <Loader2 className="ml-2 h-4 w-4 animate-spin text-red-500" />}
-                </CardContent>
-              </Card>
-              {/* Pulsante Test */}
-              <Button className="w-full mt-4" variant="outline" onClick={() => alert('Test2!')}>
-                Test2
-              </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
