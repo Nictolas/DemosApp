@@ -292,7 +292,24 @@ export default function AuthPage() {
                     )}
                   </Button>
                   {loginMutation.error && (
-                    <div className="text-red-600 text-sm mt-2">{loginMutation.error.message || "Errore di accesso"}</div>
+                    loginMutation.error.message.includes("auth/invalid-credential") ? (
+                      <div className="flex flex-col items-center mt-2">
+                        <span className="text-red-600 text-sm mb-2">Credenziali non valide.</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-fit"
+                          onClick={() => {
+                            // Sostituisci con la tua logica di recupero password o reindirizzamento
+                            window.location.href = "/reset-password";
+                          }}
+                        >
+                          Recupera password
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-red-600 text-sm mt-2">{loginMutation.error.message || "Errore di accesso"}</div>
+                    )
                   )}
                 </form>
               </Form>
