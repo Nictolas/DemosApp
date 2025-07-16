@@ -6,6 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { auth } from "@/lib/firebase";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 
 export default function Impostazioni() {
   const { user, isLoading, logoutMutation } = useAuth();
@@ -80,34 +84,34 @@ export default function Impostazioni() {
                     </CardContent>
                   </Card>
                 </Link>
-                <Card className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-md transition-shadow" onClick={async () => {
-                  if (!user?.email) return;
-                  try {
-                    const { sendPasswordResetEmail } = await import("firebase/auth");
-                    const { auth } = await import("@/lib/firebase");
-                    await sendPasswordResetEmail(auth, user.email);
-                    toast({
-                      title: "Email inviata",
-                      description: "Controlla la tua casella di posta per cambiare la password.",
-                      variant: "default",
-                    });
-                  } catch (err: any) {
-                    toast({
-                      title: "Errore",
-                      description: err.message || "Errore durante l'invio dell'email di reset.",
-                      variant: "destructive",
-                    });
-                  }
-                }}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <Lock className="h-5 w-5 text-red-500" />
+                <Card className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-md transition-shadow">
+                  <Dialog>
+                    <DialogTrigger asChild>
                       <div>
-                        <h4 className="font-medium">Cambia Password</h4>
-                        <p className="text-sm text-muted-foreground">Riceverai una mail per cambiare la password</p>
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-3">
+                            <Lock className="h-5 w-5 text-red-500" />
+                            <div>
+                              <h4 className="font-medium">Cambia Password</h4>
+                              <p className="text-sm text-muted-foreground">Cambia la tua password inserendo quella attuale e la nuova</p>
+                            </div>
+                          </div>
+                        </CardContent>
                       </div>
-                    </div>
-                  </CardContent>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Cambia Password</DialogTitle>
+                        <DialogDescription>Inserisci la password attuale e la nuova password due volte.</DialogDescription>
+                      </DialogHeader>
+                      <ChangePasswordForm user={user} toast={toast} />
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button variant="outline">Annulla</Button>
+                        </DialogClose>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </Card>
                 <Link href="/reclama-profilo">
                   <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-500">
@@ -218,5 +222,76 @@ export default function Impostazioni() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function ChangePasswordForm({ user, toast }: { user: any, toast: any }) {
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.email) return;
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Errore",
+        description: "Le nuove password non coincidono.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLoading(true);
+    try {
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await updatePassword(auth.currentUser, newPassword);
+      toast({
+        title: "Password cambiata",
+        description: "La tua password è stata aggiornata con successo.",
+        variant: "default",
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast({
+        title: "Errore",
+        description: err.message || "Errore durante il cambio password.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleChangePassword} className="space-y-4">
+      <Input
+        type="password"
+        placeholder="Password attuale"
+        value={currentPassword}
+        onChange={e => setCurrentPassword(e.target.value)}
+        required
+      />
+      <Input
+        type="password"
+        placeholder="Nuova password"
+        value={newPassword}
+        onChange={e => setNewPassword(e.target.value)}
+        required
+      />
+      <Input
+        type="password"
+        placeholder="Conferma nuova password"
+        value={confirmPassword}
+        onChange={e => setConfirmPassword(e.target.value)}
+        required
+      />
+      <Button type="submit" className="w-full" disabled={loading}>
+        {loading ? "Salvataggio..." : "Cambia Password"}
+      </Button>
+    </form>
   );
 }
