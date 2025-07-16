@@ -84,7 +84,9 @@ export default function ScegliRappresentante() {
         const userDoc = await getDoc(userDocRef);
         const userData = userDoc.data();
         
-        console.log('Dati utente completi:', userData);
+        console.log('DEBUG: Dati utente completi:', userData);
+        console.log('DEBUG: User UID:', user.uid);
+        console.log('DEBUG: Categoria:', categoria);
         
         // Recupera l'ID del rappresentante selezionato
         if (userData) {
@@ -110,8 +112,9 @@ export default function ScegliRappresentante() {
           user.grado_elezione === getTitolo()
         );
         
-        console.log(`Utenti trovati per grado ${getTitolo()}:`, data.length);
-        console.log(`Email utente corrente: ${userData?.email}`);
+        console.log(`DEBUG: Utenti trovati per grado ${getTitolo()}:`, data.length);
+        console.log(`DEBUG: Email utente corrente: ${userData?.email}`);
+        console.log(`DEBUG: Tutti gli utenti caricati:`, allUsers.length);
         
         if (data) {
           // Filtra i rappresentanti in base alla località di elezione dell'utente corrente
@@ -158,6 +161,8 @@ export default function ScegliRappresentante() {
             }
           }
           
+          console.log(`DEBUG: Rappresentanti filtrati per località:`, filteredData.length);
+          
           // Calcola le opinioni comuni con l'utente corrente
           const rappresentantiConOpinioniComuni = filteredData.map((rappresentante: any) => {
             let opinioniComuni = 0;
@@ -193,6 +198,8 @@ export default function ScegliRappresentante() {
               opinioni_comuni: opinioniComuni
             };
           });
+          
+          console.log(`DEBUG: Rappresentanti con opinioni calcolate:`, rappresentantiConOpinioniComuni.length);
           setRappresentanti(rappresentantiConOpinioniComuni);
         }
         setLoading(false);
@@ -209,6 +216,12 @@ export default function ScegliRappresentante() {
     
     fetchData();
   }, [user, categoria, toast]);
+
+  // Log di debug per il rendering
+  console.log('DEBUG: Stato del componente - loading:', loading);
+  console.log('DEBUG: Stato del componente - rappresentanti:', rappresentanti.length);
+  console.log('DEBUG: Stato del componente - userData:', !!userData);
+  console.log('DEBUG: Stato del componente - rappresentanteSelezionato:', rappresentanteSelezionato);
 
   const selezionaRappresentante = async (rappresentanteId: string) => {
     if (!user) return;
@@ -273,6 +286,46 @@ export default function ScegliRappresentante() {
       <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Fallback per dati mancanti
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Fallback per nessun rappresentante trovato
+  if (!rappresentanti || rappresentanti.length === 0) {
+    return (
+      <PageTransition>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center mb-6">
+            <Button variant="ghost" className="mr-2" asChild>
+              <Link to="/menu">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Indietro
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">Scegli {getTitolo()}</h1>
+          </div>
+          
+          <Card className="p-8 text-center">
+            <CardContent>
+              <h2 className="text-xl font-semibold mb-4">Nessun rappresentante trovato</h2>
+              <p className="text-muted-foreground mb-4">
+                Non ci sono rappresentanti disponibili per la categoria "{getTitolo()}" nella tua zona.
+              </p>
+              <Button asChild>
+                <Link to="/menu">Torna al Menu</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </PageTransition>
     );
   }
 

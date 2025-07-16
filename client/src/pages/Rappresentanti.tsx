@@ -31,7 +31,11 @@ export default function Rappresentanti() {
           const userDocRef = doc(db, "utenti", user.uid);
           const userDoc = await getDoc(userDocRef);
           const completeUserData = userDoc.data();
+          
+          console.log("DEBUG: Dati utente completi caricati:", completeUserData);
+          console.log("DEBUG: User UID:", user.uid);
           setUserData(completeUserData);
+          
           // Carica i dettagli dei rappresentanti
           await fetchRappresentanti(completeUserData);
         } catch (error) {
@@ -46,9 +50,14 @@ export default function Rappresentanti() {
         }
       }
     };
+    
     // Funzione per caricare i dettagli dei rappresentanti
     const fetchRappresentanti = async (userData: any) => {
-      if (!userData) return;
+      if (!userData) {
+        console.log("DEBUG: userData è null/undefined, non posso caricare i rappresentanti");
+        return;
+      }
+      
       const rappresentantiData: Record<string, any> = {};
       const categorie = [
         { id: "europeo", field: "rappresentante_europeo" },
@@ -57,8 +66,10 @@ export default function Rappresentanti() {
         { id: "regione", field: "rappresentante_regionale" },
         { id: "comune", field: "rappresentante_comunale" }
       ];
+      
       for (const categoria of categorie) {
         const rappresentanteId = userData[categoria.field];
+        console.log(`DEBUG: Categoria ${categoria.id} - campo ${categoria.field} =`, rappresentanteId);
         if (rappresentanteId) {
           try {
             // Carica i dettagli del rappresentante direttamente da Firestore
@@ -66,16 +77,30 @@ export default function Rappresentanti() {
             const rappresentanteDoc = await getDoc(rappresentanteDocRef);
             if (rappresentanteDoc.exists()) {
               rappresentantiData[categoria.id] = rappresentanteDoc.data();
+              console.log(`DEBUG: Dati caricati per ${categoria.id}:`, rappresentanteDoc.data());
+            } else {
+              console.log(`DEBUG: Rappresentante ${categoria.id} non trovato in Firestore`);
             }
           } catch (error) {
             console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, error);
           }
+        } else {
+          console.log(`DEBUG: Nessun rappresentante per categoria ${categoria.id}`);
         }
       }
+      
+      console.log("DEBUG: Rappresentanti caricati:", rappresentantiData);
       setRappresentanti(rappresentantiData);
     };
+    
     fetchUserData();
   }, [user, toast]);
+
+  // Log di debug per il rendering
+  console.log('DEBUG: Stato del componente - loading:', loading);
+  console.log('DEBUG: Stato del componente - userData:', !!userData);
+  console.log('DEBUG: Stato del componente - rappresentanti:', Object.keys(rappresentanti).length);
+  console.log('DEBUG: Stato del componente - authReady:', authReady);
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
@@ -87,6 +112,46 @@ export default function Rappresentanti() {
       <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Fallback per dati mancanti
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Fallback per userData mancante
+  if (!userData) {
+    return (
+      <PageTransition>
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center mb-6">
+            <Button variant="ghost" className="mr-2" asChild>
+              <Link to="/menu">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Indietro
+              </Link>
+            </Button>
+            <h1 className="text-2xl font-bold">I tuoi Rappresentanti</h1>
+          </div>
+          
+          <Card className="p-8 text-center">
+            <CardContent>
+              <h2 className="text-xl font-semibold mb-4">Dati utente non trovati</h2>
+              <p className="text-muted-foreground mb-4">
+                Impossibile caricare i tuoi dati. Riprova più tardi.
+              </p>
+              <Button asChild>
+                <Link to="/menu">Torna al Menu</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </PageTransition>
     );
   }
 
