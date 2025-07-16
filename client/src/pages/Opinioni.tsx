@@ -10,9 +10,9 @@ import { db } from "@/lib/firebase";
 
 // Le domande ora sono dinamiche
 const options = [
-  { value: "Favorevole", color: "bg-green-100 border-green-500 hover:bg-green-200" },
-  { value: "Indeciso", color: "bg-yellow-100 border-yellow-500 hover:bg-yellow-200" },
-  { value: "Contrario", color: "bg-red-100 border-red-500 hover:bg-red-200" }
+  { value: "Favorevole", color: "bg-green-600 text-white" },
+  { value: "Indeciso", color: "bg-yellow-500 text-white" },
+  { value: "Contrario", color: "bg-red-600 text-white" }
 ];
 
 export default function Opinioni() {
