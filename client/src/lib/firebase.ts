@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "<REDACTED_GCP_API_KEY>",
   authDomain: "demos-finale.firebaseapp.com",
   projectId: "demos-finale",
-  storageBucket: "demos-finale.firebasestorage.app",
+  storageBucket: "demos-finale.appspot.com",
   messagingSenderId: "848085963511",
   appId: "1:848085963511:web:2efb3d13fb5576ecd0b9f2",
   measurementId: "G-HSP3FK0GFN"
