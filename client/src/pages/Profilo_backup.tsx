@@ -9,6 +9,7 @@ import { db, auth } from "@/lib/firebase";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function Profilo() {
   const { user, isLoading } = useAuth();
@@ -62,27 +63,24 @@ export default function Profilo() {
       rappresentante_regionale: userInfo.rappresentante_regionale,
       rappresentante_comunale: userInfo.rappresentante_comunale,
     };
-
     const names: Record<string, string> = {};
-
-    for (const [key, email] of Object.entries(representatives)) {
-      if (email && typeof email === 'string') {
+    for (const [key, uid] of Object.entries(representatives)) {
+      if (uid && typeof uid === 'string') {
         try {
-          const cleanEmail = email.replace('@gmail_com', '@gmail.com');
-          const response = await fetch(`/api/users/${encodeURIComponent(cleanEmail)}`);
-          if (response.ok) {
-            const userData = await response.json();
+          const rappresentanteDocRef = doc(db, "utenti", uid);
+          const rappresentanteDoc = await getDoc(rappresentanteDocRef);
+          if (rappresentanteDoc.exists()) {
+            const userData = rappresentanteDoc.data();
             names[key] = `${userData.nome} ${userData.cognome}`;
           } else {
-            names[key] = cleanEmail; // Fallback to email if name not found
+            names[key] = uid;
           }
         } catch (error) {
-          console.error(`Errore nel recupero dati per ${email}:`, error);
-          names[key] = email.replace('@gmail_com', '@gmail.com'); // Fallback to email
+          console.error(`Errore nel recupero dati per ${uid}:`, error);
+          names[key] = uid;
         }
       }
     }
-
     setRepresentativeNames(names);
   };
 
