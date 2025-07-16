@@ -14,7 +14,8 @@ import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { apiRequest } from "@/lib/queryClient";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
 interface Elezione {
   id: string;
@@ -74,13 +75,8 @@ export default function GestisciElezioni() {
   const loadElezioni = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('GET', '/api/elezioni');
-      if (response.ok) {
-        const data = await response.json();
-        setElezioni(data);
-      } else {
-        throw new Error('Errore nel caricamento delle elezioni');
-      }
+      const snapshot = await getDocs(collection(db, "elezioni"));
+      setElezioni(snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Elezione));
     } catch (error) {
       console.error('Errore nel caricamento delle elezioni:', error);
       toast({
@@ -96,29 +92,27 @@ export default function GestisciElezioni() {
   const handleSubmit = async (data: ElezioneForm) => {
     try {
       setSubmitting(true);
-
       const elezioneData = {
         ...data,
         updatedAt: new Date().toISOString(),
         ...(editingElezione ? { id: editingElezione.id } : {}),
       };
-
-      const url = editingElezione ? `/api/elezioni/${editingElezione.id}` : '/api/elezioni';
-      const method = editingElezione ? 'PUT' : 'POST';
-      const response = await apiRequest(method, url, elezioneData);
-
-      if (response.ok) {
+      if (editingElezione) {
+        await updateDoc(doc(db, "elezioni", editingElezione.id), elezioneData);
         toast({
           title: "Successo",
-          description: editingElezione ? "Elezione aggiornata con successo" : "Elezione creata con successo",
+          description: "Elezione aggiornata con successo",
         });
-        
-        setIsDialogOpen(false);
-        resetForm();
-        loadElezioni();
       } else {
-        throw new Error('Errore nella gestione dell\'elezione');
+        await addDoc(collection(db, "elezioni"), elezioneData);
+        toast({
+          title: "Successo",
+          description: "Elezione creata con successo",
+        });
       }
+      setIsDialogOpen(false);
+      resetForm();
+      loadElezioni();
     } catch (error) {
       console.error('Errore nella gestione dell\'elezione:', error);
       toast({
@@ -147,19 +141,13 @@ export default function GestisciElezioni() {
     if (!confirm('Sei sicuro di voler eliminare questa elezione?')) {
       return;
     }
-
     try {
-      const response = await apiRequest('DELETE', `/api/elezioni/${id}`);
-
-      if (response.ok) {
-        toast({
-          title: "Successo",
-          description: "Elezione eliminata con successo",
-        });
-        loadElezioni();
-      } else {
-        throw new Error('Errore nell\'eliminazione dell\'elezione');
-      }
+      await deleteDoc(doc(db, "elezioni", id));
+      toast({
+        title: "Successo",
+        description: "Elezione eliminata con successo",
+      });
+      loadElezioni();
     } catch (error) {
       console.error('Errore nell\'eliminazione dell\'elezione:', error);
       toast({
