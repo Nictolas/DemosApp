@@ -309,20 +309,33 @@ export default function StatisticheUtenti() {
                     {/* Distribuzione per città */}
                     <Card className="shadow-sm">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-xl">Distribuzione per Città</CardTitle>
+                        <CardTitle className="text-xl">Le 10 città con più utenti</CardTitle>
                       </CardHeader>
-                      <CardContent className="flex justify-center">
-                        {cityChartData && (
-                          <div style={{ height: '250px', width: '100%', maxWidth: '300px' }}>
-                            <Pie 
-                              data={cityChartData} 
-                              options={{
-                                plugins: { legend: { position: 'bottom' } },
-                                responsive: true,
-                                maintainAspectRatio: false,
-                              }}
-                            />
+                      <CardContent>
+                        {stats && Object.keys(stats.usersByCity).length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm">
+                              <thead>
+                                <tr className="bg-blue-100">
+                                  <th className="px-3 py-2 text-left">Città</th>
+                                  <th className="px-3 py-2 text-left">Numero Utenti</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(stats.usersByCity)
+                                  .sort((a, b) => b[1] - a[1])
+                                  .slice(0, 10)
+                                  .map(([city, count]) => (
+                                    <tr key={city} className="hover:bg-blue-50">
+                                      <td className="px-3 py-2 font-medium">{city}</td>
+                                      <td className="px-3 py-2">{count}</td>
+                                    </tr>
+                                  ))}
+                              </tbody>
+                            </table>
                           </div>
+                        ) : (
+                          <div className="text-center text-muted-foreground">Nessun dato disponibile.</div>
                         )}
                       </CardContent>
                     </Card>

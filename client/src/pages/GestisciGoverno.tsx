@@ -1,8 +1,9 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Trophy, Plus, Pencil, Save, X as XIcon } from "lucide-react";
+import { Trophy, Plus, Pencil, Save, X as XIcon, ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useLocation } from "wouter";
 
 interface Ministero {
   id: string;
@@ -22,6 +23,7 @@ export default function GestisciGoverno() {
   const [editForm, setEditForm] = useState<{ nome: string; categoria: string; descrizione: string }>({ nome: '', categoria: '', descrizione: '' });
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [, setLocation] = useLocation();
 
   const fetchMinisteri = () => {
     setLoading(true);
@@ -130,6 +132,7 @@ export default function GestisciGoverno() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
+        <Button variant="ghost" className="mb-4 flex items-center" onClick={() => setLocation("/gestisci")}> <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Gestisci </Button>
         <Card className="mb-6">
           <CardHeader className="flex items-center gap-2">
             <Trophy className="h-6 w-6 text-yellow-600" />
