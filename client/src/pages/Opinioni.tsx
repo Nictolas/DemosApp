@@ -176,18 +176,27 @@ export default function Opinioni() {
               <>
                 {questions.map((question) => (
                   <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold">{question.text}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {options.map((option) => (
-                        <Button
-                          key={option.value}
-                          variant={opinions[question.id] === option.value ? "default" : "outline"}
-                          className={`h-12 ${opinions[question.id] === option.value ? option.color : ""}`}
-                          onClick={() => handleOpinionChange(question.id, option.value)}
-                        >
-                          {option.value}
-                        </Button>
-                      ))}
+                    <h3 className="text-lg font-semibold text-center">{question.text}</h3>
+                    <div className="flex justify-center">
+                      <div className="flex w-full max-w-md rounded-full overflow-hidden shadow border divide-x divide-gray-200">
+                        {options.map((option, idx) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`flex-1 py-4 text-lg font-medium transition-colors duration-150 focus:outline-none
+                              ${opinions[question.id] === option.value
+                                ? option.color + " text-white"
+                                : "bg-white hover:bg-gray-100 text-gray-700"}
+                              ${idx === 0 ? "rounded-l-full" : ""}
+                              ${idx === options.length - 1 ? "rounded-r-full" : ""}
+                              border-0`}
+                            style={{ borderRight: idx < options.length - 1 ? '1px solid #e5e7eb' : undefined }}
+                            onClick={() => handleOpinionChange(question.id, option.value)}
+                          >
+                            {option.value}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
