@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Trash2, Plus, Edit, MessageSquare, ThumbsUp, Check, X } from "lucide-react";
 import { useLocation } from "wouter";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
 export default function GestisciOpinioni() {
   const [, setLocation] = useLocation();
@@ -25,9 +27,8 @@ export default function GestisciOpinioni() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/opinioni-list");
-      if (!res.ok) throw new Error("Errore nel recupero delle opinioni");
-      setOpinioni(await res.json());
+      const snapshot = await getDocs(collection(db, "opinioni"));
+      setOpinioni(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       setError("Errore nel caricamento delle opinioni");
     } finally {
@@ -38,9 +39,8 @@ export default function GestisciOpinioni() {
   const fetchProposte = async () => {
     setLoadingProposte(true);
     try {
-      const res = await fetch("/api/opinioni-proposte");
-      if (!res.ok) throw new Error();
-      setProposte(await res.json());
+      const snapshot = await getDocs(collection(db, "opinioni_proposte"));
+      setProposte(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch {
       setProposte([]);
     } finally {
@@ -57,12 +57,7 @@ export default function GestisciOpinioni() {
     setAdding(true);
     setError("");
     try {
-      const res = await fetch("/api/opinioni-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: newId.trim(), text: newText.trim() })
-      });
-      if (!res.ok) throw new Error("Errore nell'aggiunta");
+      await addDoc(collection(db, "opinioni"), { id: newId.trim(), text: newText.trim() });
       setNewId("");
       setNewText("");
       await fetchOpinioni();
@@ -78,8 +73,7 @@ export default function GestisciOpinioni() {
     setDeleting(id);
     setError("");
     try {
-      const res = await fetch(`/api/opinioni-list/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Errore nell'eliminazione");
+      await deleteDoc(doc(db, "opinioni", id));
       await fetchOpinioni();
     } catch (e) {
       setError("Errore nell'eliminazione dell'opinione");
@@ -97,12 +91,7 @@ export default function GestisciOpinioni() {
     setSavingEdit(true);
     setError("");
     try {
-      const patchRes = await fetch(`/api/opinioni-list/${op.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: editText.trim() })
-      });
-      if (!patchRes.ok) throw new Error("Errore nel salvataggio della modifica");
+      await updateDoc(doc(db, "opinioni", op.id), { text: editText.trim() });
       setEditingId(null);
       setEditText("");
       await fetchOpinioni();
