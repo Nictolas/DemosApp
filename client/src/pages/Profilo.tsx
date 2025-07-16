@@ -10,6 +10,7 @@ import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
+import { doc, getDoc } from "firebase/firestore";
 
 // Definizione locale del tipo UserInfo
 export type UserInfo = {
@@ -87,22 +88,19 @@ export default function Profilo({ userId }: { userId?: string }) {
       rappresentante_regionale: userInfo.rappresentante_regionale,
       rappresentante_comunale: userInfo.rappresentante_comunale,
     };
-
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
-
     for (const [key, uid] of Object.entries(representatives)) {
       if (uid && typeof uid === 'string') {
         try {
-          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
-          if (response.ok) {
-            const userData = await response.json();
+          const rappresentanteDocRef = doc(db, "utenti", uid);
+          const rappresentanteDoc = await getDoc(rappresentanteDocRef);
+          if (rappresentanteDoc.exists()) {
+            const userData = rappresentanteDoc.data();
             names[key] = `${userData.nome} ${userData.cognome}`;
-            // Carica l'avatar del rappresentante se disponibile
             if (userData.avatar_config) {
               try {
                 const avatarConfig = JSON.parse(userData.avatar_config);
-                // Converti le configurazioni legacy
                 const updatedConfig = {
                   skinColor: avatarConfig.skinColor || "#FDBCB4",
                   hairColor: avatarConfig.hairColor || "#8B4513",
@@ -131,7 +129,6 @@ export default function Profilo({ userId }: { userId?: string }) {
         names[key] = "Non selezionato";
       }
     }
-
     setRepresentativeNames(names);
     setRepresentativeAvatars(avatars);
   };
@@ -145,22 +142,19 @@ export default function Profilo({ userId }: { userId?: string }) {
       candidato_regionale: userInfo.candidato_regione,
       candidato_comunale: userInfo.candidato_comune,
     };
-
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
-
     for (const [key, uid] of Object.entries(candidates)) {
       if (uid && typeof uid === 'string') {
         try {
-          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
-          if (response.ok) {
-            const userData = await response.json();
+          const candidatoDocRef = doc(db, "utenti", uid);
+          const candidatoDoc = await getDoc(candidatoDocRef);
+          if (candidatoDoc.exists()) {
+            const userData = candidatoDoc.data();
             names[key] = `${userData.nome} ${userData.cognome}`;
-            // Carica l'avatar del candidato se disponibile
             if (userData.avatar_config) {
               try {
                 const avatarConfig = JSON.parse(userData.avatar_config);
-                // Converti le configurazioni legacy
                 const updatedConfig = {
                   skinColor: avatarConfig.skinColor || "#FDBCB4",
                   hairColor: avatarConfig.hairColor || "#8B4513",
@@ -189,7 +183,6 @@ export default function Profilo({ userId }: { userId?: string }) {
         names[key] = "Non selezionato";
       }
     }
-
     setCandidateNames(names);
     setCandidateAvatars(avatars);
   };

@@ -11,6 +11,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
+import { collection, doc, getDoc } from "firebase/firestore";
 
 export default function Rappresentanti() {
   const { user, isLoading } = useAuth();
@@ -26,18 +27,12 @@ export default function Rappresentanti() {
     const fetchUserData = async () => {
       if (user) {
         try {
-          // Carica i dati base dell'utente per ottenere l'email
-          const userResponse = await apiRequest("GET", `/api/user`);
-          const userData = await userResponse.json();
-          
-          // Carica i dati completi dell'utente tramite UID
-          const completeUserResponse = await apiRequest("GET", `/api/users/${encodeURIComponent(userData.uid)}`);
-          const completeUserData = await completeUserResponse.json();
-          
-          console.log("Dati utente completi caricati:", completeUserData);
+          // Carica i dati completi dell'utente direttamente da Firestore
+          const userDocRef = doc(db, "utenti", user.uid);
+          const userDoc = await getDoc(userDocRef);
+          const completeUserData = userDoc.data();
           setUserData(completeUserData);
-          
-          // Caricare i dettagli dei rappresentanti
+          // Carica i dettagli dei rappresentanti
           await fetchRappresentanti(completeUserData);
         } catch (error) {
           console.error("Errore durante il recupero dei dati utente:", error);
@@ -51,11 +46,9 @@ export default function Rappresentanti() {
         }
       }
     };
-    
     // Funzione per caricare i dettagli dei rappresentanti
     const fetchRappresentanti = async (userData: any) => {
       if (!userData) return;
-      
       const rappresentantiData: Record<string, any> = {};
       const categorie = [
         { id: "europeo", field: "rappresentante_europeo" },
@@ -64,30 +57,23 @@ export default function Rappresentanti() {
         { id: "regione", field: "rappresentante_regionale" },
         { id: "comune", field: "rappresentante_comunale" }
       ];
-      
       for (const categoria of categorie) {
         const rappresentanteId = userData[categoria.field];
-        console.log(`DEBUG: Categoria ${categoria.id} - campo ${categoria.field} =`, rappresentanteId);
         if (rappresentanteId) {
           try {
-            // Caricare i dettagli del rappresentante tramite API
-            const response = await apiRequest("GET", `/api/users/${encodeURIComponent(rappresentanteId)}`);
-            if (response.ok) {
-              const data = await response.json();
-              rappresentantiData[categoria.id] = data;
-              console.log(`DEBUG: Dati caricati per ${categoria.id}:`, data);
-            } else {
-              console.error(`DEBUG: Errore nel caricare il rappresentante ${categoria.id}:`, response.statusText);
+            // Carica i dettagli del rappresentante direttamente da Firestore
+            const rappresentanteDocRef = doc(db, "utenti", rappresentanteId);
+            const rappresentanteDoc = await getDoc(rappresentanteDocRef);
+            if (rappresentanteDoc.exists()) {
+              rappresentantiData[categoria.id] = rappresentanteDoc.data();
             }
           } catch (error) {
-            console.error(`DEBUG: Errore nel caricare il rappresentante ${categoria.id}:`, error);
+            console.error(`Errore nel caricare il rappresentante ${categoria.id}:`, error);
           }
         }
       }
-      
       setRappresentanti(rappresentantiData);
     };
-    
     fetchUserData();
   }, [user, toast]);
 
