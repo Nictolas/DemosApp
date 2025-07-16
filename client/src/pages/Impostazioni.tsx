@@ -104,7 +104,26 @@ export default function Impostazioni() {
                 Privacy e Sicurezza
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-l-4 border-l-red-500">
+                <Card className="border-l-4 border-l-red-500 cursor-pointer hover:shadow-md transition-shadow" onClick={async () => {
+                  if (!user?.email) return;
+                  try {
+                    // Import dinamico per evitare problemi SSR
+                    const { sendPasswordResetEmail } = await import("firebase/auth");
+                    const { auth } = await import("@/lib/firebase");
+                    await sendPasswordResetEmail(auth, user.email);
+                    toast({
+                      title: "Email inviata",
+                      description: "Controlla la tua casella di posta per cambiare la password.",
+                      variant: "default",
+                    });
+                  } catch (err: any) {
+                    toast({
+                      title: "Errore",
+                      description: err.message || "Errore durante l'invio dell'email di reset.",
+                      variant: "destructive",
+                    });
+                  }
+                }}>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <Lock className="h-5 w-5 text-red-500" />
