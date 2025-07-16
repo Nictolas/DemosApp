@@ -278,6 +278,9 @@ export default function AuthPage() {
                           <Input type="password" placeholder="Password" {...field} />
                         </FormControl>
                         <FormMessage />
+                        <div className="flex justify-end mt-1">
+                          <a href="/reset-password" className="text-xs text-blue-600 hover:underline">Password dimenticata?</a>
+                        </div>
                       </FormItem>
                     )}
                   />
