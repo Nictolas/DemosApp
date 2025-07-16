@@ -263,3 +263,31 @@ export async function sendNotificationToAllUsers(notification) {
     return { success: false, error: error.message };
   }
 } 
+
+/**
+ * Iscrive un token FCM a un topic FCM tramite REST API
+ */
+export async function subscribeTokenToTopic(token, topic) {
+  try {
+    const SERVER_KEY = process.env.FIREBASE_SERVER_KEY;
+    if (!SERVER_KEY) {
+      return { success: false, error: 'FIREBASE_SERVER_KEY non configurata nelle variabili d\'ambiente' };
+    }
+    const url = `https://iid.googleapis.com/iid/v1/${token}/rel/topics/${topic}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `key=${SERVER_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (response.status === 200) {
+      return { success: true };
+    } else {
+      const errorText = await response.text();
+      return { success: false, error: `Errore FCM: ${response.status} - ${errorText}` };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+} 

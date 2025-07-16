@@ -270,6 +270,44 @@ class NotificaService extends FirebaseService {
       const failureCount = results.length - successCount;
 
       console.log(`Notifiche push inviate: ${successCount} successi, ${failureCount} fallimenti`);
+
+      // Invia la notifica push anche al topic dei sostenitori
+      const topic = `sostenitori_politico_${rappresentanteId}`;
+      const topicMessage = {
+        topic,
+        notification: {
+          title: `Nuova comunicazione da ${rappresentanteNome} ${rappresentanteCognome}`,
+          body: `${titolo} - Voto: ${votoDato}`
+        },
+        data: {
+          type: 'comunicazione',
+          comunicazioneId: comunicazioneId,
+          rappresentanteId: rappresentanteId,
+          votoDato: votoDato,
+          vincitore: vincitore
+        },
+        webpush: {
+          headers: {
+            'Urgency': 'high'
+          },
+          notification: {
+            icon: '/icona.png',
+            badge: '/icona.png',
+            tag: 'demos-notification',
+            requireInteraction: true,
+            actions: [
+              { action: 'open', title: 'Apri' },
+              { action: 'close', title: 'Chiudi' }
+            ]
+          }
+        }
+      };
+      try {
+        const topicResponse = await adminDb.app.messaging().send(topicMessage);
+        console.log(`Notifica push inviata al topic ${topic}:`, topicResponse);
+      } catch (err) {
+        console.error('Errore invio notifica push al topic:', err);
+      }
     } catch (error) {
       this.handleError(error, 'sendPushNotificationsForComunicazione');
     }

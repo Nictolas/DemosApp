@@ -13,6 +13,7 @@ import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
+import { useFCM } from "@/hooks/useFCM";
 
 interface Rappresentante {
   id: string;
@@ -47,6 +48,7 @@ export default function ScegliRappresentante() {
   const [rappresentanteSelezionato, setRappresentanteSelezionato] = useState<string | null>(null);
   const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
+  const { token: fcmToken } = useFCM();
   
   // Titolo visualizzato in base alla categoria
   const getTitolo = (): string => {
@@ -222,6 +224,29 @@ export default function ScegliRappresentante() {
       await updateDoc(userDocRef, updateData);
       
       setRappresentanteSelezionato(rappresentanteId);
+      // Sottoscrivi al topic FCM
+      if (fcmToken) {
+        const topic = `sostenitori_politico_${rappresentanteId}`;
+        const response = await fetch("/api/notifications/subscribe-topic", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: fcmToken, topic })
+        });
+        const result = await response.json();
+        if (result.success) {
+          toast({
+            title: "Notifiche attivate",
+            description: `Riceverai notifiche push per questo rappresentante.`,
+            variant: "success"
+          });
+        } else {
+          toast({
+            title: "Errore sottoscrizione notifiche",
+            description: result.error || "Impossibile iscriversi al topic delle notifiche.",
+            variant: "destructive"
+          });
+        }
+      }
       toast({
         title: "Successo",
         description: "Rappresentante selezionato con successo!",

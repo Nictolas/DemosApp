@@ -4,7 +4,8 @@ import {
   removeUserFCMToken, 
   sendNotificationToUser, 
   sendNotificationToUsers, 
-  sendNotificationToAllUsers 
+  sendNotificationToAllUsers, 
+  subscribeTokenToTopic 
 } from './notifications.service.js';
 
 const router = express.Router();
@@ -178,6 +179,34 @@ router.post('/send/all', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Errore interno del server' 
+    });
+  }
+});
+
+/**
+ * POST /api/notifications/subscribe-topic
+ * Iscrive un token FCM a un topic FCM (solo via backend)
+ */
+router.post('/subscribe-topic', async (req, res) => {
+  try {
+    const { token, topic } = req.body;
+    if (!token || !topic) {
+      return res.status(400).json({
+        success: false,
+        error: 'token e topic sono richiesti'
+      });
+    }
+    const result = await subscribeTokenToTopic(token, topic);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Errore endpoint subscribe-topic:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
     });
   }
 });
