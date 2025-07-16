@@ -7,6 +7,8 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 
 // Le domande ora sono dinamiche
 const options = [
@@ -42,9 +44,8 @@ export function EditOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await fetch("/api/opinioni-list");
-        if (!res.ok) throw new Error();
-        setQuestions(await res.json());
+        const snapshot = await getDocs(collection(db, "opinioni"));
+        setQuestions(snapshot.docs.map(d => ({ id: d.data().id, text: d.data().text })));
       } catch {
         toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
       } finally {
@@ -65,15 +66,9 @@ export function EditOpinioniDialog({
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const response = await fetch(`/api/users/${utenteId}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) {
-        throw new Error('Errore nel caricamento delle opinioni');
-      }
-      const data = await response.json();
-      if (data) {
+      const userDoc = await getDoc(doc(db, "utenti", utenteId));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
         // Prendi tutte le opinioni con valore valido
         const filteredOpinions: Record<string, string> = {};
         Object.keys(data).forEach(key => {
@@ -136,46 +131,19 @@ export function EditOpinioniDialog({
   const saveOpinions = async () => {
     try {
       setIsSubmitting(true);
-      let responseOpinioni;
-      // Se admin e sta modificando un altro utente, usa PUT su /api/opinioni/:utenteId
-      if (user && user.ruolo === "Admin" && user.id !== utenteId) {
-        responseOpinioni = await fetch(`/api/opinioni/${utenteId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(opinions)
-        });
-      } else {
-        // Altrimenti POST su /api/opinioni
-        responseOpinioni = await fetch(`/api/opinioni`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(opinions)
-        });
-      }
-      if (!responseOpinioni.ok) {
-        throw new Error('Errore nell\'aggiornamento delle opinioni');
-      }
-      // Poi salva le fonti
-      const responseFonti = await fetch(`/api/opinioni-fonti/${utenteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(fonti)
-      });
-      if (!responseFonti.ok) {
-        throw new Error('Errore nell\'aggiornamento delle fonti');
-      }
+      await updateDoc(doc(db, "utenti", utenteId), opinions);
       toast({
         title: "Successo",
-        description: "Le opinioni e le fonti dell'utente sono state aggiornate con successo.",
+        description: "Le opinioni dell'utente sono state aggiornate con successo.",
         variant: "default",
       });
       onOpinioniUpdated();
       onOpenChange(false);
     } catch (error) {
-      console.error('Errore nell\'aggiornamento delle opinioni/fonti:', error);
+      console.error('Errore nell\'aggiornamento delle opinioni:', error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'aggiornamento delle opinioni o delle fonti.",
+        description: "Si è verificato un errore durante l'aggiornamento delle opinioni.",
         variant: "destructive",
       });
     } finally {
