@@ -65,6 +65,7 @@ import ProfiloTest from "@/pages/ProfiloTest";
 import Riscontro from "@/pages/Riscontro";
 import Scadenze from "@/pages/Scadenze";
 import Sondaggi from "@/pages/Sondaggi";
+import ResetPasswordPage from "@/pages/reset-password";
 
 function Router() {
   const [location] = useLocation();
@@ -507,6 +508,13 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/scadenze" component={Scadenze} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/reset-password">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <ResetPasswordPage />
           </PageTransition>
         )}
       </Route>
