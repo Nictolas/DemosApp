@@ -93,4 +93,23 @@ export function useFCM() {
   }, []);
 
   return { token, error, permission, message, isLoading, requestPermission };
+}
+
+// Funzione per iscrivere il token FCM a un topic (solo via backend o REST API)
+export async function subscribeToTopic(token: string, topic: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // NOTA: Per motivi di sicurezza, questa chiamata DEVE essere fatta dal backend, non dal client web.
+    // Qui mostro solo la struttura della chiamata, ma va implementata in una API server-side.
+    // Esempio di chiamata fetch (da backend):
+    // await fetch(`https://iid.googleapis.com/iid/v1/${token}/rel/topics/${topic}`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Authorization': 'key=YOUR_SERVER_KEY',
+    //     'Content-Type': 'application/json',
+    //   },
+    // });
+    return { success: false, error: 'La sottoscrizione ai topic FCM deve essere fatta dal backend per motivi di sicurezza.' };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 } 
