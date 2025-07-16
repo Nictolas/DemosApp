@@ -92,13 +92,13 @@ export function EditOpinioniDialog({
 
   const loadFonti = async () => {
     try {
-      const response = await fetch(`/api/opinioni-fonti/${utenteId}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) throw new Error();
-      const data = await response.json();
-      setFonti(data || {});
+      const userDoc = await getDoc(doc(db, "utenti", utenteId));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setFonti(data.fonti_opinioni || {});
+      } else {
+        setFonti({});
+      }
     } catch {
       setFonti({});
     }
@@ -131,10 +131,10 @@ export function EditOpinioniDialog({
   const saveOpinions = async () => {
     try {
       setIsSubmitting(true);
-      await updateDoc(doc(db, "utenti", utenteId), opinions);
+      await updateDoc(doc(db, "utenti", utenteId), { ...opinions, fonti_opinioni: fonti });
       toast({
         title: "Successo",
-        description: "Le opinioni dell'utente sono state aggiornate con successo.",
+        description: "Le opinioni e le fonti dell'utente sono state aggiornate con successo.",
         variant: "default",
       });
       onOpinioniUpdated();
@@ -143,7 +143,7 @@ export function EditOpinioniDialog({
       console.error('Errore nell\'aggiornamento delle opinioni:', error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'aggiornamento delle opinioni.",
+        description: "Si è verificato un errore durante l'aggiornamento delle opinioni o delle fonti.",
         variant: "destructive",
       });
     } finally {
