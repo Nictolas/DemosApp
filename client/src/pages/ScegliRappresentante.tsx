@@ -220,7 +220,6 @@ export default function ScegliRappresentante() {
   // Log di debug per il rendering
   console.log('DEBUG: Stato del componente - loading:', loading);
   console.log('DEBUG: Stato del componente - rappresentanti:', rappresentanti.length);
-  console.log('DEBUG: Stato del componente - userData:', !!userData);
   console.log('DEBUG: Stato del componente - rappresentanteSelezionato:', rappresentanteSelezionato);
 
   const selezionaRappresentante = async (rappresentanteId: string) => {
