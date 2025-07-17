@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, query, where, doc, updateDoc } from "firebase/firestore";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 
 interface Classifica { nome: string; voti: number; }
 
@@ -24,6 +25,10 @@ export default function CapodiStato() {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
+  const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [unlockDate, setUnlockDate] = useState<Date | null>(null);
 
   // Carica classifica e voti utente
   useEffect(() => {
@@ -45,9 +50,36 @@ export default function CapodiStato() {
       // Voti utente
       const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
       setUserVoti(mieiVoti);
+      setSelectedVoti(mieiVoti); // Inizializza la selezione
       setLoadingData(false);
     }
     fetchData();
+  }, [user]);
+
+  // Controllo blocco settimanale
+  useEffect(() => {
+    if (!user) return;
+    if (user.ruolo === "Admin") {
+      setIsBlocked(false);
+      setUnlockDate(null);
+      return;
+    }
+    const lastEdit = user.lastCapoStatoEdit ? new Date(user.lastCapoStatoEdit) : null;
+    if (lastEdit) {
+      const now = new Date();
+      const diff = now.getTime() - lastEdit.getTime();
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      if (diff < weekMs) {
+        setIsBlocked(true);
+        setUnlockDate(new Date(lastEdit.getTime() + weekMs));
+      } else {
+        setIsBlocked(false);
+        setUnlockDate(null);
+      }
+    } else {
+      setIsBlocked(false);
+      setUnlockDate(null);
+    }
   }, [user]);
 
   const handleVote = async (e: React.FormEvent) => {
@@ -123,6 +155,88 @@ export default function CapodiStato() {
     return classifica
       .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
       .slice(0, 5);
+  };
+
+  // Gestione selezione batch
+  const toggleSelezione = (nome: string) => {
+    if (isVoting || isBlocked) return;
+    setSelectedVoti(prev =>
+      prev.includes(nome)
+        ? prev.filter(n => n !== nome)
+        : [...prev, nome]
+    );
+  };
+
+  // Aggiunta nome solo locale
+  const handleAddNomeLocal = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nomePulito = nomeInput.trim();
+    if (!nomePulito) return;
+    if (selectedVoti.includes(nomePulito)) {
+      toast({ title: "Voto già selezionato", description: `Hai già selezionato ${nomePulito}` });
+      return;
+    }
+    setSelectedVoti(prev => [...prev, nomePulito]);
+    setNomeInput("");
+  };
+
+  // Rimozione locale
+  const handleRemoveLocal = (nome: string) => {
+    if (isVoting || isBlocked) return;
+    setSelectedVoti(prev => prev.filter(n => n !== nome));
+  };
+
+  // Salva batch con dialog di conferma
+  const handleSalvaVoti = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfermaSalva = async () => {
+    setIsVoting(true);
+    setShowConfirmDialog(false);
+    try {
+      // Calcola differenze
+      const daAggiungere = selectedVoti.filter(n => !userVoti.includes(n));
+      const daRimuovere = userVoti.filter(n => !selectedVoti.includes(n));
+      // Aggiungi nuovi voti
+      for (const nome of daAggiungere) {
+        await addDoc(collection(db, "voti_capo_stato"), {
+          nome,
+          userId: user.uid,
+          timestamp: new Date().toISOString()
+        });
+      }
+      // Rimuovi voti tolti
+      for (const nome of daRimuovere) {
+        const q = query(collection(db, "voti_capo_stato"), where("userId", "==", user.uid), where("nome", "==", nome));
+        const snapshot = await getDocs(q);
+        for (const docu of snapshot.docs) {
+          await deleteDoc(docu.ref);
+        }
+      }
+      // Aggiorna lastCapoStatoEdit
+      const userDocRef = doc(db, "utenti", user.uid);
+      await updateDoc(userDocRef, { lastCapoStatoEdit: new Date().toISOString() });
+      toast({ title: "Preferenze salvate", description: "I tuoi voti sono stati aggiornati." });
+      // Ricarica dati
+      const snapshot = await getDocs(collection(db, "voti_capo_stato"));
+      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.nome) conteggio[v.nome] = (conteggio[v.nome] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
+      setUserVoti(mieiVoti);
+      setSelectedVoti(mieiVoti);
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore durante il salvataggio", variant: "destructive" });
+    } finally {
+      setIsVoting(false);
+    }
   };
 
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -210,26 +324,42 @@ export default function CapodiStato() {
               </CardContent>
             </Card>
 
+            {isBlocked && (
+              <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded">
+                <b>Hai già modificato i voti questa settimana.</b><br />
+                Potrai modificarli di nuovo dal: {unlockDate ? unlockDate.toLocaleString() : "-"}
+              </div>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
-                <CardDescription>I candidati più votati per Capo di Stato</CardDescription>
+                <CardDescription>I candidati che hanno ricevuto più voti</CardDescription>
               </CardHeader>
               <CardContent>
                 {classifica.length > 0 ? (
                   <div className="space-y-3">
-                    {classifica.map((candidato, index) => (
-                      <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Button size="sm" variant="outline" onClick={() => setNomeInput(candidato.nome)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>#{index + 1}</div>
-                          <span className="font-medium">{candidato.nome}</span>
+                    {classifica.map((candidato, index) => {
+                      const selezionato = selectedVoti.includes(candidato.nome);
+                      return (
+                        <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(candidato.nome)} disabled={isVoting || isBlocked} className={`h-8 w-8 p-0 ${selezionato ? "bg-purple-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
+                            <span className="font-medium">{candidato.nome}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline">{candidato.voti} voti</Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline">{candidato.voti} voti</Badge>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                    <div className="flex justify-end mt-4">
+                      <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
+                        {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Salva
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">Nessun voto ancora registrato.</p>
@@ -239,6 +369,25 @@ export default function CapodiStato() {
           </div>
         )}
       </div>
+
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conferma salvataggio voti</DialogTitle>
+            <DialogDescription>
+              Dopo aver salvato, potrai modificare i voti solo tra una settimana. Confermi?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Annulla</Button>
+            </DialogClose>
+            <Button onClick={handleConfermaSalva} disabled={isVoting}>
+              Conferma
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
