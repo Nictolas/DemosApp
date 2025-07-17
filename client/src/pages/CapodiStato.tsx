@@ -29,6 +29,10 @@ export default function CapodiStato() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [unlockDate, setUnlockDate] = useState<Date | null>(null);
+  const [showClassifica, setShowClassifica] = useState(false);
+  const [showAdDialog, setShowAdDialog] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  const [videoTimer, setVideoTimer] = useState(60);
 
   // Carica classifica e voti utente
   useEffect(() => {
@@ -239,15 +243,37 @@ export default function CapodiStato() {
     }
   };
 
+  // Funzione per mostrare la classifica dopo la pubblicità
+  const handleShowClassifica = () => {
+    setShowAdDialog(true);
+  };
+
+  const handleApproveAd = () => {
+    setShowAdDialog(false);
+    setShowVideo(true);
+    setVideoTimer(60);
+    const interval = setInterval(() => {
+      setVideoTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setShowVideo(false);
+          setShowClassifica(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
-        <Link href="/menu">
+        <Link href="/vota">
           <Button variant="ghost" className="mb-4 flex items-center">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+            <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Vota
           </Button>
         </Link>
 
@@ -337,32 +363,97 @@ export default function CapodiStato() {
                 <CardDescription>I candidati che hanno ricevuto più voti</CardDescription>
               </CardHeader>
               <CardContent>
-                {classifica.length > 0 ? (
-                  <div className="space-y-3">
-                    {classifica.map((candidato, index) => {
-                      const selezionato = selectedVoti.includes(candidato.nome);
-                      return (
-                        <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(candidato.nome)} disabled={isVoting || isBlocked} className={`h-8 w-8 p-0 ${selezionato ? "bg-purple-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
-                            <span className="font-medium">{candidato.nome}</span>
+                {/* Solo Admin vede subito la classifica */}
+                {user?.ruolo === "Admin" ? (
+                  classifica.length > 0 ? (
+                    <div className="space-y-3">
+                      {classifica.map((candidato, index) => {
+                        const selezionato = selectedVoti.includes(candidato.nome);
+                        return (
+                          <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(candidato.nome)} disabled={isVoting || isBlocked} className={`h-8 w-8 p-0 ${selezionato ? "bg-purple-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
+                              <span className="font-medium">{candidato.nome}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">{candidato.voti} voti</Badge>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline">{candidato.voti} voti</Badge>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div className="flex justify-end mt-4">
-                      <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
-                        {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Salva
-                      </Button>
+                        );
+                      })}
+                      <div className="flex justify-end mt-4">
+                        <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
+                          {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Salva
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">Nessun voto ancora registrato.</p>
+                  )
+                ) : !showClassifica ? (
+                  <div className="flex flex-col items-center space-y-4">
+                    {showVideo ? (
+                      <div className="flex flex-col items-center">
+                        <div className="mb-2 font-semibold">Pubblicità video in corso...<br/>Attendi {videoTimer} secondi</div>
+                        {/* Video demo, sostituibile con un vero video reward */}
+                        <video width="320" height="180" controls autoPlay muted style={{ marginBottom: 12 }}>
+                          <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                          Il tuo browser non supporta il video.
+                        </video>
+                        <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                      </div>
+                    ) : (
+                      <Button onClick={handleShowClassifica} className="w-full max-w-xs">Mostra classifica</Button>
+                    )}
+                    <Dialog open={showAdDialog} onOpenChange={setShowAdDialog}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Vuoi vedere la classifica?</DialogTitle>
+                          <DialogDescription>
+                            Per vedere la classifica dovrai guardare 60 secondi di pubblicità video.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Annulla</Button>
+                          </DialogClose>
+                          <Button onClick={handleApproveAd}>
+                            Approva
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-8">Nessun voto ancora registrato.</p>
+                ) :
+                  classifica.length > 0 ? (
+                    <div className="space-y-3">
+                      {classifica.map((candidato, index) => {
+                        const selezionato = selectedVoti.includes(candidato.nome);
+                        return (
+                          <div key={candidato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(candidato.nome)} disabled={isVoting || isBlocked} className={`h-8 w-8 p-0 ${selezionato ? "bg-purple-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
+                              <span className="font-medium">{candidato.nome}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">{candidato.voti} voti</Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div className="flex justify-end mt-4">
+                        <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
+                          {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Salva
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">Nessun voto ancora registrato.</p>
+                  )
                 )}
               </CardContent>
             </Card>
