@@ -24,6 +24,9 @@ export default function Opinioni() {
   const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [, setLocation] = useLocation();
+  // Stato per blocco settimanale
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [unlockDate, setUnlockDate] = useState<Date | null>(null);
 
   // Carica le domande dinamiche da Firebase
   useEffect(() => {
@@ -55,6 +58,32 @@ export default function Opinioni() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, questions]);
+
+  // Blocco settimanale per modifica opinioni
+  useEffect(() => {
+    if (!user) return;
+    if (user.ruolo === "Admin") {
+      setIsBlocked(false);
+      setUnlockDate(null);
+      return;
+    }
+    const lastEdit = user.lastOpinioniEdit ? new Date(user.lastOpinioniEdit) : null;
+    if (lastEdit) {
+      const now = new Date();
+      const diff = now.getTime() - lastEdit.getTime();
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      if (diff < weekMs) {
+        setIsBlocked(true);
+        setUnlockDate(new Date(lastEdit.getTime() + weekMs));
+      } else {
+        setIsBlocked(false);
+        setUnlockDate(null);
+      }
+    } else {
+      setIsBlocked(false);
+      setUnlockDate(null);
+    }
+  }, [user]);
 
   const loadUserOpinions = async () => {
     try {
@@ -112,7 +141,10 @@ export default function Opinioni() {
       
       // Salva le opinioni direttamente in Firebase
       const userDocRef = doc(db, "utenti", user.uid);
-      await updateDoc(userDocRef, opinions);
+      await updateDoc(userDocRef, {
+        ...opinions,
+        lastOpinioniEdit: new Date().toISOString(),
+      });
       
       toast({
         title: "Successo",
@@ -204,7 +236,7 @@ export default function Opinioni() {
                 <div className="flex justify-center pt-6">
                   <Button
                     onClick={saveOpinions}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isBlocked}
                     className="px-8 py-3 text-lg"
                   >
                     {isSubmitting ? (
@@ -217,6 +249,12 @@ export default function Opinioni() {
                     )}
                   </Button>
                 </div>
+                {isBlocked && (
+                  <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
+                    <b>Hai già modificato le opinioni questa settimana.</b><br />
+                    Potrai modificarle di nuovo dal: {unlockDate ? unlockDate.toLocaleString() : "-"}
+                  </div>
+                )}
               </>
             )}
           </CardContent>
