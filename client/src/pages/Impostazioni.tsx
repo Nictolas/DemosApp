@@ -38,6 +38,7 @@ export default function Impostazioni() {
         description: "Sei stato disconnesso con successo.",
         variant: "default",
       });
+      window.location.href = "/";
     } catch (error) {
       console.error("Errore durante il logout:", error);
       toast({
