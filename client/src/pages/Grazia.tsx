@@ -24,6 +24,7 @@ export default function Grazia() {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
+  const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
 
   // Carica classifica e voti utente
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function Grazia() {
       // Voti utente
       const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
       setUserVoti(mieiVoti);
+      setSelectedVoti(mieiVoti); // Inizializza la selezione
       setLoadingData(false);
     }
     fetchData();
@@ -152,6 +154,62 @@ export default function Grazia() {
     }
   };
 
+  // Gestione selezione batch
+  const toggleSelezione = (nome: string) => {
+    if (isVoting) return;
+    setSelectedVoti(prev =>
+      prev.includes(nome)
+        ? prev.filter(n => n !== nome)
+        : [...prev, nome]
+    );
+  };
+
+  // Salva batch
+  const handleSalvaVoti = async () => {
+    if (isVoting) return;
+    setIsVoting(true);
+    try {
+      // Calcola differenze
+      const daAggiungere = selectedVoti.filter(n => !userVoti.includes(n));
+      const daRimuovere = userVoti.filter(n => !selectedVoti.includes(n));
+      // Aggiungi nuovi voti
+      for (const nome of daAggiungere) {
+        await addDoc(collection(db, "voti_grazia"), {
+          nome,
+          userId: user.uid,
+          timestamp: new Date().toISOString()
+        });
+      }
+      // Rimuovi voti tolti
+      for (const nome of daRimuovere) {
+        const q = query(collection(db, "voti_grazia"), where("userId", "==", user.uid), where("nome", "==", nome));
+        const snapshot = await getDocs(q);
+        for (const docu of snapshot.docs) {
+          await deleteDoc(docu.ref);
+        }
+      }
+      toast({ title: "Preferenze salvate", description: "Le tue richieste di grazia sono state aggiornate." });
+      // Ricarica dati
+      const snapshot = await getDocs(collection(db, "voti_grazia"));
+      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.nome) conteggio[v.nome] = (conteggio[v.nome] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
+      setUserVoti(mieiVoti);
+      setSelectedVoti(mieiVoti);
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore durante il salvataggio", variant: "destructive" });
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
   const getSuggestions = () => {
     if (!nomeInput.trim() || !showSuggestions) return [];
     return classifica
@@ -252,18 +310,27 @@ export default function Grazia() {
               <CardContent>
                 {classifica.length > 0 ? (
                   <div className="space-y-3">
-                    {classifica.map((carcerato, index) => (
-                      <div key={carcerato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Button size="sm" variant="outline" onClick={() => handleVoteForName(carcerato.nome)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
-                          <span className="font-medium">{carcerato.nome}</span>
+                    {classifica.map((carcerato, index) => {
+                      const selezionato = selectedVoti.includes(carcerato.nome);
+                      return (
+                        <div key={carcerato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(carcerato.nome)} disabled={isVoting} className={`h-8 w-8 p-0 ${selezionato ? "bg-green-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
+                            <span className="font-medium">{carcerato.nome}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline">{carcerato.voti} richieste</Badge>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline">{carcerato.voti} richieste</Badge>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                    <div className="flex justify-end mt-4">
+                      <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort())}>
+                        {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Salva
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
