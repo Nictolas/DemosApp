@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "demos-finale"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }
