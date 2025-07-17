@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, query, where, doc, updateDoc, getDoc } from "firebase/firestore";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 
 interface Classifica { nome: string; voti: number; }
 
@@ -25,6 +26,9 @@ export default function Grazia() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
   const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [unlockDate, setUnlockDate] = useState<Date | null>(null);
 
   // Carica classifica e voti utente
   useEffect(() => {
@@ -50,6 +54,32 @@ export default function Grazia() {
       setLoadingData(false);
     }
     fetchData();
+  }, [user]);
+
+  // Controllo blocco settimanale
+  useEffect(() => {
+    if (!user) return;
+    if (user.ruolo === "Admin") {
+      setIsBlocked(false);
+      setUnlockDate(null);
+      return;
+    }
+    const lastEdit = user.lastGraziaEdit ? new Date(user.lastGraziaEdit) : null;
+    if (lastEdit) {
+      const now = new Date();
+      const diff = now.getTime() - lastEdit.getTime();
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      if (diff < weekMs) {
+        setIsBlocked(true);
+        setUnlockDate(new Date(lastEdit.getTime() + weekMs));
+      } else {
+        setIsBlocked(false);
+        setUnlockDate(null);
+      }
+    } else {
+      setIsBlocked(false);
+      setUnlockDate(null);
+    }
   }, [user]);
 
   const handleVote = async (e: React.FormEvent) => {
@@ -164,10 +194,14 @@ export default function Grazia() {
     );
   };
 
-  // Salva batch
+  // Salva batch con dialog di conferma
   const handleSalvaVoti = async () => {
-    if (isVoting) return;
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfermaSalva = async () => {
     setIsVoting(true);
+    setShowConfirmDialog(false);
     try {
       // Calcola differenze
       const daAggiungere = selectedVoti.filter(n => !userVoti.includes(n));
@@ -188,6 +222,9 @@ export default function Grazia() {
           await deleteDoc(docu.ref);
         }
       }
+      // Aggiorna lastGraziaEdit
+      const userDocRef = doc(db, "utenti", user.uid);
+      await updateDoc(userDocRef, { lastGraziaEdit: new Date().toISOString() });
       toast({ title: "Preferenze salvate", description: "Le tue richieste di grazia sono state aggiornate." });
       // Ricarica dati
       const snapshot = await getDocs(collection(db, "voti_grazia"));
@@ -249,6 +286,13 @@ export default function Grazia() {
             <CardDescription className="text-lg">Vota per chiedere la grazia a favore di un carcerato. Puoi esprimere più preferenze.</CardDescription>
           </CardHeader>
         </Card>
+
+        {isBlocked && (
+          <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded">
+            <b>Hai già modificato le richieste di grazia questa settimana.</b><br />
+            Potrai modificarle di nuovo dal: {unlockDate ? unlockDate.toLocaleString() : "-"}
+          </div>
+        )}
 
         {loadingData ? (
           <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
@@ -339,7 +383,7 @@ export default function Grazia() {
                       );
                     })}
                     <div className="flex justify-end mt-4">
-                      <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort())}>
+                      <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
                         {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Salva
                       </Button>
@@ -353,6 +397,24 @@ export default function Grazia() {
           </div>
         )}
       </div>
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conferma salvataggio richieste di grazia</DialogTitle>
+            <DialogDescription>
+              Dopo aver salvato, potrai modificare le richieste di grazia solo tra una settimana. Confermi?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Annulla</Button>
+            </DialogClose>
+            <Button onClick={handleConfermaSalva} disabled={isVoting}>
+              Conferma
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
