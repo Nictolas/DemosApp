@@ -86,6 +86,40 @@ export default function Grazia() {
     }
   };
 
+  // Funzione per votare direttamente dalla classifica
+  const handleVoteForName = async (nome: string) => {
+    if (userVoti.includes(nome)) {
+      toast({ title: "Voto già registrato", description: `Hai già votato per ${nome}` });
+      return;
+    }
+    setIsVoting(true);
+    try {
+      await addDoc(collection(db, "voti_grazia"), {
+        nome: nome,
+        userId: user.uid,
+        timestamp: new Date().toISOString()
+      });
+      toast({ title: "Voto registrato", description: `Hai votato ${nome}` });
+      // Ricarica dati
+      const snapshot = await getDocs(collection(db, "voti_grazia"));
+      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const conteggio: Record<string, number> = {};
+      votiList.forEach(v => {
+        if (v.nome) conteggio[v.nome] = (conteggio[v.nome] || 0) + 1;
+      });
+      const classificaArray: Classifica[] = Object.entries(conteggio)
+        .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+        .sort((a, b) => b.voti - a.voti);
+      setClassifica(classificaArray);
+      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.nome);
+      setUserVoti(mieiVoti);
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
   const removeVote = async (nomeDaRimuovere: string) => {
     if (deletingVote) return;
     if (!window.confirm(`Sei sicuro di voler rimuovere la richiesta di grazia per "${nomeDaRimuovere}"?`)) return;
@@ -131,9 +165,9 @@ export default function Grazia() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
-        <Link href="/menu">
+        <Link href="/vota">
           <Button variant="ghost" className="mb-4 flex items-center">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
+            <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Vota
           </Button>
         </Link>
 
@@ -221,7 +255,7 @@ export default function Grazia() {
                     {classifica.map((carcerato, index) => (
                       <div key={carcerato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
                         <div className="flex items-center space-x-3">
-                          <Button size="sm" variant="outline" onClick={() => handleVote({ preventDefault: () => {}, target: { value: carcerato.nome } } as any)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
+                          <Button size="sm" variant="outline" onClick={() => handleVoteForName(carcerato.nome)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
                           <span className="font-medium">{carcerato.nome}</span>
                         </div>
