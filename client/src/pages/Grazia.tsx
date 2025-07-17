@@ -29,6 +29,23 @@ export default function Grazia() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [unlockDate, setUnlockDate] = useState<Date | null>(null);
+  const [showClassifica, setShowClassifica] = useState(false);
+  const [adTimer, setAdTimer] = useState(0);
+
+  // Funzione per mostrare la classifica dopo la pubblicità
+  const handleShowClassifica = () => {
+    setAdTimer(5); // 5 secondi di "pubblicità"
+    const interval = setInterval(() => {
+      setAdTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setShowClassifica(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   // Carica classifica e voti utente
   useEffect(() => {
@@ -365,32 +382,74 @@ export default function Grazia() {
                 <CardDescription>I carcerati che hanno ricevuto più richieste di grazia</CardDescription>
               </CardHeader>
               <CardContent>
-                {classifica.length > 0 ? (
-                  <div className="space-y-3">
-                    {classifica.map((carcerato, index) => {
-                      const selezionato = selectedVoti.includes(carcerato.nome);
-                      return (
-                        <div key={carcerato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(carcerato.nome)} disabled={isVoting} className={`h-8 w-8 p-0 ${selezionato ? "bg-green-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
-                            <span className="font-medium">{carcerato.nome}</span>
+                {/* Solo Admin vede subito la classifica */}
+                {user?.ruolo === "Admin" ? (
+                  classifica.length > 0 ? (
+                    <div className="space-y-3">
+                      {classifica.map((carcerato, index) => {
+                        const selezionato = selectedVoti.includes(carcerato.nome);
+                        return (
+                          <div key={carcerato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(carcerato.nome)} disabled={isVoting} className={`h-8 w-8 p-0 ${selezionato ? "bg-green-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
+                              <span className="font-medium">{carcerato.nome}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">{carcerato.voti} richieste</Badge>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant="outline">{carcerato.voti} richieste</Badge>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div className="flex justify-end mt-4">
-                      <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
-                        {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Salva
-                      </Button>
+                        );
+                      })}
+                      <div className="flex justify-end mt-4">
+                        <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
+                          {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Salva
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
+                  )
+                ) : !showClassifica ? (
+                  <div className="flex flex-col items-center space-y-4">
+                    {adTimer > 0 ? (
+                      <div className="text-center">
+                        <div className="mb-2 font-semibold">Pubblicità...<br/>La classifica sarà visibile tra {adTimer} secondi</div>
+                        <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                      </div>
+                    ) : (
+                      <Button onClick={handleShowClassifica} className="w-full max-w-xs">Mostra classifica</Button>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
+                  classifica.length > 0 ? (
+                    <div className="space-y-3">
+                      {classifica.map((carcerato, index) => {
+                        const selezionato = selectedVoti.includes(carcerato.nome);
+                        return (
+                          <div key={carcerato.nome} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <Button size="sm" variant={selezionato ? "default" : "outline"} onClick={() => toggleSelezione(carcerato.nome)} disabled={isVoting || isBlocked} className={`h-8 w-8 p-0 ${selezionato ? "bg-green-600 text-white" : ""}`}> <ThumbsUp className="h-3 w-3" /> </Button>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>#{index + 1}</div>
+                              <span className="font-medium">{carcerato.nome}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline">{carcerato.voti} richieste</Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div className="flex justify-end mt-4">
+                        <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
+                          {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Salva
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
+                  )
                 )}
               </CardContent>
             </Card>
