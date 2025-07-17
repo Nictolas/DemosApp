@@ -354,7 +354,7 @@ export default function Grazia() {
                   </div>
                 </form>
 
-                {userVoti.length > 0 && (
+                {selectedVoti.length > 0 && (
                   <div className="mt-4">
                     <h4 className="text-sm font-semibold mb-2">Le tue richieste di grazia:</h4>
                     <div className="flex flex-wrap gap-2">
@@ -371,6 +371,12 @@ export default function Grazia() {
                       ))}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">Clicca su un nome per rimuovere la richiesta.</p>
+                    <div className="flex justify-end mt-4">
+                      <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
+                        {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Salva
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -401,12 +407,6 @@ export default function Grazia() {
                           </div>
                         );
                       })}
-                      <div className="flex justify-end mt-4">
-                        <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
-                          {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          Salva
-                        </Button>
-                      </div>
                     </div>
                   ) : (
                     <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
@@ -440,12 +440,6 @@ export default function Grazia() {
                           </div>
                         );
                       })}
-                      <div className="flex justify-end mt-4">
-                        <Button onClick={handleSalvaVoti} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
-                          {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          Salva
-                        </Button>
-                      </div>
                     </div>
                   ) : (
                     <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
