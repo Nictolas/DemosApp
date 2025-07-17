@@ -66,6 +66,7 @@ import Riscontro from "@/pages/Riscontro";
 import Scadenze from "@/pages/Scadenze";
 import Sondaggi from "@/pages/Sondaggi";
 import ResetPasswordPage from "@/pages/reset-password";
+import Informazioni from "@/pages/Informazioni";
 
 function Router() {
   const [location] = useLocation();
@@ -515,6 +516,13 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <ResetPasswordPage />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/informazioni">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <Informazioni />
           </PageTransition>
         )}
       </Route>
