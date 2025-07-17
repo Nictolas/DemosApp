@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, addDoc, deleteDoc, query, where, doc, updateDoc } from "firebase/firestore";
 
 interface Classifica { nome: string; voti: number; }
 
@@ -37,6 +37,14 @@ export default function Governo() {
   const [isVoting, setIsVoting] = useState<{ [categoria: string]: boolean }>({});
   const [input, setInput] = useState<{ [categoria: string]: string }>({});
   const [deletingVote, setDeletingVote] = useState<{ [categoria: string]: boolean }>({});
+  const [selectedVoti, setSelectedVoti] = useState<{ [categoria: string]: string }>({});
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [unlockDate, setUnlockDate] = useState<Date | null>(null);
+  const [showClassifica, setShowClassifica] = useState(false);
+  const [showAdDialog, setShowAdDialog] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  const [videoTimer, setVideoTimer] = useState(60);
 
   useEffect(() => {
     if (!user) return;
@@ -64,9 +72,36 @@ export default function Governo() {
       setClassifiche(classTemp);
       setUserVoti(userVotiTemp);
       setInput(userVotiTemp);
+      setSelectedVoti(userVotiTemp);
       setLoading(false);
     }
     fetchData();
+  }, [user]);
+
+  // Blocco settimanale
+  useEffect(() => {
+    if (!user) return;
+    if (user.ruolo === "Admin") {
+      setIsBlocked(false);
+      setUnlockDate(null);
+      return;
+    }
+    const lastEdit = user.lastGovernoEdit ? new Date(user.lastGovernoEdit) : null;
+    if (lastEdit) {
+      const now = new Date();
+      const diff = now.getTime() - lastEdit.getTime();
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      if (diff < weekMs) {
+        setIsBlocked(true);
+        setUnlockDate(new Date(lastEdit.getTime() + weekMs));
+      } else {
+        setIsBlocked(false);
+        setUnlockDate(null);
+      }
+    } else {
+      setIsBlocked(false);
+      setUnlockDate(null);
+    }
   }, [user]);
 
   const handleVote = async (categoria: string) => {
@@ -159,6 +194,110 @@ export default function Governo() {
     } finally {
       setDeletingVote(v => ({ ...v, [categoria]: false }));
     }
+  };
+
+  // Gestione batch
+  const handleChangeMinistro = (categoria: string, nome: string) => {
+    if (isVoting[categoria] || isBlocked) return;
+    setSelectedVoti(prev => ({ ...prev, [categoria]: nome }));
+  };
+
+  // Salva batch con dialog di conferma
+  const handleSalvaVoti = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfermaSalva = async () => {
+    setShowConfirmDialog(false);
+    setLoading(true);
+    try {
+      // Calcola differenze
+      const daAggiungere: { categoria: string; nome: string }[] = [];
+      const daRimuovere: string[] = [];
+      ministeri.forEach(m => {
+        if (selectedVoti[m.categoria] && selectedVoti[m.categoria] !== userVoti[m.categoria]) {
+          daAggiungere.push({ categoria: m.categoria, nome: selectedVoti[m.categoria] });
+        }
+        if (userVoti[m.categoria] && !selectedVoti[m.categoria]) {
+          daRimuovere.push(m.categoria);
+        }
+      });
+      // Rimuovi voti tolti
+      for (const categoria of daRimuovere) {
+        const q = query(collection(db, "voti_ministri"), where("userId", "==", user.uid), where("categoria", "==", categoria));
+        const snap = await getDocs(q);
+        for (const docu of snap.docs) {
+          await deleteDoc(docu.ref);
+        }
+      }
+      // Aggiungi/aggiorna voti
+      for (const { categoria, nome } of daAggiungere) {
+        // Rimuovi eventuale voto precedente
+        const q = query(collection(db, "voti_ministri"), where("userId", "==", user.uid), where("categoria", "==", categoria));
+        const snap = await getDocs(q);
+        for (const docu of snap.docs) {
+          await deleteDoc(docu.ref);
+        }
+        // Aggiungi nuovo voto
+        await addDoc(collection(db, "voti_ministri"), {
+          categoria,
+          nomeMinistro: nome,
+          nomeDisplay: nome,
+          userId: user.uid,
+          timestamp: new Date().toISOString()
+        });
+      }
+      // Aggiorna lastGovernoEdit
+      const userDocRef = doc(db, "utenti", user.uid);
+      await updateDoc(userDocRef, { lastGovernoEdit: new Date().toISOString() });
+      toast({ title: "Preferenze salvate", description: "Le tue preferenze sono state aggiornate." });
+      // Ricarica dati
+      const snap = await getDocs(collection(db, "voti_ministri"));
+      const votiList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const classTemp: { [categoria: string]: Classifica[] } = {};
+      const userVotiTemp: { [categoria: string]: string } = {};
+      ministeri.forEach(m => {
+        const votiCat = votiList.filter(v => v.categoria === m.categoria);
+        const conteggio: Record<string, number> = {};
+        votiCat.forEach(v => {
+          if (v.nomeMinistro) conteggio[v.nomeMinistro] = (conteggio[v.nomeMinistro] || 0) + 1;
+        });
+        classTemp[m.categoria] = Object.entries(conteggio)
+          .map(([nome, voti]) => ({ nome, voti: Number(voti) }))
+          .sort((a, b) => b.voti - a.voti);
+        const mioVoto = votiCat.find(v => v.userId === user.uid);
+        userVotiTemp[m.categoria] = mioVoto ? mioVoto.nomeMinistro : "";
+      });
+      setClassifiche(classTemp);
+      setUserVoti(userVotiTemp);
+      setInput(userVotiTemp);
+      setSelectedVoti(userVotiTemp);
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore durante il salvataggio", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pubblicità fittizia prima della classifica
+  const handleShowClassifica = () => {
+    setShowAdDialog(true);
+  };
+  const handleApproveAd = () => {
+    setShowAdDialog(false);
+    setShowVideo(true);
+    setVideoTimer(60);
+    const interval = setInterval(() => {
+      setVideoTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setShowVideo(false);
+          setShowClassifica(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   if (!authReady || isLoading || loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
