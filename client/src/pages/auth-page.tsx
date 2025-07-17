@@ -59,6 +59,8 @@ export default function AuthPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   // Stato per mostrare/nascondere la password nella registrazione
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  // Stato per mostrare/nascondere la conferma password nella registrazione
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -447,7 +449,7 @@ export default function AuthPage() {
                             <FormControl>
                               <div className="relative">
                                 <Input
-                                  type="password"
+                                  type={showConfirmPassword ? "text" : "password"}
                                   placeholder="Ripeti la password"
                                   {...field}
                                 />
@@ -455,13 +457,19 @@ export default function AuthPage() {
                                   type="button"
                                   className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
                                   tabIndex={-1}
-                                  onClick={() => {}} // Placeholder for password visibility toggle
-                                  aria-label="Mostra password"
+                                  onClick={() => setShowConfirmPassword((v) => !v)}
+                                  aria-label={showConfirmPassword ? "Nascondi password" : "Mostra password"}
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
-                                  </svg>
+                                  {showConfirmPassword ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.458 12C2.732 16.057 6.523 19 12 19c1.306 0 2.555-.154 3.722-.44M21.542 12c-.274.857-.67 1.664-1.176 2.398M15 12a3 3 0 11-6 0 3 3 0 016 0zm6.022-3.777A10.45 10.45 0 0122.542 12c-1.274 4.057-5.065 7-10.542 7-1.306 0-2.555-.154-3.722-.44M6.222 4.44A10.45 10.45 0 0112 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398M9.88 9.88l4.24 4.24m0-4.24l-4.24 4.24" />
+                                    </svg>
+                                  ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-.274.857-.67 1.664-1.176 2.398" />
+                                    </svg>
+                                  )}
                                 </button>
                               </div>
                             </FormControl>
