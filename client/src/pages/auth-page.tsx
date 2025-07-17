@@ -227,12 +227,28 @@ export default function AuthPage() {
     registerForm.setValue("comune_candidatura", "");
   }, [registerForm.watch("provincia_candidatura")]);
 
+  // Stati per la data di nascita
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+
+  // Aggiorna il campo data_nascita quando cambiano giorno, mese o anno
+  useEffect(() => {
+    if (birthDay && birthMonth && birthYear) {
+      registerForm.setValue("data_nascita", `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`);
+    } else {
+      registerForm.setValue("data_nascita", "");
+    }
+  }, [birthDay, birthMonth, birthYear]);
+
   // Submit
   const onLoginSubmit = (data: LoginFormValues) => {
-    loginMutation.mutate(data);
+    // Normalizza l'email a lowercase
+    loginMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
   };
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    registerMutation.mutate(data);
+    // Normalizza l'email a lowercase
+    registerMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
   };
 
   if (user && !isLoading) {
