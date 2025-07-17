@@ -183,7 +183,7 @@ export default function RegistrazioneWizard() {
     setValue("comune_candidatura", "");
   }, [provinciaCandidatura, regioneCandidatura, paeseCandidatura]);
 
-  // Step 1: Account
+  // Step 1: Account + campi dinamici subito visibili
   const renderStep1 = () => (
     <>
       <FormField control={methods.control} name="email" render={({ field }) => (
@@ -216,15 +216,11 @@ export default function RegistrazioneWizard() {
           <FormMessage />
         </FormItem>
       )} />
-    </>
-  );
 
-  // Step 2: Elezione/Candidatura (dinamico)
-  const renderStep2 = () => (
-    <>
-      {/* Sezione Elezione solo per Politico e Candidato Politico */}
+      {/* Campi Elezione per Politico e Candidato Politico */}
       {(ruolo === "Politico" || ruolo === "Candidato Politico") && (
         <>
+          <div className="mt-6 mb-2 font-semibold">Dove sei stato eletto?</div>
           <FormField control={methods.control} name="grado_elezione" render={({ field }) => (
             <FormItem>
               <FormLabel>Grado di Elezione</FormLabel>
@@ -243,7 +239,7 @@ export default function RegistrazioneWizard() {
               <FormMessage />
             </FormItem>
           )} />
-          {watch("grado_elezione") === "Nazionale" && (
+          {methods.watch("grado_elezione") === "Nazionale" && (
             <FormField control={methods.control} name="aula_elezione" render={({ field }) => (
               <FormItem>
                 <FormLabel>Aula</FormLabel>
@@ -260,7 +256,6 @@ export default function RegistrazioneWizard() {
               </FormItem>
             )} />
           )}
-          {/* Paese, Regione, Provincia, Comune Elezione */}
           <FormField control={methods.control} name="paese_elezione" render={({ field }) => (
             <FormItem>
               <FormLabel>Paese di Elezione</FormLabel>
@@ -325,9 +320,11 @@ export default function RegistrazioneWizard() {
           )} />
         </>
       )}
-      {/* Sezione Candidatura solo per Candidato e Candidato Politico */}
+
+      {/* Campi Candidatura per Candidato e Candidato Politico */}
       {(ruolo === "Candidato" || ruolo === "Candidato Politico") && (
         <>
+          <div className="mt-6 mb-2 font-semibold">Dove sei candidato?</div>
           <FormField control={methods.control} name="grado_candidatura" render={({ field }) => (
             <FormItem>
               <FormLabel>Grado di Candidatura</FormLabel>
@@ -346,7 +343,7 @@ export default function RegistrazioneWizard() {
               <FormMessage />
             </FormItem>
           )} />
-          {watch("grado_candidatura") === "Nazionale" && (
+          {methods.watch("grado_candidatura") === "Nazionale" && (
             <FormField control={methods.control} name="aula_candidatura" render={({ field }) => (
               <FormItem>
                 <FormLabel>Aula</FormLabel>
@@ -363,7 +360,6 @@ export default function RegistrazioneWizard() {
               </FormItem>
             )} />
           )}
-          {/* Paese, Regione, Provincia, Comune Candidatura */}
           <FormField control={methods.control} name="paese_candidatura" render={({ field }) => (
             <FormItem>
               <FormLabel>Paese di Candidatura</FormLabel>
@@ -486,9 +482,16 @@ export default function RegistrazioneWizard() {
                       </Button>
                     )}
                     {step === steps.length - 1 && (
-                      <Button type="submit">Registrati</Button>
+                      <Button type="submit" disabled={!formState.isValid}>Registrati</Button>
                     )}
                   </div>
+                  {formState.errors && Object.keys(formState.errors).length > 0 && (
+                    <div className="mt-4 text-red-600 text-sm">
+                      {Object.values(formState.errors).map((err: any, idx) => (
+                        <div key={idx}>{err.message}</div>
+                      ))}
+                    </div>
+                  )}
                 </form>
               </Form>
             </FormProvider>
