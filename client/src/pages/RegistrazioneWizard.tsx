@@ -95,7 +95,7 @@ export default function RegistrazioneWizard() {
       password: formData?.password || "",
       ruolo: formData?.ruolo || "",
     },
-    mode: "onTouched"
+    mode: "onChange" // Validazione live
   });
   const { watch, handleSubmit, formState, setValue } = methods;
   const ruolo = watch("ruolo");
