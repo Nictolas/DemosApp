@@ -31,14 +31,24 @@ export default function Grazia() {
   const [unlockDate, setUnlockDate] = useState<Date | null>(null);
   const [showClassifica, setShowClassifica] = useState(false);
   const [adTimer, setAdTimer] = useState(0);
+  const [showAdDialog, setShowAdDialog] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  const [videoTimer, setVideoTimer] = useState(60);
 
   // Funzione per mostrare la classifica dopo la pubblicità
   const handleShowClassifica = () => {
-    setAdTimer(5); // 5 secondi di "pubblicità"
+    setShowAdDialog(true);
+  };
+
+  const handleApproveAd = () => {
+    setShowAdDialog(false);
+    setShowVideo(true);
+    setVideoTimer(60);
     const interval = setInterval(() => {
-      setAdTimer(prev => {
+      setVideoTimer(prev => {
         if (prev <= 1) {
           clearInterval(interval);
+          setShowVideo(false);
           setShowClassifica(true);
           return 0;
         }
@@ -413,14 +423,37 @@ export default function Grazia() {
                   )
                 ) : !showClassifica ? (
                   <div className="flex flex-col items-center space-y-4">
-                    {adTimer > 0 ? (
-                      <div className="text-center">
-                        <div className="mb-2 font-semibold">Pubblicità...<br/>La classifica sarà visibile tra {adTimer} secondi</div>
+                    {showVideo ? (
+                      <div className="flex flex-col items-center">
+                        <div className="mb-2 font-semibold">Pubblicità video in corso...<br/>Attendi {videoTimer} secondi</div>
+                        {/* Video demo, sostituibile con un vero video reward */}
+                        <video width="320" height="180" controls autoPlay muted style={{ marginBottom: 12 }}>
+                          <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                          Il tuo browser non supporta il video.
+                        </video>
                         <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
                       </div>
                     ) : (
                       <Button onClick={handleShowClassifica} className="w-full max-w-xs">Mostra classifica</Button>
                     )}
+                    <Dialog open={showAdDialog} onOpenChange={setShowAdDialog}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Vuoi vedere la classifica?</DialogTitle>
+                          <DialogDescription>
+                            Per vedere la classifica dovrai guardare 60 secondi di pubblicità video.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Annulla</Button>
+                          </DialogClose>
+                          <Button onClick={handleApproveAd}>
+                            Approva
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 ) : (
                   classifica.length > 0 ? (
