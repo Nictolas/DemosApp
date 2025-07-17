@@ -252,7 +252,7 @@ export default function Opinioni() {
                 {isBlocked && (
                   <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
                     <b>Hai già modificato le opinioni questa settimana.</b><br />
-                    Potrai modificarle di nuovo dal: {unlockDate ? unlockDate.toLocaleString() : "-"}
+                    Potrai modificarle di nuovo dal: {unlockDate ? unlockDate.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "-"}
                   </div>
                 )}
               </>
