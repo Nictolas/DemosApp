@@ -33,25 +33,42 @@ const fullSchema = z.object({
   regione_candidatura: z.string().optional(),
   provincia_candidatura: z.string().optional(),
   comune_candidatura: z.string().optional(),
-}).refine((data) => {
-  // Validazione dinamica in base al ruolo
-  if (data.ruolo === "Politico" || data.ruolo === "Candidato Politico") {
-    if (!data.grado_elezione) return false;
-    if (!data.paese_elezione) return false;
-    if (!data.regione_elezione) return false;
-    if (!data.provincia_elezione) return false;
-    if (!data.comune_elezione) return false;
-    if (data.grado_elezione === "Nazionale" && !data.aula_elezione) return false;
+}).superRefine((data, ctx) => {
+  // Politico: obbligatori solo i campi elezione
+  if (data.ruolo === "Politico") {
+    if (!data.grado_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il grado di elezione è obbligatorio", path: ["grado_elezione"] });
+    if (!data.paese_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di elezione è obbligatorio", path: ["paese_elezione"] });
+    if (!data.regione_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di elezione è obbligatoria", path: ["regione_elezione"] });
+    if (!data.provincia_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di elezione è obbligatoria", path: ["provincia_elezione"] });
+    if (!data.comune_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di elezione è obbligatorio", path: ["comune_elezione"] });
+    if (data.grado_elezione === "Nazionale" && !data.aula_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "L'aula è obbligatoria per il grado nazionale", path: ["aula_elezione"] });
   }
-  if (data.ruolo === "Candidato" || data.ruolo === "Candidato Politico") {
-    if (!data.grado_candidatura) return false;
-    if (!data.paese_candidatura) return false;
-    if (!data.regione_candidatura) return false;
-    if (!data.provincia_candidatura) return false;
-    if (!data.comune_candidatura) return false;
-    if (data.grado_candidatura === "Nazionale" && !data.aula_candidatura) return false;
+  // Candidato: obbligatori solo i campi candidatura
+  if (data.ruolo === "Candidato") {
+    if (!data.grado_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il grado di candidatura è obbligatorio", path: ["grado_candidatura"] });
+    if (!data.paese_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di candidatura è obbligatorio", path: ["paese_candidatura"] });
+    if (!data.regione_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di candidatura è obbligatoria", path: ["regione_candidatura"] });
+    if (!data.provincia_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di candidatura è obbligatoria", path: ["provincia_candidatura"] });
+    if (!data.comune_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di candidatura è obbligatorio", path: ["comune_candidatura"] });
+    if (data.grado_candidatura === "Nazionale" && !data.aula_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "L'aula è obbligatoria per il grado nazionale", path: ["aula_candidatura"] });
   }
-  return true;
+  // Candidato Politico: obbligatori entrambi
+  if (data.ruolo === "Candidato Politico") {
+    // Elezione
+    if (!data.grado_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il grado di elezione è obbligatorio", path: ["grado_elezione"] });
+    if (!data.paese_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di elezione è obbligatorio", path: ["paese_elezione"] });
+    if (!data.regione_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di elezione è obbligatoria", path: ["regione_elezione"] });
+    if (!data.provincia_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di elezione è obbligatoria", path: ["provincia_elezione"] });
+    if (!data.comune_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di elezione è obbligatorio", path: ["comune_elezione"] });
+    if (data.grado_elezione === "Nazionale" && !data.aula_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "L'aula è obbligatoria per il grado nazionale", path: ["aula_elezione"] });
+    // Candidatura
+    if (!data.grado_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il grado di candidatura è obbligatorio", path: ["grado_candidatura"] });
+    if (!data.paese_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di candidatura è obbligatorio", path: ["paese_candidatura"] });
+    if (!data.regione_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di candidatura è obbligatoria", path: ["regione_candidatura"] });
+    if (!data.provincia_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di candidatura è obbligatoria", path: ["provincia_candidatura"] });
+    if (!data.comune_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di candidatura è obbligatorio", path: ["comune_candidatura"] });
+    if (data.grado_candidatura === "Nazionale" && !data.aula_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "L'aula è obbligatoria per il grado nazionale", path: ["aula_candidatura"] });
+  }
 }, {
   message: "Compila tutti i campi obbligatori per il tuo ruolo (e l'aula se Nazionale)",
 });
