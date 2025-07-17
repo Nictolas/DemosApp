@@ -7,7 +7,7 @@ import { Loader2, ArrowLeft, MessageSquare, ThumbsUp, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, doc, arrayUnion, increment } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, doc, arrayUnion, increment, arrayRemove } from "firebase/firestore";
 
 interface OpinioneProposta {
   id: string;
@@ -25,6 +25,14 @@ export default function ProponiOpinione() {
   const [testoInput, setTestoInput] = useState("");
   const [userVoti, setUserVoti] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [unlockDate, setUnlockDate] = useState<Date | null>(null);
+  const [showClassifica, setShowClassifica] = useState(false);
+  const [showAdDialog, setShowAdDialog] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
+  const [videoTimer, setVideoTimer] = useState(60);
 
   // Carica opinioni proposte e voti utente direttamente da Firestore
   const loadData = useCallback(async () => {
@@ -40,7 +48,9 @@ export default function ProponiOpinione() {
         proponente: op.proponente || "",
         votanti: op.votanti || [],
       })));
-      setUserVoti(arr.filter(op => (op.votanti || []).includes(user.uid)).map(op => op.id));
+      const mieiVoti = arr.filter(op => (op.votanti || []).includes(user.uid)).map(op => op.id);
+      setUserVoti(mieiVoti);
+      setSelectedVoti(mieiVoti);
     } catch (error) {
       toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
     } finally {
@@ -49,6 +59,103 @@ export default function ProponiOpinione() {
   }, [user, toast]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Blocco settimanale
+  useEffect(() => {
+    if (!user) return;
+    if (user.ruolo === "Admin") {
+      setIsBlocked(false);
+      setUnlockDate(null);
+      return;
+    }
+    const lastEdit = user.lastProponiOpinioneEdit ? new Date(user.lastProponiOpinioneEdit) : null;
+    if (lastEdit) {
+      const now = new Date();
+      const diff = now.getTime() - lastEdit.getTime();
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      if (diff < weekMs) {
+        setIsBlocked(true);
+        setUnlockDate(new Date(lastEdit.getTime() + weekMs));
+      } else {
+        setIsBlocked(false);
+        setUnlockDate(null);
+      }
+    } else {
+      setIsBlocked(false);
+      setUnlockDate(null);
+    }
+  }, [user]);
+
+  // Selezione batch
+  const toggleSelezione = (id: string) => {
+    if (isVoting || isBlocked) return;
+    setSelectedVoti(prev =>
+      prev.includes(id)
+        ? prev.filter(n => n !== id)
+        : [...prev, id]
+    );
+  };
+
+  // Salva batch con dialog di conferma
+  const handleSalvaVoti = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfermaSalva = async () => {
+    setIsVoting(true);
+    setShowConfirmDialog(false);
+    try {
+      // Calcola differenze
+      const daAggiungere = selectedVoti.filter(n => !userVoti.includes(n));
+      const daRimuovere = userVoti.filter(n => !selectedVoti.includes(n));
+      // Aggiungi nuovi voti
+      for (const id of daAggiungere) {
+        const ref = doc(db, "opinioni_proposte", id);
+        await updateDoc(ref, {
+          votanti: arrayUnion(user.uid),
+          voti: increment(1),
+        });
+      }
+      // Rimuovi voti tolti
+      for (const id of daRimuovere) {
+        const ref = doc(db, "opinioni_proposte", id);
+        await updateDoc(ref, {
+          votanti: arrayRemove(user.uid),
+          voti: increment(-1),
+        });
+      }
+      // Aggiorna lastProponiOpinioneEdit
+      const userDocRef = doc(db, "utenti", user.uid);
+      await updateDoc(userDocRef, { lastProponiOpinioneEdit: new Date().toISOString() });
+      toast({ title: "Preferenze salvate", description: "Le tue preferenze sono state aggiornate." });
+      loadData();
+    } catch (error) {
+      toast({ title: "Errore", description: "Errore durante il salvataggio", variant: "destructive" });
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
+  // Pubblicità fittizia prima della classifica
+  const handleShowClassifica = () => {
+    setShowAdDialog(true);
+  };
+  const handleApproveAd = () => {
+    setShowAdDialog(false);
+    setShowVideo(true);
+    setVideoTimer(60);
+    const interval = setInterval(() => {
+      setVideoTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setShowVideo(false);
+          setShowClassifica(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   // Proponi nuova opinione direttamente su Firestore
   const handleProponi = async (e: React.FormEvent) => {
