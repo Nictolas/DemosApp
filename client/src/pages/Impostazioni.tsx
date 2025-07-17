@@ -10,11 +10,17 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { getAuth, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 export default function Impostazioni() {
   const { user, isLoading, logoutMutation } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [reauthDialogOpen, setReauthDialogOpen] = React.useState(false);
+  const [reauthPassword, setReauthPassword] = React.useState("");
+  const [reauthError, setReauthError] = React.useState("");
 
   // Redirect to landing page if not logged in
   if (!user && !isLoading) {
@@ -47,6 +53,56 @@ export default function Impostazioni() {
         variant: "destructive",
       });
       setIsLoggingOut(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    const auth = getAuth();
+    try {
+      await auth.currentUser.delete();
+      toast({
+        title: "Account eliminato",
+        description: "Il tuo profilo è stato eliminato con successo.",
+        variant: "default",
+      });
+      window.location.href = "/";
+    } catch (error: any) {
+      if (error.code === "auth/requires-recent-login") {
+        setReauthDialogOpen(true);
+      } else {
+        toast({
+          title: "Errore",
+          description: error.message || "Si è verificato un errore durante l'eliminazione dell'account.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleReauthenticateAndDelete = async () => {
+    setIsDeleting(true);
+    setReauthError("");
+    const auth = getAuth();
+    try {
+      const credential = EmailAuthProvider.credential(auth.currentUser.email, reauthPassword);
+      await reauthenticateWithCredential(auth.currentUser, credential);
+      await auth.currentUser.delete();
+      toast({
+        title: "Account eliminato",
+        description: "Il tuo profilo è stato eliminato con successo.",
+        variant: "default",
+      });
+      window.location.href = "/";
+    } catch (error: any) {
+      setReauthError(error.message || "Errore durante la reautenticazione.");
+    } finally {
+      setIsDeleting(false);
+      setReauthDialogOpen(false);
+      setReauthPassword("");
     }
   };
 
@@ -219,6 +275,64 @@ export default function Impostazioni() {
                     {isLoggingOut && <Loader2 className="ml-2 h-4 w-4 animate-spin text-red-500" />}
                   </CardContent>
                 </Card>
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                  <DialogTrigger asChild>
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-700 h-full flex">
+                      <CardContent className="p-4 flex items-center gap-3 h-full">
+                        <span className="inline-flex items-center justify-center rounded-full bg-red-100 p-2 mr-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </span>
+                        <div>
+                          <h4 className="font-medium text-red-700">Elimina il mio profilo</h4>
+                          <p className="text-sm text-muted-foreground">Cancella definitivamente il tuo account DEMOS</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Sei sicuro di voler eliminare il tuo profilo?</DialogTitle>
+                      <DialogDescription>
+                        Questa azione è <span className="text-red-700 font-semibold">irreversibile</span>. Tutti i tuoi dati saranno cancellati e non potrai più accedere alla piattaforma con questo account.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Annulla</Button>
+                      </DialogClose>
+                      <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeleting}>
+                        {isDeleting ? "Eliminazione..." : "Elimina definitivamente"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={reauthDialogOpen} onOpenChange={setReauthDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Per motivi di sicurezza, reinserisci la tua password</DialogTitle>
+                      <DialogDescription>
+                        Per eliminare definitivamente il tuo account, devi autenticarti nuovamente.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <input
+                      type="password"
+                      className="w-full border rounded px-3 py-2 mt-2"
+                      placeholder="Password"
+                      value={reauthPassword}
+                      onChange={e => setReauthPassword(e.target.value)}
+                      disabled={isDeleting}
+                    />
+                    {reauthError && <div className="text-red-600 text-sm mt-2">{reauthError}</div>}
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Annulla</Button>
+                      </DialogClose>
+                      <Button variant="destructive" onClick={handleReauthenticateAndDelete} disabled={isDeleting || !reauthPassword}>
+                        {isDeleting ? "Eliminazione..." : "Elimina definitivamente"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
           </CardContent>
