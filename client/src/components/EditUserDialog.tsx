@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
 import { EditProfileForm } from "./EditProfileForm";
+import { apiRequest } from "@/lib/queryClient";
 
 interface EditUserDialogProps {
   userEmail: string;
@@ -34,7 +35,7 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
 
     try {
       // Carica i dati tramite API usando l'uid
-      const response = await fetch(`/api/users/${encodeURIComponent(userUid)}`);
+      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(userUid)}`);
       if (!response.ok) {
         throw new Error("Errore nel caricamento dei dati dell'utente");
       }
