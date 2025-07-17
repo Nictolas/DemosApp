@@ -10,9 +10,6 @@ export default function LandingPage() {
   const { user, isLoading } = useAuth();
   
   // Redirect to menu if user is authenticated
-  if (user && !isLoading) {
-    return <Redirect to="/menu" />;
-  }
 
   // Show loading indicator while checking auth state
   if (isLoading) {
