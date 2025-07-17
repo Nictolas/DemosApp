@@ -217,6 +217,19 @@ export default function Grazia() {
       .slice(0, 5);
   };
 
+  // Nuova funzione per aggiungere un nome solo localmente
+  const handleAddNomeLocal = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nomePulito = nomeInput.trim();
+    if (!nomePulito) return;
+    if (selectedVoti.includes(nomePulito)) {
+      toast({ title: "Voto già selezionato", description: `Hai già selezionato ${nomePulito}` });
+      return;
+    }
+    setSelectedVoti(prev => [...prev, nomePulito]);
+    setNomeInput("");
+  };
+
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
@@ -247,7 +260,7 @@ export default function Grazia() {
                 <CardDescription>Inserisci il nome del carcerato per cui vuoi chiedere la grazia.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleVote} className="space-y-4">
+                <form onSubmit={handleAddNomeLocal} className="space-y-4">
                   <div className="flex space-x-2">
                     <div className="flex-1 relative">
                       <Input
