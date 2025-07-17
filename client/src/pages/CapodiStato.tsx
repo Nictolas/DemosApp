@@ -426,7 +426,7 @@ export default function CapodiStato() {
                       </DialogContent>
                     </Dialog>
                   </div>
-                ) :
+                ) : (
                   classifica.length > 0 ? (
                     <div className="space-y-3">
                       {classifica.map((candidato, index) => {
