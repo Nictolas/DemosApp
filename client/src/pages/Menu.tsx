@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db, auth } from "@/lib/firebase";
 import appIcon from '/icona.png';
 import { apiRequest } from "@/lib/queryClient";
+import AdSenseBanner from "@/components/AdSenseBanner";
 
 export default function Menu() {
   const authReady = useAuthReady();
@@ -230,6 +231,7 @@ export default function Menu() {
               )}
             </CardContent>
           </Card>
+          <AdSenseBanner />
         </div>
       )}
     </div>
