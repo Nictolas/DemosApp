@@ -160,17 +160,19 @@ export default function Impostazioni() {
                 Informazioni e Privacy
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-l-4 border-l-purple-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-purple-500" />
-                      <div>
-                        <h4 className="font-medium">Privacy Policy</h4>
-                        <p className="text-sm text-muted-foreground">Leggi la nostra privacy policy</p>
+                <Link href="/privacy-policy">
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-purple-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-purple-500" />
+                        <div>
+                          <h4 className="font-medium">Privacy Policy</h4>
+                          <p className="text-sm text-muted-foreground">Leggi la nostra privacy policy</p>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
                 <Link href="/informazioni">
                   <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500 h-full flex">
                     <CardContent className="p-4 flex items-center gap-3 h-full">

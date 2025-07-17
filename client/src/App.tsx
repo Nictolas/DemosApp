@@ -67,6 +67,7 @@ import Scadenze from "@/pages/Scadenze";
 import Sondaggi from "@/pages/Sondaggi";
 import ResetPasswordPage from "@/pages/reset-password";
 import Informazioni from "@/pages/Informazioni";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
 function Router() {
   const [location] = useLocation();
@@ -523,6 +524,13 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <Informazioni />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/privacy-policy">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <PrivacyPolicy />
           </PageTransition>
         )}
       </Route>
