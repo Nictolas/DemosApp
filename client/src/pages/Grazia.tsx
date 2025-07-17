@@ -297,14 +297,14 @@ export default function Grazia() {
                   <div className="mt-4">
                     <h4 className="text-sm font-semibold mb-2">Le tue richieste di grazia:</h4>
                     <div className="flex flex-wrap gap-2">
-                      {userVoti.map((voto, index) => (
-                        <Badge 
-                          key={index} 
+                      {selectedVoti.map((voto, index) => (
+                        <Badge
+                          key={index}
                           variant="default"
                           className="cursor-pointer hover:bg-destructive/90 transition-colors flex items-center gap-2"
-                          onClick={() => removeVote(voto)}
+                          onClick={() => setSelectedVoti(prev => prev.filter(n => n !== voto))}
                         >
-                          {deletingVote === voto ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                          <X className="h-3 w-3" />
                           {voto}
                         </Badge>
                       ))}
