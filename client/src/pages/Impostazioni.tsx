@@ -16,9 +16,9 @@ export default function Impostazioni() {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const { toast } = useToast();
 
-  // Redirect to auth page if not logged in
+  // Redirect to landing page if not logged in
   if (!user && !isLoading) {
-    return <Redirect to="/auth" />;
+    return <Redirect to="/" />;
   }
 
   if (isLoading) {
