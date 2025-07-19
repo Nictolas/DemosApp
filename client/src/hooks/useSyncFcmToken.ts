@@ -11,8 +11,9 @@ export function useSyncFcmToken() {
   useEffect(() => {
     if (user && fcmToken) {
       const userRef = doc(db, "utenti", user.uid);
-      updateDoc(userRef, { fcmToken }).catch((err) => {
-        console.error("Errore aggiornamento fcmToken su Firestore:", err);
+      // Sovrascrive l’array con SOLO il token attivo
+      updateDoc(userRef, { fcmTokens: [fcmToken] }).catch((err) => {
+        console.error("Errore aggiornamento fcmTokens su Firestore:", err);
       });
     }
   }, [user, fcmToken]);
