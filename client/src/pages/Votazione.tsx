@@ -245,17 +245,12 @@ export default function Votazione() {
                   </div>
                   <div>
                     <span className="font-medium text-sm">Risultato:</span>
-                    <Badge 
-                      variant="outline" 
-                      className={`ml-2 ${
-                        ultimaComunicazione.vincitore === "Favorevole" 
-                          ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                          : ultimaComunicazione.vincitore === "Contrario"
-                          ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                          : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
-                      }`}
-                    >
-                      {ultimaComunicazione.vincitore}
+                    <Badge variant="outline" className={`ml-2 ${
+                      ultimaComunicazione.vincitore === "Favorevole"
+                        ? "bg-green-500 text-white border-green-500"
+                        : "bg-red-500 text-white border-red-500"
+                    }`}>
+                      {ultimaComunicazione.vincitore === "Favorevole" ? "Approvata" : "Respinta"}
                     </Badge>
                   </div>
                 </div>
@@ -405,9 +400,9 @@ export default function Votazione() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Favorevole">Favorevole</SelectItem>
-                          <SelectItem value="Contrario">Contrario</SelectItem>
-                          <SelectItem value="Astenuto">Astenuto</SelectItem>
+                          <SelectItem value="Favorevole">Approvata</SelectItem>
+                          <SelectItem value="Contrario">Respinta</SelectItem>
+                          <SelectItem value="Astenuto">Respinta</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
