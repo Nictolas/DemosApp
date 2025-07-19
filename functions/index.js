@@ -46,8 +46,8 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
 
   const payload = {
     notification: {
-      title: titoloVotazione,
-      body: `${rappresentanteNome} ${rappresentanteCognome} ha votato: ${votoDato}. Esito: ${esito}`
+      title: `${titoloVotazione} - ${rappresentanteNome} ${rappresentanteCognome} ha votato: ${votoDato}. Esito: ${esito}`,
+      body: ""
     },
     tokens: tokens
   };
