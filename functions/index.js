@@ -36,13 +36,21 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
 
   if (tokens.length === 0) return;
 
+  // Prepara il payload come richiesto
+  const rappresentanteNome = comunicazione.nome || "";
+  const rappresentanteCognome = comunicazione.cognome || "";
+  const votoDato = comunicazione.voto_dato || "";
+  const esito = comunicazione.vincitore === "Approvata" ? "Approvata" : "Respinta";
+  const titoloVotazione = comunicazione.titolo || "Nuova comunicazione";
+
   const payload = {
     notification: {
-      title: comunicazione.titolo || "Nuova comunicazione",
-      body: comunicazione.nome + ": " + (comunicazione.vincitore || "Nuovo messaggio"),
+      title: titoloVotazione,
+      body: `${rappresentanteNome} ${rappresentanteCognome} ha votato: ${votoDato}. Esito: ${esito}`
     },
     tokens: tokens
   };
+  console.log("Payload notifica:", JSON.stringify(payload));
 
   try {
     const messaging = getMessaging();
