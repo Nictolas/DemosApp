@@ -357,8 +357,24 @@ export default function Notifiche() {
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-2 mb-1 text-sm">
-                            <span>Ha votato: <Badge variant="outline">{ultima.voto_dato || "-"}</Badge></span>
-                            <span>Ha vinto: <Badge variant="outline">{ultima.vincitore || "-"}</Badge></span>
+                            <span>Ha votato: <Badge variant="outline" className={`ml-2 ${
+                              ultima.voto_dato === "Favorevole"
+                                ? "bg-green-500 text-white border-green-500"
+                                : ultima.voto_dato === "Contrario"
+                                ? "bg-red-500 text-white border-red-500"
+                                : ultima.voto_dato === "Astenuto"
+                                ? "bg-yellow-400 text-white border-yellow-400"
+                                : ""
+                            }`}>{ultima.voto_dato || "-"}</Badge></span>
+                            <span>Ha vinto: <Badge variant="outline" className={`ml-2 ${
+                              ultima.vincitore === "Favorevole"
+                                ? "bg-green-500 text-white border-green-500"
+                                : ultima.vincitore === "Contrario"
+                                ? "bg-red-500 text-white border-red-500"
+                                : ultima.vincitore === "Astenuto"
+                                ? "bg-yellow-400 text-white border-yellow-400"
+                                : ""
+                            }`}>{ultima.vincitore || "-"}</Badge></span>
                           </div>
                           {ultima.commento && (
                             <div className="mb-1 text-sm text-muted-foreground">Commento: <span className="italic">{ultima.commento}</span></div>
@@ -612,10 +628,12 @@ export default function Notifiche() {
                             variant="outline" 
                             className={`ml-2 ${
                               comunicazione.voto_dato === "Favorevole" 
-                                ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                                ? "bg-green-500 text-white border-green-500"
                                 : comunicazione.voto_dato === "Contrario"
-                                ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                                : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                                ? "bg-red-500 text-white border-red-500"
+                                : comunicazione.voto_dato === "Astenuto"
+                                ? "bg-yellow-400 text-white border-yellow-400"
+                                : ""
                             }`}
                           >
                             {comunicazione.voto_dato}
@@ -627,10 +645,12 @@ export default function Notifiche() {
                             variant="outline" 
                             className={`ml-2 ${
                               comunicazione.vincitore === "Favorevole" 
-                                ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                                ? "bg-green-500 text-white border-green-500"
                                 : comunicazione.vincitore === "Contrario"
-                                ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                                : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                                ? "bg-red-500 text-white border-red-500"
+                                : comunicazione.vincitore === "Astenuto"
+                                ? "bg-yellow-400 text-white border-yellow-400"
+                                : ""
                             }`}
                           >
                             {comunicazione.vincitore}
