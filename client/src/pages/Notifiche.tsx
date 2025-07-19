@@ -288,6 +288,7 @@ export default function Notifiche() {
             {rappresentantiKeys.map(({ label, key, color }) => {
               const rappresentanteId = user?.[key];
               const ultima = getUltimaComunicazione(rappresentanteId);
+              const rappresentante = rappresentanteId ? utentiMap?.[rappresentanteId] : null;
               return (
                 <Card key={key} className="shadow-md w-full">
                   <CardHeader className="flex flex-row items-center gap-2">
@@ -298,12 +299,26 @@ export default function Notifiche() {
                     {rappresentanteId ? (
                       ultima ? (
                         <div>
-                          <div className="font-semibold mb-1">{ultima.titolo}</div>
-                          <div className="text-sm text-muted-foreground mb-2">{ultima.vincitore || ultima.commento || "Nuova comunicazione"}</div>
+                          <div className="flex items-center gap-2 mb-2">
+                            {rappresentante && (
+                              <CustomAvatar user={rappresentante} size={32} />
+                            )}
+                            <span className="font-semibold">
+                              {rappresentante?.nome || "Rappresentante"} ha comunicato una votazione: {ultima.titolo}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mb-1 text-sm">
+                            <span>Ha votato: <Badge variant="outline">{ultima.voto_dato || "-"}</Badge></span>
+                            <span>Ha vinto: <Badge variant="outline">{ultima.vincitore || "-"}</Badge></span>
+                          </div>
+                          {ultima.commento && (
+                            <div className="mb-1 text-sm text-muted-foreground">Commento: <span className="italic">{ultima.commento}</span></div>
+                          )}
                           <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
                             <Clock className="w-4 h-4" />
                             {ultima.data_creazione ? formatDistanceToNow(new Date(ultima.data_creazione), { addSuffix: true, locale: it }) : ""}
                           </div>
+                          <div className="mb-1 text-sm">Cosa ne pensi di questa decisione?</div>
                           <div className="flex gap-2">
                             <Button size="sm" variant="ghost" onClick={() => handleReaction(ultima.id, "like")} disabled={processingReaction === ultima.id}>
                               <ThumbsUp className="w-4 h-4 mr-1" /> Mi piace
