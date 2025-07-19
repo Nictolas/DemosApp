@@ -300,8 +300,10 @@ export default function Notifiche() {
                       ultima ? (
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            {rappresentante && (
-                              <CustomAvatar user={rappresentante} size={32} />
+                            {rappresentante && rappresentante.avatar_config ? (
+                              <CustomAvatar config={JSON.parse(rappresentante.avatar_config)} size={32} className="mr-2" />
+                            ) : (
+                              <User className="h-8 w-8 text-blue-600 mr-2" />
                             )}
                             <span className="font-semibold">
                               {(rappresentante?.nome && rappresentante?.cognome)
