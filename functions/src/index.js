@@ -8,7 +8,7 @@ exports.sendComunicazioneNotification = onDocumentCreated("comunicazioni/{comId}
   const rappresentanteCognome = comunicazione.cognome;
   const titolo = comunicazione.titolo;
   const votoDato = comunicazione.voto_dato;
-  const vincitore = comunicazione.vincitore;
+  const esito = comunicazione.vincitore === "Approvata" ? "Promossa" : "Respinta";
   const comunicazioneId = event.params.comId;
   const tema = comunicazione.tema || null;
 
@@ -52,27 +52,23 @@ exports.sendComunicazioneNotification = onDocumentCreated("comunicazioni/{comId}
     console.log("Nessun token FCM trovato. Nessuna notifica inviata.");
     return null;
   }
+  // Elimina duplicati
+  const uniqueTokens = [...new Set(tokens)];
   const payload = {
     notification: {
-      title: `Nuova comunicazione da ${rappresentanteNome} ${rappresentanteCognome}`,
-      body: `${titolo} - Voto: ${votoDato}`,
+      title: `${rappresentanteNome} ${rappresentanteCognome} ${votoDato}`,
+      body: `${titolo}\nEsito: ${esito}`,
     },
-    data: {
-      type: "comunicazione",
-      comunicazioneId,
-      rappresentanteId,
-      votoDato,
-      vincitore,
-    },
+    tokens: uniqueTokens
   };
   try {
-    console.log("Invio notifica a:", tokens);
+    console.log("Invio notifica a:", uniqueTokens);
     const response = await admin.messaging().sendMulticast({
-      tokens,
+      tokens: uniqueTokens,
       ...payload,
     });
     console.log(
-      `Notifiche inviate: ${response.successCount}/${tokens.length}`,
+      `Notifiche inviate: ${response.successCount}/${uniqueTokens.length}`,
       response.responses
     );
   } catch (error) {
