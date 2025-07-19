@@ -20,23 +20,6 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
   const idUtente = comunicazione.id_utente;
   if (!idUtente) return;
 
-  const utentiSnapshot = await db.collection("utenti").get();
-  if (utentiSnapshot.empty) return;
-
-  const tokens = [];
-  utentiSnapshot.forEach(doc => {
-    const data = doc.data();
-    if (
-      data.rappresentante_comunale === idUtente ||
-      data.rappresentante_europeo === idUtente ||
-      data.rappresentante_regionale === idUtente
-    ) {
-      if (data.fcmToken) tokens.push(data.fcmToken);
-    }
-  });
-
-  if (tokens.length === 0) return;
-
   // Prepara il payload come richiesto
   const rappresentanteNome = comunicazione.nome || "";
   const rappresentanteCognome = comunicazione.cognome || "";
@@ -44,6 +27,28 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
   const esito = comunicazione.vincitore === "Approvata" ? "Approvata" : "Respinta";
   const titoloVotazione = comunicazione.titolo || "Nuova comunicazione";
 
+  // 2. Prendi tutti gli utenti che hanno scelto questo rappresentante
+  const utentiSnapshot = await db.collection("utenti").get();
+  let tokens = [];
+  utentiSnapshot.forEach(doc => {
+    const data = doc.data();
+    const rappresentantiScelti = [
+      data.rappresentante_europeo,
+      data.rappresentante_camera,
+      data.rappresentante_senato,
+      data.rappresentante_regionale,
+      data.rappresentante_comunale,
+    ].filter(Boolean);
+    if (rappresentantiScelti.includes(idUtente)) {
+      // Supporta sia fcmToken singolo che array fcmTokens
+      if (Array.isArray(data.fcmTokens)) {
+        tokens = tokens.concat(data.fcmTokens);
+      } else if (data.fcmToken) {
+        tokens.push(data.fcmToken);
+      }
+    }
+  });
+  if (tokens.length === 0) return;
   // Elimina duplicati
   const uniqueTokens = [...new Set(tokens)];
   const payload = {
@@ -56,8 +61,35 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
   console.log("Payload notifica:", JSON.stringify(payload));
   try {
     const messaging = getMessaging();
-    await messaging.sendEachForMulticast(payload);
+    const response = await messaging.sendEachForMulticast(payload);
     console.log("Notifica inviata a:", uniqueTokens.length, "utenti");
+    // Rimuovi token non validi
+    const failedTokens = [];
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success) {
+        failedTokens.push(uniqueTokens[idx]);
+      }
+    });
+    if (failedTokens.length > 0) {
+      // Rimuovi i token non validi da tutti gli utenti che li hanno
+      const batch = db.batch();
+      utentiSnapshot.forEach(doc => {
+        const data = doc.data();
+        const ref = doc.ref;
+        if (Array.isArray(data.fcmTokens)) {
+          const toRemove = failedTokens.filter(t => data.fcmTokens.includes(t));
+          if (toRemove.length > 0) {
+            batch.update(ref, {
+              fcmTokens: admin.firestore.FieldValue.arrayRemove(...toRemove)
+            });
+          }
+        } else if (data.fcmToken && failedTokens.includes(data.fcmToken)) {
+          batch.update(ref, { fcmToken: admin.firestore.FieldValue.delete() });
+        }
+      });
+      await batch.commit();
+      console.log("Token FCM non validi rimossi:", failedTokens);
+    }
   } catch (err) {
     console.error("Errore invio notifica:", err);
   }
