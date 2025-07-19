@@ -40,12 +40,11 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
       data.rappresentante_comunale,
     ].filter(Boolean);
     if (rappresentantiScelti.includes(idUtente)) {
-      // Supporta sia fcmToken singolo che array fcmTokens
       if (Array.isArray(data.fcmTokens)) {
         tokens = tokens.concat(data.fcmTokens);
-      } else if (data.fcmToken) {
-        tokens.push(data.fcmToken);
+        console.log(`Token FCM per utente ${doc.id}:`, data.fcmTokens);
       }
+      // NON aggiungo più data.fcmToken singolo!
     }
   });
   if (tokens.length === 0) return;
@@ -83,8 +82,6 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
               fcmTokens: admin.firestore.FieldValue.arrayRemove(...toRemove)
             });
           }
-        } else if (data.fcmToken && failedTokens.includes(data.fcmToken)) {
-          batch.update(ref, { fcmToken: admin.firestore.FieldValue.delete() });
         }
       });
       await batch.commit();
