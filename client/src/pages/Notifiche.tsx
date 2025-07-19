@@ -279,17 +279,17 @@ export default function Notifiche() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Notifiche</h1>
             <p className="text-muted-foreground">Le tue ultime notifiche dai rappresentanti scelti</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="flex flex-col gap-6 mb-8">
             {rappresentantiKeys.map(({ label, key, color }) => {
               const rappresentanteId = user?.[key];
               const ultima = getUltimaComunicazione(rappresentanteId);
               return (
-                <Card key={key} className="shadow-md">
+                <Card key={key} className="shadow-md w-full">
                   <CardHeader className="flex flex-row items-center gap-2">
                     <span className={`inline-block w-3 h-3 rounded-full ${color}`}></span>
                     <CardTitle className="text-lg">{label}</CardTitle>
@@ -317,8 +317,8 @@ export default function Notifiche() {
                         <div className="text-sm text-muted-foreground">Nessuna comunicazione recente.</div>
                       )
                     ) : (
-                      <Button href="/rappresentanti" asChild variant="outline" className="w-full mt-2">
-                        <a>Scegli Rappresentante</a>
+                      <Button asChild variant="outline" className="w-full mt-2">
+                        <a href="/rappresentanti">Scegli Rappresentante</a>
                       </Button>
                     )}
                   </CardContent>
