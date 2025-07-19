@@ -17,6 +17,18 @@ import { CustomAvatar } from "@/components/CustomAvatar";
 import { auth } from "@/lib/firebase";
 import { NotificationTest } from "@/components/NotificationTest";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Notifica {
   id: string;
@@ -48,6 +60,15 @@ export default function Notifiche() {
     nazionale: true,
     regionale: true,
     comunale: true,
+  });
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    comunicazioneId: string | null;
+    reaction: "like" | "dislike" | null;
+  }>({ open: false, comunicazioneId: null, reaction: null });
+  const [dontShowAgain, setDontShowAgain] = useState<boolean>(false);
+  const [skipConfirm, setSkipConfirm] = useState<boolean>(() => {
+    return localStorage.getItem("skipLikeDislikeConfirm") === "true";
   });
 
   useEffect(() => {
@@ -205,6 +226,29 @@ export default function Notifiche() {
     }
   };
 
+  const handleReactionClick = (comunicazioneId: string, reaction: "like" | "dislike") => {
+    if (skipConfirm) {
+      handleReaction(comunicazioneId, reaction);
+    } else {
+      setConfirmDialog({ open: true, comunicazioneId, reaction });
+    }
+  };
+  const handleConfirm = () => {
+    if (confirmDialog.comunicazioneId && confirmDialog.reaction) {
+      handleReaction(confirmDialog.comunicazioneId, confirmDialog.reaction);
+      if (dontShowAgain) {
+        setSkipConfirm(true);
+        localStorage.setItem("skipLikeDislikeConfirm", "true");
+      }
+    }
+    setConfirmDialog({ open: false, comunicazioneId: null, reaction: null });
+    setDontShowAgain(false);
+  };
+  const handleCancel = () => {
+    setConfirmDialog({ open: false, comunicazioneId: null, reaction: null });
+    setDontShowAgain(false);
+  };
+
   const getReactionColor = (reaction: string | null) => {
     switch (reaction) {
       case "like":
@@ -325,10 +369,22 @@ export default function Notifiche() {
                           </div>
                           <div className="mb-1 text-sm">Cosa ne pensi di questa decisione?</div>
                           <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleReaction(ultima.id, "like")} disabled={processingReaction === ultima.id}>
+                            <Button
+                              size="sm"
+                              variant={ultima.user_reaction === "like" ? "success" : "ghost"}
+                              className={ultima.user_reaction === "like" ? "bg-green-500 text-white" : ""}
+                              onClick={() => handleReactionClick(ultima.id, "like")}
+                              disabled={processingReaction === ultima.id || !!ultima.user_reaction}
+                            >
                               <ThumbsUp className="w-4 h-4 mr-1" /> Mi piace
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleReaction(ultima.id, "dislike")} disabled={processingReaction === ultima.id}>
+                            <Button
+                              size="sm"
+                              variant={ultima.user_reaction === "dislike" ? "destructive" : "ghost"}
+                              className={ultima.user_reaction === "dislike" ? "bg-red-500 text-white" : ""}
+                              onClick={() => handleReactionClick(ultima.id, "dislike")}
+                              disabled={processingReaction === ultima.id || !!ultima.user_reaction}
+                            >
                               <ThumbsDown className="w-4 h-4 mr-1" /> Non mi piace
                             </Button>
                           </div>
@@ -638,6 +694,25 @@ export default function Notifiche() {
           )}
         </div>
       </div>
+      {/* Dialog di conferma */}
+      <AlertDialog open={confirmDialog.open}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma la tua scelta</AlertDialogTitle>
+            <AlertDialogDescription>
+              Una volta cliccato, non potrai più modificare il voto. Sei sicuro di voler procedere?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center gap-2 mb-2">
+            <Checkbox id="dontShowAgain" checked={dontShowAgain} onCheckedChange={setDontShowAgain} />
+            <label htmlFor="dontShowAgain" className="text-sm select-none cursor-pointer">Non ripetermelo più</label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancel}>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirm}>Procedi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
