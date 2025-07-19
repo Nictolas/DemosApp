@@ -303,11 +303,11 @@ export default function Notifiche() {
 
   // Mappa ruolo -> chiave rappresentante utente
   const rappresentantiKeys = [
-    { label: "Eurodeputato", key: "rappresentante_europeo", color: "bg-blue-200" },
-    { label: "Deputato", key: "rappresentante_camera", color: "bg-green-200" },
-    { label: "Senatore", key: "rappresentante_senato", color: "bg-yellow-200" },
-    { label: "Consigliere Regionale", key: "rappresentante_regionale", color: "bg-purple-200" },
-    { label: "Consigliere Comunale", key: "rappresentante_comunale", color: "bg-pink-200" },
+    { label: "Eurodeputato", key: "rappresentante_europeo", color: "bg-blue-200", url: "https://www.demos.community/scegli-rappresentante/europeo" },
+    { label: "Deputato", key: "rappresentante_camera", color: "bg-green-200", url: "https://www.demos.community/scegli-rappresentante/camera" },
+    { label: "Senatore", key: "rappresentante_senato", color: "bg-yellow-200", url: "https://www.demos.community/scegli-rappresentante/senato" },
+    { label: "Consigliere Regionale", key: "rappresentante_regionale", color: "bg-purple-200", url: "https://www.demos.community/scegli-rappresentante/regione" },
+    { label: "Consigliere Comunale", key: "rappresentante_comunale", color: "bg-pink-200", url: "https://www.demos.community/scegli-rappresentante/comune" },
   ];
 
   // Funzione per trovare l'ultima comunicazione per rappresentante
@@ -329,7 +329,7 @@ export default function Notifiche() {
             <p className="text-muted-foreground">Le tue ultime notifiche dai rappresentanti scelti</p>
           </div>
           <div className="flex flex-col gap-6 mb-8">
-            {rappresentantiKeys.map(({ label, key, color }) => {
+            {rappresentantiKeys.map(({ label, key, color, url }) => {
               const rappresentanteId = user?.[key];
               const ultima = getUltimaComunicazione(rappresentanteId);
               const rappresentante = rappresentanteId ? utentiMap?.[rappresentanteId] : null;
@@ -410,7 +410,7 @@ export default function Notifiche() {
                       )
                     ) : (
                       <Button asChild variant="outline" className="w-full mt-2">
-                        <a href="/rappresentanti">Scegli Rappresentante</a>
+                        <a href={url} target="_blank" rel="noopener noreferrer">Scegli Rappresentante</a>
                       </Button>
                     )}
                   </CardContent>
