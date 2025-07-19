@@ -60,10 +60,11 @@ exports.sendComunicazioneNotification = onDocumentCreated("comunicazioni/{comId}
   const payload = {
     notification: {
       title: titoloVotazione,
-      body: `${rappresentante} ha votato: ${voto}. Esito: ${esito}`
+      body: `${rappresentanteNome} ${rappresentanteCognome} ha votato: ${votoDato}. Esito: ${esito}`
     },
     tokens: uniqueTokens
   };
+  console.log("Payload notifica:", JSON.stringify(payload));
   try {
     console.log("Invio notifica a:", uniqueTokens);
     const response = await admin.messaging().sendMulticast({
