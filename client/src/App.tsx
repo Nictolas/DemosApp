@@ -68,6 +68,7 @@ import Sondaggi from "@/pages/Sondaggi";
 import ResetPasswordPage from "@/pages/reset-password";
 import Informazioni from "@/pages/Informazioni";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
 
 function Router() {
   const [location] = useLocation();
@@ -546,6 +547,7 @@ function Router() {
 }
 
 function App() {
+  useSyncFcmToken();
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
