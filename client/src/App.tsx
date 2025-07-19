@@ -546,12 +546,17 @@ function Router() {
   );
 }
 
-function App() {
+function SyncFcmTokenWrapper() {
   useSyncFcmToken();
+  return null;
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RegistrationProvider>
+          <SyncFcmTokenWrapper />
           <Router />
           <Toaster />
         </RegistrationProvider>
