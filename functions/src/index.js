@@ -60,7 +60,7 @@ exports.sendComunicazioneNotification = onDocumentCreated("comunicazioni/{comId}
   const payload = {
     notification: {
       title: titoloVotazione,
-      body: `${rappresentante}: ${voto}. Esito: ${esito}`
+      body: `${rappresentante} ha votato: ${voto}. Esito: ${esito}`
     },
     tokens: uniqueTokens
   };
