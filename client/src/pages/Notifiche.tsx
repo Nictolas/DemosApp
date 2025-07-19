@@ -304,7 +304,10 @@ export default function Notifiche() {
                               <CustomAvatar user={rappresentante} size={32} />
                             )}
                             <span className="font-semibold">
-                              {rappresentante?.nome || "Rappresentante"} ha comunicato una votazione: {ultima.titolo}
+                              {(rappresentante?.nome && rappresentante?.cognome)
+                                ? `${rappresentante.nome} ${rappresentante.cognome}`
+                                : "Rappresentante"}
+                              {" ha comunicato una votazione: "}{ultima.titolo}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-2 mb-1 text-sm">
