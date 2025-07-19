@@ -54,10 +54,11 @@ exports.sendComunicazioneNotification = onDocumentCreated("comunicazioni/{comId}
   }
   // Elimina duplicati
   const uniqueTokens = [...new Set(tokens)];
+  const titoloVotazione = comunicazione.titolo; // es: "test15"
   const payload = {
     notification: {
-      title: `${rappresentanteNome} ${rappresentanteCognome} ${votoDato}`,
-      body: `${titolo}\nEsito: ${esito}`,
+      title: `${titoloVotazione} - ${rappresentanteNome} ${rappresentanteCognome}: ${votoDato}. Esito: ${esito}`,
+      body: ""
     },
     tokens: uniqueTokens
   };
