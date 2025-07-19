@@ -367,12 +367,10 @@ export default function Notifiche() {
                                 : ""
                             }`}>{ultima.voto_dato || "-"}</Badge></span>
                             <span>Ha vinto: <Badge variant="outline" className={`ml-2 ${
-                              ultima.vincitore === "Favorevole"
+                              ultima.vincitore === "Approvata"
                                 ? "bg-green-500 text-white border-green-500"
-                                : ultima.vincitore === "Contrario"
+                                : ultima.vincitore === "Respinta"
                                 ? "bg-red-500 text-white border-red-500"
-                                : ultima.vincitore === "Astenuto"
-                                ? "bg-yellow-400 text-white border-yellow-400"
                                 : ""
                             }`}>{ultima.vincitore || "-"}</Badge></span>
                           </div>
