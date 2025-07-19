@@ -24,8 +24,8 @@ const comunicaSchema = z.object({
     required_error: "Seleziona il tuo voto",
   }),
   commento: z.string().max(20, "Il commento non può superare i 20 caratteri").optional(),
-  vincitore: z.enum(["Favorevole", "Contrario", "Astenuto"], {
-    required_error: "Seleziona il vincitore",
+  vincitore: z.enum(["Approvata", "Respinta"], {
+    required_error: "Seleziona il risultato",
   }),
 });
 
@@ -246,11 +246,11 @@ export default function Votazione() {
                   <div>
                     <span className="font-medium text-sm">Risultato:</span>
                     <Badge variant="outline" className={`ml-2 ${
-                      ultimaComunicazione.vincitore === "Favorevole"
+                      ultimaComunicazione.vincitore === "Approvata"
                         ? "bg-green-500 text-white border-green-500"
                         : "bg-red-500 text-white border-red-500"
                     }`}>
-                      {ultimaComunicazione.vincitore === "Favorevole" ? "Approvata" : "Respinta"}
+                      {ultimaComunicazione.vincitore}
                     </Badge>
                   </div>
                 </div>
@@ -400,9 +400,8 @@ export default function Votazione() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Favorevole">Approvata</SelectItem>
-                          <SelectItem value="Contrario">Respinta</SelectItem>
-                          <SelectItem value="Astenuto">Respinta</SelectItem>
+                          <SelectItem value="Approvata">Approvata</SelectItem>
+                          <SelectItem value="Respinta">Respinta</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
