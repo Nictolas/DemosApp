@@ -40,16 +40,16 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
       data.rappresentante_comunale,
     ].filter(Boolean);
     if (rappresentantiScelti.includes(idUtente)) {
-      if (Array.isArray(data.fcmTokens)) {
-        tokens = tokens.concat(data.fcmTokens);
-        console.log(`Token FCM per utente ${doc.id}:`, data.fcmTokens);
+      if (Array.isArray(data.fcmTokens) && data.fcmTokens.length > 0) {
+        // Prendi solo il primo token valido per ogni utente
+        tokens.push(data.fcmTokens[0]);
+        console.log(`Token FCM (primo) per utente ${doc.id}:`, data.fcmTokens[0]);
       }
-      // NON aggiungo più data.fcmToken singolo!
     }
   });
-  if (tokens.length === 0) return;
-  // Elimina duplicati
+  // Elimina eventuali duplicati (in teoria non dovrebbero esserci)
   const uniqueTokens = [...new Set(tokens)];
+  if (uniqueTokens.length === 0) return;
   const payload = {
     notification: {
       title: titoloVotazione,
@@ -57,7 +57,7 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
     },
     tokens: uniqueTokens
   };
-  console.log("Payload notifica:", JSON.stringify(payload));
+  console.log("Payload notifica (imbuto, solo un token per utente):", JSON.stringify(payload));
   try {
     const messaging = getMessaging();
     const response = await messaging.sendEachForMulticast(payload);
