@@ -29,6 +29,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Notifica {
   id: string;
@@ -70,6 +71,24 @@ export default function Notifiche() {
   const [skipConfirm, setSkipConfirm] = useState<boolean>(() => {
     return localStorage.getItem("skipLikeDislikeConfirm") === "true";
   });
+
+  // 1. Funzione per calcolare la data limite (3 giorni fa)
+  function getDataLimite() {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    return d.toISOString();
+  }
+
+  // 2. Stato per dialog e dettagli
+  const [dialogNotificaId, setDialogNotificaId] = useState<string | null>(null);
+  const [dettagliNotifica, setDettagliNotifica] = useState<any | null>(null);
+
+  // 3. Funzione per caricare dettagli solo al click
+  async function fetchDettagliNotifica(id: string) {
+    setDettagliNotifica(null);
+    const snap = await getDoc(doc(db, "comunicazioni", id));
+    setDettagliNotifica(snap.data());
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -331,7 +350,11 @@ export default function Notifiche() {
           <div className="flex flex-col gap-6 mb-8">
             {rappresentantiKeys.map(({ label, key, color, url }) => {
               const rappresentanteId = user?.[key];
-              const ultima = getUltimaComunicazione(rappresentanteId);
+              // Filtra solo le ultime 3 notifiche degli ultimi 3 giorni
+              const anteprime = comunicazioni
+                .filter(c => c.id_utente === rappresentanteId && c.data_creazione > getDataLimite())
+                .sort((a, b) => (b.data_creazione || "").localeCompare(a.data_creazione || ""))
+                .slice(0, 3);
               const rappresentante = rappresentanteId ? utentiMap?.[rappresentanteId] : null;
               return (
                 <Card key={key} className="shadow-md w-full">
@@ -341,67 +364,28 @@ export default function Notifiche() {
                   </CardHeader>
                   <CardContent>
                     {rappresentanteId ? (
-                      ultima ? (
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            {rappresentante && rappresentante.avatar_config ? (
-                              <CustomAvatar config={JSON.parse(rappresentante.avatar_config)} size={32} className="mr-2" />
-                            ) : (
-                              <User className="h-8 w-8 text-blue-600 mr-2" />
-                            )}
-                            <span className="font-semibold">
-                              {(rappresentante?.nome && rappresentante?.cognome)
-                                ? `${rappresentante.nome} ${rappresentante.cognome}`
-                                : "Rappresentante"}
-                              {" ha comunicato una votazione: "}{ultima.titolo}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mb-1 text-sm">
-                            <span>Ha votato: <Badge variant="outline" className={`ml-2 ${
-                              ultima.voto_dato === "Favorevole"
-                                ? "bg-green-500 text-white border-green-500"
-                                : ultima.voto_dato === "Contrario"
-                                ? "bg-red-500 text-white border-red-500"
-                                : ultima.voto_dato === "Astenuto"
-                                ? "bg-yellow-400 text-white border-yellow-400"
-                                : ""
-                            }`}>{ultima.voto_dato || "-"}</Badge></span>
-                            <span>Ha vinto: <Badge variant="outline" className={`ml-2 ${
-                              ultima.vincitore === "Approvata"
-                                ? "bg-green-500 text-white border-green-500"
-                                : ultima.vincitore === "Respinta"
-                                ? "bg-red-500 text-white border-red-500"
-                                : ""
-                            }`}>{ultima.vincitore || "-"}</Badge></span>
-                          </div>
-                          {ultima.commento && (
-                            <div className="mb-1 text-sm text-muted-foreground">Commento: <span className="italic">{ultima.commento}</span></div>
-                          )}
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
-                            <Clock className="w-4 h-4" />
-                            {ultima.data_creazione ? formatDistanceToNow(new Date(ultima.data_creazione), { addSuffix: true, locale: it }) : ""}
-                          </div>
-                          <div className="mb-1 text-sm">Cosa ne pensi di questa decisione?</div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant={ultima.user_reaction === "like" ? "success" : "ghost"}
-                              className={ultima.user_reaction === "like" ? "bg-green-500 text-white" : ""}
-                              onClick={() => handleReactionClick(ultima.id, "like")}
-                              disabled={processingReaction === ultima.id || !!ultima.user_reaction}
+                      anteprime.length > 0 ? (
+                        <div className="flex flex-col gap-2">
+                          {anteprime.map(notifica => (
+                            <div
+                              key={notifica.id}
+                              className="flex items-center gap-2 cursor-pointer hover:bg-gray-100 rounded p-2"
+                              onClick={() => {
+                                setDialogNotificaId(notifica.id);
+                                fetchDettagliNotifica(notifica.id);
+                              }}
                             >
-                              <ThumbsUp className="w-4 h-4 mr-1" /> Mi piace
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={ultima.user_reaction === "dislike" ? "destructive" : "ghost"}
-                              className={ultima.user_reaction === "dislike" ? "bg-red-500 text-white" : ""}
-                              onClick={() => handleReactionClick(ultima.id, "dislike")}
-                              disabled={processingReaction === ultima.id || !!ultima.user_reaction}
-                            >
-                              <ThumbsDown className="w-4 h-4 mr-1" /> Non mi piace
-                            </Button>
-                          </div>
+                              {rappresentante && rappresentante.avatar_config ? (
+                                <CustomAvatar config={JSON.parse(rappresentante.avatar_config)} size={28} className="mr-1" />
+                              ) : (
+                                <User className="h-7 w-7 text-blue-600 mr-1" />
+                              )}
+                              <span className="font-semibold">{rappresentante?.nome} {rappresentante?.cognome}</span>
+                              <span>ha comunicato una votazione:</span>
+                              <span className="font-medium">{notifica.titolo}</span>
+                              <span className="text-xs text-gray-500">{new Date(notifica.data_creazione).toLocaleString("it-IT")}</span>
+                            </div>
+                          ))}
                         </div>
                       ) : (
                         <div className="text-sm text-muted-foreground">Nessuna comunicazione recente.</div>
@@ -609,6 +593,34 @@ export default function Notifiche() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog Dettaglio Notifica (lazy) */}
+      {dialogNotificaId && (
+        <Dialog open={!!dialogNotificaId} onOpenChange={() => setDialogNotificaId(null)}>
+          <DialogContent>
+            {!dettagliNotifica ? (
+              <div>Caricamento dettagli...</div>
+            ) : (
+              <div>
+                <DialogHeader>
+                  <DialogTitle>{dettagliNotifica.titolo}</DialogTitle>
+                </DialogHeader>
+                <div><b>Nome:</b> {dettagliNotifica.nome} {dettagliNotifica.cognome}</div>
+                <div><b>Data:</b> {new Date(dettagliNotifica.data_creazione).toLocaleString("it-IT")}</div>
+                <div><b>Commento:</b> {dettagliNotifica.commento || "Nessun commento"}</div>
+                <div><b>Voto:</b> {dettagliNotifica.voto_dato}</div>
+                <div><b>Risultato:</b> <Badge variant="outline" className={`ml-2 ${
+                  dettagliNotifica.vincitore === "Approvata"
+                    ? "bg-green-500 text-white border-green-500"
+                    : dettagliNotifica.vincitore === "Respinta"
+                    ? "bg-red-500 text-white border-red-500"
+                    : ""
+                }`}>{dettagliNotifica.vincitore}</Badge></div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
