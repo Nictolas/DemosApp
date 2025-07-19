@@ -44,19 +44,20 @@ exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async
   const esito = comunicazione.vincitore === "Approvata" ? "Approvata" : "Respinta";
   const titoloVotazione = comunicazione.titolo || "Nuova comunicazione";
 
+  // Elimina duplicati
+  const uniqueTokens = [...new Set(tokens)];
   const payload = {
     notification: {
-      title: `${titoloVotazione} - ${rappresentanteNome} ${rappresentanteCognome} ha votato: ${votoDato}. Esito: ${esito}`,
-      body: ""
+      title: titoloVotazione,
+      body: `${rappresentanteNome} ${rappresentanteCognome} ha votato: ${votoDato}. Esito: ${esito}`
     },
-    tokens: tokens
+    tokens: uniqueTokens
   };
   console.log("Payload notifica:", JSON.stringify(payload));
-
   try {
     const messaging = getMessaging();
     await messaging.sendEachForMulticast(payload);
-    console.log("Notifica inviata a:", tokens.length, "utenti");
+    console.log("Notifica inviata a:", uniqueTokens.length, "utenti");
   } catch (err) {
     console.error("Errore invio notifica:", err);
   }
