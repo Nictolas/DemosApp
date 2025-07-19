@@ -353,8 +353,7 @@ export default function Notifiche() {
               // Filtra solo le ultime 3 notifiche degli ultimi 3 giorni
               const anteprime = comunicazioni
                 .filter(c => c.id_utente === rappresentanteId && c.data_creazione > getDataLimite())
-                .sort((a, b) => (b.data_creazione || "").localeCompare(a.data_creazione || ""))
-                .slice(0, 3);
+                .sort((a, b) => (b.data_creazione || "").localeCompare(a.data_creazione || ""));
               const rappresentante = rappresentanteId ? utentiMap?.[rappresentanteId] : null;
               return (
                 <Card key={key} className="shadow-md w-full">
