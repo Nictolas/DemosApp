@@ -257,19 +257,74 @@ export default function Notifiche() {
     return ordineGradi.indexOf(a.grado_elezione) - ordineGradi.indexOf(b.grado_elezione);
   });
 
+  // Mappa ruolo -> chiave rappresentante utente
+  const rappresentantiKeys = [
+    { label: "Eurodeputato", key: "rappresentante_europeo", color: "bg-blue-200" },
+    { label: "Deputato", key: "rappresentante_camera", color: "bg-green-200" },
+    { label: "Senatore", key: "rappresentante_senato", color: "bg-yellow-200" },
+    { label: "Consigliere Regionale", key: "rappresentante_regionale", color: "bg-purple-200" },
+    { label: "Consigliere Comunale", key: "rappresentante_comunale", color: "bg-pink-200" },
+  ];
+
+  // Funzione per trovare l'ultima comunicazione per rappresentante
+  const getUltimaComunicazione = (rappresentanteId: string) => {
+    if (!rappresentanteId) return null;
+    const filtered = comunicazioni
+      .filter(c => c.id_utente === rappresentanteId)
+      .sort((a, b) => (b.data_creazione || "").localeCompare(a.data_creazione || ""));
+    return filtered[0] || null;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2 flex items-center justify-center gap-2">
-              <Bell className="h-8 w-8" />
-              Notifiche
-            </h1>
-            <p className="text-muted-foreground">
-              Le comunicazioni dei tuoi rappresentanti
-            </p>
+            <h1 className="text-3xl font-bold mb-2">Notifiche</h1>
+            <p className="text-muted-foreground">Le tue ultime notifiche dai rappresentanti scelti</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {rappresentantiKeys.map(({ label, key, color }) => {
+              const rappresentanteId = user?.[key];
+              const ultima = getUltimaComunicazione(rappresentanteId);
+              return (
+                <Card key={key} className="shadow-md">
+                  <CardHeader className="flex flex-row items-center gap-2">
+                    <span className={`inline-block w-3 h-3 rounded-full ${color}`}></span>
+                    <CardTitle className="text-lg">{label}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {rappresentanteId ? (
+                      ultima ? (
+                        <div>
+                          <div className="font-semibold mb-1">{ultima.titolo}</div>
+                          <div className="text-sm text-muted-foreground mb-2">{ultima.vincitore || ultima.commento || "Nuova comunicazione"}</div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                            <Clock className="w-4 h-4" />
+                            {ultima.data_creazione ? formatDistanceToNow(new Date(ultima.data_creazione), { addSuffix: true, locale: it }) : ""}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="ghost" onClick={() => handleReaction(ultima.id, "like")} disabled={processingReaction === ultima.id}>
+                              <ThumbsUp className="w-4 h-4 mr-1" /> Mi piace
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleReaction(ultima.id, "dislike")} disabled={processingReaction === ultima.id}>
+                              <ThumbsDown className="w-4 h-4 mr-1" /> Non mi piace
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">Nessuna comunicazione recente.</div>
+                      )
+                    ) : (
+                      <Button href="/rappresentanti" asChild variant="outline" className="w-full mt-2">
+                        <a>Scegli Rappresentante</a>
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {/* Switch preferenze notifiche push */}
