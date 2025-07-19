@@ -9,6 +9,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 
 // --- FUNZIONE FIRESTORE TRIGGER (v2) ---
 exports.notificaComunicazione = onDocumentCreated("comunicazioni/{comId}", async (event) => {
+  console.log("=== ENTRY POINT TEST: index.js attivo ===");
   const comunicazione = event.data.data();
   if (!comunicazione) return;
 
