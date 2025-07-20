@@ -110,7 +110,7 @@ export default function Menu() {
                     <UserCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <UserCheck className="h-8 w-8 text-green-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Profilo</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Profilo</div>
                 </div>
               </button>
               <button
@@ -128,7 +128,7 @@ export default function Menu() {
                     <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <MessageSquare className="h-8 w-8 text-pink-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Opinioni</div>
                 </div>
               </button>
               <button
@@ -146,7 +146,7 @@ export default function Menu() {
                     <Users className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Users className="h-8 w-8 text-blue-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Rappresentanti</div>
                 </div>
               </button>
               <button
@@ -164,7 +164,7 @@ export default function Menu() {
                     <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Vote className="h-8 w-8 text-yellow-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Elezioni</div>
                 </div>
               </button>
               <button
@@ -182,7 +182,7 @@ export default function Menu() {
                     <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Megaphone className="h-8 w-8 text-purple-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Strumenti</div>
                 </div>
               </button>
               <button
@@ -200,7 +200,7 @@ export default function Menu() {
                     <Trophy className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Trophy className="h-8 w-8 text-orange-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Podio Trasparenza</div>
                 </div>
               </button>
               <button
@@ -218,7 +218,7 @@ export default function Menu() {
                     <Bell className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Bell className="h-8 w-8 text-blue-400 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Notifiche</div>
                 </div>
               </button>
               <button
@@ -236,7 +236,7 @@ export default function Menu() {
                     <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Vote className="h-8 w-8 text-green-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Vota</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Vota</div>
                 </div>
               </button>
               <button
@@ -254,7 +254,7 @@ export default function Menu() {
                     <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Megaphone className="h-8 w-8 text-pink-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Eventi</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Eventi</div>
                 </div>
               </button>
               <button
@@ -272,7 +272,7 @@ export default function Menu() {
                     <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <FileText className="h-8 w-8 text-yellow-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Proponi</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Proponi</div>
                 </div>
               </button>
               <button
@@ -290,7 +290,7 @@ export default function Menu() {
                     <Settings className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                     <Settings className="h-8 w-8 text-gray-600 relative z-10" />
                   </span>
-                  <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
+                  <div className="text-gray-700 font-semibold text-lg select-none">Impostazioni</div>
                 </div>
               </button>
               {isAdmin && (
@@ -309,7 +309,7 @@ export default function Menu() {
                       <ShieldCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <ShieldCheck className="h-8 w-8 text-red-600 relative z-10" />
                     </span>
-                    <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
+                    <div className="text-gray-700 font-semibold text-lg select-none">Gestisci</div>
                   </div>
                 </button>
               )}
