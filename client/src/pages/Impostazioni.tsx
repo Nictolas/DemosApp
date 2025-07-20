@@ -9,8 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/firebase";
-import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 
 export default function Impostazioni() {
   const { user, isLoading, logoutMutation } = useAuth();
@@ -59,6 +58,16 @@ export default function Impostazioni() {
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     const auth = getAuth();
+    if (!auth.currentUser) {
+      toast({
+        title: "Errore",
+        description: "Utente non autenticato. Riprova.",
+        variant: "destructive",
+      });
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      return;
+    }
     try {
       await auth.currentUser.delete();
       toast({
@@ -87,7 +96,13 @@ export default function Impostazioni() {
     setIsDeleting(true);
     setReauthError("");
     const auth = getAuth();
+    if (!auth.currentUser) {
+      setReauthError("Utente non autenticato. Riprova.");
+      setIsDeleting(false);
+      return;
+    }
     try {
+      if (!auth.currentUser.email) throw new Error("Email utente non disponibile.");
       const credential = EmailAuthProvider.credential(auth.currentUser.email, reauthPassword);
       await reauthenticateWithCredential(auth.currentUser, credential);
       await auth.currentUser.delete();
@@ -361,6 +376,7 @@ function ChangePasswordForm({ user, toast }: { user: any, toast: any }) {
     }
     setLoading(true);
     try {
+      if (!auth.currentUser) throw new Error("Utente non autenticato.");
       const credential = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(auth.currentUser, credential);
       await updatePassword(auth.currentUser, newPassword);
