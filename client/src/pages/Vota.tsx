@@ -49,7 +49,7 @@ export default function Vota() {
         </Card>
 
         {/* Pulsanti Voto - Nuova estetica come Menu */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6">
           {/* Capo di Stato */}
           <button
             type="button"
