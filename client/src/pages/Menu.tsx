@@ -96,7 +96,7 @@ export default function Menu() {
               {/* Altri pulsanti menu con nuova estetica */}
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/profilo")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -115,7 +115,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/opinioni")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -133,7 +133,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/rappresentanti")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -151,7 +151,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/elezioni")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -169,7 +169,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/strumenti")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -187,7 +187,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/podio-trasparenza")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -205,7 +205,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/notifiche")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -223,7 +223,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/vota")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -241,7 +241,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/eventi")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -259,7 +259,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/proponi")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -277,7 +277,7 @@ export default function Menu() {
               </button>
               <button
                 type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/impostazioni")}
                 onContextMenu={e => e.preventDefault()}
               >
@@ -296,7 +296,7 @@ export default function Menu() {
               {isAdmin && (
                 <button
                   type="button"
-                  className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                  className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                   onClick={() => setLocation("/gestisci")}
                   onContextMenu={e => e.preventDefault()}
                 >
