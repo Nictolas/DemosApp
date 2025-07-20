@@ -1,8 +1,8 @@
-function darkenColor(hexColor, amount = 20) {
+function darkenColor(hexColor: string, amount: number = 20) {
   // Rimuove il # se presente
   let color = hexColor.replace("#", "");
   if (color.length === 3) {
-    color = color.split("").map(c => c + c).join("");
+    color = color.split("").map((c: string) => c + c).join("");
   }
 
   // Estrae i valori RGB
@@ -37,6 +37,7 @@ interface CustomAvatarProps {
   config: AvatarConfig | null;
   size?: number;
   className?: string;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
 }
 
 const defaultConfig: AvatarConfig = {
@@ -52,7 +53,7 @@ const defaultConfig: AvatarConfig = {
   tieColor: "#E74C3C"
 };
 
-export function CustomAvatar({ config, size = 100, className = "" }: CustomAvatarProps) {
+export function CustomAvatar({ config, size = 100, className = "", onClick }: CustomAvatarProps) {
   const avatarConfig = config || defaultConfig;
 
   const renderHair = () => {
@@ -476,8 +477,18 @@ export function CustomAvatar({ config, size = 100, className = "" }: CustomAvata
   };
 
   return (
-    <div className={`inline-block ${className}`}>
-      <svg width={size} height={size} viewBox="0 0 300 300" className="rounded-full overflow-hidden">
+    <div
+      className={className}
+      style={{ width: size, height: size }}
+      onClick={onClick}
+    >
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 300 300"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         {/* Sfondo */}
         <rect width="300" height="300" fill="#F5F5F5" />
         
