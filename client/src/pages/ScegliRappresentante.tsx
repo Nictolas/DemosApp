@@ -421,11 +421,13 @@ export default function ScegliRappresentante() {
                             tieColor: config.tieColor || "#E74C3C"
                           };
                           return (
-                            <CustomAvatar 
-                              config={updatedConfig}
-                              size={64}
-                              className="border-2 border-gray-200 rounded-full shadow-sm"
-                            />
+                            <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm" style={{ width: 64, height: 64 }}>
+                              <CustomAvatar 
+                                config={updatedConfig}
+                                size={64}
+                                className="w-full h-full"
+                              />
+                            </div>
                           );
                         }
                       } catch (error) {
