@@ -98,8 +98,8 @@ export default function Menu() {
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   {/* Sfondo diagonale più in alto */}
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#bbf7d0" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#bbf7d0" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -115,8 +115,8 @@ export default function Menu() {
               <Link href="/opinioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#fbcfe8" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#fbcfe8" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -130,8 +130,8 @@ export default function Menu() {
               <Link href="/rappresentanti" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#dbeafe" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#dbeafe" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -145,8 +145,8 @@ export default function Menu() {
               <Link href="/elezioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#fef9c3" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#fef9c3" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -160,8 +160,8 @@ export default function Menu() {
               <Link href="/strumenti" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#ede9fe" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#ede9fe" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -175,8 +175,8 @@ export default function Menu() {
               <Link href="/podio-trasparenza" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#fef3c7" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#fef3c7" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -190,8 +190,8 @@ export default function Menu() {
               <Link href="/notifiche" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#bae6fd" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#bae6fd" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -205,8 +205,8 @@ export default function Menu() {
               <Link href="/vota" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#bbf7d0" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#bbf7d0" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -220,8 +220,8 @@ export default function Menu() {
               <Link href="/eventi" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#fbcfe8" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#fbcfe8" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -235,8 +235,8 @@ export default function Menu() {
               <Link href="/proponi" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#fef9c3" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#fef9c3" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -250,8 +250,8 @@ export default function Menu() {
               <Link href="/impostazioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,45 100,0 100,35 0,100" fill="#f3f4f6" />
-                    <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,20" fill="#f3f4f6" />
+                    <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
@@ -266,8 +266,8 @@ export default function Menu() {
                 <Link href="/gestisci" className="w-full">
                   <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                      <polygon points="0,45 100,0 100,35 0,100" fill="#fecaca" />
-                      <polygon points="0,100 100,35 100,100 0,100" fill="#fff" />
+                      <polygon points="0,0 100,0 100,35 0,20" fill="#fecaca" />
+                      <polygon points="0,20 100,35 100,100 0,100" fill="#fff" />
                     </svg>
                     <div className="relative z-10 flex flex-col items-center justify-center h-full">
                       <span className="relative flex items-center justify-center w-16 h-16 mb-2">
