@@ -93,108 +93,76 @@ export default function Menu() {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 p-6">
-              {/* Pulsante Pesca Misteriosa */}
-              <div className="relative w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-orange-100 flex flex-col items-center justify-center col-span-1">
-                <div className="mb-2 mt-2">
-                  {/* Sostituisci con la tua icona personalizzata se disponibile */}
-                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="6" y="6" width="12" height="12" rx="3" fill="#FBBF24"/>
-                    <rect x="18" y="18" width="12" height="12" rx="3" fill="#F59E42"/>
-                    <rect x="30" y="6" width="12" height="12" rx="3" fill="#FBBF24"/>
-                    <rect x="6" y="30" width="12" height="12" rx="3" fill="#F59E42"/>
-                  </svg>
-                </div>
-                <div className="text-gray-700 font-semibold text-lg">Pesca misteriosa</div>
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                  {/* Badge tempo */}
-                  <div className="flex items-center bg-white/80 rounded-full px-2 py-1 text-xs shadow">
-                    <svg className="w-4 h-4 text-yellow-500 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l2 2m8-2a10 10 0 11-20 0 10 10 0 0120 0z" /></svg>
-                    03 h 30 m
-                  </div>
-                </div>
-              </div>
-              {/* Pulsante Negozio */}
-              <div className="w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-purple-100 flex flex-col items-center justify-center col-span-1">
-                <div className="mb-2 mt-2">
-                  {/* Sostituisci con la tua icona personalizzata se disponibile */}
-                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="10" y="14" width="28" height="20" rx="4" fill="#A5B4FC"/>
-                    <path d="M14 14V10a4 4 0 014-4h12a4 4 0 014 4v4" stroke="#6366F1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <div className="text-gray-700 font-semibold text-lg opacity-70">Negozio</div>
-              </div>
-
               {/* Altri pulsanti menu con nuova estetica */}
               <Link href="/profilo" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <UserCheck className="h-12 w-12 mb-2 text-green-600" />
                   <div className="text-gray-700 font-semibold text-lg">Profilo</div>
                 </div>
               </Link>
               <Link href="/opinioni" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <MessageSquare className="h-12 w-12 mb-2 text-pink-600" />
                   <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
                 </div>
               </Link>
               <Link href="/rappresentanti" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Users className="h-12 w-12 mb-2 text-blue-600" />
                   <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
                 </div>
               </Link>
               <Link href="/elezioni" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Vote className="h-12 w-12 mb-2 text-yellow-600" />
                   <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
                 </div>
               </Link>
               <Link href="/strumenti" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Megaphone className="h-12 w-12 mb-2 text-purple-600" />
                   <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
                 </div>
               </Link>
               <Link href="/podio-trasparenza" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-orange-100 to-orange-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-orange-100 to-orange-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Trophy className="h-12 w-12 mb-2 text-orange-600" />
                   <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
                 </div>
               </Link>
               <Link href="/notifiche" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Bell className="h-12 w-12 mb-2 text-blue-400" />
                   <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
                 </div>
               </Link>
               <Link href="/vota" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Vote className="h-12 w-12 mb-2 text-green-600" />
                   <div className="text-gray-700 font-semibold text-lg">Vota</div>
                 </div>
               </Link>
               <Link href="/eventi" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Megaphone className="h-12 w-12 mb-2 text-pink-600" />
                   <div className="text-gray-700 font-semibold text-lg">Eventi</div>
                 </div>
               </Link>
               <Link href="/proponi" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <FileText className="h-12 w-12 mb-2 text-yellow-600" />
                   <div className="text-gray-700 font-semibold text-lg">Proponi</div>
                 </div>
               </Link>
               <Link href="/impostazioni" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                   <Settings className="h-12 w-12 mb-2 text-gray-600" />
                   <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
                 </div>
               </Link>
               {isAdmin && (
                 <Link href="/gestisci" className="w-full">
-                  <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-red-100 to-red-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-red-100 to-red-200 flex flex-col items-center justify-center transition-transform active:scale-95">
                     <ShieldCheck className="h-12 w-12 mb-2 text-red-600" />
                     <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
                   </div>
@@ -202,7 +170,6 @@ export default function Menu() {
               )}
             </CardContent>
           </Card>
-          <AdSenseBanner />
         </div>
       )}
     </div>
