@@ -210,22 +210,21 @@ export default function Opinioni() {
                   <div key={question.id} className="space-y-4">
                     <h3 className="text-lg font-semibold text-center">{question.text}</h3>
                     <div className="flex justify-center">
-                      <div className="flex w-full max-w-md rounded-full overflow-hidden shadow border divide-x divide-gray-200">
+                      <div className="flex w-full max-w-md">
                         {options.map((option, idx) => (
                           <button
                             key={option.value}
                             type="button"
-                            className={`flex-1 py-4 text-lg font-medium transition-colors duration-150 focus:outline-none select-none
+                            className={`flex-1 py-4 text-lg font-medium transition-colors duration-150 focus:outline-none select-none rounded-full
                               ${opinions[question.id] === option.value
-                                ? 'shadow scale-95 active:shadow'
-                                : 'shadow-3xl active:scale-95 active:shadow'}
+                                ? 'shadow scale-95 active:shadow z-10'
+                                : 'shadow-3xl active:scale-95 active:shadow-2xl z-0'}
                               ${opinions[question.id] === option.value
                                 ? option.color + ' text-white'
                                 : 'bg-white hover:bg-gray-100 text-gray-700'}
-                              ${idx === 0 ? 'rounded-l-full' : ''}
-                              ${idx === options.length - 1 ? 'rounded-r-full' : ''}
+                              ${idx > 0 ? '-ml-4' : ''}
                               border-0`}
-                            style={{ borderRight: idx < options.length - 1 ? '1px solid #e5e7eb' : undefined }}
+                            style={{ borderRight: undefined }}
                             onClick={() => handleOpinionChange(question.id, option.value)}
                             onContextMenu={e => e.preventDefault()}
                           >
