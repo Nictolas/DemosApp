@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Crown, Building2, Scale, FileText } from "lucide-react";
+import { ArrowLeft, Crown, Building2, Scale, FileText, Archive, Users, CheckSquare } from "lucide-react";
 
 export default function Vota() {
   const { user, isLoading } = useAuth();
@@ -115,13 +115,13 @@ export default function Vota() {
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
+              <polygon points="100,0 0,0 0,35 100,20" fill="#5eead4" /> {/* teal-300 */}
               <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
             </svg>
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <FileText className="h-8 w-8 text-indigo-600 relative z-10" />
+                <Archive className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Archive className="h-8 w-8 text-teal-600 relative z-10" />
               </span>
               <div className="text-gray-700 font-semibold text-lg select-none">Amnistia</div>
             </div>
@@ -134,15 +134,15 @@ export default function Vota() {
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+              <polygon points="100,0 0,0 0,35 100,20" fill="#93c5fd" /> {/* blue-300 */}
               <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
             </svg>
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <FileText className="h-8 w-8 text-blue-600 relative z-10" />
+                <Users className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Users className="h-8 w-8 text-blue-600 relative z-10" />
               </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">Iniziativa Popolare</div>
+              <div className="text-gray-700 font-semibold text-lg select-none text-center">Iniziativa<br />Popolare</div>
             </div>
           </button>
           {/* Referendum Abrogativo */}
@@ -153,15 +153,15 @@ export default function Vota() {
             onContextMenu={e => e.preventDefault()}
           >
             <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
+              <polygon points="100,0 0,0 0,35 100,20" fill="#fca5a5" /> {/* red-300 */}
               <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
             </svg>
             <div className="relative z-10 flex flex-col items-center justify-center h-full">
               <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <FileText className="h-8 w-8 text-orange-600 relative z-10" />
+                <CheckSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <CheckSquare className="h-8 w-8 text-red-600 relative z-10" />
               </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">Referendum Abrogativo</div>
+              <div className="text-gray-700 font-semibold text-lg select-none text-center">Referendum<br />Abrogativo</div>
             </div>
           </button>
         </div>
