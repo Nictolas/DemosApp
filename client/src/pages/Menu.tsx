@@ -95,76 +95,149 @@ export default function Menu() {
             <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 p-6">
               {/* Altri pulsanti menu con nuova estetica */}
               <Link href="/profilo" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <UserCheck className="h-12 w-12 mb-2 text-green-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Profilo</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  {/* Sfondo obliquo */}
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#bbf7d0" /> {/* verde chiaro sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" /> {/* bianco sotto */}
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <UserCheck className="h-12 w-12 mb-2 text-green-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Profilo</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/opinioni" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <MessageSquare className="h-12 w-12 mb-2 text-pink-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#fbcfe8" /> {/* rosa sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <MessageSquare className="h-12 w-12 mb-2 text-pink-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/rappresentanti" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Users className="h-12 w-12 mb-2 text-blue-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#dbeafe" /> {/* azzurro sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Users className="h-12 w-12 mb-2 text-blue-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/elezioni" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Vote className="h-12 w-12 mb-2 text-yellow-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef9c3" /> {/* giallo sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Vote className="h-12 w-12 mb-2 text-yellow-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/strumenti" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Megaphone className="h-12 w-12 mb-2 text-purple-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#ede9fe" /> {/* viola chiaro sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Megaphone className="h-12 w-12 mb-2 text-purple-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/podio-trasparenza" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-orange-100 to-orange-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Trophy className="h-12 w-12 mb-2 text-orange-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef3c7" /> {/* arancione chiaro sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Trophy className="h-12 w-12 mb-2 text-orange-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/notifiche" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Bell className="h-12 w-12 mb-2 text-blue-400" />
-                  <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#bae6fd" /> {/* azzurro chiaro sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Bell className="h-12 w-12 mb-2 text-blue-400" />
+                    <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/vota" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Vote className="h-12 w-12 mb-2 text-green-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Vota</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#bbf7d0" /> {/* verde chiaro sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Vote className="h-12 w-12 mb-2 text-green-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Vota</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/eventi" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Megaphone className="h-12 w-12 mb-2 text-pink-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Eventi</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#fbcfe8" /> {/* rosa sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Megaphone className="h-12 w-12 mb-2 text-pink-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Eventi</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/proponi" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <FileText className="h-12 w-12 mb-2 text-yellow-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Proponi</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef9c3" /> {/* giallo sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <FileText className="h-12 w-12 mb-2 text-yellow-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Proponi</div>
+                  </div>
                 </div>
               </Link>
               <Link href="/impostazioni" className="w-full">
-                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                  <Settings className="h-12 w-12 mb-2 text-gray-600" />
-                  <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="0,0 100,0 100,60 0,100" fill="#f3f4f6" /> {/* grigio chiaro sopra */}
+                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <Settings className="h-12 w-12 mb-2 text-gray-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
+                  </div>
                 </div>
               </Link>
               {isAdmin && (
                 <Link href="/gestisci" className="w-full">
-                  <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-red-100 to-red-200 flex flex-col items-center justify-center transition-transform active:scale-95">
-                    <ShieldCheck className="h-12 w-12 mb-2 text-red-600" />
-                    <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
+                  <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                      <polygon points="0,0 100,0 100,60 0,100" fill="#fecaca" /> {/* rosso chiaro sopra */}
+                      <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    </svg>
+                    <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                      <ShieldCheck className="h-12 w-12 mb-2 text-red-600" />
+                      <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
+                    </div>
                   </div>
                 </Link>
               )}
