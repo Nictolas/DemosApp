@@ -124,140 +124,80 @@ export default function Menu() {
                 </div>
                 <div className="text-gray-700 font-semibold text-lg opacity-70">Negozio</div>
               </div>
-              <Link href="/profilo">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="default"
-                >
-                  <UserCheck className="h-5 w-5" />
-                  Profilo
-                </Button>
-              </Link>
-              
-              <Link href="/opinioni">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <MessageSquare className="h-5 w-5" />
-                  Opinioni
-                </Button>
-              </Link>
-              
-              <Link href="/rappresentanti">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Users className="h-5 w-5" />
-                  Rappresentanti
-                </Button>
-              </Link>
-              
-              <Link href="/elezioni">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Vote className="h-5 w-5" />
-                  Elezioni
-                </Button>
-              </Link>
-              
-              <Link href="/strumenti">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Megaphone className="h-5 w-5" />
-                  Strumenti
-                </Button>
-              </Link>
-              
-              <Link href="/podio-trasparenza">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Trophy className="h-5 w-5" />
-                  Podio Trasparenza
-                </Button>
-              </Link>
-              
-              <Link href="/notifiche">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Bell className="h-5 w-5" />
-                  Notifiche
-                </Button>
-              </Link>
-              
-              <Link href="/vota">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Vote className="h-5 w-5" />
-                  Vota
-                </Button>
-              </Link>
-              
-              <Link href="/eventi">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Megaphone className="h-5 w-5" />
-                  Eventi
-                </Button>
-              </Link>
-              
-              <Link href="/proponi">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <FileText className="h-5 w-5" />
-                  Proponi
-                </Button>
-              </Link>
-              <Link href="/impostazioni">
-                <Button 
-                  className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                  variant="outline"
-                >
-                  <Settings className="h-5 w-5" />
-                  Impostazioni
-                </Button>
-              </Link>
 
-              {/* Scadenze tecniche */}
-              {/* RIMOSSO: la voce Scadenze va solo nella pagina Gestisci */}
-              
-              {/* Sostenitori: rimuovere da qui */}
-              {/* {(userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico') && (
-                <Link href="/sostenitori">
-                  <Button 
-                    className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                    variant="outline"
-                  >
-                    <Users className="h-5 w-5" />
-                    Sostenitori
-                  </Button>
-                </Link>
-              )} */}
-              
+              {/* Altri pulsanti menu con nuova estetica */}
+              <Link href="/profilo" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <UserCheck className="h-12 w-12 mb-2 text-green-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Profilo</div>
+                </div>
+              </Link>
+              <Link href="/opinioni" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <MessageSquare className="h-12 w-12 mb-2 text-pink-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
+                </div>
+              </Link>
+              <Link href="/rappresentanti" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Users className="h-12 w-12 mb-2 text-blue-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
+                </div>
+              </Link>
+              <Link href="/elezioni" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Vote className="h-12 w-12 mb-2 text-yellow-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
+                </div>
+              </Link>
+              <Link href="/strumenti" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-purple-100 to-purple-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Megaphone className="h-12 w-12 mb-2 text-purple-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
+                </div>
+              </Link>
+              <Link href="/podio-trasparenza" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-orange-100 to-orange-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Trophy className="h-12 w-12 mb-2 text-orange-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
+                </div>
+              </Link>
+              <Link href="/notifiche" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-blue-100 to-blue-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Bell className="h-12 w-12 mb-2 text-blue-400" />
+                  <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
+                </div>
+              </Link>
+              <Link href="/vota" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-green-100 to-green-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Vote className="h-12 w-12 mb-2 text-green-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Vota</div>
+                </div>
+              </Link>
+              <Link href="/eventi" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-pink-100 to-pink-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Megaphone className="h-12 w-12 mb-2 text-pink-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Eventi</div>
+                </div>
+              </Link>
+              <Link href="/proponi" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-yellow-100 to-yellow-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <FileText className="h-12 w-12 mb-2 text-yellow-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Proponi</div>
+                </div>
+              </Link>
+              <Link href="/impostazioni" className="w-full">
+                <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                  <Settings className="h-12 w-12 mb-2 text-gray-600" />
+                  <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
+                </div>
+              </Link>
               {isAdmin && (
-                <Link href="/gestisci">
-                  <Button 
-                    className="h-20 text-sm font-medium w-full flex flex-col items-center gap-1" 
-                    variant="outline"
-                  >
-                    <ShieldCheck className="h-5 w-5" />
-                    Gestisci
-                  </Button>
+                <Link href="/gestisci" className="w-full">
+                  <div className="cursor-pointer w-full h-40 rounded-2xl shadow-lg bg-gradient-to-br from-red-100 to-red-200 flex flex-col items-center justify-center transition-transform hover:scale-105">
+                    <ShieldCheck className="h-12 w-12 mb-2 text-red-600" />
+                    <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
+                  </div>
                 </Link>
               )}
             </CardContent>
