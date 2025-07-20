@@ -247,8 +247,10 @@ export default function Rappresentanti() {
           <h1 className="text-2xl font-bold">I tuoi Rappresentanti</h1>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categorie.map((categoria) => {
+        {/* Card Parlamento Europeo larga in alto */}
+        <div className="mb-6">
+          {(() => {
+            const categoria = categorie[0];
             const colorClasses = {
               blue: "bg-blue-50 border-blue-200",
               green: "bg-green-50 border-green-200", 
@@ -256,29 +258,45 @@ export default function Rappresentanti() {
               orange: "bg-orange-50 border-orange-200",
               teal: "bg-teal-50 border-teal-200"
             };
-            
-            const titleColorClasses = {
-              blue: "text-blue-800",
-              green: "text-green-800",
-              purple: "text-purple-800", 
-              orange: "text-orange-800",
-              teal: "text-teal-800"
-            };
-            
             return (
-              <Card key={categoria.id} className={`w-full ${colorClasses[categoria.color as keyof typeof colorClasses]}`}>
-                <CardHeader>
-                  <CardTitle className={`text-lg text-center ${titleColorClasses[categoria.color as keyof typeof titleColorClasses]}`}>
-                    {categoria.nome}
-                  </CardTitle>
-                  <CardDescription className="text-center">
-                    Il tuo rappresentante attuale
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex justify-center py-4">
+              <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4">
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 p-6 flex flex-col items-center justify-center">
+                  <User className="h-12 w-12 text-blue-600 mb-2" />
+                  <div className="text-2xl font-bold text-blue-800 mb-1">{categoria.nome}</div>
+                  <div className="text-gray-600 mb-4">Il tuo rappresentante attuale</div>
                   {renderRappresentante(categoria)}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+        {/* Grid 2 colonne per le altre card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {categorie.slice(1).map((categoria) => {
+            const colorMap = {
+              green: { bg: "#bbf7d0", icon: "text-green-600", title: "text-green-800" },
+              purple: { bg: "#ede9fe", icon: "text-purple-600", title: "text-purple-800" },
+              orange: { bg: "#fef9c3", icon: "text-orange-600", title: "text-orange-800" },
+              teal: { bg: "#a7f3d0", icon: "text-teal-600", title: "text-teal-800" }
+            };
+            const color = colorMap[categoria.color as keyof typeof colorMap];
+            return (
+              <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden">
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 p-6 flex flex-col items-center justify-center">
+                  <User className={`h-12 w-12 mb-2 ${color.icon}`} />
+                  <div className={`text-xl font-bold mb-1 ${color.title}`}>{categoria.nome}</div>
+                  <div className="text-gray-600 mb-4">Il tuo rappresentante attuale</div>
+                  {renderRappresentante(categoria)}
+                </div>
+              </div>
             );
           })}
         </div>
