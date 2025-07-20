@@ -48,139 +48,122 @@ export default function Vota() {
           </CardHeader>
         </Card>
 
-        {/* Pulsanti Voto */}
+        {/* Pulsanti Voto - Nuova estetica come Menu */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Capo di Stato */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700">
-                <Crown className="h-5 w-5" />
-                Capo di Stato
-              </CardTitle>
-              <CardDescription>
-                Vota il Capo di Stato della Repubblica
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-purple-600 hover:bg-purple-700"
-                onClick={() => window.location.href = "/capo-di-stato"}
-              >
-                <Crown className="mr-2 h-4 w-4" />
-                Vota Capo di Stato
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/capo-di-stato"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <Crown className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Crown className="h-8 w-8 text-purple-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Capo di Stato</div>
+            </div>
+          </button>
           {/* Governo */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-pink-600 group-hover:text-pink-700">
-                <Building2 className="h-5 w-5" />
-                Governo
-              </CardTitle>
-              <CardDescription>
-                Vota i ministri del Governo
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-pink-600 hover:bg-pink-700"
-                onClick={() => window.location.href = "/governo"}
-              >
-                <Building2 className="mr-2 h-4 w-4" />
-                Vota Governo
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/governo"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <Building2 className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Building2 className="h-8 w-8 text-pink-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Governo</div>
+            </div>
+          </button>
           {/* Grazia */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
-                <Scale className="h-5 w-5" />
-                Grazia
-              </CardTitle>
-              <CardDescription>
-                Vota per la grazia dei cittadini carcerati
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={() => window.location.href = "/grazia"}
-              >
-                <Scale className="mr-2 h-4 w-4" />
-                Vota Grazia
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/grazia"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <Scale className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Scale className="h-8 w-8 text-green-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Grazia</div>
+            </div>
+          </button>
           {/* Amnistia */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-indigo-600 group-hover:text-indigo-700">
-                <FileText className="h-5 w-5" />
-                Amnistia
-              </CardTitle>
-              <CardDescription>
-                Vota per l'amnistia delle leggi
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-indigo-600 hover:bg-indigo-700"
-                onClick={() => window.location.href = "/amnistia"}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Vota Amnistia
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/amnistia"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <FileText className="h-8 w-8 text-indigo-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Amnistia</div>
+            </div>
+          </button>
           {/* Iniziativa Popolare */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700">
-                <FileText className="h-5 w-5" />
-                Iniziativa Popolare
-              </CardTitle>
-              <CardDescription>
-                Vota tra le iniziative popolari che hanno raggiunto il quorum
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={() => window.location.href = "/vota-iniziativa-popolare"}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Vota Iniziativa Popolare
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/vota-iniziativa-popolare"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <FileText className="h-8 w-8 text-blue-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Iniziativa Popolare</div>
+            </div>
+          </button>
           {/* Referendum Abrogativo */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-600 group-hover:text-orange-700">
-                <FileText className="h-5 w-5" />
-                Referendum Abrogativo
-              </CardTitle>
-              <CardDescription>
-                Vota tra i referendum abrogativi che hanno raggiunto il quorum
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-orange-600 hover:bg-orange-700"
-                onClick={() => window.location.href = "/vota-referendum-abrogativo"}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Vota Referendum Abrogativo
-              </Button>
-            </CardContent>
-          </Card>
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/vota-referendum-abrogativo"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <FileText className="h-8 w-8 text-orange-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Referendum Abrogativo</div>
+            </div>
+          </button>
         </div>
       </div>
     </div>
