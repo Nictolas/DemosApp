@@ -96,10 +96,10 @@ export default function Menu() {
               {/* Altri pulsanti menu con nuova estetica */}
               <Link href="/profilo" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
-                  {/* Sfondo obliquo */}
+                  {/* Sfondo obliquo irregolare */}
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#bbf7d0" /> {/* verde chiaro sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" /> {/* bianco sotto */}
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#bbf7d0" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <UserCheck className="h-12 w-12 mb-2 text-green-600" />
@@ -110,8 +110,8 @@ export default function Menu() {
               <Link href="/opinioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fbcfe8" /> {/* rosa sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#fbcfe8" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <MessageSquare className="h-12 w-12 mb-2 text-pink-600" />
@@ -122,8 +122,8 @@ export default function Menu() {
               <Link href="/rappresentanti" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#dbeafe" /> {/* azzurro sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#dbeafe" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Users className="h-12 w-12 mb-2 text-blue-600" />
@@ -134,8 +134,8 @@ export default function Menu() {
               <Link href="/elezioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef9c3" /> {/* giallo sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#fef9c3" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Vote className="h-12 w-12 mb-2 text-yellow-600" />
@@ -146,8 +146,8 @@ export default function Menu() {
               <Link href="/strumenti" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#ede9fe" /> {/* viola chiaro sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#ede9fe" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Megaphone className="h-12 w-12 mb-2 text-purple-600" />
@@ -158,8 +158,8 @@ export default function Menu() {
               <Link href="/podio-trasparenza" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef3c7" /> {/* arancione chiaro sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#fef3c7" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Trophy className="h-12 w-12 mb-2 text-orange-600" />
@@ -170,8 +170,8 @@ export default function Menu() {
               <Link href="/notifiche" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#bae6fd" /> {/* azzurro chiaro sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#bae6fd" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Bell className="h-12 w-12 mb-2 text-blue-400" />
@@ -182,8 +182,8 @@ export default function Menu() {
               <Link href="/vota" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#bbf7d0" /> {/* verde chiaro sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#bbf7d0" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Vote className="h-12 w-12 mb-2 text-green-600" />
@@ -194,8 +194,8 @@ export default function Menu() {
               <Link href="/eventi" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fbcfe8" /> {/* rosa sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#fbcfe8" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Megaphone className="h-12 w-12 mb-2 text-pink-600" />
@@ -206,8 +206,8 @@ export default function Menu() {
               <Link href="/proponi" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef9c3" /> {/* giallo sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#fef9c3" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <FileText className="h-12 w-12 mb-2 text-yellow-600" />
@@ -218,8 +218,8 @@ export default function Menu() {
               <Link href="/impostazioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#f3f4f6" /> {/* grigio chiaro sopra */}
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#f3f4f6" />
+                    <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <Settings className="h-12 w-12 mb-2 text-gray-600" />
@@ -231,8 +231,8 @@ export default function Menu() {
                 <Link href="/gestisci" className="w-full">
                   <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                      <polygon points="0,0 100,0 100,60 0,100" fill="#fecaca" /> {/* rosso chiaro sopra */}
-                      <polygon points="0,100 100,60 100,100" fill="#fff" />
+                      <polygon points="0,0 100,0 100,50 80,55 60,52 40,58 20,54 0,60" fill="#fecaca" />
+                      <polygon points="0,60 20,54 40,58 60,52 80,55 100,50 100,100 0,100" fill="#fff" />
                     </svg>
                     <div className="relative z-10 flex flex-col items-center justify-center h-full">
                       <ShieldCheck className="h-12 w-12 mb-2 text-red-600" />
