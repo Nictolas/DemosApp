@@ -96,16 +96,16 @@ export default function Menu() {
               {/* Altri pulsanti menu con nuova estetica */}
               <Link href="/profilo" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
-                  {/* Sfondo diagonale */}
+                  {/* Sfondo diagonale più in alto */}
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#bbf7d0" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#bbf7d0" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#bbf7d0" strokeWidth="4" fill="none" />
-                      </svg>
+                      {/* Icona bianca più grande */}
+                      <UserCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                      {/* Icona colorata sopra */}
                       <UserCheck className="h-8 w-8 text-green-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Profilo</div>
@@ -115,14 +115,12 @@ export default function Menu() {
               <Link href="/opinioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fbcfe8" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#fbcfe8" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fbcfe8" strokeWidth="4" fill="none" />
-                      </svg>
+                      <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <MessageSquare className="h-8 w-8 text-pink-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
@@ -132,14 +130,12 @@ export default function Menu() {
               <Link href="/rappresentanti" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#dbeafe" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#dbeafe" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#dbeafe" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Users className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Users className="h-8 w-8 text-blue-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
@@ -149,14 +145,12 @@ export default function Menu() {
               <Link href="/elezioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef9c3" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#fef9c3" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fef9c3" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Vote className="h-8 w-8 text-yellow-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
@@ -166,14 +160,12 @@ export default function Menu() {
               <Link href="/strumenti" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#ede9fe" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#ede9fe" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#ede9fe" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Megaphone className="h-8 w-8 text-purple-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
@@ -183,14 +175,12 @@ export default function Menu() {
               <Link href="/podio-trasparenza" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef3c7" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#fef3c7" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fef3c7" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Trophy className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Trophy className="h-8 w-8 text-orange-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
@@ -200,14 +190,12 @@ export default function Menu() {
               <Link href="/notifiche" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#bae6fd" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#bae6fd" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#bae6fd" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Bell className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Bell className="h-8 w-8 text-blue-400 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
@@ -217,14 +205,12 @@ export default function Menu() {
               <Link href="/vota" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#bbf7d0" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#bbf7d0" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#bbf7d0" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Vote className="h-8 w-8 text-green-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Vota</div>
@@ -234,14 +220,12 @@ export default function Menu() {
               <Link href="/eventi" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fbcfe8" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#fbcfe8" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fbcfe8" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Megaphone className="h-8 w-8 text-pink-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Eventi</div>
@@ -251,14 +235,12 @@ export default function Menu() {
               <Link href="/proponi" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#fef9c3" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#fef9c3" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fef9c3" strokeWidth="4" fill="none" />
-                      </svg>
+                      <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <FileText className="h-8 w-8 text-yellow-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Proponi</div>
@@ -268,14 +250,12 @@ export default function Menu() {
               <Link href="/impostazioni" className="w-full">
                 <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="0,0 100,0 100,60 0,100" fill="#f3f4f6" />
-                    <polygon points="0,100 100,60 100,100" fill="#fff" />
+                    <polygon points="0,0 100,0 100,35 0,100" fill="#f3f4f6" />
+                    <polygon points="0,100 100,35 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
                     <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <polygon points="10,10 90,10 90,60 10,90" stroke="#f3f4f6" strokeWidth="4" fill="none" />
-                      </svg>
+                      <Settings className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                       <Settings className="h-8 w-8 text-gray-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
@@ -286,14 +266,12 @@ export default function Menu() {
                 <Link href="/gestisci" className="w-full">
                   <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer">
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                      <polygon points="0,0 100,0 100,60 0,100" fill="#fecaca" />
-                      <polygon points="0,100 100,60 100,100" fill="#fff" />
+                      <polygon points="0,0 100,0 100,35 0,100" fill="#fecaca" />
+                      <polygon points="0,100 100,35 100,100" fill="#fff" />
                     </svg>
                     <div className="relative z-10 flex flex-col items-center justify-center h-full">
                       <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                        <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <polygon points="10,10 90,10 90,60 10,90" stroke="#fecaca" strokeWidth="4" fill="none" />
-                        </svg>
+                        <ShieldCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
                         <ShieldCheck className="h-8 w-8 text-red-600 relative z-10" />
                       </span>
                       <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
