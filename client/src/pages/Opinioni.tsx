@@ -217,8 +217,8 @@ export default function Opinioni() {
                             type="button"
                             className={`flex-1 py-4 text-lg font-medium transition-colors duration-150 focus:outline-none select-none
                               ${opinions[question.id] === option.value
-                                ? 'shadow-2xl scale-95 active:shadow-2xl'
-                                : 'shadow-3xl active:scale-95 active:shadow-2xl'}
+                                ? 'shadow scale-95 active:shadow'
+                                : 'shadow-3xl active:scale-95 active:shadow'}
                               ${opinions[question.id] === option.value
                                 ? option.color + ' text-white'
                                 : 'bg-white hover:bg-gray-100 text-gray-700'}
