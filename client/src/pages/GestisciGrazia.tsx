@@ -113,7 +113,7 @@ export default function GestisciGrazia() {
                       <a href={r.urlProva} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline text-sm break-all">{r.urlProva}</a>
                       <div className="text-xs text-muted-foreground mt-1">
                         Richiesta da utente: {userMap[r.userId] ? (
-                          <Link href={`/profilo/${r.userId}`} className="text-blue-700 underline hover:text-blue-900 cursor-pointer">
+                          <Link href={`/menu/profilo/${r.userId}`} className="text-blue-700 underline hover:text-blue-900 cursor-pointer">
                             {userMap[r.userId].nome} {userMap[r.userId].cognome}
                           </Link>
                         ) : (

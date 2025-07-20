@@ -97,7 +97,7 @@ export default function Menu() {
               <button
                 type="button"
                 className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/profilo")}
+                onClick={() => setLocation("/menu/profilo")}
                 onContextMenu={e => e.preventDefault()}
               >
                 {/* Sfondo diagonale più in alto */}
