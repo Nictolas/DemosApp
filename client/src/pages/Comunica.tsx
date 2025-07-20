@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
-import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
+import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaphone, Calendar, BookOpen, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -278,110 +278,126 @@ export default function Comunica() {
           </CardHeader>
         </Card>
 
-        {/* Pulsanti Navigazione */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-600 group-hover:text-blue-700">
-                Votazione
-              </CardTitle>
-              <CardDescription>
-                Comunica una nuova votazione
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => setLocation('/votazione')}>
-                Votazione
-              </Button>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
-                Evento
-              </CardTitle>
-              <CardDescription>
-                Programma un nuovo evento
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => setLocation('/evento')}>
-                Evento
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Pulsanti Navigazione - Nuova estetica */}
+        <div className="grid grid-cols-2 gap-6">
+          {/* Votazione */}
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => setLocation('/votazione')}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Megaphone className="h-8 w-8 text-blue-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Votazione</div>
+            </div>
+          </button>
+          {/* Evento */}
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => setLocation('/evento')}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <Calendar className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Calendar className="h-8 w-8 text-green-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Evento</div>
+            </div>
+          </button>
+          {/* Programma (solo Admin/Candidato) */}
           {userData?.ruolo === 'Admin' || userData?.ruolo === 'Candidato' || userData?.ruolo === 'Candidato Politico' ? (
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700">
-                  Programma
-                </CardTitle>
-                <CardDescription>
-                  Visualizza o modifica il programma
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={() => setLocation('/programma')}>
-                  Programma
-                </Button>
-              </CardContent>
-            </Card>
+            <button
+              type="button"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation('/programma')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <BookOpen className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <BookOpen className="h-8 w-8 text-purple-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Programma</div>
+              </div>
+            </button>
           ) : null}
+          {/* Sostenitori (solo Politico/Candidato/Admin) */}
           {(userData?.ruolo === 'Politico' || userData?.ruolo === 'Candidato' || userData?.ruolo === 'Candidato Politico' || userData?.ruolo === 'Admin') && (
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-pink-600 group-hover:text-pink-700">
-                  <span className="inline-flex items-center"><svg xmlns='http://www.w3.org/2000/svg' className='h-5 w-5 mr-1' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M17 20h5v-2a4 4 0 00-3-3.87M9 20h6M3 20h5v-2a4 4 0 013-3.87M16 3.13a4 4 0 010 7.75M8 3.13a4 4 0 010 7.75' /></svg>Sostenitori</span>
-                </CardTitle>
-                <CardDescription>
-                  Visualizza i tuoi sostenitori
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full bg-pink-600 hover:bg-pink-700" onClick={() => setLocation('/sostenitori')}>
-                  Sostenitori
-                </Button>
-              </CardContent>
-            </Card>
+            <button
+              type="button"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation('/sostenitori')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <Users className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <Users className="h-8 w-8 text-pink-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Sostenitori</div>
+              </div>
+            </button>
           )}
-          {/* Card Riscontro ripristinato */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-indigo-600 group-hover:text-indigo-700">
-                Riscontro
-              </CardTitle>
-              <CardDescription>
-                Visualizza i like/dislike della tua ultima comunicazione
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => setLocation('/riscontro')}>
-                Riscontro
-              </Button>
-            </CardContent>
-          </Card>
-
+          {/* Riscontro */}
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => setLocation('/riscontro')}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#c7d2fe" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <CheckCircle className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <CheckCircle className="h-8 w-8 text-indigo-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Riscontro</div>
+            </div>
+          </button>
           {/* Sondaggi */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-600 group-hover:text-green-700">
-                <MessageSquare className="h-5 w-5" />
-                Sondaggi
-              </CardTitle>
-              <CardDescription>
-                Analizza i sondaggi politici degli utenti e le tendenze
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={() => setLocation("/sondaggi")}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Visualizza Sondaggi
-              </Button>
-            </CardContent>
-          </Card>
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => setLocation('/sondaggi')}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <MessageSquare className="h-8 w-8 text-yellow-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Sondaggi</div>
+            </div>
+          </button>
         </div>
 
         {/* Ultima Votazione Section */}
