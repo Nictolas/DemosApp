@@ -218,9 +218,7 @@ export default function Rappresentanti() {
               <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}>
                 {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
               </p>
-              <Button variant="secondary" size="sm" className="mt-1" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}>
-                Vedi Opinioni
-              </Button>
+              {/* Pulsante 'Vedi Opinioni' rimosso */}
             </>
           ) : (
             <p className="text-gray-500 italic">Assente</p>
