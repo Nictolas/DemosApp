@@ -221,8 +221,8 @@ export default function Opinioni() {
                               ${idx > 0 && idx < options.length - 1 ? 'border-t border-b' : ''}
                               ${idx > 0 ? '-ml-1' : ''}
                               ${opinions[question.id] === option.value
-                                ? 'shadow-none scale-95 active:shadow-none z-10'
-                                : 'shadow-4xl active:scale-95 active:shadow-none z-0'}
+                                ? 'shadow-none scale-95 z-10'
+                                : 'shadow-4xl z-0 active:shadow-none active:scale-95'}
                               ${opinions[question.id] === option.value
                                 ? option.color + ' text-white'
                                 : 'bg-white hover:bg-gray-100 text-gray-700'}
