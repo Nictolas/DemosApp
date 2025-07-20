@@ -20,7 +20,7 @@ export function NotificationTest({ userId }: NotificationTestProps) {
   // Salva il token FCM quando disponibile
   useEffect(() => {
     if (token && userId) {
-      saveFCMToken();
+      // RIMOSSO: la funzione saveFCMToken non è più necessaria perché la sincronizzazione avviene tramite useSyncFcmToken
     }
   }, [token, userId]);
 
@@ -48,29 +48,7 @@ export function NotificationTest({ userId }: NotificationTestProps) {
   }, [permission, userId]);
 
   // Mostra alert se il salvataggio token fallisce
-  const saveFCMToken = async () => {
-    if (!token || !userId) return;
-    try {
-      const response = await fetch('/api/notifications/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          fcmToken: token
-        })
-      });
-      const result = await response.json();
-      if (result.success) {
-        setTestResult('Token FCM salvato con successo!');
-      } else {
-        setTestResult(`Errore salvataggio token: ${result.error}`);
-      }
-    } catch (error) {
-      setTestResult(`Errore di rete durante il salvataggio token: ${error}`);
-    }
-  };
+  // RIMOSSO: la funzione saveFCMToken non è più necessaria perché la sincronizzazione avviene tramite useSyncFcmToken
 
   // Mostra alert se si tenta di inviare una notifica senza token valido
   const testNotification = async () => {
