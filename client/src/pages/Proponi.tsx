@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, FileText, Vote, MessageSquare, Globe2 } from "lucide-react";
+import { FileText, Vote, MessageSquare, Globe2, ArrowLeft } from "lucide-react";
 
 export default function Proponi() {
   const { user, isLoading } = useAuth();
@@ -48,95 +48,84 @@ export default function Proponi() {
           </CardHeader>
         </Card>
 
-        {/* Pulsanti Proposta */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Pulsanti Proposta - Nuova estetica */}
+        <div className="grid grid-cols-2 gap-6">
           {/* Iniziative Popolari */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-indigo-600 group-hover:text-indigo-700">
-                <FileText className="h-5 w-5" />
-                Iniziative Popolari
-              </CardTitle>
-              <CardDescription>
-                Proponi nuove leggi e iniziative
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-indigo-600 hover:bg-indigo-700"
-                onClick={() => window.location.href = "/iniziative-popolari"}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Proponi Iniziativa Popolare
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/iniziative-popolari"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#a5b4fc" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <FileText className="h-8 w-8 text-indigo-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none text-center">Iniziativa<br />Popolare</div>
+            </div>
+          </button>
           {/* Referendum Abrogativi */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-600 group-hover:text-orange-700">
-                <Vote className="h-5 w-5" />
-                Referendum Abrogativi
-              </CardTitle>
-              <CardDescription>
-                Proponi l'abrogazione di leggi esistenti
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-orange-600 hover:bg-orange-700"
-                onClick={() => window.location.href = "/referendum-abrogativi"}
-              >
-                <Vote className="mr-2 h-4 w-4" />
-                Proponi Referendum Abrogativo
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/referendum-abrogativi"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#fdba74" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Vote className="h-8 w-8 text-orange-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none text-center">Referendum<br />Abrogativo</div>
+            </div>
+          </button>
           {/* Opinioni */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-fuchsia-600 group-hover:text-fuchsia-700">
-                <MessageSquare className="h-5 w-5" />
-                Opinioni
-              </CardTitle>
-              <CardDescription>
-                Proponi nuove opinioni per Demos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-fuchsia-600 hover:bg-fuchsia-700"
-                onClick={() => window.location.href = "/proponi-opinione"}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Esprimi Opinione
-              </Button>
-            </CardContent>
-          </Card>
-
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/proponi-opinione"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <MessageSquare className="h-8 w-8 text-fuchsia-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">Opinioni</div>
+            </div>
+          </button>
           {/* ICE */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-cyan-600 group-hover:text-cyan-700">
-                <Globe2 className="h-5 w-5" />
-                ICE
-              </CardTitle>
-              <CardDescription>
-                Proposta di Iniziativa dei Cittadini Europei (ICE)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-cyan-600 hover:bg-cyan-700"
-                onClick={() => window.location.href = "/ice"}
-              >
-                <Globe2 className="mr-2 h-4 w-4" />
-                Proponi ICE
-              </Button>
-            </CardContent>
-          </Card>
+          <button
+            type="button"
+            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+            onClick={() => window.location.href = "/ice"}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#99f6e4" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 flex flex-col items-center justify-center h-full">
+              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <Globe2 className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                <Globe2 className="h-8 w-8 text-cyan-600 relative z-10" />
+              </span>
+              <div className="text-gray-700 font-semibold text-lg select-none">ICE</div>
+            </div>
+          </button>
         </div>
       </div>
     </div>
