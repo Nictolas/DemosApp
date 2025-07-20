@@ -275,7 +275,7 @@ export default function Rappresentanti() {
           })()}
         </div>
         {/* Grid 2 colonne per le altre card */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-3">
           {categorie.slice(1).map((categoria) => {
             const colorMap = {
               green: { bg: "#bbf7d0", icon: "text-green-600", title: "text-green-800" },
@@ -290,10 +290,10 @@ export default function Rappresentanti() {
                   <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
-                <div className="relative z-10 p-6 flex flex-col items-center justify-center">
-                  <User className={`h-12 w-12 mb-2 ${color.icon}`} />
-                  <div className={`text-xl font-bold mb-1 ${color.title}`}>{categoria.nome}</div>
-                  <div className="text-gray-600 mb-4">Il tuo rappresentante attuale</div>
+                <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
+                  <User className={`h-8 w-8 md:h-12 md:w-12 mb-2 ${color.icon}`} />
+                  <div className={`text-base md:text-xl font-bold mb-1 ${color.title}`}>{categoria.nome}</div>
+                  <div className="text-gray-600 mb-2 md:mb-4 text-xs md:text-base">Il tuo rappresentante attuale</div>
                   {renderRappresentante(categoria)}
                 </div>
               </div>
