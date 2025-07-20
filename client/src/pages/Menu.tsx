@@ -102,8 +102,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#bbf7d0] mb-2">
-                      <UserCheck className="h-8 w-8 text-green-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#bbf7d0" strokeWidth="4" fill="none" />
+                      </svg>
+                      <UserCheck className="h-8 w-8 text-green-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Profilo</div>
                   </div>
@@ -116,8 +119,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#fbcfe8] mb-2">
-                      <MessageSquare className="h-8 w-8 text-pink-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fbcfe8" strokeWidth="4" fill="none" />
+                      </svg>
+                      <MessageSquare className="h-8 w-8 text-pink-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
                   </div>
@@ -130,8 +136,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#dbeafe] mb-2">
-                      <Users className="h-8 w-8 text-blue-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#dbeafe" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Users className="h-8 w-8 text-blue-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
                   </div>
@@ -144,8 +153,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#fef9c3] mb-2">
-                      <Vote className="h-8 w-8 text-yellow-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fef9c3" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Vote className="h-8 w-8 text-yellow-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
                   </div>
@@ -158,8 +170,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#ede9fe] mb-2">
-                      <Megaphone className="h-8 w-8 text-purple-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#ede9fe" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Megaphone className="h-8 w-8 text-purple-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
                   </div>
@@ -172,8 +187,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#fef3c7] mb-2">
-                      <Trophy className="h-8 w-8 text-orange-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fef3c7" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Trophy className="h-8 w-8 text-orange-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
                   </div>
@@ -186,8 +204,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#bae6fd] mb-2">
-                      <Bell className="h-8 w-8 text-blue-400" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#bae6fd" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Bell className="h-8 w-8 text-blue-400 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
                   </div>
@@ -200,8 +221,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#bbf7d0] mb-2">
-                      <Vote className="h-8 w-8 text-green-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#bbf7d0" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Vote className="h-8 w-8 text-green-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Vota</div>
                   </div>
@@ -214,8 +238,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#fbcfe8] mb-2">
-                      <Megaphone className="h-8 w-8 text-pink-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fbcfe8" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Megaphone className="h-8 w-8 text-pink-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Eventi</div>
                   </div>
@@ -228,8 +255,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#fef9c3] mb-2">
-                      <FileText className="h-8 w-8 text-yellow-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#fef9c3" strokeWidth="4" fill="none" />
+                      </svg>
+                      <FileText className="h-8 w-8 text-yellow-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Proponi</div>
                   </div>
@@ -242,8 +272,11 @@ export default function Menu() {
                     <polygon points="0,100 100,60 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#f3f4f6] mb-2">
-                      <Settings className="h-8 w-8 text-gray-600" />
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="10,10 90,10 90,60 10,90" stroke="#f3f4f6" strokeWidth="4" fill="none" />
+                      </svg>
+                      <Settings className="h-8 w-8 text-gray-600 relative z-10" />
                     </span>
                     <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
                   </div>
@@ -257,8 +290,11 @@ export default function Menu() {
                       <polygon points="0,100 100,60 100,100" fill="#fff" />
                     </svg>
                     <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                      <span className="flex items-center justify-center w-16 h-16 rounded-full bg-white border-4 border-[#fecaca] mb-2">
-                        <ShieldCheck className="h-8 w-8 text-red-600" />
+                      <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                        <svg className="absolute w-full h-full" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <polygon points="10,10 90,10 90,60 10,90" stroke="#fecaca" strokeWidth="4" fill="none" />
+                        </svg>
+                        <ShieldCheck className="h-8 w-8 text-red-600 relative z-10" />
                       </span>
                       <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
                     </div>
