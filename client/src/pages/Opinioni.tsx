@@ -176,20 +176,20 @@ export default function Opinioni() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400">
+    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 select-none">
       <div className="container mx-auto px-4 py-8">
         <Button 
           variant="ghost" 
-          className="mb-4 flex items-center"
+          className="mb-4 flex items-center select-none"
           onClick={() => setLocation("/menu")}
         >
           <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
         </Button>
         
         <Card className="w-full max-w-4xl mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold mb-2">Le tue Opinioni</CardTitle>
-            <CardDescription>
+          <CardHeader className="text-center select-none">
+            <CardTitle className="text-3xl font-bold mb-2 select-none">Le tue Opinioni</CardTitle>
+            <CardDescription className="select-none">
               Esprimi la tua opinione su temi importanti. Le tue risposte aiuteranno a trovare rappresentanti e candidati con idee simili alle tue.
             </CardDescription>
           </CardHeader>
@@ -208,7 +208,7 @@ export default function Opinioni() {
               <>
                 {questions.map((question) => (
                   <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-center">{question.text}</h3>
+                    <h3 className="text-lg font-semibold text-center select-none">{question.text}</h3>
                     <div className="flex justify-center">
                       <div className="flex w-full max-w-md">
                         {options.map((option, idx) => (
