@@ -59,7 +59,7 @@ export function Navbar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
                     <DropdownMenuItem>
-                      <Link href="/profilo">
+                      <Link href="/menu/profilo">
                         Profilo
                       </Link>
                     </DropdownMenuItem>

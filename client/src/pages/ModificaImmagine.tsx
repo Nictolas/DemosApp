@@ -108,7 +108,7 @@ export default function ModificaImmagine() {
         
         // Reindirizza al profilo dopo un breve delay
         setTimeout(() => {
-          window.location.href = "/profilo";
+          window.location.href = "/menu/profilo";
         }, 1000);
       } else {
         throw new Error("Errore nel salvataggio dell'avatar");
@@ -137,7 +137,7 @@ export default function ModificaImmagine() {
                          userInfo.ruolo === 'Candidato Politico';
     
     if (!hasPermission) {
-      return <Redirect to="/profilo" />;
+      return <Redirect to="/menu/profilo" />;
     }
   }
 
@@ -152,7 +152,7 @@ export default function ModificaImmagine() {
           <Button 
             variant="ghost" 
             className="mb-4 flex items-center"
-            onClick={() => window.location.href = "/profilo"}
+            onClick={() => window.location.href = "/menu/profilo"}
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Profilo
           </Button>

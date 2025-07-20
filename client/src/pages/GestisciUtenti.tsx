@@ -275,7 +275,7 @@ function GestisciUtenti() {
                     {safePendingUsers.map((pendingUser) => (
                       <TableRow key={pendingUser.id}>
                         <TableCell>
-                          <Link href={`/profilo/${pendingUser.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
+                          <Link href={`/menu/profilo/${pendingUser.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
                             {pendingUser.nome} {pendingUser.cognome}
                           </Link>
                         </TableCell>
@@ -394,7 +394,7 @@ function GestisciUtenti() {
                           safePaginatedUsers.map((user) => (
                             <TableRow key={user.id}>
                               <TableCell colSpan={2}>
-                                <Link href={`/profilo/${user.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
+                                <Link href={`/menu/profilo/${user.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
                                   {user.nome} {user.cognome}
                                 </Link>
                               </TableCell>

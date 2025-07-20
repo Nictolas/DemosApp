@@ -128,7 +128,7 @@ export default function Impostazioni() {
                 Account e Sicurezza
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Link href="/profilo">
+                <Link href="/menu/profilo">
                   <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
