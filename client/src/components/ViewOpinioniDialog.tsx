@@ -211,7 +211,9 @@ export function ViewOpinioniDialog({
         {/* Avatar se disponibile */}
         {avatarConfig && (
           <div className="flex justify-center mb-4">
-            <CustomAvatar config={JSON.parse(avatarConfig)} size={64} />
+            <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm" style={{ width: 64, height: 64 }}>
+              <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
+            </div>
           </div>
         )}
         
