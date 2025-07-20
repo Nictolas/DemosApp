@@ -94,190 +94,224 @@ export default function Menu() {
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 p-6">
               {/* Altri pulsanti menu con nuova estetica */}
-              <Link href="/profilo" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  {/* Sfondo diagonale più in alto */}
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      {/* Icona bianca più grande */}
-                      <UserCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      {/* Icona colorata sopra */}
-                      <UserCheck className="h-8 w-8 text-green-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Profilo</div>
-                  </div>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/profilo")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                {/* Sfondo diagonale più in alto */}
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <UserCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <UserCheck className="h-8 w-8 text-green-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Profilo</div>
                 </div>
-              </Link>
-              <Link href="/opinioni" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <MessageSquare className="h-8 w-8 text-pink-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/opinioni")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <MessageSquare className="h-8 w-8 text-pink-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Opinioni</div>
                 </div>
-              </Link>
-              <Link href="/rappresentanti" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Users className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Users className="h-8 w-8 text-blue-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/rappresentanti")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Users className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Users className="h-8 w-8 text-blue-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Rappresentanti</div>
                 </div>
-              </Link>
-              <Link href="/elezioni" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Vote className="h-8 w-8 text-yellow-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/elezioni")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Vote className="h-8 w-8 text-yellow-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Elezioni</div>
                 </div>
-              </Link>
-              <Link href="/strumenti" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Megaphone className="h-8 w-8 text-purple-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/strumenti")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Megaphone className="h-8 w-8 text-purple-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Strumenti</div>
                 </div>
-              </Link>
-              <Link href="/podio-trasparenza" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Trophy className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Trophy className="h-8 w-8 text-orange-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/podio-trasparenza")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Trophy className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Trophy className="h-8 w-8 text-orange-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Podio Trasparenza</div>
                 </div>
-              </Link>
-              <Link href="/notifiche" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#bae6fd" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Bell className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Bell className="h-8 w-8 text-blue-400 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/notifiche")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#bae6fd" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Bell className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Bell className="h-8 w-8 text-blue-400 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Notifiche</div>
                 </div>
-              </Link>
-              <Link href="/vota" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Vote className="h-8 w-8 text-green-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Vota</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/vota")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Vote className="h-8 w-8 text-green-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Vota</div>
                 </div>
-              </Link>
-              <Link href="/eventi" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Megaphone className="h-8 w-8 text-pink-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Eventi</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/eventi")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Megaphone className="h-8 w-8 text-pink-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Eventi</div>
                 </div>
-              </Link>
-              <Link href="/proponi" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <FileText className="h-8 w-8 text-yellow-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Proponi</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/proponi")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <FileText className="h-8 w-8 text-yellow-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Proponi</div>
                 </div>
-              </Link>
-              <Link href="/impostazioni" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    <polygon points="100,0 0,0 0,35 100,20" fill="#f3f4f6" />
-                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                  </svg>
-                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                      <Settings className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                      <Settings className="h-8 w-8 text-gray-600 relative z-10" />
-                    </span>
-                    <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
-                  </div>
+              </button>
+              <button
+                type="button"
+                className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setLocation("/impostazioni")}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  <polygon points="100,0 0,0 0,35 100,20" fill="#f3f4f6" />
+                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                </svg>
+                <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                    <Settings className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Settings className="h-8 w-8 text-gray-600 relative z-10" />
+                  </span>
+                  <div className="text-gray-700 font-semibold text-lg">Impostazioni</div>
                 </div>
-              </Link>
+              </button>
               {isAdmin && (
-                <Link href="/gestisci" className="w-full">
-                  <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
-                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                      <polygon points="100,0 0,0 0,35 100,20" fill="#fecaca" />
-                      <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                    </svg>
-                    <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                      <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                        <ShieldCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                        <ShieldCheck className="h-8 w-8 text-red-600 relative z-10" />
-                      </span>
-                      <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
-                    </div>
+                <button
+                  type="button"
+                  className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                  onClick={() => setLocation("/gestisci")}
+                  onContextMenu={e => e.preventDefault()}
+                >
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="100,0 0,0 0,35 100,20" fill="#fecaca" />
+                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                      <ShieldCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                      <ShieldCheck className="h-8 w-8 text-red-600 relative z-10" />
+                    </span>
+                    <div className="text-gray-700 font-semibold text-lg">Gestisci</div>
                   </div>
-                </Link>
+                </button>
               )}
             </CardContent>
           </Card>
