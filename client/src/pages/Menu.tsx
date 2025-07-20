@@ -95,7 +95,7 @@ export default function Menu() {
             <CardContent className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 p-6">
               {/* Altri pulsanti menu con nuova estetica */}
               <Link href="/profilo" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   {/* Sfondo diagonale più in alto */}
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
@@ -113,7 +113,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/opinioni" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -128,7 +128,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/rappresentanti" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -143,7 +143,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/elezioni" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -158,7 +158,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/strumenti" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -173,7 +173,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/podio-trasparenza" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -188,7 +188,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/notifiche" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#bae6fd" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -203,7 +203,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/vota" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -218,7 +218,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/eventi" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -233,7 +233,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/proponi" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -248,7 +248,7 @@ export default function Menu() {
                 </div>
               </Link>
               <Link href="/impostazioni" className="w-full">
-                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#f3f4f6" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -264,7 +264,7 @@ export default function Menu() {
               </Link>
               {isAdmin && (
                 <Link href="/gestisci" className="w-full">
-                  <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform">
+                  <div className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer active:scale-95 transition-transform" onContextMenu={e => e.preventDefault()}>
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                       <polygon points="100,0 0,0 0,35 100,20" fill="#fecaca" />
                       <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
