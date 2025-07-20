@@ -9,10 +9,9 @@ const VAPID_PRIVATE_KEY = '<REDACTED_API_KEY>';
 export async function saveUserFCMToken(userId, fcmToken) {
   try {
     await adminDb.collection('utenti').doc(userId).update({
-      fcmToken: fcmToken,
-      fcmTokenUpdatedAt: new Date()
+      fcmTokens: [fcmToken]
     });
-    console.log(`Token FCM salvato per utente ${userId}`);
+    console.log(`Token FCM (array) salvato per utente ${userId}`);
     return { success: true };
   } catch (error) {
     console.error('Errore salvataggio token FCM:', error);
@@ -26,10 +25,9 @@ export async function saveUserFCMToken(userId, fcmToken) {
 export async function removeUserFCMToken(userId) {
   try {
     await adminDb.collection('utenti').doc(userId).update({
-      fcmToken: null,
-      fcmTokenUpdatedAt: new Date()
+      fcmTokens: []
     });
-    console.log(`Token FCM rimosso per utente ${userId}`);
+    console.log(`Token FCM (array) rimosso per utente ${userId}`);
     return { success: true };
   } catch (error) {
     console.error('Errore rimozione token FCM:', error);
@@ -49,13 +47,13 @@ export async function sendNotificationToUser(userId, notification) {
     }
 
     const userData = userDoc.data();
-    if (!userData.fcmToken) {
+    if (!userData.fcmTokens || !Array.isArray(userData.fcmTokens) || userData.fcmTokens.length === 0) {
       return { success: false, error: 'Token FCM non trovato per questo utente' };
     }
 
-    // Invia la notifica
+    // Invia la notifica SOLO al primo token (o a tutti se vuoi)
     const message = {
-      token: userData.fcmToken,
+      token: userData.fcmTokens[0],
       notification: {
         title: notification.title,
         body: notification.body
@@ -106,8 +104,8 @@ export async function sendNotificationToUsers(userIds, notification) {
     const tokens = [];
     usersSnapshot.forEach(doc => {
       const userData = doc.data();
-      if (userData.fcmToken) {
-        tokens.push(userData.fcmToken);
+      if (userData.fcmTokens && Array.isArray(userData.fcmTokens) && userData.fcmTokens.length > 0) {
+        tokens.push(userData.fcmTokens[0]);
       }
     });
 
@@ -176,7 +174,6 @@ export async function sendNotificationToAllUsers(notification) {
 
     while (true) {
       let query = adminDb.collection('utenti')
-        .where('fcmToken', '!=', null)
         .limit(batchSize);
 
       if (lastDoc) {
@@ -189,8 +186,8 @@ export async function sendNotificationToAllUsers(notification) {
 
       snapshot.forEach(doc => {
         const userData = doc.data();
-        if (userData.fcmToken) {
-          allTokens.push(userData.fcmToken);
+        if (userData.fcmTokens && Array.isArray(userData.fcmTokens) && userData.fcmTokens.length > 0) {
+          allTokens.push(userData.fcmTokens[0]);
         }
       });
 
@@ -203,60 +200,48 @@ export async function sendNotificationToAllUsers(notification) {
       return { success: false, error: 'Nessun token FCM trovato' };
     }
 
-    // Invia notifiche in batch di 500
-    const batches = [];
-    for (let i = 0; i < allTokens.length; i += 500) {
-      batches.push(allTokens.slice(i, i + 500));
-    }
-
-    let totalSuccess = 0;
-    let totalFailure = 0;
-
-    for (const batch of batches) {
-      const message = {
-        notification: {
-          title: notification.title,
-          body: notification.body
+    // Invia notifiche in batch
+    const message = {
+      notification: {
+        title: notification.title,
+        body: notification.body
+      },
+      data: notification.data || {},
+      webpush: {
+        headers: {
+          'Urgency': 'high'
         },
-        data: notification.data || {},
-        webpush: {
-          headers: {
-            'Urgency': 'high'
-          },
-          notification: {
-            icon: '/icona.png',
-            badge: '/icona.png',
-            tag: 'demos-notification',
-            requireInteraction: true,
-            actions: [
-              {
-                action: 'open',
-                title: 'Apri'
-              },
-              {
-                action: 'close',
-                title: 'Chiudi'
-              }
-            ]
-          }
+        notification: {
+          icon: '/icona.png',
+          badge: '/icona.png',
+          tag: 'demos-notification',
+          requireInteraction: true,
+          actions: [
+            {
+              action: 'open',
+              title: 'Apri'
+            },
+            {
+              action: 'close',
+              title: 'Chiudi'
+            }
+          ]
         }
-      };
+      }
+    };
 
-      const response = await adminAuth.app.messaging().sendMulticast({
-        tokens: batch,
-        ...message
-      });
+    // Invia a tutti i token
+    const response = await adminAuth.app.messaging().sendMulticast({
+      tokens: allTokens,
+      ...message
+    });
 
-      totalSuccess += response.successCount;
-      totalFailure += response.failureCount;
-    }
-
-    console.log(`Notifiche inviate a tutti: ${totalSuccess}/${allTokens.length}`);
+    console.log(`Notifiche inviate a tutti: ${response.successCount}/${allTokens.length}`);
     return { 
       success: true, 
-      successCount: totalSuccess,
-      failureCount: totalFailure,
-      totalTokens: allTokens.length
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      responses: response.responses
     };
   } catch (error) {
     console.error('Errore invio notifiche a tutti:', error);
