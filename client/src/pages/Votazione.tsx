@@ -67,23 +67,23 @@ export default function Votazione() {
   });
 
   // Recupera l'ultima comunicazione dell'utente
-  const [ultimaComunicazione, setUltimaComunicazione] = useState<any>(null);
+  // const [ultimaComunicazione, setUltimaComunicazione] = useState<any>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchUltima = async () => {
-      const q = query(
-        collection(db, "comunicazioni"),
-        where("id_utente", "==", user.uid),
-        orderBy("data_creazione", "desc"),
-        limit(1)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) setUltimaComunicazione(snap.docs[0].data());
-      else setUltimaComunicazione(null);
-    };
-    fetchUltima();
-  }, [user]);
+  // useEffect(() => {
+  //   if (!user) return;
+  //   const fetchUltima = async () => {
+  //     const q = query(
+  //       collection(db, "comunicazioni"),
+  //       where("id_utente", "==", user.uid),
+  //       orderBy("data_creazione", "desc"),
+  //       limit(1)
+  //     );
+  //     const snap = await getDocs(q);
+  //     if (!snap.empty) setUltimaComunicazione(snap.docs[0].data());
+  //     else setUltimaComunicazione(null);
+  //   };
+  //   fetchUltima();
+  // }, [user]);
 
   // Generate zona based on user's election data
   const generateZona = () => {
@@ -213,6 +213,7 @@ export default function Votazione() {
       <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         {/* Ultima Votazione Section */}
+        {/*
         {ultimaComunicazione && (
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
@@ -227,32 +228,30 @@ export default function Votazione() {
                   <span className="font-medium">Titolo:</span>
                   <p className="text-sm mt-1">{ultimaComunicazione.titolo}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="font-medium text-sm">Il tuo voto:</span>
-                    <Badge 
-                      variant="outline" 
-                      className={`ml-2 ${
-                        ultimaComunicazione.voto_dato === "Favorevole" 
-                          ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                          : ultimaComunicazione.voto_dato === "Contrario"
-                          ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
-                          : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
-                      }`}
-                    >
-                      {ultimaComunicazione.voto_dato}
-                    </Badge>
-                  </div>
-                  <div>
-                    <span className="font-medium text-sm">Risultato:</span>
-                    <Badge variant="outline" className={`ml-2 ${
-                      ultimaComunicazione.vincitore === "Approvata"
-                        ? "bg-green-500 text-white border-green-500"
-                        : "bg-red-500 text-white border-red-500"
-                    }`}>
-                      {ultimaComunicazione.vincitore}
-                    </Badge>
-                  </div>
+                <div>
+                  <span className="font-medium text-sm">Il tuo voto:</span>
+                  <Badge 
+                    variant="outline" 
+                    className={`ml-2 ${
+                      ultimaComunicazione.voto_dato === "Favorevole" 
+                        ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
+                        : ultimaComunicazione.voto_dato === "Contrario"
+                        ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
+                        : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
+                    }`}
+                  >
+                    {ultimaComunicazione.voto_dato}
+                  </Badge>
+                </div>
+                <div>
+                  <span className="font-medium text-sm">Risultato:</span>
+                  <Badge variant="outline" className={`ml-2 ${
+                    ultimaComunicazione.vincitore === "Approvata"
+                      ? "bg-green-500 text-white border-green-500"
+                      : "bg-red-500 text-white border-red-500"
+                  }`}>
+                    {ultimaComunicazione.vincitore}
+                  </Badge>
                 </div>
                 {ultimaComunicazione.commento && (
                   <div>
@@ -264,18 +263,16 @@ export default function Votazione() {
                   <span className="font-medium text-sm">Zona:</span>
                   <p className="text-sm mt-1">{ultimaComunicazione.zona}</p>
                 </div>
-                <div>
-                  <span className="font-medium text-sm">Data:</span>
-                  <p className="text-sm mt-1">
-                    {new Date(ultimaComunicazione.data_creazione).toLocaleDateString('it-IT', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                </div>
+                <span className="font-medium text-sm">Data:</span>
+                <p className="text-sm mt-1">
+                  {new Date(ultimaComunicazione.data_creazione).toLocaleDateString('it-IT', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
                 <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
                   <span className="font-medium text-sm">Feedback ricevuto:</span>
                   <div className="flex items-center space-x-4">
@@ -291,6 +288,7 @@ export default function Votazione() {
             </CardContent>
           </Card>
         )}
+        */}
 
         {/* Nuova Comunicazione Section */}
         <Card className="max-w-2xl mx-auto">
@@ -316,12 +314,6 @@ export default function Votazione() {
                 </AlertDescription>
               </Alert>
             )}
-
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                <strong>La tua zona di elezione:</strong> {generateZona()}
-              </p>
-            </div>
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
