@@ -193,7 +193,8 @@ export default function Rappresentanti() {
                 <CustomAvatar 
                   config={updatedConfig}
                   size={80}
-                  className="border-2 border-gray-300 rounded-full shadow-sm"
+                  className="border-2 border-gray-300 rounded-full shadow-sm cursor-pointer"
+                  onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}
                 />
               );
             } catch (error) {
