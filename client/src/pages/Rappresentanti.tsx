@@ -190,13 +190,13 @@ export default function Rappresentanti() {
                 tieColor: config.tieColor || "#E74C3C"
               };
               return (
-                <div className="relative flex items-center justify-center" style={{ width: 80, height: 80 }}>
-                  <div className="absolute inset-0 rounded-full bg-white border-2 border-gray-300" />
+                <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm cursor-pointer" style={{ width: 80, height: 80 }}
+                  onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}
+                >
                   <CustomAvatar 
                     config={updatedConfig}
                     size={80}
-                    className="relative shadow-sm cursor-pointer"
-                    onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}
+                    className="w-full h-full"
                   />
                 </div>
               );
