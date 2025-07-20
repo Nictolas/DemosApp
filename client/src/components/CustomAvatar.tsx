@@ -483,11 +483,12 @@ export function CustomAvatar({ config, size = 100, className = "", onClick }: Cu
       onClick={onClick}
     >
       <svg
-        width={size}
-        height={size}
+        width="100%"
+        height="100%"
         viewBox="0 0 300 300"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        style={{ display: 'block' }}
       >
         {/* Sfondo */}
         <rect width="300" height="300" fill="#F5F5F5" />
