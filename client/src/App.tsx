@@ -16,7 +16,6 @@ import Elezioni from "@/pages/Elezioni";
 import ScegliRappresentante from "@/pages/ScegliRappresentante";
 import ScegliCandidato from "@/pages/ScegliCandidato";
 import StatisticheUtenti from "@/pages/StatisticheUtenti";
-import StatisticheOpinioni from "@/pages/StatisticheOpinioni";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
 import RegistrazioneElezioneCandidatura from "@/pages/RegistrazioneElezioneCandidatura";
