@@ -29,14 +29,7 @@ export function NotificationTest({ userId }: NotificationTestProps) {
     if (message) {
       // Mostra una notifica in-app
       setTestResult(`Notifica ricevuta: ${message.notification?.title} - ${message.notification?.body}`);
-      
-      // Opzionale: mostra anche una notifica del browser
-      if (permission === 'granted') {
-        new Notification(message.notification?.title || 'DEMOS', {
-          body: message.notification?.body,
-          icon: '/icona.png'
-        });
-      }
+      // RIMOSSO: non mostrare più una notifica locale con new Notification per evitare doppie notifiche
     }
   }, [message, permission]);
 
