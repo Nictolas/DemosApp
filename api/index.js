@@ -222,10 +222,9 @@ app.post("/api/register", async (req, res, next) => {
     if (fcmToken && result.user.uid) {
       try {
         await adminDb.collection('utenti').doc(result.user.uid).update({
-          fcmToken: fcmToken,
-          fcmTokenUpdatedAt: new Date()
+          fcmTokens: [fcmToken]
         });
-        console.log(`Token FCM salvato per nuovo utente: ${result.user.uid}`);
+        console.log(`Token FCM (array) salvato per nuovo utente: ${result.user.uid}`);
       } catch (error) {
         console.error('Errore salvataggio token FCM durante registrazione:', error);
       }
@@ -249,10 +248,9 @@ app.post("/api/login", async (req, res, next) => {
     if (fcmToken && user.id) {
       try {
         await adminDb.collection('utenti').doc(user.id).update({
-          fcmToken: fcmToken,
-          fcmTokenUpdatedAt: new Date()
+          fcmTokens: [fcmToken]
         });
-        console.log(`Token FCM aggiornato per utente: ${user.id}`);
+        console.log(`Token FCM (array) aggiornato per utente: ${user.id}`);
       } catch (error) {
         console.error('Errore aggiornamento token FCM durante login:', error);
       }
