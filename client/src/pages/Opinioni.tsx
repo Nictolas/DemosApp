@@ -215,12 +215,15 @@ export default function Opinioni() {
                           <button
                             key={option.value}
                             type="button"
-                            className={`flex-1 py-4 text-lg font-medium transition-colors duration-150 focus:outline-none active:scale-95 transition-transform shadow-lg active:shadow select-none
+                            className={`flex-1 py-4 text-lg font-medium transition-colors duration-150 focus:outline-none select-none
                               ${opinions[question.id] === option.value
-                                ? option.color + " text-white"
-                                : "bg-white hover:bg-gray-100 text-gray-700"}
-                              ${idx === 0 ? "rounded-l-full" : ""}
-                              ${idx === options.length - 1 ? "rounded-r-full" : ""}
+                                ? 'shadow scale-95 active:shadow'
+                                : 'shadow-2xl active:scale-95 active:shadow'}
+                              ${opinions[question.id] === option.value
+                                ? option.color + ' text-white'
+                                : 'bg-white hover:bg-gray-100 text-gray-700'}
+                              ${idx === 0 ? 'rounded-l-full' : ''}
+                              ${idx === options.length - 1 ? 'rounded-r-full' : ''}
                               border-0`}
                             style={{ borderRight: idx < options.length - 1 ? '1px solid #e5e7eb' : undefined }}
                             onClick={() => handleOpinionChange(question.id, option.value)}
