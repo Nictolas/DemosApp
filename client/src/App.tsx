@@ -69,6 +69,7 @@ import ResetPasswordPage from "@/pages/reset-password";
 import Informazioni from "@/pages/Informazioni";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
+import React, { useEffect } from "react";
 
 function Router() {
   const [location] = useLocation();
@@ -552,6 +553,49 @@ function SyncFcmTokenWrapper() {
 }
 
 function App() {
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    function handleTouchStart(e: TouchEvent) {
+      if (e.touches && e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    }
+
+    function handleTouchMove(e: TouchEvent) {
+      if (e.touches && e.touches.length === 1) {
+        touchEndX = e.touches[0].clientX;
+        touchEndY = e.touches[0].clientY;
+      }
+    }
+
+    function handleTouchEnd() {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = Math.abs(touchEndY - touchStartY);
+      // Swipe da sinistra verso destra, orizzontale, almeno 60px e non troppo inclinato
+      if (deltaX > 60 && deltaY < 40) {
+        window.history.back();
+      }
+    }
+
+    // Solo su dispositivi touch
+    if ('ontouchstart' in window) {
+      window.addEventListener('touchstart', handleTouchStart, { passive: true });
+      window.addEventListener('touchmove', handleTouchMove, { passive: true });
+      window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    }
+    return () => {
+      if ('ontouchstart' in window) {
+        window.removeEventListener('touchstart', handleTouchStart);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
+      }
+    };
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
