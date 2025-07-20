@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, Save } from "lucide-react";
 import { AvatarEditor } from "@/components/AvatarEditor";
 import { useToast } from "@/hooks/use-toast";
-import { UserInfo } from "@/types";
+import { UserInfo } from "@/types/user";
 
 interface AvatarConfig {
   skinColor: string;
