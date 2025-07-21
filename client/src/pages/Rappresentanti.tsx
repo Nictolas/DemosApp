@@ -281,7 +281,7 @@ export default function Rappresentanti() {
                   </svg>
                   <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
                     <User className={`h-8 w-8 md:h-12 md:w-12 mb-2 ${color.icon}`} />
-                    <div className={`text-base md:text-xl font-bold mb-1 ${color.title}`}>{categoria.nome}</div>
+                    <div className={`text-base md:text-xl font-bold mb-1 text-center ${color.title}`}>{categoria.nome}</div>
                     {/* Scritta rimossa: Il tuo rappresentante attuale */}
                     {renderRappresentante(categoria)}
                   </div>
