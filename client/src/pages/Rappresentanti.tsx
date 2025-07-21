@@ -230,7 +230,7 @@ export default function Rappresentanti() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden" style={{ paddingBottom: '80px', overscrollBehavior: 'none', position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0 }}>
+      <div className="min-h-screen flex flex-col overflow-hidden select-none" style={{ paddingBottom: '80px', overscrollBehavior: 'none', position: 'fixed', width: '100vw', height: '100vh', top: 0, left: 0 }}>
         <div className="container mx-auto px-4 py-8">
           {/* Header rimosso */}
           
