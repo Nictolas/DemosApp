@@ -51,6 +51,7 @@ export function ViewOpinioniDialog({
   const [isLoadingFonti, setIsLoadingFonti] = useState(false);
   const [tab, setTab] = useState<'favorevole' | 'indeciso' | 'contrario' | 'sostegno' | 'altro'>('favorevole');
   const [, setLocation] = useLocation();
+  const [showCambiaModal, setShowCambiaModal] = useState(false);
 
   // Funzione per redirect su "Cambia rappresentante"
   const handleCambia = () => {
@@ -387,12 +388,23 @@ export function ViewOpinioniDialog({
           </div>
           {/* Seconda riga: azioni */}
           <div className="flex justify-center gap-2 w-full">
-            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={handleCambia}>Cambia</button>
+            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => setShowCambiaModal(true)}>Cambia</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
             <Button className="flex-1" onClick={() => onOpenChange(false)}>Chiudi</Button>
           </div>
         </div>
       </DialogContent>
+      {/* Modal scelta tipo ricerca rappresentante */}
+      {showCambiaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xs flex flex-col items-center">
+            <h2 className="text-lg font-bold mb-4 text-center">Come vuoi cercare un nuovo rappresentante?</h2>
+            <Button className="w-full mb-2" onClick={() => { setShowCambiaModal(false); handleCambia(); }}>Per compatibilità</Button>
+            <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); /* logica per merito da implementare */ }}>Per merito</Button>
+            <Button className="w-full mt-4" variant="ghost" onClick={() => setShowCambiaModal(false)}>Annulla</Button>
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }
