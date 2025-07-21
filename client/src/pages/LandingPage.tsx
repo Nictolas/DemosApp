@@ -1,6 +1,5 @@
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import Navbar from "@/components/Navbar";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import appIcon from '/icona.png';
@@ -25,7 +24,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-      <Navbar />
       
       <main className="flex-grow">
         {/* Hero Section */}
