@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 // Mappa colori per le risposte
 const responseColors = {
@@ -46,7 +47,14 @@ export function ViewOpinioniDialog({
   const [isLoadingLikes, setIsLoadingLikes] = useState(false);
   const [fonti, setFonti] = useState<Record<string, string>>({});
   const [isLoadingFonti, setIsLoadingFonti] = useState(false);
-  const [tab, setTab] = useState<'opinioni' | 'sostegno' | 'altro'>('opinioni');
+  const [tab, setTab] = useState<'favorevole' | 'indeciso' | 'contrario' | 'sostegno' | 'altro'>('favorevole');
+  const [, setLocation] = useLocation();
+
+  // Funzione per redirect su "Cambia rappresentante"
+  const handleCambia = () => {
+    // Prova a dedurre la categoria dal nome/cognome o da props, fallback su /scegli-rappresentante
+    setLocation('/scegli-rappresentante');
+  };
 
   // Carica le domande dinamiche
   useEffect(() => {
@@ -212,111 +220,108 @@ export function ViewOpinioniDialog({
             {/* Nome utente centrato */}
             <div className="text-xl font-bold text-center mb-1">{nome && cognome ? `${nome} ${cognome}` : "Utente"}</div>
           </div>
+          {/* Pulsanti filtro opinioni in alto */}
+          <div className="flex justify-center gap-2 mt-4 mb-2">
+            <button className={`px-4 py-2 rounded ${tab === 'favorevole' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('favorevole')}>Favorevole</button>
+            <button className={`px-4 py-2 rounded ${tab === 'indeciso' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('indeciso')}>Indeciso</button>
+            <button className={`px-4 py-2 rounded ${tab === 'contrario' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('contrario')}>Contrario</button>
+          </div>
         </DialogHeader>
         {/* Tabs contenuto */}
         <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: 88 }}>
-          {tab === 'opinioni' && (
-            <div>
-              <div className="text-center text-muted-foreground mb-4">Visualizza le opinioni dell'utente su vari argomenti.</div>
-              {/* Colonne Opinioni */}
-              <div className="max-h-[60vh] overflow-y-auto pr-1">
-                {isLoadingOpinions || isLoadingQuestions || isLoadingMyOpinions ? (
-                  <div className="flex justify-center items-center h-40">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <span className="ml-2">Caricamento opinioni...</span>
-                  </div>
-                ) : Object.keys(opinions).length === 0 ? (
-                  <div className="text-center p-6 text-muted-foreground">
-                    Questo utente non ha ancora espresso opinioni.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-6">
-                    {/* Colonna Favorevoli - Verde */}
-                    <div className="space-y-3">
-                      <div className="bg-green-100 border border-green-200 rounded-lg p-4">
-                        <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
-                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                          Favorevole
-                        </h3>
-                        <div className="space-y-2">
-                          {categorizeAllOpinions().favorevoli.length > 0 ? (
-                            categorizeAllOpinions().favorevoli.map(({ id, label }, index) => (
-                              <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
-                                <span className="text-green-800 font-medium">{label}</span>
-                                {myOpinions[id] === opinions[id] ? <Check className="text-green-600 ml-2" size={20} /> : null}
-                                {fonti[id] ? (
-                                  <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                    <AlertCircle className="text-blue-600" size={18} />
-                                  </a>
-                                ) : null}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-green-600 text-sm italic">
-                              Nessuna opinione favorevole
-                            </div>
-                          )}
+          {tab === 'favorevole' && (
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
+              {/* Colonna Favorevoli - Verde */}
+              <div className="space-y-3">
+                <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    Favorevole
+                  </h3>
+                  <div className="space-y-2">
+                    {categorizeAllOpinions().favorevoli.length > 0 ? (
+                      categorizeAllOpinions().favorevoli.map(({ id, label }, index) => (
+                        <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
+                          <span className="text-green-800 font-medium">{label}</span>
+                          {myOpinions[id] === opinions[id] ? <Check className="text-green-600 ml-2" size={20} /> : null}
+                          {fonti[id] ? (
+                            <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                              <AlertCircle className="text-blue-600" size={18} />
+                            </a>
+                          ) : null}
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-green-600 text-sm italic">
+                        Nessuna opinione favorevole
                       </div>
-                    </div>
-                    {/* Colonna Indecisi - Giallo */}
-                    <div className="space-y-3">
-                      <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
-                        <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                          Indeciso
-                        </h3>
-                        <div className="space-y-2">
-                          {categorizeAllOpinions().indecisi.length > 0 ? (
-                            categorizeAllOpinions().indecisi.map(({ id, label }, index) => (
-                              <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
-                                <span className="text-yellow-800 font-medium">{label}</span>
-                                {myOpinions[id] === opinions[id] ? <Check className="text-yellow-600 ml-2" size={20} /> : null}
-                                {fonti[id] ? (
-                                  <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                    <AlertCircle className="text-blue-600" size={18} />
-                                  </a>
-                                ) : null}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-yellow-600 text-sm italic">
-                              Nessuna opinione indecisa
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {/* Colonna Contrari - Rosso */}
-                    <div className="space-y-3">
-                      <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                        <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
-                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                          Contrario
-                        </h3>
-                        <div className="space-y-2">
-                          {categorizeAllOpinions().contrari.length > 0 ? (
-                            categorizeAllOpinions().contrari.map(({ id, label }, index) => (
-                              <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
-                                <span className="text-red-800 font-medium">{label}</span>
-                                {myOpinions[id] === opinions[id] ? <Check className="text-red-600 ml-2" size={20} /> : null}
-                                {fonti[id] ? (
-                                  <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                    <AlertCircle className="text-blue-600" size={18} />
-                                  </a>
-                                ) : null}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-red-600 text-sm italic">
-                              Nessuna opinione contraria
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
+              </div>
+            </div>
+          )}
+          {tab === 'indeciso' && (
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
+              {/* Colonna Indecisi - Giallo */}
+              <div className="space-y-3">
+                <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    Indeciso
+                  </h3>
+                  <div className="space-y-2">
+                    {categorizeAllOpinions().indecisi.length > 0 ? (
+                      categorizeAllOpinions().indecisi.map(({ id, label }, index) => (
+                        <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
+                          <span className="text-yellow-800 font-medium">{label}</span>
+                          {myOpinions[id] === opinions[id] ? <Check className="text-yellow-600 ml-2" size={20} /> : null}
+                          {fonti[id] ? (
+                            <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                              <AlertCircle className="text-blue-600" size={18} />
+                            </a>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-yellow-600 text-sm italic">
+                        Nessuna opinione indecisa
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {tab === 'contrario' && (
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
+              {/* Colonna Contrari - Rosso */}
+              <div className="space-y-3">
+                <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    Contrario
+                  </h3>
+                  <div className="space-y-2">
+                    {categorizeAllOpinions().contrari.length > 0 ? (
+                      categorizeAllOpinions().contrari.map(({ id, label }, index) => (
+                        <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
+                          <span className="text-red-800 font-medium">{label}</span>
+                          {myOpinions[id] === opinions[id] ? <Check className="text-red-600 ml-2" size={20} /> : null}
+                          {fonti[id] ? (
+                            <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="ml-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                              <AlertCircle className="text-blue-600" size={18} />
+                            </a>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-red-600 text-sm italic">
+                        Nessuna opinione contraria
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -356,12 +361,9 @@ export function ViewOpinioniDialog({
         {/* Barra pulsanti fissa in basso */}
         <div className="w-full bg-white shadow-[0_-2px_8px_-2px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.08)] border-t border-gray-200 border-b border-gray-200 flex flex-col items-center justify-center gap-2 p-4 fixed left-0 right-0 bottom-0 sm:static sm:shadow-none sm:border-0" style={{ minHeight: 72, zIndex: 50 }}>
           <div className="flex justify-center gap-2 w-full">
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'opinioni' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('opinioni')}>Opinioni</button>
+            <button className={`flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700`} onClick={handleCambia}>Cambia</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
-            <button className={`flex-1 px-4 py-2 rounded ${tab === 'altro' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('altro')}>Altro</button>
-          </div>
-          <div className="flex justify-end w-full mt-2">
-            <Button onClick={() => onOpenChange(false)}>Chiudi</Button>
+            <Button className="flex-1" onClick={() => onOpenChange(false)}>Chiudi</Button>
           </div>
         </div>
       </DialogContent>
