@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Crown, Vote, Users, Star, CheckCircle } from "lucide-react";
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 
 interface AccountType {
   id: string;

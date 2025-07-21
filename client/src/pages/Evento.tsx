@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { AlertTriangle } from "lucide-react";
 
 const eventoSchema = z.object({

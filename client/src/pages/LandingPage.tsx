@@ -1,6 +1,6 @@
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import appIcon from '/icona.png';
