@@ -24,6 +24,7 @@ interface ViewOpinioniDialogProps {
   nome?: string;
   cognome?: string;
   avatarConfig?: string;
+  categoria?: 'comune' | 'regione' | 'camera' | 'senato' | 'europeo';
 }
 
 export function ViewOpinioniDialog({ 
@@ -32,7 +33,8 @@ export function ViewOpinioniDialog({
   onOpenChange,
   nome,
   cognome,
-  avatarConfig
+  avatarConfig,
+  categoria
 }: ViewOpinioniDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -52,8 +54,11 @@ export function ViewOpinioniDialog({
 
   // Funzione per redirect su "Cambia rappresentante"
   const handleCambia = () => {
-    // Prova a dedurre la categoria dal nome/cognome o da props, fallback su /scegli-rappresentante
-    setLocation('/scegli-rappresentante');
+    if (categoria) {
+      setLocation(`/scegli-rappresentante/${categoria}`);
+    } else {
+      setLocation('/scegli-rappresentante');
+    }
   };
 
   // Carica le domande dinamiche
