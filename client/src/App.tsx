@@ -596,13 +596,14 @@ function App() {
       }
     };
   }, []);
+  const [location] = useLocation();
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RegistrationProvider>
           <SyncFcmTokenWrapper />
           <Router />
-          <Navbar />
+          {location !== '/' && <Navbar />}
           <Toaster />
         </RegistrationProvider>
       </AuthProvider>
