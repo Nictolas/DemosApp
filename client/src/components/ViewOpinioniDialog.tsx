@@ -401,14 +401,11 @@ export function ViewOpinioniDialog({
             <h2 className="text-lg font-bold mb-4 text-center">Come vuoi cercare un nuovo rappresentante?</h2>
             <Button className="w-full mb-2" onClick={() => {
               setShowCambiaModal(false);
-              onOpenChange(false);
-              setTimeout(() => {
-                if (categoria) {
-                  setLocation(`/scegli-rappresentante/${categoria}`);
-                } else {
-                  setLocation('/scegli-rappresentante');
-                }
-              }, 200);
+              if (categoria) {
+                setLocation(`/scegli-rappresentante/${categoria}`);
+              } else {
+                setLocation('/scegli-rappresentante');
+              }
             }}>Per compatibilità</Button>
             <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); /* logica per merito da implementare */ }}>Per merito</Button>
             <Button className="w-full mt-4" variant="ghost" onClick={() => setShowCambiaModal(false)}>Annulla</Button>
