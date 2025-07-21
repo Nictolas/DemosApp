@@ -225,13 +225,6 @@ export default function Rappresentanti() {
           )}
         </div>
         
-        <Button 
-          variant={rappresentanteId ? "outline" : "default"}
-          size="sm"
-          onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}
-        >
-          {rappresentanteId ? "Cambia rappresentante" : "Scegli Rappresentante"}
-        </Button>
       </div>
     );
   };
