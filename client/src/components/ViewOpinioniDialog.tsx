@@ -227,7 +227,7 @@ export function ViewOpinioniDialog({
           </div>
         </DialogHeader>
         {/* Tabs contenuto */}
-        <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: 88 }}>
+        <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: 120 }}>
           {tab === 'favorevole' && (
             <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
               {/* Colonna Favorevoli - Verde */}
