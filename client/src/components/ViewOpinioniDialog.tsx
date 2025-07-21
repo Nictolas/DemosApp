@@ -180,20 +180,13 @@ export function ViewOpinioniDialog({
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const response = await apiRequest("GET", `/api/users/${utenteId}`);
+      const response = await apiRequest("GET", `/api/opinioni/${utenteId}`);
       if (!response.ok) {
         throw new Error('Errore nel caricamento delle opinioni');
       }
       const data = await response.json();
       if (data) {
-        // Prendi tutte le opinioni con valore valido
-        const filteredOpinions: Record<string, string> = {};
-        Object.keys(data).forEach(key => {
-          if (["Favorevole", "Indeciso", "Contrario"].includes(data[key])) {
-            filteredOpinions[key] = data[key];
-          }
-        });
-        setOpinions(filteredOpinions);
+        setOpinions(data);
       }
     } catch (error) {
       console.error('Errore nel caricamento delle opinioni:', error);
