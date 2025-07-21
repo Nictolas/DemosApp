@@ -152,10 +152,13 @@ export function ViewOpinioniDialog({
       if (!utenteId) return;
       setIsLoadingFonti(true);
       try {
-        const response = await apiRequest("GET", `/api/opinioni-fonti/${utenteId}`);
-        if (!response.ok) throw new Error();
-        const data = await response.json();
-        setFonti(data || {});
+        const userDoc = await getDoc(doc(db, "utenti", utenteId));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setFonti(data.fonti_opinioni || {});
+        } else {
+          setFonti({});
+        }
       } catch {
         setFonti({});
       } finally {
@@ -164,6 +167,14 @@ export function ViewOpinioniDialog({
     };
     if (open) fetchFonti();
   }, [utenteId, open]);
+
+  useEffect(() => {
+    if (open) {
+      console.log('DEBUG opinioni:', opinions);
+      console.log('DEBUG fonti:', fonti);
+      console.log('DEBUG questions:', questions);
+    }
+  }, [open, opinions, fonti, questions]);
 
   const loadUserOpinions = async () => {
     try {
