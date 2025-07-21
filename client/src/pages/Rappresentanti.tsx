@@ -237,7 +237,7 @@ export default function Rappresentanti() {
           {/* Header rimosso */}
           
           {/* Card Parlamento Europeo larga in alto */}
-          <div className="mb-6 overflow-auto">
+          <div className="mb-2 overflow-auto">
             {(() => {
               const categoria = categorie[0];
               const colorClasses = {
@@ -264,7 +264,7 @@ export default function Rappresentanti() {
             })()}
           </div>
           {/* Grid 2 colonne per le altre card */}
-          <div className="grid grid-cols-2 gap-3 overflow-auto">
+          <div className="grid grid-cols-2 gap-1.5 overflow-auto pb-2">
             {categorie.slice(1).map((categoria) => {
               const colorMap = {
                 green: { bg: "#bbf7d0", icon: "text-green-600", title: "text-green-800" },
