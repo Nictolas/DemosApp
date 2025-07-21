@@ -219,7 +219,9 @@ export default function Rappresentanti() {
             <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoria.id })}>
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
             </p>
-          ) : null}
+          ) : (
+            <p className="text-gray-500 italic">Assente</p>
+          )}
         </div>
         
       </div>
