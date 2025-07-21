@@ -6,7 +6,7 @@
 html, body, #root {
   min-height: 100vh;
   height: 100%;
-  overscroll-behavior-y: contain;
+  overscroll-behavior: none;
   overflow-x: hidden;
   overflow-y: auto;
   background: linear-gradient(to bottom, #f0f4ff, #b3c6ff); /* Personalizza se vuoi altri colori */
