@@ -216,13 +216,10 @@ export default function Rappresentanti() {
         
         <div className="text-center">
           {rappresentanteId && rappresentanteData ? (
-            <>
-              <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoria.id })}>
-                {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
-              </p>
-            </>
+            <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoria.id })}>
+              {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
+            </p>
           ) : null}
-          <Button variant="outline" size="sm" className="mt-2" onClick={() => setShowCambiaModal(true)}>Cambia</Button>
         </div>
         
       </div>
