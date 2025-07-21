@@ -21,7 +21,7 @@ export default function Rappresentanti() {
   const [loading, setLoading] = useState(true);
   const [rappresentanti, setRappresentanti] = useState<Record<string, any>>({});
   const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
-  const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
+  const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string} | null>(null);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -191,7 +191,7 @@ export default function Rappresentanti() {
               };
               return (
                 <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm cursor-pointer" style={{ width: 80, height: 80 }}
-                  onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}
+                  onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoria.id })}
                 >
                   <CustomAvatar 
                     config={updatedConfig}
@@ -215,7 +215,7 @@ export default function Rappresentanti() {
         <div className="text-center">
           {rappresentanteId && rappresentanteData ? (
             <>
-              <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config })}>
+              <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoria.id })}>
                 {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
               </p>
               {/* Pulsante 'Vedi Opinioni' rimosso */}
@@ -310,6 +310,7 @@ export default function Rappresentanti() {
         nome={opinioniDialogData?.nome}
         cognome={opinioniDialogData?.cognome}
         avatarConfig={opinioniDialogData?.avatarConfig}
+        categoria={opinioniDialogData?.categoria as 'comune' | 'regione' | 'camera' | 'senato' | 'europeo' | undefined}
       />
     </PageTransition>
   );
