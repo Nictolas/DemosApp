@@ -278,6 +278,20 @@ export default function Impostazioni() {
                     </CardContent>
                   </Card>
                 </Link>
+                {/* Pulsante segnala bug */}
+                <a href="mailto:supporto@demosapp.it?subject=Segnalazione%20bug%20DEMOS" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                  <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-pink-500 h-full flex">
+                    <CardContent className="p-4 flex items-center gap-3 h-full">
+                      <span className="inline-flex items-center justify-center rounded-full bg-pink-100 p-2 mr-2">
+                        <MessageSquare className="h-5 w-5 text-pink-500" />
+                      </span>
+                      <div>
+                        <h4 className="font-medium">Segnala errori e bug</h4>
+                        <p className="text-sm text-muted-foreground">Scrivici per segnalare problemi o malfunzionamenti</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </a>
                 <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-500 h-full flex" onClick={handleLogout}>
                   <CardContent className="p-4 flex items-center gap-3 h-full">
                     <LogOut className="h-5 w-5 text-red-500 mr-2" />
