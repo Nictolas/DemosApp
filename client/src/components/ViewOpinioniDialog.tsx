@@ -232,6 +232,15 @@ export function ViewOpinioniDialog({
     return { favorevoli, indecisi, contrari };
   };
 
+  // Funzione per determinare se due opinioni sono compatibili (come nel calcolo compatibilità)
+  function isOpinioneComune(val1: string | undefined, val2: string | undefined) {
+    return (
+      typeof val1 === 'string' && val1.trim() !== '' &&
+      typeof val2 === 'string' && val2.trim() !== '' &&
+      val1 === val2
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
@@ -264,7 +273,7 @@ export function ViewOpinioniDialog({
                         <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
                           <span className="text-green-800 font-medium">{label}</span>
                           <div className="flex items-center ml-2 gap-1">
-                            {myOpinions[id] === opinions[id] ? <Check className="text-green-600" size={20} /> : null}
+                            {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-green-600" size={20} /> : null}
                             {fonti[id] ? (
                               <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
                                 <LinkIcon className="text-blue-600" size={18} />
@@ -298,7 +307,7 @@ export function ViewOpinioniDialog({
                         <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
                           <span className="text-yellow-800 font-medium">{label}</span>
                           <div className="flex items-center ml-2 gap-1">
-                            {myOpinions[id] === opinions[id] ? <Check className="text-yellow-600" size={20} /> : null}
+                            {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-yellow-600" size={20} /> : null}
                             {fonti[id] ? (
                               <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
                                 <LinkIcon className="text-blue-600" size={18} />
@@ -334,7 +343,7 @@ export function ViewOpinioniDialog({
                           <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
                             <span className="text-red-800 font-medium">{label}</span>
                             <div className="flex items-center ml-2 gap-1">
-                              {myOpinions[id] === opinions[id] ? <Check className="text-red-600" size={20} /> : null}
+                              {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-red-600" size={20} /> : null}
                               {fonti[fonteKey] ? (
                                 <a href={fonti[fonteKey]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
                                   <LinkIcon className="text-blue-600" size={18} />
