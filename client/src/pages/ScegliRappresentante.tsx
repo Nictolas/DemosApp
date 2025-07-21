@@ -49,6 +49,7 @@ export default function ScegliRappresentante() {
   const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string} | null>(null);
   const { token: fcmToken } = useFCM();
+  const [userData, setUserData] = useState<any>(null); // aggiungo stato per userData
   
   // Titolo visualizzato in base alla categoria
   const getTitolo = (): string => {
@@ -74,6 +75,15 @@ export default function ScegliRappresentante() {
     }
   };
 
+  // Funzione di shuffle globale
+  function shuffle<T>(array: T[]): T[] {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -83,6 +93,7 @@ export default function ScegliRappresentante() {
         const userDocRef = doc(db, "utenti", user.uid);
         const userDoc = await getDoc(userDocRef);
         const userData = userDoc.data();
+        setUserData(userData); // salvo userData per ruolo admin
         
         console.log('DEBUG: Dati utente completi:', userData);
         console.log('DEBUG: User UID:', user.uid);
@@ -161,50 +172,53 @@ export default function ScegliRappresentante() {
             }
           }
           
-          console.log(`DEBUG: Rappresentanti filtrati per località:`, filteredData.length);
-          
-          // Calcola le opinioni comuni con l'utente corrente
+          // --- INIZIO NUOVA LOGICA OPINIONI ---
+          // Prendo tutte le chiavi delle opinioni dell'utente (tutti i temi)
+          const opinionKeys = Object.keys(opinionsData).filter(k => typeof opinionsData[k] === 'string');
+          // Calcola le opinioni comuni con la nuova logica
           const rappresentantiConOpinioniComuni = filteredData.map((rappresentante: any) => {
             let opinioniComuni = 0;
-            
-            // Confronta le opinioni, considerando anche stringhe vuote e valori non specificati
-            const confrontaOpinione = (repOpinione: string, userOpinione: string) => {
-              // Se entrambe sono definite e non vuote, confrontale
-              if (repOpinione && userOpinione && repOpinione.trim() !== '' && userOpinione.trim() !== '') {
-                return repOpinione === userOpinione;
+            for (const key of opinionKeys) {
+              const userVal = opinionsData[key];
+              const repVal = rappresentante[key];
+              if (
+                typeof userVal === 'string' && userVal.trim() !== '' &&
+                typeof repVal === 'string' && repVal.trim() !== '' &&
+                userVal === repVal
+              ) {
+                opinioniComuni++;
               }
-              // Se entrambe sono vuote o non definite, considerale uguali
-              if ((!repOpinione || repOpinione.trim() === '') && (!userOpinione || userOpinione.trim() === '')) {
-                return true;
-              }
-              return false;
-            };
-            
-            if (confrontaOpinione(rappresentante.energia_nucleare, opinionsData.energia_nucleare)) {
-              opinioniComuni++;
             }
-            if (confrontaOpinione(rappresentante.sperimentazione_animale, opinionsData.sperimentazione_animale)) {
-              opinioniComuni++;
-            }
-            if (confrontaOpinione(rappresentante.legalizzazione_canapa, opinionsData.legalizzazione_canapa)) {
-              opinioniComuni++;
-            }
-            if (confrontaOpinione(rappresentante.caccia, opinionsData.caccia)) {
-              opinioniComuni++;
-            }
-            
             return {
               ...rappresentante,
               opinioni_comuni: opinioniComuni
             };
           });
-          
-          console.log(`DEBUG: Rappresentanti con opinioni calcolate:`, rappresentantiConOpinioniComuni.length);
-          // Ordina per opinioni comuni (desc) e prendi solo i primi 4
-          const top4 = rappresentantiConOpinioniComuni
-            .sort((a, b) => b.opinioni_comuni - a.opinioni_comuni)
-            .slice(0, 4);
-          setRappresentanti(top4);
+          // Trova il punteggio massimo
+          const maxScore = Math.max(...rappresentantiConOpinioniComuni.map(r => r.opinioni_comuni), 0);
+          // Filtra tutti quelli col punteggio massimo
+          let top = rappresentantiConOpinioniComuni.filter(r => r.opinioni_comuni === maxScore);
+          // Se più di 4, shuffla e prendi 4 a caso
+          if (top.length > 4) {
+            top = shuffle(top).slice(0, 4);
+          }
+          // Se meno di 4, aggiungi altri con punteggio inferiore (sempre random tra pari)
+          if (top.length < 4) {
+            // Prendi tutti gli altri, ordinati per punteggio decrescente, esclusi già in top
+            let rest = rappresentantiConOpinioniComuni.filter(r => !top.includes(r));
+            // Ordina per punteggio decrescente
+            rest = rest.sort((a, b) => b.opinioni_comuni - a.opinioni_comuni);
+            // Raggruppa per punteggio
+            let i = 0;
+            while (top.length < 4 && rest.length > 0) {
+              const currentScore = rest[0].opinioni_comuni;
+              const sameScore = rest.filter(r => r.opinioni_comuni === currentScore);
+              const toAdd = shuffle(sameScore).slice(0, 4 - top.length);
+              top = top.concat(toAdd);
+              rest = rest.filter(r => r.opinioni_comuni !== currentScore);
+            }
+          }
+          setRappresentanti(top);
         }
         setLoading(false);
       } catch (error) {
@@ -453,7 +467,9 @@ export default function ScegliRappresentante() {
                     </p>
                     <div className="flex justify-center space-x-2 mt-1">
                       <Badge variant="outline">{rappresentante.ruolo}</Badge>
-                      <Badge variant="secondary">{rappresentante.opinioni_comuni} opinioni comuni</Badge>
+                      {userData?.ruolo === 'Admin' && (
+                        <Badge variant="secondary">{rappresentante.opinioni_comuni} opinioni comuni</Badge>
+                      )}
                     </div>
                   </div>
                   <Button 
