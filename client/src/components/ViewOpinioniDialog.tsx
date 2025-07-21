@@ -213,18 +213,12 @@ export function ViewOpinioniDialog({
           <div className="flex flex-col items-center justify-center w-full">
             {/* Avatar centrato */}
             {avatarConfig && (
-              <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm mb-2" style={{ width: 64, height: 64 }}>
+              <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm mb-2 mt-4" style={{ width: 64, height: 64 }}>
                 <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
               </div>
             )}
             {/* Nome utente centrato */}
             <div className="text-xl font-bold text-center mb-1">{nome && cognome ? `${nome} ${cognome}` : "Utente"}</div>
-          </div>
-          {/* Pulsanti filtro opinioni in alto */}
-          <div className="flex justify-center gap-2 mt-4 mb-2">
-            <button className={`px-4 py-2 rounded ${tab === 'favorevole' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('favorevole')}>Favorevole</button>
-            <button className={`px-4 py-2 rounded ${tab === 'indeciso' ? 'bg-yellow-500 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('indeciso')}>Indeciso</button>
-            <button className={`px-4 py-2 rounded ${tab === 'contrario' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('contrario')}>Contrario</button>
           </div>
         </DialogHeader>
         {/* Tabs contenuto */}
