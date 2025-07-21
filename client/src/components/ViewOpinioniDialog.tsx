@@ -400,7 +400,7 @@ export function ViewOpinioniDialog({
                 setLocation('/scegli-rappresentante');
               }
             }}>Per compatibilità</Button>
-            <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); /* logica per merito da implementare */ }}>Per merito</Button>
+            <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); setLocation('/podio-trasparenza'); }}>Per merito</Button>
             <Button className="w-full mt-4" variant="ghost" onClick={() => setShowCambiaModal(false)}>Annulla</Button>
           </div>
         </div>
