@@ -214,7 +214,7 @@ export function ViewOpinioniDialog({
           </div>
         </DialogHeader>
         {/* Tabs contenuto */}
-        <div className="flex-1 overflow-y-auto px-4" style={{ marginBottom: 0, paddingBottom: 0 }}>
+        <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: 88 }}>
           {tab === 'opinioni' && (
             <div>
               <div className="text-center text-muted-foreground mb-4">Visualizza le opinioni dell'utente su vari argomenti.</div>
