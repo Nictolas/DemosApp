@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Search, Shield, Upload, FileText, CheckCircle, Crown, BarChart3, MessageCircle, Users } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -294,7 +293,6 @@ export default function ReclamaProfilo() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
-      <Navbar />
       <div className="container mx-auto p-4 max-w-6xl">
         
         {/* Header */}

@@ -8,7 +8,6 @@ import { Loader2, ArrowLeft, Home, MessageSquare, Users, Settings } from "lucide
 import { collection, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
 
 // Le domande ora sono dinamiche
 const options = [
@@ -267,7 +266,6 @@ export default function Opinioni() {
           </CardContent>
         </Card>
       </div>
-      <Navbar />
     </div>
   );
 }

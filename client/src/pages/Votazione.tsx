@@ -12,7 +12,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import Navbar from "@/components/Navbar";
 import { AlertTriangle, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { db } from "@/lib/firebase";
@@ -176,7 +175,6 @@ export default function Votazione() {
   if (!userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <Navbar />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center">
             <div className="text-center">
@@ -194,7 +192,6 @@ export default function Votazione() {
   if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico" && userRole !== "Admin")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <Navbar />
         <div className="container mx-auto px-4 py-8">
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
