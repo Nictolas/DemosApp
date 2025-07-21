@@ -263,7 +263,7 @@ export default function Rappresentanti() {
                 <div className="relative z-10 p-6 flex flex-col items-center justify-center">
                   <User className="h-12 w-12 text-blue-600 mb-2" />
                   <div className="text-2xl font-bold text-blue-800 mb-1">{categoria.nome}</div>
-                  <div className="text-gray-600 mb-4">Il tuo rappresentante attuale</div>
+                  {/* Scritta rimossa: Il tuo rappresentante attuale */}
                   {renderRappresentante(categoria)}
                 </div>
               </div>
@@ -289,7 +289,7 @@ export default function Rappresentanti() {
                 <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
                   <User className={`h-8 w-8 md:h-12 md:w-12 mb-2 ${color.icon}`} />
                   <div className={`text-base md:text-xl font-bold mb-1 ${color.title}`}>{categoria.nome}</div>
-                  <div className="text-gray-600 mb-2 md:mb-4 text-xs md:text-base">Il tuo rappresentante attuale</div>
+                  {/* Scritta rimossa: Il tuo rappresentante attuale */}
                   {renderRappresentante(categoria)}
                 </div>
               </div>
