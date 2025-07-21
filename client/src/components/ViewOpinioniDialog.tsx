@@ -86,23 +86,45 @@ export function ViewOpinioniDialog({
     // eslint-disable-next-line
   }, [open, utenteId, questions]);
 
-  // Carica le opinioni dell'utente loggato
+  // Sostituisco la useEffect che carica le opinioni dell'utente loggato tramite API con una che le carica da Firestore
   useEffect(() => {
     const fetchMyOpinions = async () => {
       if (!user) return;
       setIsLoadingMyOpinions(true);
       try {
-        const res = await apiRequest("GET", "/api/opinioni");
-        if (!res.ok) throw new Error();
-        setMyOpinions(await res.json());
+        const userDoc = await getDoc(doc(db, "utenti", user.uid));
+        if (!userDoc.exists()) {
+          setMyOpinions({});
+          return;
+        }
+        const data = userDoc.data();
+        // Recupera la lista delle domande dinamiche
+        let opinioniList: {id: string, text: string}[] = questions;
+        // Filtra solo i campi che sono opinioni
+        const opinioni: Record<string, string> = {};
+        for (const key of Object.keys(data)) {
+          if (
+            opinioniList.find(q => q.id === key) ||
+            [
+              'energia_nucleare',
+              'sperimentazione_animale',
+              'legalizzazione_canapa',
+              'caccia'
+            ].includes(key)
+          ) {
+            opinioni[key] = data[key];
+          }
+        }
+        setMyOpinions(opinioni);
       } catch {
         setMyOpinions({});
       } finally {
         setIsLoadingMyOpinions(false);
       }
     };
-    fetchMyOpinions();
-  }, [user]);
+    if (user && open && questions.length > 0) fetchMyOpinions();
+    // eslint-disable-next-line
+  }, [user, open, questions]);
 
   // Carica le iniziative e i referendum a cui l'utente ha messo Like
   useEffect(() => {
