@@ -69,6 +69,7 @@ import Informazioni from "@/pages/Informazioni";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
 import React, { useEffect } from "react";
+import Navbar from "@/components/Navbar";
 
 function Router() {
   const [location] = useLocation();
@@ -601,6 +602,7 @@ function App() {
         <RegistrationProvider>
           <SyncFcmTokenWrapper />
           <Router />
+          <Navbar />
           <Toaster />
         </RegistrationProvider>
       </AuthProvider>
