@@ -51,7 +51,7 @@ export function ViewOpinioniDialog({
   const [isLoadingFonti, setIsLoadingFonti] = useState(false);
   const [tab, setTab] = useState<'favorevole' | 'indeciso' | 'contrario' | 'sostegno' | 'altro'>('favorevole');
   const [, setLocation] = useLocation();
-  const [showCambiaModal, setShowCambiaModal] = useState(false);
+  const [showCambiaModal, setShowCambiaModal] = useState<{categoria: string | null} | false>(false);
 
   // Funzione per redirect su "Cambia rappresentante"
   const handleCambia = () => {
@@ -388,7 +388,7 @@ export function ViewOpinioniDialog({
           </div>
           {/* Seconda riga: azioni */}
           <div className="flex justify-center gap-2 w-full">
-            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { onOpenChange(false); setTimeout(() => setShowCambiaModal(true), 200); }}>Cambia</button>
+            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { onOpenChange(false); setTimeout(() => setShowCambiaModal({categoria: categoria || null}), 200); }}>Cambia</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
             <Button className="flex-1" onClick={() => onOpenChange(false)}>Chiudi</Button>
           </div>
@@ -401,8 +401,8 @@ export function ViewOpinioniDialog({
             <h2 className="text-lg font-bold mb-4 text-center">Come vuoi cercare un nuovo rappresentante?</h2>
             <Button className="w-full mb-2" onClick={() => {
               setShowCambiaModal(false);
-              if (categoria) {
-                setLocation(`/scegli-rappresentante/${categoria}`);
+              if (showCambiaModal.categoria) {
+                setLocation(`/scegli-rappresentante/${showCambiaModal.categoria}`);
               } else {
                 setLocation('/scegli-rappresentante');
               }
