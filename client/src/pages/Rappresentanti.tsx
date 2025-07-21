@@ -233,12 +233,12 @@ export default function Rappresentanti() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col" style={{ paddingBottom: '80px' }}>
+      <div className="min-h-screen flex flex-col overflow-hidden" style={{ paddingBottom: '80px' }}>
         <div className="container mx-auto px-4 py-8">
           {/* Header rimosso */}
           
           {/* Card Parlamento Europeo larga in alto */}
-          <div className="mb-6">
+          <div className="mb-6 overflow-auto">
             {(() => {
               const categoria = categorie[0];
               const colorClasses = {
@@ -265,7 +265,7 @@ export default function Rappresentanti() {
             })()}
           </div>
           {/* Grid 2 colonne per le altre card */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 overflow-auto">
             {categorie.slice(1).map((categoria) => {
               const colorMap = {
                 green: { bg: "#bbf7d0", icon: "text-green-600", title: "text-green-800" },
