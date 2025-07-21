@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect, Link } from "wouter";
+import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, User } from "lucide-react";
@@ -22,6 +22,7 @@ export default function Rappresentanti() {
   const [rappresentanti, setRappresentanti] = useState<Record<string, any>>({});
   const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string} | null>(null);
+  const [, setLocation] = useLocation();
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -206,7 +207,7 @@ export default function Rappresentanti() {
           }
           // Avatar vuoto per rappresentanti assenti
           return (
-            <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer" onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}>
+            <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer" onClick={() => setLocation(`/scegli-rappresentante/${categoria.id}`)}>
               <User className="h-10 w-10 text-gray-400" />
             </div>
           );
@@ -221,7 +222,7 @@ export default function Rappresentanti() {
               {/* Pulsante 'Vedi Opinioni' rimosso */}
             </>
           ) : (
-            <p className="text-gray-500 italic cursor-pointer" onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}>Assente</p>
+            <p className="text-gray-500 italic cursor-pointer" onClick={() => setLocation(`/scegli-rappresentante/${categoria.id}`)}>Assente</p>
           )}
         </div>
         
