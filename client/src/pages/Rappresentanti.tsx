@@ -233,15 +233,7 @@ export default function Rappresentanti() {
   return (
     <PageTransition>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
-          <Button variant="ghost" className="mr-2" asChild>
-            <Link to="/menu">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Indietro
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">I tuoi Rappresentanti</h1>
-        </div>
+        {/* Header rimosso */}
         
         {/* Card Parlamento Europeo larga in alto */}
         <div className="mb-6">
@@ -296,6 +288,14 @@ export default function Rappresentanti() {
             );
           })}
         </div>
+      </div>
+      <div className="flex justify-center mt-8 mb-4">
+        <Button variant="ghost" size="lg" asChild>
+          <Link to="/menu">
+            <ArrowLeft className="h-5 w-5 mr-2" />
+            Indietro
+          </Link>
+        </Button>
       </div>
       <ViewOpinioniDialog
         open={!!opinioniDialogData}
