@@ -22,7 +22,7 @@ export default function Rappresentanti() {
   const [rappresentanti, setRappresentanti] = useState<Record<string, any>>({});
   const [opinioniDialogOpen, setOpinioniDialogOpen] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<{utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string} | null>(null);
-  const [showCambiaModal, setShowCambiaModal] = useState(false);
+  const [showCambiaModal, setShowCambiaModal] = useState<{categoria: string | null} | false>(false);
   const [, setLocation] = useLocation();
   
   useEffect(() => {
@@ -208,7 +208,7 @@ export default function Rappresentanti() {
           }
           // Avatar vuoto per rappresentanti assenti
           return (
-            <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer" onClick={() => setShowCambiaModal(true)}>
+            <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer" onClick={() => setShowCambiaModal({categoria: categoria.id})}>
               <User className="h-10 w-10 text-gray-400" />
             </div>
           );
@@ -300,10 +300,10 @@ export default function Rappresentanti() {
       </div>
       {/* Modal scelta tipo ricerca rappresentante */}
       {showCambiaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xs flex flex-col items-center">
             <h2 className="text-lg font-bold mb-4 text-center">Come vuoi cercare un nuovo rappresentante?</h2>
-            <Button className="w-full mb-2" onClick={() => { setShowCambiaModal(false); setLocation(`/scegli-rappresentante/${categoria.id}`); }}>Per compatibilità</Button>
+            <Button className="w-full mb-2" onClick={() => { setShowCambiaModal(false); if (showCambiaModal.categoria) setLocation(`/scegli-rappresentante/${showCambiaModal.categoria}`); }}>Per compatibilità</Button>
             <Button className="w-full" variant="outline" onClick={() => { setShowCambiaModal(false); /* logica per merito da implementare */ }}>Per merito</Button>
             <Button className="w-full mt-4" variant="ghost" onClick={() => setShowCambiaModal(false)}>Annulla</Button>
           </div>
