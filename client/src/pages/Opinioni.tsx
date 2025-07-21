@@ -177,7 +177,7 @@ export default function Opinioni() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 select-none">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white" style={{ paddingBottom: '80px' }}>
       <div className="container mx-auto px-4 py-8">
         <Button 
           variant="ghost" 

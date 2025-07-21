@@ -232,7 +232,7 @@ export default function Rappresentanti() {
 
   return (
     <PageTransition>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8" style={{ paddingBottom: '80px' }}>
         {/* Header rimosso */}
         
         {/* Card Parlamento Europeo larga in alto */}
