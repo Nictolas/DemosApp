@@ -435,7 +435,10 @@ export default function ScegliRappresentante() {
                       }
                       return (
                         <Avatar className="h-16 w-16">
-                          <AvatarFallback>{rappresentante.nome.charAt(0)}{rappresentante.cognome.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>
+                            {(rappresentante.nome && typeof rappresentante.nome === 'string' && rappresentante.nome.length > 0) ? rappresentante.nome.charAt(0) : '?'}
+                            {(rappresentante.cognome && typeof rappresentante.cognome === 'string' && rappresentante.cognome.length > 0) ? rappresentante.cognome.charAt(0) : '?'}
+                          </AvatarFallback>
                         </Avatar>
                       );
                     })()}
