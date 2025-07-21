@@ -97,28 +97,10 @@ export default function Menu() {
               <button
                 type="button"
                 className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/menu/profilo")}
-                onContextMenu={e => e.preventDefault()}
-              >
-                {/* Sfondo diagonale più in alto */}
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                  <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
-                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                </svg>
-                <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                    <UserCheck className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <UserCheck className="h-8 w-8 text-green-600 relative z-10" />
-                  </span>
-                  <div className="text-gray-700 font-semibold text-lg select-none">Profilo</div>
-                </div>
-              </button>
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
                 onClick={() => setLocation("/opinioni")}
                 onContextMenu={e => e.preventDefault()}
               >
+                {/* Sfondo diagonale più in alto */}
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
