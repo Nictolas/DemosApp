@@ -200,7 +200,11 @@ export default function ScegliRappresentante() {
           });
           
           console.log(`DEBUG: Rappresentanti con opinioni calcolate:`, rappresentantiConOpinioniComuni.length);
-          setRappresentanti(rappresentantiConOpinioniComuni);
+          // Ordina per opinioni comuni (desc) e prendi solo i primi 4
+          const top4 = rappresentantiConOpinioniComuni
+            .sort((a, b) => b.opinioni_comuni - a.opinioni_comuni)
+            .slice(0, 4);
+          setRappresentanti(top4);
         }
         setLoading(false);
       } catch (error) {
