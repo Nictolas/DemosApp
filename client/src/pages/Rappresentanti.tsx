@@ -245,8 +245,20 @@ export default function Rappresentanti() {
                 orange: "bg-orange-50 border-orange-200",
                 teal: "bg-teal-50 border-teal-200"
               };
+              const rappresentanteId = userData?.[categoria.field];
+              const rappresentanteData = rappresentanti[categoria.id];
               return (
-                <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4">
+                <div
+                  className="relative w-full rounded-2xl shadow-lg active:shadow overflow-hidden mb-4 cursor-pointer active:scale-95 transition-transform"
+                  onClick={() => {
+                    if (rappresentanteId && rappresentanteData) {
+                      setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoria.id });
+                    } else {
+                      setShowCambiaModal({ categoria: categoria.id });
+                    }
+                  }}
+                  onContextMenu={e => e.preventDefault()}
+                >
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -271,8 +283,21 @@ export default function Rappresentanti() {
                 teal: { bg: "#a7f3d0", icon: "text-teal-600", title: "text-teal-800" }
               };
               const color = colorMap[categoria.color as keyof typeof colorMap];
+              const rappresentanteId = userData?.[categoria.field];
+              const rappresentanteData = rappresentanti[categoria.id];
               return (
-                <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden">
+                <div
+                  key={categoria.id}
+                  className="relative w-full rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+                  onClick={() => {
+                    if (rappresentanteId && rappresentanteData) {
+                      setOpinioniDialogData({ utenteId: rappresentanteId, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoria.id });
+                    } else {
+                      setShowCambiaModal({ categoria: categoria.id });
+                    }
+                  }}
+                  onContextMenu={e => e.preventDefault()}
+                >
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
