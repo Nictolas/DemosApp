@@ -4,7 +4,6 @@ import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, MessageSquare, Users } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -123,7 +122,6 @@ export default function Impostazioni() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-secondary/20" style={{ paddingBottom: '80px' }}>
-      <Navbar />
       <div className="container mx-auto p-4 max-w-4xl">
         <Card className="mt-6">
           <CardHeader>
@@ -353,7 +351,6 @@ export default function Impostazioni() {
           </CardContent>
         </Card>
       </div>
-      <Navbar />
     </div>
   );
 }

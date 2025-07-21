@@ -12,7 +12,6 @@ import { CustomAvatar } from "@/components/CustomAvatar";
 import { db, auth } from "@/lib/firebase";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { collection, doc, getDoc } from "firebase/firestore";
-import Navbar from "@/components/Navbar";
 
 export default function Rappresentanti() {
   const { user, isLoading } = useAuth();
@@ -291,7 +290,6 @@ export default function Rappresentanti() {
             })}
           </div>
         </div>
-        <Navbar />
         <ViewOpinioniDialog
           open={!!opinioniDialogData}
           onOpenChange={(open) => { if (!open) setOpinioniDialogOpen(false); setOpinioniDialogData(null); }}

@@ -3,7 +3,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Navbar from "@/components/Navbar";
 
 export default function Riscontro() {
   const { user } = useAuth();
