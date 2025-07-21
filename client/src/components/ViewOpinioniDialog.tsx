@@ -396,7 +396,7 @@ export function ViewOpinioniDialog({
       </DialogContent>
       {/* Modal scelta tipo ricerca rappresentante */}
       {showCambiaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xs flex flex-col items-center">
             <h2 className="text-lg font-bold mb-4 text-center">Come vuoi cercare un nuovo rappresentante?</h2>
             <Button className="w-full mb-2" onClick={() => { setShowCambiaModal(false); handleCambia(); }}>Per compatibilità</Button>
