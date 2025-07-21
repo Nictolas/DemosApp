@@ -117,7 +117,6 @@ export default function VotaICE() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-blue-100 dark:from-gray-900 dark:to-gray-800">
-      <Navbar />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Card className="w-full max-w-3xl mx-auto">
           <CardHeader className="text-center">
