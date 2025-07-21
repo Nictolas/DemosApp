@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Check, AlertCircle } from "lucide-react";
+import { Loader2, Check, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomAvatar } from "@/components/CustomAvatar";
@@ -246,7 +246,7 @@ export function ViewOpinioniDialog({
                             {myOpinions[id] === opinions[id] ? <Check className="text-green-600" size={20} /> : null}
                             {fonti[id] ? (
                               <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                <AlertCircle className="text-blue-600" size={18} />
+                                <LinkIcon className="text-blue-600" size={18} />
                               </a>
                             ) : null}
                           </div>
@@ -280,7 +280,7 @@ export function ViewOpinioniDialog({
                             {myOpinions[id] === opinions[id] ? <Check className="text-yellow-600" size={20} /> : null}
                             {fonti[id] ? (
                               <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                <AlertCircle className="text-blue-600" size={18} />
+                                <LinkIcon className="text-blue-600" size={18} />
                               </a>
                             ) : null}
                           </div>
@@ -316,7 +316,7 @@ export function ViewOpinioniDialog({
                               {myOpinions[id] === opinions[id] ? <Check className="text-red-600" size={20} /> : null}
                               {fonti[fonteKey] ? (
                                 <a href={fonti[fonteKey]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                  <AlertCircle className="text-blue-600" size={18} />
+                                  <LinkIcon className="text-blue-600" size={18} />
                                 </a>
                               ) : null}
                             </div>
