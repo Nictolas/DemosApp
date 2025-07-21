@@ -214,7 +214,7 @@ export function ViewOpinioniDialog({
           </div>
         </DialogHeader>
         {/* Tabs contenuto */}
-        <div className="min-h-[300px]">
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
           {tab === 'opinioni' && (
             <div>
               <div className="text-center text-muted-foreground mb-4">Visualizza le opinioni dell'utente su vari argomenti.</div>
@@ -353,14 +353,16 @@ export function ViewOpinioniDialog({
             <div className="text-center text-muted-foreground">Altre informazioni (placeholder)</div>
           )}
         </div>
-        {/* Tab selector in basso */}
-        <div className="flex justify-center gap-2 mt-6">
-          <button className={`px-4 py-2 rounded ${tab === 'opinioni' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('opinioni')}>Opinioni</button>
-          <button className={`px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
-          <button className={`px-4 py-2 rounded ${tab === 'altro' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('altro')}>Altro</button>
-        </div>
-        <div className="flex justify-end mt-4">
-          <Button onClick={() => onOpenChange(false)}>Chiudi</Button>
+        {/* Barra pulsanti fissa in basso */}
+        <div className="w-full bg-white shadow-[0_-2px_8px_-2px_rgba(0,0,0,0.08)] border-t border-gray-200 flex flex-col items-center justify-center gap-2 p-4 fixed left-0 right-0 bottom-0 sm:static sm:shadow-none sm:border-0" style={{ minHeight: 72, zIndex: 50 }}>
+          <div className="flex justify-center gap-2 w-full">
+            <button className={`flex-1 px-4 py-2 rounded ${tab === 'opinioni' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('opinioni')}>Opinioni</button>
+            <button className={`flex-1 px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
+            <button className={`flex-1 px-4 py-2 rounded ${tab === 'altro' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('altro')}>Altro</button>
+          </div>
+          <div className="flex justify-end w-full mt-2">
+            <Button onClick={() => onOpenChange(false)}>Chiudi</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
