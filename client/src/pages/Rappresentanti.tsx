@@ -232,91 +232,93 @@ export default function Rappresentanti() {
 
   return (
     <PageTransition>
-      <div className="container mx-auto px-4 py-8" style={{ paddingBottom: '80px' }}>
-        {/* Header rimosso */}
-        
-        {/* Card Parlamento Europeo larga in alto */}
-        <div className="mb-6">
-          {(() => {
-            const categoria = categorie[0];
-            const colorClasses = {
-              blue: "bg-blue-50 border-blue-200",
-              green: "bg-green-50 border-green-200", 
-              purple: "bg-purple-50 border-purple-200",
-              orange: "bg-orange-50 border-orange-200",
-              teal: "bg-teal-50 border-teal-200"
-            };
-            return (
-              <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4">
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                  <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
-                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                </svg>
-                <div className="relative z-10 p-6 flex flex-col items-center justify-center">
-                  <User className="h-12 w-12 text-blue-600 mb-2" />
-                  <div className="text-2xl font-bold text-blue-800 mb-1">{categoria.nome}</div>
-                  {/* Scritta rimossa: Il tuo rappresentante attuale */}
-                  {renderRappresentante(categoria)}
+      <div className="min-h-screen flex flex-col" style={{ paddingBottom: '80px' }}>
+        <div className="container mx-auto px-4 py-8">
+          {/* Header rimosso */}
+          
+          {/* Card Parlamento Europeo larga in alto */}
+          <div className="mb-6">
+            {(() => {
+              const categoria = categorie[0];
+              const colorClasses = {
+                blue: "bg-blue-50 border-blue-200",
+                green: "bg-green-50 border-green-200", 
+                purple: "bg-purple-50 border-purple-200",
+                orange: "bg-orange-50 border-orange-200",
+                teal: "bg-teal-50 border-teal-200"
+              };
+              return (
+                <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 p-6 flex flex-col items-center justify-center">
+                    <User className="h-12 w-12 text-blue-600 mb-2" />
+                    <div className="text-2xl font-bold text-blue-800 mb-1">{categoria.nome}</div>
+                    {/* Scritta rimossa: Il tuo rappresentante attuale */}
+                    {renderRappresentante(categoria)}
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
-        </div>
-        {/* Grid 2 colonne per le altre card */}
-        <div className="grid grid-cols-2 gap-3">
-          {categorie.slice(1).map((categoria) => {
-            const colorMap = {
-              green: { bg: "#bbf7d0", icon: "text-green-600", title: "text-green-800" },
-              purple: { bg: "#ede9fe", icon: "text-purple-600", title: "text-purple-800" },
-              orange: { bg: "#fef9c3", icon: "text-orange-600", title: "text-orange-800" },
-              teal: { bg: "#a7f3d0", icon: "text-teal-600", title: "text-teal-800" }
-            };
-            const color = colorMap[categoria.color as keyof typeof colorMap];
-            return (
-              <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden">
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                  <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
-                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                </svg>
-                <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
-                  <User className={`h-8 w-8 md:h-12 md:w-12 mb-2 ${color.icon}`} />
-                  <div className={`text-base md:text-xl font-bold mb-1 ${color.title}`}>{categoria.nome}</div>
-                  {/* Scritta rimossa: Il tuo rappresentante attuale */}
-                  {renderRappresentante(categoria)}
+              );
+            })()}
+          </div>
+          {/* Grid 2 colonne per le altre card */}
+          <div className="grid grid-cols-2 gap-3">
+            {categorie.slice(1).map((categoria) => {
+              const colorMap = {
+                green: { bg: "#bbf7d0", icon: "text-green-600", title: "text-green-800" },
+                purple: { bg: "#ede9fe", icon: "text-purple-600", title: "text-purple-800" },
+                orange: { bg: "#fef9c3", icon: "text-orange-600", title: "text-orange-800" },
+                teal: { bg: "#a7f3d0", icon: "text-teal-600", title: "text-teal-800" }
+              };
+              const color = colorMap[categoria.color as keyof typeof colorMap];
+              return (
+                <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
+                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
+                    <User className={`h-8 w-8 md:h-12 md:w-12 mb-2 ${color.icon}`} />
+                    <div className={`text-base md:text-xl font-bold mb-1 ${color.title}`}>{categoria.nome}</div>
+                    {/* Scritta rimossa: Il tuo rappresentante attuale */}
+                    {renderRappresentante(categoria)}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+        {/* Navbar fissa in basso */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-[9999]">
+          <Link href="/menu" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
+            <Home className="h-7 w-7 mb-1" />
+            <span className="text-xs">Menu</span>
+          </Link>
+          <Link href="/opinioni" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
+            <MessageSquare className="h-7 w-7 mb-1" />
+            <span className="text-xs">Opinioni</span>
+          </Link>
+          <Link href="/rappresentanti" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
+            <Users className="h-7 w-7 mb-1" />
+            <span className="text-xs">Rappresentanti</span>
+          </Link>
+          <Link href="/impostazioni" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
+            <Settings className="h-7 w-7 mb-1" />
+            <span className="text-xs">Impostazioni</span>
+          </Link>
+        </nav>
+        <ViewOpinioniDialog
+          open={!!opinioniDialogData}
+          onOpenChange={(open) => { if (!open) setOpinioniDialogOpen(false); setOpinioniDialogData(null); }}
+          utenteId={opinioniDialogData?.utenteId || ''}
+          nome={opinioniDialogData?.nome}
+          cognome={opinioniDialogData?.cognome}
+          avatarConfig={opinioniDialogData?.avatarConfig}
+          categoria={opinioniDialogData?.categoria as 'comune' | 'regione' | 'camera' | 'senato' | 'europeo' | undefined}
+        />
       </div>
-      {/* Navbar fissa in basso */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-[9999]">
-        <Link href="/menu" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
-          <Home className="h-7 w-7 mb-1" />
-          <span className="text-xs">Menu</span>
-        </Link>
-        <Link href="/opinioni" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
-          <MessageSquare className="h-7 w-7 mb-1" />
-          <span className="text-xs">Opinioni</span>
-        </Link>
-        <Link href="/rappresentanti" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
-          <Users className="h-7 w-7 mb-1" />
-          <span className="text-xs">Rappresentanti</span>
-        </Link>
-        <Link href="/impostazioni" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors">
-          <Settings className="h-7 w-7 mb-1" />
-          <span className="text-xs">Impostazioni</span>
-        </Link>
-      </nav>
-      <ViewOpinioniDialog
-        open={!!opinioniDialogData}
-        onOpenChange={(open) => { if (!open) setOpinioniDialogOpen(false); setOpinioniDialogData(null); }}
-        utenteId={opinioniDialogData?.utenteId || ''}
-        nome={opinioniDialogData?.nome}
-        cognome={opinioniDialogData?.cognome}
-        avatarConfig={opinioniDialogData?.avatarConfig}
-        categoria={opinioniDialogData?.categoria as 'comune' | 'regione' | 'camera' | 'senato' | 'europeo' | undefined}
-      />
     </PageTransition>
   );
 }

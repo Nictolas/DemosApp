@@ -122,7 +122,7 @@ export default function Impostazioni() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20" style={{ paddingBottom: '80px' }}>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-secondary/20" style={{ paddingBottom: '80px' }}>
       <Navbar />
       <div className="container mx-auto p-4 max-w-4xl">
         <Card className="mt-6">
