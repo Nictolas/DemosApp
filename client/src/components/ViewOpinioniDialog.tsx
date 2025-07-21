@@ -200,7 +200,7 @@ export function ViewOpinioniDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-w-full">
+      <DialogContent className="sm:max-w-3xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
         <DialogHeader>
           <div className="flex flex-col items-center justify-center w-full">
             {/* Avatar centrato */}
