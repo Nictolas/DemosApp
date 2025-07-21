@@ -307,19 +307,22 @@ export function ViewOpinioniDialog({
                   </h3>
                   <div className="space-y-2">
                     {categorizeAllOpinions().contrari.length > 0 ? (
-                      categorizeAllOpinions().contrari.map(({ id, label }, index) => (
-                        <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
-                          <span className="text-red-800 font-medium">{label}</span>
-                          <div className="flex items-center ml-2 gap-1">
-                            {myOpinions[id] === opinions[id] ? <Check className="text-red-600" size={20} /> : null}
-                            {fonti[id] ? (
-                              <a href={fonti[id]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
-                                <AlertCircle className="text-blue-600" size={18} />
-                              </a>
-                            ) : null}
+                      categorizeAllOpinions().contrari.map(({ id, label }, index) => {
+                        const fonteKey = id;
+                        return (
+                          <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
+                            <span className="text-red-800 font-medium">{label}</span>
+                            <div className="flex items-center ml-2 gap-1">
+                              {myOpinions[id] === opinions[id] ? <Check className="text-red-600" size={20} /> : null}
+                              {fonti[fonteKey] ? (
+                                <a href={fonti[fonteKey]} target="_blank" rel="noopener noreferrer" title="Fonte" className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-400">
+                                  <AlertCircle className="text-blue-600" size={18} />
+                                </a>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="text-red-600 text-sm italic">
                         Nessuna opinione contraria
