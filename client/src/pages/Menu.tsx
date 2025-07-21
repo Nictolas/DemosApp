@@ -71,7 +71,7 @@ export default function Menu() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white" style={{ paddingBottom: '80px' }}>
       {isLoading ? (
         <div className="flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
