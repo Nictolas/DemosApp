@@ -245,7 +245,6 @@ export default function Menu() {
           </Card>
         </div>
       )}
-      <Navbar />
     </div>
   );
 }
