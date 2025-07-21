@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import UserRegistrationForm from "@/components/UserRegistrationForm";
 import { useAuth } from "@/hooks/use-auth";

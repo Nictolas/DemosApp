@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { AlertTriangle, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { db } from "@/lib/firebase";

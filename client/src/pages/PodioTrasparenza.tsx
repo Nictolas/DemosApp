@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Navbar } from "@/components/Navbar";
+import Navbar from "@/components/Navbar";
 import { Trophy, Medal, Award, Star } from "lucide-react";
 
 interface PodioUser {
