@@ -166,7 +166,7 @@ export default function VotaIniziativaPopolare() {
   const iniziativeOrdinate = [...iniziative].sort((a, b) => (votiPerIniziativa[b.id] || 0) - (votiPerIniziativa[a.id] || 0));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800" style={{ paddingBottom: '80px' }}>
       <div className="container mx-auto px-4 py-8 space-y-6 max-w-3xl">
         <Card className="mb-6">
           <CardHeader className="text-center">
