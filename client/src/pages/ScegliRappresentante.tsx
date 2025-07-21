@@ -402,70 +402,62 @@ export default function ScegliRappresentante() {
             </CardHeader>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {rappresentanti.map((rappresentante) => (
-              <Card key={rappresentante.id} className="w-full">
-                <CardHeader>
-                  <div className="flex justify-center mb-2">
-                    {(() => {
-                      try {
-                        if (rappresentante.avatar_config) {
-                          const config = JSON.parse(rappresentante.avatar_config);
-                          // Converti le configurazioni legacy
-                          const updatedConfig = {
-                            skinColor: config.skinColor || "#FDBCB4",
-                            hairColor: config.hairColor || "#8B4513",
-                            hairStyle: config.hairStyle || "short",
-                            mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
-                            mustacheColor: config.mustacheColor || "#2C1810",
-                            beardStyle: config.beardStyle || "none",
-                            beardColor: config.beardColor || "#2C1810",
-                            noseStyle: config.noseStyle || "normal",
-                            suitColor: config.suitColor || "#2C3E50",
-                            tieColor: config.tieColor || "#E74C3C"
-                          };
-                          return (
-                            <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm" style={{ width: 64, height: 64 }}>
-                              <CustomAvatar 
-                                config={updatedConfig}
-                                size={64}
-                                className="w-full h-full"
-                              />
-                            </div>
-                          );
-                        }
-                      } catch (error) {
-                        console.error("Errore nel parsing della configurazione avatar:", error);
-                      }
-                      return (
-                        <Avatar className="h-16 w-16">
-                          <AvatarFallback>
-                            {(rappresentante.nome && typeof rappresentante.nome === 'string' && rappresentante.nome.length > 0) ? rappresentante.nome.charAt(0) : '?'}
-                            {(rappresentante.cognome && typeof rappresentante.cognome === 'string' && rappresentante.cognome.length > 0) ? rappresentante.cognome.charAt(0) : '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                      );
-                    })()}
+          <div className="grid grid-cols-2 gap-2 pb-2">
+            {rappresentanti.map((rappresentante) => {
+              let avatarContent;
+              try {
+                if (rappresentante.avatar_config) {
+                  const config = JSON.parse(rappresentante.avatar_config);
+                  const updatedConfig = {
+                    skinColor: config.skinColor || "#FDBCB4",
+                    hairColor: config.hairColor || "#8B4513",
+                    hairStyle: config.hairStyle || "short",
+                    mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+                    mustacheColor: config.mustacheColor || "#2C1810",
+                    beardStyle: config.beardStyle || "none",
+                    beardColor: config.beardColor || "#2C1810",
+                    noseStyle: config.noseStyle || "normal",
+                    suitColor: config.suitColor || "#2C3E50",
+                    tieColor: config.tieColor || "#E74C3C"
+                  };
+                  avatarContent = (
+                    <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm cursor-pointer" style={{ width: 80, height: 80 }}
+                      onClick={() => setOpinioniDialogData({ utenteId: rappresentante.id, nome: rappresentante.nome, cognome: rappresentante.cognome, avatarConfig: rappresentante.avatar_config })}
+                    >
+                      <CustomAvatar 
+                        config={updatedConfig}
+                        size={80}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  );
+                }
+              } catch (error) {
+                console.error("Errore nel parsing della configurazione avatar:", error);
+              }
+              if (!avatarContent) {
+                avatarContent = (
+                  <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer"
+                    onClick={() => setOpinioniDialogData({ utenteId: rappresentante.id, nome: rappresentante.nome, cognome: rappresentante.cognome, avatarConfig: rappresentante.avatar_config })}
+                  >
+                    <User className="h-10 w-10 text-gray-400" />
                   </div>
-                  <CardTitle className="text-xl text-center cursor-pointer hover:underline" onClick={() => setOpinioniDialogData({ utenteId: rappresentante.id, nome: rappresentante.nome, cognome: rappresentante.cognome, avatarConfig: rappresentante.avatar_config })}>
-                    {rappresentante.nome} {rappresentante.cognome}
-                  </CardTitle>
-                  <Button variant="secondary" size="sm" className="mx-auto mt-1" onClick={() => setOpinioniDialogData({ utenteId: rappresentante.id, nome: rappresentante.nome, cognome: rappresentante.cognome, avatarConfig: rappresentante.avatar_config })}>
-                    Vedi Opinioni
-                  </Button>
-                  <div className="flex justify-center space-x-2 mt-2">
-                    <Badge variant="outline">{rappresentante.ruolo}</Badge>
-                    <Badge variant="secondary">
-                      {rappresentante.opinioni_comuni} opinioni comuni
-                    </Badge>
+                );
+              }
+              return (
+                <div key={rappresentante.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden bg-white flex flex-col items-center py-6 px-2">
+                  {avatarContent}
+                  <div className="text-center mt-2">
+                    <p className="font-medium text-primary cursor-pointer hover:underline text-lg" onClick={() => setOpinioniDialogData({ utenteId: rappresentante.id, nome: rappresentante.nome, cognome: rappresentante.cognome, avatarConfig: rappresentante.avatar_config })}>
+                      {rappresentante.nome} {rappresentante.cognome}
+                    </p>
+                    <div className="flex justify-center space-x-2 mt-1">
+                      <Badge variant="outline">{rappresentante.ruolo}</Badge>
+                      <Badge variant="secondary">{rappresentante.opinioni_comuni} opinioni comuni</Badge>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {/* Opinioni rimosse: ora visibili solo nel modale */}
-                </CardContent>
-                <CardFooter>
                   <Button 
-                    className="w-full" 
+                    className="w-full mt-4" 
                     onClick={() => selezionaRappresentante(rappresentante.id)}
                     disabled={selezionando}
                   >
@@ -476,9 +468,9 @@ export default function ScegliRappresentante() {
                     )}
                     Scegli
                   </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
