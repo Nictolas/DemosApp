@@ -216,21 +216,19 @@ export function ViewOpinioniDialog({
     }
   };
 
-  // Funzione aggiornata per categorizzare tutte le opinioni, anche quelle non in questions
-  const categorizeAllOpinions = () => {
+  // Sostituisco la funzione categorizeAllOpinions con una versione che cicla su tutte le domande attive (questions)
+  function categorizeAllOpinionsDyn(): {favorevoli: {id: string, label: string}[], indecisi: {id: string, label: string}[], contrari: {id: string, label: string}[]} {
     const favorevoli: { id: string, label: string }[] = [];
     const indecisi: { id: string, label: string }[] = [];
     const contrari: { id: string, label: string }[] = [];
-    Object.entries(opinions).forEach(([key, value]) => {
-      // Trova il testo della domanda dalla lista questions, altrimenti mostra l'ID
-      const q = questions.find(q => q.id === key);
-      const label = q ? q.text : key;
-      if (value === "Favorevole") favorevoli.push({ id: key, label });
-      else if (value === "Indeciso") indecisi.push({ id: key, label });
-      else if (value === "Contrario") contrari.push({ id: key, label });
+    questions.forEach((q: {id: string, text: string}) => {
+      const value = opinions[q.id];
+      if (value === "Favorevole") favorevoli.push({ id: q.id, label: q.text });
+      else if (value === "Indeciso") indecisi.push({ id: q.id, label: q.text });
+      else if (value === "Contrario") contrari.push({ id: q.id, label: q.text });
     });
     return { favorevoli, indecisi, contrari };
-  };
+  }
 
   // Funzione per determinare se due opinioni sono compatibili (come nel calcolo compatibilità)
   function isOpinioneComune(val1: string | undefined, val2: string | undefined) {
@@ -268,8 +266,8 @@ export function ViewOpinioniDialog({
                     Favorevole
                   </h3>
                   <div className="space-y-2">
-                    {categorizeAllOpinions().favorevoli.length > 0 ? (
-                      categorizeAllOpinions().favorevoli.map(({ id, label }, index) => (
+                    {categorizeAllOpinionsDyn().favorevoli.length > 0 ? (
+                      categorizeAllOpinionsDyn().favorevoli.map(({ id, label }, index) => (
                         <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
                           <span className="text-green-800 font-medium">{label}</span>
                           <div className="flex items-center ml-2 gap-1">
@@ -302,8 +300,8 @@ export function ViewOpinioniDialog({
                     Indeciso
                   </h3>
                   <div className="space-y-2">
-                    {categorizeAllOpinions().indecisi.length > 0 ? (
-                      categorizeAllOpinions().indecisi.map(({ id, label }, index) => (
+                    {categorizeAllOpinionsDyn().indecisi.length > 0 ? (
+                      categorizeAllOpinionsDyn().indecisi.map(({ id, label }, index) => (
                         <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
                           <span className="text-yellow-800 font-medium">{label}</span>
                           <div className="flex items-center ml-2 gap-1">
@@ -336,8 +334,8 @@ export function ViewOpinioniDialog({
                     Contrario
                   </h3>
                   <div className="space-y-2">
-                    {categorizeAllOpinions().contrari.length > 0 ? (
-                      categorizeAllOpinions().contrari.map(({ id, label }, index) => {
+                    {categorizeAllOpinionsDyn().contrari.length > 0 ? (
+                      categorizeAllOpinionsDyn().contrari.map(({ id, label }, index) => {
                         const fonteKey = id;
                         return (
                           <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
