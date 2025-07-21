@@ -206,7 +206,7 @@ export default function Rappresentanti() {
           }
           // Avatar vuoto per rappresentanti assenti
           return (
-            <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center">
+            <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center cursor-pointer" onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}>
               <User className="h-10 w-10 text-gray-400" />
             </div>
           );
@@ -221,7 +221,7 @@ export default function Rappresentanti() {
               {/* Pulsante 'Vedi Opinioni' rimosso */}
             </>
           ) : (
-            <p className="text-gray-500 italic">Assente</p>
+            <p className="text-gray-500 italic cursor-pointer" onClick={() => window.location.href = `/scegli-rappresentante/${categoria.id}`}>Assente</p>
           )}
         </div>
         
