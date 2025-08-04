@@ -179,14 +179,6 @@ export default function Opinioni() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white" style={{ paddingBottom: '80px' }}>
       <div className="container mx-auto px-4 py-8">
-        <Button 
-          variant="ghost" 
-          className="mb-4 flex items-center select-none"
-          onClick={() => setLocation("/menu")}
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" /> Torna al Menu
-        </Button>
-        
         <Card className="w-full max-w-4xl mx-auto">
           <CardHeader className="text-center select-none">
             <CardTitle className="text-3xl font-bold mb-2 select-none">Le tue Opinioni</CardTitle>
