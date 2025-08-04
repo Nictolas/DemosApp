@@ -414,21 +414,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                   />
                 ) : (
                   <div className="space-y-6">
-                    {/* Sezione Avatar (solo per utenti autorizzati) */}
-                    {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
-                      <div className="flex justify-center">
-                        <div className="text-center">
-                          <h3 className="text-lg font-medium mb-4">Il Tuo Avatar</h3>
-                          <CustomAvatar 
-                            config={avatarConfig} 
-                            size={120}
-                            className="mx-auto border-2 border-gray-200 rounded-lg p-2 bg-white shadow-sm"
-                          />
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <h3 className="text-lg font-medium mb-2">Informazioni personali</h3>
                         <div className="space-y-2">

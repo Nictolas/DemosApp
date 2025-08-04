@@ -53,7 +53,7 @@ const defaultConfig: AvatarConfig = {
   tieColor: "#E74C3C"
 };
 
-export function CustomAvatar({ config, size = 100, className = "", onClick }: CustomAvatarProps) {
+export function CustomAvatar({ config, size = 100, className = "rounded-full", onClick }: CustomAvatarProps) {
   const avatarConfig = config || defaultConfig;
 
   const renderHair = () => {
