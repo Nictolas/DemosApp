@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS utenti (
 
 -- Tabella comunicazioni (equivalente alla collection 'comunicazioni')
 CREATE TABLE IF NOT EXISTS comunicazioni (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     id_utente UUID REFERENCES utenti(id),
     titolo TEXT,
     testo TEXT NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS comunicazioni (
 
 -- Tabella opinioni (equivalente alla collection 'opinioni')
 CREATE TABLE IF NOT EXISTS opinioni (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     text TEXT NOT NULL,
     source VARCHAR(50) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS opinioni (
 
 -- Tabella opinioni proposte (equivalente alla collection 'opinioni_proposte')
 CREATE TABLE IF NOT EXISTS opinioni_proposte (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     testo TEXT NOT NULL,
     proponente TEXT NOT NULL,
     proponente_email TEXT NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS opinioni_proposte (
 
 -- Tabella voti capo stato (equivalente alla collection 'voti_capo_stato')
 CREATE TABLE IF NOT EXISTS voti_capo_stato (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     nome TEXT NOT NULL,
     userId UUID REFERENCES utenti(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS voti_capo_stato (
 
 -- Tabella voti referendum abrogativi (equivalente alla collection 'voti_referendum_abrogativi')
 CREATE TABLE IF NOT EXISTS voti_referendum_abrogativi (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     userId UUID REFERENCES utenti(id),
     referendumId UUID REFERENCES opinioni(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS voti_referendum_abrogativi (
 
 -- Tabella richieste premium (equivalente alla collection 'premium_requests')
 CREATE TABLE IF NOT EXISTS premium_requests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     userId UUID REFERENCES utenti(id),
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS premium_requests (
 
 -- Tabella notifiche amministrative (equivalente alla collection 'admin_notifications')
 CREATE TABLE IF NOT EXISTS admin_notifications (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     type VARCHAR(50) NOT NULL,
     title TEXT NOT NULL,
     message TEXT NOT NULL,
