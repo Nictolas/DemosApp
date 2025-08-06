@@ -1,53 +1,63 @@
-import { db } from '../api/firebase-config.js';
-import { collection, getDocs, addDoc, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore';
+import { pool } from './database-config.js';
 
 class OpinioniService {
   static async listOpinioni() {
-    if (!db) return [];
-    const snapshot = await getDocs(collection(db, 'opinioni'));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    try {
+      const [rows] = await pool.execute('SELECT * FROM opinioni ORDER BY created_at DESC');
+      return rows;
+    } catch (error) {
+      console.error('Error fetching opinioni:', error);
+      return [];
+    }
   }
 
   static async addOpinione({ id, text }) {
-    if (!db) return { success: false, error: 'Database non configurato' };
-    // id = chiave interna, text = testo visibile
-    await addDoc(collection(db, 'opinioni'), { id, text });
-    return { success: true };
+    try {
+      const opinioneId = require('crypto').randomUUID();
+      await pool.execute(
+        'INSERT INTO opinioni (id, text, source, original_proponente) VALUES (?, ?, ?, ?)',
+        [id, text, 'admin', 'admin']
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding opinione:', error);
+      return { success: false, error: 'Errore nel salvataggio dell\'opinione' };
+    }
   }
 
   static async deleteOpinione(opinioneId) {
-    if (!db) return { success: false, error: 'Database non configurato' };
-    // 1. Elimina dalla collection opinioni
-    const opinioniRef = collection(db, 'opinioni');
-    const q = query(opinioniRef, where('id', '==', opinioneId));
-    const snapshot = await getDocs(q);
-    for (const d of snapshot.docs) {
-      await deleteDoc(doc(db, 'opinioni', d.id));
+    try {
+      // 1. Elimina dalla tabella opinioni
+      await pool.execute('DELETE FROM opinioni WHERE id = ?', [opinioneId]);
+      
+      // 2. Rimuovi il campo da tutti gli utenti (se necessario)
+      // Nota: In PostgreSQL/MySQL, le opinioni degli utenti potrebbero essere gestite diversamente
+      // Per ora eliminiamo solo dalla tabella opinioni
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting opinione:', error);
+      return { success: false, error: 'Errore nell\'eliminazione dell\'opinione' };
     }
-    // 2. Rimuovi il campo da tutti gli utenti
-    const utentiSnap = await getDocs(collection(db, 'utenti'));
-    for (const userDoc of utentiSnap.docs) {
-      const userData = userDoc.data();
-      if (opinioneId in userData) {
-        const update = {};
-        update[opinioneId] = null;
-        await updateDoc(userDoc.ref, update);
-      }
-    }
-    return { success: true };
   }
 
   static async updateOpinione(opinioneId, newText) {
-    if (!db) return { success: false, error: 'Database non configurato' };
-    const opinioniRef = collection(db, 'opinioni');
-    const q = query(opinioniRef, where('id', '==', opinioneId));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return { success: false, error: 'Opinione non trovata' };
-    for (const d of snapshot.docs) {
-      await updateDoc(doc(db, 'opinioni', d.id), { text: newText });
+    try {
+      const [result] = await pool.execute(
+        'UPDATE opinioni SET text = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [newText, opinioneId]
+      );
+      
+      if (result.affectedRows === 0) {
+        return { success: false, error: 'Opinione non trovata' };
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating opinione:', error);
+      return { success: false, error: 'Errore nell\'aggiornamento dell\'opinione' };
     }
-    return { success: true };
   }
 }
 
-export default OpinioniService; 
+export default OpinioniService;
