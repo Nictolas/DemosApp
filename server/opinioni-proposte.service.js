@@ -1,11 +1,11 @@
-import { pool } from './database-config.js';
+import pool from './config/database.js';
 
 class OpinioniProposteService {
   // Lista tutte le opinioni proposte ordinate per voti
   static async listOpinioniProposte() {
     try {
-      const [rows] = await pool.execute('SELECT * FROM opinioni_proposte ORDER BY voti DESC');
-      return rows;
+      const result = await pool.query('SELECT * FROM opinioni_proposte ORDER BY voti DESC');
+      return result.rows;
     } catch (error) {
       console.error('Errore nel recupero opinioni proposte:', error);
       return [];
@@ -32,16 +32,16 @@ class OpinioniProposteService {
   static async votaOpinioneProposta(opinioneId, userId) {
     try {
       // Verifica se l'opinione esiste e se l'utente ha già votato
-      const [rows] = await pool.execute(
-        'SELECT voti, votanti FROM opinioni_proposte WHERE id = ?',
+      const result = await pool.query(
+        'SELECT voti, votanti FROM opinioni_proposte WHERE id = $1',
         [opinioneId]
       );
       
-      if (rows.length === 0) {
+      if (result.rows.length === 0) {
         return { success: false, error: 'Opinione non trovata' };
       }
       
-      const opinioneData = rows[0];
+      const opinioneData = result.rows[0];
       const votanti = JSON.parse(opinioneData.votanti || '[]');
       
       // Verifica se l'utente ha già votato
@@ -51,8 +51,8 @@ class OpinioniProposteService {
       
       // Aggiorna voti e votanti
       votanti.push(userId);
-      await pool.execute(
-        'UPDATE opinioni_proposte SET voti = voti + 1, votanti = ? WHERE id = ?',
+      await pool.query(
+        'UPDATE opinioni_proposte SET voti = voti + 1, votanti = $1 WHERE id = $2',
         [JSON.stringify(votanti), opinioneId]
       );
       
@@ -118,12 +118,11 @@ class OpinioniProposteService {
 
   // Elimina un'opinione proposta (solo admin)
   static async deleteOpinioneProposta(opinioneId) {
-    if (!db) return { success: false, error: 'Database non configurato' };
-    
     try {
-      await deleteDoc(doc(db, 'opinioni_proposte', opinioneId));
+      await pool.query('DELETE FROM opinioni_proposte WHERE id = $1', [opinioneId]);
       return { success: true };
     } catch (error) {
+      console.error('Error deleting opinione proposta:', error);
       return { success: false, error: error.message };
     }
   }

@@ -4,12 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Trash2, Plus, Edit, MessageSquare, ThumbsUp, Check, X } from "lucide-react";
 import { useLocation } from "wouter";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+
+interface Opinione {
+  id: string;
+  text: string;
+  source?: string;
+  original_proponente?: string;
+}
+
+interface OpinioneProposta {
+  id: string;
+  testo: string;
+  proponente: string;
+  proponente_email: string;
+  voti: number;
+  votanti: string[];
+  data_creazione: string;
+}
 
 export default function GestisciOpinioni() {
   const [, setLocation] = useLocation();
-  const [opinioni, setOpinioni] = useState([]);
+  const [opinioni, setOpinioni] = useState<Opinione[]>([]);
   const [loading, setLoading] = useState(true);
   const [newId, setNewId] = useState("");
   const [newText, setNewText] = useState("");
@@ -19,7 +34,7 @@ export default function GestisciOpinioni() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
-  const [proposte, setProposte] = useState([]);
+  const [proposte, setProposte] = useState<OpinioneProposta[]>([]);
   const [loadingProposte, setLoadingProposte] = useState(true);
   const [processingId, setProcessingId] = useState("");
 
@@ -27,8 +42,13 @@ export default function GestisciOpinioni() {
     setLoading(true);
     setError("");
     try {
-      const snapshot = await getDocs(collection(db, "opinioni"));
-      setOpinioni(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      const response = await fetch('/api/opinioni');
+      if (response.ok) {
+        const data = await response.json();
+        setOpinioni(Array.isArray(data) ? data : []);
+      } else {
+        throw new Error('Failed to fetch opinioni');
+      }
     } catch (e) {
       setError("Errore nel caricamento delle opinioni");
     } finally {
@@ -39,8 +59,13 @@ export default function GestisciOpinioni() {
   const fetchProposte = async () => {
     setLoadingProposte(true);
     try {
-      const snapshot = await getDocs(collection(db, "opinioni_proposte"));
-      setProposte(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      const response = await fetch('/api/opinioni-proposte');
+      if (response.ok) {
+        const data = await response.json();
+        setProposte(Array.isArray(data) ? data : []);
+      } else {
+        setProposte([]);
+      }
     } catch {
       setProposte([]);
     } finally {
@@ -57,10 +82,21 @@ export default function GestisciOpinioni() {
     setAdding(true);
     setError("");
     try {
-      await addDoc(collection(db, "opinioni"), { id: newId.trim(), text: newText.trim() });
-      setNewId("");
-      setNewText("");
-      await fetchOpinioni();
+      const response = await fetch('/api/opinioni', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: newId.trim(), text: newText.trim() }),
+      });
+      
+      if (response.ok) {
+        setNewId("");
+        setNewText("");
+        await fetchOpinioni();
+      } else {
+        throw new Error('Failed to add opinione');
+      }
     } catch (e) {
       setError("Errore nell'aggiunta dell'opinione");
     } finally {
@@ -73,8 +109,15 @@ export default function GestisciOpinioni() {
     setDeleting(id);
     setError("");
     try {
-      await deleteDoc(doc(db, "opinioni", id));
-      await fetchOpinioni();
+      const response = await fetch(`/api/opinioni/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        await fetchOpinioni();
+      } else {
+        throw new Error('Failed to delete opinione');
+      }
     } catch (e) {
       setError("Errore nell'eliminazione dell'opinione");
     } finally {
@@ -87,14 +130,25 @@ export default function GestisciOpinioni() {
     setEditText(op.text);
   };
 
-  const handleEditSave = async (op: any) => {
+  const handleEditSave = async (op: Opinione) => {
     setSavingEdit(true);
     setError("");
     try {
-      await updateDoc(doc(db, "opinioni", op.id), { text: editText.trim() });
-      setEditingId(null);
-      setEditText("");
-      await fetchOpinioni();
+      const response = await fetch(`/api/opinioni/${op.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: editText.trim() }),
+      });
+      
+      if (response.ok) {
+        setEditingId(null);
+        setEditText("");
+        await fetchOpinioni();
+      } else {
+        throw new Error('Failed to update opinione');
+      }
     } catch (e) {
       setError("Errore nella modifica dell'opinione");
     } finally {
