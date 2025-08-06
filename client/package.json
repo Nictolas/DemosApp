@@ -1,4 +1,5 @@
 {
+  "_comment": "Force commit for Vercel deployment",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
