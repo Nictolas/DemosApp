@@ -12,7 +12,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { doc, getDoc } from "firebase/firestore";
 
-// Definizione locale del tipo UserInfo
 export type UserInfo = {
   id?: string;
   nome: string;
@@ -62,10 +61,8 @@ export default function Profilo({ userId }: { userId?: string }) {
   const [location, setLocation] = useLocation();
   const [opinionQuestions, setOpinionQuestions] = useState<{id: string, text: string}[]>([]);
 
-  // Ricavo la provenienza dalla query string (es: ?from=utenti)
   const fromGestisciUtenti = typeof window !== 'undefined' && (window.location.search.includes('from=utenti') || window.location.hash.includes('from=utenti'));
 
-  // Fetch domande opinioni dinamiche
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
@@ -79,7 +76,6 @@ export default function Profilo({ userId }: { userId?: string }) {
     fetchQuestions();
   }, []);
 
-  // Funzione per recuperare i nomi e avatar dei rappresentanti
   const fetchRepresentativeNames = async (userInfo: any) => {
     const representatives = {
       rappresentante_europeo: userInfo.rappresentante_europeo,
@@ -133,7 +129,6 @@ export default function Profilo({ userId }: { userId?: string }) {
     setRepresentativeAvatars(avatars);
   };
 
-  // Funzione per recuperare i nomi e avatar dei candidati
   const fetchCandidateNames = async (userInfo: any) => {
     const candidates = {
       candidato_europeo: userInfo.candidato_europeo,
@@ -187,7 +182,6 @@ export default function Profilo({ userId }: { userId?: string }) {
     setCandidateAvatars(avatars);
   };
 
-  // Funzione per recuperare le selezioni di governo dell'utente
   const fetchGovernoIdeale = async () => {
     if (!user) return;
     
@@ -209,7 +203,6 @@ export default function Profilo({ userId }: { userId?: string }) {
       if (!uidToFetch) return;
       
       try {
-        // Carica i dati utente tramite API (che ora usa Firebase)
         const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uidToFetch)}`);
         
         if (response.ok) {
@@ -217,7 +210,6 @@ export default function Profilo({ userId }: { userId?: string }) {
           console.log("Dati utente caricati:", userData);
           setUserInfo(userData as UserInfo);
           
-          // Estrai le opinioni dinamiche dai dati utente
           if (opinionQuestions.length > 0) {
             const dynamicOpinions: Record<string, string> = {};
             opinionQuestions.forEach(q => {
@@ -228,11 +220,9 @@ export default function Profilo({ userId }: { userId?: string }) {
             setUserOpinions({});
           }
           
-          // Carica la configurazione avatar se presente
           if (userData.avatar_config) {
             try {
               const config = JSON.parse(userData.avatar_config);
-              // Converti le configurazioni legacy
               const updatedConfig = {
                 skinColor: config.skinColor || "#FDBCB4",
                 hairColor: config.hairColor || "#8B4513",
@@ -251,14 +241,11 @@ export default function Profilo({ userId }: { userId?: string }) {
             }
           }
           
-          // Fetch representative names and candidate names
           await fetchRepresentativeNames(userData);
           await fetchCandidateNames(userData);
           
-          // Fetch government selections
           await fetchGovernoIdeale();
         } else {
-          // Se l'utente non viene trovato, mostra errore
           setError("Utente non trovato o non esistente.");
           setUserInfo(null);
           return;
@@ -276,7 +263,6 @@ export default function Profilo({ userId }: { userId?: string }) {
     }
   }, [user, userId, opinionQuestions]);
 
-  // Redirect to auth page if not logged in
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
   }
@@ -290,18 +276,16 @@ export default function Profilo({ userId }: { userId?: string }) {
     );
   }
 
-  // Unione dinamica di tutte le opinioni (da opinionQuestions e da userOpinions)
   const allOpinionKeys = Array.from(new Set([
     ...opinionQuestions.map(q => q.id),
     ...Object.keys(userOpinions)
   ]));
-  // Funzione per ottenere la label di una opinione
+
   const getOpinionLabel = (id: string) => {
     const q = opinionQuestions.find(q => q.id === id);
     return q ? q.text : id;
   };
 
-  // Funzione per suddividere le opinioni in colonne
   const categorizeAllOpinions = () => {
     const favorevoli: { id: string, label: string }[] = [];
     const indecisi: { id: string, label: string }[] = [];
@@ -383,15 +367,12 @@ export default function Profilo({ userId }: { userId?: string }) {
                         description: "Il profilo è stato aggiornato con successo",
                         variant: "default",
                       });
-                      // Ricarica le opinioni e i dati utente dopo la modifica
                       setIsEditing(false);
                       setIsLoadingInfo(true);
-                      // Refresha le domande e le opinioni
                       try {
                         const res = await apiRequest("GET", "/api/opinioni-list");
                         if (res.ok) setOpinionQuestions(await res.json());
                       } catch {}
-                      // Refresha i dati utente
                       try {
                         const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
                         if (response.ok) {
@@ -492,7 +473,6 @@ export default function Profilo({ userId }: { userId?: string }) {
             </CardFooter>
           </Card>
 
-          {/* Sezione Opinioni */}
           {userInfo && userOpinions && opinionQuestions.length > 0 && (
             <Card className="animate-in-delay">
               <CardHeader>
@@ -506,7 +486,6 @@ export default function Profilo({ userId }: { userId?: string }) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-6">
-                  {/* Colonna Favorevoli - Verde */}
                   <div className="space-y-3">
                     <div className="bg-green-100 border border-green-200 rounded-lg p-4">
                       <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
@@ -528,7 +507,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                       </div>
                     </div>
                   </div>
-                  {/* Colonna Indecisi - Giallo */}
                   <div className="space-y-3">
                     <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
                       <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
@@ -550,7 +528,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                       </div>
                     </div>
                   </div>
-                  {/* Colonna Contrari - Rosso */}
                   <div className="space-y-3">
                     <div className="bg-red-100 border border-red-200 rounded-lg p-4">
                       <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
@@ -577,7 +554,6 @@ export default function Profilo({ userId }: { userId?: string }) {
             </Card>
           )}
 
-          {/* Sezione Governo Ideale */}
           {userInfo && Object.keys(governoIdeale).length > 0 && (
             <Card className="animate-in-delay">
               <CardHeader>
@@ -606,7 +582,6 @@ export default function Profilo({ userId }: { userId?: string }) {
             </Card>
           )}
 
-          {/* Sezione Rappresentanti */}
           {userInfo && (
             <Card className="animate-in-delay">
               <CardHeader>
@@ -620,7 +595,6 @@ export default function Profilo({ userId }: { userId?: string }) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Rappresentante Europeo */}
                   <div className="space-y-3">
                     <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
                       <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
@@ -644,7 +618,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Rappresentante Camera */}
                   <div className="space-y-3">
                     <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
                       <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
@@ -668,7 +641,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Rappresentante Senato */}
                   <div className="space-y-3">
                     <div className="bg-indigo-100 border border-indigo-200 rounded-lg p-4">
                       <h3 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
@@ -692,7 +664,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Rappresentante Regionale */}
                   <div className="space-y-3">
                     <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
                       <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
@@ -716,7 +687,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Rappresentante Comunale */}
                   <div className="space-y-3">
                     <div className="bg-teal-100 border border-teal-200 rounded-lg p-4">
                       <h3 className="font-semibold text-teal-800 mb-3 flex items-center gap-2">
@@ -744,7 +714,6 @@ export default function Profilo({ userId }: { userId?: string }) {
             </Card>
           )}
 
-          {/* Sezione Candidati */}
           {userInfo && (
             <Card className="animate-in-delay">
               <CardHeader>
@@ -758,7 +727,6 @@ export default function Profilo({ userId }: { userId?: string }) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Candidato Europeo */}
                   <div className="space-y-3">
                     <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
                       <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
@@ -782,7 +750,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Candidato Camera */}
                   <div className="space-y-3">
                     <div className="bg-green-100 border border-green-200 rounded-lg p-4">
                       <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
@@ -806,7 +773,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Candidato Senato */}
                   <div className="space-y-3">
                     <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
                       <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
@@ -830,7 +796,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Candidato Regionale */}
                   <div className="space-y-3">
                     <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
                       <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
@@ -854,7 +819,6 @@ export default function Profilo({ userId }: { userId?: string }) {
                     </div>
                   </div>
 
-                  {/* Candidato Comunale */}
                   <div className="space-y-3">
                     <div className="bg-teal-100 border border-teal-200 rounded-lg p-4">
                       <h3 className="font-semibold text-teal-800 mb-3 flex items-center gap-2">
