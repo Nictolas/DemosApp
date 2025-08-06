@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Definizione custom delle classi border-border e text-foreground */
+@layer utilities {
+  .border-border {
+    border-color: hsl(214, 32%, 91%); /* valore simile a --border */
+  }
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+}
+
 /* --- BLOCCO OVERSCROLL MOBILE E GRADIENTE SFONDO --- */
 html, body, #root {
   min-height: 100vh;
@@ -18,12 +28,9 @@ body {
   height: 100%;
   /* Permetti lo scroll solo del contenuto, non della pagina intera */
   width: 100vw;
-  min-height: 100vh;
   overflow-x: hidden;
   /* overflow-y: auto;  // decommenta se vuoi lo scroll solo verticale */
 }
-
-/* --- FINE BLOCCO OVERSCROLL --- */
 
 @layer base {
   :root {
@@ -71,9 +78,8 @@ body {
     --ring: 224.3 76.3% 48%;
   }
 
-  * {
-    @apply border-border;
-  }
+  /* Rimuovo l'applicazione globale di border-border per evitare errori */
+  /* Se vuoi puoi aggiungere border-border a singoli elementi, non a * */
 
   body {
     @apply font-sans antialiased bg-gray-50 text-foreground;
