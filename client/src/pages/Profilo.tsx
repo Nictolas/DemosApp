@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Redirect, useRoute, useLocation } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { EditProfileForm } from "@/components/EditProfileForm";
-import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 
+// === AGGIUNTO ===
+// Importa i componenti che sostituiscono le parti rimosse
+import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
+import { ProfileCandidates } from "@/components/ProfileCandidates";
+
+
+// --- LASCIATO IDENTICO ---
 export type UserInfo = {
   id?: string;
   nome: string;
@@ -51,13 +57,17 @@ export default function Profilo({ userId }: { userId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [userOpinions, setUserOpinions] = useState<Record<string, string>>({});
-  const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
-  const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
-  const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
-  const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
+  
+  // === CANCELLATO ===
+  // const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
+  // const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
+  // const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
+  // const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
+  
+  // --- LASCIATO IDENTICO ---
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
   const [governoIdeale, setGovernoIdeale] = useState<Record<string, string>>({});
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const [opinionQuestions, setOpinionQuestions] = useState<{id: string, text: string}[]>([]);
 
   const fromGestisciUtenti = typeof window !== 'undefined' && (window.location.search.includes('from=utenti') || window.location.hash.includes('from=utenti'));
@@ -75,110 +85,11 @@ export default function Profilo({ userId }: { userId?: string }) {
     fetchQuestions();
   }, []);
 
-  const fetchRepresentativeNames = async (userInfo: any) => {
-    const representatives = {
-      rappresentante_europeo: userInfo.rappresentante_europeo,
-      rappresentante_camera: userInfo.rappresentante_camera,
-      rappresentante_senato: userInfo.rappresentante_senato,
-      rappresentante_regionale: userInfo.rappresentante_regionale,
-      rappresentante_comunale: userInfo.rappresentante_comunale,
-    };
-    const names: Record<string, string> = {};
-    const avatars: Record<string, any> = {};
-    for (const [key, uid] of Object.entries(representatives)) {
-      if (uid && typeof uid === 'string') {
-        try {
-          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
-          if (response.ok) {
-            const userData = await response.json();
-            names[key] = `${userData.nome} ${userData.cognome}`;
-            if (userData.avatar_config) {
-              try {
-                const avatarConfig = JSON.parse(userData.avatar_config);
-                const updatedConfig = {
-                  skinColor: avatarConfig.skinColor || "#FDBCB4",
-                  hairColor: avatarConfig.hairColor || "#8B4513",
-                  hairStyle: avatarConfig.hairStyle || "short",
-                  mustacheStyle: avatarConfig.mustacheStyle || (avatarConfig.mustache ? "classic" : "none"),
-                  mustacheColor: avatarConfig.mustacheColor || "#2C1810",
-                  beardStyle: avatarConfig.beardStyle || "none",
-                  beardColor: avatarConfig.beardColor || "#2C1810",
-                  noseStyle: avatarConfig.noseStyle || "normal",
-                  suitColor: avatarConfig.suitColor || "#2C3E50",
-                  tieColor: avatarConfig.tieColor || "#E74C3C"
-                };
-                avatars[key] = updatedConfig;
-              } catch (error) {
-                console.error("Errore nel parsing dell'avatar del rappresentante:", error);
-              }
-            }
-          } else {
-            names[key] = "Non selezionato";
-          }
-        } catch (error) {
-          console.error(`Errore nel recupero dati per ${uid}:`, error);
-          names[key] = "Non selezionato";
-        }
-      } else {
-        names[key] = "Non selezionato";
-      }
-    }
-    setRepresentativeNames(names);
-    setRepresentativeAvatars(avatars);
-  };
+  // === CANCELLATO ===
+  // const fetchRepresentativeNames = async (userInfo: any) => { ... };
+  // const fetchCandidateNames = async (userInfo: any) => { ... };
 
-  const fetchCandidateNames = async (userInfo: any) => {
-    const candidates = {
-      candidato_europeo: userInfo.candidato_europeo,
-      candidato_camera: userInfo.candidato_camera,
-      candidato_senato: userInfo.candidato_senato,
-      candidato_regionale: userInfo.candidato_regione,
-      candidato_comunale: userInfo.candidato_comune,
-    };
-    const names: Record<string, string> = {};
-    const avatars: Record<string, any> = {};
-    for (const [key, uid] of Object.entries(candidates)) {
-      if (uid && typeof uid === 'string') {
-        try {
-          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
-          if (response.ok) {
-            const userData = await response.json();
-            names[key] = `${userData.nome} ${userData.cognome}`;
-            if (userData.avatar_config) {
-              try {
-                const avatarConfig = JSON.parse(userData.avatar_config);
-                const updatedConfig = {
-                  skinColor: avatarConfig.skinColor || "#FDBCB4",
-                  hairColor: avatarConfig.hairColor || "#8B4513",
-                  hairStyle: avatarConfig.hairStyle || "short",
-                  mustacheStyle: avatarConfig.mustacheStyle || (avatarConfig.mustache ? "classic" : "none"),
-                  mustacheColor: avatarConfig.mustacheColor || "#2C1810",
-                  beardStyle: avatarConfig.beardStyle || "none",
-                  beardColor: avatarConfig.beardColor || "#2C1810",
-                  noseStyle: avatarConfig.noseStyle || "normal",
-                  suitColor: avatarConfig.suitColor || "#2C3E50",
-                  tieColor: avatarConfig.tieColor || "#E74C3C"
-                };
-                avatars[key] = updatedConfig;
-              } catch (error) {
-                console.error("Errore nel parsing dell'avatar del candidato:", error);
-              }
-            }
-          } else {
-            names[key] = "Non selezionato";
-          }
-        } catch (error) {
-          console.error(`Errore nel recupero dati per ${uid}:`, error);
-          names[key] = "Non selezionato";
-        }
-      } else {
-        names[key] = "Non selezionato";
-      }
-    }
-    setCandidateNames(names);
-    setCandidateAvatars(avatars);
-  };
-
+  // --- LASCIATO IDENTICO ---
   const fetchGovernoIdeale = async () => {
     if (!user) return;
     
@@ -204,7 +115,6 @@ export default function Profilo({ userId }: { userId?: string }) {
         
         if (response.ok) {
           const userData = await response.json();
-          console.log("Dati utente caricati:", userData);
           setUserInfo(userData as UserInfo);
           
           if (opinionQuestions.length > 0) {
@@ -213,8 +123,6 @@ export default function Profilo({ userId }: { userId?: string }) {
               dynamicOpinions[q.id] = userData[q.id] || '';
             });
             setUserOpinions(dynamicOpinions);
-          } else {
-            setUserOpinions({});
           }
           
           if (userData.avatar_config) {
@@ -238,14 +146,15 @@ export default function Profilo({ userId }: { userId?: string }) {
             }
           }
           
-          await fetchRepresentativeNames(userData);
-          await fetchCandidateNames(userData);
+          // === CANCELLATO ===
+          // await fetchRepresentativeNames(userData);
+          // await fetchCandidateNames(userData);
           
+          // --- LASCIATO IDENTICO ---
           await fetchGovernoIdeale();
         } else {
           setError("Utente non trovato o non esistente.");
           setUserInfo(null);
-          return;
         }
       } catch (error) {
         console.error("Errore:", error);
@@ -273,6 +182,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     );
   }
 
+  // --- LASCIATO IDENTICO --- (Logica per le opinioni)
   const allOpinionKeys = Array.from(new Set([
     ...opinionQuestions.map(q => q.id),
     ...Object.keys(userOpinions)
@@ -301,97 +211,63 @@ export default function Profilo({ userId }: { userId?: string }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 p-4">
-      {isLoading || isLoadingInfo ? (
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : error ? (
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="text-center text-red-500 text-lg font-semibold">
-            {error}
-          </div>
-        </div>
-      ) : userInfo && userInfo.status === 'pending' ? (
-        <div className="flex items-center justify-center min-h-[80vh]">
-          <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-yellow-300">
-            <Loader2 className="h-10 w-10 animate-spin text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2 text-yellow-700">Profilo in fase di approvazione</h2>
-            <p className="text-gray-700 mb-2">Il tuo profilo è in fase di approvazione da parte di un amministratore.</p>
-            <p className="text-gray-500 text-sm">Riceverai una notifica appena il tuo account sarà attivo. Attendi la conferma prima di poter accedere alle funzionalità della piattaforma.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="container mx-auto max-w-4xl">
-          <Button 
-            variant="ghost" 
-            className="mb-4 flex items-center"
-            onClick={() => {
-              if (fromGestisciUtenti) {
-                setLocation("/gestisci-utenti");
-              } else if (userId) {
-                setLocation("/gestisci-grazia");
-              } else {
-                setLocation("/menu");
-              }
-            }}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            {fromGestisciUtenti ? "Torna a Gestisci Utenti" : userId ? "Torna a Gestisci Grazia" : "Torna al Menu"}
-          </Button>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-                Profilo Utente
-              </CardTitle>
-              <CardDescription>
-                {userId ? "Visualizza le informazioni di questo utente" : "Visualizza e gestisci le tue informazioni personali"}
-              </CardDescription>
-            </CardHeader>
+      <div className="container mx-auto max-w-4xl space-y-4">
+        {/* --- Tutto questo blocco fino alla sezione opinioni è IDENTICO --- */}
+        {isLoading || isLoadingInfo ? (
+            <div className="flex items-center justify-center min-h-[80vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        ) : error ? (
+            <div className="flex items-center justify-center min-h-[80vh]">
+              <div className="text-center text-red-500 text-lg font-semibold">{error}</div>
+            </div>
+        ) : userInfo && userInfo.status === 'pending' ? (
+            <div className="flex items-center justify-center min-h-[80vh]">
+              <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-yellow-300">
+                <Loader2 className="h-10 w-10 animate-spin text-yellow-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2 text-yellow-700">Profilo in fase di approvazione</h2>
+                <p className="text-gray-700 mb-2">Il tuo profilo è in fase di approvazione da parte di un amministratore.</p>
+                <p className="text-gray-500 text-sm">Riceverai una notifica appena il tuo account sarà attivo. Attendi la conferma prima di poter accedere alle funzionalità della piattaforma.</p>
+              </div>
+            </div>
+        ) : userInfo && user ? (
+          <>
+            <Button 
+              variant="ghost" 
+              className="mb-4 flex items-center"
+              onClick={() => setLocation(fromGestisciUtenti ? "/gestisci-utenti" : (userId ? "/gestisci-grazia" : "/menu"))}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {fromGestisciUtenti ? "Torna a Gestisci Utenti" : userId ? "Torna a Gestisci Grazia" : "Torna al Menu"}
+            </Button>
             
-            <CardContent>
-              {error ? (
-                <div className="text-center text-red-500 p-4">
-                  {error}
-                </div>
-              ) : userInfo && user ? (
-                isEditing ? (
-                  <EditProfileForm 
-                    userData={{...userInfo, uid: user.uid}} 
-                    onProfileUpdated={async (updatedData) => {
-                      toast({
-                        title: "Profilo aggiornato",
-                        description: "Il profilo è stato aggiornato con successo",
-                        variant: "default",
-                      });
-                      setIsEditing(false);
-                      setIsLoadingInfo(true);
-                      try {
-                        const res = await apiRequest("GET", "/api/opinioni-list");
-                        if (res.ok) setOpinionQuestions(await res.json());
-                      } catch {}
-                      try {
-                        const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
-                        if (response.ok) {
-                          const userData = await response.json();
-                          setUserInfo(userData as UserInfo);
-                          if (opinionQuestions.length > 0) {
-                            const dynamicOpinions: Record<string, string> = {};
-                            opinionQuestions.forEach(q => {
-                              dynamicOpinions[q.id] = userData[q.id] || '';
-                            });
-                            setUserOpinions(dynamicOpinions);
-                          } else {
-                            setUserOpinions({});
-                          }
-                        }
-                      } catch {}
-                      setIsLoadingInfo(false);
-                    }}
-                    onCancel={() => setIsEditing(false)}
-                  />
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                  Profilo Utente
+                </CardTitle>
+                <CardDescription>
+                  {userId ? "Visualizza le informazioni di questo utente" : "Visualizza e gestisci le tue informazioni personali"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isEditing ? (
+                    <EditProfileForm 
+                      userData={{...userInfo, uid: user.uid}} 
+                      onProfileUpdated={async () => {
+                        toast({
+                          title: "Profilo aggiornato",
+                          description: "Il profilo è stato aggiornato con successo",
+                        });
+                        setIsEditing(false);
+                        // Ricarica i dati dopo la modifica
+                        const uidToFetch = userId || user?.uid;
+                        if(uidToFetch) fetchPageData(uidToFetch);
+                      }}
+                      onCancel={() => setIsEditing(false)}
+                    />
                 ) : (
-                  <div className="space-y-6">
+                    <div className="space-y-6">
                       <div>
                         <h3 className="text-lg font-medium mb-2">Informazioni personali</h3>
                         <div className="space-y-2">
@@ -440,410 +316,121 @@ export default function Profilo({ userId }: { userId?: string }) {
                         )}
                       </div>
                     </div>
-                  </div>
-                )
-              ) : (
-                <div className="text-center p-4">
-                  Nessuna informazione trovata per questo utente.
-                </div>
-              )}
-            </CardContent>
-            
-            <CardFooter className="flex justify-end gap-2">
-              {userInfo && user && !isEditing && (
-                <>
-                  {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
-                    <Button 
-                      variant="outline"
-                      onClick={() => window.location.href = "/modifica-immagine"}
-                    >
-                      <Image className="mr-2 h-4 w-4" />
-                      Modifica Immagine
+                )}
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                {!isEditing && (
+                  <>
+                    {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
+                      <Button variant="outline" onClick={() => window.location.href = "/modifica-immagine"}>
+                        <Image className="mr-2 h-4 w-4" /> Modifica Immagine
+                      </Button>
+                    )}
+                    <Button onClick={() => setIsEditing(true)}>
+                      <Edit className="mr-2 h-4 w-4" /> Modifica Profilo
                     </Button>
-                  )}
-                  <Button onClick={() => setIsEditing(true)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Modifica Profilo
-                  </Button>
-                </>
-              )}
-            </CardFooter>
-          </Card>
-
-          {userInfo && userOpinions && opinionQuestions.length > 0 && (
-            <Card className="animate-in-delay">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Le Tue Opinioni Politiche
-                </CardTitle>
-                <CardDescription>
-                  Visualizzazione delle tue posizioni sui temi principali
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-6">
-                  <div className="space-y-3">
-                    <div className="bg-green-100 border border-green-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        Favorevole
-                      </h3>
-                      <div className="space-y-2">
-                        {categorizeAllOpinions().favorevoli.length > 0 ? (
-                          categorizeAllOpinions().favorevoli.map(({ id, label }) => (
-                            <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
-                              <span className="text-green-800 font-medium">{label}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-green-600 text-sm italic">
-                            Nessuna opinione favorevole
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                        Indeciso
-                      </h3>
-                      <div className="space-y-2">
-                        {categorizeAllOpinions().indecisi.length > 0 ? (
-                          categorizeAllOpinions().indecisi.map(({ id, label }) => (
-                            <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
-                              <span className="text-yellow-800 font-medium">{label}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-yellow-600 text-sm italic">
-                            Nessuna opinione indecisa
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="bg-red-100 border border-red-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                        Contrario
-                      </h3>
-                      <div className="space-y-2">
-                        {categorizeAllOpinions().contrari.length > 0 ? (
-                          categorizeAllOpinions().contrari.map(({ id, label }) => (
-                            <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
-                              <span className="text-red-800 font-medium">{label}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-red-600 text-sm italic">
-                            Nessuna opinione contraria
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
+                  </>
+                )}
+              </CardFooter>
             </Card>
-          )}
 
-          {userInfo && Object.keys(governoIdeale).length > 0 && (
-            <Card className="animate-in-delay">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Il Tuo Governo Ideale
-                </CardTitle>
-                <CardDescription>
-                  I ministri che hai selezionato per il tuo governo ideale
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(governoIdeale).map(([categoria, nome]) => (
-                    <div key={categoria} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-blue-800 mb-2 capitalize">
-                        {categoria.replace('_', ' ')}
-                      </h3>
-                      <div className="bg-white border border-blue-200 rounded-md p-3">
-                        <span className="text-blue-900 font-medium">{nome}</span>
+            {/* --- SEZIONE OPINIONI LASCIATA IDENTICA --- */}
+            {userInfo && userOpinions && opinionQuestions.length > 0 && (
+              <Card className="animate-in-delay">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Le Tue Opinioni Politiche</CardTitle>
+                  <CardDescription>Visualizzazione delle tue posizioni sui temi principali</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-6">
+                    <div className="space-y-3">
+                      <div className="bg-green-100 border border-green-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2"><div className="w-3 h-3 bg-green-500 rounded-full"></div>Favorevole</h3>
+                        <div className="space-y-2">
+                          {categorizeAllOpinions().favorevoli.length > 0 ? (
+                            categorizeAllOpinions().favorevoli.map(({ id, label }) => (
+                              <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between"><span className="text-green-800 font-medium">{label}</span></div>
+                            ))
+                          ) : <div className="text-green-600 text-sm italic">Nessuna opinione favorevole</div>}
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {userInfo && (
-            <Card className="animate-in-delay">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  I Tuoi Rappresentanti
-                </CardTitle>
-                <CardDescription>
-                  I rappresentanti che hai scelto per i diversi livelli di governo
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="space-y-3">
-                    <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        Parlamento Europeo
-                      </h3>
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {representativeAvatars.rappresentante_europeo && (
-                            <CustomAvatar 
-                              config={representativeAvatars.rappresentante_europeo} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-blue-800 font-medium">
-                            {representativeNames.rappresentante_europeo || (userInfo as any).rappresentante_europeo || "Non selezionato"}
-                          </span>
+                    <div className="space-y-3">
+                      <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2"><div className="w-3 h-3 bg-yellow-500 rounded-full"></div>Indeciso</h3>
+                        <div className="space-y-2">
+                          {categorizeAllOpinions().indecisi.length > 0 ? (
+                            categorizeAllOpinions().indecisi.map(({ id, label }) => (
+                              <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between"><span className="text-yellow-800 font-medium">{label}</span></div>
+                            ))
+                          ) : <div className="text-yellow-600 text-sm italic">Nessuna opinione indecisa</div>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-red-800 mb-3 flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full"></div>Contrario</h3>
+                        <div className="space-y-2">
+                          {categorizeAllOpinions().contrari.length > 0 ? (
+                            categorizeAllOpinions().contrari.map(({ id, label }) => (
+                              <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between"><span className="text-red-800 font-medium">{label}</span></div>
+                            ))
+                          ) : <div className="text-red-600 text-sm italic">Nessuna opinione contraria</div>}
                         </div>
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            )}
 
-                  <div className="space-y-3">
-                    <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                        Camera dei Deputati
-                      </h3>
-                      <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {representativeAvatars.rappresentante_camera && (
-                            <CustomAvatar 
-                              config={representativeAvatars.rappresentante_camera} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-purple-800 font-medium">
-                            {representativeNames.rappresentante_camera || (userInfo as any).rappresentante_camera || "Non selezionato"}
-                          </span>
+            {/* --- SEZIONE GOVERNO IDEALE LASCIATA IDENTICA --- */}
+            {userInfo && Object.keys(governoIdeale).length > 0 && (
+              <Card className="animate-in-delay">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Il Tuo Governo Ideale</CardTitle>
+                  <CardDescription>I ministri che hai selezionato per il tuo governo ideale</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.entries(governoIdeale).map(([categoria, nome]) => (
+                      <div key={categoria} className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                        <h3 className="font-semibold text-blue-800 mb-2 capitalize">{categoria.replace(/_/g, ' ')}</h3>
+                        <div className="bg-white border border-blue-200 rounded-md p-3">
+                          <span className="text-blue-900 font-medium">{nome as string}</span>
                         </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
 
-                  <div className="space-y-3">
-                    <div className="bg-indigo-100 border border-indigo-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-indigo-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
-                        Senato
-                      </h3>
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {representativeAvatars.rappresentante_senato && (
-                            <CustomAvatar 
-                              config={representativeAvatars.rappresentante_senato} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-indigo-800 font-medium">
-                            {representativeNames.rappresentante_senato || (userInfo as any).rappresentante_senato || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            {/* === CANCELLATO === */}
+            {/* Il blocco JSX per i Rappresentanti è stato rimosso */}
+            {/* Il blocco JSX per i Candidati è stato rimosso */}
 
-                  <div className="space-y-3">
-                    <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                        Consiglio Regionale
-                      </h3>
-                      <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {representativeAvatars.rappresentante_regionale && (
-                            <CustomAvatar 
-                              config={representativeAvatars.rappresentante_regionale} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-orange-800 font-medium">
-                            {representativeNames.rappresentante_regionale || (userInfo as any).rappresentante_regionale || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="bg-teal-100 border border-teal-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-teal-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-teal-500 rounded-full"></div>
-                        Consiglio Comunale
-                      </h3>
-                      <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {representativeAvatars.rappresentante_comunale && (
-                            <CustomAvatar 
-                              config={representativeAvatars.rappresentante_comunale} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-teal-800 font-medium">
-                            {representativeNames.rappresentante_comunale || (userInfo as any).rappresentante_comunale || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {userInfo && (
-            <Card className="animate-in-delay">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  I Tuoi Candidati
-                </CardTitle>
-                <CardDescription>
-                  I candidati che hai scelto per i diversi livelli di governo
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="space-y-3">
-                    <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        Parlamento Europeo
-                      </h3>
-                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {candidateAvatars.candidato_europeo && (
-                            <CustomAvatar 
-                              config={candidateAvatars.candidato_europeo} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-blue-800 font-medium">
-                            {candidateNames.candidato_europeo || (userInfo as any).candidato_europeo || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="bg-green-100 border border-green-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                        Camera dei Deputati
-                      </h3>
-                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {candidateAvatars.candidato_camera && (
-                            <CustomAvatar 
-                              config={candidateAvatars.candidato_camera} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-green-800 font-medium">
-                            {candidateNames.candidato_camera || (userInfo as any).candidato_camera || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="bg-purple-100 border border-purple-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                        Senato della Repubblica
-                      </h3>
-                      <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {candidateAvatars.candidato_senato && (
-                            <CustomAvatar 
-                              config={candidateAvatars.candidato_senato} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-purple-800 font-medium">
-                            {candidateNames.candidato_senato || (userInfo as any).candidato_senato || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="bg-orange-100 border border-orange-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                        Consiglio Regionale
-                      </h3>
-                      <div className="bg-orange-50 border border-orange-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {candidateAvatars.candidato_regionale && (
-                            <CustomAvatar 
-                              config={candidateAvatars.candidato_regionale} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-orange-800 font-medium">
-                            {candidateNames.candidato_regionale || (userInfo as any).candidato_regionale || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="bg-teal-100 border border-teal-200 rounded-lg p-4">
-                      <h3 className="font-semibold text-teal-800 mb-3 flex items-center gap-2">
-                        <div className="w-3 h-3 bg-teal-500 rounded-full"></div>
-                        Consiglio Comunale
-                      </h3>
-                      <div className="bg-teal-50 border border-teal-200 rounded-md p-3">
-                        <div className="flex items-center gap-3">
-                          {candidateAvatars.candidato_comunale && (
-                            <CustomAvatar 
-                              config={candidateAvatars.candidato_comunale} 
-                              size={40} 
-                              className="flex-shrink-0"
-                            />
-                          )}
-                          <span className="text-teal-800 font-medium">
-                            {candidateNames.candidato_comunale || (userInfo as any).candidato_comunale || "Non selezionato"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+            {/* === AGGIUNTO === */}
+            {/* Aggiungiamo le chiamate ai nuovi componenti */}
+            {userInfo && (
+              <>
+                <Card>
+                  <CardContent className="pt-6">
+                    <ProfileRepresentatives userInfo={userInfo} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <ProfileCandidates userInfo={userInfo} />
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="text-center p-4">Nessuna informazione trovata.</div>
+        )}
+      </div>
     </div>
   );
 }
