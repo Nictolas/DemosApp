@@ -1,17 +1,30 @@
 // Importa ANCHE l'adminDb e i tipi necessari
-import { db, adminDb } from '../api/firebase-config.js';
-import { collection, doc, getDoc, setDoc, query, where, limit, getDocs, updateDoc } from 'firebase/firestore';
+import { adminDb } from '../api/firebase-config.js';
+import { pool } from './database-config.js';
 import FirebaseService from './firebase-service.js';
 
 class UserService extends FirebaseService {
 
   static async saveUserData(userData) {
     try {
-      if (!db || !userData.uid) return { success: false, error: "DB non configurato o uid mancante" };
-      const userDocRef = doc(db, 'utenti', userData.uid);
+      if (!pool || !userData.uid) return { success: false, error: "DB non configurato o uid mancante" };
+      
       const dataToSave = { ...userData, id: userData.uid, updatedAt: new Date().toISOString() };
       if (!dataToSave.createdAt) { dataToSave.createdAt = new Date().toISOString(); }
-      await setDoc(userDocRef, dataToSave, { merge: true });
+      
+      // Prepara i campi per l'inserimento/aggiornamento nella tabella utenti
+      const fields = Object.keys(dataToSave);
+      const values = Object.values(dataToSave);
+      const placeholders = fields.map(() => '?').join(', ');
+      const updateClause = fields.map(field => `${field} = VALUES(${field})`).join(', ');
+      
+      const query = `
+        INSERT INTO utenti (${fields.join(', ')}) 
+        VALUES (${placeholders}) 
+        ON DUPLICATE KEY UPDATE ${updateClause}
+      `;
+      
+      const [result] = await pool.execute(query, values);
       return { success: true, data: dataToSave };
     } catch (error) {
       return this.handleError(error, 'saveUserData');
@@ -20,17 +33,26 @@ class UserService extends FirebaseService {
 
   static async updateUserData(uid, userData) {
     try {
-      if (!db) return { success: false, error: "Database non configurato" };
-      const userDocRef = doc(db, 'utenti', uid);
-      // Recupera i dati attuali
-      const userDoc = await getDoc(userDocRef);
-      let currentData = userDoc.exists() ? userDoc.data() : {};
+      if (!pool) return { success: false, error: "Database non configurato" };
+      
+      // Recupera i dati attuali dal database MySQL
+      const [rows] = await pool.execute('SELECT * FROM utenti WHERE id = ?', [uid]);
+      let currentData = rows[0] ? rows[0] : {};
+      
       // Se data_nascita non è presente o è vuota, mantieni quella attuale
       let dataToUpdate = { ...userData, updatedAt: new Date().toISOString() };
       if (!('data_nascita' in userData) || !userData.data_nascita) {
         dataToUpdate.data_nascita = currentData.data_nascita || "";
       }
-      await updateDoc(userDocRef, dataToUpdate);
+      
+      // Aggiorna i dati nel database MySQL
+      const fields = Object.keys(dataToUpdate);
+      const values = Object.values(dataToUpdate);
+      const updateClause = fields.map(field => `${field} = ?`).join(', ');
+      
+      const query = `UPDATE utenti SET ${updateClause} WHERE id = ?`;
+      const [result] = await pool.execute(query, [...values, uid]);
+      
       return { success: true, data: dataToUpdate };
     } catch (error) {
       return this.handleError(error, 'updateUserData');

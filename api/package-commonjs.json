@@ -1,0 +1,16 @@
+{
+  "name": "demos-backend-commonjs",
+  "version": "1.0.0",
+  "main": "server-commonjs.js",
+  "scripts": {
+    "start": "node server-commonjs.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
