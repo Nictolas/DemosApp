@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, MessageSquare, Users } from "lucide-react";
+import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, MessageSquare, Users, TestTube } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,19 +19,6 @@ export default function Impostazioni() {
   const [reauthDialogOpen, setReauthDialogOpen] = React.useState(false);
   const [reauthPassword, setReauthPassword] = React.useState("");
   const [reauthError, setReauthError] = React.useState("");
-
-  // Redirect to landing page if not logged in
-  if (!user && !isLoading) {
-    return <Redirect to="/" />;
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-background to-secondary/20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -119,6 +106,27 @@ export default function Impostazioni() {
       setReauthPassword("");
     }
   };
+
+  const handleTest = () => {
+    toast({
+      title: "Test eseguito",
+      description: "Il pulsante Test funziona correttamente!",
+      variant: "default",
+    });
+  };
+
+  // Redirect to landing page if not logged in
+  if (!user && !isLoading) {
+    return <Redirect to="/" />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-background to-secondary/20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-secondary/20" style={{ paddingBottom: '80px' }}>
@@ -292,6 +300,15 @@ export default function Impostazioni() {
                     </CardContent>
                   </Card>
                 </a>
+                <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-500 h-full flex" onClick={handleTest}>
+                  <CardContent className="p-4 flex items-center gap-3 h-full">
+                    <TestTube className="h-5 w-5 text-green-500 mr-2" />
+                    <div>
+                      <h4 className="font-medium">Test</h4>
+                      <p className="text-sm text-muted-foreground">Esegui un test di funzionamento</p>
+                    </div>
+                  </CardContent>
+                </Card>
                 <Card className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-red-500 h-full flex" onClick={handleLogout}>
                   <CardContent className="p-4 flex items-center gap-3 h-full">
                     <LogOut className="h-5 w-5 text-red-500 mr-2" />
