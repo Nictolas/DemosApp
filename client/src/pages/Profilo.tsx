@@ -4,13 +4,12 @@ import { Redirect, useRoute, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
-import { db, auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
-import { doc, getDoc } from "firebase/firestore";
 
 export type UserInfo = {
   id?: string;
@@ -89,10 +88,9 @@ export default function Profilo({ userId }: { userId?: string }) {
     for (const [key, uid] of Object.entries(representatives)) {
       if (uid && typeof uid === 'string') {
         try {
-          const rappresentanteDocRef = doc(db, "utenti", uid);
-          const rappresentanteDoc = await getDoc(rappresentanteDocRef);
-          if (rappresentanteDoc.exists()) {
-            const userData = rappresentanteDoc.data();
+          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
+          if (response.ok) {
+            const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
             if (userData.avatar_config) {
               try {
@@ -142,10 +140,9 @@ export default function Profilo({ userId }: { userId?: string }) {
     for (const [key, uid] of Object.entries(candidates)) {
       if (uid && typeof uid === 'string') {
         try {
-          const candidatoDocRef = doc(db, "utenti", uid);
-          const candidatoDoc = await getDoc(candidatoDocRef);
-          if (candidatoDoc.exists()) {
-            const userData = candidatoDoc.data();
+          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
+          if (response.ok) {
+            const userData = await response.json();
             names[key] = `${userData.nome} ${userData.cognome}`;
             if (userData.avatar_config) {
               try {
