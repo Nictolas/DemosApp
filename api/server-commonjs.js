@@ -3,6 +3,10 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+// === AGGIUNTO ===
+// Importa le nuove rotte per l'amnistia
+const amnistiaRoutes = require('./amnistia.js'); 
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
@@ -27,6 +31,12 @@ app.get('/api/health', (req, res) => {
     nodeVersion: process.version
   });
 });
+
+// === AGGIUNTO ===
+// Attiva le rotte per l'amnistia. Tutte le richieste a /api/amnistia
+// verranno gestite dal file amnistia.js
+app.use('/api/amnistia', amnistiaRoutes);
+
 
 // Test endpoint
 app.get('/api/test', (req, res) => {
