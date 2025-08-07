@@ -1,9 +1,12 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Trophy, Plus, Pencil, Save, X as XIcon, ArrowLeft } from "lucide-react";
+import { Trophy, Plus, Pencil, Save, X as XIcon, ArrowLeft, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface Ministero {
   id: string;
@@ -13,200 +16,119 @@ interface Ministero {
 }
 
 export default function GestisciGoverno() {
-  const [ministeri, setMinisteri] = useState<Ministero[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: '', categoria: '', descrizione: '' });
-  const [adding, setAdding] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ nome: string; categoria: string; descrizione: string }>({ nome: '', categoria: '', descrizione: '' });
-  const [editError, setEditError] = useState<string | null>(null);
-  const [savingEdit, setSavingEdit] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
+  
+  const [form, setForm] = useState({ nome: '', categoria: '', descrizione: '' });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ nome: string; categoria: string; descrizione?: string }>({ nome: '', categoria: '', descrizione: '' });
 
-  const fetchMinisteri = () => {
-    setLoading(true);
-    fetch("/api/ministeri")
-      .then((res) => res.json())
-      .then((data) => {
-        setMinisteri(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Errore nel caricamento dei ministeri");
-        setLoading(false);
-      });
-  };
+  // 1. Caricamento dati con React Query
+  const { data: ministeri = [], isLoading, isError } = useQuery<Ministero[]>({
+    queryKey: ['ministeri'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/ministeri");
+      if (!response.ok) throw new Error("Errore nel caricamento dei ministeri");
+      return response.json();
+    }
+  });
 
-  useEffect(() => {
-    fetchMinisteri();
-  }, []);
+  // 2. Mutazione per Aggiungere un ministero
+  const addMutation = useMutation({
+    mutationFn: (newMinistero: Omit<Ministero, 'id'>) => apiRequest("POST", "/api/ministeri", newMinistero),
+    onSuccess: () => {
+      toast({ title: "Successo", description: "Ministero aggiunto." });
+      queryClient.invalidateQueries({ queryKey: ['ministeri'] });
+      setForm({ nome: '', categoria: '', descrizione: '' });
+    },
+    onError: () => toast({ title: "Errore", description: "Impossibile aggiungere il ministero.", variant: "destructive" }),
+  });
 
-  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  // 3. Mutazione per Modificare un ministero
+  const editMutation = useMutation({
+    mutationFn: (updatedMinistero: Omit<Ministero, 'id'>) => apiRequest("PUT", `/api/ministeri/${editId}`, updatedMinistero),
+    onSuccess: () => {
+      toast({ title: "Successo", description: "Ministero aggiornato." });
+      queryClient.invalidateQueries({ queryKey: ['ministeri'] });
+      setEditId(null);
+    },
+    onError: () => toast({ title: "Errore", description: "Impossibile aggiornare il ministero.", variant: "destructive" }),
+  });
 
-  const handleAdd = async (e: React.FormEvent) => {
+  // 4. Mutazione per Eliminare un ministero
+  const deleteMutation = useMutation({
+      mutationFn: (id: string) => apiRequest("DELETE", `/api/ministeri/${id}`),
+      onSuccess: () => {
+          toast({ title: "Successo", description: "Ministero eliminato." });
+          queryClient.invalidateQueries({ queryKey: ['ministeri'] });
+      },
+      onError: () => toast({ title: "Errore", description: "Impossibile eliminare il ministero.", variant: "destructive" }),
+  });
+
+
+  const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    setAddError(null);
     if (!form.nome.trim() || !form.categoria.trim()) {
-      setAddError('Nome e categoria sono obbligatori');
-      return;
+        toast({ title: "Attenzione", description: "Nome e categoria sono obbligatori.", variant: "destructive" });
+        return;
     }
-    setAdding(true);
-    try {
-      const res = await fetch('/api/ministeri', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: form.nome.trim(),
-          categoria: form.categoria.trim(),
-          descrizione: form.descrizione.trim(),
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        setAddError(err.error || 'Errore nell\'aggiunta');
-      } else {
-        setForm({ nome: '', categoria: '', descrizione: '' });
-        fetchMinisteri();
-      }
-    } catch {
-      setAddError('Errore di rete');
-    } finally {
-      setAdding(false);
-    }
+    addMutation.mutate(form);
   };
 
-  const startEdit = (m: Ministero) => {
-    setEditId(m.id);
-    setEditForm({ nome: m.nome, categoria: m.categoria, descrizione: m.descrizione || '' });
-    setEditError(null);
-  };
-
-  const handleEditInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
-  };
-
-  const cancelEdit = () => {
-    setEditId(null);
-    setEditForm({ nome: '', categoria: '', descrizione: '' });
-    setEditError(null);
-  };
-
-  const saveEdit = async (id: string) => {
-    setEditError(null);
+  const saveEdit = () => {
     if (!editForm.nome.trim() || !editForm.categoria.trim()) {
-      setEditError('Nome e categoria sono obbligatori');
-      return;
+        toast({ title: "Attenzione", description: "Nome e categoria sono obbligatori.", variant: "destructive" });
+        return;
     }
-    setSavingEdit(true);
-    try {
-      const res = await fetch(`/api/ministeri/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: editForm.nome.trim(),
-          categoria: editForm.categoria.trim(),
-          descrizione: editForm.descrizione.trim(),
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        setEditError(err.error || 'Errore nel salvataggio');
-      } else {
-        setEditId(null);
-        setEditForm({ nome: '', categoria: '', descrizione: '' });
-        fetchMinisteri();
-      }
-    } catch {
-      setEditError('Errore di rete');
-    } finally {
-      setSavingEdit(false);
-    }
+    editMutation.mutate(editForm);
   };
 
-  const safeMinisteri = Array.isArray(ministeri) ? ministeri : [];
-
+  const handleDelete = (id: string) => {
+    if (confirm('Sei sicuro di voler eliminare questo ministero?')) {
+        deleteMutation.mutate(id);
+    }
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
         <Button variant="ghost" className="mb-4 flex items-center" onClick={() => setLocation("/gestisci")}> <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Gestisci </Button>
         <Card className="mb-6">
-          <CardHeader className="flex items-center gap-2">
+          <CardHeader className="flex flex-row items-center gap-2">
             <Trophy className="h-6 w-6 text-yellow-600" />
-            <CardTitle className="text-2xl font-bold">Gestisci Governo</CardTitle>
+            <CardTitle className="text-2xl font-bold">Gestisci Ministeri del Governo</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">Qui potrai gestire i dati e le funzionalità relative al Governo ideale.</p>
-            <p className="text-muted-foreground mb-4">Lista attuale dei ministeri (letti da Firestore):</p>
+            <p className="text-muted-foreground mb-4">Aggiungi, modifica o elimina i ministeri disponibili per la votazione del Governo Ideale.</p>
             <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-2 mb-6 items-end">
-              <Input
-                name="nome"
-                placeholder="Nome ministero"
-                value={form.nome}
-                onChange={handleInput}
-                className="md:w-1/3"
-                required
-              />
-              <Input
-                name="categoria"
-                placeholder="Categoria (slug)"
-                value={form.categoria}
-                onChange={handleInput}
-                className="md:w-1/4"
-                required
-              />
-              <Input
-                name="descrizione"
-                placeholder="Descrizione (opzionale)"
-                value={form.descrizione}
-                onChange={handleInput}
-                className="md:w-1/3"
-              />
-              <Button type="submit" disabled={adding} className="bg-yellow-600 hover:bg-yellow-700">
-                <Plus className="h-4 w-4 mr-1" /> Aggiungi
+              <Input placeholder="Nome ministero" value={form.nome} onChange={(e) => setForm({...form, nome: e.target.value})} required className="md:w-1/3"/>
+              <Input placeholder="Categoria (slug)" value={form.categoria} onChange={(e) => setForm({...form, categoria: e.target.value})} required className="md:w-1/4"/>
+              <Input placeholder="Descrizione (opzionale)" value={form.descrizione} onChange={(e) => setForm({...form, descrizione: e.target.value})} className="md:w-1/3"/>
+              <Button type="submit" disabled={addMutation.isPending} className="bg-yellow-600 hover:bg-yellow-700">
+                {addMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />} Aggiungi
               </Button>
             </form>
-            {addError && <p className="text-red-600 mb-2">{addError}</p>}
-            {loading && <p>Caricamento...</p>}
-            {error && <p className="text-red-600">{error}</p>}
-            {!loading && !error && (
+            
+            {isLoading && <p>Caricamento...</p>}
+            {isError && <p className="text-red-600">Errore nel caricamento dei ministeri</p>}
+            
+            {!isLoading && !isError && (
               <div className="overflow-x-auto">
                 <table className="min-w-full border text-sm bg-white rounded shadow">
-                  <thead>
-                    <tr className="bg-yellow-100">
-                      <th className="px-3 py-2 border-b text-left">Nome</th>
-                      <th className="px-3 py-2 border-b text-left">Categoria</th>
-                      <th className="px-3 py-2 border-b text-left">Descrizione</th>
-                      <th className="px-3 py-2 border-b text-left">Azioni</th>
-                    </tr>
-                  </thead>
+                  <thead><tr className="bg-yellow-100"><th className="px-3 py-2 border-b text-left">Nome</th><th className="px-3 py-2 border-b text-left">Categoria</th><th className="px-3 py-2 border-b text-left">Descrizione</th><th className="px-3 py-2 border-b text-right">Azioni</th></tr></thead>
                   <tbody>
-                    {safeMinisteri.length === 0 && (
-                      <tr><td colSpan={4} className="text-center py-4">Nessun ministero presente.</td></tr>
-                    )}
-                    {safeMinisteri.map((m) => (
+                    {ministeri.length === 0 && (<tr><td colSpan={4} className="text-center py-4">Nessun ministero presente.</td></tr>)}
+                    {ministeri.map((m) => (
                       <tr key={m.id} className="hover:bg-yellow-50">
                         {editId === m.id ? (
                           <>
-                            <td className="px-3 py-2 border-b font-medium">
-                              <Input name="nome" value={editForm.nome} onChange={handleEditInput} required />
-                            </td>
-                            <td className="px-3 py-2 border-b">
-                              <Input name="categoria" value={editForm.categoria} onChange={handleEditInput} required />
-                            </td>
-                            <td className="px-3 py-2 border-b">
-                              <Input name="descrizione" value={editForm.descrizione} onChange={handleEditInput} />
-                            </td>
-                            <td className="px-3 py-2 border-b flex gap-2">
-                              <Button type="button" size="sm" className="bg-green-600 hover:bg-green-700" disabled={savingEdit} onClick={() => saveEdit(m.id)}>
-                                <Save className="h-4 w-4" />
-                              </Button>
-                              <Button type="button" size="sm" variant="outline" onClick={cancelEdit}>
-                                <XIcon className="h-4 w-4" />
-                              </Button>
+                            <td className="px-3 py-2 border-b"><Input value={editForm.nome} onChange={(e) => setEditForm({...editForm, nome: e.target.value})} required /></td>
+                            <td className="px-3 py-2 border-b"><Input value={editForm.categoria} onChange={(e) => setEditForm({...editForm, categoria: e.target.value})} required /></td>
+                            <td className="px-3 py-2 border-b"><Input value={editForm.descrizione} onChange={(e) => setEditForm({...editForm, descrizione: e.target.value})} /></td>
+                            <td className="px-3 py-2 border-b text-right flex gap-2 justify-end">
+                              <Button size="sm" className="bg-green-600 hover:bg-green-700" disabled={editMutation.isPending} onClick={saveEdit}>{editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4" />}</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditId(null)}><XIcon className="h-4 w-4" /></Button>
                             </td>
                           </>
                         ) : (
@@ -214,10 +136,11 @@ export default function GestisciGoverno() {
                             <td className="px-3 py-2 border-b font-medium">{m.nome}</td>
                             <td className="px-3 py-2 border-b">{m.categoria}</td>
                             <td className="px-3 py-2 border-b text-muted-foreground">{m.descrizione}</td>
-                            <td className="px-3 py-2 border-b">
-                              <Button type="button" size="icon" variant="ghost" onClick={() => startEdit(m)}>
-                                <Pencil className="h-4 w-4 text-yellow-600" />
-                              </Button>
+                            <td className="px-3 py-2 border-b text-right">
+                                <div className="flex justify-end gap-2">
+                                    <Button size="icon" variant="ghost" onClick={() => { setEditId(m.id); setEditForm(m); }}><Pencil className="h-4 w-4 text-yellow-600" /></Button>
+                                    <Button size="icon" variant="ghost" onClick={() => handleDelete(m.id)} disabled={deleteMutation.isPending}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                                </div>
                             </td>
                           </>
                         )}
@@ -225,7 +148,6 @@ export default function GestisciGoverno() {
                     ))}
                   </tbody>
                 </table>
-                {editError && <p className="text-red-600 mt-2">{editError}</p>}
               </div>
             )}
           </CardContent>
@@ -233,4 +155,4 @@ export default function GestisciGoverno() {
       </div>
     </div>
   );
-} 
+}

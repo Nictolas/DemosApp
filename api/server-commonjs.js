@@ -3,9 +3,23 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-// === AGGIUNTO ===
-// Importa le nuove rotte per l'amnistia
-const amnistiaRoutes = require('./amnistia.js'); 
+// === INIZIO AGGIORNAMENTO: Importa tutte le rotte ===
+const amnistiaRoutes = require('./amnistia.js');
+const elezioniRoutes = require('./elezioni.js');
+const capoStatoRoutes = require('./capo-stato.js');
+const governoRoutes = require('./governo.js');
+const graziaRoutes = require('./grazia.js');
+const iceRoutes = require('./ice.js');
+const iniziativePopolariRoutes = require('./iniziative-popolari.js');
+const referendumAbrogativiRoutes = require('./referendum-abrogativi.js');
+const programmaRoutes = require('./programma.js');
+const comunicazioniRoutes = require('./comunicazioni.js');
+const notificheRoutes = require('./notifiche.js');
+const sondaggiRoutes = require('./sondaggi.js');
+const statisticheRoutes = require('./statistiche.js');
+const sostenitoriRoutes = require('./sostenitori.js');
+const userRoutes = require('./users.js'); // Assumendo che esista o che lo creerai
+// === FINE AGGIORNAMENTO ===
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -26,26 +40,26 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'DEMOS Backend PostgreSQL is running (CommonJS)',
     timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV,
-    port: PORT,
-    nodeVersion: process.version
   });
 });
 
-// === AGGIUNTO ===
-// Attiva le rotte per l'amnistia. Tutte le richieste a /api/amnistia
-// verranno gestite dal file amnistia.js
+// === INIZIO AGGIORNAMENTO: Attiva tutte le rotte ===
 app.use('/api/amnistia', amnistiaRoutes);
-
-
-// Test endpoint
-app.get('/api/test', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Server is working!',
-    timestamp: new Date().toISOString()
-  });
-});
+app.use('/api/elezioni', elezioniRoutes);
+app.use('/api/capo-stato', capoStatoRoutes);
+app.use('/api/governo', governoRoutes);
+app.use('/api/grazia', graziaRoutes);
+app.use('/api/ice', iceRoutes);
+app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
+app..use('/api/referendum-abrogativi', referendumAbrogativiRoutes);
+app.use('/api/programma', programmaRoutes);
+app.use('/api/comunicazioni', comunicazioniRoutes);
+app.use('/api/notifiche', notificheRoutes);
+app.use('/api/sondaggi', sondaggiRoutes);
+app.use('/api/statistiche', statisticheRoutes);
+app.use('/api/sostenitori', sostenitoriRoutes);
+app.use('/api/users', userRoutes);
+// === FINE AGGIORNAMENTO ===
 
 // Error handling middleware
 app.use((error, req, res, next) => {
@@ -67,11 +81,8 @@ app.use('*', (req, res) => {
 // Start server
 const server = app.listen(PORT, () => {
   console.log(`DEMOS Backend running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`Node version: ${process.version}`);
 });
 
-// Handle server errors
 server.on('error', (error) => {
   console.error('Server failed to start:', error);
   process.exit(1);
