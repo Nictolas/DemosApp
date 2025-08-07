@@ -8,8 +8,8 @@ import { Loader2, ArrowLeft, FileText, Trophy, Plus, X, ThumbsUp } from "lucide-
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, addDoc, deleteDoc, query, where } from "firebase/firestore";
+// === AGGIUNTO ===
+import { apiRequest } from "@/lib/queryClient";
 
 interface Classifica { legge: string; voti: number; }
 
@@ -25,60 +25,47 @@ export default function Amnistia() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [deletingVote, setDeletingVote] = useState<string | null>(null);
 
-  // Carica classifica e voti utente
-  useEffect(() => {
+  // === INIZIO MODIFICHE PRINCIPALI ===
+  const fetchData = async () => {
     if (!user) return;
     setLoadingData(true);
-    async function fetchData() {
-      // Recupera tutti i voti
-      const snapshot = await getDocs(collection(db, "voti_amnistia"));
-      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Classifica
-      const conteggio: Record<string, number> = {};
-      votiList.forEach(v => {
-        if (v.legge) conteggio[v.legge] = (conteggio[v.legge] || 0) + 1;
-      });
-      const classificaArray: Classifica[] = Object.entries(conteggio)
-        .map(([legge, voti]) => ({ legge, voti: Number(voti) }))
-        .sort((a, b) => b.voti - a.voti);
-      setClassifica(classificaArray);
-      // Voti utente
-      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.legge);
+    try {
+      // 1. Usiamo un singolo endpoint API per recuperare sia la classifica che i voti dell'utente
+      const response = await apiRequest("GET", "/api/amnistia");
+      if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
+
+      const { classifica, mieiVoti } = await response.json();
+
+      setClassifica(classifica);
       setUserVoti(mieiVoti);
-      setLoadingData(false);
+    } catch (error) {
+        toast({ title: "Errore", description: "Impossibile caricare i dati dei voti.", variant: "destructive" });
+    } finally {
+        setLoadingData(false);
     }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [user]);
 
   const handleVote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!leggeInput.trim()) return;
-    if (userVoti.includes(leggeInput.trim())) {
-      toast({ title: "Voto già registrato", description: `Hai già votato per l'amnistia di: ${leggeInput.trim()}` });
+    const leggeDaVotare = leggeInput.trim();
+    if (!leggeDaVotare) return;
+    if (userVoti.includes(leggeDaVotare)) {
+      toast({ title: "Voto già registrato", description: `Hai già votato per l'amnistia di: ${leggeDaVotare}` });
       return;
     }
     setIsVoting(true);
     try {
-      await addDoc(collection(db, "voti_amnistia"), {
-        legge: leggeInput.trim(),
-        userId: user.uid,
-        timestamp: new Date().toISOString()
-      });
-      toast({ title: "Voto registrato", description: `Hai votato per l'amnistia di: ${leggeInput.trim()}` });
+      // 2. Invia il nuovo voto al backend tramite API
+      const response = await apiRequest("POST", "/api/amnistia/vota", { legge: leggeDaVotare });
+      if (!response.ok) throw new Error("Errore durante la registrazione del voto.");
+
+      toast({ title: "Voto registrato", description: `Hai votato per l'amnistia di: ${leggeDaVotare}` });
       setLeggeInput("");
-      // Ricarica dati
-      const snapshot = await getDocs(collection(db, "voti_amnistia"));
-      const votiList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const conteggio: Record<string, number> = {};
-      votiList.forEach(v => {
-        if (v.legge) conteggio[v.legge] = (conteggio[v.legge] || 0) + 1;
-      });
-      const classificaArray: Classifica[] = Object.entries(conteggio)
-        .map(([legge, voti]) => ({ legge, voti: Number(voti) }))
-        .sort((a, b) => b.voti - a.voti);
-      setClassifica(classificaArray);
-      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.legge);
-      setUserVoti(mieiVoti);
+      await fetchData(); // Ricarica tutti i dati aggiornati dal server
     } catch (error) {
       toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
@@ -91,33 +78,20 @@ export default function Amnistia() {
     if (!window.confirm(`Sei sicuro di voler rimuovere il voto per l'amnistia di "${leggeDaRimuovere}"?`)) return;
     setDeletingVote(leggeDaRimuovere);
     try {
-      // Trova il documento da eliminare
-      const q = query(collection(db, "voti_amnistia"), where("userId", "==", user.uid), where("legge", "==", leggeDaRimuovere));
-      const snapshot = await getDocs(q);
-      for (const docu of snapshot.docs) {
-        await deleteDoc(docu.ref);
-      }
+      // 3. Rimuovi il voto tramite API
+      const response = await apiRequest("DELETE", "/api/amnistia/vota", { legge: leggeDaRimuovere });
+      if (!response.ok) throw new Error("Errore durante la rimozione del voto.");
+
       toast({ title: "Voto rimosso", description: `Hai rimosso il voto per l'amnistia di: ${leggeDaRimuovere}` });
-      // Ricarica dati
-      const allSnap = await getDocs(collection(db, "voti_amnistia"));
-      const votiList = allSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const conteggio: Record<string, number> = {};
-      votiList.forEach(v => {
-        if (v.legge) conteggio[v.legge] = (conteggio[v.legge] || 0) + 1;
-      });
-      const classificaArray: Classifica[] = Object.entries(conteggio)
-        .map(([legge, voti]) => ({ legge, voti: Number(voti) }))
-        .sort((a, b) => b.voti - a.voti);
-      setClassifica(classificaArray);
-      const mieiVoti = votiList.filter(v => v.userId === user.uid).map(v => v.legge);
-      setUserVoti(mieiVoti);
+      await fetchData(); // Ricarica tutti i dati aggiornati dal server
     } catch (error) {
       toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
     } finally {
       setDeletingVote(null);
     }
   };
-
+  // === FINE MODIFICHE PRINCIPALI ===
+  
   const getSuggestions = () => {
     if (!leggeInput.trim() || !showSuggestions) return [];
     return classifica
@@ -128,6 +102,7 @@ export default function Amnistia() {
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
+  // Il resto del codice JSX per la visualizzazione rimane IDENTICO
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
