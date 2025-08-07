@@ -1,55 +1,101 @@
-import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Loader2, ArrowLeft, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link, Redirect } from "wouter";
+
+interface UltimaComunicazione {
+  id: string;
+  titolo: string;
+  likes: number;
+  dislikes: number;
+  data_creazione: string;
+}
 
 export default function Riscontro() {
-  const { user } = useAuth();
-  const [comunicazione, setComunicazione] = useState<any | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoading: isAuthLoading } = useAuth();
 
-  useEffect(() => {
-    if (!user) return;
-    setIsLoading(true);
-    const q = query(
-      collection(db, "comunicazioni"),
-      where("id_utente", "==", user.id),
-      orderBy("data_creazione", "desc"),
-      limit(1)
-    );
-    getDocs(q).then(snapshot => {
-      if (!snapshot.empty) {
-        setComunicazione({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() });
-      }
-      setIsLoading(false);
-    });
-  }, [user]);
+  // 1. Caricamento dati con React Query
+  const { data: comunicazione, isLoading, isError } = useQuery<UltimaComunicazione | null>({
+    queryKey: ['ultimaComunicazione', user?.uid],
+    queryFn: async () => {
+      if (!user?.uid) return null;
+      // Usiamo l'endpoint che già esiste per le notifiche, o ne creiamo uno apposito
+      const response = await apiRequest("GET", `/api/comunicazioni/ultima`);
+      if (response.status === 404) return null; // Nessuna comunicazione trovata
+      if (!response.ok) throw new Error('Errore nel caricamento della comunicazione');
+      return response.json();
+    },
+    enabled: !!user, // Esegui solo se l'utente è loggato
+  });
+
+  if (isAuthLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+  
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+  
+  const canView = user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Admin";
+
+  if (!canView) {
+      return (
+          <div className="min-h-screen p-4 flex items-center justify-center">
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Accesso negato</CardTitle>
+                      <CardDescription>Non hai i permessi per visualizzare questa pagina.</CardDescription>
+                  </CardHeader>
+              </Card>
+          </div>
+      );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Riscontro sulla tua ultima comunicazione</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <p>Caricamento...</p>
-              ) : comunicazione ? (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="container mx-auto max-w-2xl">
+        <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
+        <Card>
+          <CardHeader>
+            <CardTitle>Riscontro sull'ultima comunicazione</CardTitle>
+            <CardDescription>Visualizza i like e i dislike ricevuti per la tua ultima votazione comunicata.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            ) : isError ? (
+              <p className="text-red-500">Errore nel caricamento dei dati.</p>
+            ) : comunicazione ? (
+              <div className="space-y-4">
                 <div>
-                  <p className="mb-2"><strong>Titolo:</strong> {comunicazione.titolo}</p>
-                  <p><strong>Like:</strong> {comunicazione.likes || 0}</p>
-                  <p><strong>Dislike:</strong> {comunicazione.dislikes || 0}</p>
+                  <p className="text-sm text-muted-foreground">Titolo della votazione:</p>
+                  <p className="font-semibold text-lg">{comunicazione.titolo}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Inviata il: {new Date(comunicazione.data_creazione).toLocaleString('it-IT')}
+                  </p>
                 </div>
-              ) : (
-                <p>Non hai ancora inviato comunicazioni.</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                <div className="flex items-center justify-around p-4 bg-gray-50 rounded-lg">
+                    <div className="text-center">
+                        <ThumbsUp className="h-8 w-8 text-green-500 mx-auto" />
+                        <p className="text-2xl font-bold">{comunicazione.likes || 0}</p>
+                        <p className="text-sm text-muted-foreground">Mi piace</p>
+                    </div>
+                    <div className="text-center">
+                        <ThumbsDown className="h-8 w-8 text-red-500 mx-auto" />
+                        <p className="text-2xl font-bold">{comunicazione.dislikes || 0}</p>
+                        <p className="text-sm text-muted-foreground">Non mi piace</p>
+                    </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">Non hai ancora inviato comunicazioni.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
-} 
+}

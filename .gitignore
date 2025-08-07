@@ -4,6 +4,11 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Ignora i file .env in qualsiasi posizione
 .env
 .env.*
 *.env.local
+
+# Aggiungo per sicurezza esplicita il percorso del file .env del backend
+/api/.env

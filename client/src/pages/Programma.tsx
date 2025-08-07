@@ -1,13 +1,14 @@
 import React, { useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
-import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Loader2 } from "lucide-react";
+import { Redirect } from "wouter";
 
 interface ProgrammaData {
   proposta1: string;
@@ -26,71 +27,62 @@ const defaultValues: ProgrammaData = {
 };
 
 export default function Programma() {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
-  const { data: userData } = useQuery({
-    queryKey: ["/api/users", user?.email],
+  const queryClient = useQueryClient();
+
+  const form = useForm<ProgrammaData>({ defaultValues });
+
+  // 1. Caricamento dati utente e programma con React Query
+  const { data, isLoading } = useQuery({
+    queryKey: ['programmaData', user?.uid],
     queryFn: async () => {
-      if (!user?.email) return null;
-      const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
-      if (!response.ok) throw new Error('Failed to fetch user data');
+      if (!user?.uid) return null;
+      // Usiamo un endpoint che restituisce sia i dati utente che il suo programma
+      const response = await apiRequest("GET", `/api/programma`);
+      if (!response.ok) throw new Error('Failed to fetch data');
       return response.json();
     },
-    enabled: !!user?.email,
+    enabled: !!user,
   });
 
-  const canEdit = userData && ["Admin", "Candidato", "Candidato Politico"].includes(userData.ruolo);
-
-  const form = useForm<ProgrammaData>({
-    defaultValues,
-  });
-
-  // Carica le proposte dal database
+  // Popola il form quando i dati vengono caricati
   useEffect(() => {
-    if (!user?.uid) return;
-    const fetchProgramma = async () => {
-      const ref = doc(db, "programmi", user.uid);
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const data = snap.data() as ProgrammaData;
-        form.reset({
-          proposta1: data.proposta1 || "",
-          proposta2: data.proposta2 || "",
-          proposta3: data.proposta3 || "",
-          proposta4: data.proposta4 || "",
-          proposta5: data.proposta5 || "",
-        });
-      }
-    };
-    fetchProgramma();
-    // eslint-disable-next-line
-  }, [user?.uid]);
-
-  // Salva le proposte su Firestore
-  const onSubmit = async (values: ProgrammaData) => {
-    if (!user?.uid) return;
-    try {
-      await setDoc(doc(db, "programmi", user.uid), {
-        userId: user.uid,
-        ...values,
-      });
-      toast({ title: "Salvato!", description: "Il tuo programma è stato aggiornato." });
-    } catch (e) {
-      toast({ title: "Errore", description: "Impossibile salvare il programma.", variant: "destructive" });
+    if (data?.programma) {
+      form.reset(data.programma);
     }
-  };
+  }, [data, form]);
 
-  if (userData && !canEdit) {
+  // 2. Mutazione per salvare il programma
+  const saveMutation = useMutation({
+    mutationFn: async (values: ProgrammaData) => {
+      const response = await apiRequest("POST", "/api/programma", values);
+      if (!response.ok) throw new Error("Impossibile salvare il programma.");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Salvato!", description: "Il tuo programma è stato aggiornato." });
+      queryClient.invalidateQueries({ queryKey: ['programmaData', user?.uid] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    }
+  });
+
+  if (isAuthLoading || (user && isLoading)) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+
+  const canEdit = data?.user && ["Admin", "Candidato", "Candidato Politico"].includes(data.user.ruolo);
+
+  if (data && !canEdit) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 flex items-center justify-center">
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Accesso negato</CardTitle>
-            <CardDescription>
-              Non hai i permessi per visualizzare questa pagina.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <Card><CardHeader><CardTitle>Accesso negato</CardTitle><CardDescription>Non hai i permessi per visualizzare questa pagina.</CardDescription></CardHeader></Card>
       </div>
     );
   }
@@ -100,27 +92,23 @@ export default function Programma() {
       <div className="max-w-4xl mx-auto space-y-6">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-              Programma personale
-            </CardTitle>
-            <CardDescription>
-              Inserisci le tue 5 proposte elettorali personali.
-            </CardDescription>
+            <CardTitle className="flex items-center justify-center gap-2 text-2xl">Programma Elettorale</CardTitle>
+            <CardDescription>Inserisci le tue 5 proposte elettorali principali.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-              {[1,2,3,4,5].map((n) => (
+            <form className="space-y-4" onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}>
+              {[1, 2, 3, 4, 5].map((n) => (
                 <div key={n}>
                   <label className="block font-medium mb-1">Proposta {n}</label>
                   <Input
                     {...form.register(`proposta${n}` as keyof ProgrammaData)}
                     placeholder={`Scrivi la proposta ${n}...`}
-                    disabled={!canEdit}
+                    disabled={!canEdit || saveMutation.isPending}
                   />
                 </div>
               ))}
-              <Button type="submit" className="mt-4" disabled={!canEdit}>
-                Salva
+              <Button type="submit" className="mt-4" disabled={!canEdit || saveMutation.isPending}>
+                {saveMutation.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Salvataggio...</> : "Salva Programma"}
               </Button>
             </form>
           </CardContent>
@@ -128,4 +116,4 @@ export default function Programma() {
       </div>
     </div>
   );
-} 
+}
