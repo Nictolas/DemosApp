@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ['user'],
     queryFn: async () => {
       if (!auth.currentUser) return null;
-      const response = await apiRequest("GET", "/api/users/me");
+      const response = await apiRequest("GET", "/api/utenti/me");
       if (response.status === 404 || response.status === 401) return null;
       if (!response.ok) throw new Error("Failed to fetch user");
       return response.json();
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation<SelectUser, Error, LoginData>({
     mutationFn: async (credentials) => {
       await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
-      const response = await apiRequest("POST", "/api/users/login"); // Chiama la nuova rotta di login
+      const response = await apiRequest("POST", "/api/utenti/login"); // Chiama la nuova rotta di login
       if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error || "Login fallito");
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const registerMutation = useMutation<any, Error, InsertUser>({
-    mutationFn: (credentials) => apiRequest("POST", "/api/users/register", credentials),
+    mutationFn: (credentials) => apiRequest("POST", "/api/utenti/register", credentials),
     onSuccess: () => {
       toast({
         title: "Registrazione Inviata!",
