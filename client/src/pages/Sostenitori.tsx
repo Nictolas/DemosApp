@@ -3,13 +3,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Users, MapPin, Calendar, User, Eye, EyeOff } from "lucide-react";
-import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { Pie, Bar } from 'react-chartjs-2';
+import { Loader2, ArrowLeft, Users, Eye, EyeOff } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-
-ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// === INIZIO MODIFICHE ===
+import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+// === FINE MODIFICHE ===
 
 interface SupporterStats {
   totalSupporters: number;
@@ -24,25 +23,20 @@ interface Supporter {
   nome: string;
   cognome: string;
   email: string;
-  genere?: string;
-  data_nascita?: string;
-  comune_residenza?: string;
   supporterRoles: string[];
 }
 
 interface SostenitoriData {
     stats: SupporterStats;
     supporters: Supporter[];
-    supportersPolitico: Supporter[];
-    supportersCandidato: Supporter[];
-    supportersBoth: Supporter[];
 }
+
+const COLORS = ['#0088FE', '#FF8042', '#FFBB28'];
 
 export default function Sostenitori() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const [showSupportersList, setShowSupportersList] = useState<false | 'politico' | 'candidato' | 'entrambi' | 'tutti'>(false);
+  const [showSupportersList, setShowSupportersList] = useState(false);
 
-  // 1. Caricamento dati con React Query
   const { data, isLoading, isError } = useQuery<SostenitoriData>({
     queryKey: ['sostenitoriData', user?.uid],
     queryFn: async () => {
@@ -54,30 +48,25 @@ export default function Sostenitori() {
     enabled: !!user,
   });
 
-  const { stats, supporters = [], supportersPolitico = [], supportersCandidato = [], supportersBoth = [] } = data || {};
+  const { stats, supporters = [] } = data || {};
   
-  // Le funzioni per preparare i grafici rimangono, ma usano i dati da React Query
+  // === INIZIO MODIFICHE LOGICA GRAFICI ===
   const genderChartData = useMemo(() => {
-    if (!stats) return null;
-    return {
-      labels: Object.keys(stats.genderDistribution),
-      datasets: [{ data: Object.values(stats.genderDistribution), backgroundColor: ['rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', 'rgba(255, 206, 86, 0.6)'] }]
-    };
+    if (!stats) return [];
+    return Object.entries(stats.genderDistribution).map(([name, value]) => ({ name, value }));
   }, [stats]);
 
   const ageChartData = useMemo(() => {
-    if (!stats) return null;
-    return {
-      labels: Object.keys(stats.ageDistribution),
-      datasets: [{ label: 'Numero Sostenitori', data: Object.values(stats.ageDistribution), backgroundColor: 'rgba(75, 192, 192, 0.6)' }]
-    };
+    if (!stats) return [];
+    return Object.entries(stats.ageDistribution).map(([name, value]) => ({ name, 'Numero Sostenitori': value }));
   }, [stats]);
+  // === FINE MODIFICHE LOGICA GRAFICI ===
+
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
-  // Controllo autorizzazione basato sul ruolo fornito dall'hook useAuth
-  const isAuthorized = user.ruolo === "Politico" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico" || user.ruolo === 'Admin';
+  const isAuthorized = ["Politico", "Candidato", "Candidato Politico", "Admin"].includes(user.ruolo);
   if (!isAuthorized) {
     return (
         <div className="min-h-screen p-4 flex items-center justify-center">
@@ -100,10 +89,9 @@ export default function Sostenitori() {
             {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
             {stats && (
               <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.totalSupporters}</p><p className="text-sm text-muted-foreground">Sostenitori Totali</p></CardContent></Card>
                     <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.averageAge.toFixed(1)}</p><p className="text-sm text-muted-foreground">Età Media</p></CardContent></Card>
-                    {/* ...altre card statistiche... */}
                 </div>
 
                 <div className="flex justify-center">
@@ -116,8 +104,32 @@ export default function Sostenitori() {
                 {showSupportersList && <SupportersTable supporters={supporters} />}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {genderChartData && <Card><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80 flex justify-center"><Pie data={genderChartData} options={{ responsive: true, maintainAspectRatio: false }} /></CardContent></Card>}
-                  {ageChartData && <Card><CardHeader><CardTitle>Distribuzione per Età</CardTitle></CardHeader><CardContent className="h-80"><Bar data={ageChartData} options={{ responsive: true, maintainAspectRatio: false }} /></CardContent></Card>}
+                  {/* === INIZIO MODIFICHE GRAFICI === */}
+                  <Card><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={genderChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
+                          {genderChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent></Card>
+                  
+                  <Card><CardHeader><CardTitle>Distribuzione per Età</CardTitle></CardHeader><CardContent className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={ageChartData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis allowDecimals={false} />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="Numero Sostenitori" fill="#82ca9d" />
+                        </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent></Card>
+                  {/* === FINE MODIFICHE GRAFICI === */}
                 </div>
               </div>
             )}
@@ -128,7 +140,6 @@ export default function Sostenitori() {
   );
 }
 
-// Componente separato per la tabella, per pulizia
 const SupportersTable = ({ supporters }: { supporters: Supporter[] }) => (
     <Card><CardHeader><CardTitle>Lista Sostenitori</CardTitle></CardHeader><CardContent>
         <div className="overflow-x-auto">
@@ -136,11 +147,7 @@ const SupportersTable = ({ supporters }: { supporters: Supporter[] }) => (
                 <thead><tr><th className="p-2 text-left">Nome</th><th className="p-2 text-left">Email</th><th className="p-2 text-left">Ruoli Sostenuti</th></tr></thead>
                 <tbody>
                     {supporters.map((s) => (
-                        <tr key={s.uid}>
-                            <td className="p-2">{s.nome} {s.cognome}</td>
-                            <td className="p-2">{s.email}</td>
-                            <td className="p-2">{s.supporterRoles.join(', ')}</td>
-                        </tr>
+                        <tr key={s.uid}><td className="p-2">{s.nome} {s.cognome}</td><td className="p-2">{s.email}</td><td className="p-2">{s.supporterRoles.join(', ')}</td></tr>
                     ))}
                 </tbody>
             </table>
