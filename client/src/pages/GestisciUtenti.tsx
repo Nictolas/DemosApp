@@ -38,7 +38,6 @@ export default function GestisciUtenti() {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 20;
 
-  // 1. Caricamento dati con React Query
   const { data: { users = [], pendingUsers = [] } = {}, isLoading: isLoadingUsers, isError } = useQuery({
     queryKey: ['allUsers'],
     queryFn: async () => {
@@ -54,7 +53,6 @@ export default function GestisciUtenti() {
     enabled: !!user,
   });
 
-  // 2. Mutazioni per le azioni
   const approvalMutation = useMutation({
     mutationFn: ({ userId, approve }: { userId: string, approve: boolean }) => {
         const endpoint = approve ? '/api/approve-user' : '/api/reject-user';
@@ -77,8 +75,6 @@ export default function GestisciUtenti() {
       onError: (error: any) => toast({ title: 'Errore', description: error.message || 'Eliminazione fallita.', variant: 'destructive' }),
   });
 
-
-  // 3. Logica di filtraggio e ordinamento con useMemo per performance
   const filteredAndSortedUsers = useMemo(() => {
     return users
       .filter(u => u.status === 'active' && (
@@ -96,7 +92,6 @@ export default function GestisciUtenti() {
       });
   }, [users, searchTerm, sortField, sortDirection]);
 
-  // Paginazione
   const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
   const paginatedUsers = filteredAndSortedUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
@@ -168,7 +163,7 @@ export default function GestisciUtenti() {
                   </div>
                   <div className="rounded-md border">
                     <Table>
-                      <TableHeader>{/* ... JSX dell'Header della tabella con handleSort ... */}</TableHeader>
+                      <TableHeader><TableRow><TableHead onClick={() => handleSort('nome')} className="cursor-pointer">Nome</TableHead><TableHead onClick={() => handleSort('email')} className="cursor-pointer">Email</TableHead><TableHead onClick={() => handleSort('ruolo')} className="cursor-pointer">Ruolo</TableHead><TableHead className="text-right">Azioni</TableHead></TableRow></TableHeader>
                       <TableBody>
                         {paginatedUsers.length > 0 ? paginatedUsers.map((u) => (
                           <TableRow key={u.id}>
@@ -201,13 +196,11 @@ export default function GestisciUtenti() {
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle className="flex items-center"><AlertCircle className="h-5 w-5 text-red-500 mr-2" />Conferma eliminazione</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.nome} {userToDelete?.cognome}</strong>? L'operazione non è reversibile.
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>Sei sicuro di voler eliminare l'utente <strong>{userToDelete?.nome} {userToDelete?.cognome}</strong>? L'operazione non è reversibile.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Annulla</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => userToDelete && deleteMutation.mutate(userToDelete.uid)} className="bg-red-500 hover:bg-red-600 text-white">
+                    <AlertDialogAction onClick={() => userToDelete && deleteMutation.mutate(userToDelete.uid)} className="bg-red-500 hover:bg-red-600 text-white" disabled={deleteMutation.isPending}>
                         {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : "Elimina"}
                     </AlertDialogAction>
                 </AlertDialogFooter>
@@ -223,22 +216,4 @@ export default function GestisciUtenti() {
       </div>
     </div>
   );
-}```
-
-### Riassunto delle Modifiche
-
-1.  **Nessun Riferimento a Firebase:** Il file era già a posto.
-2.  **Adozione di React Query:**
-    *   Un `useQuery` gestisce il caricamento sia degli utenti attivi che di quelli in attesa con una sola query (`allUsers`).
-    *   `useMutation` gestisce l'approvazione, il rifiuto e l'eliminazione degli utenti. Dopo ogni azione, `queryClient.invalidateQueries` forza il ricaricamento automatico di entrambe le liste.
-3.  **Semplificazione dello Stato:** Molti `useState` (come `isLoadingUsers`, `error`, `actionInProgress`, etc.) sono stati rimossi perché la loro logica è ora gestita internamente da React Query.
-4.  **Performance:** Ho usato `useMemo` per il filtraggio e l'ordinamento, per evitare ricalcoli inutili a ogni render.
-5.  **Miglioramento UI/UX:** Ho integrato `useToast` e migliorato la gestione degli stati di caricamento.
-6.  **Backend Necessario:** Questo componente si aspetta che il tuo backend implementi i seguenti endpoint:
-    *   `GET /api/users` (restituisce tutti gli utenti attivi)
-    *   `GET /api/pending-users` (restituisce gli utenti in attesa)
-    *   `POST /api/approve-user`
-    *   `POST /api/reject-user`
-    *   `DELETE /api/users/:uid`
-
-Questo era probabilmente l'ultimo file complesso da sistemare. Ora possiamo procedere con il build e vedere se abbiamo finalmente risolto tutti i problemi.
+}
