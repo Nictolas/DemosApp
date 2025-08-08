@@ -4,12 +4,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Users, BarChart } from "lucide-react";
-import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+// === INIZIO MODIFICHE ===
+import 'chart.js/auto'; // Questo importa e registra tutto automaticamente
 import { Pie } from 'react-chartjs-2';
+// La riga ChartJS.register(...) è stata rimossa perché non più necessaria
+// === FINE MODIFICHE ===
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-
-ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 type StatisticheUtenti = {
   totalUsers: number;
@@ -26,7 +27,6 @@ const borderColors = ['rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)', 'rgba(25
 export default function StatisticheUtenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
 
-  // 1. Caricamento dati aggregati con React Query
   const { data: stats, isLoading, isError } = useQuery<StatisticheUtenti>({
     queryKey: ['statisticheUtenti'],
     queryFn: async () => {
@@ -34,7 +34,7 @@ export default function StatisticheUtenti() {
       if (!response.ok) throw new Error("Errore nel caricamento delle statistiche");
       return response.json();
     },
-    enabled: !!user && user.ruolo === "Admin", // Esegui solo se l'utente è loggato ed è un Admin
+    enabled: !!user && user.ruolo === "Admin",
   });
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
