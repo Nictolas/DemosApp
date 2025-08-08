@@ -6,6 +6,87 @@ const { pool } = require('../db');
 const { authenticateUser } = require('../middleware/auth');
 const admin = require('firebase-admin'); // Per le operazioni su Firebase Auth
 
+// === INIZIA A INCOLLARE DA QUI ===
+
+// POST /api/users/register - Crea un nuovo utente in Firebase Auth e nel DB
+router.post('/register', async (req, res) => {
+    // Estrai tutti i dati inviati dal form di registrazione
+    const { email, password, nome, cognome, data_nascita, genere, cittadinanza, ruolo, ...altriDati } = req.body;
+
+    if (!email || !password || !nome || !cognome || !ruolo) {
+        return res.status(400).json({ error: "Dati essenziali mancanti per la registrazione." });
+    }
+
+    let newUserUid = null;
+
+    try {
+        // 1. Crea l'utente su Firebase Authentication
+        const userRecord = await admin.auth().createUser({
+            email: email,
+            password: password,
+            displayName: `${nome} ${cognome}`,
+            disabled: true, // L'utente è disabilitato finché un admin non lo approva
+        });
+        
+        newUserUid = userRecord.uid;
+
+        // 2. Prepara tutti i campi per l'inserimento nel database PostgreSQL
+        const allUserData = {
+            id: newUserUid,
+            email,
+            nome,
+            cognome,
+            data_nascita,
+            genere,
+            cittadinanza,
+            ruolo,
+            status: 'pending', // Lo stato iniziale è sempre 'pending'
+            data_registrazione: new Date(),
+            ...altriDati
+        };
+        
+        const columns = Object.keys(allUserData).map(key => `"${key}"`).join(', ');
+        const values = Object.values(allUserData);
+        const valuePlaceholders = values.map((_, i) => `$${i + 1}`).join(', ');
+
+        const insertQuery = `INSERT INTO utenti (${columns}) VALUES (${valuePlaceholders}) RETURNING *;`;
+        
+        // 3. Salva i dati nel DB
+        const dbResult = await pool.query(insertQuery, values);
+
+        res.status(201).json(dbResult.rows[0]);
+
+    } catch (error) {
+        console.error("Errore durante la registrazione:", error);
+        if (newUserUid) {
+            await admin.auth().deleteUser(newUserUid);
+            console.log(`Utente orfano ${newUserUid} cancellato da Firebase Auth.`);
+        }
+        res.status(500).json({ error: error.message || "Errore del server durante la registrazione." });
+    }
+});
+
+// === FINISCI DI INCOLLARE QUI ===
+
+// === INIZIA A INCOLLARE DA QUI ===
+
+// GET /api/users/me - Recupera i dati dell'utente attualmente loggato (usato da useAuth)
+router.get('/me', authenticateUser, async (req, res) => {
+    const userId = req.user.uid;
+    try {
+        const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [userId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Utente non trovato nel database." });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("Errore GET /api/users/me:", error);
+        res.status(500).json({ error: "Errore del server" });
+    }
+});
+
+// === FINISCI DI INCOLLARE QUI ===
+
 // GET /api/users - Recupera tutti gli utenti ATTIVI (per GestisciUtenti)
 router.get('/', authenticateUser, async (req, res) => {
     try {
