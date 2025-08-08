@@ -58,7 +58,7 @@ app.use('/api/notifiche', notificheRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
 app.use('/api/statistiche', statisticheRoutes);
 app.use('/api/sostenitori', sostenitoriRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/utenti', userRoutes);
 // === FINE AGGIORNAMENTO ===
 
 // Error handling middleware

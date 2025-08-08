@@ -38,7 +38,7 @@ export default function GestisciUtenti() {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 20;
 
-  const { data: { users = [], pendingUsers = [] } = {}, isLoading: isLoadingUsers, isError } = useQuery({
+  const { data: { utenti = [], pendingUsers = [] } = {}, isLoading: isLoadingUsers, isError } = useQuery({
     queryKey: ['allUsers'],
     queryFn: async () => {
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([

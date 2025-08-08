@@ -111,7 +111,7 @@ export default function Profilo({ userId }: { userId?: string }) {
       if (!uidToFetch) return;
       
       try {
-        const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uidToFetch)}`);
+        const response = await apiRequest("GET", `/api/utenti/${encodeURIComponent(uidToFetch)}`);
         
         if (response.ok) {
           const userData = await response.json();
