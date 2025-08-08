@@ -70,6 +70,29 @@ router.post('/register', async (req, res) => {
     }
 });
 
+// POST /api/users/login - Gestisce il login
+router.post('/login', authenticateUser, async (req, res) => {
+    // Il middleware 'authenticateUser' ha già verificato il token di Firebase.
+    // Se arriviamo qui, l'utente è autenticato.
+    // Dobbiamo solo recuperare i suoi dati dal nostro DB.
+    const userId = req.user.uid;
+    try {
+        const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [userId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Utente non trovato nel nostro database." });
+        }
+        // Controlla se l'utente è stato approvato
+        if (result.rows[0].status !== 'active') {
+            return res.status(403).json({ error: "Il tuo account è in attesa di approvazione." });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error("Errore POST /api/users/login:", error);
+        res.status(500).json({ error: "Errore del server" });
+    }
+});
+
+
 // GET /api/users/me - Recupera i dati dell'utente attualmente loggato (usato da useAuth)
 router.get('/me', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
