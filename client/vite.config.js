@@ -9,7 +9,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
-  optimizeDeps: {
-    include: ['chart.js', 'react-chartjs-2'],
+  build: {
+    rollupOptions: {
+      external: ['non-existent-module'], // Workaround per forzare la logica
+    },
   },
 })
