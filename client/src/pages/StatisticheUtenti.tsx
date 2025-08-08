@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Users, BarChart } from "lucide-react";
 // === INIZIO MODIFICHE ===
-import 'chart.js/auto'; // Questo importa e registra tutto automaticamente
-import { Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 // La riga ChartJS.register(...) è stata rimossa perché non più necessaria
 // === FINE MODIFICHE ===
 import { useQuery } from "@tanstack/react-query";
