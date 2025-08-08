@@ -3,16 +3,12 @@ import { Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Users, BarChart } from "lucide-react";
-// === INIZIO MODIFICHE ===
-import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { Pie, Bar } from 'react-chartjs-2';
-
-ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-// La riga ChartJS.register(...) è stata rimossa perché non più necessaria
-// === FINE MODIFICHE ===
+import { Loader2, ArrowLeft, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+// === INIZIO MODIFICHE ===
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+// === FINE MODIFICHE ===
 
 type StatisticheUtenti = {
   totalUsers: number;
@@ -23,8 +19,8 @@ type StatisticheUtenti = {
   usersByCity: Record<string, number>;
 };
 
-const backgroundColors = ['rgba(54, 162, 235, 0.6)', 'rgba(255, 99, 132, 0.6)', 'rgba(255, 206, 86, 0.6)', 'rgba(75, 192, 192, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)'];
-const borderColors = ['rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'];
+// I colori ora sono definiti in un formato diverso per Recharts
+const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F', '#8884d8', '#82ca9d'];
 
 export default function StatisticheUtenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -43,14 +39,12 @@ export default function StatisticheUtenti() {
   if (!user) return <Redirect to="/auth" />;
   if (user.ruolo !== "Admin") return <Redirect to="/menu" />;
 
-  const prepareChartData = (data: Record<string, number>) => {
-    const labels = Object.keys(data);
-    const values = Object.values(data);
-    return {
-      labels,
-      datasets: [{ data: values, backgroundColor: backgroundColors.slice(0, labels.length), borderColor: borderColors.slice(0, labels.length), borderWidth: 1 }]
-    };
+  // === INIZIO MODIFICHE LOGICA GRAFICI ===
+  // Funzione per preparare i dati per i grafici a torta di Recharts
+  const preparePieData = (data: Record<string, number>) => {
+    return Object.entries(data).map(([name, value]) => ({ name, value }));
   };
+  // === FINE MODIFICHE LOGICA GRAFICI ===
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
@@ -71,10 +65,12 @@ export default function StatisticheUtenti() {
                   <CardContent><div className="text-4xl font-bold text-primary">{stats.totalUsers}</div></CardContent>
                 </Card>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card><CardHeader><CardTitle>Distribuzione per Ruolo</CardTitle></CardHeader><CardContent className="h-80 flex justify-center"><Pie data={prepareChartData(stats.usersByRole)} options={{ responsive: true, maintainAspectRatio: false }} /></CardContent></Card>
-                  <Card><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80 flex justify-center"><Pie data={prepareChartData(stats.usersByGender)} options={{ responsive: true, maintainAspectRatio: false }} /></CardContent></Card>
-                  <Card><CardHeader><CardTitle>Distribuzione per Cittadinanza</CardTitle></CardHeader><CardContent className="h-80 flex justify-center"><Pie data={prepareChartData(stats.usersByCitizenship)} options={{ responsive: true, maintainAspectRatio: false }} /></CardContent></Card>
-                  <Card><CardHeader><CardTitle>Distribuzione per Regione</CardTitle></CardHeader><CardContent className="h-80 flex justify-center"><Pie data={prepareChartData(stats.usersByRegion)} options={{ responsive: true, maintainAspectRatio: false }} /></CardContent></Card>
+                  {/* === INIZIO MODIFICHE GRAFICI === */}
+                  <Card><CardHeader><CardTitle>Distribuzione per Ruolo</CardTitle></CardHeader><CardContent className="h-80"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={preparePieData(stats.usersByRole)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>{preparePieData(stats.usersByRole).map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></CardContent></Card>
+                  <Card><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={preparePieData(stats.usersByGender)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>{preparePieData(stats.usersByGender).map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></CardContent></Card>
+                  <Card><CardHeader><CardTitle>Distribuzione per Cittadinanza</CardTitle></CardHeader><CardContent className="h-80"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={preparePieData(stats.usersByCitizenship)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>{preparePieData(stats.usersByCitizenship).map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></CardContent></Card>
+                  <Card><CardHeader><CardTitle>Distribuzione per Regione</CardTitle></CardHeader><CardContent className="h-80"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={preparePieData(stats.usersByRegion)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>{preparePieData(stats.usersByRegion).map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}</Pie><Tooltip /><Legend /></PieChart></ResponsiveContainer></CardContent></Card>
+                  {/* === FINE MODIFICHE GRAFICI === */}
                 </div>
                 <Card>
                   <CardHeader><CardTitle>Le 10 città con più utenti</CardTitle></CardHeader>
