@@ -6,7 +6,11 @@ const { pool } = require('../db');
 const { authenticateUser } = require('../middleware/auth');
 const admin = require('firebase-admin'); // Per le operazioni su Firebase Auth
 
-// === INIZIA A INCOLLARE DA QUI ===
+// ====================================================================
+// INIZIO BLOCCO AGGIUNTO E RIORDINATO
+// Le rotte più specifiche come /register e /me devono stare PRIMA
+// delle rotte più generiche come /:uid
+// ====================================================================
 
 // POST /api/users/register - Crea un nuovo utente in Firebase Auth e nel DB
 router.post('/register', async (req, res) => {
@@ -66,10 +70,6 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// === FINISCI DI INCOLLARE QUI ===
-
-// === INIZIA A INCOLLARE DA QUI ===
-
 // GET /api/users/me - Recupera i dati dell'utente attualmente loggato (usato da useAuth)
 router.get('/me', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
@@ -81,19 +81,6 @@ router.get('/me', authenticateUser, async (req, res) => {
         res.json(result.rows[0]);
     } catch (error) {
         console.error("Errore GET /api/users/me:", error);
-        res.status(500).json({ error: "Errore del server" });
-    }
-});
-
-// === FINISCI DI INCOLLARE QUI ===
-
-// GET /api/users - Recupera tutti gli utenti ATTIVI (per GestisciUtenti)
-router.get('/', authenticateUser, async (req, res) => {
-    try {
-        const result = await pool.query("SELECT * FROM utenti WHERE status = 'active' ORDER BY nome, cognome");
-        res.json(result.rows);
-    } catch (error) {
-        console.error("Errore GET /api/users:", error);
         res.status(500).json({ error: "Errore del server" });
     }
 });
@@ -116,9 +103,8 @@ router.post('/approve-user', authenticateUser, async (req, res) => {
         // Aggiorna lo stato nel database
         await pool.query("UPDATE utenti SET status = 'active' WHERE id = $1", [userId]);
         
-        // (Opzionale ma consigliato) Potresti voler abilitare l'utente anche su Firebase Auth
-        // const userRecord = await admin.auth().getUser(userId); // Assumendo che l'ID del DB sia l'UID di Firebase
-        // await admin.auth().updateUser(userRecord.uid, { disabled: false });
+        // Abilita l'utente anche su Firebase Auth
+        await admin.auth().updateUser(userId, { disabled: false });
 
         res.status(200).json({ success: true, message: 'Utente approvato' });
     } catch (error) {
@@ -133,6 +119,8 @@ router.post('/reject-user', authenticateUser, async (req, res) => {
     try {
         // Invece di cancellare, marchiamo come 'rejected' per tenere traccia
         await pool.query("UPDATE utenti SET status = 'rejected' WHERE id = $1", [userId]);
+        // Potresti voler cancellare l'utente da Firebase Auth se viene rifiutato
+        // await admin.auth().deleteUser(userId);
         res.status(200).json({ success: true, message: 'Utente rifiutato' });
     } catch (error) {
         console.error("Errore POST /api/reject-user:", error);
@@ -140,16 +128,13 @@ router.post('/reject-user', authenticateUser, async (req, res) => {
     }
 });
 
-
-// GET /api/users/:uid - Recupera i dati di un utente specifico
-router.get('/:uid', authenticateUser, async (req, res) => {
-    const { uid } = req.params;
+// GET /api/users - Recupera tutti gli utenti ATTIVI (per GestisciUtenti)
+router.get('/', authenticateUser, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [uid]);
-        if (result.rows.length === 0) return res.status(404).json({ error: "Utente non trovato." });
-        res.json(result.rows[0]);
+        const result = await pool.query("SELECT * FROM utenti WHERE status = 'active' ORDER BY nome, cognome");
+        res.json(result.rows);
     } catch (error) {
-        console.error(`Errore GET /api/users/${uid}:`, error);
+        console.error("Errore GET /api/users:", error);
         res.status(500).json({ error: "Errore del server" });
     }
 });
@@ -167,13 +152,11 @@ router.get('/:uid/public', async (req, res) => {
     }
 });
 
-
 // POST /api/users/:uid/avatar - Aggiorna l'avatar di un utente
 router.post('/:uid/avatar', authenticateUser, async (req, res) => {
     const { uid } = req.params;
     const { avatar_config } = req.body;
-    // Sicurezza: assicurati che l'utente stia modificando il proprio profilo o sia un admin
-    if (req.user.uid !== uid /* && req.user.role !== 'Admin' */) {
+    if (req.user.uid !== uid) {
         return res.status(403).json({ error: "Accesso negato." });
     }
     try {
@@ -185,21 +168,16 @@ router.post('/:uid/avatar', authenticateUser, async (req, res) => {
     }
 });
 
-
 // PUT /api/users/:uid/seleziona-rappresentante - Aggiorna un rappresentante scelto dall'utente
 router.put('/:uid/seleziona-rappresentante', authenticateUser, async (req, res) => {
     const { uid } = req.params;
     const { campo, rappresentanteId } = req.body;
-    // Sicurezza
     if (req.user.uid !== uid) return res.status(403).json({ error: "Accesso negato." });
-    // Whitelist dei campi permessi per evitare SQL injection
     const campiPermessi = ['rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comunale'];
     if (!campiPermessi.includes(campo)) {
         return res.status(400).json({ error: "Campo non valido." });
     }
     try {
-        // Usiamo il placeholder per il nome della colonna in modo sicuro non è possibile direttamente,
-        // ma siccome abbiamo validato il nome della colonna, possiamo inserirlo nella stringa.
         const query = `UPDATE utenti SET "${campo}" = $1 WHERE id = $2 RETURNING *`;
         const result = await pool.query(query, [rappresentanteId, uid]);
         res.json(result.rows[0]);
@@ -209,23 +187,14 @@ router.put('/:uid/seleziona-rappresentante', authenticateUser, async (req, res) 
     }
 });
 
-
 // DELETE /api/users/:uid - Elimina un utente (sia dal DB che da Firebase Auth)
 router.delete('/:uid', authenticateUser, async (req, res) => {
-    // Solo un Admin può eliminare altri utenti
-    // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
     const { uid } = req.params;
-
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        
-        // 1. Elimina dal DB PostgreSQL
         await client.query('DELETE FROM utenti WHERE id = $1', [uid]);
-
-        // 2. Elimina da Firebase Authentication
         await admin.auth().deleteUser(uid);
-
         await client.query('COMMIT');
         res.status(204).send();
     } catch (error) {
@@ -237,6 +206,24 @@ router.delete('/:uid', authenticateUser, async (req, res) => {
         res.status(500).json({ error: "Errore del server durante l'eliminazione." });
     } finally {
         client.release();
+    }
+});
+
+// ====================================================================
+// QUESTO BLOCCO È STATO SPOSTATO ALLA FINE
+// Deve stare dopo tutte le altre rotte più specifiche
+// ====================================================================
+
+// GET /api/users/:uid - Recupera i dati di un utente specifico
+router.get('/:uid', authenticateUser, async (req, res) => {
+    const { uid } = req.params;
+    try {
+        const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [uid]);
+        if (result.rows.length === 0) return res.status(404).json({ error: "Utente non trovato." });
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error(`Errore GET /api/users/${uid}:`, error);
+        res.status(500).json({ error: "Errore del server" });
     }
 });
 
