@@ -1,18 +1,30 @@
 {
+  "version": 2,
   "builds": [
     {
-      "src": "client/package.json",
+      "src": "api/server-commonjs.js",
       "use": "@vercel/node"
     },
     {
-      "src": "client/*",
-      "use": "@vercel/static"
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "/api/server-commonjs.js"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/client/dist/assets/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/client/$1"
+      "dest": "/client/dist/index.html"
     }
   ]
 }
