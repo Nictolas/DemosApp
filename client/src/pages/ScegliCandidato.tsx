@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Redirect, Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -6,51 +6,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Loader2, ArrowLeft, Check, User, ThumbsUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageTransition } from "@/components/PageTransition";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CustomAvatar } from "@/components/CustomAvatar";
-import { db, auth } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface Candidato {
   id: string;
   nome: string;
   cognome: string;
-  email: string;
   ruolo: string;
-  grado_candidatura?: string;
   opinioni_comuni: number;
   avatar_config?: string;
-  // Campi per le opinioni
   energia_nucleare?: string;
   sperimentazione_animale?: string;
   legalizzazione_canapa?: string;
   caccia?: string;
-  // Campi per la località
-  paese_candidatura?: string;
-  regione_candidatura?: string;
-  provincia_candidatura?: string;
-  comune_candidatura?: string;
 }
 
-interface OpinionsData {
-  energia_nucleare?: string;
-  sperimentazione_animale?: string;
-  legalizzazione_canapa?: string;
-  caccia?: string;
+interface CandidatiData {
+    candidati: Candidato[];
+    candidatoSelezionatoId: string | null;
+    userOpinions: Record<string, string>;
 }
 
 export default function ScegliCandidato() {
   const { categoria } = useParams<{ categoria: string }>();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
-  const [candidati, setCandidati] = useState<Candidato[]>([]);
-  const [userOpinions, setUserOpinions] = useState<OpinionsData>(null);
-  const [loading, setLoading] = useState(true);
-  const [selezionando, setSelezionando] = useState(false);
-  const [candidatoSelezionato, setCandidatoSelezionato] = useState<string | null>(null);
-  
-  // Titolo visualizzato in base alla categoria
+  const queryClient = useQueryClient();
+
   const getTitolo = (): string => {
     switch (categoria) {
       case "europeo": return "Europeo";
@@ -58,11 +43,10 @@ export default function ScegliCandidato() {
       case "senato": return "Senato";
       case "regione": return "Regione";
       case "comune": return "Comune";
-      default: return "Candidato";
+      default: return "";
     }
   };
-  
-  // Campo database in base alla categoria
+
   const getFieldName = (): string => {
     switch (categoria) {
       case "europeo": return "candidato_europeo";
@@ -74,206 +58,57 @@ export default function ScegliCandidato() {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-      
-      try {
-        // Carica i dati dell'utente corrente direttamente da Firestore
-        const userDocRef = doc(db, "utenti", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        const userData = userDoc.data();
-        
-        // Recupera l'ID del candidato selezionato
-        if (userData) {
-          setCandidatoSelezionato(userData[getFieldName()] || null);
-        }
-        
-        // Carica le opinioni dell'utente corrente direttamente da Firestore
-        const opinionsDocRef = doc(db, "opinioni", user.uid);
-        const opinionsDoc = await getDoc(opinionsDocRef);
-        const opinionsData = opinionsDoc.data() || {};
-        setUserOpinions(opinionsData);
-        
-        // Carica tutti gli utenti candidati direttamente da Firestore
-        const usersCollectionRef = collection(db, "utenti");
-        const usersSnapshot = await getDocs(usersCollectionRef);
-        const allUsers = usersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        // Filtra solo i candidati
-        const data = allUsers.filter((user: any) => 
-          (user.ruolo === 'Candidato Politico' || user.ruolo === 'Candidato') && 
-          (
-            (categoria === 'comune' && (user.grado_candidatura === 'Comune' || user.grado_candidatura === 'Comunale')) ||
-            (categoria !== 'comune' && user.grado_candidatura === getTitolo())
-          )
-        );
-        
-        if (data) {
-          // Filtra i candidati in base alla località di candidatura dell'utente
-          let filteredData: any[] = data;
-          
-          // Funzione di normalizzazione per confronti case-insensitive e senza spazi
-          const normalize = (str: string) => (str || '').trim().toLowerCase();
+  // 1. Caricamento dati con React Query
+  const { data, isLoading, isError } = useQuery<CandidatiData>({
+    queryKey: ['candidati', categoria],
+    queryFn: async () => {
+      if (!user) throw new Error("Utente non autenticato");
+      const response = await apiRequest("GET", `/api/candidati?grado=${getTitolo()}&categoria=${categoria}`);
+      if (!response.ok) throw new Error("Errore nel caricamento dei candidati");
+      return response.json();
+    },
+    enabled: !!user && !!categoria,
+  });
 
-          // Filtra in base alla località appropriata secondo il livello
-          if (userData) {
-            switch (categoria) {
-              case "europeo":
-                filteredData = data.filter((item: any) => 
-                  !userData.paese_candidatura || 
-                  item.paese_candidatura === userData.paese_candidatura
-                );
-                break;
-              case "camera":
-              case "senato":
-                filteredData = data.filter((item: any) => 
-                  !userData.paese_candidatura || 
-                  item.paese_candidatura === userData.paese_candidatura
-                );
-                break;
-              case "regione":
-                filteredData = data.filter((item: any) => 
-                  !userData.regione_candidatura || 
-                  (item.paese_candidatura === userData.paese_candidatura && 
-                  item.regione_candidatura === userData.regione_candidatura)
-                );
-                break;
-              case "comune":
-                // Log di debug per vedere i valori confrontati
-                data.forEach((item: any) => {
-                  console.log('userData.comune_residenza:', userData.comune_residenza, 'item.comune_candidatura:', item.comune_candidatura, 'nome:', item.nome);
-                });
-                filteredData = data.filter((item: any) => 
-                  normalize(item.comune_candidatura) === normalize(userData.comune_residenza)
-                );
-                break;
-              default:
-                break;
-            }
-          }
-          
-          // Calcola le opinioni comuni con l'utente corrente
-          const candidatiConOpinioniComuni = filteredData.map((candidato: any) => {
-            let opinioniComuni = 0;
-            
-            if (candidato.energia_nucleare && candidato.energia_nucleare === opinionsData.energia_nucleare) {
-              opinioniComuni++;
-            }
-            if (candidato.sperimentazione_animale && candidato.sperimentazione_animale === opinionsData.sperimentazione_animale) {
-              opinioniComuni++;
-            }
-            if (candidato.legalizzazione_canapa && candidato.legalizzazione_canapa === opinionsData.legalizzazione_canapa) {
-              opinioniComuni++;
-            }
-            if (candidato.caccia && candidato.caccia === opinionsData.caccia) {
-              opinioniComuni++;
-            }
-            
-            return {
-              ...candidato,
-              opinioni_comuni: opinioniComuni
-            };
+  // 2. Mutazione per selezionare un candidato
+  const selectCandidatoMutation = useMutation({
+      mutationFn: (candidatoId: string) => {
+          return apiRequest("PUT", `/api/users/${user!.uid}/seleziona-candidato`, {
+              campo: getFieldName(),
+              candidatoId: candidatoId,
           });
-          
-          // Ordina per numero di opinioni comuni (decrescente)
-          candidatiConOpinioniComuni.sort((a: any, b: any) => b.opinioni_comuni - a.opinioni_comuni);
-          
-          // Usa tutti i candidati disponibili
-          setCandidati(candidatiConOpinioniComuni);
-        }
-      } catch (error) {
-        console.error("Errore durante il recupero dei dati:", error);
-        toast({
-          title: "Errore",
-          description: "Impossibile caricare i candidati.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+      },
+      onSuccess: () => {
+          toast({ title: "Successo", description: "Candidato selezionato con successo!" });
+          queryClient.invalidateQueries({ queryKey: ['candidati', categoria] }); // Ricarica i dati
+      },
+      onError: (error: any) => {
+          toast({ title: "Errore", description: error.message || "Impossibile selezionare il candidato.", variant: "destructive" });
       }
-    };
-    
-    fetchData();
-  }, [user, categoria, toast]);
+  });
 
-  // Funzione per selezionare un candidato
-  const selezionaCandidato = async (candidatoId: string) => {
-    if (!user) return;
-    
-    setSelezionando(true);
-    try {
-      // Aggiorna direttamente in Firestore
-      const userDocRef = doc(db, "utenti", user.uid);
-      const updateData: Record<string, string> = {
-        [getFieldName()]: candidatoId
-      };
-      
-      await updateDoc(userDocRef, updateData);
-      
-      setCandidatoSelezionato(candidatoId);
-      toast({
-        title: "Successo",
-        description: "Candidato selezionato con successo!",
-      });
-    } catch (error) {
-      console.error("Errore durante la selezione:", error);
-      toast({
-        title: "Errore",
-        description: "Impossibile selezionare il candidato.",
-        variant: "destructive",
-      });
-    } finally {
-      setSelezionando(false);
-    }
-  };
+  if (isAuthLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (!user) return <Redirect to="/auth" />;
 
-  // Redirect to auth page if not logged in
-  if (!user && !isLoading) {
-    return <Redirect to="/auth" />;
-  }
+  const { candidati = [], candidatoSelezionatoId, userOpinions = {} } = data || {};
 
-  if (isLoading || loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Funzione per visualizzare le opinioni del candidato
   const renderOpinioni = (candidato: Candidato) => {
-    const opinioniItems = [
-      { key: "energia_nucleare", label: "Energia Nucleare" },
-      { key: "sperimentazione_animale", label: "Sperimentazione Animale" },
-      { key: "legalizzazione_canapa", label: "Legalizzazione Canapa" },
-      { key: "caccia", label: "Caccia" },
-    ];
-    
+    const opinioniItems = [{ key: "energia_nucleare", label: "Energia Nucleare" }, { key: "sperimentazione_animale", label: "Sperimentazione Animale" }, { key: "legalizzazione_canapa", label: "Legalizzazione Canapa" }, { key: "caccia", label: "Caccia" }];
     return (
-      <div className="mt-4 space-y-2">
-        <h4 className="font-medium text-sm">Opinioni:</h4>
-        <div className="space-y-1 text-sm">
-          {opinioniItems.map(item => {
-            const keyTyped = item.key as keyof Candidato;
-            const opinione = candidato[keyTyped] as string;
-            const userOpinione = userOpinions?.[item.key];
-            const isCommon = opinione && userOpinione && opinione === userOpinione;
-            
-            return (
-              <div key={item.key} className="flex items-center">
-                <span className="w-40">{item.label}:</span>
-                <span className={isCommon ? "font-medium text-green-600" : ""}>
-                  {opinione || "Non specificata"}
-                  {isCommon && <ThumbsUp className="inline-block ml-1 h-3 w-3" />}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      <div className="mt-4 space-y-2 text-sm">
+        <h4 className="font-medium">Opinioni:</h4>
+        {opinioniItems.map(item => {
+          const key = item.key as keyof Candidato;
+          const opinioneCandidato = candidato[key] as string;
+          const opinioneUtente = userOpinions[item.key];
+          const isCommon = opinioneCandidato && opinioneUtente && opinioneCandidato === opinioneUtente;
+          return (
+            <div key={item.key} className="flex">
+              <span className="w-40">{item.label}:</span>
+              <span className={isCommon ? "font-bold text-green-600" : ""}>{opinioneCandidato || "N/D"}{isCommon && <ThumbsUp className="inline ml-1 h-3 w-3" />}</span>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -281,88 +116,30 @@ export default function ScegliCandidato() {
   return (
     <PageTransition>
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col mb-6">
-          <div className="flex items-center mb-2">
-            <Button variant="ghost" className="mr-2" asChild>
-              <Link to="/elezioni">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Indietro
-              </Link>
-            </Button>
-            <h1 className="text-2xl font-bold">Scegli Candidato {getTitolo()}</h1>
-          </div>
-          
-          {candidatoSelezionato && (
-            <div className="bg-secondary/20 p-2 rounded-md text-center mb-4">
-              <p className="text-sm text-muted-foreground">
-                Candidato selezionato: {candidati.find(c => c.id === candidatoSelezionato)?.nome} {candidati.find(c => c.id === candidatoSelezionato)?.cognome || "(ID: " + candidatoSelezionato + ")"}
-              </p>
-            </div>
-          )}
-        </div>
+        <div className="flex items-center mb-6"><Link to="/elezioni"><Button variant="ghost" className="mr-2"><ArrowLeft className="h-4 w-4 mr-2" />Indietro</Button></Link><h1 className="text-2xl font-bold">Scegli Candidato {getTitolo()}</h1></div>
         
-        {candidati.length === 0 ? (
-          <Card className="w-full max-w-3xl mx-auto mb-6">
-            <CardHeader>
-              <CardTitle className="text-center">Nessun candidato disponibile</CardTitle>
-              <CardDescription className="text-center">
-                Non ci sono candidati {getTitolo().toLowerCase()} disponibili al momento.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {isLoading && <div className="flex justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
+        {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+        
+        {!isLoading && candidati.length === 0 && (
+          <Card><CardHeader><CardTitle className="text-center">Nessun candidato disponibile</CardTitle><CardDescription className="text-center">Non ci sono candidati per {getTitolo().toLowerCase()} nella tua zona.</CardDescription></CardHeader></Card>
+        )}
+
+        {!isLoading && candidati.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {candidati.map((candidato) => (
-              <Card key={candidato.id} className="w-full">
+              <Card key={candidato.id} className="flex flex-col">
                 <CardHeader>
                   <div className="flex justify-center mb-2">
-                    {(() => {
-                      try {
-                        if (candidato.avatar_config) {
-                          const config = JSON.parse(candidato.avatar_config);
-                          return (
-                            <CustomAvatar 
-                              config={config}
-                              size={64}
-                              className="border-2 border-gray-200 rounded-full shadow-sm"
-                            />
-                          );
-                        }
-                      } catch (error) {
-                        console.error("Errore nel parsing della configurazione avatar:", error);
-                      }
-                      return (
-                        <Avatar className="h-16 w-16">
-                          <AvatarFallback>{candidato.nome.charAt(0)}{candidato.cognome.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                      );
-                    })()}
+                    {candidato.avatar_config ? <CustomAvatar config={JSON.parse(candidato.avatar_config)} size={64} /> : <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center"><User/></div>}
                   </div>
-                  <CardTitle className="text-xl text-center">
-                    {candidato.nome} {candidato.cognome}
-                  </CardTitle>
-                  <div className="flex justify-center space-x-2">
-                    <Badge variant="outline">{candidato.ruolo}</Badge>
-                    <Badge variant="secondary">
-                      {candidato.opinioni_comuni} opinioni comuni
-                    </Badge>
-                  </div>
+                  <CardTitle className="text-xl text-center">{candidato.nome} {candidato.cognome}</CardTitle>
+                  <div className="flex justify-center gap-2"><Badge variant="outline">{candidato.ruolo}</Badge><Badge variant="secondary">{candidato.opinioni_comuni} opinioni comuni</Badge></div>
                 </CardHeader>
-                <CardContent>
-                  {renderOpinioni(candidato)}
-                </CardContent>
+                <CardContent className="flex-grow">{renderOpinioni(candidato)}</CardContent>
                 <CardFooter>
-                  <Button 
-                    className="w-full" 
-                    onClick={() => selezionaCandidato(candidato.id)}
-                    disabled={selezionando}
-                  >
-                    {selezionando ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Check className="mr-2 h-4 w-4" />
-                    )}
-                    Scegli
+                  <Button className="w-full" onClick={() => selectCandidatoMutation.mutate(candidato.id)} disabled={selectCandidatoMutation.isPending || candidato.id === candidatoSelezionatoId}>
+                    {candidato.id === candidatoSelezionatoId ? <><Check className="mr-2 h-4 w-4" />Selezionato</> : (selectCandidatoMutation.isPending && selectCandidatoMutation.variables === candidato.id ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Attendere...</> : "Scegli")}
                   </Button>
                 </CardFooter>
               </Card>
