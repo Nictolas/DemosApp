@@ -4,8 +4,8 @@ import {
   useMutation,
   UseMutationResult,
 } from "@tanstack/react-query";
-import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
-import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
+import { InsertUser, SelectUser } from "@shared/schema"; // Assumo che questo percorso sia corretto
+import { apiRequest, getQueryFn, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -17,148 +17,85 @@ type AuthContextType = {
   error: Error | null;
   loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
+  registerMutation: UseMutationResult<any, Error, InsertUser>; // Tipo di ritorno cambiato in 'any'
 };
 
 type LoginData = Pick<InsertUser, "email" | "password">;
 
 export const AuthContext = createContext<AuthContextType | null>(null);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const authReady = useAuthReady();
-  console.log("[AuthProvider] DEBUG: authReady:", authReady);
+
   const {
     data: user,
     error,
     isLoading,
-    refetch,
-  } = useQuery<SelectUser | undefined, Error>({
-    queryKey: ["/api/user"],
+  } = useQuery<SelectUser | null, Error>({
+    queryKey: ["/api/users/me"], // Endpoint corretto
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: authReady, // Modificato: ora la query parte sempre quando authReady è true
+    enabled: authReady,
+    retry: false, // Non riprovare se ricevi 404 (utente non loggato)
   });
 
-  // Verifica periodica dell'autenticazione
-  useEffect(() => {
-    // Funzione per verificare l'autenticazione tramite API Express
-    const verifySessionAuth = async () => {
-      if (user) {
-        try {
-          // Verifica che la sessione sia ancora valida facendo una richiesta all'API
-          const response = await apiRequest("GET", '/api/user');
-          if (!response.ok) {
-            console.log("Sessione scaduta o non valida, esecuzione logout");
-            queryClient.setQueryData(["/api/user"], null);
-            // Non chiamiamo logoutMutation perché potrebbe causare un ciclo
-          }
-        } catch (error) {
-          console.error("Errore durante la verifica della sessione:", error);
-        }
-      }
-    };
-
-    // Verifica periodica dell'autenticazione (ogni 15 minuti)
-    const interval = setInterval(verifySessionAuth, 15 * 60 * 1000);
-    
-    // Pulizia interval quando il componente viene smontato
-    return () => clearInterval(interval);
-  }, [user]); // Esegui quando user cambia
-
-  // LOG DETTAGLIATO DELLA QUERY
-  useEffect(() => {
-    console.log("[AuthProvider] user dalla query:", user);
-    console.log("[AuthProvider] isLoading:", isLoading);
-    console.log("[AuthProvider] error:", error);
-  }, [user, isLoading, error]);
-
-  const loginMutation = useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      // Effettua login Firebase
+  const loginMutation = useMutation<SelectUser, Error, LoginData>({
+    mutationFn: async (credentials) => {
       await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
-      const res = await apiRequest("POST", "/api/login", credentials);
+      // Dopo il login su Firebase, recuperiamo i dati dal nostro DB
+      const res = await apiRequest("GET", "/api/users/me");
       if (!res.ok) {
-        // Provo a estrarre il messaggio di errore dal body, se presente
-        let errorMsg = "Email o password errati";
-        try {
-          const data = await res.json();
-          if (data && data.message) errorMsg = data.message;
-        } catch {}
-        throw new Error(errorMsg);
+        throw new Error("Utente non trovato o non approvato nel nostro database.");
       }
-      return await res.json();
+      return res.json();
     },
-    onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
-      toast({
-        title: "Login effettuato",
-        description: `Benvenuto, ${user.email}!`,
-        variant: "success",
-      });
+    onSuccess: (user) => {
+      queryClient.setQueryData(["/api/users/me"], user);
+      toast({ title: "Login effettuato", description: `Benvenuto, ${user.nome}!`, variant: "success" });
     },
     onError: async (error: Error) => {
-      await apiRequest('POST', '/api/logout');
-      queryClient.setQueryData(["/api/user"], null);
-      toast({
-        title: "Login fallito",
-        description: error.message,
-        variant: "destructive",
-      });
+      await signOut(auth); // Se il login sul nostro DB fallisce, fai logout anche da Firebase
+      queryClient.setQueryData(["/api/users/me"], null);
+      toast({ title: "Login fallito", description: error.message, variant: "destructive" });
     },
   });
 
-  const registerMutation = useMutation({
-    mutationFn: async (credentials: InsertUser) => {
-      const res = await apiRequest("POST", "/api/register", credentials);
-      // Effettua login Firebase subito dopo la registrazione
-      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
-      return await res.json();
-    },
-    onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
+  const registerMutation = useMutation<any, Error, InsertUser>({
+    mutationFn: (credentials) => apiRequest("POST", "/api/users/register", credentials),
+    onSuccess: () => {
       toast({
-        title: "Registrazione completata",
-        description: "Account creato con successo!",
+        title: "Registrazione Inviata!",
+        description: "La tua richiesta è in attesa di approvazione da un amministratore.",
         variant: "success",
+        duration: 10000,
       });
-      
-      // Reindirizza al menu indipendentemente dal ruolo dell'utente
-      window.location.href = "/menu";
+      setTimeout(() => {
+        window.location.href = "/auth";
+      }, 5000);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Registrazione fallita",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Registrazione fallita", description: error.message, variant: "destructive" });
     },
   });
 
-  const logoutMutation = useMutation({
+  const logoutMutation = useMutation<void, Error, void>({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/logout");
+      // Non c'è bisogno di una chiamata API per il logout se usiamo i token di Firebase
       await signOut(auth);
     },
     onSuccess: () => {
-      queryClient.setQueryData(["/api/user"], null);
-      toast({
-        title: "Logout effettuato",
-        description: "Hai effettuato il logout con successo",
-        variant: "success",
-      });
+      queryClient.setQueryData(["/api/users/me"], null);
+      toast({ title: "Logout effettuato", variant: "success" });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Logout fallito",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Logout fallito", description: error.message, variant: "destructive" });
     },
   });
 
   return (
     <AuthContext.Provider
       value={{
-        user: user === undefined ? undefined : (user ?? null),
+        user: user ?? null,
         isLoading,
         error,
         loginMutation,
@@ -176,8 +113,5 @@ export function useAuth() {
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
-  useEffect(() => {
-    console.log("DEBUG useAuth: user", context.user, "isLoading", context.isLoading, "error", context.error);
-  }, [context.user, context.isLoading, context.error]);
   return context;
 }
