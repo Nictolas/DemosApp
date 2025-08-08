@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ITALY_DATA } from "@/data/italyData";
+import { apiRequest } from "@/lib/queryClient"; 
 
 // Form schema with validation
 const formSchema = z.object({
@@ -128,42 +129,26 @@ export default function UserRegistrationForm() {
     }
   }, [birthDay, birthMonth, birthYear]);
   
-  // Mutation for submitting the form
-  const { mutate, isPending } = useMutation({
-    mutationFn: async (formData: FormValues) => {
-        const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Si è verificato un errore durante il salvataggio dei dati');
-      }
-      
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Registrazione completata",
-        description: "I tuoi dati sono stati salvati con successo!",
-        variant: "success",
-      });
-      form.reset();
-    },
-    onError: (error) => {
-      console.error("Error inserting data:", error);
-      toast({
-        title: "Errore",
-        description: error instanceof Error ? error.message : "Si è verificato un errore durante il salvataggio dei dati.",
-        variant: "destructive",
-      });
-    }
-  });
+const { mutate, isPending } = useMutation({
+  mutationFn: (formData: FormValues) => apiRequest('POST', '/api/register', formData),
+  onSuccess: () => {
+    toast({
+      title: "Registrazione Inviata",
+      description: "La tua richiesta è in attesa di approvazione da parte di un amministratore.",
+      variant: "success",
+    });
+    form.reset();
+    // Qui, in futuro, potresti voler reindirizzare l'utente
+    // ad una pagina di "attesa approvazione".
+  },
+  onError: (error) => {
+    toast({
+      title: "Errore di Registrazione",
+      description: error instanceof Error ? error.message : "Si è verificato un errore durante la registrazione.",
+      variant: "destructive",
+    });
+  }
+});
   
   // Handle residence country change
   useEffect(() => {
@@ -362,9 +347,18 @@ export default function UserRegistrationForm() {
     mutate(values);
   };
   
+function onInvalid(errors: any) {
+  console.error("Errori di validazione del form:", errors);
+  toast({
+    title: "Errore di Validazione",
+    description: "Per favore, controlla tutti i campi obbligatori e correggi gli errori.",
+    variant: "destructive"
+  });
+}
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+<form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-8">
         {/* Personal Information Section */}
         <div className="bg-gray-50 p-4 rounded-md">
           <h3 className="text-lg font-medium text-gray-800 mb-4">Informazioni Personali</h3>
