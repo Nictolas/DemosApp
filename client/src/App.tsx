@@ -46,7 +46,6 @@ import GestisciOpinioni from "./pages/GestisciOpinioni";
 import Limiti from "@/pages/Limiti";
 import GestisciIniziativePopolari from "@/pages/GestisciIniziativePopolari";
 import GestisciReferendumAbrogativi from "@/pages/GestisciReferendumAbrogativi";
-import AnalisiConsumi from "@/pages/AnalisiConsumi";
 import GestisciGoverno from "@/pages/GestisciGoverno";
 import VotaIniziativaPopolare from "@/pages/VotaIniziativaPopolare";
 import VotaReferendumAbrogativo from "@/pages/VotaReferendumAbrogativo";
@@ -414,13 +413,6 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
             <ProtectedRoute path="/gestisci-referendum-abrogativi" component={GestisciReferendumAbrogativi} />
-          </PageTransition>
-        )}
-      </Route>
-      <Route path="/analisi-consumi">
-        {(params) => (
-          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/analisi-consumi" component={AnalisiConsumi} />
           </PageTransition>
         )}
       </Route>
