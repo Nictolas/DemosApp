@@ -42,20 +42,20 @@ export default function GestisciUtenti() {
     queryKey: ['allUsers'],
     queryFn: async () => {
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
-        apiRequest("GET", "/api/users"),
-        apiRequest("GET", "/api/pending-users")
+        apiRequest("GET", "/api/utenti"),
+        apiRequest("GET", "/api/utenti/pending")
       ]);
       if (!allUsersResponse.ok || !pendingUsersResponse.ok) throw new Error("Errore nel caricamento degli utenti");
       const allUsersData = await allUsersResponse.json();
       const pendingUsersData = await pendingUsersResponse.json();
-      return { users: allUsersData, pendingUsers: pendingUsersData };
+      return { utenti: allUsersData, pendingUsers: pendingUsersData };
     },
     enabled: !!user,
   });
 
   const approvalMutation = useMutation({
     mutationFn: ({ userId, approve }: { userId: string, approve: boolean }) => {
-        const endpoint = approve ? '/api/approve-user' : '/api/reject-user';
+        const endpoint = approve ? '/api/utenti/approve' : '/api/utenti/reject';
         return apiRequest('POST', endpoint, { userId });
     },
     onSuccess: (_, { approve }) => {
@@ -66,7 +66,7 @@ export default function GestisciUtenti() {
   });
 
   const deleteMutation = useMutation({
-      mutationFn: (userUid: string) => apiRequest("DELETE", `/api/users/${userUid}`),
+      mutationFn: (userUid: string) => apiRequest("DELETE", `/api/utenti/${userUid}`),
       onSuccess: () => {
           toast({ title: 'Utente eliminato', description: 'L\'utente è stato eliminato con successo.' });
           queryClient.invalidateQueries({ queryKey: ['allUsers'] });
@@ -76,21 +76,22 @@ export default function GestisciUtenti() {
   });
 
   const filteredAndSortedUsers = useMemo(() => {
-    return users
-      .filter(u => u.status === 'active' && (
+    return utenti // <-- CORRETTO
+      .filter(u =>
         (u.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
         (u.cognome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (u.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (u.ruolo || '').toLowerCase().includes(searchTerm.toLowerCase())
-      ))
+      )
       .sort((a, b) => {
+        if (!sortField) return 0;
         const valA = a[sortField];
         const valB = b[sortField];
         if (valA < valB) return sortDirection === "asc" ? -1 : 1;
         if (valA > valB) return sortDirection === "asc" ? 1 : -1;
         return 0;
       });
-  }, [users, searchTerm, sortField, sortDirection]);
+  }, [utenti, searchTerm, sortField, sortDirection]); // <-- CORRETTO
 
   const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
   const paginatedUsers = filteredAndSortedUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
