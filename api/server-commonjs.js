@@ -51,7 +51,7 @@ app.use('/api/governo', governoRoutes);
 app.use('/api/grazia', graziaRoutes);
 app.use('/api/ice', iceRoutes);
 app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
-app..use('/api/referendum-abrogativi', referendumAbrogativiRoutes);
+app.use('/api/referendum-abrogativi', referendumAbrogativiRoutes);
 app.use('/api/programma', programmaRoutes);
 app.use('/api/comunicazioni', comunicazioniRoutes);
 app.use('/api/notifiche', notificheRoutes);
