@@ -193,7 +193,7 @@ app.use('/api/governo', governoRouter);
 //               ROTTE AMNISTIA
 // =============================================
 // File: api/amnistia.js
-
+const amnistiaRouter = express.Router();
 // GET /api/amnistia - Recupera classifica e voti utente
 router.get('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid; 
@@ -263,7 +263,7 @@ app.use('/api/amnistia', amnistiaRouter);
 // =============================================
 
 // File: api/capo-stato.js
-
+const capoStatoRouter = express.Router(); // Nome corretto
 
 
 // GET /api/capo-stato - Recupera classifica, voti utente e stato del blocco
@@ -381,7 +381,7 @@ app.use('/api/capo-stato', capoStatoRouter);
 
 
 // File: api/elezioni.js
-
+const elezioniRouter = express.Router();
 
 // GET /api/elezioni - Recupera tutte le elezioni
 router.get('/', async (req, res) => {
@@ -529,6 +529,7 @@ app.use('/api/ministeri', ministeriRouter);
 // =============================================
 
 // File: api/statistiche.js
+const statisticheRouter = express.Router();
 
 // GET /api/statistiche/utenti - Calcola e restituisce le statistiche aggregate sugli utenti
 router.get('/utenti', authenticateUser, async (req, res) => {
@@ -590,6 +591,7 @@ app.use('/api/statistiche', statisticheRouter);
 
 
 // File: api/referendum-abrogativi.js
+const referendumRouter = express.Router();
 
 // GET /api/referendum-abrogativi - Recupera tutti i referendum approvati
 router.get('/', async (req, res) => {
@@ -703,6 +705,7 @@ app.use('/api/referendum-abrogativi', referendumRouter);
 // =============================================
 
 // File: api/sondaggi.js
+const sondaggiRouter = express.Router();
 
 // GET /api/sondaggi/stats - Calcola e restituisce le statistiche aggregate
 router.get('/stats', authenticateUser, async (req, res) => {
@@ -766,6 +769,8 @@ app.use('/api/sondaggi', sondaggiRouter);
 
 
 // File: api/programma.js
+const programmaRouter = express.Router();
+
 
 // GET /api/programma - Recupera il programma dell'utente loggato
 router.get('/', authenticateUser, async (req, res) => {
@@ -837,6 +842,7 @@ app.use('/api/programma', programmaRouter);
 
 
 // File: api/ice.js
+const iceRouter = express.Router();
 
 // GET /api/ice - Recupera tutte le ICE approvate
 router.get('/', async (req, res) => {
@@ -953,6 +959,7 @@ app.use('/api/ice', iceRouter);
 // =============================================
 
 // File: api/grazia.js
+const graziaRouter = express.Router();
 
 // GET /api/grazia - Recupera classifica, voti utente e stato del blocco
 router.get('/', authenticateUser, async (req, res) => {
@@ -1425,6 +1432,7 @@ app.use('/api/comunicazioni', comunicazioniRouter);
 
 
 // File: api/sostenitori.js
+const sostenitoriRouter = express.Router();
 
 // GET /api/sostenitori - Recupera le statistiche e la lista dei sostenitori dell'utente loggato
 router.get('/', authenticateUser, async (req, res) => {
