@@ -195,7 +195,7 @@ app.use('/api/governo', governoRouter);
 // File: api/amnistia.js
 const amnistiaRouter = express.Router();
 // GET /api/amnistia - Recupera classifica e voti utente
-router.get('/', authenticateUser, async (req, res) => {
+amnistiaRouter.get('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid; 
   try {
     const classificaQuery = `
@@ -218,7 +218,7 @@ router.get('/', authenticateUser, async (req, res) => {
 });
 
 // POST /api/amnistia/vota - Aggiunge un nuovo voto
-router.post('/vota', authenticateUser, async (req, res) => {
+amnistiaRouter.post('/vota', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
   const { legge } = req.body;
 
@@ -236,7 +236,7 @@ router.post('/vota', authenticateUser, async (req, res) => {
 });
 
 // DELETE /api/amnistia/vota - Rimuove un voto
-router.delete('/vota', authenticateUser, async (req, res) => {
+amnistiaRouter.delete('/vota', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
   const { legge } = req.body;
 
@@ -267,7 +267,7 @@ const capoStatoRouter = express.Router(); // Nome corretto
 
 
 // GET /api/capo-stato - Recupera classifica, voti utente e stato del blocco
-router.get('/', authenticateUser, async (req, res) => {
+capoStatoRouter.get('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
 
   try {
@@ -320,7 +320,7 @@ router.get('/', authenticateUser, async (req, res) => {
 });
 
 // POST /api/capo-stato/vota - Salva/Aggiorna i voti dell'utente
-router.post('/vota', authenticateUser, async (req, res) => {
+capoStatoRouter.post('/vota', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
     const { voti } = req.body; // Array di nomi votati
 
@@ -384,7 +384,7 @@ app.use('/api/capo-stato', capoStatoRouter);
 const elezioniRouter = express.Router();
 
 // GET /api/elezioni - Recupera tutte le elezioni
-router.get('/', async (req, res) => {
+elezioniRouter.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM elezioni ORDER BY "dataInizio" DESC');
     res.json(result.rows);
