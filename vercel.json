@@ -4,7 +4,7 @@
   "outputDirectory": "client/dist",
   "functions": {
     "api/index.js": {
-      "runtime": "nodejs22.x"
+      "runtime": "@vercel/node@22"
     }
   },
   "rewrites": [
