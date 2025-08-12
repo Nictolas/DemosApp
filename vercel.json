@@ -4,10 +4,9 @@
   "outputDirectory": "client/dist",
   "installCommand": "npm install",
   "framework": "vite",
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
+  "functions": {
+    "api-health.js": {
+      "runtime": "@vercel/node"
     }
-  ]
+  }
 }
