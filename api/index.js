@@ -1534,7 +1534,25 @@ app.use('/api/sostenitori', sostenitoriRouter);
 const notificationsRouter = require('./notifications.js');
 app.use('/api/notifications', notificationsRouter);
 
-// Health Check
+// Test endpoint semplice
+app.get('/test', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Test endpoint working!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Health Check semplificato (prima di tutti i router)
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'API health check working!',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Health Check con /api prefix
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
