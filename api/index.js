@@ -1536,9 +1536,14 @@ app.use('/api/notifications', notificationsRouter);
 
 // Health Check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Unified server is running' });
+  res.json({ 
+    status: 'ok', 
+    message: 'API health check working!',
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.url
+  });
 });
-
 
 // Gestore 404 (deve stare alla fine)
 app.use('*', (req, res) => {
