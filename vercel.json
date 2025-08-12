@@ -1,10 +1,5 @@
 {
   "version": 2,
   "buildCommand": "chmod +x build.sh && ./build.sh",
-  "outputDirectory": "client/dist",
-  "functions": {
-    "api/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  "outputDirectory": "client/dist"
 }
