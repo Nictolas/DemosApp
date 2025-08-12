@@ -1,0 +1,13 @@
+{
+  "name": "demos-app",
+  "version": "1.0.0",
+  "description": "DEMOS - App per la democrazia partecipativa",
+  "scripts": {
+    "build": "cd client && npm run build",
+    "dev": "cd client && npm run dev",
+    "start": "cd client && npm run preview"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
