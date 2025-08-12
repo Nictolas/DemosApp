@@ -532,7 +532,7 @@ app.use('/api/ministeri', ministeriRouter);
 const statisticheRouter = express.Router();
 
 // GET /api/statistiche/utenti - Calcola e restituisce le statistiche aggregate sugli utenti
-router.get('/utenti', authenticateUser, async (req, res) => {
+statisticheRouter.get('/utenti', authenticateUser, async (req, res) => {
     // Aggiungi un controllo per assicurarti che solo un Admin possa accedere
     // const userRoleResult = await pool.query('SELECT ruolo FROM utenti WHERE id = $1', [req.user.uid]);
     // if (userRoleResult.rows[0]?.ruolo !== 'Admin') {
@@ -708,7 +708,7 @@ app.use('/api/referendum-abrogativi', referendumRouter);
 const sondaggiRouter = express.Router();
 
 // GET /api/sondaggi/stats - Calcola e restituisce le statistiche aggregate
-router.get('/stats', authenticateUser, async (req, res) => {
+sondaggiRouter.get('/stats', authenticateUser, async (req, res) => {
     // Aggiungi un controllo per assicurarti che solo un Admin possa accedere
     // const userRoleResult = await pool.query('SELECT ruolo FROM utenti WHERE id = $1', [req.user.uid]);
     // if (userRoleResult.rows[0]?.ruolo !== 'Admin') {
@@ -773,7 +773,7 @@ const programmaRouter = express.Router();
 
 
 // GET /api/programma - Recupera il programma dell'utente loggato
-router.get('/', authenticateUser, async (req, res) => {
+programmaRouter.get('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
 
   try {
@@ -801,7 +801,7 @@ router.get('/', authenticateUser, async (req, res) => {
 });
 
 // POST /api/programma - Crea o aggiorna il programma dell'utente loggato
-router.post('/', authenticateUser, async (req, res) => {
+programmaRouter.post('/', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
     const { proposta1, proposta2, proposta3, proposta4, proposta5 } = req.body;
   
@@ -845,7 +845,7 @@ app.use('/api/programma', programmaRouter);
 const iceRouter = express.Router();
 
 // GET /api/ice - Recupera tutte le ICE approvate
-router.get('/', async (req, res) => {
+iceRouter.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM ice WHERE stato = $1 ORDER BY "dataInizio" DESC', ['accepted']);
     res.json(result.rows);
@@ -856,7 +856,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/ice/richieste - Recupera le ICE in attesa di approvazione (solo per Admin)
-router.get('/richieste', authenticateUser, async (req, res) => {
+iceRouter.get('/richieste', authenticateUser, async (req, res) => {
     // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
     try {
         const result = await pool.query('SELECT * FROM ice WHERE stato = $1 ORDER BY timestamp DESC', ['pending']);
@@ -869,7 +869,7 @@ router.get('/richieste', authenticateUser, async (req, res) => {
 
 
 // POST /api/ice - Propone una nuova ICE (stato 'pending')
-router.post('/', authenticateUser, async (req, res) => {
+iceRouter.post('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
   const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
 
@@ -892,7 +892,7 @@ router.post('/', authenticateUser, async (req, res) => {
 });
 
 // POST /api/ice/:id/accetta - Approva una ICE (solo Admin)
-router.post('/:id/accetta', authenticateUser, async (req, res) => {
+iceRouter.post('/:id/accetta', authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query('UPDATE ice SET stato = $1 WHERE id = $2 RETURNING *', ['accepted', id]);
