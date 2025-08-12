@@ -633,7 +633,7 @@ router.post('/', authenticateUser, async (req, res) => {
     `;
     const result = await pool.query(query, [userId, nome, descrizione, dataInizio, dataFine, sitoWeb || null]);
     res.status(201).json(result.rows[0]);
-  } catch (error)
+  } catch (error) {
     console.error("Errore POST /api/referendum-abrogativi:", error);
     res.status(500).json({ error: "Errore del server" });
   }
