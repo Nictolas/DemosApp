@@ -1015,7 +1015,7 @@ graziaRouter.get('/', authenticateUser, async (req, res) => {
 });
 
 // POST /api/grazia/vota - Salva/Aggiorna le richieste di grazia dell'utente
-router.post('/vota', authenticateUser, async (req, res) => {
+graziaRouter.post('/vota', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
     const { voti } = req.body; // Array di nomi per cui si chiede la grazia
 
@@ -1071,10 +1071,10 @@ app.use('/api/grazia', graziaRouter);
 
 
 // File: api/iniziative-popolari.js
-
+const iniziativeRouter = express.Router();
 
 // GET /api/iniziative-popolari - Recupera tutte le iniziative approvate
-router.get('/', async (req, res) => {
+iniziativeRouter.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM iniziative_popolari WHERE stato = $1 ORDER BY "dataInizio" DESC', ['accepted']);
     res.json(result.rows);
@@ -1085,7 +1085,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/iniziative-popolari/richieste - Recupera le iniziative in attesa (solo Admin)
-router.get('/richieste', authenticateUser, async (req, res) => {
+iniziativeRouter.get('/richieste', authenticateUser, async (req, res) => {
     // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
     try {
         const result = await pool.query('SELECT * FROM iniziative_popolari WHERE stato = $1 ORDER BY timestamp DESC', ['pending']);
@@ -1098,7 +1098,7 @@ router.get('/richieste', authenticateUser, async (req, res) => {
 
 
 // POST /api/iniziative-popolari - Propone una nuova iniziativa (stato 'pending')
-router.post('/', authenticateUser, async (req, res) => {
+iniziativeRouter.post('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
   const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
 
@@ -1121,7 +1121,7 @@ router.post('/', authenticateUser, async (req, res) => {
 });
 
 // POST /api/iniziative-popolari/:id/accetta - Approva un'iniziativa (solo Admin)
-router.post('/:id/accetta', authenticateUser, async (req, res) => {
+iniziativeRouter.post('/:id/accetta', authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query('UPDATE iniziative_popolari SET stato = $1 WHERE id = $2 RETURNING *', ['accepted', id]);
@@ -1134,7 +1134,7 @@ router.post('/:id/accetta', authenticateUser, async (req, res) => {
 });
 
 // POST /api/iniziative-popolari/:id/rifiuta - Rifiuta un'iniziativa (solo Admin)
-router.post('/:id/rifiuta', authenticateUser, async (req, res) => {
+iniziativeRouter.post('/:id/rifiuta', authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query('UPDATE iniziative_popolari SET stato = $1 WHERE id = $2 RETURNING *', ['rejected', id]);
@@ -1147,7 +1147,7 @@ router.post('/:id/rifiuta', authenticateUser, async (req, res) => {
 });
 
 // PATCH /api/iniziative-popolari/:id/quorum - Aggiorna lo stato del quorum (solo Admin)
-router.patch('/:id/quorum', authenticateUser, async (req, res) => {
+iniziativeRouter.patch('/:id/quorum', authenticateUser, async (req, res) => {
     // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
     const { id } = req.params;
     const { quorum } = req.body;
@@ -1165,7 +1165,7 @@ router.patch('/:id/quorum', authenticateUser, async (req, res) => {
 });
 
 // DELETE /api/iniziative-popolari/:id - Elimina un'iniziativa (solo Admin)
-router.delete('/:id', authenticateUser, async (req, res) => {
+iniziativeRouter.delete('/:id', authenticateUser, async (req, res) => {
   // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
   const { id } = req.params;
   try {
@@ -1178,7 +1178,7 @@ router.delete('/:id', authenticateUser, async (req, res) => {
   }
 });
 
-app.use('/api/iniziative-popolari', iniziativePopolariRouter);
+app.use('/api/iniziative-popolari', iniziativeRouter);
 
 
 
@@ -1191,10 +1191,10 @@ app.use('/api/iniziative-popolari', iniziativePopolariRouter);
 
 
 // File: api/notifiche.js
-
+const notificheRouter = express.Router();
 
 // GET /api/notifiche - Recupera i dati per la pagina notifiche
-router.get('/', authenticateUser, async (req, res) => {
+notificheRouter.get('/', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
 
     try {
@@ -1258,7 +1258,7 @@ router.get('/', authenticateUser, async (req, res) => {
 
 
 // POST /api/notifiche/preferenze - Salva le preferenze di notifica dell'utente
-router.post('/preferenze', authenticateUser, async (req, res) => {
+notificheRouter.post('/preferenze', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
     const { preferenze } = req.body;
 
@@ -1286,11 +1286,10 @@ app.use('/api/notifiche', notificheRouter);
 
 
 // File: api/comunicazioni.js
-
-
+const comunicazioniRouter = express.Router();
 
 // GET /api/comunicazioni/check-duplicate?titolo=... - Controlla se una comunicazione esiste già
-router.get('/check-duplicate', authenticateUser, async (req, res) => {
+comunicazioniRouter.get('/check-duplicate', authenticateUser, async (req, res) => {
     const { titolo } = req.query;
     const userId = req.user.uid;
 
@@ -1325,7 +1324,7 @@ router.get('/check-duplicate', authenticateUser, async (req, res) => {
 
 
 // POST /api/comunicazioni - Crea una nuova comunicazione
-router.post('/', authenticateUser, async (req, res) => {
+comunicazioniRouter.post('/', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
     const { titolo, voto_dato, commento, vincitore } = req.body;
 
@@ -1368,7 +1367,7 @@ router.post('/', authenticateUser, async (req, res) => {
 
 
 // POST /api/comunicazioni/:id/react - Aggiunge un like/dislike a una comunicazione
-router.post('/:id/react', authenticateUser, async (req, res) => {
+comunicazioniRouter.post('/:id/react', authenticateUser, async (req, res) => {
     const { id: comunicazioneId } = req.params;
     const userId = req.user.uid;
     const { reaction } = req.body; // 'like' o 'dislike'
@@ -1406,7 +1405,7 @@ router.post('/:id/react', authenticateUser, async (req, res) => {
 });
 
 // GET /api/comunicazioni/ultima - Recupera l'ultima comunicazione dell'utente loggato (per la pagina Riscontro)
-router.get('/ultima', authenticateUser, async (req, res) => {
+comunicazioniRouter.get('/ultima', authenticateUser, async (req, res) => {
     const userId = req.user.uid;
     try {
         const query = 'SELECT * FROM comunicazioni WHERE id_utente = $1 ORDER BY data_creazione DESC LIMIT 1';
@@ -1435,7 +1434,7 @@ app.use('/api/comunicazioni', comunicazioniRouter);
 const sostenitoriRouter = express.Router();
 
 // GET /api/sostenitori - Recupera le statistiche e la lista dei sostenitori dell'utente loggato
-router.get('/', authenticateUser, async (req, res) => {
+sostenitoriRouter.get('/', authenticateUser, async (req, res) => {
     const politicoId = req.user.uid;
 
     try {
