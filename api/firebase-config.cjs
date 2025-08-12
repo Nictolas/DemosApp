@@ -7,9 +7,8 @@ console.log("FIREBASE_PRIVATE_KEY exists:", !!process.env.FIREBASE_PRIVATE_KEY);
 console.log("FIREBASE_PRIVATE_KEY preview:", process.env.FIREBASE_PRIVATE_KEY?.slice(0, 30));
 
 // ==============================================================
-// CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER IL SERVER)
+// CONFIGURAZIONE FIREBASE ADMIN SDK (SOLO PER L'AUTENTICAZIONE)
 // ==============================================================
-let adminDb = null;
 let adminAuth = null;
 
 if (admin.apps.length === 0) { 
@@ -22,9 +21,8 @@ if (admin.apps.length === 0) {
           privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
       });
-      adminDb = admin.firestore();
       adminAuth = admin.auth();
-      console.log('Firebase Admin SDK inizializzato con successo.');
+      console.log('Firebase Admin SDK inizializzato con successo (solo autenticazione).');
     } else {
       console.warn('Credenziali Firebase Admin non trovate nei Secrets/variabili d\'ambiente. Admin SDK non sarà disponibile.');
     }
@@ -32,8 +30,8 @@ if (admin.apps.length === 0) {
     console.error('ERRORE CRITICO: Impossibile inizializzare Firebase Admin SDK.', error);
   }
 } else {
-  adminDb = admin.firestore();
   adminAuth = admin.auth();
 }
 
-module.exports = { adminDb, adminAuth };
+// Esporto solo l'autenticazione, non più Firestore
+module.exports = { adminAuth };

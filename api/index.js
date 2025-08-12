@@ -5,7 +5,7 @@ const cors = require('cors');
 require('dotenv').config();
 const { pool } = require('./config/db'); // Percorso corretto per il database
 const { authenticateUser } = require('./middleware/auth'); // Percorso corretto per l'auth
-const { adminDb, adminAuth } = require('./firebase-config.cjs'); // Configurazione Firebase compatibile
+const { adminAuth } = require('./firebase-config.cjs'); // Configurazione Firebase solo per autenticazione
 
 const app = express();
 app.use(express.json());
@@ -1529,6 +1529,10 @@ router.get('/', authenticateUser, async (req, res) => {
 });
 
 app.use('/api/sostenitori', sostenitoriRouter);
+
+// Router per le notifiche
+const notificationsRouter = require('./notifications.js');
+app.use('/api/notifications', notificationsRouter);
 
 // Health Check
 app.get('/api/health', (req, res) => {

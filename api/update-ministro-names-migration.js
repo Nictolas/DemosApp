@@ -1,44 +1,28 @@
-// Script di migrazione per normalizzare i nomi dei ministri in voti_ministri
-import { db } from './firebase-config.js';
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
+const { pool } = require('./config/db');
 
-function normalizeName(name) {
-  return (name || '').trim().toLowerCase();
-}
-
-function displayName(name) {
-  return (name || '')
-    .trim()
-    .split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
-}
-
-async function migrateVotiMinistri() {
-  const col = collection(db, 'voti_ministri');
-  const snapshot = await getDocs(col);
-  let count = 0;
-  for (const d of snapshot.docs) {
-    const data = d.data();
-    const nomeRaw = data.nomeMinistro || '';
-    const nomeKey = normalizeName(nomeRaw);
-    const nomeDisp = displayName(nomeRaw);
-    // Aggiorna solo se serve
-    if (data.nomeMinistro !== nomeKey || !data.nomeDisplay) {
-      await updateDoc(doc(db, 'voti_ministri', d.id), {
-        nomeMinistro: nomeKey,
-        nomeDisplay: nomeDisp
-      });
-      count++;
+async function updateMinistroNames() {
+  try {
+    // Ottieni tutti i ministeri
+    const ministeriResult = await pool.query('SELECT id, nome, categoria FROM ministeri');
+    
+    for (const ministro of ministeriResult.rows) {
+      const nuovoNome = ministro.categoria.charAt(0).toUpperCase() + 
+                       ministro.categoria.slice(1).replace(/_/g, ' ');
+      
+      if (nuovoNome !== ministro.nome) {
+        await pool.query(
+          'UPDATE ministeri SET nome = $1 WHERE id = $2',
+          [nuovoNome, ministro.id]
+        );
+        console.log(`Aggiornato ministero ${ministro.categoria}: "${ministro.nome}" -> "${nuovoNome}"`);
+      }
     }
+    
+    console.log('Migrazione completata con successo!');
+  } catch (error) {
+    console.error('Errore durante la migrazione:', error);
+    throw error;
   }
-  console.log(`Aggiornati ${count} documenti voti_ministri.`);
 }
 
-migrateVotiMinistri().then(() => {
-  console.log('Migrazione completata.');
-  process.exit(0);
-}).catch(e => {
-  console.error('Errore nella migrazione:', e);
-  process.exit(1);
-}); 
+updateMinistroNames().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); }); 

@@ -1,34 +1,36 @@
-import { adminDb } from './firebase-config.js';
+const { pool } = require('./config/db');
 
 async function migrateMinisteriFromVoti() {
-  const votiSnap = await adminDb.collection('voti_ministri').get();
-  const categorieSet = new Set();
-  votiSnap.forEach(doc => {
-    const cat = doc.data().categoria;
-    if (cat) categorieSet.add(cat);
-  });
+  try {
+    // Ottieni le categorie dai voti esistenti
+    const votiResult = await pool.query('SELECT DISTINCT categoria FROM voti_ministri WHERE categoria IS NOT NULL');
+    const categorieSet = new Set(votiResult.rows.map(row => row.categoria));
 
-  const ministeriSnap = await adminDb.collection('ministeri').get();
-  const ministeriEsistenti = new Set();
-  ministeriSnap.forEach(doc => {
-    const cat = doc.data().categoria;
-    if (cat) ministeriEsistenti.add(cat);
-  });
+    // Ottieni le categorie dei ministeri esistenti
+    const ministeriResult = await pool.query('SELECT DISTINCT categoria FROM ministeri WHERE categoria IS NOT NULL');
+    const ministeriEsistenti = new Set(ministeriResult.rows.map(row => row.categoria));
 
-  let count = 0;
-  for (const categoria of categorieSet) {
-    if (!ministeriEsistenti.has(categoria)) {
-      await adminDb.collection('ministeri').add({
-        nome: categoria.charAt(0).toUpperCase() + categoria.slice(1).replace(/_/g, ' '),
-        categoria,
-        descrizione: '',
-        abilitato: true
-      });
-      count++;
-      console.log('Aggiunto ministero:', categoria);
+    let count = 0;
+    for (const categoria of categorieSet) {
+      if (!ministeriEsistenti.has(categoria)) {
+        await pool.query(
+          'INSERT INTO ministeri (nome, categoria, descrizione, abilitato) VALUES ($1, $2, $3, $4)',
+          [
+            categoria.charAt(0).toUpperCase() + categoria.slice(1).replace(/_/g, ' '),
+            categoria,
+            '',
+            true
+          ]
+        );
+        count++;
+        console.log('Aggiunto ministero:', categoria);
+      }
     }
+    console.log(`Aggiunti ${count} nuovi ministeri.`);
+  } catch (error) {
+    console.error('Errore durante la migrazione:', error);
+    throw error;
   }
-  console.log(`Aggiunti ${count} nuovi ministeri.`);
 }
 
 migrateMinisteriFromVoti().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); }); 

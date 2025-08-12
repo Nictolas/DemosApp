@@ -1,12 +1,11 @@
-import express from 'express';
-import { 
+const express = require('express');
+const { 
   saveUserFCMToken, 
   removeUserFCMToken, 
   sendNotificationToUser, 
   sendNotificationToUsers, 
-  sendNotificationToAllUsers, 
-  subscribeTokenToTopic 
-} from './notifications.service.js';
+  sendNotificationToAllUsers
+} = require('./notifications.service.js');
 
 const router = express.Router();
 
@@ -183,33 +182,7 @@ router.post('/send/all', async (req, res) => {
   }
 });
 
-/**
- * POST /api/notifications/subscribe-topic
- * Iscrive un token FCM a un topic FCM (solo via backend)
- */
-router.post('/subscribe-topic', async (req, res) => {
-  try {
-    const { token, topic } = req.body;
-    if (!token || !topic) {
-      return res.status(400).json({
-        success: false,
-        error: 'token e topic sono richiesti'
-      });
-    }
-    const result = await subscribeTokenToTopic(token, topic);
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    console.error('Errore endpoint subscribe-topic:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
-});
+
 
 /**
  * GET /api/notifications/tokens
@@ -217,26 +190,19 @@ router.post('/subscribe-topic', async (req, res) => {
  */
 router.get('/tokens', async (req, res) => {
   try {
-    const { adminDb } = await import('../api/firebase-config.js');
+    const { pool } = require('../api/config/db');
     
-    if (!adminDb) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Admin SDK non configurato' 
-      });
-    }
-
-    const usersSnapshot = await adminDb.collection('utenti').get();
+    const usersResult = await pool.query('SELECT id, email, fcm_tokens, fcm_token_updated_at FROM utenti WHERE fcm_tokens IS NOT NULL');
     const tokens = [];
     
-    usersSnapshot.forEach(doc => {
-      const userData = doc.data();
-      if (userData.fcmToken) {
+    usersResult.rows.forEach(user => {
+      const fcmTokens = user.fcm_tokens ? JSON.parse(user.fcm_tokens) : [];
+      if (fcmTokens.length > 0) {
         tokens.push({
-          userId: doc.id,
-          email: userData.email,
-          fcmToken: userData.fcmToken.substring(0, 20) + '...',
-          updatedAt: userData.fcmTokenUpdatedAt
+          userId: user.id,
+          email: user.email,
+          fcmToken: fcmTokens[0].substring(0, 20) + '...',
+          updatedAt: user.fcm_token_updated_at
         });
       }
     });
@@ -255,4 +221,4 @@ router.get('/tokens', async (req, res) => {
   }
 });
 
-export default router; 
+module.exports = router; 
