@@ -1,5 +1,10 @@
 {
   "version": 2,
   "buildCommand": "chmod +x build.sh && ./build.sh",
-  "outputDirectory": "client/dist"
+  "outputDirectory": "client/dist",
+  "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node@18"
+    }
+  }
 }
