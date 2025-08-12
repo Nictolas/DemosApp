@@ -395,7 +395,7 @@ elezioniRouter.get('/', async (req, res) => {
 });
 
 // POST /api/elezioni - Crea una nuova elezione
-router.post('/', authenticateUser, async (req, res) => {
+elezioniRouter.post('/', authenticateUser, async (req, res) => {
   // Aggiungi un controllo per assicurarti che solo un Admin possa creare
   // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
 
@@ -419,7 +419,7 @@ router.post('/', authenticateUser, async (req, res) => {
 });
 
 // PUT /api/elezioni/:id - Modifica un'elezione esistente
-router.put('/:id', authenticateUser, async (req, res) => {
+elezioniRouter.put('/:id', authenticateUser, async (req, res) => {
   const { id } = req.params;
   const { tipo, zona, dataInizio, dataFine, circa } = req.body;
   if (!tipo || !zona || !dataInizio || !dataFine) {
@@ -442,7 +442,7 @@ router.put('/:id', authenticateUser, async (req, res) => {
 });
 
 // DELETE /api/elezioni/:id - Elimina un'elezione
-router.delete('/:id', authenticateUser, async (req, res) => {
+elezioniRouter.delete('/:id', authenticateUser, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query('DELETE FROM elezioni WHERE id = $1', [id]);
