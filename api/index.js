@@ -905,7 +905,7 @@ iceRouter.post('/:id/accetta', authenticateUser, async (req, res) => {
 });
 
 // POST /api/ice/:id/rifiuta - Rifiuta una ICE (solo Admin)
-router.post('/:id/rifiuta', authenticateUser, async (req, res) => {
+iceRouter.post('/:id/rifiuta', authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
         // Invece di cancellare, potremmo voler marcare come 'rejected'
@@ -920,7 +920,7 @@ router.post('/:id/rifiuta', authenticateUser, async (req, res) => {
 
 
 // PATCH /api/ice/:id/quorum - Aggiorna lo stato del quorum (solo Admin)
-router.patch('/:id/quorum', authenticateUser, async (req, res) => {
+iceRouter.patch('/:id/quorum', authenticateUser, async (req, res) => {
     // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
     const { id } = req.params;
     const { quorum } = req.body;
@@ -939,7 +939,7 @@ router.patch('/:id/quorum', authenticateUser, async (req, res) => {
 
 
 // DELETE /api/ice/:id - Elimina una ICE (solo Admin)
-router.delete('/:id', authenticateUser, async (req, res) => {
+iceRouter.delete('/:id', authenticateUser, async (req, res) => {
   // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
   const { id } = req.params;
   try {
@@ -962,7 +962,7 @@ app.use('/api/ice', iceRouter);
 const graziaRouter = express.Router();
 
 // GET /api/grazia - Recupera classifica, voti utente e stato del blocco
-router.get('/', authenticateUser, async (req, res) => {
+graziaRouter.get('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
 
   try {
