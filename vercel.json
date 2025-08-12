@@ -1,5 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "cd client && npm run build",
+  "buildCommand": "chmod +x build.sh && ./build.sh",
   "outputDirectory": "client/dist"
 }
