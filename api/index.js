@@ -594,7 +594,7 @@ app.use('/api/statistiche', statisticheRouter);
 const referendumRouter = express.Router();
 
 // GET /api/referendum-abrogativi - Recupera tutti i referendum approvati
-router.get('/', async (req, res) => {
+referendumRouter.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM referendum_abrogativi WHERE stato = $1 ORDER BY "dataInizio" DESC', ['accepted']);
     res.json(result.rows);
@@ -605,7 +605,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/referendum-abrogativi/richieste - Recupera i referendum in attesa (solo Admin)
-router.get('/richieste', authenticateUser, async (req, res) => {
+referendumRouter.get('/richieste', authenticateUser, async (req, res) => {
     // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
     try {
         const result = await pool.query('SELECT * FROM referendum_abrogativi WHERE stato = $1 ORDER BY timestamp DESC', ['pending']);
@@ -617,7 +617,7 @@ router.get('/richieste', authenticateUser, async (req, res) => {
 });
 
 // POST /api/referendum-abrogativi - Propone un nuovo referendum (stato 'pending')
-router.post('/', authenticateUser, async (req, res) => {
+referendumRouter.post('/', authenticateUser, async (req, res) => {
   const userId = req.user.uid;
   const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
 
@@ -640,7 +640,7 @@ router.post('/', authenticateUser, async (req, res) => {
 });
 
 // POST /api/referendum-abrogativi/:id/accetta - Approva un referendum (solo Admin)
-router.post('/:id/accetta', authenticateUser, async (req, res) => {
+referendumRouter.post('/:id/accetta', authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query('UPDATE referendum_abrogativi SET stato = $1 WHERE id = $2 RETURNING *', ['accepted', id]);
@@ -653,7 +653,7 @@ router.post('/:id/accetta', authenticateUser, async (req, res) => {
 });
 
 // POST /api/referendum-abrogativi/:id/rifiuta - Rifiuta un referendum (solo Admin)
-router.post('/:id/rifiuta', authenticateUser, async (req, res) => {
+referendumRouter.post('/:id/rifiuta', authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
         const result = await pool.query('UPDATE referendum_abrogativi SET stato = $1 WHERE id = $2 RETURNING *', ['rejected', id]);
@@ -666,7 +666,7 @@ router.post('/:id/rifiuta', authenticateUser, async (req, res) => {
 });
 
 // PATCH /api/referendum-abrogativi/:id/quorum - Aggiorna lo stato del quorum (solo Admin)
-router.patch('/:id/quorum', authenticateUser, async (req, res) => {
+referendumRouter.patch('/:id/quorum', authenticateUser, async (req, res) => {
     // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
     const { id } = req.params;
     const { quorum } = req.body;
@@ -684,7 +684,7 @@ router.patch('/:id/quorum', authenticateUser, async (req, res) => {
 });
 
 // DELETE /api/referendum-abrogativi/:id - Elimina un referendum (solo Admin)
-router.delete('/:id', authenticateUser, async (req, res) => {
+referendumRouter.delete('/:id', authenticateUser, async (req, res) => {
   // if (req.user.role !== 'Admin') return res.status(403).json({ error: "Accesso negato" });
   const { id } = req.params;
   try {
