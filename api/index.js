@@ -3,9 +3,9 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const { pool } = require('./db'); // Assicurati che il percorso sia corretto
-const { authenticateUser } = require('./middleware/auth'); // Assicurati che il percorso sia corretto
-const admin = require('firebase-admin');
+const { pool } = require('./config/db'); // Percorso corretto per il database
+const { authenticateUser } = require('./middleware/auth'); // Percorso corretto per l'auth
+const { adminDb, adminAuth } = require('./firebase-config.cjs'); // Configurazione Firebase compatibile
 
 const app = express();
 app.use(express.json());
@@ -22,7 +22,7 @@ utentiRouter.post('/register', async (req, res) => {
     if (!email || !password || !nome || !cognome || !ruolo) return res.status(400).json({ error: "Dati essenziali mancanti." });
     let newUserUid = null;
     try {
-        const userRecord = await admin.auth().createUser({ email, password, displayName: `${nome} ${cognome}`, disabled: true });
+        const userRecord = await adminAuth.createUser({ email, password, displayName: `${nome} ${cognome}`, disabled: true });
         newUserUid = userRecord.uid;
         const allUserData = { id: newUserUid, email, nome, cognome, data_nascita, genere, cittadinanza, ruolo, status: 'pending', data_registrazione: new Date(), ...altriDati };
         const columns = Object.keys(allUserData).map(key => `"${key}"`).join(', ');
@@ -32,7 +32,7 @@ utentiRouter.post('/register', async (req, res) => {
         const dbResult = await pool.query(insertQuery, values);
         res.status(201).json(dbResult.rows[0]);
     } catch (error) {
-        if (newUserUid) await admin.auth().deleteUser(newUserUid);
+        if (newUserUid) await adminAuth.deleteUser(newUserUid);
         console.error("Errore /register:", error);
         res.status(500).json({ error: error.message || "Errore server." });
     }
@@ -60,7 +60,7 @@ utentiRouter.post('/approve', authenticateUser, async (req, res) => {
     const { userId } = req.body;
     try {
         await pool.query("UPDATE utenti SET status = 'active' WHERE id = $1", [userId]);
-        await admin.auth().updateUser(userId, { disabled: false });
+        await adminAuth.updateUser(userId, { disabled: false });
         res.status(200).json({ success: true });
     } catch (error) { res.status(500).json({ error: "Errore server" }); }
 });
