@@ -25,19 +25,28 @@ try {
     exit;
 }
 
-// Routing delle richieste
+// Routing delle richieste - Versione migliorata per Keliweb
 $method = $_SERVER['REQUEST_METHOD'];
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = str_replace('/api-keliweb.php', '', $path);
+$request_uri = $_SERVER['REQUEST_URI'];
+$script_name = $_SERVER['SCRIPT_NAME'];
+
+// Estrai il path dalla request URI
+$path = str_replace($script_name, '', $request_uri);
+$path = trim($path, '/');
+
+// Debug info
+error_log("Request URI: " . $request_uri);
+error_log("Script Name: " . $script_name);
+error_log("Path: " . $path);
 
 // Endpoint di test
-if ($path === '/health' && $method === 'GET') {
+if ($path === 'health' && $method === 'GET') {
     echo json_encode(['status' => 'OK', 'message' => 'API Keliweb funzionante']);
     exit;
 }
 
 // Endpoint login utenti
-if ($path === '/utenti/login' && $method === 'POST') {
+if ($path === 'utenti/login' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
     $email = $input['email'] ?? '';
     $password = $input['password'] ?? '';
@@ -69,7 +78,7 @@ if ($path === '/utenti/login' && $method === 'POST') {
 }
 
 // Endpoint governo
-if ($path === '/governo' && $method === 'GET') {
+if ($path === 'governo' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM governo ORDER BY id DESC LIMIT 1");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -82,7 +91,7 @@ if ($path === '/governo' && $method === 'GET') {
 }
 
 // Endpoint ministeri
-if ($path === '/ministeri' && $method === 'GET') {
+if ($path === 'ministeri' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM ministeri ORDER BY nome");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -95,7 +104,7 @@ if ($path === '/ministeri' && $method === 'GET') {
 }
 
 // Endpoint opinioni
-if ($path === '/opinioni' && $method === 'GET') {
+if ($path === 'opinioni' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM opinioni ORDER BY data_creazione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -108,7 +117,7 @@ if ($path === '/opinioni' && $method === 'GET') {
 }
 
 // Endpoint sondaggi
-if ($path === '/sondaggi' && $method === 'GET') {
+if ($path === 'sondaggi' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM sondaggi ORDER BY data_scadenza DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -121,7 +130,7 @@ if ($path === '/sondaggi' && $method === 'GET') {
 }
 
 // Endpoint elezioni
-if ($path === '/elezioni' && $method === 'GET') {
+if ($path === 'elezioni' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM elezioni ORDER BY data_elezione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -134,7 +143,7 @@ if ($path === '/elezioni' && $method === 'GET') {
 }
 
 // Endpoint referendum
-if ($path === '/referendum' && $method === 'GET') {
+if ($path === 'referendum' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM referendum_abrogativi ORDER BY data_scadenza DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -147,7 +156,7 @@ if ($path === '/referendum' && $method === 'GET') {
 }
 
 // Endpoint ICE
-if ($path === '/ice' && $method === 'GET') {
+if ($path === 'ice' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM ice ORDER BY data_creazione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -160,7 +169,7 @@ if ($path === '/ice' && $method === 'GET') {
 }
 
 // Endpoint iniziative popolari
-if ($path === '/iniziative-popolari' && $method === 'GET') {
+if ($path === 'iniziative-popolari' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM iniziative_popolari ORDER BY data_creazione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -173,7 +182,7 @@ if ($path === '/iniziative-popolari' && $method === 'GET') {
 }
 
 // Endpoint grazia
-if ($path === '/grazia' && $method === 'GET') {
+if ($path === 'grazia' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM grazia ORDER BY data_richiesta DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -186,7 +195,7 @@ if ($path === '/grazia' && $method === 'GET') {
 }
 
 // Endpoint amnistia
-if ($path === '/amnistia' && $method === 'GET') {
+if ($path === 'amnistia' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM amnistia ORDER BY data_richiesta DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -199,7 +208,7 @@ if ($path === '/amnistia' && $method === 'GET') {
 }
 
 // Endpoint capo di stato
-if ($path === '/capo-stato' && $method === 'GET') {
+if ($path === 'capo-stato' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM capo_stato ORDER BY data_elezione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -212,7 +221,7 @@ if ($path === '/capo-stato' && $method === 'GET') {
 }
 
 // Endpoint statistiche
-if ($path === '/statistiche' && $method === 'GET') {
+if ($path === 'statistiche' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT COUNT(*) as totale_utenti FROM utenti");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -228,7 +237,7 @@ if ($path === '/statistiche' && $method === 'GET') {
 }
 
 // Endpoint sostenitori
-if ($path === '/sostenitori' && $method === 'GET') {
+if ($path === 'sostenitori' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM sostenitori ORDER BY data_adesione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -241,7 +250,7 @@ if ($path === '/sostenitori' && $method === 'GET') {
 }
 
 // Endpoint comunicazioni
-if ($path === '/comunicazioni' && $method === 'GET') {
+if ($path === 'comunicazioni' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM comunicazioni ORDER BY data_invio DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -254,7 +263,7 @@ if ($path === '/comunicazioni' && $method === 'GET') {
 }
 
 // Endpoint notifiche
-if ($path === '/notifiche' && $method === 'GET') {
+if ($path === 'notifiche' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM notifiche ORDER BY data_creazione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -267,7 +276,7 @@ if ($path === '/notifiche' && $method === 'GET') {
 }
 
 // Endpoint programma
-if ($path === '/programma' && $method === 'GET') {
+if ($path === 'programma' && $method === 'GET') {
     try {
         $stmt = $pdo->query("SELECT * FROM programma ORDER BY data_creazione DESC");
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -281,5 +290,5 @@ if ($path === '/programma' && $method === 'GET') {
 
 // Route non trovata
 http_response_code(404);
-echo json_encode(['error' => 'Route non trovata', 'path' => $path]);
+echo json_encode(['error' => 'Route non trovata', 'path' => $path, 'method' => $method]);
 ?>
