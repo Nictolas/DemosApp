@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type User = {
