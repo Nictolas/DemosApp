@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -273,8 +273,13 @@ export default function AuthPage() {
     loginMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
   };
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Normalizza l'email a lowercase
-    registerMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
+    // Normalizza l'email a lowercase e prepara i dati per il nuovo schema
+    const registerData = {
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+      name: `${data.nome} ${data.cognome}`.trim()
+    };
+    registerMutation.mutate(registerData);
   };
 
   if (user && !isLoading) {

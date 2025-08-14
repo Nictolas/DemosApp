@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuthReady } from "@/hooks/use-auth-ready";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";

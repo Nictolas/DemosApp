@@ -37,7 +37,7 @@ import Gestisci from "@/pages/Gestisci";
 import Impostazioni from "@/pages/Impostazioni";
 import ReclamaProfilo from "@/pages/ReclamaProfilo";
 import DettaglioOpinione from "@/pages/opinioni/DettaglioOpinione";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider } from "@/hooks/use-auth-neon";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { PageTransition } from "@/components/PageTransition";
