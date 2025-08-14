@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 

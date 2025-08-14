@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const API_BASE_URL = 'image.png';
+const API_BASE_URL = 'http://localhost:3001/api';
 
 // Hook per gestire il database tramite API
 export const useDatabase = () => {
