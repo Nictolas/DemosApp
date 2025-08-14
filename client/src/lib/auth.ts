@@ -5,9 +5,9 @@ import GoogleProvider from 'next-auth/providers/google';
 import { PostgreSQLAdapter } from '@auth/postgresql-adapter';
 import { Pool } from 'pg';
 
-// Configurazione database Vercel Postgres
+// Configurazione database Neon
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }

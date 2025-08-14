@@ -1,0 +1,227 @@
+import { createContext, ReactNode, useContext, useState, useEffect } from "react";
+import {
+  useQuery,
+  useMutation,
+  UseMutationResult,
+  useQueryClient
+} from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+
+// Tipi per l'autenticazione
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role?: string;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  email: string;
+  password: string;
+  name: string;
+}
+
+type AuthContextType = {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  loginMutation: UseMutationResult<User, Error, LoginCredentials>;
+  logoutMutation: UseMutationResult<void, Error, void>;
+  registerMutation: UseMutationResult<User, Error, RegisterData>;
+};
+
+export const AuthContext = createContext<AuthContextType | null>(null);
+
+// Hook per usare il contesto di autenticazione
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth deve essere usato all\'interno di AuthProvider');
+  }
+  return context;
+}
+
+// Provider di autenticazione
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [token, setToken] = useState<string | null>(
+    () => localStorage.getItem('auth_token')
+  );
+
+  // Query per ottenere l'utente corrente
+  const { data: user, isLoading } = useQuery<User | null>({
+    queryKey: ['user'],
+    queryFn: async () => {
+      if (!token) return null;
+      
+      const response = await fetch('/api/utenti/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 401) {
+        // Token non valido, rimuovilo
+        localStorage.removeItem('auth_token');
+        setToken(null);
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error('Errore nel caricamento utente');
+      }
+
+      const result = await response.json();
+      return result.success ? result.data : null;
+    },
+    enabled: !!token,
+    retry: false,
+  });
+
+  // Mutation per il login
+  const loginMutation = useMutation<User, Error, LoginCredentials>({
+    mutationFn: async (credentials) => {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Login fallito');
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Login fallito');
+      }
+
+      // Salva il token
+      const userToken = result.token || 'mock_token_' + Date.now();
+      localStorage.setItem('auth_token', userToken);
+      setToken(userToken);
+
+      return result.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data);
+      toast({ 
+        title: "Login effettuato!", 
+        description: `Benvenuto ${data.name || data.email}`,
+        variant: "default"
+      });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Login fallito", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Mutation per il logout
+  const logoutMutation = useMutation<void, Error, void>({
+    mutationFn: async () => {
+      // Rimuovi il token localmente
+      localStorage.removeItem('auth_token');
+      setToken(null);
+      
+      // Opzionalmente, chiama endpoint di logout
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      } catch (error) {
+        // Ignora errori di logout, il token è già rimosso
+        console.warn('Errore logout:', error);
+      }
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(['user'], null);
+      queryClient.clear();
+      toast({ 
+        title: "Logout effettuato", 
+        description: "Alla prossima!",
+        variant: "default"
+      });
+    },
+  });
+
+  // Mutation per la registrazione
+  const registerMutation = useMutation<User, Error, RegisterData>({
+    mutationFn: async (userData) => {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Registrazione fallita');
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Registrazione fallita');
+      }
+
+      // Salva il token
+      const userToken = result.token || 'mock_token_' + Date.now();
+      localStorage.setItem('auth_token', userToken);
+      setToken(userToken);
+
+      return result.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['user'], data);
+      toast({ 
+        title: "Registrazione completata!", 
+        description: `Benvenuto ${data.name || data.email}`,
+        variant: "default"
+      });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Registrazione fallita", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const isAuthenticated = !!user && !!token;
+
+  return (
+    <AuthContext.Provider 
+      value={{
+        user,
+        isLoading,
+        isAuthenticated,
+        loginMutation,
+        logoutMutation,
+        registerMutation,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
