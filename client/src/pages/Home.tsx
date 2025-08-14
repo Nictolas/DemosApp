@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import UserRegistrationForm from "@/components/UserRegistrationForm";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 
 export default function Home() {
