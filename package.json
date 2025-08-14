@@ -1,8 +1,12 @@
 {
+  "type": "module",
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "firebase-admin": "^13.4.0",
+    "next-auth": "^4.24.11",
     "pg": "^8.16.3"
   }
 }

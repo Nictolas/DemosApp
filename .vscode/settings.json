@@ -1,0 +1,18 @@
+{
+  "php.validate.enable": false,
+  "php.suggest.basic": false,
+  "php.validate.executablePath": "",
+  "files.associations": {
+    "*.php": "plaintext"
+  },
+  "emmet.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}

@@ -68,6 +68,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
 import React, { useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import DatabaseTest from "@/components/DatabaseTest";
 
 function Router() {
   const [location] = useLocation();
@@ -92,6 +93,13 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <DebugAuth />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/database-test">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <DatabaseTest />
           </PageTransition>
         )}
       </Route>

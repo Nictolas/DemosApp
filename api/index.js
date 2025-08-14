@@ -46,16 +46,16 @@ app.post('/api/utenti/login', async (req, res) => {
   try {
     const result = await callKeliwebAPI('/utenti/login', 'POST', req.body);
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
-  }
+    }
 });
 
 app.get('/api/utenti/me', async (req, res) => {
-  try {
+    try {
     const result = await callKeliwebAPI('/utenti/me');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -65,7 +65,7 @@ app.get('/api/governo', async (req, res) => {
   try {
     const result = await callKeliwebAPI('/governo');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -85,7 +85,7 @@ app.get('/api/opinioni', async (req, res) => {
   try {
     const result = await callKeliwebAPI('/opinioni');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -105,7 +105,7 @@ app.get('/api/elezioni', async (req, res) => {
   try {
     const result = await callKeliwebAPI('/elezioni');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -122,10 +122,10 @@ app.get('/api/referendum', async (req, res) => {
 
 // Endpoint ICE
 app.get('/api/ice', async (req, res) => {
-  try {
+    try {
     const result = await callKeliwebAPI('/ice');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -142,10 +142,10 @@ app.get('/api/iniziative-popolari', async (req, res) => {
 
 // Endpoint grazia
 app.get('/api/grazia', async (req, res) => {
-  try {
+    try {
     const result = await callKeliwebAPI('/grazia');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -155,7 +155,7 @@ app.get('/api/amnistia', async (req, res) => {
   try {
     const result = await callKeliwebAPI('/amnistia');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -165,7 +165,7 @@ app.get('/api/capo-stato', async (req, res) => {
   try {
     const result = await callKeliwebAPI('/capo-stato');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -195,7 +195,7 @@ app.get('/api/comunicazioni', async (req, res) => {
   try {
     const result = await callKeliwebAPI('/comunicazioni');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
@@ -212,10 +212,10 @@ app.get('/api/notifiche', async (req, res) => {
 
 // Endpoint programma
 app.get('/api/programma', async (req, res) => {
-  try {
+    try {
     const result = await callKeliwebAPI('/programma');
     res.json(result);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ error: 'Errore chiamata API Keliweb' });
   }
 });
