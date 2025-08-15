@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, MessageSquare, ThumbsUp, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { db } from "@/lib/firebase-stub";
 import { collection, getDocs, addDoc, updateDoc, doc, arrayUnion, increment, arrayRemove } from "firebase/firestore";
 
 interface OpinioneProposta {

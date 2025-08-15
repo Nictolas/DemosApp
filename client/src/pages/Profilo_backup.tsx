@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
 import { UserInfo } from "@/types/user";
-import { db, auth } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase-stub";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";

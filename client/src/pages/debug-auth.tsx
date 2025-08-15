@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/firebase-stub";
 
 export default function DebugAuth() {
   const [result, setResult] = useState<any>(null);

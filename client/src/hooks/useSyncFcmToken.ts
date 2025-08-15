@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db } from "@/lib/firebase-stub";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useFCM } from "@/hooks/useFCM";
 

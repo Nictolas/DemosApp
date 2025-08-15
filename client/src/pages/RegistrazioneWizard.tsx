@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { useRegistration } from "@/hooks/use-registration";
 import { useLocation } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword } from "@/lib/firebase-stub";
 
 // Nuovo schema combinato senza .partial()
 const fullSchema = z.object({

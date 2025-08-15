@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, ThumbsUp, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { db } from "@/lib/firebase-stub";
 import { collection, getDocs, addDoc, deleteDoc, query, where, doc, updateDoc } from "firebase/firestore";
 
 export default function VotaIniziativaPopolare() {

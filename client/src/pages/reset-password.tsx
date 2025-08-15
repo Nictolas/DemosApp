@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { sendPasswordResetEmail } from "@/lib/firebase-stub";
+import { auth } from "@/lib/firebase-stub";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
