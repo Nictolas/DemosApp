@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { useFCM } from "@/hooks/useFCM";
 
 export function useSyncFcmToken() {

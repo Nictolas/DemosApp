@@ -2,6 +2,8 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
@@ -17,6 +19,34 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+
+// JWT Secret (in produzione usare una variabile d'ambiente sicura)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+
+// Middleware per verificare JWT
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'Token di accesso richiesto'
+    });
+  }
+  
+  const token = authHeader.substring(7); // Rimuove "Bearer "
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Token non valido'
+    });
+  }
+};
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -71,33 +101,48 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
     
-    // Cerca l'utente nel database
+    // Cerca l'utente nel database (includo password_hash per la verifica)
     const result = await pool.query(
-      'SELECT id, email, name FROM users WHERE email = $1',
+      'SELECT id, email, name, password_hash FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
     
     if (result.rows.length === 0) {
       return res.status(401).json({
         success: false,
-        error: 'Credenziali non valide'
+        error: 'Email o password non corretti'
       });
     }
     
     const user = result.rows[0];
     
-    // Per ora accettiamo qualsiasi password (in produzione usare bcrypt)
-    // TODO: Implementare hash password con bcrypt
+    // Verifica la password con bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
     
-    // Genera un token semplice (in produzione usare JWT)
-    const token = `token_${user.id}_${Date.now()}`;
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        error: 'Email o password non corretti'
+      });
+    }
+    
+    // Genera JWT token
+    const token = jwt.sign(
+      { 
+        userId: user.id,
+        email: user.email 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    // Rimuovi la password_hash dalla risposta
+    const { password_hash, ...userWithoutPassword } = user;
     
     res.json({
       success: true,
       data: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+        ...userWithoutPassword,
         role: 'user'
       },
       token,
@@ -136,16 +181,27 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
     
+    // Hash della password con bcrypt
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    
     // Crea nuovo utente
     const result = await pool.query(
-      'INSERT INTO users (email, name, email_verified, created_at) VALUES ($1, $2, $3, $4) RETURNING id, email, name',
-      [email.toLowerCase(), name, new Date(), new Date()]
+      'INSERT INTO users (email, name, password_hash, email_verified, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name',
+      [email.toLowerCase(), name, passwordHash, new Date(), new Date()]
     );
     
     const user = result.rows[0];
     
-    // Genera token
-    const token = `token_${user.id}_${Date.now()}`;
+    // Genera JWT token
+    const token = jwt.sign(
+      { 
+        userId: user.id,
+        email: user.email 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
     
     res.status(201).json({
       success: true,
@@ -190,41 +246,32 @@ app.post('/api/utenti/login', async (req, res) => {
   return res.redirect(307, '/api/auth/login');
 });
 
-app.get('/api/utenti/me', async (req, res) => {
+app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
-    // Per il momento, verifichiamo se c'è un header di autorizzazione
-    const authHeader = req.headers.authorization;
+    // Il middleware verifyToken ha già verificato il token e impostato req.user
+    const userId = req.user.userId;
     
-    if (!authHeader) {
-      return res.status(401).json({
-        success: false,
-        error: 'Token di autorizzazione mancante'
-      });
-    }
-    
-    // In un'implementazione completa, dovresti verificare il token Firebase
-    // Per ora, cerchiamo l'utente admin per il test
+    // Cerca l'utente nel database
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, ruolo FROM utenti WHERE email = $1',
-      ['admin@admin.com']
+      'SELECT id, email, name, created_at FROM users WHERE id = $1',
+      [userId]
     );
     
     if (result.rows.length === 0) {
-      // Se non esiste, creiamo un utente admin di default
-      const insertResult = await pool.query(
-        'INSERT INTO utenti (email, nome, cognome, ruolo) VALUES ($1, $2, $3, $4) RETURNING id, email, nome, cognome, ruolo',
-        ['admin@admin.com', 'Admin', 'User', 'admin']
-      );
-      
-      return res.json({
-        success: true,
-        data: insertResult.rows[0]
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
       });
     }
     
+    const user = result.rows[0];
+    
     res.json({
       success: true,
-      data: result.rows[0]
+      data: {
+        ...user,
+        role: 'user' // Default role
+      }
     });
   } catch (error) {
     console.error('Errore recupero utente:', error);
