@@ -7,8 +7,8 @@ import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, Me
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { auth } from "@/lib/firebase";
-import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
+import { auth } from "@/lib/firebase-stub";
+import { getAuth, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "@/lib/firebase-stub";
 
 export default function Impostazioni() {
   const { user, isLoading, logoutMutation } = useAuth();

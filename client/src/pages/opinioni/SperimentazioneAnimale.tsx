@@ -16,7 +16,7 @@ import {
 } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db } from "@/lib/firebase-stub";
 
 ChartJS.register(
   ArcElement, 

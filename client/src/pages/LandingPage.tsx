@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Loader2 } from "lucide-react";
 import appIcon from '/icona.png';
-import { adminAuth } from './firebase-config';
+// import { adminAuth } from './firebase-config'; // Rimosso Firebase
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();
