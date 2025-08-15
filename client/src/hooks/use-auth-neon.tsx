@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       if (!token) return null;
       
-      const response = await fetch('/api/utenti/me', {
+      const response = await fetch('http://localhost:3001/api/utenti/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Mutation per il login
   const loginMutation = useMutation<User, Error, LoginCredentials>({
     mutationFn: async (credentials) => {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Opzionalmente, chiama endpoint di logout
       try {
-        await fetch('/api/auth/logout', {
+        await fetch('http://localhost:3001/api/auth/logout', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Mutation per la registrazione
   const registerMutation = useMutation<User, Error, RegisterData>({
     mutationFn: async (userData) => {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('http://localhost:3001/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
