@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
 import { useFCM } from "@/hooks/useFCM";
 import { ThumbsUp, ThumbsDown, Bell, Smartphone, Wifi, Loader2, User, Checkbox, ArrowLeft } from "lucide-react";

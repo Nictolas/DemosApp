@@ -1,6 +1,6 @@
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { Loader2 } from "lucide-react";
 import appIcon from '/icona.png';
 import { adminAuth } from './firebase-config';

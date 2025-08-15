@@ -2,7 +2,7 @@
 // ... (inserire qui il contenuto aggiornato come da edit precedente) ... 
 
 import React from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
