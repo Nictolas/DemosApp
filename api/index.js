@@ -13,6 +13,9 @@ app.use(cors());
 app.use(express.json());
 
 // Configurazione database Neon
+console.log('🔍 DEBUG: DATABASE_URL =', process.env.DATABASE_URL ? 'TROVATA' : 'NON TROVATA');
+console.log('🔍 DEBUG: DATABASE_URL primi 50 char =', process.env.DATABASE_URL?.substring(0, 50));
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
