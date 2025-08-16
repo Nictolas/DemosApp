@@ -5,6 +5,11 @@
 // Logging per debugging Firebase usage
 const logFirebaseUsage = (method: string) => {
   console.warn(`🔥 FIREBASE CALL BLOCKED: ${method} - Migrazione in corso verso API Neon`);
+  // Mostra toast solo per chiamate critiche
+  if (method.includes('addDoc') || method.includes('updateDoc') || method.includes('deleteDoc')) {
+    // Solo avviso console per ora, evitando loop di toast
+    console.error(`❌ FIREBASE WRITE OPERATION BLOCKED: ${method}`);
+  }
 };
 
 // Oggetti mock per mantenere compatibilità
