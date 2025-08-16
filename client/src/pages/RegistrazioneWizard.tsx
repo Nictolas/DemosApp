@@ -442,9 +442,7 @@ export default function RegistrazioneWizard() {
   const onSubmit = (data: WizardFormValues) => {
     registerMutation.mutate(data as any, {
       onSuccess: async () => {
-        // Login su Firebase Auth dopo la registrazione
-        const auth = getAuth();
-        await signInWithEmailAndPassword(auth, data.email, data.password);
+        // Registrazione completata - l'hook use-auth-neon gestisce già il login automatico
         navigate("/menu");
       }
     });
