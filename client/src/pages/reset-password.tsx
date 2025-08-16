@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { sendPasswordResetEmail } from "@/lib/firebase-stub";
-import { auth } from "@/lib/firebase-stub";
+// Firebase rimosso - reset password via API
+// import { sendPasswordResetEmail } from "@/lib/firebase-stub";
+// import { auth } from "@/lib/firebase-stub";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

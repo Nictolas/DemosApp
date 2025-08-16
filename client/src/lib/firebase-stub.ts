@@ -1,47 +1,135 @@
 // File stub temporaneo per compatibilità Firebase
+// ATTENZIONE: Firebase è disabilitato durante la migrazione
 // TODO: Sostituire gradualmente con chiamate API
+
+// Logging per debugging Firebase usage
+const logFirebaseUsage = (method: string) => {
+  console.warn(`🔥 FIREBASE CALL BLOCKED: ${method} - Migrazione in corso verso API Neon`);
+};
 
 // Oggetti mock per mantenere compatibilità
 export const db = {
-  collection: () => ({
-    getDocs: () => Promise.resolve({ docs: [] }),
-    addDoc: () => Promise.resolve({ id: 'mock-id' }),
-    where: () => ({}),
-  }),
-  doc: () => ({
-    getDoc: () => Promise.resolve({ exists: () => false, data: () => ({}) }),
-    updateDoc: () => Promise.resolve(),
-  }),
+  collection: () => {
+    logFirebaseUsage('db.collection');
+    return {
+      getDocs: () => {
+        logFirebaseUsage('collection.getDocs');
+        return Promise.resolve({ docs: [] });
+      },
+      addDoc: () => {
+        logFirebaseUsage('collection.addDoc');
+        return Promise.resolve({ id: 'mock-id' });
+      },
+      where: () => {
+        logFirebaseUsage('collection.where');
+        return {};
+      },
+    };
+  },
+  doc: () => {
+    logFirebaseUsage('db.doc');
+    return {
+      getDoc: () => {
+        logFirebaseUsage('doc.getDoc');
+        return Promise.resolve({ exists: () => false, data: () => ({}) });
+      },
+      updateDoc: () => {
+        logFirebaseUsage('doc.updateDoc');
+        return Promise.resolve();
+      },
+    };
+  },
 };
 
 export const auth = {
   currentUser: null,
-  signOut: () => Promise.resolve(),
+  signOut: () => {
+    logFirebaseUsage('auth.signOut');
+    return Promise.resolve();
+  },
+  onAuthStateChanged: () => {
+    logFirebaseUsage('auth.onAuthStateChanged');
+    return () => {}; // unsubscribe function
+  },
 };
 
-// Funzioni Firebase mock
-export const collection = () => db.collection();
-export const getDocs = () => Promise.resolve({ docs: [] });
-export const addDoc = () => Promise.resolve({ id: 'mock-id' });
-export const doc = () => db.doc();
-export const getDoc = () => Promise.resolve({ exists: () => false, data: () => ({}) });
-export const updateDoc = () => Promise.resolve();
-export const query = () => ({});
-export const where = () => ({});
-export const arrayUnion = (val: any) => val;
-export const increment = (val: number) => val;
-export const arrayRemove = (val: any) => val;
-export const deleteDoc = () => Promise.resolve();
+// Funzioni Firebase mock con logging
+export const collection = () => {
+  logFirebaseUsage('collection');
+  return db.collection();
+};
+export const getDocs = () => {
+  logFirebaseUsage('getDocs');
+  return Promise.resolve({ docs: [] });
+};
+export const addDoc = () => {
+  logFirebaseUsage('addDoc');
+  return Promise.resolve({ id: 'mock-id' });
+};
+export const doc = () => {
+  logFirebaseUsage('doc');
+  return db.doc();
+};
+export const getDoc = () => {
+  logFirebaseUsage('getDoc');
+  return Promise.resolve({ exists: () => false, data: () => ({}) });
+};
+export const updateDoc = () => {
+  logFirebaseUsage('updateDoc');
+  return Promise.resolve();
+};
+export const query = () => {
+  logFirebaseUsage('query');
+  return {};
+};
+export const where = () => {
+  logFirebaseUsage('where');
+  return {};
+};
+export const arrayUnion = (val: any) => {
+  logFirebaseUsage('arrayUnion');
+  return val;
+};
+export const increment = (val: number) => {
+  logFirebaseUsage('increment');
+  return val;
+};
+export const arrayRemove = (val: any) => {
+  logFirebaseUsage('arrayRemove');
+  return val;
+};
+export const deleteDoc = () => {
+  logFirebaseUsage('deleteDoc');
+  return Promise.resolve();
+};
 
-// Auth Firebase mock
-export const getAuth = () => auth;
-export const signInWithEmailAndPassword = () => Promise.resolve({ user: null });
-export const sendPasswordResetEmail = () => Promise.resolve();
+// Auth Firebase mock con logging
+export const getAuth = () => {
+  logFirebaseUsage('getAuth');
+  return auth;
+};
+export const signInWithEmailAndPassword = () => {
+  logFirebaseUsage('signInWithEmailAndPassword');
+  return Promise.resolve({ user: null });
+};
+export const sendPasswordResetEmail = () => {
+  logFirebaseUsage('sendPasswordResetEmail');
+  return Promise.resolve();
+};
 export const EmailAuthProvider = {
-  credential: () => ({}),
+  credential: () => {
+    logFirebaseUsage('EmailAuthProvider.credential');
+    return {};
+  },
 };
-export const reauthenticateWithCredential = () => Promise.resolve();
-export const updatePassword = () => Promise.resolve();
+export const reauthenticateWithCredential = () => {
+  logFirebaseUsage('reauthenticateWithCredential');
+  return Promise.resolve();
+};
+export const updatePassword = () => {
+  logFirebaseUsage('updatePassword');
+  return Promise.resolve();
+};
 
 // FCM mock
 export const getMessaging = () => ({});
