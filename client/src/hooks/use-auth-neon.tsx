@@ -6,6 +6,7 @@ import {
   useQueryClient
 } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl, API_CONFIG } from "@/lib/api-config";
 
 // Tipi per l'autenticazione
 interface User {
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       if (!token) return null;
       
-      const response = await fetch('http://localhost:3001/api/utenti/me', {
+      const response = await fetch(getApiUrl(API_CONFIG.AUTH.ME), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -88,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Mutation per il login
   const loginMutation = useMutation<User, Error, LoginCredentials>({
     mutationFn: async (credentials) => {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch(getApiUrl(API_CONFIG.AUTH.LOGIN), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Opzionalmente, chiama endpoint di logout
       try {
-        await fetch('http://localhost:3001/api/auth/logout', {
+        await fetch(getApiUrl(API_CONFIG.AUTH.LOGOUT), {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -165,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Mutation per la registrazione
   const registerMutation = useMutation<User, Error, RegisterData>({
     mutationFn: async (userData) => {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch(getApiUrl(API_CONFIG.AUTH.REGISTER), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

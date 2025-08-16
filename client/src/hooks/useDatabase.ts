@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_CONFIG } from '@/lib/api-config';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = API_CONFIG.BASE_URL;
 
 // Hook per gestire il database tramite API
 export const useDatabase = () => {
