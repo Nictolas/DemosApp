@@ -193,14 +193,13 @@ app.post('/api/auth/register', async (req, res) => {
     
     // Crea nuovo utente nella tabella utenti
     const result = await pool.query(
-      'INSERT INTO utenti (id, email, nome, cognome, password_hash, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, nome, cognome',
+      'INSERT INTO utenti (id, email, nome, cognome, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, nome, cognome',
       [
         'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), // ID univoco
         email.toLowerCase(), 
         name.split(' ')[0] || name, // primo nome
         name.split(' ').slice(1).join(' ') || '', // cognome
-        passwordHash, 
-        new Date()
+        passwordHash
       ]
     );
     
