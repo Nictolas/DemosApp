@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, LogOut, UserCheck, Vote, BarChart2, ShieldCheck, PieChart, Bell, Trophy, MessageSquare, Settings, Crown, Building2, Scale, Users, FileText, Calendar, Megaphone, AlertCircle, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { db, auth } from "@/lib/firebase-stub";
+// Firebase rimosso - dati ora via API Neon
+// import { db, auth } from "@/lib/firebase-stub";
 import appIcon from '/icona.png';
 import { apiRequest } from "@/lib/queryClient";
 import AdSenseBanner from "@/components/AdSenseBanner";

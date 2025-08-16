@@ -65,7 +65,7 @@ import Sondaggi from "@/pages/Sondaggi";
 import ResetPasswordPage from "@/pages/reset-password";
 import Informazioni from "@/pages/Informazioni";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
-import { useSyncFcmToken } from "@/hooks/useSyncFcmToken";
+// FCM rimosso - sostituito con sistema nativo
 import React, { useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import DatabaseTest from "@/components/DatabaseTest";
@@ -539,10 +539,7 @@ function Router() {
   );
 }
 
-function SyncFcmTokenWrapper() {
-  useSyncFcmToken();
-  return null;
-}
+// SyncFcmTokenWrapper rimosso - non più necessario con il nuovo sistema auth
 
 function App() {
   useEffect(() => {
@@ -593,7 +590,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RegistrationProvider>
-          <SyncFcmTokenWrapper />
           <Router />
           {location !== '/' && <Navbar />}
           <Toaster />
