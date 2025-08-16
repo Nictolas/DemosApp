@@ -106,9 +106,9 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
     
-    // Cerca l'utente nel database (includo password_hash per la verifica)
+    // Cerca l'utente nel database utenti (includo password_hash per la verifica)
     const result = await pool.query(
-      'SELECT id, email, name, password_hash FROM users WHERE email = $1',
+      'SELECT id, email, nome, cognome, password_hash FROM utenti WHERE email = $1',
       [email.toLowerCase()]
     );
     
@@ -141,13 +141,14 @@ app.post('/api/auth/login', async (req, res) => {
       { expiresIn: '24h' }
     );
     
-    // Rimuovi la password_hash dalla risposta
-    const { password_hash, ...userWithoutPassword } = user;
+    // Rimuovi la password_hash dalla risposta e componi il nome completo
+    const { password_hash, nome, cognome, ...userWithoutPassword } = user;
     
     res.json({
       success: true,
       data: {
         ...userWithoutPassword,
+        name: `${nome} ${cognome}`.trim(),
         role: 'user'
       },
       token,
@@ -175,7 +176,7 @@ app.post('/api/auth/register', async (req, res) => {
     
     // Verifica se l'utente esiste già
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
+      'SELECT id FROM utenti WHERE email = $1',
       [email.toLowerCase()]
     );
     
@@ -190,10 +191,17 @@ app.post('/api/auth/register', async (req, res) => {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
-    // Crea nuovo utente
+    // Crea nuovo utente nella tabella utenti
     const result = await pool.query(
-      'INSERT INTO users (email, name, password_hash, email_verified, created_at) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name',
-      [email.toLowerCase(), name, passwordHash, new Date(), new Date()]
+      'INSERT INTO utenti (id, email, nome, cognome, password_hash, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, nome, cognome',
+      [
+        'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), // ID univoco
+        email.toLowerCase(), 
+        name.split(' ')[0] || name, // primo nome
+        name.split(' ').slice(1).join(' ') || '', // cognome
+        passwordHash, 
+        new Date()
+      ]
     );
     
     const user = result.rows[0];
@@ -213,7 +221,7 @@ app.post('/api/auth/register', async (req, res) => {
       data: {
         id: user.id,
         email: user.email,
-        name: user.name,
+        name: `${user.nome} ${user.cognome}`.trim(),
         role: 'user'
       },
       token,
@@ -256,9 +264,9 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     // Il middleware verifyToken ha già verificato il token e impostato req.user
     const userId = req.user.userId;
     
-    // Cerca l'utente nel database
+    // Cerca l'utente nel database utenti
     const result = await pool.query(
-      'SELECT id, email, name, created_at FROM users WHERE id = $1',
+      'SELECT id, email, nome, cognome, created_at FROM utenti WHERE id = $1',
       [userId]
     );
     
@@ -275,6 +283,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
       success: true,
       data: {
         ...user,
+        name: `${user.nome} ${user.cognome}`.trim(),
         role: 'user' // Default role
       }
     });
