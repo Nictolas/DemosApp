@@ -11,7 +11,35 @@ console.log('✅ DEBUG: File index.js corretto in esecuzione');
 const app = express();
 
 // Middleware
-app.use(cors());
+// CORS con whitelist domini frontend (produzione e sviluppo)
+const allowedOrigins = [
+  'https://www.demos.community',
+  'https://demos.community',
+  'https://demos-c7x52aj0p2q2.onrender.com',
+  'http://localhost:5173',
+  'http://localhost:4173'
+];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // consenti chiamate server-to-server e healthchecks
+  if (allowedOrigins.includes(origin)) return true;
+  // Consenti tutti i sotto-domini Vercel preview
+  if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return true;
+  return false;
+};
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Configurazione database Neon
