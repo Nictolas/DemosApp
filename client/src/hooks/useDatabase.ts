@@ -25,7 +25,7 @@ export const useDatabase = () => {
       
       return result.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Errore API sconosciuto';
+      const errorMessage = err instanceof Error ? err.message : 'Errore API sconosciuto';2
       setError(errorMessage);
       console.error('Errore API:', err);
       return null;
