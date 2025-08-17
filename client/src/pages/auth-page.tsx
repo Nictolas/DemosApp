@@ -273,12 +273,14 @@ export default function AuthPage() {
     loginMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
   };
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Normalizza l'email a lowercase e prepara i dati per il nuovo schema
+    // Normalizza l'email a lowercase e invia anche il ruolo selezionato
     const registerData = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
-      name: `${data.nome} ${data.cognome}`.trim()
-    };
+      name: `${data.nome} ${data.cognome}`.trim(),
+      role: data.ruolo,
+      ruolo: data.ruolo,
+    } as any;
     registerMutation.mutate(registerData);
   };
 
