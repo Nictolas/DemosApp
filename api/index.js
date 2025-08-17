@@ -133,15 +133,22 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
+// Helpers
+async function isRequesterAdmin(userId) {
+  try {
+    const r = await pool.query('SELECT ruolo FROM utenti WHERE id = $1', [userId]);
+    return r.rows.length > 0 && r.rows[0].ruolo === 'Admin';
+  } catch {
+    return false;
+  }
+}
+
 // API Utenti
 app.get('/api/utenti', verifyToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM utenti ORDER BY created_at DESC');
-    res.json({
-      success: true,
-      data: result.rows,
-      count: result.rows.length
-    });
+    const rows = result.rows.map(u => ({ ...u, uid: u.id }));
+    res.json({ success: true, data: rows, count: rows.length });
   } catch (error) {
     console.error('Errore caricamento utenti:', error);
     res.status(500).json({
@@ -159,13 +166,14 @@ app.get('/api/utenti/:id', verifyToken, async (req, res) => {
       return res.status(400).json({ success: false, error: 'ID utente mancante' });
     }
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, ruolo, avatar_config, created_at FROM utenti WHERE id = $1',
+      'SELECT id, email, nome, cognome, ruolo, avatar_config, created_at, status FROM utenti WHERE id = $1',
       [id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
     }
-    res.json({ success: true, data: result.rows[0] });
+    const u = result.rows[0];
+    res.json({ success: true, data: { ...u, uid: u.id } });
   } catch (error) {
     console.error('Errore recupero utente per id:', error);
     res.status(500).json({ success: false, error: 'Errore interno del server' });
@@ -365,10 +373,56 @@ app.post('/api/utenti/login', async (req, res) => {
 // Utenti pending (placeholder)
 app.get('/api/utenti/pending', verifyToken, async (req, res) => {
   try {
-    // Se non abbiamo uno schema di approvazione, rispondi lista vuota
-    return res.json([]);
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    const r = await pool.query("SELECT id, email, nome, cognome, ruolo, status, created_at FROM utenti WHERE status = 'pending' ORDER BY created_at DESC");
+    const rows = r.rows.map(u => ({ ...u, uid: u.id }));
+    return res.json(rows);
   } catch (e) {
-    return res.json([]);
+    console.error('Errore pending:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+app.post('/api/utenti/approve', verifyToken, async (req, res) => {
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ success: false, error: 'userId mancante' });
+    await pool.query("UPDATE utenti SET status = 'active' WHERE id = $1", [userId]);
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Errore approve:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+app.post('/api/utenti/reject', verifyToken, async (req, res) => {
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ success: false, error: 'userId mancante' });
+    await pool.query("UPDATE utenti SET status = 'rejected' WHERE id = $1", [userId]);
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Errore reject:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
+app.delete('/api/utenti/:id', verifyToken, async (req, res) => {
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ success: false, error: 'ID mancante' });
+    await pool.query('DELETE FROM utenti WHERE id = $1', [id]);
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Errore delete utente:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
 
