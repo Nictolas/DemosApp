@@ -554,6 +554,40 @@ app.get('/api/admin/db-info', verifyToken, async (req, res) => {
   }
 });
 
+// Admin: imposta/reset password per un'email
+app.post('/api/admin/set-password', verifyToken, async (req, res) => {
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    const { email, password } = req.body || {};
+    if (!email || !password) return res.status(400).json({ success: false, error: 'Email e password richiesti' });
+
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    // Aggiorna prima su users
+    const updatedUsers = await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE LOWER(email) = LOWER($2) RETURNING id',
+      [passwordHash, email]
+    );
+
+    // Aggiorna anche su utenti per retro-compat (se presente)
+    const updatedUtenti = await pool.query(
+      'UPDATE utenti SET password_hash = $1 WHERE LOWER(email) = LOWER($2) RETURNING id',
+      [passwordHash, email]
+    ).catch(() => ({ rowCount: 0 }));
+
+    if ((updatedUsers.rowCount || 0) === 0 && (updatedUtenti.rowCount || 0) === 0) {
+      return res.status(404).json({ success: false, error: 'Nessun utente trovato per questa email' });
+    }
+
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Errore set-password:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     // Il middleware verifyToken ha già verificato il token e impostato req.user
