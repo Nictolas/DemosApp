@@ -34,7 +34,15 @@ export default function Rappresentanti() {
       // Endpoint protetto: usa JWT per risalire all'utente corrente
       const response = await apiRequest("GET", `/api/rappresentanti`);
       if (!response.ok) throw new Error("Errore nel caricamento dei rappresentanti");
-      return response.json();
+      const result = await response.json();
+      // Normalizza struttura in caso il backend risponda { candidati: [...] }
+      if (Array.isArray(result?.candidati)) {
+        const idMap: Record<string, string> = {};
+        const rappresentanti: any = {};
+        // Placeholder: nessun rappresentante salvato → mappa vuota
+        return { rappresentanti, idMap } as any;
+      }
+      return result;
     },
     enabled: !!user,
   });
