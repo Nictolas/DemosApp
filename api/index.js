@@ -377,12 +377,12 @@ app.post('/auth/login', handleLogin);
 
 const handleRegister = async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, nome, cognome, ruolo } = req.body;
     
-    if (!email || !password || !name) {
+    if (!email || !password || !nome || !cognome) {
       return res.status(400).json({
         success: false,
-        error: 'Email, password e nome sono richiesti'
+        error: 'Email, password, nome e cognome sono richiesti'
       });
     }
     
@@ -403,8 +403,8 @@ const handleRegister = async (req, res) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
     // Determina ruolo dalla richiesta (default Elettore)
-    const ruolo = (req.body.role || req.body.ruolo || '').toString().trim() || 'Elettore';
-    const status = ruolo === 'Admin' ? 'active' : 'pending';
+    const userRole = (ruolo || '').toString().trim() || 'Elettore';
+    const status = userRole === 'Admin' ? 'active' : 'pending';
     
     // Crea nuovo utente nella tabella users, salvando anche il ruolo e lo status
     const result = await pool.query(
@@ -412,10 +412,10 @@ const handleRegister = async (req, res) => {
       [
         'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), // ID univoco
         email.toLowerCase(), 
-        name.split(' ')[0] || name, // primo nome
-        name.split(' ').slice(1).join(' ') || '', // cognome
+        nome, // nome diretto dal form
+        cognome, // cognome diretto dal form
         passwordHash,
-        ruolo,
+        userRole,
         status
       ]
     );
