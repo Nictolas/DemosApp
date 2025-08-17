@@ -552,6 +552,16 @@ app.get('/api/governo', async (req, res) => {
   }
 });
 
+// Placeholder voti governo (evita 404 in Profilo)
+app.get('/api/governo/voti', verifyToken, async (req, res) => {
+  try {
+    // Restituiamo un oggetto vuoto: { categoria: nomeMinistro }
+    return res.json({});
+  } catch (error) {
+    return res.json({});
+  }
+});
+
 // Endpoint ministeri (placeholder)
 app.get('/api/ministeri', async (req, res) => {
   try {
