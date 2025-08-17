@@ -468,6 +468,70 @@ app.delete('/api/utenti/:id', verifyToken, async (req, res) => {
   }
 });
 
+// Admin: merge dei dati da `utenti` -> `users`
+app.post('/api/admin/merge-utenti-in-users', verifyToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+    await client.query('BEGIN');
+
+    // 1) Aggiorna campi mancanti in users dai corrispondenti in utenti
+    const updateExisting = await client.query(`
+      UPDATE users u
+      SET nome = COALESCE(u.nome, t.nome),
+          cognome = COALESCE(u.cognome, t.cognome),
+          ruolo = COALESCE(u.ruolo, t.ruolo, 'Elettore'),
+          status = COALESCE(u.status, t.status, 'pending'),
+          avatar_config = COALESCE(u.avatar_config, t.avatar_config),
+          energia_nucleare = COALESCE(u.energia_nucleare, t.energia_nucleare),
+          sperimentazione_animale = COALESCE(u.sperimentazione_animale, t.sperimentazione_animale),
+          legalizzazione_canapa = COALESCE(u.legalizzazione_canapa, t.legalizzazione_canapa),
+          caccia = COALESCE(u.caccia, t.caccia)
+      FROM utenti t
+      WHERE LOWER(u.email) = LOWER(t.email)
+    `);
+
+    // 2) Inserisci in users gli account presenti solo in utenti
+    const insertNew = await client.query(`
+      INSERT INTO users (id, email, nome, cognome, ruolo, status, avatar_config,
+                         energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia)
+      SELECT t.id, t.email, t.nome, t.cognome, COALESCE(t.ruolo, 'Elettore'),
+             COALESCE(t.status, 'pending'), t.avatar_config,
+             t.energia_nucleare, t.sperimentazione_animale, t.legalizzazione_canapa, t.caccia
+      FROM utenti t
+      LEFT JOIN users u ON LOWER(u.email) = LOWER(t.email)
+      WHERE u.id IS NULL
+    `);
+
+    // 3) Porta anche le password dove presenti e mancanti in users
+    const updatePasswords = await client.query(`
+      UPDATE users u
+      SET password_hash = t.password_hash
+      FROM utenti t
+      WHERE LOWER(u.email) = LOWER(t.email)
+        AND u.password_hash IS NULL
+        AND t.password_hash IS NOT NULL
+    `);
+
+    await client.query('COMMIT');
+
+    return res.json({
+      success: true,
+      updatedExisting: updateExisting.rowCount || 0,
+      insertedNew: insertNew.rowCount || 0,
+      updatedPasswords: updatePasswords.rowCount || 0,
+    });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('Errore merge utenti->users:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno durante il merge' });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     // Il middleware verifyToken ha già verificato il token e impostato req.user
