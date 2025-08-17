@@ -72,12 +72,29 @@ const pool = new Pool({
 
 // Assicurazione schema minimale (colonne necessarie)
 async function ensureSchema() {
+  // Compat: vecchia tabella `utenti`
   try {
-    await pool.query(
-      "ALTER TABLE utenti ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'"
-    );
+    await pool.query("ALTER TABLE utenti ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'");
   } catch (e) {
-    console.warn('WARN ensureSchema status:', e?.message || e);
+    console.warn('WARN ensureSchema utenti.status:', e?.message || e);
+  }
+
+  // Nuova tabella standard `users`
+  try {
+    const alter = async (sql) => pool.query(sql).catch(() => void 0);
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS ruolo VARCHAR(50) DEFAULT 'Elettore'");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS nome TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS cognome TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_config TEXT");
+    // Opinioni base per compatibilità
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS energia_nucleare TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS sperimentazione_animale TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS legalizzazione_canapa TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS caccia TEXT");
+  } catch (e) {
+    console.warn('WARN ensureSchema users:*:', e?.message || e);
   }
 }
 ensureSchema();
@@ -136,7 +153,7 @@ app.get('/api/test', async (req, res) => {
 // Helpers
 async function isRequesterAdmin(userId) {
   try {
-    const r = await pool.query('SELECT ruolo FROM utenti WHERE id = $1', [userId]);
+    const r = await pool.query('SELECT ruolo FROM users WHERE id = $1', [userId]);
     return r.rows.length > 0 && r.rows[0].ruolo === 'Admin';
   } catch {
     return false;
@@ -146,7 +163,7 @@ async function isRequesterAdmin(userId) {
 // API Utenti
 app.get('/api/utenti', verifyToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM utenti ORDER BY created_at DESC');
+    const result = await pool.query('SELECT * FROM users ORDER BY COALESCE(created_at, NOW()) DESC');
     const rows = result.rows.map(u => ({ ...u, uid: u.id }));
     res.json({ success: true, data: rows, count: rows.length });
   } catch (error) {
@@ -162,7 +179,7 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [userId]);
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
     }
@@ -188,7 +205,7 @@ app.get('/api/utenti/:id', verifyToken, async (req, res) => {
       return res.status(400).json({ success: false, error: 'ID utente mancante' });
     }
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, ruolo, avatar_config, created_at, status FROM utenti WHERE id = $1',
+      'SELECT id, email, nome, cognome, ruolo, avatar_config, COALESCE(created_at, NOW()) as created_at, status FROM users WHERE id = $1',
       [id]
     );
     if (result.rows.length === 0) {
@@ -214,11 +231,17 @@ const handleLogin = async (req, res) => {
       });
     }
     
-    // Cerca l'utente nel database utenti (includo password_hash e ruolo per la verifica)
-    const result = await pool.query(
-      'SELECT id, email, nome, cognome, ruolo, password_hash FROM utenti WHERE email = $1',
+    // Cerca l'utente nel database users (fallback su utenti per retro-compat)
+    let result = await pool.query(
+      'SELECT id, email, nome, cognome, ruolo, password_hash FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
+    if (result.rows.length === 0) {
+      result = await pool.query(
+        'SELECT id, email, nome, cognome, ruolo, password_hash FROM utenti WHERE email = $1',
+        [email.toLowerCase()]
+      );
+    }
     
     if (result.rows.length === 0) {
       return res.status(401).json({
@@ -297,10 +320,7 @@ const handleRegister = async (req, res) => {
     }
     
     // Verifica se l'utente esiste già
-    const existingUser = await pool.query(
-      'SELECT id FROM utenti WHERE email = $1',
-      [email.toLowerCase()]
-    );
+    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
     
     if (existingUser.rows.length > 0) {
       return res.status(409).json({
@@ -317,9 +337,9 @@ const handleRegister = async (req, res) => {
     const ruolo = (req.body.role || req.body.ruolo || '').toString().trim() || 'Elettore';
     const status = ruolo === 'Admin' ? 'active' : 'pending';
     
-    // Crea nuovo utente nella tabella utenti, salvando anche il ruolo e lo status
+    // Crea nuovo utente nella tabella users, salvando anche il ruolo e lo status
     const result = await pool.query(
-      'INSERT INTO utenti (id, email, nome, cognome, password_hash, ruolo, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, nome, cognome, ruolo, status',
+      'INSERT INTO users (id, email, nome, cognome, password_hash, ruolo, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, nome, cognome, ruolo, status',
       [
         'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), // ID univoco
         email.toLowerCase(), 
@@ -397,7 +417,7 @@ app.get('/api/utenti/pending', verifyToken, async (req, res) => {
   try {
     const admin = await isRequesterAdmin(req.user.userId);
     if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
-    const r = await pool.query("SELECT id, email, nome, cognome, ruolo, status, created_at FROM utenti WHERE status = 'pending' ORDER BY created_at DESC");
+    const r = await pool.query("SELECT id, email, nome, cognome, ruolo, status, COALESCE(created_at, NOW()) as created_at FROM users WHERE status = 'pending' ORDER BY created_at DESC");
     const rows = r.rows.map(u => ({ ...u, uid: u.id }));
     return res.json(rows);
   } catch (e) {
@@ -412,7 +432,7 @@ app.post('/api/utenti/approve', verifyToken, async (req, res) => {
     if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
     const { userId } = req.body || {};
     if (!userId) return res.status(400).json({ success: false, error: 'userId mancante' });
-    await pool.query("UPDATE utenti SET status = 'active' WHERE id = $1", [userId]);
+    await pool.query("UPDATE users SET status = 'active' WHERE id = $1", [userId]);
     return res.json({ success: true });
   } catch (e) {
     console.error('Errore approve:', e);
@@ -426,7 +446,7 @@ app.post('/api/utenti/reject', verifyToken, async (req, res) => {
     if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
     const { userId } = req.body || {};
     if (!userId) return res.status(400).json({ success: false, error: 'userId mancante' });
-    await pool.query("UPDATE utenti SET status = 'rejected' WHERE id = $1", [userId]);
+    await pool.query("UPDATE users SET status = 'rejected' WHERE id = $1", [userId]);
     return res.json({ success: true });
   } catch (e) {
     console.error('Errore reject:', e);
@@ -440,7 +460,7 @@ app.delete('/api/utenti/:id', verifyToken, async (req, res) => {
     if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
     const { id } = req.params;
     if (!id) return res.status(400).json({ success: false, error: 'ID mancante' });
-    await pool.query('DELETE FROM utenti WHERE id = $1', [id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
     return res.json({ success: true });
   } catch (e) {
     console.error('Errore delete utente:', e);
@@ -745,9 +765,9 @@ app.get('/api/candidati', verifyToken, async (req, res) => {
     const result = await pool.query(
       `SELECT id, nome, cognome, ruolo, avatar_config,
               energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia
-       FROM utenti
+       FROM users
        WHERE ruolo IN ('Candidato', 'Candidato Politico')
-       ORDER BY created_at DESC
+       ORDER BY COALESCE(created_at, NOW()) DESC
        LIMIT 200`
     );
 
@@ -768,9 +788,9 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
     const result = await pool.query(
       `SELECT id, nome, cognome, ruolo, avatar_config,
               energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia
-       FROM utenti
+       FROM users
        WHERE ruolo IN ('Politico', 'Candidato Politico')
-       ORDER BY created_at DESC
+       ORDER BY COALESCE(created_at, NOW()) DESC
        LIMIT 200`
     );
 
