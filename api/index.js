@@ -532,6 +532,28 @@ app.post('/api/admin/merge-utenti-in-users', verifyToken, async (req, res) => {
   }
 });
 
+// Admin: diagnostica connessione DB
+app.get('/api/admin/db-info', verifyToken, async (req, res) => {
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+    const info = await pool.query('SELECT current_database() as db, version() as postgres_version');
+    let host = null;
+    try {
+      if (process.env.DATABASE_URL) {
+        const u = new URL(process.env.DATABASE_URL);
+        host = u.hostname;
+      }
+    } catch {}
+
+    return res.json({ success: true, data: { db: info.rows[0].db, postgres_version: info.rows[0].postgres_version, db_host: host } });
+  } catch (e) {
+    console.error('Errore db-info:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     // Il middleware verifyToken ha già verificato il token e impostato req.user
