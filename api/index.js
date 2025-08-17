@@ -354,7 +354,15 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     
     // Cerca l'utente nel database utenti
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, ruolo, created_at FROM utenti WHERE id = $1',
+      `SELECT 
+         id, email, nome, cognome, ruolo, created_at,
+         data_nascita, genere, cittadinanza,
+         paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+         paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_elezione,
+         paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, grado_candidatura,
+         energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+         avatar_config
+       FROM utenti WHERE id = $1`,
       [userId]
     );
     
