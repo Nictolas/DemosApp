@@ -29,11 +29,10 @@ export default function Rappresentanti() {
 
   // 1. Caricamento dati con React Query
   const { data, isLoading, isError } = useQuery<RappresentantiData>({
-    queryKey: ['rappresentantiData', user?.uid],
+    queryKey: ['rappresentantiData'],
     queryFn: async () => {
-      if (!user?.uid) throw new Error("Utente non autenticato");
-      // Unico endpoint per caricare tutti i rappresentanti dell'utente
-      const response = await apiRequest("GET", `/api/rappresentanti/utente`);
+      // Endpoint protetto: usa JWT per risalire all'utente corrente
+      const response = await apiRequest("GET", `/api/rappresentanti`);
       if (!response.ok) throw new Error("Errore nel caricamento dei rappresentanti");
       return response.json();
     },
