@@ -110,8 +110,10 @@ export default function Profilo({ userId }: { userId?: string }) {
       try {
         const response = await apiRequest("GET", `/api/utenti/me`);
         if (response.ok) {
-          const result = await response.json();
-          const userData = (result?.data || result) as any;
+                  const result = await response.json();
+        console.log('🔍 DEBUG Profilo - API response:', result);
+        const userData = result?.data || result;
+        console.log('🔍 DEBUG Profilo - userData:', userData);
           setUserInfo(userData as UserInfo);
           
           if (opinionQuestions.length > 0) {

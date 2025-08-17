@@ -38,7 +38,7 @@ export default function GestisciUtenti() {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 20;
 
-  const { data: { utenti = [], pendingUsers = [] } = {}, isLoading: isLoadingUsers, isError } = useQuery({
+  const { data: responseData, isLoading: isLoadingUsers, isError } = useQuery({
     queryKey: ['allUsers'],
     queryFn: async () => {
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
@@ -51,6 +51,17 @@ export default function GestisciUtenti() {
       return { utenti: allUsersData, pendingUsers: pendingUsersData };
     },
     enabled: !!user,
+  });
+
+  // Estrai i dati con fallback sicuro e logging per debug
+  const utenti = responseData?.utenti?.data || responseData?.utenti || [];
+  const pendingUsers = responseData?.pendingUsers || [];
+  
+  // Debug logging
+  console.log('🔍 DEBUG GestisciUtenti:', {
+    responseData,
+    utenti: Array.isArray(utenti) ? `${utenti.length} utenti` : `Non array: ${typeof utenti}`,
+    pendingUsers: Array.isArray(pendingUsers) ? `${pendingUsers.length} pending` : `Non array: ${typeof pendingUsers}`
   });
 
   const approvalMutation = useMutation({
@@ -76,7 +87,13 @@ export default function GestisciUtenti() {
   });
 
   const filteredAndSortedUsers = useMemo(() => {
-    return utenti // <-- CORRETTO
+    // Protezione aggiuntiva: assicurati che utenti sia un array
+    if (!Array.isArray(utenti)) {
+      console.warn('⚠️ utenti non è un array:', utenti);
+      return [];
+    }
+    
+    return utenti
       .filter(u =>
         (u.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
         (u.cognome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -91,7 +108,7 @@ export default function GestisciUtenti() {
         if (valA > valB) return sortDirection === "asc" ? 1 : -1;
         return 0;
       });
-  }, [utenti, searchTerm, sortField, sortDirection]); // <-- CORRETTO
+  }, [utenti, searchTerm, sortField, sortDirection]);
 
   const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
   const paginatedUsers = filteredAndSortedUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
