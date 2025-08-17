@@ -4,7 +4,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "start": "set DATABASE_URL=postgres://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require && set JWT_SECRET=f605dd178a087109601eea06e06e69325650edd25b390803395898e18749898b && node index.js",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
