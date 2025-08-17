@@ -70,6 +70,18 @@ const pool = new Pool({
   }
 });
 
+// Assicurazione schema minimale (colonne necessarie)
+async function ensureSchema() {
+  try {
+    await pool.query(
+      "ALTER TABLE utenti ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'"
+    );
+  } catch (e) {
+    console.warn('WARN ensureSchema status:', e?.message || e);
+  }
+}
+ensureSchema();
+
 // JWT Secret (in produzione usare una variabile d'ambiente sicura)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
@@ -271,19 +283,21 @@ const handleRegister = async (req, res) => {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
-    // Determina ruolo dalla richiesta (default "user")
+    // Determina ruolo dalla richiesta (default Elettore)
     const ruolo = (req.body.role || req.body.ruolo || '').toString().trim() || 'Elettore';
+    const status = ruolo === 'Admin' ? 'active' : 'pending';
     
-    // Crea nuovo utente nella tabella utenti, salvando anche il ruolo
+    // Crea nuovo utente nella tabella utenti, salvando anche il ruolo e lo status
     const result = await pool.query(
-      'INSERT INTO utenti (id, email, nome, cognome, password_hash, ruolo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, nome, cognome, ruolo',
+      'INSERT INTO utenti (id, email, nome, cognome, password_hash, ruolo, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, nome, cognome, ruolo, status',
       [
         'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), // ID univoco
         email.toLowerCase(), 
         name.split(' ')[0] || name, // primo nome
         name.split(' ').slice(1).join(' ') || '', // cognome
         passwordHash,
-        ruolo
+        ruolo,
+        status
       ]
     );
     
@@ -305,7 +319,8 @@ const handleRegister = async (req, res) => {
         id: user.id,
         email: user.email,
         name: `${user.nome} ${user.cognome}`.trim(),
-        role: user.ruolo || 'Elettore'
+        role: user.ruolo || 'Elettore',
+        status: user.status
       },
       token,
       message: 'Registrazione completata con successo'
