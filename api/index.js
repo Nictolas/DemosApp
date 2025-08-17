@@ -412,16 +412,27 @@ endpoints.forEach(endpoint => {
 });
 
 // Endpoint opinioni-list richiesto dal frontend
+// Base questions configurate lato codice
+const BASE_OPINION_QUESTIONS = [
+  { id: 'energia_nucleare', text: "Sei favorevole all'utilizzo dell'energia nucleare?" },
+  { id: 'sperimentazione_animale', text: 'Sei favorevole alla sperimentazione sugli animali?' },
+  { id: 'legalizzazione_canapa', text: 'Sei favorevole alla legalizzazione della canapa?' },
+  { id: 'caccia', text: 'Sei favorevole alla caccia?' }
+];
+
 app.get('/api/opinioni-list', async (req, res) => {
   try {
-    // Lista fissa di temi (placeholder) finché non abbiamo tabella dedicata
-    const temi = [
-      { key: 'energia_nucleare', label: 'Energia Nucleare' },
-      { key: 'sperimentazione_animale', label: 'Sperimentazione Animale' },
-      { key: 'legalizzazione_canapa', label: 'Legalizzazione Canapa' },
-      { key: 'caccia', label: 'Caccia' }
-    ];
-    res.json(temi);
+    // Recupera opinioni dinamiche create dagli admin (tabella opinioni)
+    const dyn = await pool
+      .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
+      .catch(() => ({ rows: [] }));
+
+    const dynamicQuestions = dyn.rows
+      .filter(r => r.text)
+      .map(r => ({ id: String(r.id), text: r.text }));
+
+    const all = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
+    res.json(all);
   } catch (error) {
     console.error('Errore opinioni-list:', error);
     res.status(500).json({ error: 'Errore interno del server' });
@@ -429,35 +440,60 @@ app.get('/api/opinioni-list', async (req, res) => {
 });
 
 // Opinioni utente: recupero e salvataggio
-const OPINION_FIELDS = [
-  'energia_nucleare',
-  'sperimentazione_animale',
-  'legalizzazione_canapa',
-  'caccia',
-];
+const OPINION_FIELDS = ['energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia'];
 const OPINION_ALLOWED_VALUES = new Set(['Favorevole', 'Indeciso', 'Contrario']);
 
 app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const result = await pool.query(
-      `SELECT id, ${OPINION_FIELDS.join(', ')} FROM utenti WHERE id = $1`,
+
+    // 1) Domande base + dinamiche
+    const dyn = await pool
+      .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
+      .catch(() => ({ rows: [] }));
+
+    const dynamicQuestions = dyn.rows
+      .filter(r => r.text)
+      .map(r => ({ id: String(r.id), text: r.text }));
+
+    const questions = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
+
+    // 2) Risposte utente: base su tabella utenti, dinamiche su tabella opinioni_risposte
+    const baseRow = await pool.query(
+      `SELECT ${OPINION_FIELDS.join(', ')} FROM utenti WHERE id = $1`,
       [userId]
     );
-    if (result.rows.length === 0) {
+    if (baseRow.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
     }
-    const row = result.rows[0];
-    const questions = [
-      { id: 'energia_nucleare', text: 'Sei favorevole all\'utilizzo dell\'energia nucleare?' },
-      { id: 'sperimentazione_animale', text: 'Sei favorevole alla sperimentazione sugli animali?' },
-      { id: 'legalizzazione_canapa', text: 'Sei favorevole alla legalizzazione della canapa?' },
-      { id: 'caccia', text: 'Sei favorevole alla caccia?' },
-    ];
+
+    // Assicurati esista tabella risposte dinamiche
+    await pool
+      .query(`
+        CREATE TABLE IF NOT EXISTS opinioni_risposte (
+          user_id VARCHAR(255) NOT NULL,
+          opinione_id VARCHAR(255) NOT NULL,
+          valore VARCHAR(50) NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (user_id, opinione_id)
+        )
+      `)
+      .catch(() => undefined);
+
+    const dynAnswers = await pool
+      .query(`SELECT opinione_id, valore FROM opinioni_risposte WHERE user_id = $1`, [userId])
+      .catch(() => ({ rows: [] }));
+
     const userAnswers = {};
     for (const f of OPINION_FIELDS) {
-      if (row[f] != null) userAnswers[f] = row[f];
+      const v = baseRow.rows[0][f];
+      if (v != null) userAnswers[f] = v;
     }
+    for (const r of dynAnswers.rows) {
+      userAnswers[String(r.opinione_id)] = r.valore;
+    }
+
     res.json({ questions, userAnswers, blocco: { isBlocked: false } });
   } catch (error) {
     console.error('Errore opinioni/utente:', error);
@@ -470,7 +506,7 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
     const userId = req.user.userId;
     const opinions = req.body?.opinions || {};
 
-    // Valida input e prepara set clause
+    // 1) Aggiorna campi base su tabella utenti
     const updates = [];
     const values = [];
     let idx = 1;
@@ -484,12 +520,40 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
         values.push(val);
       }
     }
-    if (updates.length === 0) {
-      return res.status(400).json({ success: false, error: 'Nessuna opinione da aggiornare' });
+    if (updates.length > 0) {
+      values.push(userId);
+      const sql = `UPDATE utenti SET ${updates.join(', ')} WHERE id = $${idx}`;
+      await pool.query(sql, values);
     }
-    values.push(userId);
-    const sql = `UPDATE utenti SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id`;
-    await pool.query(sql, values);
+
+    // 2) Upsert risposte dinamiche su tabella opinioni_risposte
+    await pool
+      .query(`
+        CREATE TABLE IF NOT EXISTS opinioni_risposte (
+          user_id VARCHAR(255) NOT NULL,
+          opinione_id VARCHAR(255) NOT NULL,
+          valore VARCHAR(50) NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (user_id, opinione_id)
+        )
+      `)
+      .catch(() => undefined);
+
+    const dynKeys = Object.keys(opinions).filter(k => !OPINION_FIELDS.includes(k));
+    for (const k of dynKeys) {
+      const val = opinions[k];
+      if (!OPINION_ALLOWED_VALUES.has(val)) {
+        return res.status(400).json({ success: false, error: `Valore non valido per opinione ${k}` });
+      }
+      await pool.query(
+        `INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, opinione_id) DO UPDATE SET valore = EXCLUDED.valore, updated_at = NOW()`,
+        [userId, String(k), val]
+      );
+    }
+
     res.json({ success: true, message: 'Opinioni salvate' });
   } catch (error) {
     console.error('Errore opinioni/salva:', error);
