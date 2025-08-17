@@ -5,6 +5,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const crypto = require('crypto');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 console.log('✅ DEBUG: File index.js corretto in esecuzione');
 
@@ -410,7 +411,7 @@ const handleRegister = async (req, res) => {
     const result = await pool.query(
       'INSERT INTO users (id, email, nome, cognome, password_hash, ruolo, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, nome, cognome, ruolo, status',
       [
-        'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), // ID univoco
+        crypto.randomUUID(), // Genera UUID valido
         email.toLowerCase(), 
         nome, // nome diretto dal form
         cognome, // cognome diretto dal form
