@@ -231,16 +231,10 @@ const handleLogin = async (req, res) => {
       });
     }
     
-    // Cerca l'utente nel database users (fallback su utenti per retro-compat)
-    let result = await pool.query(
-      'SELECT id, email, nome, cognome, ruolo, password_hash FROM users WHERE email = $1',
-      [email.toLowerCase()]
-    );
+    // Cerca l'utente: prima users, poi utenti
+    let result = await pool.query('SELECT id, email, nome, cognome, ruolo, password_hash FROM users WHERE email = $1', [email.toLowerCase()]);
     if (result.rows.length === 0) {
-      result = await pool.query(
-        'SELECT id, email, nome, cognome, ruolo, password_hash FROM utenti WHERE email = $1',
-        [email.toLowerCase()]
-      );
+      result = await pool.query('SELECT id, email, nome, cognome, ruolo, password_hash FROM utenti WHERE email = $1', [email.toLowerCase()]);
     }
     
     if (result.rows.length === 0) {
@@ -252,12 +246,16 @@ const handleLogin = async (req, res) => {
     
     const user = result.rows[0];
     
-    // Verifica se l'utente ha una password hash
+    // Se manca hash in users, prova a recuperarlo da utenti
     if (!user.password_hash) {
-      return res.status(401).json({
-        success: false,
-        error: 'Account non migrato. Per favore registrati nuovamente per motivi di sicurezza.'
-      });
+      const backup = await pool
+        .query('SELECT password_hash FROM utenti WHERE email = $1', [email.toLowerCase()])
+        .catch(() => ({ rows: [] }));
+      if (backup.rows.length > 0 && backup.rows[0].password_hash) {
+        user.password_hash = backup.rows[0].password_hash;
+      } else {
+        return res.status(401).json({ success: false, error: 'Account non migrato. Reimposta la password.' });
+      }
     }
     
     // Verifica la password con bcrypt
@@ -320,9 +318,11 @@ const handleRegister = async (req, res) => {
     }
     
     // Verifica se l'utente esiste già
-    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    // Tra users e utenti nessun duplicato per email
+    const existingUsers = await pool.query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
+    const existingUtenti = await pool.query('SELECT id FROM utenti WHERE email = $1', [email.toLowerCase()]).catch(() => ({ rows: [] }));
     
-    if (existingUser.rows.length > 0) {
+    if (existingUsers.rows.length > 0 || (existingUtenti.rows || []).length > 0) {
       return res.status(409).json({
         success: false,
         error: 'Un utente con questa email esiste già'
