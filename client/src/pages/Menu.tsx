@@ -26,14 +26,13 @@ export default function Menu() {
   useEffect(() => {
     const checkIfAdmin = async () => {
       if (!user) return;
-      
       try {
-        // Usa apiRequest per inviare il token Firebase
-        const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
+        const response = await apiRequest("GET", `/api/utenti/me`);
         if (response.ok) {
-          const userData = await response.json();
-          setIsAdmin(userData?.ruolo === 'Admin');
-          setUserRole(userData?.ruolo || '');
+          const result = await response.json();
+          const data = result?.data || result; // compat
+          setIsAdmin((data?.role || data?.ruolo) === 'Admin');
+          setUserRole(data?.role || data?.ruolo || '');
         } else {
           console.error("Errore nel verificare il ruolo");
         }
