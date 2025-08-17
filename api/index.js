@@ -223,7 +223,7 @@ const handleLogin = async (req, res) => {
       data: {
         ...userWithoutPassword,
         name: `${nome} ${cognome}`.trim(),
-        role: ruolo || 'user'
+        role: ruolo || 'Elettore'
       },
       token,
       message: 'Login effettuato con successo'
@@ -272,7 +272,7 @@ const handleRegister = async (req, res) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
     // Determina ruolo dalla richiesta (default "user")
-    const ruolo = (req.body.role || req.body.ruolo || '').toString().trim() || 'user';
+    const ruolo = (req.body.role || req.body.ruolo || '').toString().trim() || 'Elettore';
     
     // Crea nuovo utente nella tabella utenti, salvando anche il ruolo
     const result = await pool.query(
@@ -305,7 +305,7 @@ const handleRegister = async (req, res) => {
         id: user.id,
         email: user.email,
         name: `${user.nome} ${user.cognome}`.trim(),
-        role: user.ruolo || 'user'
+        role: user.ruolo || 'Elettore'
       },
       token,
       message: 'Registrazione completata con successo'
@@ -370,7 +370,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
       data: {
         ...user,
         name: `${user.nome || ''} ${user.cognome || ''}`.trim(),
-        role: user.ruolo || user.role || 'user'
+        role: user.ruolo || user.role || 'Elettore'
       }
     });
   } catch (error) {
