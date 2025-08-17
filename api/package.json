@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "set-role": "node set-user-role.cjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
