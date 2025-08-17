@@ -107,14 +107,11 @@ export default function Profilo({ userId }: { userId?: string }) {
 
   useEffect(() => {
     const fetchUserInfo = async () => {
-      const uidToFetch = userId || (user && user.uid);
-      if (!uidToFetch) return;
-      
       try {
-        const response = await apiRequest("GET", `/api/utenti/${encodeURIComponent(uidToFetch)}`);
-        
+        const response = await apiRequest("GET", `/api/utenti/me`);
         if (response.ok) {
-          const userData = await response.json();
+          const result = await response.json();
+          const userData = (result?.data || result) as any;
           setUserInfo(userData as UserInfo);
           
           if (opinionQuestions.length > 0) {
@@ -164,10 +161,12 @@ export default function Profilo({ userId }: { userId?: string }) {
       }
     };
 
-    if (user || userId) {
+    if (user) {
       fetchUserInfo();
+    } else {
+      setIsLoadingInfo(false);
     }
-  }, [user, userId, opinionQuestions]);
+  }, [user, opinionQuestions]);
 
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
