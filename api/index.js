@@ -262,6 +262,27 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
   }
 });
 
+// POSIZIONA /pending PRIMA DI /:id PER EVITARE SHADOWING
+app.get('/api/utenti/pending', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Verifico se utente è admin:', req.user.userId);
+    const admin = await isRequesterAdmin(req.user.userId);
+    console.log('🔍 DEBUG: Utente è admin?', admin);
+    
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    
+    console.log('🔍 DEBUG: Eseguo query per utenti pending');
+    const r = await pool.query("SELECT id, email, nome, cognome, ruolo, status, COALESCE(created_at, NOW()) as created_at FROM users WHERE status = 'pending' ORDER BY created_at DESC");
+    console.log('🔍 DEBUG: Query completata, righe trovate:', r.rows.length);
+    
+    const rows = r.rows.map(u => ({ ...u, uid: u.id }));
+    return res.json(rows);
+  } catch (e) {
+    console.error('❌ Errore pending:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server', details: e.message });
+  }
+});
+
 // Recupera singolo utente per id (compatibilità)
 app.get('/api/utenti/:id', verifyToken, async (req, res) => {
   try {
@@ -515,26 +536,7 @@ app.post('/api/utenti/login', async (req, res) => {
   return res.redirect(307, '/api/auth/login');
 });
 
-// Utenti pending (placeholder)
-app.get('/api/utenti/pending', verifyToken, async (req, res) => {
-  try {
-    console.log('🔍 DEBUG: Verifico se utente è admin:', req.user.userId);
-    const admin = await isRequesterAdmin(req.user.userId);
-    console.log('🔍 DEBUG: Utente è admin?', admin);
-    
-    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
-    
-    console.log('🔍 DEBUG: Eseguo query per utenti pending');
-    const r = await pool.query("SELECT id, email, nome, cognome, ruolo, status, COALESCE(created_at, NOW()) as created_at FROM users WHERE status = 'pending' ORDER BY created_at DESC");
-    console.log('🔍 DEBUG: Query completata, righe trovate:', r.rows.length);
-    
-    const rows = r.rows.map(u => ({ ...u, uid: u.id }));
-    return res.json(rows);
-  } catch (e) {
-    console.error('❌ Errore pending:', e);
-    return res.status(500).json({ success: false, error: 'Errore interno del server', details: e.message });
-  }
-});
+
 
 app.post('/api/utenti/approve', verifyToken, async (req, res) => {
   try {
