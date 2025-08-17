@@ -352,19 +352,8 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     // Il middleware verifyToken ha già verificato il token e impostato req.user
     const userId = req.user.userId;
     
-    // Cerca l'utente nel database utenti
-    const result = await pool.query(
-      `SELECT 
-         id, email, nome, cognome, ruolo, created_at,
-         data_nascita, genere, cittadinanza,
-         paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-         paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_elezione,
-         paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, grado_candidatura,
-         energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-         avatar_config
-       FROM utenti WHERE id = $1`,
-      [userId]
-    );
+    // Recupera tutte le colonne dell'utente in modo resiliente
+    const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [userId]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -374,13 +363,14 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     }
     
     const user = result.rows[0];
+    if (user && user.password_hash !== undefined) delete user.password_hash;
     
     res.json({
       success: true,
       data: {
         ...user,
-        name: `${user.nome} ${user.cognome}`.trim(),
-        role: user.ruolo || 'user' // Default role
+        name: `${user.nome || ''} ${user.cognome || ''}`.trim(),
+        role: user.ruolo || user.role || 'user'
       }
     });
   } catch (error) {
