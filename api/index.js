@@ -378,7 +378,14 @@ app.post('/auth/login', handleLogin);
 
 const handleRegister = async (req, res) => {
   try {
-    const { email, password, nome, cognome, ruolo } = req.body;
+    const { 
+      email, password, nome, cognome, ruolo, 
+      data_nascita, genere, cittadinanza,
+      paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+      paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+      paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+      grado_elezione, grado_candidatura
+    } = req.body;
     
     if (!email || !password || !nome || !cognome) {
       return res.status(400).json({
@@ -407,9 +414,18 @@ const handleRegister = async (req, res) => {
     const userRole = (ruolo || '').toString().trim() || 'Elettore';
     const status = userRole === 'Admin' ? 'active' : 'pending';
     
-    // Crea nuovo utente nella tabella users, salvando anche il ruolo e lo status
+    // Crea nuovo utente nella tabella users con tutti i campi
     const result = await pool.query(
-      'INSERT INTO users (id, email, nome, cognome, password_hash, ruolo, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, nome, cognome, ruolo, status',
+      `INSERT INTO users (
+        id, email, nome, cognome, password_hash, ruolo, status,
+        data_nascita, genere, cittadinanza,
+        paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+        paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+        paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+        grado_elezione, grado_candidatura
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+      ) RETURNING id, email, nome, cognome, ruolo, status`,
       [
         crypto.randomUUID(), // Genera UUID valido
         email.toLowerCase(), 
@@ -417,7 +433,24 @@ const handleRegister = async (req, res) => {
         cognome, // cognome diretto dal form
         passwordHash,
         userRole,
-        status
+        status,
+        data_nascita || null,
+        genere || null,
+        cittadinanza || null,
+        paese_residenza || null,
+        regione_residenza || null,
+        provincia_residenza || null,
+        comune_residenza || null,
+        paese_elezione || null,
+        regione_elezione || null,
+        provincia_elezione || null,
+        comune_elezione || null,
+        paese_candidatura || null,
+        regione_candidatura || null,
+        provincia_candidatura || null,
+        comune_candidatura || null,
+        grado_elezione || null,
+        grado_candidatura || null
       ]
     );
     
@@ -485,14 +518,21 @@ app.post('/api/utenti/login', async (req, res) => {
 // Utenti pending (placeholder)
 app.get('/api/utenti/pending', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG: Verifico se utente è admin:', req.user.userId);
     const admin = await isRequesterAdmin(req.user.userId);
+    console.log('🔍 DEBUG: Utente è admin?', admin);
+    
     if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    
+    console.log('🔍 DEBUG: Eseguo query per utenti pending');
     const r = await pool.query("SELECT id, email, nome, cognome, ruolo, status, COALESCE(created_at, NOW()) as created_at FROM users WHERE status = 'pending' ORDER BY created_at DESC");
+    console.log('🔍 DEBUG: Query completata, righe trovate:', r.rows.length);
+    
     const rows = r.rows.map(u => ({ ...u, uid: u.id }));
     return res.json(rows);
   } catch (e) {
-    console.error('Errore pending:', e);
-    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+    console.error('❌ Errore pending:', e);
+    return res.status(500).json({ success: false, error: 'Errore interno del server', details: e.message });
   }
 });
 

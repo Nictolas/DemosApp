@@ -273,13 +273,30 @@ export default function AuthPage() {
     loginMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
   };
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Normalizza l'email a lowercase e invia i campi corretti per il backend
+    // Normalizza l'email a lowercase e invia tutti i campi per il backend
     const registerData = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
       nome: data.nome,
       cognome: data.cognome,
       ruolo: data.ruolo,
+      data_nascita: data.data_nascita,
+      genere: data.genere,
+      cittadinanza: data.cittadinanza,
+      paese_residenza: data.paese_residenza,
+      regione_residenza: data.regione_residenza,
+      provincia_residenza: data.provincia_residenza,
+      comune_residenza: data.comune_residenza,
+      paese_elezione: data.paese_elezione,
+      regione_elezione: data.regione_elezione,
+      provincia_elezione: data.provincia_elezione,
+      comune_elezione: data.comune_elezione,
+      paese_candidatura: data.paese_candidatura,
+      regione_candidatura: data.regione_candidatura,
+      provincia_candidatura: data.provincia_candidatura,
+      comune_candidatura: data.comune_candidatura,
+      grado_elezione: data.grado_elezione,
+      grado_candidatura: data.grado_candidatura,
     };
     registerMutation.mutate(registerData);
   };
