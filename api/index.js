@@ -428,6 +428,75 @@ app.get('/api/opinioni-list', async (req, res) => {
   }
 });
 
+// Opinioni utente: recupero e salvataggio
+const OPINION_FIELDS = [
+  'energia_nucleare',
+  'sperimentazione_animale',
+  'legalizzazione_canapa',
+  'caccia',
+];
+const OPINION_ALLOWED_VALUES = new Set(['Favorevole', 'Indeciso', 'Contrario']);
+
+app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query(
+      `SELECT id, ${OPINION_FIELDS.join(', ')} FROM utenti WHERE id = $1`,
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const row = result.rows[0];
+    const questions = [
+      { id: 'energia_nucleare', text: 'Sei favorevole all\'utilizzo dell\'energia nucleare?' },
+      { id: 'sperimentazione_animale', text: 'Sei favorevole alla sperimentazione sugli animali?' },
+      { id: 'legalizzazione_canapa', text: 'Sei favorevole alla legalizzazione della canapa?' },
+      { id: 'caccia', text: 'Sei favorevole alla caccia?' },
+    ];
+    const userAnswers = {};
+    for (const f of OPINION_FIELDS) {
+      if (row[f] != null) userAnswers[f] = row[f];
+    }
+    res.json({ questions, userAnswers, blocco: { isBlocked: false } });
+  } catch (error) {
+    console.error('Errore opinioni/utente:', error);
+    res.status(500).json({ error: 'Errore interno del server' });
+  }
+});
+
+app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const opinions = req.body?.opinions || {};
+
+    // Valida input e prepara set clause
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    for (const field of OPINION_FIELDS) {
+      if (field in opinions) {
+        const val = opinions[field];
+        if (!OPINION_ALLOWED_VALUES.has(val)) {
+          return res.status(400).json({ success: false, error: `Valore non valido per ${field}` });
+        }
+        updates.push(`${field} = $${idx++}`);
+        values.push(val);
+      }
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ success: false, error: 'Nessuna opinione da aggiornare' });
+    }
+    values.push(userId);
+    const sql = `UPDATE utenti SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id`;
+    await pool.query(sql, values);
+    res.json({ success: true, message: 'Opinioni salvate' });
+  } catch (error) {
+    console.error('Errore opinioni/salva:', error);
+    res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 // Endpoint elezioni-utente richiesto dal frontend
 app.get('/api/elezioni-utente', verifyToken, async (req, res) => {
   try {
