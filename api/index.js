@@ -122,7 +122,7 @@ app.get('/api/test', async (req, res) => {
 });
 
 // API Utenti
-app.get('/api/users', async (req, res) => {
+app.get('/api/utenti', verifyToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM utenti ORDER BY created_at DESC');
     res.json({
@@ -140,7 +140,7 @@ app.get('/api/users', async (req, res) => {
 });
 
 // Recupera singolo utente per id (compatibilità)
-app.get('/api/users/:id', async (req, res) => {
+app.get('/api/utenti/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) {
@@ -345,6 +345,16 @@ app.post('/api/auth/logout', async (req, res) => {
 app.post('/api/utenti/login', async (req, res) => {
   // Redirect al nuovo endpoint
   return res.redirect(307, '/api/auth/login');
+});
+
+// Utenti pending (placeholder)
+app.get('/api/utenti/pending', verifyToken, async (req, res) => {
+  try {
+    // Se non abbiamo uno schema di approvazione, rispondi lista vuota
+    return res.json([]);
+  } catch (e) {
+    return res.json([]);
+  }
 });
 
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
