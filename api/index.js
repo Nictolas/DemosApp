@@ -99,6 +99,75 @@ async function ensureSchema() {
 }
 ensureSchema();
 
+// One-time migration: merge contenuti tabella `utenti` in `users`
+async function migrateUtentiToUsersOnce() {
+  try {
+    await pool.query(
+      'CREATE TABLE IF NOT EXISTS migration_flags (key TEXT PRIMARY KEY, created_at TIMESTAMPTZ DEFAULT NOW())'
+    );
+    const chk = await pool
+      .query('SELECT 1 FROM migration_flags WHERE key = $1', ['merged_utenti_to_users'])
+      .catch(() => ({ rows: [] }));
+    if (chk.rows && chk.rows.length > 0) return; // già fatto
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Aggiorna campi mancanti in users dai corrispondenti in utenti
+      await client.query(`
+        UPDATE users u
+        SET nome = COALESCE(u.nome, t.nome),
+            cognome = COALESCE(u.cognome, t.cognome),
+            ruolo = COALESCE(u.ruolo, t.ruolo, 'Elettore'),
+            status = COALESCE(u.status, t.status, 'pending'),
+            avatar_config = COALESCE(u.avatar_config, t.avatar_config),
+            energia_nucleare = COALESCE(u.energia_nucleare, t.energia_nucleare),
+            sperimentazione_animale = COALESCE(u.sperimentazione_animale, t.sperimentazione_animale),
+            legalizzazione_canapa = COALESCE(u.legalizzazione_canapa, t.legalizzazione_canapa),
+            caccia = COALESCE(u.caccia, t.caccia)
+        FROM utenti t
+        WHERE LOWER(u.email) = LOWER(t.email)
+      `).catch(() => void 0);
+
+      // Inserisci in users gli account presenti solo in utenti
+      await client.query(`
+        INSERT INTO users (id, email, nome, cognome, ruolo, status, avatar_config,
+                           energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia)
+        SELECT t.id, t.email, t.nome, t.cognome, COALESCE(t.ruolo, 'Elettore'),
+               COALESCE(t.status, 'pending'), t.avatar_config,
+               t.energia_nucleare, t.sperimentazione_animale, t.legalizzazione_canapa, t.caccia
+        FROM utenti t
+        LEFT JOIN users u ON LOWER(u.email) = LOWER(t.email)
+        WHERE u.id IS NULL
+      `).catch(() => void 0);
+
+      // Porta anche le password dove presenti e mancanti in users
+      await client.query(`
+        UPDATE users u
+        SET password_hash = t.password_hash
+        FROM utenti t
+        WHERE LOWER(u.email) = LOWER(t.email)
+          AND u.password_hash IS NULL
+          AND t.password_hash IS NOT NULL
+      `).catch(() => void 0);
+
+      await client.query('INSERT INTO migration_flags(key) VALUES ($1)', ['merged_utenti_to_users']);
+      await client.query('COMMIT');
+      console.log('✅ MIGRAZIONE: utenti → users completata (one-time)');
+    } catch (e) {
+      try { await client.query('ROLLBACK'); } catch {}
+      console.warn('⚠️ MIGRAZIONE utenti→users fallita:', e?.message || e);
+    } finally {
+      client.release();
+    }
+  } catch (e) {
+    console.warn('WARN migrateUtentiToUsersOnce:', e?.message || e);
+  }
+}
+// Esegui la migrazione al boot (una sola volta)
+migrateUtentiToUsersOnce();
+
 // JWT Secret (in produzione usare una variabile d'ambiente sicura)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
