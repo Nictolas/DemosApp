@@ -94,6 +94,27 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
+// Recupera singolo utente per id (compatibilità)
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'ID utente mancante' });
+    }
+    const result = await pool.query(
+      'SELECT id, email, nome, cognome, ruolo, avatar_config, created_at FROM utenti WHERE id = $1',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    res.json({ success: true, data: result.rows[0] });
+  } catch (error) {
+    console.error('Errore recupero utente per id:', error);
+    res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 // Endpoint auth con Neon (sostituzione Firebase)
 app.post('/api/auth/login', async (req, res) => {
   try {
@@ -106,9 +127,9 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
     
-    // Cerca l'utente nel database utenti (includo password_hash per la verifica)
+    // Cerca l'utente nel database utenti (includo password_hash e ruolo per la verifica)
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, password_hash FROM utenti WHERE email = $1',
+      'SELECT id, email, nome, cognome, ruolo, password_hash FROM utenti WHERE email = $1',
       [email.toLowerCase()]
     );
     
@@ -150,14 +171,14 @@ app.post('/api/auth/login', async (req, res) => {
     );
     
     // Rimuovi la password_hash dalla risposta e componi il nome completo
-    const { password_hash, nome, cognome, ...userWithoutPassword } = user;
+    const { password_hash, nome, cognome, ruolo, ...userWithoutPassword } = user;
     
     res.json({
       success: true,
       data: {
         ...userWithoutPassword,
         name: `${nome} ${cognome}`.trim(),
-        role: 'user'
+        role: ruolo || 'user'
       },
       token,
       message: 'Login effettuato con successo'
@@ -199,15 +220,19 @@ app.post('/api/auth/register', async (req, res) => {
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
-    // Crea nuovo utente nella tabella utenti
+    // Determina ruolo dalla richiesta (default "user")
+    const ruolo = (req.body.role || req.body.ruolo || '').toString().trim() || 'user';
+    
+    // Crea nuovo utente nella tabella utenti, salvando anche il ruolo
     const result = await pool.query(
-      'INSERT INTO utenti (id, email, nome, cognome, password_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, nome, cognome',
+      'INSERT INTO utenti (id, email, nome, cognome, password_hash, ruolo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, nome, cognome, ruolo',
       [
         'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9), // ID univoco
         email.toLowerCase(), 
         name.split(' ')[0] || name, // primo nome
         name.split(' ').slice(1).join(' ') || '', // cognome
-        passwordHash
+        passwordHash,
+        ruolo
       ]
     );
     
@@ -229,7 +254,7 @@ app.post('/api/auth/register', async (req, res) => {
         id: user.id,
         email: user.email,
         name: `${user.nome} ${user.cognome}`.trim(),
-        role: 'user'
+        role: user.ruolo || 'user'
       },
       token,
       message: 'Registrazione completata con successo'
@@ -273,7 +298,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     
     // Cerca l'utente nel database utenti
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, created_at FROM utenti WHERE id = $1',
+      'SELECT id, email, nome, cognome, ruolo, created_at FROM utenti WHERE id = $1',
       [userId]
     );
     
@@ -291,7 +316,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
       data: {
         ...user,
         name: `${user.nome} ${user.cognome}`.trim(),
-        role: 'user' // Default role
+        role: user.ruolo || 'user' // Default role
       }
     });
   } catch (error) {
@@ -384,6 +409,89 @@ endpoints.forEach(endpoint => {
       res.status(500).json({ error: 'Errore interno del server' });
     }
   });
+});
+
+// Endpoint opinioni-list richiesto dal frontend
+app.get('/api/opinioni-list', async (req, res) => {
+  try {
+    // Lista fissa di temi (placeholder) finché non abbiamo tabella dedicata
+    const temi = [
+      { key: 'energia_nucleare', label: 'Energia Nucleare' },
+      { key: 'sperimentazione_animale', label: 'Sperimentazione Animale' },
+      { key: 'legalizzazione_canapa', label: 'Legalizzazione Canapa' },
+      { key: 'caccia', label: 'Caccia' }
+    ];
+    res.json(temi);
+  } catch (error) {
+    console.error('Errore opinioni-list:', error);
+    res.status(500).json({ error: 'Errore interno del server' });
+  }
+});
+
+// Endpoint elezioni-utente richiesto dal frontend
+app.get('/api/elezioni-utente', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    // Recupera elezioni attive (placeholder)
+    const elezioni = await pool.query(
+      `SELECT id, tipo, zona, data_inizio, data_fine
+       FROM elezioni
+       WHERE (data_inizio IS NULL OR data_inizio <= NOW())
+         AND (data_fine IS NULL OR data_fine >= NOW())
+       ORDER BY data_inizio NULLS LAST`
+    ).catch(() => ({ rows: [] }));
+
+    res.json({ success: true, data: { elezioni: elezioni.rows, userId } });
+  } catch (error) {
+    console.error('Errore elezioni-utente:', error);
+    res.status(500).json({ success: false, error: 'Errore nel recupero delle elezioni' });
+  }
+});
+
+// Endpoint candidati con filtro per grado/categoria
+app.get('/api/candidati', verifyToken, async (req, res) => {
+  try {
+    const { grado, categoria } = req.query;
+    // Seleziona candidati in base ai ruoli supportati dall'app
+    // Per la pagina Scegli Candidato mostriamo: Candidato, Candidato Politico
+    const result = await pool.query(
+      `SELECT id, nome, cognome, ruolo, avatar_config,
+              energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia
+       FROM utenti
+       WHERE ruolo IN ('Candidato', 'Candidato Politico')
+       ORDER BY created_at DESC
+       LIMIT 200`
+    );
+
+    // Calcola placeholder opinioni comuni (0 per ora)
+    const candidati = result.rows.map(r => ({ ...r, opinioni_comuni: 0 }));
+    
+    res.json({ success: true, data: { candidati, candidatoSelezionatoId: null, userOpinions: {} } });
+  } catch (error) {
+    console.error('Errore caricamento candidati:', error);
+    res.status(500).json({ success: false, error: 'Errore nel caricamento dei candidati' });
+  }
+});
+
+// Endpoint rappresentanti (per Scegli Rappresentante): Politico, Candidato Politico
+app.get('/api/rappresentanti', verifyToken, async (req, res) => {
+  try {
+    const { grado, categoria } = req.query;
+    const result = await pool.query(
+      `SELECT id, nome, cognome, ruolo, avatar_config,
+              energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia
+       FROM utenti
+       WHERE ruolo IN ('Politico', 'Candidato Politico')
+       ORDER BY created_at DESC
+       LIMIT 200`
+    );
+
+    const rappresentanti = result.rows.map(r => ({ ...r, opinioni_comuni: 0 }));
+    res.json({ success: true, candidati: rappresentanti, utente: {} });
+  } catch (error) {
+    console.error('Errore caricamento rappresentanti:', error);
+    res.status(500).json({ success: false, error: 'Errore nel caricamento dei rappresentanti' });
+  }
 });
 
 // Gestione route non trovate
