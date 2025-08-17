@@ -159,7 +159,7 @@ app.get('/api/users/:id', async (req, res) => {
 });
 
 // Endpoint auth con Neon (sostituzione Firebase)
-app.post('/api/auth/login', async (req, res) => {
+const handleLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
     
@@ -233,9 +233,15 @@ app.post('/api/auth/login', async (req, res) => {
       error: 'Errore interno del server'
     });
   }
-});
+};
 
-app.post('/api/auth/register', async (req, res) => {
+// Preflight esplicito e route mapping multipli (con e senza prefisso /api)
+app.options('/api/auth/login', cors(corsOptions));
+app.options('/auth/login', cors(corsOptions));
+app.post('/api/auth/login', handleLogin);
+app.post('/auth/login', handleLogin);
+
+const handleRegister = async (req, res) => {
   try {
     const { email, password, name } = req.body;
     
@@ -309,7 +315,12 @@ app.post('/api/auth/register', async (req, res) => {
       error: 'Errore interno del server'
     });
   }
-});
+};
+
+app.options('/api/auth/register', cors(corsOptions));
+app.options('/auth/register', cors(corsOptions));
+app.post('/api/auth/register', handleRegister);
+app.post('/auth/register', handleRegister);
 
 app.post('/api/auth/logout', async (req, res) => {
   try {
