@@ -30,7 +30,7 @@ export default function GestisciOpinioni() {
   const [editText, setEditText] = useState("");
 
   // 1. Caricamento opinioni ufficiali con React Query
-  const { data: opinioni = [], isLoading, isError: isOpinioniError } = useQuery<Opinione[]>({
+  const { data: opinioniResponse, isLoading, isError: isOpinioniError } = useQuery<Opinione[]>({
     queryKey: ['opinioni'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/opinioni');
@@ -40,13 +40,25 @@ export default function GestisciOpinioni() {
   });
 
   // 2. Caricamento opinioni proposte con React Query
-  const { data: proposte = [], isLoading: isLoadingProposte, isError: isProposteError } = useQuery<OpinioneProposta[]>({
+  const { data: proposteResponse, isLoading: isLoadingProposte, isError: isProposteError } = useQuery<OpinioneProposta[]>({
     queryKey: ['opinioniProposte'],
     queryFn: async () => {
-        const response = await fetch('/api/opinioni-proposte');
+        const response = await apiRequest('GET', '/api/opinioni-proposte');
         if (!response.ok) throw new Error('Failed to fetch proposte');
         return response.json();
     }
+  });
+
+  // Estrai i dati con fallback sicuro e logging per debug
+  const opinioni = opinioniResponse?.data || opinioniResponse || [];
+  const proposte = proposteResponse || [];
+  
+  // Debug logging
+  console.log('🔍 DEBUG GestisciOpinioni:', {
+    opinioniResponse,
+    opinioni: Array.isArray(opinioni) ? `${opinioni.length} opinioni` : `Non array: ${typeof opinioni}`,
+    proposteResponse,
+    proposte: Array.isArray(proposte) ? `${proposte.length} proposte` : `Non array: ${typeof proposte}`
   });
 
   // Funzione helper per invalidare e ricaricare tutte le query
@@ -118,6 +130,7 @@ export default function GestisciOpinioni() {
               <div className="flex items-center gap-2 mb-2"><MessageSquare className="h-5 w-5 text-fuchsia-600" /><span className="font-semibold">Opinioni proposte dagli utenti</span></div>
               {isLoadingProposte ? <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Caricamento...</div>
               : isProposteError ? <div className="text-red-500 text-sm">Errore nel caricamento delle proposte.</div>
+              : !Array.isArray(proposte) ? <div className="text-red-500 text-sm">Errore nel caricamento delle proposte.</div>
               : proposte.length === 0 ? <div className="text-muted-foreground text-sm">Nessuna opinione proposta in attesa.</div>
               : (
                 <ul className="space-y-2">
@@ -149,7 +162,7 @@ export default function GestisciOpinioni() {
                   </Button>
                 </form>
                 <div className="space-y-2">
-                  {opinioni.map((op) => (
+                  {Array.isArray(opinioni) && opinioni.length > 0 ? opinioni.map((op) => (
                     <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-sm">
                         {editingId === op.id ? (
                             <Input value={editText} onChange={e => setEditText(e.target.value)} className="flex-1 mr-2"/>
@@ -176,7 +189,11 @@ export default function GestisciOpinioni() {
                         )}
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center text-muted-foreground py-4">
+                      {!Array.isArray(opinioni) ? 'Errore nel caricamento delle opinioni' : 'Nessuna opinione disponibile'}
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -1044,6 +1044,54 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint opinioni proposte (per Gestisci Opinioni)
+app.get('/api/opinioni-proposte', verifyToken, async (req, res) => {
+  try {
+    // Verifica se l'utente è admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    
+    // Per ora restituisce un array vuoto (placeholder)
+    // In futuro qui si potrebbero recuperare opinioni proposte dagli utenti
+    res.json([]);
+  } catch (error) {
+    console.error('Errore caricamento opinioni proposte:', error);
+    res.status(500).json({ success: false, error: 'Errore nel caricamento delle opinioni proposte' });
+  }
+});
+
+// Endpoint per accettare opinioni proposte
+app.post('/api/opinioni-proposte/:id/accetta', verifyToken, async (req, res) => {
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    
+    const { id } = req.params;
+    // Per ora restituisce successo (placeholder)
+    // In futuro qui si potrebbe aggiungere l'opinione accettata alla lista ufficiali
+    res.json({ success: true, message: 'Opinione accettata' });
+  } catch (error) {
+    console.error('Errore accettazione opinione:', error);
+    res.status(500).json({ success: false, error: 'Errore nell\'accettazione dell\'opinione' });
+  }
+});
+
+// Endpoint per rifiutare opinioni proposte
+app.delete('/api/opinioni-proposte/:id', verifyToken, async (req, res) => {
+  try {
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    
+    const { id } = req.params;
+    // Per ora restituisce successo (placeholder)
+    // In futuro qui si potrebbe rimuovere l'opinione rifiutata
+    res.json({ success: true, message: 'Opinione rifiutata' });
+  } catch (error) {
+    console.error('Errore rifiuto opinione:', error);
+    res.status(500).json({ success: false, error: 'Errore nel rifiuto dell\'opinione' });
+  }
+});
+
 // Gestione route non trovate
 app.use('*', (req, res) => {
   res.status(404).json({ 
