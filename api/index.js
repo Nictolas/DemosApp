@@ -158,10 +158,32 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
   }
 });
 
+// POSIZIONA /me PRIMA DI /:id PER EVITARE SHADOWING
+app.get('/api/utenti/me', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [userId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+    const user = result.rows[0];
+    if (user.password_hash !== undefined) delete user.password_hash;
+    return res.json({ success: true, data: { ...user, name: `${user.nome || ''} ${user.cognome || ''}`.trim(), role: user.ruolo || user.role || 'Elettore' } });
+  } catch (error) {
+    console.error('Errore recupero utente (me):', error);
+    return res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 // Recupera singolo utente per id (compatibilità)
 app.get('/api/utenti/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    if (id === 'me') {
+      // Safety: inoltra a handler /me (anche se abbiamo definito /me prima)
+      req.url = '/api/utenti/me';
+      return app._router.handle(req, res, () => {});
+    }
     if (!id) {
       return res.status(400).json({ success: false, error: 'ID utente mancante' });
     }
