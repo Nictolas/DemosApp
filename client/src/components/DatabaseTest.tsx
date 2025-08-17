@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
+import { API_CONFIG } from '@/lib/api-config';
 
 const DatabaseTest: React.FC = () => {
   const { loading, error, executeApiCall } = useDatabase();
@@ -270,7 +271,7 @@ const DatabaseTest: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
-            <p><strong>Base URL:</strong> http://localhost:3001/api</p>
+            <p><strong>Base URL:</strong> {API_CONFIG.BASE_URL}</p>
             <p><strong>Endpoints disponibili:</strong></p>
             <ul className="list-disc list-inside space-y-1 ml-4">
               <li><code>/test</code> - Test connessione</li>

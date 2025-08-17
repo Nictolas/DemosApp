@@ -637,11 +637,11 @@ app.use('*', (req, res) => {
 });
 
 // Avvio server
-const port = process.env.PORT || 3001;
-app.listen(port, () => {
-  console.log('🚀 Server API database avviato sulla porta', port);
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log('🚀 Server API database avviato sulla porta', PORT);
   console.log('📊 Database Neon connesso');
-  console.log('🌐 API disponibile su: http://localhost:' + port + '/api');
+  console.log('🌐 API pronto (prefisso: /api)');
 });
 
 module.exports = app;
