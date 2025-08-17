@@ -16,6 +16,7 @@ const allowedOrigins = [
   'https://www.demos.community',
   'https://demos.community',
   'https://demos-c7x52aj0p2q2.onrender.com',
+  'https://demos-c7k0.onrender.com',
   'http://localhost:5173',
   'http://localhost:4173'
 ];
@@ -23,8 +24,9 @@ const allowedOrigins = [
 const isAllowedOrigin = (origin) => {
   if (!origin) return true; // consenti chiamate server-to-server e healthchecks
   if (allowedOrigins.includes(origin)) return true;
-  // Consenti tutti i sotto-domini Vercel preview
+  // Consenti tutti i sotto-domini Vercel preview e Render
   if (/^https:\/\/.*\.vercel\.app$/.test(origin)) return true;
+  if (/^https:\/\/.*\.onrender\.com$/.test(origin)) return true;
   return false;
 };
 

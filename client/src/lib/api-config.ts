@@ -1,18 +1,14 @@
 // Configurazione centralizzata per l'API
+declare const importMetaEnv: Record<string, string | undefined> & { VITE_API_BASE_URL?: string };
+
 const resolveBaseUrl = (): string => {
-  // 1) Preferisci variabile d'ambiente (Vercel/Vite)
-  const envUrl = import.meta.env?.VITE_API_BASE_URL as string | undefined;
-  if (envUrl && envUrl.trim().length > 0) return envUrl;
+  // 1) Preferisci variabile d'ambiente (obbligatoria in produzione)
+  const envUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL
+    ? (import.meta as any).env.VITE_API_BASE_URL
+    : (typeof importMetaEnv !== 'undefined' ? importMetaEnv.VITE_API_BASE_URL : undefined))?.trim();
+  if (envUrl) return envUrl.replace(/\/$/, '');
 
-  // 2) Se siamo in produzione (domini noti), usa Render
-  if (typeof window !== 'undefined') {
-    const host = window.location.host;
-    if (host.includes('demos.community') || host.includes('vercel.app')) {
-      return 'https://demos-c7x52aj0p2q2.onrender.com/api';
-    }
-  }
-
-  // 3) Fallback sviluppo
+  // 2) Fallback sviluppo locale
   return 'http://localhost:3001/api';
 };
 
