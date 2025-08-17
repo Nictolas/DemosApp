@@ -121,6 +121,14 @@ app.post('/api/auth/login', async (req, res) => {
     
     const user = result.rows[0];
     
+    // Verifica se l'utente ha una password hash
+    if (!user.password_hash) {
+      return res.status(401).json({
+        success: false,
+        error: 'Account non migrato. Per favore registrati nuovamente per motivi di sicurezza.'
+      });
+    }
+    
     // Verifica la password con bcrypt
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     
