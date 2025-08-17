@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { API_CONFIG } from "@/lib/api-config";
 // Firebase rimosso - ora usiamo JWT da localStorage
 // import { auth } from "@/lib/firebase-stub";
 
@@ -8,6 +9,13 @@ async function throwIfResNotOk(res: Response) {
     throw new Error(`${res.status}: ${text}`);
   }
 }
+
+const resolveApiUrl = (input: string): string => {
+  if (/^https?:\/\//i.test(input)) return input;
+  if (input.startsWith('/api/')) return `${API_CONFIG.BASE_URL}${input.substring(4)}`;
+  if (input.startsWith('/')) return `${API_CONFIG.BASE_URL}${input}`;
+  return `${API_CONFIG.BASE_URL}/${input}`;
+};
 
 export const apiRequest = async (method: string, url: string, body?: any) => {
   let headers: Record<string, string> = {
@@ -20,7 +28,8 @@ export const apiRequest = async (method: string, url: string, body?: any) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  return fetch(url, {
+  const finalUrl = resolveApiUrl(url);
+  return fetch(finalUrl, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -43,7 +52,8 @@ export const getQueryFn: <T>(options: {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const res = await fetch(queryKey[0] as string, {
+    const finalUrl = resolveApiUrl(queryKey[0] as string);
+    const res = await fetch(finalUrl, {
       headers,
     });
 
