@@ -116,13 +116,27 @@ export default function Profilo({ userId }: { userId?: string }) {
         console.log('🔍 DEBUG Profilo - userData:', userData);
           setUserInfo(userData as UserInfo);
           
+          // Carica le opinioni dell'utente
+          const userOpinionsData: Record<string, string> = {};
+          
+          // Opinion base dal database
+          const baseOpinions = ['energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia'];
+          baseOpinions.forEach(opinion => {
+            if (userData[opinion]) {
+              userOpinionsData[opinion] = userData[opinion];
+            }
+          });
+          
+          // Opinion dinamiche se ci sono domande caricate
           if (opinionQuestions.length > 0) {
-            const dynamicOpinions: Record<string, string> = {};
             opinionQuestions.forEach(q => {
-              dynamicOpinions[q.id] = userData[q.id] || '';
+              if (userData[q.id]) {
+                userOpinionsData[q.id] = userData[q.id];
+              }
             });
-            setUserOpinions(dynamicOpinions);
           }
+          
+          setUserOpinions(userOpinionsData);
           
           if (userData.avatar_config) {
             try {
@@ -194,6 +208,20 @@ export default function Profilo({ userId }: { userId?: string }) {
     return q ? q.text : id;
   };
 
+  // Funzione per estrarre l'argomento dalla domanda
+  const extractTopicFromQuestion = (questionText: string): string => {
+    // Rimuovi "Sei favorevole a" o "Sei favorevole alla" dall'inizio
+    let topic = questionText.replace(/^Sei favorevole (a|alla) /i, '');
+    
+    // Rimuovi il punto interrogativo alla fine
+    topic = topic.replace(/\?$/, '');
+    
+    // Capitalizza la prima lettera
+    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
+    
+    return topic;
+  };
+
   const categorizeAllOpinions = () => {
     const favorevoli: { id: string, label: string }[] = [];
     const indecisi: { id: string, label: string }[] = [];
@@ -202,7 +230,7 @@ export default function Profilo({ userId }: { userId?: string }) {
       const value = userOpinions[key];
       if (!value) return;
       const q = opinionQuestions.find(q => q.id === key);
-      const label = q ? q.text : key;
+      const label = q ? extractTopicFromQuestion(q.text) : key;
       if (value === "Favorevole") favorevoli.push({ id: key, label });
       else if (value === "Indeciso") indecisi.push({ id: key, label });
       else if (value === "Contrario") contrari.push({ id: key, label });
