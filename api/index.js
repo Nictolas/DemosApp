@@ -1816,7 +1816,7 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
 
     console.log('📊 DEBUG: Questions count:', questions.length);
 
-    // 2. Calcola statistiche per ogni opinione dalle tabelle users e utenti
+    // 2. Calcola statistiche per ogni opinione direttamente dalla tabella utenti
     const stats = {};
     
     for (const question of questions) {
@@ -1824,18 +1824,15 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       console.log('🔍 DEBUG: Processing question:', questionId);
       
       try {
-        // Conta le risposte per questa opinione dalle tabelle users e utenti
+        // Conta le risposte per questa opinione direttamente dalla tabella utenti
         const result = await pool.query(`
           SELECT 
-            COUNT(CASE WHEN valore = 'Favorevole' THEN 1 END) as favorevole,
-            COUNT(CASE WHEN valore = 'Contrario' THEN 1 END) as contrario,
-            COUNT(CASE WHEN valore = 'Indeciso' THEN 1 END) as astenuto
-          FROM (
-            SELECT ${questionId} as valore FROM users WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
-            UNION ALL
-            SELECT ${questionId} as valore FROM utenti WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
-          ) combined_opinions
-        `, []);
+            COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
+            COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
+            COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
+          FROM utenti 
+          WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+        `);
         
         if (result.rows.length > 0) {
           const row = result.rows[0];
@@ -1880,6 +1877,165 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       success: false, 
       error: 'Errore nel caricamento delle statistiche',
       details: error.message 
+    });
+  }
+});
+
+// Endpoint per statistiche di una singola opinione
+app.get('/api/opinioni/stats/:id', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Inizio endpoint /api/opinioni/stats/:id');
+    
+    // Verifica se l'utente è admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+    const opinionId = req.params.id;
+    console.log('✅ DEBUG: Utente è admin, opinionId:', opinionId);
+
+    // 1. Recupera il testo della domanda
+    const questionResult = await pool
+      .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni WHERE id = $1`)
+      .catch(() => ({ rows: [] }));
+
+    if (questionResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Opinione non trovata' });
+    }
+
+    const questionText = questionResult.rows[0].text;
+
+    // 2. Calcola statistiche per questa opinione dalla tabella utenti
+    const statsResult = await pool.query(`
+      SELECT 
+        COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
+      FROM utenti 
+      WHERE ${opinionId} IS NOT NULL AND ${opinionId} != ''
+    `);
+
+    const stats = {
+      favorevole: parseInt(statsResult.rows[0]?.favorevole) || 0,
+      contrario: parseInt(statsResult.rows[0]?.contrario) || 0,
+      astenuto: parseInt(statsResult.rows[0]?.astenuto) || 0
+    };
+
+    console.log('✅ DEBUG: Stats for', opinionId, ':', stats);
+
+    res.json({
+      success: true,
+      questionText,
+      stats
+    });
+
+  } catch (error) {
+    console.error('❌ Errore caricamento statistiche opinione:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel caricamento delle statistiche',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per statistiche regionali di un'opinione
+app.get('/api/opinioni/stats/:id/regione/:regione', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Inizio endpoint /api/opinioni/stats/:id/regione/:regione');
+    
+    // Verifica se l'utente è admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+    const opinionId = req.params.id;
+    const regione = req.params.regione.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    console.log('✅ DEBUG: Utente è admin, opinionId:', opinionId, 'regione:', regione);
+
+    // Calcola statistiche per questa opinione nella regione specifica
+    const statsResult = await pool.query(`
+      SELECT 
+        COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
+      FROM utenti 
+      WHERE ${opinionId} IS NOT NULL AND ${opinionId} != '' 
+      AND regione = $1
+    `, [regione]);
+
+    const stats = {
+      favorevole: parseInt(statsResult.rows[0]?.favorevole) || 0,
+      contrario: parseInt(statsResult.rows[0]?.contrario) || 0,
+      astenuto: parseInt(statsResult.rows[0]?.astenuto) || 0
+    };
+
+    console.log('✅ DEBUG: Regional stats for', opinionId, 'in', regione, ':', stats);
+
+    res.json({
+      success: true,
+      regione,
+      stats
+    });
+
+  } catch (error) {
+    console.error('❌ Errore caricamento statistiche regionali:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel caricamento delle statistiche regionali',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per statistiche di tutte le regioni per un'opinione
+app.get('/api/opinioni/stats/:id/tutte-regioni', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Inizio endpoint /api/opinioni/stats/:id/tutte-regioni');
+    
+    // Verifica se l'utente è admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+    const opinionId = req.params.id;
+    console.log('✅ DEBUG: Utente è admin, opinionId:', opinionId);
+
+    // Calcola statistiche per questa opinione in tutte le regioni
+    const statsResult = await pool.query(`
+      SELECT 
+        regione,
+        COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
+      FROM utenti 
+      WHERE ${opinionId} IS NOT NULL AND ${opinionId} != '' 
+      AND regione IS NOT NULL AND regione != ''
+      GROUP BY regione
+      ORDER BY regione
+    `);
+
+    const regionalStats = statsResult.rows.map(row => ({
+      regione: row.regione,
+      favorevole: parseInt(row.favorevole) || 0,
+      contrario: parseInt(row.contrario) || 0,
+      astenuto: parseInt(row.astenuto) || 0
+    }));
+
+    console.log('✅ DEBUG: All regional stats for', opinionId, ':', regionalStats.length, 'regioni');
+
+    res.json({
+      success: true,
+      regionalStats
+    });
+
+  } catch (error) {
+    console.error('❌ Errore caricamento statistiche tutte le regioni:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel caricamento delle statistiche di tutte le regioni',
+      details: error.message
     });
   }
 });

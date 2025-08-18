@@ -62,6 +62,7 @@ import DebugAuth from "@/pages/debug-auth";
 import Riscontro from "@/pages/Riscontro";
 
 import Sondaggi from "@/pages/Sondaggi";
+import StatisticheOpinione from "@/pages/StatisticheOpinione";
 import ResetPasswordPage from "@/pages/reset-password";
 import ResetPasswordConfirmPage from "@/pages/reset-password-confirm";
 import Informazioni from "@/pages/Informazioni";
@@ -527,6 +528,27 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <PrivacyPolicy />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/statistiche-opinione/:opinionId">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/statistiche-opinione/:opinionId" component={StatisticheOpinione} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/statistiche-opinione/:opinionId/regione/:regione">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/statistiche-opinione/:opinionId/regione/:regione" component={StatisticheOpinione} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/statistiche-opinione/:opinionId/tutte-regioni">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute path="/statistiche-opinione/:opinionId/tutte-regioni" component={StatisticheOpinione} />
           </PageTransition>
         )}
       </Route>
