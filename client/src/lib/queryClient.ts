@@ -12,9 +12,18 @@ async function throwIfResNotOk(res: Response) {
 
 const resolveApiUrl = (input: string): string => {
   if (/^https?:\/\//i.test(input)) return input;
-  if (input.startsWith('/api/')) return `${API_CONFIG.BASE_URL}${input.substring(4)}`;
-  if (input.startsWith('/')) return `${API_CONFIG.BASE_URL}${input}`;
-  return `${API_CONFIG.BASE_URL}/${input}`;
+  
+  // Usa la stessa logica di getApiUrl
+  const baseUrl = (() => {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+      return 'https://demos-c7k0.onrender.com/api';
+    }
+    return 'http://localhost:3001/api';
+  })();
+  
+  if (input.startsWith('/api/')) return `${baseUrl}${input.substring(4)}`;
+  if (input.startsWith('/')) return `${baseUrl}${input}`;
+  return `${baseUrl}/${input}`;
 };
 
 export const apiRequest = async (method: string, url: string, body?: any) => {
