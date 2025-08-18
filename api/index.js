@@ -508,6 +508,11 @@ app.get('/api/utenti/:id', verifyToken, async (req, res) => {
 
 // Endpoint auth con Neon (sostituzione Firebase)
 const handleLogin = async (req, res) => {
+  console.log('🔍 DEBUG: handleLogin chiamato');
+  console.log('🔍 DEBUG: Method:', req.method);
+  console.log('🔍 DEBUG: URL:', req.url);
+  console.log('🔍 DEBUG: Body:', { email: req.body?.email, password: req.body?.password ? '***' : 'mancante' });
+  
   try {
     const { email, password } = req.body;
     
@@ -519,17 +524,26 @@ const handleLogin = async (req, res) => {
     }
     
     // Cerca l'utente: prima users, poi utenti
+    console.log('🔍 DEBUG: Cerca utente con email:', email.toLowerCase());
+    
     let result = await pool.query('SELECT id, email, nome, cognome, ruolo, password_hash FROM users WHERE email = $1', [email.toLowerCase()]);
+    console.log('🔍 DEBUG: Risultato ricerca in users:', result.rows.length, 'righe');
+    
     if (result.rows.length === 0) {
+      console.log('🔍 DEBUG: Utente non trovato in users, cerco in utenti');
       result = await pool.query('SELECT id, email, nome, cognome, ruolo, password_hash FROM utenti WHERE email = $1', [email.toLowerCase()]);
+      console.log('🔍 DEBUG: Risultato ricerca in utenti:', result.rows.length, 'righe');
     }
     
     if (result.rows.length === 0) {
+      console.log('❌ DEBUG: Utente non trovato in nessuna tabella');
       return res.status(401).json({
         success: false,
         error: 'Email o password non corretti'
       });
     }
+    
+    console.log('✅ DEBUG: Utente trovato:', { id: result.rows[0].id, email: result.rows[0].email, ruolo: result.rows[0].ruolo });
     
     const user = result.rows[0];
     
