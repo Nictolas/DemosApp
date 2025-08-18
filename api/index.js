@@ -161,23 +161,66 @@ async function ensureSchema() {
     console.warn('WARN ensureSchema utenti.status:', e?.message || e);
   }
 
-  // Nuova tabella standard `users`
+  // Nuova tabella standard `users` - AGGIUNTE TUTTE LE COLONNE MANCANTI
   try {
     const alter = async (sql) => pool.query(sql).catch(() => void 0);
+    
+    // Colonne base
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS ruolo VARCHAR(50) DEFAULT 'Elettore'");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS nome TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS cognome TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_config TEXT");
-    // Opinioni base per compatibilità
+    
+    // Colonne dati personali
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS data_nascita DATE");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS genere VARCHAR(20)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS cittadinanza VARCHAR(100)");
+    
+    // Colonne residenza
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS paese_residenza VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS regione_residenza VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS provincia_residenza VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS comune_residenza VARCHAR(100)");
+    
+    // Colonne elezione
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS paese_elezione VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS regione_elezione VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS provincia_elezione VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS comune_elezione VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS grado_elezione VARCHAR(100)");
+    
+    // Colonne candidatura
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS paese_candidatura VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS regione_candidatura VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS provincia_candidatura VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS comune_candidatura VARCHAR(100)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS grado_candidatura VARCHAR(100)");
+    
+    // Colonne opinioni base per compatibilità
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS energia_nucleare TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS sperimentazione_animale TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS legalizzazione_canapa TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS caccia TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS cittadina_animale BOOLEAN");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS eutanasia BOOLEAN");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS case_chiuse BOOLEAN");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS salario_minimo BOOLEAN");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS matrimonio_gay BOOLEAN");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS nato BOOLEAN");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS omobitransfobia BOOLEAN");
+    
     // Colonne per reset password
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP");
+    
+    // Colonne aggiuntive per compatibilità completa
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS uid VARCHAR(255)");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_tokens TEXT[]");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS notifiche_preferenze JSONB DEFAULT '{}'::jsonb");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS premium BOOLEAN DEFAULT false");
+    
   } catch (e) {
     console.warn('WARN ensureSchema users:*:', e?.message || e);
   }
@@ -207,21 +250,66 @@ async function migrateUtentiToUsersOnce() {
             ruolo = COALESCE(u.ruolo, t.ruolo, 'Elettore'),
             status = COALESCE(u.status, t.status, 'pending'),
             avatar_config = COALESCE(u.avatar_config, t.avatar_config),
+            data_nascita = COALESCE(u.data_nascita, t.data_nascita),
+            genere = COALESCE(u.genere, t.genere),
+            cittadinanza = COALESCE(u.cittadinanza, t.cittadinanza),
+            paese_residenza = COALESCE(u.paese_residenza, t.paese_residenza),
+            regione_residenza = COALESCE(u.regione_residenza, t.regione_residenza),
+            provincia_residenza = COALESCE(u.provincia_residenza, t.provincia_residenza),
+            comune_residenza = COALESCE(u.comune_residenza, t.comune_residenza),
+            paese_elezione = COALESCE(u.paese_elezione, t.paese_elezione),
+            regione_elezione = COALESCE(u.regione_elezione, t.regione_elezione),
+            provincia_elezione = COALESCE(u.provincia_elezione, t.provincia_elezione),
+            comune_elezione = COALESCE(u.comune_elezione, t.comune_elezione),
+            grado_elezione = COALESCE(u.grado_elezione, t.grado_elezione),
+            paese_candidatura = COALESCE(u.paese_candidatura, t.paese_candidatura),
+            regione_candidatura = COALESCE(u.regione_candidatura, t.regione_candidatura),
+            provincia_candidatura = COALESCE(u.provincia_candidatura, t.provincia_candidatura),
+            comune_candidatura = COALESCE(u.comune_candidatura, t.comune_candidatura),
+            grado_candidatura = COALESCE(u.grado_candidatura, t.grado_candidatura),
             energia_nucleare = COALESCE(u.energia_nucleare, t.energia_nucleare),
             sperimentazione_animale = COALESCE(u.sperimentazione_animale, t.sperimentazione_animale),
             legalizzazione_canapa = COALESCE(u.legalizzazione_canapa, t.legalizzazione_canapa),
-            caccia = COALESCE(u.caccia, t.caccia)
+            caccia = COALESCE(u.caccia, t.caccia),
+            cittadina_animale = COALESCE(u.cittadina_animale, t.cittadina_animale),
+            eutanasia = COALESCE(u.eutanasia, t.eutanasia),
+            case_chiuse = COALESCE(u.case_chiuse, t.case_chiuse),
+            salario_minimo = COALESCE(u.salario_minimo, t.salario_minimo),
+            matrimonio_gay = COALESCE(u.matrimonio_gay, t.matrimonio_gay),
+            nato = COALESCE(u.nato, t.nato),
+            omobitransfobia = COALESCE(u.omobitransfobia, t.omobitransfobia),
+            uid = COALESCE(u.uid, t.uid),
+            fcm_tokens = COALESCE(u.fcm_tokens, t.fcm_tokens),
+            notifiche_preferenze = COALESCE(u.notifiche_preferenze, t.notifiche_preferenze),
+            premium = COALESCE(u.premium, t.premium)
         FROM utenti t
         WHERE LOWER(u.email) = LOWER(t.email)
       `).catch(() => void 0);
 
       // Inserisci in users gli account presenti solo in utenti
       await client.query(`
-        INSERT INTO users (id, email, nome, cognome, ruolo, status, avatar_config,
-                           energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia)
-        SELECT t.id, t.email, t.nome, t.cognome, COALESCE(t.ruolo, 'Elettore'),
-               COALESCE(t.status, 'pending'), t.avatar_config,
-               t.energia_nucleare, t.sperimentazione_animale, t.legalizzazione_canapa, t.caccia
+        INSERT INTO users (
+          id, email, nome, cognome, ruolo, status, avatar_config,
+          data_nascita, genere, cittadinanza,
+          paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+          paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+          paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+          grado_elezione, grado_candidatura,
+          energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+          cittadina_animale, eutanasia, case_chiuse, salario_minimo, matrimonio_gay, nato, omobitransfobia,
+          uid, fcm_tokens, notifiche_preferenze, premium
+        )
+        SELECT 
+          t.id, t.email, t.nome, t.cognome, COALESCE(t.ruolo, 'Elettore'),
+          COALESCE(t.status, 'pending'), t.avatar_config,
+          t.data_nascita, t.genere, t.cittadinanza,
+          t.paese_residenza, t.regione_residenza, t.provincia_residenza, t.comune_residenza,
+          t.paese_elezione, t.regione_elezione, t.provincia_elezione, t.comune_elezione,
+          t.paese_candidatura, t.regione_candidatura, t.provincia_candidatura, t.comune_candidatura,
+          t.grado_elezione, t.grado_candidatura,
+          t.energia_nucleare, t.sperimentazione_animale, t.legalizzazione_canapa, t.caccia,
+          t.cittadina_animale, t.eutanasia, t.case_chiuse, t.salario_minimo, t.matrimonio_gay, t.nato, t.omobitransfobia,
+          t.uid, t.fcm_tokens, t.notifiche_preferenze, t.premium
         FROM utenti t
         LEFT JOIN users u ON LOWER(u.email) = LOWER(t.email)
         WHERE u.id IS NULL
@@ -1387,6 +1475,31 @@ app.delete('/api/opinioni-proposte/:id', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Errore rifiuto opinione:', error);
     res.status(500).json({ success: false, error: 'Errore nel rifiuto dell\'opinione' });
+  }
+});
+
+// Debug endpoint per forzare migrazione completa
+app.post('/api/debug/force-migration', async (req, res) => {
+  try {
+    console.log('🔄 Forzatura migrazione completa...');
+    
+    // Rimuovi il flag di migrazione per forzare una nuova migrazione
+    await pool.query('DELETE FROM migration_flags WHERE key = $1', ['merged_utenti_to_users']);
+    
+    // Esegui la migrazione
+    await migrateUtentiToUsersOnce();
+    
+    res.json({ 
+      success: true, 
+      message: 'Migrazione forzata completata' 
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore migrazione forzata:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
 
