@@ -333,15 +333,37 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    console.log('🔍 DEBUG: Ricerca utente con ID:', userId);
+    
+    // Prima cerca nella tabella users (nuova)
+    let result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    
+    // Se non trovato, cerca nella tabella utenti (vecchia)
     if (result.rows.length === 0) {
+      console.log('🔍 DEBUG: Utente non trovato in users, cerco in utenti');
+      result = await pool.query('SELECT * FROM utenti WHERE id = $1', [userId]);
+    }
+    
+    if (result.rows.length === 0) {
+      console.log('❌ DEBUG: Utente non trovato in nessuna tabella');
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
     }
+    
     const user = result.rows[0];
+    console.log('✅ DEBUG: Utente trovato:', { id: user.id, email: user.email, ruolo: user.ruolo });
+    
     if (user.password_hash !== undefined) delete user.password_hash;
-    return res.json({ success: true, data: { ...user, name: `${user.nome || ''} ${user.cognome || ''}`.trim(), role: user.ruolo || user.role || 'Elettore' } });
+    
+    return res.json({ 
+      success: true, 
+      data: { 
+        ...user, 
+        name: `${user.nome || ''} ${user.cognome || ''}`.trim(), 
+        role: user.ruolo || user.role || 'Elettore' 
+      } 
+    });
   } catch (error) {
-    console.error('Errore recupero utente (me):', error);
+    console.error('❌ Errore recupero utente (me):', error);
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
@@ -905,40 +927,7 @@ app.post('/api/admin/set-password', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/utenti/me', verifyToken, async (req, res) => {
-  try {
-    // Il middleware verifyToken ha già verificato il token e impostato req.user
-    const userId = req.user.userId;
-    
-    // Recupera tutte le colonne dell'utente in modo resiliente
-    const result = await pool.query('SELECT * FROM utenti WHERE id = $1', [userId]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
-    }
-    
-    const user = result.rows[0];
-    if (user && user.password_hash !== undefined) delete user.password_hash;
-    
-    res.json({
-      success: true,
-      data: {
-        ...user,
-        name: `${user.nome || ''} ${user.cognome || ''}`.trim(),
-        role: user.ruolo || user.role || 'Elettore'
-      }
-    });
-  } catch (error) {
-    console.error('Errore recupero utente:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Errore interno del server' 
-    });
-  }
-});
+
 
 // API Opinioni
 app.get('/api/opinions', async (req, res) => {
