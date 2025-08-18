@@ -19,7 +19,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
     
     try {
-      const response = await fetch(`${getApiUrl()}/auth/forgot-password`, {
+      const response = await fetch(getApiUrl('/auth/forgot-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
