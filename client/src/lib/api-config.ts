@@ -8,7 +8,12 @@ const resolveBaseUrl = (): string => {
     : (typeof importMetaEnv !== 'undefined' ? importMetaEnv.VITE_API_BASE_URL : undefined))?.trim();
   if (envUrl) return envUrl.replace(/\/$/, '');
 
-  // 2) Fallback sviluppo locale
+  // 2) Controlla se siamo in produzione (Vercel)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return 'https://demos-c7k0.onrender.com/api';
+  }
+
+  // 3) Fallback sviluppo locale
   return 'http://localhost:3001/api';
 };
 
@@ -27,5 +32,7 @@ export const API_CONFIG = {
 5
 // Helper per costruire URL completi
 export const getApiUrl = (endpoint: string) => {
-  return `${API_CONFIG.BASE_URL}${endpoint}`;
+  const url = `${API_CONFIG.BASE_URL}${endpoint}`;
+  console.log('API URL:', url); // Debug
+  return url;
 };
