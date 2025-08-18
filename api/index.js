@@ -1824,18 +1824,48 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       console.log('🔍 DEBUG: Processing question:', questionId);
       
       try {
-        // Conta le risposte per questa opinione direttamente dalla tabella utenti
-        const result = await pool.query(`
-          SELECT 
-            COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
-            COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
-            COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
-          FROM utenti 
-          WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
-        `);
+        // Prima controlla il tipo di colonna
+        const columnTypeResult = await pool.query(`
+          SELECT data_type 
+          FROM information_schema.columns 
+          WHERE table_name = 'utenti' AND column_name = $1
+        `, [questionId]);
+
+        if (columnTypeResult.rows.length === 0) {
+          console.log('⚠️ DEBUG: Column', questionId, 'not found in utenti table');
+          stats[questionId] = { favorevole: 0, contrario: 0, astenuto: 0 };
+          continue;
+        }
+
+        const columnType = columnTypeResult.rows[0].data_type;
+        console.log('🔍 DEBUG: Column', questionId, 'type:', columnType);
+
+        let statsResult;
         
-        if (result.rows.length > 0) {
-          const row = result.rows[0];
+        if (columnType === 'boolean') {
+          // Per colonne boolean: true = Favorevole, false = Contrario, NULL = Astenuto
+          statsResult = await pool.query(`
+            SELECT 
+              COUNT(CASE WHEN ${questionId} = true THEN 1 END) as favorevole,
+              COUNT(CASE WHEN ${questionId} = false THEN 1 END) as contrario,
+              COUNT(CASE WHEN ${questionId} IS NULL THEN 1 END) as astenuto
+            FROM utenti 
+            WHERE ${questionId} IS NOT NULL
+          `);
+        } else {
+          // Per colonne text: Favorevole, Contrario, Indeciso
+          statsResult = await pool.query(`
+            SELECT 
+              COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
+              COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
+              COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
+            FROM utenti 
+            WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+          `);
+        }
+        
+        if (statsResult.rows.length > 0) {
+          const row = statsResult.rows[0];
           stats[questionId] = {
             favorevole: parseInt(row.favorevole) || 0,
             contrario: parseInt(row.contrario) || 0,
@@ -1904,15 +1934,44 @@ app.get('/api/opinioni/stats/:id', verifyToken, async (req, res) => {
 
     const questionText = questionResult.rows[0].text;
 
-    // 2. Calcola statistiche per questa opinione dalla tabella utenti
-    const statsResult = await pool.query(`
-      SELECT 
-        COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
-      FROM utenti 
-      WHERE ${opinionId} IS NOT NULL AND ${opinionId} != ''
-    `);
+    // 2. Controlla il tipo di colonna
+    const columnTypeResult = await pool.query(`
+      SELECT data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'utenti' AND column_name = $1
+    `, [opinionId]);
+
+    if (columnTypeResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Colonna opinione non trovata' });
+    }
+
+    const columnType = columnTypeResult.rows[0].data_type;
+    console.log('🔍 DEBUG: Column', opinionId, 'type:', columnType);
+
+    // 3. Calcola statistiche per questa opinione dalla tabella utenti
+    let statsResult;
+    
+    if (columnType === 'boolean') {
+      // Per colonne boolean: true = Favorevole, false = Contrario, NULL = Astenuto
+      statsResult = await pool.query(`
+        SELECT 
+          COUNT(CASE WHEN ${opinionId} = true THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${opinionId} = false THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${opinionId} IS NULL THEN 1 END) as astenuto
+        FROM utenti 
+        WHERE ${opinionId} IS NOT NULL
+      `);
+    } else {
+      // Per colonne text: Favorevole, Contrario, Indeciso
+      statsResult = await pool.query(`
+        SELECT 
+          COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
+        FROM utenti 
+        WHERE ${opinionId} IS NOT NULL AND ${opinionId} != ''
+      `);
+    }
 
     const stats = {
       favorevole: parseInt(statsResult.rows[0]?.favorevole) || 0,
@@ -1953,16 +2012,46 @@ app.get('/api/opinioni/stats/:id/regione/:regione', verifyToken, async (req, res
     
     console.log('✅ DEBUG: Utente è admin, opinionId:', opinionId, 'regione:', regione);
 
+    // Controlla il tipo di colonna
+    const columnTypeResult = await pool.query(`
+      SELECT data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'utenti' AND column_name = $1
+    `, [opinionId]);
+
+    if (columnTypeResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Colonna opinione non trovata' });
+    }
+
+    const columnType = columnTypeResult.rows[0].data_type;
+    console.log('🔍 DEBUG: Column', opinionId, 'type:', columnType);
+
     // Calcola statistiche per questa opinione nella regione specifica
-    const statsResult = await pool.query(`
-      SELECT 
-        COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
-      FROM utenti 
-      WHERE ${opinionId} IS NOT NULL AND ${opinionId} != '' 
-      AND regione = $1
-    `, [regione]);
+    let statsResult;
+    
+    if (columnType === 'boolean') {
+      // Per colonne boolean: true = Favorevole, false = Contrario, NULL = Astenuto
+      statsResult = await pool.query(`
+        SELECT 
+          COUNT(CASE WHEN ${opinionId} = true THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${opinionId} = false THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${opinionId} IS NULL THEN 1 END) as astenuto
+        FROM utenti 
+        WHERE ${opinionId} IS NOT NULL 
+        AND regione = $1
+      `, [regione]);
+    } else {
+      // Per colonne text: Favorevole, Contrario, Indeciso
+      statsResult = await pool.query(`
+        SELECT 
+          COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
+        FROM utenti 
+        WHERE ${opinionId} IS NOT NULL AND ${opinionId} != '' 
+        AND regione = $1
+      `, [regione]);
+    }
 
     const stats = {
       favorevole: parseInt(statsResult.rows[0]?.favorevole) || 0,
@@ -2001,19 +2090,52 @@ app.get('/api/opinioni/stats/:id/tutte-regioni', verifyToken, async (req, res) =
     const opinionId = req.params.id;
     console.log('✅ DEBUG: Utente è admin, opinionId:', opinionId);
 
+    // Controlla il tipo di colonna
+    const columnTypeResult = await pool.query(`
+      SELECT data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'utenti' AND column_name = $1
+    `, [opinionId]);
+
+    if (columnTypeResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Colonna opinione non trovata' });
+    }
+
+    const columnType = columnTypeResult.rows[0].data_type;
+    console.log('🔍 DEBUG: Column', opinionId, 'type:', columnType);
+
     // Calcola statistiche per questa opinione in tutte le regioni
-    const statsResult = await pool.query(`
-      SELECT 
-        regione,
-        COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
-      FROM utenti 
-      WHERE ${opinionId} IS NOT NULL AND ${opinionId} != '' 
-      AND regione IS NOT NULL AND regione != ''
-      GROUP BY regione
-      ORDER BY regione
-    `);
+    let statsResult;
+    
+    if (columnType === 'boolean') {
+      // Per colonne boolean: true = Favorevole, false = Contrario, NULL = Astenuto
+      statsResult = await pool.query(`
+        SELECT 
+          regione,
+          COUNT(CASE WHEN ${opinionId} = true THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${opinionId} = false THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${opinionId} IS NULL THEN 1 END) as astenuto
+        FROM utenti 
+        WHERE ${opinionId} IS NOT NULL 
+        AND regione IS NOT NULL AND regione != ''
+        GROUP BY regione
+        ORDER BY regione
+      `);
+    } else {
+      // Per colonne text: Favorevole, Contrario, Indeciso
+      statsResult = await pool.query(`
+        SELECT 
+          regione,
+          COUNT(CASE WHEN ${opinionId} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${opinionId} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${opinionId} = 'Indeciso' THEN 1 END) as astenuto
+        FROM utenti 
+        WHERE ${opinionId} IS NOT NULL AND ${opinionId} != '' 
+        AND regione IS NOT NULL AND regione != ''
+        GROUP BY regione
+        ORDER BY regione
+      `);
+    }
 
     const regionalStats = statsResult.rows.map(row => ({
       regione: row.regione,
