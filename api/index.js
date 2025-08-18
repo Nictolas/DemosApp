@@ -1721,14 +1721,10 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
 
     console.log('✅ DEBUG: Utente è admin');
 
-    // 1. Recupera tutte le domande (base + dinamiche)
-    const dyn = await pool
+    // 1. Recupera tutte le domande dalla tabella opinioni
+    const result = await pool
       .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
       .catch(() => ({ rows: [] }));
-
-    const dynamicQuestions = dyn.rows
-      .filter(r => r.text)
-      .map(r => ({ id: String(r.id), text: r.text }));
 
     const questions = result.rows
       .filter(r => r.text)
@@ -1772,6 +1768,7 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
         }
       } catch (questionError) {
         console.error('❌ DEBUG: Error processing question', questionId, ':', questionError.message);
+        console.error('❌ DEBUG: Error stack:', questionError.stack);
         // Continua con la prossima domanda invece di fallire completamente
         stats[questionId] = {
           favorevole: 0,
