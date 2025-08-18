@@ -18,7 +18,6 @@ const resolveBaseUrl = (): string => {
 };
 
 export const API_CONFIG = {
-  BASE_URL: resolveBaseUrl(),
   AUTH: {
     LOGIN: '/auth/login',
     REGISTER: '/auth/register', 
@@ -32,7 +31,8 @@ export const API_CONFIG = {
 5
 // Helper per costruire URL completi
 export const getApiUrl = (endpoint: string) => {
-  const url = `${API_CONFIG.BASE_URL}${endpoint}`;
+  const baseUrl = resolveBaseUrl();
+  const url = `${baseUrl}${endpoint}`;
   console.log('API URL:', url); // Debug
   return url;
 };
