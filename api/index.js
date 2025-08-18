@@ -1242,6 +1242,30 @@ app.get('/api/opinioni-list', async (req, res) => {
   }
 });
 
+// Endpoint per ottenere tutte le opinioni (per la pagina opinioni)
+app.get('/api/opinioni', async (req, res) => {
+  try {
+    // Recupera opinioni dinamiche create dagli admin (tabella opinioni)
+    const dyn = await pool
+      .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
+      .catch(() => ({ rows: [] }));
+
+    const dynamicQuestions = dyn.rows
+      .filter(r => r.text)
+      .map(r => ({ id: String(r.id), text: r.text }));
+
+    const all = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
+    
+    res.json({
+      success: true,
+      data: all
+    });
+  } catch (error) {
+    console.error('Errore opinioni:', error);
+    res.status(500).json({ success: false, error: 'Errore interno del server' });
+  }
+});
+
 // Opinioni utente: recupero e salvataggio
 const OPINION_FIELDS = ['energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia'];
 const OPINION_ALLOWED_VALUES = new Set(['Favorevole', 'Indeciso', 'Contrario']);
@@ -1261,11 +1285,20 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
 
     const questions = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
 
-    // 2) Risposte utente: base su tabella utenti, dinamiche su tabella opinioni_risposte
-    const baseRow = await pool.query(
-      `SELECT ${OPINION_FIELDS.join(', ')} FROM utenti WHERE id = $1`,
+    // 2) Risposte utente: base su tabella users (nuova), fallback su utenti (vecchia)
+    let baseRow = await pool.query(
+      `SELECT ${OPINION_FIELDS.join(', ')} FROM users WHERE id = $1`,
       [userId]
     );
+    
+    // Se non trovato in users, cerca in utenti
+    if (baseRow.rows.length === 0) {
+      baseRow = await pool.query(
+        `SELECT ${OPINION_FIELDS.join(', ')} FROM utenti WHERE id = $1`,
+        [userId]
+      );
+    }
+    
     if (baseRow.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
     }
@@ -1324,9 +1357,14 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
       }
     }
     if (updates.length > 0) {
+      // Aggiorna prima la tabella users (nuova)
       values.push(userId);
-      const sql = `UPDATE utenti SET ${updates.join(', ')} WHERE id = $${idx}`;
-      await pool.query(sql, values);
+      const sqlUsers = `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`;
+      await pool.query(sqlUsers, values);
+      
+      // Aggiorna anche la tabella utenti (vecchia) per retrocompatibilità
+      const sqlUtenti = `UPDATE utenti SET ${updates.join(', ')} WHERE id = $${idx}`;
+      await pool.query(sqlUtenti, values).catch(() => undefined);
     }
 
     // 2) Upsert risposte dinamiche su tabella opinioni_risposte
