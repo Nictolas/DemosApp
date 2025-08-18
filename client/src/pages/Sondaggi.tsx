@@ -151,8 +151,15 @@ export default function Sondaggi() {
                     }
                     
                     return (
-                      <Card key={q.id}>
-                        <CardHeader><CardTitle className="text-xl">{q.text}</CardTitle></CardHeader>
+                      <Card key={q.id} className="hover:shadow-lg transition-shadow cursor-pointer">
+                        <CardHeader 
+                          className="cursor-pointer hover:bg-gray-50 transition-colors"
+                          onClick={() => window.location.href = `/statistiche-opinione/${q.id}`}
+                        >
+                          <CardTitle className="text-xl text-blue-600 hover:text-blue-800">
+                            {q.text}
+                          </CardTitle>
+                        </CardHeader>
                         <CardContent className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
