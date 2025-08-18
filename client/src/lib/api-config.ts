@@ -18,7 +18,10 @@ export const API_CONFIG = {
     LOGIN: '/auth/login',
     REGISTER: '/auth/register', 
     LOGOUT: '/auth/logout',
-    ME: '/utenti/me'
+    ME: '/utenti/me',
+    FORGOT_PASSWORD: '/auth/forgot-password',
+    RESET_PASSWORD: '/auth/reset-password',
+    CHANGE_PASSWORD: '/auth/change-password'
   }
 } as const;
 5

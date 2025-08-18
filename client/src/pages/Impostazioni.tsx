@@ -83,7 +83,7 @@ export default function Impostazioni() {
     setIsChangingPassword(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`${getApiUrl()}/api/auth/change-password`, {
+              const response = await fetch(`${getApiUrl()}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
