@@ -1267,12 +1267,25 @@ app.get('/api/opinioni', async (req, res) => {
 });
 
 // Opinioni utente: recupero e salvataggio
-const OPINION_FIELDS = ['energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia'];
+const OPINION_FIELDS = [
+  'energia_nucleare', 
+  'sperimentazione_animale', 
+  'legalizzazione_canapa', 
+  'caccia',
+  'cittadina_animale',
+  'eutanasia',
+  'case_chiuse',
+  'salario_minimo',
+  'matrimonio_gay',
+  'nato',
+  'omobitransfobia'
+];
 const OPINION_ALLOWED_VALUES = new Set(['Favorevole', 'Indeciso', 'Contrario']);
 
 app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
+    console.log('DEBUG opinioni/utente - userId:', userId);
 
     // 1) Domande base + dinamiche
     const dyn = await pool
@@ -1284,19 +1297,23 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
       .map(r => ({ id: String(r.id), text: r.text }));
 
     const questions = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
+    console.log('DEBUG opinioni/utente - questions count:', questions.length);
 
     // 2) Risposte utente: base su tabella users (nuova), fallback su utenti (vecchia)
     let baseRow = await pool.query(
       `SELECT ${OPINION_FIELDS.join(', ')} FROM users WHERE id = $1`,
       [userId]
     );
+    console.log('DEBUG opinioni/utente - users query result rows:', baseRow.rows.length);
     
     // Se non trovato in users, cerca in utenti
     if (baseRow.rows.length === 0) {
+      console.log('DEBUG opinioni/utente - user not found in users, trying utenti table');
       baseRow = await pool.query(
         `SELECT ${OPINION_FIELDS.join(', ')} FROM utenti WHERE id = $1`,
         [userId]
       );
+      console.log('DEBUG opinioni/utente - utenti query result rows:', baseRow.rows.length);
     }
     
     if (baseRow.rows.length === 0) {
@@ -1329,6 +1346,9 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
     for (const r of dynAnswers.rows) {
       userAnswers[String(r.opinione_id)] = r.valore;
     }
+
+    console.log('DEBUG opinioni/utente - userAnswers:', userAnswers);
+    console.log('DEBUG opinioni/utente - OPINION_FIELDS:', OPINION_FIELDS);
 
     res.json({ questions, userAnswers, blocco: { isBlocked: false } });
   } catch (error) {
