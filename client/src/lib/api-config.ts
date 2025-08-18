@@ -2,18 +2,14 @@
 declare const importMetaEnv: Record<string, string | undefined> & { VITE_API_BASE_URL?: string };
 
 const resolveBaseUrl = (): string => {
-  // 1) Preferisci variabile d'ambiente (obbligatoria in produzione)
-  const envUrl = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_BASE_URL
-    ? (import.meta as any).env.VITE_API_BASE_URL
-    : (typeof importMetaEnv !== 'undefined' ? importMetaEnv.VITE_API_BASE_URL : undefined))?.trim();
-  if (envUrl) return envUrl.replace(/\/$/, '');
-
-  // 2) Controlla se siamo in produzione (Vercel)
+  // Controlla se siamo in produzione (Vercel)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.log('Production detected, using Render API');
     return 'https://demos-c7k0.onrender.com/api';
   }
 
-  // 3) Fallback sviluppo locale
+  // Sviluppo locale
+  console.log('Development detected, using localhost API');
   return 'http://localhost:3001/api';
 };
 
@@ -31,8 +27,13 @@ export const API_CONFIG = {
 5
 // Helper per costruire URL completi
 export const getApiUrl = (endpoint: string) => {
+  console.log('getApiUrl called with endpoint:', endpoint);
+  console.log('window.location.hostname:', typeof window !== 'undefined' ? window.location.hostname : 'window not available');
+  
   const baseUrl = resolveBaseUrl();
+  console.log('baseUrl resolved to:', baseUrl);
+  
   const url = `${baseUrl}${endpoint}`;
-  console.log('API URL:', url); // Debug
+  console.log('Final API URL:', url);
   return url;
 };
