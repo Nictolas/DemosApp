@@ -35,14 +35,31 @@ export default function Sondaggi() {
   
   const { stats, questions = [] } = data || {};
   
+  // Debug logging
+  console.log('🔍 DEBUG: Data received:', { stats, questions });
+  console.log('🔍 DEBUG: Stats keys:', stats ? Object.keys(stats) : 'No stats');
+  console.log('🔍 DEBUG: Questions count:', questions.length);
+  
   // === INIZIO MODIFICHE LOGICA GRAFICI ===
   const preparePieData = (questionKey: string) => {
     if (!stats) return [];
     const questionStats = stats[questionKey];
+    
+    // Controllo di sicurezza: se non ci sono statistiche per questa domanda, ritorna array vuoto
+    if (!questionStats) {
+      console.log('⚠️ DEBUG: No stats for question:', questionKey);
+      return [];
+    }
+    
+    // Controllo che tutti i valori siano numeri validi
+    const favorevole = Number(questionStats.favorevole) || 0;
+    const contrario = Number(questionStats.contrario) || 0;
+    const astenuto = Number(questionStats.astenuto) || 0;
+    
     return [
-        { name: 'Favorevole', value: questionStats.favorevole },
-        { name: 'Contrario', value: questionStats.contrario },
-        { name: 'Astenuto', value: questionStats.astenuto },
+        { name: 'Favorevole', value: favorevole },
+        { name: 'Contrario', value: contrario },
+        { name: 'Astenuto', value: astenuto },
     ];
   };
 
