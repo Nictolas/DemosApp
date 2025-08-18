@@ -638,7 +638,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     );
     
     // Costruisci URL di reset
-    const resetUrl = `${process.env.FRONTEND_URL || 'https://demos.community'}/reset-password?token=${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://demos.community'}/reset-password-confirm?token=${resetToken}`;
     
     console.log(`🔧 RESET PASSWORD: ${user.email} - Token: ${resetToken}`);
     console.log(`🔧 RESET URL: ${resetUrl}`);
