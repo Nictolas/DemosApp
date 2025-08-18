@@ -1531,6 +1531,79 @@ app.get('/api/debug/opinioni-data', async (req, res) => {
   }
 });
 
+// Endpoint per creare opinioni esistenti nella tabella opinioni
+app.post('/api/debug/create-opinions', async (req, res) => {
+  try {
+    console.log('🔄 Creazione opinioni esistenti...');
+    
+    // Assicurati esista tabella opinioni
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS opinioni (
+        id SERIAL PRIMARY KEY,
+        text TEXT NOT NULL,
+        titolo TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('✅ Tabella opinioni creata/verificata');
+    
+    // Lista delle opinioni esistenti
+    const existingOpinions = [
+      { id: 'energia_nucleare', text: "Sei favorevole all'utilizzo dell'energia nucleare?" },
+      { id: 'sperimentazione_animale', text: 'Sei favorevole alla sperimentazione sugli animali?' },
+      { id: 'legalizzazione_canapa', text: 'Sei favorevole alla legalizzazione della canapa?' },
+      { id: 'caccia', text: 'Sei favorevole alla caccia?' },
+      { id: 'cittadina_animale', text: 'Sei favorevole alla cittadinanza animale?' },
+      { id: 'eutanasia', text: 'Sei favorevole all\'eutanasia?' },
+      { id: 'case_chiuse', text: 'Sei favorevole alle case chiuse?' },
+      { id: 'salario_minimo', text: 'Sei favorevole al salario minimo?' },
+      { id: 'matrimonio_gay', text: 'Sei favorevole al matrimonio gay?' },
+      { id: 'nato', text: 'Sei favorevole alla NATO?' },
+      { id: 'omobitransfobia', text: 'Sei favorevole alla legge contro l\'omobitransfobia?' }
+    ];
+    
+    let createdCount = 0;
+    
+    for (const opinion of existingOpinions) {
+      try {
+        // Inserisci l'opinione se non esiste già
+        const result = await pool.query(`
+          INSERT INTO opinioni (id, text)
+          VALUES ($1, $2)
+          ON CONFLICT (id) DO NOTHING
+        `, [opinion.id, opinion.text]);
+        
+        if (result.rowCount > 0) {
+          createdCount++;
+          console.log(`✅ Created opinion: ${opinion.id}`);
+        } else {
+          console.log(`⚠️ Opinion already exists: ${opinion.id}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error creating opinion ${opinion.id}:`, error.message);
+      }
+    }
+    
+    console.log(`✅ Created ${createdCount} new opinions`);
+    
+    res.json({
+      success: true,
+      message: `Created ${createdCount} new opinions`
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore creazione opinioni:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Endpoint per migrare opinioni esistenti a opinioni_risposte
 app.post('/api/debug/migrate-opinions', async (req, res) => {
   try {
