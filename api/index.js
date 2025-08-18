@@ -2173,138 +2173,16 @@ app.get('/api/debug/utenti-table', verifyToken, async (req, res) => {
 
     console.log('✅ DEBUG: Utente è admin');
 
-    // 1. Verifica struttura tabella
-    console.log('📋 DEBUG: Verifica struttura tabella utenti');
-    const structureResult = await pool.query(`
-      SELECT column_name, data_type, is_nullable
-      FROM information_schema.columns 
-      WHERE table_name = 'utenti' 
-      ORDER BY ordinal_position
-    `);
-    
-    console.log('Colonne trovate:', structureResult.rows.length);
-    const columns = structureResult.rows.map(row => ({
-      name: row.column_name,
-      type: row.data_type,
-      nullable: row.is_nullable
-    }));
-
-    // 2. Conta righe totali
+    // Test semplice - conta righe totali
     const countResult = await pool.query('SELECT COUNT(*) as total FROM utenti');
     const totalRows = parseInt(countResult.rows[0].total);
 
-    // 3. Verifica colonne opinioni specifiche
-    const opinionColumns = [
-      'cittadina_animale', 'nato', 'sperimentazione_animale', 'matrimonio_gay',
-      'salario_minimo', 'carne_coltivata', 'case_chiuse', 'energia_nucleare',
-      'legalizzazione_canapa', 'caccia', 'eutanasia', 'omobitransfobia'
-    ];
-
-    console.log('🎯 DEBUG: Verifica colonne opinioni');
-    const opinionStats = {};
-    
-    for (const column of opinionColumns) {
-      try {
-        // Conta valori non null per questa colonna
-        const result = await pool.query(`
-          SELECT 
-            COUNT(*) as total,
-            COUNT(CASE WHEN ${column} IS NOT NULL THEN 1 END) as not_null,
-            COUNT(CASE WHEN ${column} IS NULL THEN 1 END) as null_count
-          FROM utenti
-        `);
-        
-        const row = result.rows[0];
-        opinionStats[column] = {
-          total: parseInt(row.total),
-          notNull: parseInt(row.not_null),
-          nullCount: parseInt(row.null_count)
-        };
-        
-        console.log(`  ${column}: ${row.not_null}/${row.total} valori non null`);
-        
-        // Se ci sono valori non null, mostra alcuni esempi
-        if (row.not_null > 0) {
-          const sampleResult = await pool.query(`
-            SELECT ${column}, COUNT(*) as count
-            FROM utenti 
-            WHERE ${column} IS NOT NULL 
-            GROUP BY ${column} 
-            ORDER BY count DESC 
-            LIMIT 5
-          `);
-          
-          opinionStats[column].samples = sampleResult.rows.map(sample => ({
-            value: sample[column],
-            count: parseInt(sample.count)
-          }));
-          
-          console.log(`    - Valori trovati:`, sampleResult.rows);
-        }
-        
-      } catch (error) {
-        console.log(`  ${column}: ERRORE - ${error.message}`);
-        opinionStats[column] = { error: error.message };
-      }
-    }
-
-    // 4. Verifica se i dati sono nella tabella users invece
-    console.log('🔍 DEBUG: Verifica tabella users');
-    const usersStructureResult = await pool.query(`
-      SELECT column_name, data_type
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      AND column_name IN (${opinionColumns.map(c => `'${c}'`).join(',')})
-      ORDER BY column_name
-    `);
-    
-    const usersColumns = usersStructureResult.rows.map(row => ({
-      name: row.column_name,
-      type: row.data_type
-    }));
-
-    const usersOpinionStats = {};
-    if (usersColumns.length > 0) {
-      console.log('Colonne opinioni trovate in users:', usersColumns.length);
-      
-      // Conta dati in users per le colonne opinioni
-      for (const column of usersColumns.map(c => c.name)) {
-        try {
-          const result = await pool.query(`
-            SELECT 
-              COUNT(*) as total,
-              COUNT(CASE WHEN ${column} IS NOT NULL THEN 1 END) as not_null
-            FROM users
-          `);
-          
-          const row = result.rows[0];
-          usersOpinionStats[column] = {
-            total: parseInt(row.total),
-            notNull: parseInt(row.not_null)
-          };
-          
-          console.log(`  ${column}: ${row.not_null}/${row.total} valori non null`);
-        } catch (error) {
-          console.log(`  ${column}: ERRORE - ${error.message}`);
-          usersOpinionStats[column] = { error: error.message };
-        }
-      }
-    }
-
-    console.log('✅ DEBUG: Debug completato');
+    console.log('✅ DEBUG: Debug completato - righe totali:', totalRows);
 
     res.json({
       success: true,
-      tableStructure: {
-        totalColumns: columns.length,
-        columns: columns
-      },
       totalRows,
-      opinionStats,
-      usersTable: {
-        opinionColumns: usersColumns,
-        opinionStats: usersOpinionStats
-      }
+      message: 'Test endpoint funzionante'
     });
 
   } catch (error) {
