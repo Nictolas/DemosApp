@@ -48,12 +48,14 @@ export default function Sondaggi() {
 
   const prepareBarData = () => {
     if (!stats || questions.length === 0) return [];
-    return questions.map(q => ({
+    return questions
+      .filter(q => q.text && q.text.trim() !== '') // Filtra solo domande con testo valido
+      .map(q => ({
         name: q.text,
         Favorevole: stats[q.id]?.favorevole ?? 0,
         Contrario: stats[q.id]?.contrario ?? 0,
         Astenuto: stats[q.id]?.astenuto ?? 0,
-    }));
+      }));
   };
   // === FINE MODIFICHE LOGICA GRAFICI ===
 
@@ -77,7 +79,9 @@ export default function Sondaggi() {
                 {/* === INIZIO MODIFICHE GRAFICI === */}
                 {barChartData && <Card><CardHeader><CardTitle className="text-xl">Distribuzione complessiva</CardTitle></CardHeader><CardContent><ResponsiveContainer width="100%" height={300}><BarChart data={barChartData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis allowDecimals={false}/><Tooltip /><Legend /><Bar dataKey="Favorevole" fill={COLORS[0]} /><Bar dataKey="Contrario" fill={COLORS[1]} /><Bar dataKey="Astenuto" fill={COLORS[2]} /></BarChart></ResponsiveContainer></CardContent></Card>}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {questions.map(q => {
+                  {questions
+                    .filter(q => q.text && q.text.trim() !== '') // Filtra solo domande con testo valido
+                    .map(q => {
                     const pieData = preparePieData(q.id);
                     return pieData.length > 0 && (
                       <Card key={q.id}>
