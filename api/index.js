@@ -1816,7 +1816,7 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
 
     console.log('📊 DEBUG: Questions count:', questions.length);
 
-    // 2. Calcola statistiche per ogni opinione
+    // 2. Calcola statistiche per ogni opinione dalle tabelle users e utenti
     const stats = {};
     
     for (const question of questions) {
@@ -1824,15 +1824,18 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       console.log('🔍 DEBUG: Processing question:', questionId);
       
       try {
-        // Conta le risposte per questa opinione dalla tabella opinioni_risposte
+        // Conta le risposte per questa opinione dalle tabelle users e utenti
         const result = await pool.query(`
           SELECT 
             COUNT(CASE WHEN valore = 'Favorevole' THEN 1 END) as favorevole,
             COUNT(CASE WHEN valore = 'Contrario' THEN 1 END) as contrario,
             COUNT(CASE WHEN valore = 'Indeciso' THEN 1 END) as astenuto
-          FROM opinioni_risposte 
-          WHERE opinione_id = $1
-        `, [questionId]);
+          FROM (
+            SELECT ${questionId} as valore FROM users WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+            UNION ALL
+            SELECT ${questionId} as valore FROM utenti WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+          ) combined_opinions
+        `, []);
         
         if (result.rows.length > 0) {
           const row = result.rows[0];
