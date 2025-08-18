@@ -304,6 +304,78 @@ app.get('/api/utenti/me/test', (req, res) => {
   });
 });
 
+// Debug endpoint per verificare token
+app.get('/api/debug/token', (req, res) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.json({
+      status: 'ERROR',
+      message: 'Token mancante',
+      token: null
+    });
+  }
+  
+  const token = authHeader.substring(7);
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return res.json({
+      status: 'OK',
+      message: 'Token valido',
+      token: {
+        userId: decoded.userId,
+        email: decoded.email,
+        iat: decoded.iat,
+        exp: decoded.exp
+      }
+    });
+  } catch (error) {
+    return res.json({
+      status: 'ERROR',
+      message: 'Token non valido',
+      error: error.message,
+      token: null
+    });
+  }
+});
+
+// Debug endpoint per verificare utente nel database
+app.get('/api/debug/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Cerca in users
+    let result = await pool.query('SELECT id, email, nome, cognome, ruolo FROM users WHERE id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      // Cerca in utenti
+      result = await pool.query('SELECT id, email, nome, cognome, ruolo FROM utenti WHERE id = $1', [userId]);
+    }
+    
+    if (result.rows.length === 0) {
+      return res.json({
+        status: 'ERROR',
+        message: 'Utente non trovato',
+        user: null
+      });
+    }
+    
+    return res.json({
+      status: 'OK',
+      message: 'Utente trovato',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    return res.json({
+      status: 'ERROR',
+      message: 'Errore database',
+      error: error.message,
+      user: null
+    });
+  }
+});
+
 // Test connessione
 app.get('/api/test', async (req, res) => {
   try {
