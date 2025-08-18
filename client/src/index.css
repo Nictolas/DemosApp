@@ -144,6 +144,8 @@ body {
   border-color: #3b82f6 !important;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
 }
+
+.page-transition {
   min-height: 100vh;
   width: 100%;
   position: relative;
