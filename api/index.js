@@ -1615,8 +1615,8 @@ app.get('/api/debug/sondaggi-test', async (req, res) => {
       .catch(() => ({ rows: [] }));
 
     const questions = result.rows
-      .filter(r => r.text)
-      .map(r => ({ id: String(r.id), text: r.text }));
+      .filter(r => r.text && r.text.trim() !== '')  // Filtra solo quelle con testo valido
+      .map(r => ({ id: String(r.id), text: r.text.trim() }));
 
     console.log('📊 DEBUG: Questions found:', questions);
     
@@ -1811,8 +1811,8 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       .catch(() => ({ rows: [] }));
 
     const questions = result.rows
-      .filter(r => r.text)
-      .map(r => ({ id: String(r.id), text: r.text }));
+      .filter(r => r.text && r.text.trim() !== '')  // Filtra solo quelle con testo valido
+      .map(r => ({ id: String(r.id), text: r.text.trim() }));
 
     console.log('📊 DEBUG: Questions count:', questions.length);
 
