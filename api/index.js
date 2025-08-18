@@ -1561,6 +1561,49 @@ app.post('/api/debug/force-migration', async (req, res) => {
   }
 });
 
+// Debug endpoint per verificare dati opinioni
+app.get('/api/debug/opinioni-data', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Verifica dati opinioni...');
+    
+    // Conta utenti in entrambe le tabelle
+    const usersCount = await pool.query('SELECT COUNT(*) as count FROM users');
+    const utentiCount = await pool.query('SELECT COUNT(*) as count FROM utenti');
+    
+    // Conta opinioni per energia_nucleare in entrambe le tabelle
+    const usersOpinions = await pool.query(`
+      SELECT energia_nucleare, COUNT(*) as count 
+      FROM users 
+      WHERE energia_nucleare IS NOT NULL AND energia_nucleare != '' 
+      GROUP BY energia_nucleare
+    `);
+    
+    const utentiOpinions = await pool.query(`
+      SELECT energia_nucleare, COUNT(*) as count 
+      FROM utenti 
+      WHERE energia_nucleare IS NOT NULL AND energia_nucleare != '' 
+      GROUP BY energia_nucleare
+    `);
+    
+    res.json({
+      success: true,
+      data: {
+        users_count: usersCount.rows[0]?.count || 0,
+        utenti_count: utentiCount.rows[0]?.count || 0,
+        users_opinions: usersOpinions.rows,
+        utenti_opinions: utentiOpinions.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore debug opinioni:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Endpoint per statistiche sondaggi
 app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
   try {
@@ -1581,9 +1624,15 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       .filter(r => r.text)
       .map(r => ({ id: String(r.id), text: r.text }));
 
-    const questions = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
+    // Usa OPINION_FIELDS per avere tutte le opinioni base
+    const baseQuestions = OPINION_FIELDS.map(field => ({
+      id: field,
+      text: field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ')
+    }));
+
+    const questions = [...baseQuestions, ...dynamicQuestions];
     console.log('📊 DEBUG: Questions count:', questions.length);
-    console.log('📊 DEBUG: BASE_OPINION_QUESTIONS:', BASE_OPINION_QUESTIONS.length);
+    console.log('📊 DEBUG: OPINION_FIELDS count:', OPINION_FIELDS.length);
 
     // 2. Calcola statistiche per ogni opinione
     const stats = {};
@@ -1593,14 +1642,17 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       console.log('🔍 DEBUG: Processing question:', questionId);
       
       try {
-        // Conta le risposte per questa opinione
+        // Conta le risposte per questa opinione da entrambe le tabelle
         const result = await pool.query(`
           SELECT 
             COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
             COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
             COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
-          FROM users 
-          WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+          FROM (
+            SELECT ${questionId} FROM users WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+            UNION ALL
+            SELECT ${questionId} FROM utenti WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+          ) combined_data
         `);
         
         if (result.rows.length > 0) {
