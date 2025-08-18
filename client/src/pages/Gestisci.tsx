@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Settings, Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3 } from "lucide-react";
 
 export default function Gestisci() {
   const { user, isLoading } = useAuth();
@@ -182,46 +182,24 @@ export default function Gestisci() {
             </CardContent>
           </Card>
 
-          {/* Analisi Consumi */}
+          {/* Sondaggi */}
           <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-cyan-600 group-hover:text-cyan-700">
-                <ClipboardList className="h-5 w-5" />
-                Analisi Consumi
+              <CardTitle className="flex items-center gap-2 text-purple-600 group-hover:text-purple-700">
+                <BarChart3 className="h-5 w-5" />
+                Sondaggi
               </CardTitle>
               <CardDescription>
-                Visualizza l'analisi dei consumi e delle stime di traffico dell'app
+                Gestisci e visualizza i sondaggi della piattaforma
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button 
-                className="w-full bg-cyan-600 hover:bg-cyan-700"
-                onClick={() => window.location.href = "/analisi-consumi"}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                onClick={() => window.location.href = "/sondaggi"}
               >
-                <ClipboardList className="mr-2 h-4 w-4" />
-                Analisi Consumi
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Scadenze tecniche */}
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer group">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-orange-600 group-hover:text-orange-700">
-                <AlertCircle className="h-5 w-5" />
-                Scadenze tecniche
-              </CardTitle>
-              <CardDescription>
-                Consulta le scadenze tecniche e gli avvisi importanti per l'app
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                className="w-full bg-orange-600 hover:bg-orange-700"
-                onClick={() => window.location.href = "/scadenze"}
-              >
-                <AlertCircle className="mr-2 h-4 w-4" />
-                Scadenze tecniche
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Gestisci Sondaggi
               </Button>
             </CardContent>
           </Card>
