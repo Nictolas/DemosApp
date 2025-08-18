@@ -1564,9 +1564,13 @@ app.post('/api/debug/force-migration', async (req, res) => {
 // Endpoint per statistiche sondaggi
 app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG: Inizio endpoint /api/sondaggi/stats');
+    
     // Verifica se l'utente è admin
     const admin = await isRequesterAdmin(req.user.userId);
     if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+    console.log('✅ DEBUG: Utente è admin');
 
     // 1. Recupera tutte le domande (base + dinamiche)
     const dyn = await pool
@@ -1578,31 +1582,46 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       .map(r => ({ id: String(r.id), text: r.text }));
 
     const questions = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
+    console.log('📊 DEBUG: Questions count:', questions.length);
+    console.log('📊 DEBUG: BASE_OPINION_QUESTIONS:', BASE_OPINION_QUESTIONS.length);
 
     // 2. Calcola statistiche per ogni opinione
     const stats = {};
     
     for (const question of questions) {
       const questionId = question.id;
+      console.log('🔍 DEBUG: Processing question:', questionId);
       
-      // Conta le risposte per questa opinione
-      const result = await pool.query(`
-        SELECT 
-          COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
-          COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
-        FROM users 
-        WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
-      `);
-      
-      if (result.rows.length > 0) {
-        const row = result.rows[0];
-        stats[questionId] = {
-          favorevole: parseInt(row.favorevole) || 0,
-          contrario: parseInt(row.contrario) || 0,
-          astenuto: parseInt(row.astenuto) || 0
-        };
-      } else {
+      try {
+        // Conta le risposte per questa opinione
+        const result = await pool.query(`
+          SELECT 
+            COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
+            COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
+            COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
+          FROM users 
+          WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+        `);
+        
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          stats[questionId] = {
+            favorevole: parseInt(row.favorevole) || 0,
+            contrario: parseInt(row.contrario) || 0,
+            astenuto: parseInt(row.astenuto) || 0
+          };
+          console.log('✅ DEBUG: Stats for', questionId, ':', stats[questionId]);
+        } else {
+          stats[questionId] = {
+            favorevole: 0,
+            contrario: 0,
+            astenuto: 0
+          };
+          console.log('⚠️ DEBUG: No stats for', questionId);
+        }
+      } catch (questionError) {
+        console.error('❌ DEBUG: Error processing question', questionId, ':', questionError.message);
+        // Continua con la prossima domanda invece di fallire completamente
         stats[questionId] = {
           favorevole: 0,
           contrario: 0,
@@ -1610,6 +1629,8 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
         };
       }
     }
+
+    console.log('✅ DEBUG: Final stats object:', Object.keys(stats));
 
     res.json({ 
       success: true, 
@@ -1619,9 +1640,11 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore caricamento statistiche sondaggi:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({ 
       success: false, 
-      error: 'Errore nel caricamento delle statistiche' 
+      error: 'Errore nel caricamento delle statistiche',
+      details: error.message 
     });
   }
 });
