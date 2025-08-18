@@ -258,9 +258,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-i
 
 // Middleware per verificare JWT
 const verifyToken = (req, res, next) => {
+  console.log('🔍 DEBUG: verifyToken chiamato per:', req.method, req.url);
+  console.log('🔍 DEBUG: Authorization header:', req.headers.authorization ? 'Presente' : 'Mancante');
+  
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('❌ DEBUG: Token mancante o formato errato');
     return res.status(401).json({
       success: false,
       error: 'Token di accesso richiesto'
@@ -268,12 +272,15 @@ const verifyToken = (req, res, next) => {
   }
   
   const token = authHeader.substring(7); // Rimuove "Bearer "
+  console.log('🔍 DEBUG: Token estratto (primi 20 char):', token.substring(0, 20) + '...');
   
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('✅ DEBUG: Token valido, userId:', decoded.userId);
     req.user = decoded;
     next();
   } catch (error) {
+    console.log('❌ DEBUG: Token non valido:', error.message);
     return res.status(401).json({
       success: false,
       error: 'Token non valido'
@@ -284,6 +291,17 @@ const verifyToken = (req, res, next) => {
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'API Server Neon funzionante' });
+});
+
+// Test endpoint per /api/utenti/me senza autenticazione
+app.get('/api/utenti/me/test', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Endpoint /api/utenti/me raggiungibile',
+    headers: {
+      authorization: req.headers.authorization ? 'Presente' : 'Mancante'
+    }
+  });
 });
 
 // Test connessione
