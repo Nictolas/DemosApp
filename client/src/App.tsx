@@ -63,6 +63,7 @@ import Riscontro from "@/pages/Riscontro";
 import Scadenze from "@/pages/Scadenze";
 import Sondaggi from "@/pages/Sondaggi";
 import ResetPasswordPage from "@/pages/reset-password";
+import ResetPasswordConfirmPage from "@/pages/reset-password-confirm";
 import Informazioni from "@/pages/Informazioni";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 // FCM rimosso - sostituito con sistema nativo
@@ -511,6 +512,13 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <ResetPasswordPage />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/reset-password-confirm">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <ResetPasswordConfirmPage />
           </PageTransition>
         )}
       </Route>

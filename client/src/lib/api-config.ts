@@ -21,7 +21,7 @@ export const API_CONFIG = {
     ME: '/utenti/me'
   }
 } as const;
-
+5
 // Helper per costruire URL completi
 export const getApiUrl = (endpoint: string) => {
   return `${API_CONFIG.BASE_URL}${endpoint}`;

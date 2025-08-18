@@ -1,14 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, MessageSquare, Users, TestTube } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { getApiUrl } from "@/lib/api-config";
 
 export default function Impostazioni() {
   const { user, isLoading, logoutMutation } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const { toast } = useToast();
 
   if (isLoading) {
@@ -49,6 +56,72 @@ export default function Impostazioni() {
         variant: "destructive",
       });
       setIsLoggingOut(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Errore",
+        description: "Le password non coincidono.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Errore",
+        description: "La password deve essere di almeno 6 caratteri.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${getApiUrl()}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          currentPassword,
+          newPassword 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Successo",
+          description: "Password aggiornata con successo!",
+          variant: "default",
+        });
+        setShowChangePassword(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast({
+          title: "Errore",
+          description: data.error || "Errore durante il cambio password.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore di connessione. Riprova più tardi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -132,14 +205,82 @@ export default function Impostazioni() {
                 </Button>
               </Link>
 
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => showMigrationMessage("Cambio password")}
-              >
-                <Lock className="h-4 w-4 mr-2" />
-                Cambia Password
-              </Button>
+              {!showChangePassword ? (
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowChangePassword(true)}
+                >
+                  <Lock className="h-4 w-4 mr-2" />
+                  Cambia Password
+                </Button>
+              ) : (
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Password attuale</label>
+                    <Input
+                      type="password"
+                      placeholder="Inserisci la password attuale"
+                      value={currentPassword}
+                      onChange={e => setCurrentPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Nuova password</label>
+                    <Input
+                      type="password"
+                      placeholder="Inserisci la nuova password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Conferma nuova password</label>
+                    <Input
+                      type="password"
+                      placeholder="Conferma la nuova password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button 
+                      type="submit" 
+                      className="flex-1"
+                      disabled={isChangingPassword}
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Aggiornamento...
+                        </>
+                      ) : (
+                        "Aggiorna Password"
+                      )}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => {
+                        setShowChangePassword(false);
+                        setCurrentPassword("");
+                        setNewPassword("");
+                        setConfirmPassword("");
+                      }}
+                    >
+                      Annulla
+                    </Button>
+                  </div>
+                </form>
+              )}
               
               <Button 
                 variant="outline" 

@@ -94,6 +94,9 @@ async function ensureSchema() {
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS sperimentazione_animale TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS legalizzazione_canapa TEXT");
     await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS caccia TEXT");
+    // Colonne per reset password
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT");
+    await alter("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP");
   } catch (e) {
     console.warn('WARN ensureSchema users:*:', e?.message || e);
   }
@@ -527,6 +530,113 @@ app.post('/api/auth/logout', async (req, res) => {
       success: false,
       error: 'Errore interno del server'
     });
+  }
+});
+
+// Endpoint per richiesta reset password
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Verifica che l'utente esista
+    const userResult = await pool.query('SELECT id, email, nome FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Email non trovata' });
+    }
+
+    const user = userResult.rows[0];
+    
+    // Genera token di reset (valido per 1 ora)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 ora
+    
+    // Salva token nel database
+    await pool.query(
+      'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+      [resetToken, resetTokenExpiry, user.id]
+    );
+    
+    // In produzione, qui invieresti l'email
+    // Per ora, restituiamo il token per test
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://demos.community'}/reset-password?token=${resetToken}`;
+    
+    console.log(`🔧 RESET PASSWORD: ${user.email} - Token: ${resetToken}`);
+    console.log(`🔧 RESET URL: ${resetUrl}`);
+    
+    res.json({ 
+      message: 'Email di reset inviata',
+      resetUrl: resetUrl, // Solo per test, rimuovere in produzione
+      token: resetToken   // Solo per test, rimuovere in produzione
+    });
+  } catch (error) {
+    console.error('Errore richiesta reset password:', error);
+    res.status(500).json({ error: 'Errore interno del server' });
+  }
+});
+
+// Endpoint per reset password con token
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    // Verifica token
+    const userResult = await pool.query(
+      'SELECT id, reset_token, reset_token_expiry FROM users WHERE reset_token = $1',
+      [token]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Token non valido' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Verifica scadenza token
+    if (new Date() > new Date(user.reset_token_expiry)) {
+      return res.status(400).json({ error: 'Token scaduto' });
+    }
+    
+    // Hash nuova password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // Aggiorna password e rimuovi token
+    await pool.query(
+      'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expiry = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [hashedPassword, user.id]
+    );
+    
+    res.json({ message: 'Password reimpostata con successo' });
+  } catch (error) {
+    console.error('Errore reset password:', error);
+    res.status(500).json({ error: 'Errore interno del server' });
+  }
+});
+
+// Endpoint per cambio password (utente loggato)
+app.post('/api/auth/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    // Verifica password attuale
+    const userResult = await pool.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Utente non trovato' });
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Password attuale non corretta' });
+    }
+
+    // Hash nuova password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [hashedPassword, userId]);
+
+    res.json({ message: 'Password aggiornata con successo' });
+  } catch (error) {
+    console.error('Errore cambio password:', error);
+    res.status(500).json({ error: 'Errore interno del server' });
   }
 });
 
