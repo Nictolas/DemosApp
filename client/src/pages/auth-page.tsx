@@ -753,7 +753,6 @@ export default function AuthPage() {
                               <SelectItem value="Candidato">Candidato</SelectItem>
                               <SelectItem value="Politico">Politico</SelectItem>
                               <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-                              <SelectItem value="Admin">Admin</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
