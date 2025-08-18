@@ -1561,6 +1561,71 @@ app.post('/api/debug/force-migration', async (req, res) => {
   }
 });
 
+// Endpoint per statistiche sondaggi
+app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
+  try {
+    // Verifica se l'utente è admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+    // 1. Recupera tutte le domande (base + dinamiche)
+    const dyn = await pool
+      .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
+      .catch(() => ({ rows: [] }));
+
+    const dynamicQuestions = dyn.rows
+      .filter(r => r.text)
+      .map(r => ({ id: String(r.id), text: r.text }));
+
+    const questions = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
+
+    // 2. Calcola statistiche per ogni opinione
+    const stats = {};
+    
+    for (const question of questions) {
+      const questionId = question.id;
+      
+      // Conta le risposte per questa opinione
+      const result = await pool.query(`
+        SELECT 
+          COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
+      `);
+      
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+      } else {
+        stats[questionId] = {
+          favorevole: 0,
+          contrario: 0,
+          astenuto: 0
+        };
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      stats, 
+      questions 
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore caricamento statistiche sondaggi:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Errore nel caricamento delle statistiche' 
+    });
+  }
+});
+
 // Gestione route non trovate
 app.use('*', (req, res) => {
   res.status(404).json({ 
