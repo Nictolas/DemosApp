@@ -60,7 +60,7 @@ import VotaICE from "@/pages/VotaICE";
 import RegistrazioneWizard from "@/pages/RegistrazioneWizard";
 import DebugAuth from "@/pages/debug-auth";
 import Riscontro from "@/pages/Riscontro";
-import Scadenze from "@/pages/Scadenze";
+
 import Sondaggi from "@/pages/Sondaggi";
 import ResetPasswordPage from "@/pages/reset-password";
 import ResetPasswordConfirmPage from "@/pages/reset-password-confirm";
@@ -501,13 +501,7 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/scadenze">
-        {(params) => (
-          <PageTransition location={location} type="fade-up">
-            <ProtectedRoute path="/scadenze" component={Scadenze} />
-          </PageTransition>
-        )}
-      </Route>
+
       <Route path="/reset-password">
         {() => (
           <PageTransition location={location} type="fade-up">
