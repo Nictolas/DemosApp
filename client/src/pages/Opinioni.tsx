@@ -28,6 +28,46 @@ const options = [
   { value: "Contrario", color: "bg-red-600 text-white" }
 ];
 
+// Mappatura degli ID delle opinioni ai loro argomenti
+const getOpinionTopic = (id: string, questionText: string): string => {
+  // Mappatura per le opinioni base
+  const baseOpinionsMap: Record<string, string> = {
+    'energia_nucleare': 'Energia Nucleare',
+    'sperimentazione_animale': 'Sperimentazione Animale',
+    'legalizzazione_canapa': 'Legalizzazione Canapa',
+    'caccia': 'Caccia',
+    'cittadina_animale': 'Cittadinanza Animale',
+    'eutanasia': 'Eutanasia',
+    'case_chiuse': 'Case Chiuse',
+    'salario_minimo': 'Salario Minimo',
+    'matrimonio_gay': 'Matrimonio Gay',
+    'nato': 'NATO',
+    'omobitransfobia': 'Legge contro l\'omobitransfobia'
+  };
+  
+  // Se è un'opinione base, usa la mappatura
+  if (baseOpinionsMap[id]) {
+    return baseOpinionsMap[id];
+  }
+  
+  // Per le opinioni dinamiche, estrai l'argomento dalla domanda
+  if (questionText) {
+    // Rimuovi "Sei favorevole a" o "Sei favorevole alla" dall'inizio
+    let topic = questionText.replace(/^Sei favorevole (a|alla) /i, '');
+    
+    // Rimuovi il punto interrogativo alla fine
+    topic = topic.replace(/\?$/, '');
+    
+    // Capitalizza la prima lettera
+    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
+    
+    return topic;
+  }
+  
+  // Fallback: usa l'ID
+  return id;
+};
+
 export default function Opinioni() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
@@ -98,7 +138,7 @@ export default function Opinioni() {
               <>
                 {questions.map((question) => (
                   <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-center">{question.text}</h3>
+                    <h3 className="text-lg font-semibold text-center">{getOpinionTopic(question.id, question.text)}</h3>
                     <div className="flex justify-center">
                       <div className="flex w-full max-w-md">
                         {options.map((option, idx) => (
