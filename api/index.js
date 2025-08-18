@@ -1548,6 +1548,8 @@ app.post('/api/debug/migrate-opinions', async (req, res) => {
       )
     `);
     
+    console.log('✅ Tabella opinioni_risposte creata/verificata');
+    
     // Lista delle vecchie opinioni base
     const oldOpinionFields = [
       'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia',
@@ -1558,38 +1560,66 @@ app.post('/api/debug/migrate-opinions', async (req, res) => {
     let migratedCount = 0;
     
     // Migra da tabella users
+    console.log('🔍 Migrazione da tabella users...');
     for (const field of oldOpinionFields) {
-      const users = await pool.query(`
-        SELECT id, ${field} FROM users 
-        WHERE ${field} IS NOT NULL AND ${field} != '' AND ${field} IN ('Favorevole', 'Indeciso', 'Contrario')
-      `);
-      
-      for (const user of users.rows) {
-        await pool.query(`
-          INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (user_id, opinione_id) DO NOTHING
-        `, [user.id, field, user[field]]);
-        migratedCount++;
+      try {
+        console.log(`🔍 Processing field: ${field}`);
+        
+        const users = await pool.query(`
+          SELECT id, ${field} FROM users 
+          WHERE ${field} IS NOT NULL AND ${field} != '' AND ${field} IN ('Favorevole', 'Indeciso', 'Contrario')
+        `);
+        
+        console.log(`📊 Found ${users.rows.length} users with ${field} opinion`);
+        
+        for (const user of users.rows) {
+          try {
+            await pool.query(`
+              INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
+              VALUES ($1, $2, $3)
+              ON CONFLICT (user_id, opinione_id) DO NOTHING
+            `, [user.id, field, user[field]]);
+            migratedCount++;
+          } catch (insertError) {
+            console.error(`❌ Error inserting ${field} for user ${user.id}:`, insertError.message);
+          }
+        }
+      } catch (fieldError) {
+        console.error(`❌ Error processing field ${field}:`, fieldError.message);
       }
     }
     
     // Migra da tabella utenti
+    console.log('🔍 Migrazione da tabella utenti...');
     for (const field of oldOpinionFields) {
-      const utenti = await pool.query(`
-        SELECT id, ${field} FROM utenti 
-        WHERE ${field} IS NOT NULL AND ${field} != '' AND ${field} IN ('Favorevole', 'Indeciso', 'Contrario')
-      `);
-      
-      for (const utente of utenti.rows) {
-        await pool.query(`
-          INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (user_id, opinione_id) DO NOTHING
-        `, [utente.id, field, utente[field]]);
-        migratedCount++;
+      try {
+        console.log(`🔍 Processing field: ${field}`);
+        
+        const utenti = await pool.query(`
+          SELECT id, ${field} FROM utenti 
+          WHERE ${field} IS NOT NULL AND ${field} != '' AND ${field} IN ('Favorevole', 'Indeciso', 'Contrario')
+        `);
+        
+        console.log(`📊 Found ${utenti.rows.length} utenti with ${field} opinion`);
+        
+        for (const utente of utenti.rows) {
+          try {
+            await pool.query(`
+              INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
+              VALUES ($1, $2, $3)
+              ON CONFLICT (user_id, opinione_id) DO NOTHING
+            `, [utente.id, field, utente[field]]);
+            migratedCount++;
+          } catch (insertError) {
+            console.error(`❌ Error inserting ${field} for utente ${utente.id}:`, insertError.message);
+          }
+        }
+      } catch (fieldError) {
+        console.error(`❌ Error processing field ${field}:`, fieldError.message);
       }
     }
+    
+    console.log(`✅ Migrazione completata: ${migratedCount} opinioni migrate`);
     
     res.json({
       success: true,
@@ -1598,9 +1628,11 @@ app.post('/api/debug/migrate-opinions', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore migrazione opinioni:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({ 
       success: false, 
-      error: error.message 
+      error: error.message,
+      stack: error.stack
     });
   }
 });
