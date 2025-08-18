@@ -1604,6 +1604,90 @@ app.post('/api/debug/create-opinions', async (req, res) => {
   }
 });
 
+// Endpoint per testare i dati dell'endpoint sondaggi
+app.get('/api/debug/sondaggi-test', async (req, res) => {
+  try {
+    console.log('🧪 DEBUG: Test endpoint sondaggi chiamato');
+    
+    // Simula la stessa logica dell'endpoint sondaggi
+    const result = await pool
+      .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
+      .catch(() => ({ rows: [] }));
+
+    const questions = result.rows
+      .filter(r => r.text)
+      .map(r => ({ id: String(r.id), text: r.text }));
+
+    console.log('📊 DEBUG: Questions found:', questions);
+    
+    // Calcola statistiche per ogni opinione
+    const stats = {};
+    
+    for (const question of questions) {
+      const questionId = question.id;
+      console.log('🔍 DEBUG: Processing question:', questionId);
+      
+      try {
+        const result = await pool.query(`
+          SELECT 
+            COUNT(CASE WHEN valore = 'Favorevole' THEN 1 END) as favorevole,
+            COUNT(CASE WHEN valore = 'Contrario' THEN 1 END) as contrario,
+            COUNT(CASE WHEN valore = 'Indeciso' THEN 1 END) as astenuto
+          FROM opinioni_risposte 
+          WHERE opinione_id = $1
+        `, [questionId]);
+        
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          stats[questionId] = {
+            favorevole: parseInt(row.favorevole) || 0,
+            contrario: parseInt(row.contrario) || 0,
+            astenuto: parseInt(row.astenuto) || 0
+          };
+          console.log('✅ DEBUG: Stats for', questionId, ':', stats[questionId]);
+        } else {
+          stats[questionId] = {
+            favorevole: 0,
+            contrario: 0,
+            astenuto: 0
+          };
+          console.log('⚠️ DEBUG: No stats for', questionId);
+        }
+      } catch (questionError) {
+        console.error('❌ DEBUG: Error processing question', questionId, ':', questionError.message);
+        stats[questionId] = {
+          favorevole: 0,
+          contrario: 0,
+          astenuto: 0
+        };
+      }
+    }
+
+    console.log('✅ DEBUG: Final stats object:', stats);
+    console.log('✅ DEBUG: Final questions object:', questions);
+
+    res.json({ 
+      success: true, 
+      stats, 
+      questions,
+      debug: {
+        questionsCount: questions.length,
+        statsKeys: Object.keys(stats),
+        sampleQuestion: questions[0],
+        sampleStats: Object.values(stats)[0]
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore test endpoint sondaggi:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Endpoint per migrare opinioni esistenti a opinioni_risposte
 app.post('/api/debug/migrate-opinions', async (req, res) => {
   try {
