@@ -40,7 +40,7 @@ export default function ResetPasswordConfirmPage() {
     }
 
     try {
-      const response = await fetch(`${getApiUrl()}/auth/reset-password`, {
+      const response = await fetch(getApiUrl('/auth/reset-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
