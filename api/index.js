@@ -1215,27 +1215,20 @@ endpoints.forEach(endpoint => {
 });
 
 // Endpoint opinioni-list richiesto dal frontend
-// Base questions configurate lato codice
-const BASE_OPINION_QUESTIONS = [
-  { id: 'energia_nucleare', text: "Sei favorevole all'utilizzo dell'energia nucleare?" },
-  { id: 'sperimentazione_animale', text: 'Sei favorevole alla sperimentazione sugli animali?' },
-  { id: 'legalizzazione_canapa', text: 'Sei favorevole alla legalizzazione della canapa?' },
-  { id: 'caccia', text: 'Sei favorevole alla caccia?' }
-];
+// Tutte le opinioni sono ora dinamiche e gestite tramite la tabella 'opinioni'
 
 app.get('/api/opinioni-list', async (req, res) => {
   try {
-    // Recupera opinioni dinamiche create dagli admin (tabella opinioni)
-    const dyn = await pool
+    // Recupera tutte le opinioni dalla tabella opinioni
+    const result = await pool
       .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
       .catch(() => ({ rows: [] }));
 
-    const dynamicQuestions = dyn.rows
+    const questions = result.rows
       .filter(r => r.text)
       .map(r => ({ id: String(r.id), text: r.text }));
 
-    const all = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
-    res.json(all);
+    res.json(questions);
   } catch (error) {
     console.error('Errore opinioni-list:', error);
     res.status(500).json({ error: 'Errore interno del server' });
@@ -1245,20 +1238,18 @@ app.get('/api/opinioni-list', async (req, res) => {
 // Endpoint per ottenere tutte le opinioni (per la pagina opinioni)
 app.get('/api/opinioni', async (req, res) => {
   try {
-    // Recupera opinioni dinamiche create dagli admin (tabella opinioni)
-    const dyn = await pool
+    // Recupera tutte le opinioni dalla tabella opinioni
+    const result = await pool
       .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
       .catch(() => ({ rows: [] }));
 
-    const dynamicQuestions = dyn.rows
+    const questions = result.rows
       .filter(r => r.text)
       .map(r => ({ id: String(r.id), text: r.text }));
-
-    const all = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
     
     res.json({
       success: true,
-      data: all
+      data: questions
     });
   } catch (error) {
     console.error('Errore opinioni:', error);
@@ -1267,19 +1258,6 @@ app.get('/api/opinioni', async (req, res) => {
 });
 
 // Opinioni utente: recupero e salvataggio
-const OPINION_FIELDS = [
-  'energia_nucleare', 
-  'sperimentazione_animale', 
-  'legalizzazione_canapa', 
-  'caccia',
-  'cittadina_animale',
-  'eutanasia',
-  'case_chiuse',
-  'salario_minimo',
-  'matrimonio_gay',
-  'nato',
-  'omobitransfobia'
-];
 const OPINION_ALLOWED_VALUES = new Set(['Favorevole', 'Indeciso', 'Contrario']);
 
 app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
@@ -1287,40 +1265,18 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
     const userId = req.user.userId;
     console.log('DEBUG opinioni/utente - userId:', userId);
 
-    // 1) Domande base + dinamiche
-    const dyn = await pool
+    // 1) Recupera tutte le opinioni dalla tabella opinioni
+    const result = await pool
       .query(`SELECT id, COALESCE(titolo, text) AS text FROM opinioni ORDER BY created_at DESC LIMIT 200`)
       .catch(() => ({ rows: [] }));
 
-    const dynamicQuestions = dyn.rows
+    const questions = result.rows
       .filter(r => r.text)
       .map(r => ({ id: String(r.id), text: r.text }));
 
-    const questions = [...BASE_OPINION_QUESTIONS, ...dynamicQuestions];
     console.log('DEBUG opinioni/utente - questions count:', questions.length);
 
-    // 2) Risposte utente: base su tabella users (nuova), fallback su utenti (vecchia)
-    let baseRow = await pool.query(
-      `SELECT ${OPINION_FIELDS.join(', ')} FROM users WHERE id = $1`,
-      [userId]
-    );
-    console.log('DEBUG opinioni/utente - users query result rows:', baseRow.rows.length);
-    
-    // Se non trovato in users, cerca in utenti
-    if (baseRow.rows.length === 0) {
-      console.log('DEBUG opinioni/utente - user not found in users, trying utenti table');
-      baseRow = await pool.query(
-        `SELECT ${OPINION_FIELDS.join(', ')} FROM utenti WHERE id = $1`,
-        [userId]
-      );
-      console.log('DEBUG opinioni/utente - utenti query result rows:', baseRow.rows.length);
-    }
-    
-    if (baseRow.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Utente non trovato' });
-    }
-
-    // Assicurati esista tabella risposte dinamiche
+    // 2) Assicurati esista tabella risposte
     await pool
       .query(`
         CREATE TABLE IF NOT EXISTS opinioni_risposte (
@@ -1334,21 +1290,17 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
       `)
       .catch(() => undefined);
 
-    const dynAnswers = await pool
+    // 3) Recupera tutte le risposte dell'utente
+    const userAnswersResult = await pool
       .query(`SELECT opinione_id, valore FROM opinioni_risposte WHERE user_id = $1`, [userId])
       .catch(() => ({ rows: [] }));
 
     const userAnswers = {};
-    for (const f of OPINION_FIELDS) {
-      const v = baseRow.rows[0][f];
-      if (v != null) userAnswers[f] = v;
-    }
-    for (const r of dynAnswers.rows) {
+    for (const r of userAnswersResult.rows) {
       userAnswers[String(r.opinione_id)] = r.valore;
     }
 
     console.log('DEBUG opinioni/utente - userAnswers:', userAnswers);
-    console.log('DEBUG opinioni/utente - OPINION_FIELDS:', OPINION_FIELDS);
 
     res.json({ questions, userAnswers, blocco: { isBlocked: false } });
   } catch (error) {
@@ -1362,32 +1314,7 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
     const userId = req.user.userId;
     const opinions = req.body?.opinions || {};
 
-    // 1) Aggiorna campi base su tabella utenti
-    const updates = [];
-    const values = [];
-    let idx = 1;
-    for (const field of OPINION_FIELDS) {
-      if (field in opinions) {
-        const val = opinions[field];
-        if (!OPINION_ALLOWED_VALUES.has(val)) {
-          return res.status(400).json({ success: false, error: `Valore non valido per ${field}` });
-        }
-        updates.push(`${field} = $${idx++}`);
-        values.push(val);
-      }
-    }
-    if (updates.length > 0) {
-      // Aggiorna prima la tabella users (nuova)
-      values.push(userId);
-      const sqlUsers = `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`;
-      await pool.query(sqlUsers, values);
-      
-      // Aggiorna anche la tabella utenti (vecchia) per retrocompatibilità
-      const sqlUtenti = `UPDATE utenti SET ${updates.join(', ')} WHERE id = $${idx}`;
-      await pool.query(sqlUtenti, values).catch(() => undefined);
-    }
-
-    // 2) Upsert risposte dinamiche su tabella opinioni_risposte
+    // 1) Assicurati esista tabella risposte
     await pool
       .query(`
         CREATE TABLE IF NOT EXISTS opinioni_risposte (
@@ -1401,17 +1328,17 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
       `)
       .catch(() => undefined);
 
-    const dynKeys = Object.keys(opinions).filter(k => !OPINION_FIELDS.includes(k));
-    for (const k of dynKeys) {
-      const val = opinions[k];
-      if (!OPINION_ALLOWED_VALUES.has(val)) {
-        return res.status(400).json({ success: false, error: `Valore non valido per opinione ${k}` });
+    // 2) Salva tutte le risposte nella tabella opinioni_risposte
+    for (const [opinioneId, valore] of Object.entries(opinions)) {
+      if (!OPINION_ALLOWED_VALUES.has(valore)) {
+        return res.status(400).json({ success: false, error: `Valore non valido per opinione ${opinioneId}` });
       }
+      
       await pool.query(
         `INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
          VALUES ($1, $2, $3)
          ON CONFLICT (user_id, opinione_id) DO UPDATE SET valore = EXCLUDED.valore, updated_at = NOW()`,
-        [userId, String(k), val]
+        [userId, String(opinioneId), valore]
       );
     }
 
@@ -1604,6 +1531,80 @@ app.get('/api/debug/opinioni-data', async (req, res) => {
   }
 });
 
+// Endpoint per migrare opinioni esistenti a opinioni_risposte
+app.post('/api/debug/migrate-opinions', async (req, res) => {
+  try {
+    console.log('🔄 Migrazione opinioni esistenti...');
+    
+    // Assicurati esista tabella opinioni_risposte
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS opinioni_risposte (
+        user_id VARCHAR(255) NOT NULL,
+        opinione_id VARCHAR(255) NOT NULL,
+        valore VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, opinione_id)
+      )
+    `);
+    
+    // Lista delle vecchie opinioni base
+    const oldOpinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia',
+      'cittadina_animale', 'eutanasia', 'case_chiuse', 'salario_minimo', 
+      'matrimonio_gay', 'nato', 'omobitransfobia'
+    ];
+    
+    let migratedCount = 0;
+    
+    // Migra da tabella users
+    for (const field of oldOpinionFields) {
+      const users = await pool.query(`
+        SELECT id, ${field} FROM users 
+        WHERE ${field} IS NOT NULL AND ${field} != '' AND ${field} IN ('Favorevole', 'Indeciso', 'Contrario')
+      `);
+      
+      for (const user of users.rows) {
+        await pool.query(`
+          INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, opinione_id) DO NOTHING
+        `, [user.id, field, user[field]]);
+        migratedCount++;
+      }
+    }
+    
+    // Migra da tabella utenti
+    for (const field of oldOpinionFields) {
+      const utenti = await pool.query(`
+        SELECT id, ${field} FROM utenti 
+        WHERE ${field} IS NOT NULL AND ${field} != '' AND ${field} IN ('Favorevole', 'Indeciso', 'Contrario')
+      `);
+      
+      for (const utente of utenti.rows) {
+        await pool.query(`
+          INSERT INTO opinioni_risposte (user_id, opinione_id, valore)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, opinione_id) DO NOTHING
+        `, [utente.id, field, utente[field]]);
+        migratedCount++;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Migrazione completata: ${migratedCount} opinioni migrate`
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore migrazione opinioni:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Endpoint per statistiche sondaggi
 app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
   try {
@@ -1624,15 +1625,11 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       .filter(r => r.text)
       .map(r => ({ id: String(r.id), text: r.text }));
 
-    // Usa OPINION_FIELDS per avere tutte le opinioni base
-    const baseQuestions = OPINION_FIELDS.map(field => ({
-      id: field,
-      text: field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ')
-    }));
+    const questions = result.rows
+      .filter(r => r.text)
+      .map(r => ({ id: String(r.id), text: r.text }));
 
-    const questions = [...baseQuestions, ...dynamicQuestions];
     console.log('📊 DEBUG: Questions count:', questions.length);
-    console.log('📊 DEBUG: OPINION_FIELDS count:', OPINION_FIELDS.length);
 
     // 2. Calcola statistiche per ogni opinione
     const stats = {};
@@ -1642,18 +1639,15 @@ app.get('/api/sondaggi/stats', verifyToken, async (req, res) => {
       console.log('🔍 DEBUG: Processing question:', questionId);
       
       try {
-        // Conta le risposte per questa opinione da entrambe le tabelle
+        // Conta le risposte per questa opinione dalla tabella opinioni_risposte
         const result = await pool.query(`
           SELECT 
-            COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
-            COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
-            COUNT(CASE WHEN ${questionId} = 'Indeciso' THEN 1 END) as astenuto
-          FROM (
-            SELECT ${questionId} FROM users WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
-            UNION ALL
-            SELECT ${questionId} FROM utenti WHERE ${questionId} IS NOT NULL AND ${questionId} != ''
-          ) combined_data
-        `);
+            COUNT(CASE WHEN valore = 'Favorevole' THEN 1 END) as favorevole,
+            COUNT(CASE WHEN valore = 'Contrario' THEN 1 END) as contrario,
+            COUNT(CASE WHEN valore = 'Indeciso' THEN 1 END) as astenuto
+          FROM opinioni_risposte 
+          WHERE opinione_id = $1
+        `, [questionId]);
         
         if (result.rows.length > 0) {
           const row = result.rows[0];
