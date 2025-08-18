@@ -1,21 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Migrazione completa di tutti i dati da Firestore a Neon (versione corretta)
+ * MIGRAZIONE COMPLETA DA FIRESTORE A NEON POSTGRESQL (CORRETTA)
+ * Migra tutti i dati rimasti in Firestore al database Neon usando le colonne esistenti
  */
 
-import { Pool } from 'pg';
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFileSync } from 'fs';
-
-// Configurazione database Neon
-const neonPool = new Pool({
-  connectionString: 'postgres://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require',
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+import pkg from 'pg';
+const { Pool } = pkg;
 
 // Configurazione Firebase Admin SDK
 const serviceAccount = JSON.parse(readFileSync('./serviceAccountKey.json', 'utf8'));
@@ -25,449 +19,491 @@ const firebaseApp = initializeApp({
 
 const firestore = getFirestore(firebaseApp);
 
-// Funzione helper per convertire timestamp
-function parseTimestamp(timestamp) {
-  if (!timestamp) return new Date();
-  
-  // Se è già una stringa, prova a parsarla
-  if (typeof timestamp === 'string') {
-    return new Date(timestamp);
-  }
-  
-  // Se è un oggetto Firestore Timestamp
-  if (timestamp && typeof timestamp.toDate === 'function') {
-    return timestamp.toDate();
-  }
-  
-  // Se è un numero (timestamp Unix)
-  if (typeof timestamp === 'number') {
-    return new Date(timestamp);
-  }
-  
-  return new Date();
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: 'postgresql://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require',
+  ssl: { rejectUnauthorized: false }
+});
+
+console.log('🚀 INIZIO MIGRAZIONE COMPLETA DA FIRESTORE A NEON (CORRETTA)');
+console.log('📅 Data migrazione:', new Date().toISOString());
+
+// Statistiche migrazione
+const migrationStats = {
+  total: 0,
+  success: 0,
+  errors: 0,
+  skipped: 0,
+  collections: {}
+};
+
+// Funzione helper per logging
+function log(message, type = 'info') {
+  const timestamp = new Date().toISOString();
+  const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '📝';
+  console.log(`${prefix} [${timestamp}] ${message}`);
 }
 
-async function updateUtentiWithAdditionalFields() {
-  console.log('👥 Aggiornamento utenti con campi aggiuntivi...');
+// Migrazione opinioni (usa colonne esistenti)
+async function migrateOpinioni() {
+  log('📝 Migrazione opinioni...');
   
   try {
-    const snapshot = await firestore.collection('utenti').get();
-    let updated = 0;
-    let skipped = 0;
+    const snapshot = await firestore.collection('opinioni').get();
+    migrationStats.collections.opinioni = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        await neonPool.query(`
-          UPDATE utenti SET
-            paese_candidatura = $1,
-            provincia_residenza = $2,
-            comune_residenza = $3,
-            regione_residenza = $4,
-            provincia_elezione = $5,
-            regione_elezione = $6,
-            grado_elezione = $7,
-            paese_elezione = $8,
-            provincia_candidatura = $9,
-            paese_residenza = $10,
-            comune_candidatura = $11,
-            cittadina_animale = $12,
-            caccia = $13,
-            eutanasia = $14,
-            case_chiuse = $15,
-            salario_minimo = $16,
-            matrimonio_gay = $17,
-            legalizzazione_canapa = $18,
-            energia_nucleare = $19,
-            nato = $20,
-            omobitransfobia = $21,
-            data_nascita = $22,
-            genere = $23,
-            uid = $24,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = $25
-        `, [
-          data.paese_candidatura || null,
-          data.provincia_residenza || null,
-          data.comune_residenza || null,
-          data.regione_residenza || null,
-          data.provincia_elezione || null,
-          data.regione_elezione || null,
-          data.grado_elezione || null,
-          data.paese_elezione || null,
-          data.provincia_candidatura || null,
-          data.paese_residenza || null,
-          data.comune_candidatura || null,
-          data.cittadina_animale || null,
-          data.caccia || null,
-          data.eutanasia || null,
-          data.case_chiuse || null,
-          data.salario_minimo || null,
-          data.matrimonio_gay || null,
-          data.legalizzazione_canapa || null,
-          data.energia_nucleare || null,
-          data.nato || null,
-          data.omobitransfobia || null,
-          data.data_nascita || null,
-          data.genere || null,
-          data.uid || null,
-          doc.id
-        ]);
-        updated++;
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO opinioni (id, text, created_at)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (id) DO UPDATE SET 
+           text = EXCLUDED.text,
+           created_at = EXCLUDED.created_at`,
+          [data.id, data.text, data.createdAt || new Date()]
+        );
+        
+        migrationStats.collections.opinioni.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore aggiornamento utente ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione opinione ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.opinioni.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Aggiornati ${updated} utenti, skippati ${skipped}`);
-    
+    log(`✅ Opinionii migrate: ${migrationStats.collections.opinioni.success}/${migrationStats.collections.opinioni.total}`);
   } catch (error) {
-    console.error('❌ Errore aggiornamento utenti:', error);
+    log(`❌ Errore migrazione opinioni: ${error.message}`, 'error');
   }
 }
 
+// Migrazione opinioni_proposte (usa colonne esistenti)
+async function migrateOpinioniProposte() {
+  log('📝 Migrazione opinioni proposte...');
+  
+  try {
+    const snapshot = await firestore.collection('opinioni_proposte').get();
+    migrationStats.collections.opinioni_proposte = { total: snapshot.size, success: 0, errors: 0 };
+    
+    for (const doc of snapshot.docs) {
+      try {
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO opinioni_proposte (id, testo, proponente, proponente_email, data_proposta, voti, votanti, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (id) DO UPDATE SET 
+           testo = EXCLUDED.testo,
+           proponente = EXCLUDED.proponente,
+           proponente_email = EXCLUDED.proponente_email,
+           data_proposta = EXCLUDED.data_proposta,
+           voti = EXCLUDED.voti,
+           votanti = EXCLUDED.votanti`,
+          [
+            doc.id,
+            data.testo,
+            data.proponente,
+            data.proponente_email,
+            data.data_creazione ? new Date(data.data_creazione) : new Date(),
+            data.voti || 0,
+            data.votanti || [],
+            'in_revisione'
+          ]
+        );
+        
+        migrationStats.collections.opinioni_proposte.success++;
+        migrationStats.success++;
+      } catch (error) {
+        log(`❌ Errore migrazione opinione proposta ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.opinioni_proposte.errors++;
+        migrationStats.errors++;
+      }
+    }
+    
+    log(`✅ Opinionii proposte migrate: ${migrationStats.collections.opinioni_proposte.success}/${migrationStats.collections.opinioni_proposte.total}`);
+  } catch (error) {
+    log(`❌ Errore migrazione opinioni proposte: ${error.message}`, 'error');
+  }
+}
+
+// Migrazione voti_capo_stato (usa colonne esistenti)
 async function migrateVotiCapoStato() {
-  console.log('🗳️ Migrazione voti capo stato...');
+  log('🗳️ Migrazione voti capo stato...');
   
   try {
     const snapshot = await firestore.collection('voti_capo_stato').get();
-    let migrated = 0;
-    let skipped = 0;
+    migrationStats.collections.voti_capo_stato = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        await neonPool.query(`
-          INSERT INTO voti_capo_stato (id, nome, userId, timestamp)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          doc.id,
-          data.nome,
-          data.userId,
-          parseTimestamp(data.timestamp)
-        ]);
-        migrated++;
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO voti_capo_stato (id, utente_id, nome, timestamp)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (id) DO UPDATE SET 
+           utente_id = EXCLUDED.utente_id,
+           nome = EXCLUDED.nome,
+           timestamp = EXCLUDED.timestamp`,
+          [
+            doc.id,
+            data.userId,
+            data.nome,
+            data.timestamp ? new Date(data.timestamp) : new Date()
+          ]
+        );
+        
+        migrationStats.collections.voti_capo_stato.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore inserimento voto capo stato ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione voto capo stato ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.voti_capo_stato.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Migrati ${migrated} voti capo stato, skippati ${skipped}`);
-    
+    log(`✅ Voti capo stato migrati: ${migrationStats.collections.voti_capo_stato.success}/${migrationStats.collections.voti_capo_stato.total}`);
   } catch (error) {
-    console.error('❌ Errore migrazione voti capo stato:', error);
+    log(`❌ Errore migrazione voti capo stato: ${error.message}`, 'error');
   }
 }
 
+// Migrazione voti_referendum_abrogativi (usa colonne esistenti)
 async function migrateVotiReferendumAbrogativi() {
-  console.log('📊 Migrazione voti referendum abrogativi...');
+  log('🗳️ Migrazione voti referendum abrogativi...');
   
   try {
     const snapshot = await firestore.collection('voti_referendum_abrogativi').get();
-    let migrated = 0;
-    let skipped = 0;
+    migrationStats.collections.voti_referendum_abrogativi = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        await neonPool.query(`
-          INSERT INTO voti_referendum_abrogativi (id, userId, referendumId, timestamp)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          doc.id,
-          data.userId,
-          data.referendumId,
-          parseTimestamp(data.timestamp)
-        ]);
-        migrated++;
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO voti_referendum_abrogativi (id, utente_id, referendum_id, timestamp)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (id) DO UPDATE SET 
+           utente_id = EXCLUDED.utente_id,
+           referendum_id = EXCLUDED.referendum_id,
+           timestamp = EXCLUDED.timestamp`,
+          [
+            doc.id,
+            data.userId,
+            data.referendumId,
+            data.timestamp ? new Date(data.timestamp) : new Date()
+          ]
+        );
+        
+        migrationStats.collections.voti_referendum_abrogativi.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore inserimento voto referendum ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione voto referendum ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.voti_referendum_abrogativi.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Migrati ${migrated} voti referendum, skippati ${skipped}`);
-    
+    log(`✅ Voti referendum abrogativi migrati: ${migrationStats.collections.voti_referendum_abrogativi.success}/${migrationStats.collections.voti_referendum_abrogativi.total}`);
   } catch (error) {
-    console.error('❌ Errore migrazione voti referendum:', error);
+    log(`❌ Errore migrazione voti referendum: ${error.message}`, 'error');
   }
 }
 
+// Migrazione admin_notifications (usa colonne esistenti)
 async function migrateAdminNotifications() {
-  console.log('🔔 Migrazione notifiche amministrative...');
+  log('🔔 Migrazione notifiche admin...');
   
   try {
     const snapshot = await firestore.collection('admin_notifications').get();
-    let migrated = 0;
-    let skipped = 0;
+    migrationStats.collections.admin_notifications = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        await neonPool.query(`
-          INSERT INTO admin_notifications (id, type, title, message, userData, created_at, read, createdAt, updatedAt)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          doc.id,
-          data.type,
-          data.title,
-          data.message,
-          data.userData ? JSON.stringify(data.userData) : null,
-          parseTimestamp(data.createdAt),
-          data.read || false,
-          parseTimestamp(data.createdAt),
-          parseTimestamp(data.updatedAt)
-        ]);
-        migrated++;
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO admin_notifications (id, type, title, message, userdata, read, createdat, updatedat)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (id) DO UPDATE SET 
+           type = EXCLUDED.type,
+           title = EXCLUDED.title,
+           message = EXCLUDED.message,
+           userdata = EXCLUDED.userdata,
+           read = EXCLUDED.read,
+           updatedat = EXCLUDED.updatedat`,
+          [
+            doc.id,
+            data.type,
+            data.title,
+            data.message,
+            data.userData ? JSON.stringify(data.userData) : null,
+            data.read || false,
+            data.createdAt ? new Date(data.createdAt) : new Date(),
+            data.updatedAt ? new Date(data.updatedAt) : new Date()
+          ]
+        );
+        
+        migrationStats.collections.admin_notifications.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore inserimento notifica ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione notifica admin ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.admin_notifications.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Migrate ${migrated} notifiche, skippate ${skipped}`);
-    
+    log(`✅ Notifiche admin migrate: ${migrationStats.collections.admin_notifications.success}/${migrationStats.collections.admin_notifications.total}`);
   } catch (error) {
-    console.error('❌ Errore migrazione notifiche:', error);
+    log(`❌ Errore migrazione notifiche admin: ${error.message}`, 'error');
   }
 }
 
+// Migrazione elezioni (usa colonne esistenti)
 async function migrateElezioni() {
-  console.log('🏛️ Migrazione elezioni...');
+  log('🏛️ Migrazione elezioni...');
   
   try {
     const snapshot = await firestore.collection('elezioni').get();
-    let migrated = 0;
-    let skipped = 0;
+    migrationStats.collections.elezioni = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        await neonPool.query(`
-          INSERT INTO elezioni (id, tipo, zona, dataInizio, dataFine, circa, created_at, updated_at, createdAt, updatedAt)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          doc.id,
-          data.tipo,
-          data.zona,
-          data.dataInizio,
-          data.dataFine,
-          data.circa,
-          parseTimestamp(data.createdAt),
-          parseTimestamp(data.updatedAt),
-          parseTimestamp(data.createdAt),
-          parseTimestamp(data.updatedAt)
-        ]);
-        migrated++;
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO elezioni (id, tipo, zona, datainizio, datafine, circa, createdat, updatedat)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (id) DO UPDATE SET 
+           tipo = EXCLUDED.tipo,
+           zona = EXCLUDED.zona,
+           datainizio = EXCLUDED.datainizio,
+           datafine = EXCLUDED.datafine,
+           circa = EXCLUDED.circa,
+           updatedat = EXCLUDED.updatedat`,
+          [
+            doc.id,
+            data.tipo,
+            data.zona,
+            data.dataInizio,
+            data.dataFine,
+            data.circa || false,
+            data.createdAt ? new Date(data.createdAt) : new Date(),
+            data.updatedAt ? new Date(data.updatedAt) : new Date()
+          ]
+        );
+        
+        migrationStats.collections.elezioni.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore inserimento elezione ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione elezione ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.elezioni.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Migrate ${migrated} elezioni, skippate ${skipped}`);
-    
+    log(`✅ Elezioni migrate: ${migrationStats.collections.elezioni.success}/${migrationStats.collections.elezioni.total}`);
   } catch (error) {
-    console.error('❌ Errore migrazione elezioni:', error);
+    log(`❌ Errore migrazione elezioni: ${error.message}`, 'error');
   }
 }
 
+// Migrazione iniziative_popolari (usa colonne esistenti)
 async function migrateIniziativePopolari() {
-  console.log('📝 Migrazione iniziative popolari...');
+  log('📋 Migrazione iniziative popolari...');
   
   try {
     const snapshot = await firestore.collection('iniziative_popolari').get();
-    let migrated = 0;
-    let skipped = 0;
+    migrationStats.collections.iniziative_popolari = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        // Gestisci il campo quorum che potrebbe essere una stringa
-        let quorum = null;
-        if (data.quorum) {
-          if (typeof data.quorum === 'number') {
-            quorum = data.quorum;
-          } else if (typeof data.quorum === 'string' && !isNaN(parseInt(data.quorum))) {
-            quorum = parseInt(data.quorum);
-          }
-        }
+        const data = doc.data();
         
-        await neonPool.query(`
-          INSERT INTO iniziative_popolari (id, userId, nome, dataInizio, dataFine, sitoWeb, status, quorum, created_at, updated_at, createdAt, updatedAt, acceptedAt)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          doc.id,
-          data.userId,
-          data.nome,
-          data.dataInizio,
-          data.dataFine,
-          data.sitoWeb,
-          data.status,
-          quorum,
-          parseTimestamp(data.createdAt),
-          parseTimestamp(data.updatedAt),
-          parseTimestamp(data.createdAt),
-          parseTimestamp(data.updatedAt),
-          data.acceptedAt ? parseTimestamp(data.acceptedAt) : null
-        ]);
-        migrated++;
+        await pool.query(
+          `INSERT INTO iniziative_popolari (id, userid, nome, datainizio, datafine, sitoweb, status, quorum, acceptedat, createdat, updatedat)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (id) DO UPDATE SET 
+           userid = EXCLUDED.userid,
+           nome = EXCLUDED.nome,
+           datainizio = EXCLUDED.datainizio,
+           datafine = EXCLUDED.datafine,
+           sitoweb = EXCLUDED.sitoweb,
+           status = EXCLUDED.status,
+           quorum = EXCLUDED.quorum,
+           acceptedat = EXCLUDED.acceptedat,
+           updatedat = EXCLUDED.updatedat`,
+          [
+            doc.id,
+            data.userId,
+            data.nome,
+            data.dataInizio,
+            data.dataFine,
+            data.sitoWeb,
+            data.status || 'attiva',
+            data.quorum,
+            data.acceptedAt ? new Date(data.acceptedAt) : null,
+            data.createdAt ? new Date(data.createdAt) : new Date(),
+            data.updatedAt ? new Date(data.updatedAt) : new Date()
+          ]
+        );
+        
+        migrationStats.collections.iniziative_popolari.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore inserimento iniziativa ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione iniziativa popolare ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.iniziative_popolari.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Migrate ${migrated} iniziative popolari, skippate ${skipped}`);
-    
+    log(`✅ Iniziative popolari migrate: ${migrationStats.collections.iniziative_popolari.success}/${migrationStats.collections.iniziative_popolari.total}`);
   } catch (error) {
-    console.error('❌ Errore migrazione iniziative popolari:', error);
+    log(`❌ Errore migrazione iniziative popolari: ${error.message}`, 'error');
   }
 }
 
+// Migrazione voti_iniziative_popolari (usa colonne esistenti)
 async function migrateVotiIniziativePopolari() {
-  console.log('🗳️ Migrazione voti iniziative popolari...');
+  log('🗳️ Migrazione voti iniziative popolari...');
   
   try {
     const snapshot = await firestore.collection('voti_iniziative_popolari').get();
-    let migrated = 0;
-    let skipped = 0;
+    migrationStats.collections.voti_iniziative_popolari = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        await neonPool.query(`
-          INSERT INTO voti_iniziative_popolari (id, iniziativaId, userId, timestamp)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          doc.id,
-          data.iniziativaId,
-          data.userId,
-          parseTimestamp(data.timestamp)
-        ]);
-        migrated++;
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO voti_iniziative_popolari (id, iniziativa_id, userid, timestamp)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (id) DO UPDATE SET 
+           iniziativa_id = EXCLUDED.iniziativa_id,
+           userid = EXCLUDED.userid,
+           timestamp = EXCLUDED.timestamp`,
+          [
+            doc.id,
+            data.iniziativaId,
+            data.userId,
+            data.timestamp ? new Date(data.timestamp) : new Date()
+          ]
+        );
+        
+        migrationStats.collections.voti_iniziative_popolari.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore inserimento voto iniziativa ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione voto iniziativa popolare ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.voti_iniziative_popolari.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Migrati ${migrated} voti iniziative, skippati ${skipped}`);
-    
+    log(`✅ Voti iniziative popolari migrati: ${migrationStats.collections.voti_iniziative_popolari.success}/${migrationStats.collections.voti_iniziative_popolari.total}`);
   } catch (error) {
-    console.error('❌ Errore migrazione voti iniziative:', error);
+    log(`❌ Errore migrazione voti iniziative popolari: ${error.message}`, 'error');
   }
 }
 
-async function migrateICE() {
-  console.log('🇪🇺 Migrazione ICE (Iniziative Cittadini Europei)...');
+// Migrazione ice (usa colonne esistenti)
+async function migrateIce() {
+  log('🌍 Migrazione ICE (Iniziative Cittadini Europei)...');
   
   try {
     const snapshot = await firestore.collection('ice').get();
-    let migrated = 0;
-    let skipped = 0;
+    migrationStats.collections.ice = { total: snapshot.size, success: 0, errors: 0 };
     
     for (const doc of snapshot.docs) {
-      const data = doc.data();
-      
       try {
-        await neonPool.query(`
-          INSERT INTO ice (id, nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, data_creazione)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (id) DO NOTHING
-        `, [
-          doc.id,
-          data.nome,
-          data.descrizione,
-          data.dataInizio,
-          data.dataFine,
-          data.sitoWeb,
-          data.quorum,
-          parseTimestamp(data.data_creazione)
-        ]);
-        migrated++;
+        const data = doc.data();
+        
+        await pool.query(
+          `INSERT INTO ice (id, nome, descrizione, datainizio, datafine, sitoweb, quorum, data_creazione_original)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (id) DO UPDATE SET 
+           nome = EXCLUDED.nome,
+           descrizione = EXCLUDED.descrizione,
+           datainizio = EXCLUDED.datainizio,
+           datafine = EXCLUDED.datafine,
+           sitoweb = EXCLUDED.sitoweb,
+           quorum = EXCLUDED.quorum,
+           data_creazione_original = EXCLUDED.data_creazione_original`,
+          [
+            doc.id,
+            data.nome,
+            data.descrizione,
+            data.dataInizio,
+            data.dataFine,
+            data.sitoWeb,
+            data.quorum,
+            data.data_creazione ? new Date(data.data_creazione) : new Date()
+          ]
+        );
+        
+        migrationStats.collections.ice.success++;
+        migrationStats.success++;
       } catch (error) {
-        console.error(`❌ Errore inserimento ICE ${doc.id}:`, error.message);
-        skipped++;
+        log(`❌ Errore migrazione ICE ${doc.id}: ${error.message}`, 'error');
+        migrationStats.collections.ice.errors++;
+        migrationStats.errors++;
       }
     }
     
-    console.log(`✅ Migrate ${migrated} ICE, skippate ${skipped}`);
-    
+    log(`✅ ICE migrate: ${migrationStats.collections.ice.success}/${migrationStats.collections.ice.total}`);
   } catch (error) {
-    console.error('❌ Errore migrazione ICE:', error);
+    log(`❌ Errore migrazione ICE: ${error.message}`, 'error');
   }
 }
 
-async function checkFinalStatus() {
-  console.log('📊 Stato finale migrazione...');
-  
-  try {
-    const tables = [
-      'utenti',
-      'opinioni',
-      'opinioni_proposte',
-      'voti_capo_stato',
-      'voti_referendum_abrogativi',
-      'admin_notifications',
-      'elezioni',
-      'iniziative_popolari',
-      'voti_iniziative_popolari',
-      'ice'
-    ];
-    
-    for (const table of tables) {
-      const result = await neonPool.query(`SELECT COUNT(*) as count FROM ${table}`);
-      console.log(`📁 ${table}: ${result.rows[0].count} record`);
-    }
-    
-  } catch (error) {
-    console.error('❌ Errore verifica stato finale:', error);
-  }
-}
-
+// Funzione principale di migrazione
 async function migrateAllData() {
-  console.log('🚀 Migrazione completa di tutti i dati (versione corretta)...');
-  console.log('📅 Data migrazione:', new Date().toISOString());
-  
   try {
-    // Migra tutti i dati in ordine
-    await updateUtentiWithAdditionalFields();
+    log('🚀 INIZIO MIGRAZIONE COMPLETA (CORRETTA)');
+    
+    // Verifica connessione database
+    await pool.query('SELECT NOW()');
+    log('✅ Connessione database Neon verificata');
+    
+    // Esegui migrazioni in sequenza
+    await migrateOpinioni();
+    await migrateOpinioniProposte();
     await migrateVotiCapoStato();
     await migrateVotiReferendumAbrogativi();
     await migrateAdminNotifications();
     await migrateElezioni();
     await migrateIniziativePopolari();
     await migrateVotiIniziativePopolari();
-    await migrateICE();
+    await migrateIce();
     
-    await checkFinalStatus();
+    // Riepilogo finale
+    log('📊 RIEPILOGO MIGRAZIONE COMPLETA');
+    log('================================');
+    log(`📈 Totale documenti processati: ${migrationStats.total}`);
+    log(`✅ Migrazioni riuscite: ${migrationStats.success}`);
+    log(`❌ Errori: ${migrationStats.errors}`);
+    log(`⏭️ Saltati: ${migrationStats.skipped}`);
     
-    console.log('\n🎉 Migrazione completa terminata con successo!');
-    console.log('📊 Database Neon popolato con tutti i dati esistenti');
+    log('\n📋 DETTAGLIO PER COLLECTION:');
+    for (const [collection, stats] of Object.entries(migrationStats.collections)) {
+      log(`   📁 ${collection}: ${stats.success}/${stats.total} (${stats.errors} errori)`);
+    }
+    
+    if (migrationStats.errors === 0) {
+      log('🎉 MIGRAZIONE COMPLETATA CON SUCCESSO!');
+    } else {
+      log('⚠️ MIGRAZIONE COMPLETATA CON ALCUNI ERRORI');
+    }
     
   } catch (error) {
-    console.error('\n❌ Errore durante la migrazione completa:', error);
+    log(`❌ Errore critico durante la migrazione: ${error.message}`, 'error');
   } finally {
-    await neonPool.end();
-    console.log('\n🔒 Connessione chiusa');
+    await pool.end();
+    log('🔚 Connessione database chiusa');
   }
 }
 
-// Esegui migrazione completa
+// Esegui migrazione
 migrateAllData();
