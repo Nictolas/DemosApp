@@ -65,14 +65,23 @@ export default function Sondaggi() {
 
   const prepareBarData = () => {
     if (!stats || questions.length === 0) return [];
-    return questions
-      .filter(q => q.text && q.text.trim() !== '') // Filtra solo domande con testo valido
-      .map(q => ({
+    
+    const filteredQuestions = questions.filter(q => q.text && q.text.trim() !== '');
+    console.log('🔍 DEBUG: Filtered questions for bar chart:', filteredQuestions);
+    
+    const barData = filteredQuestions.map(q => {
+      const data = {
         name: q.text,
         Favorevole: stats[q.id]?.favorevole ?? 0,
         Contrario: stats[q.id]?.contrario ?? 0,
         Astenuto: stats[q.id]?.astenuto ?? 0,
-      }));
+      };
+      console.log('🔍 DEBUG: Bar data for question', q.id, ':', data);
+      return data;
+    });
+    
+    console.log('🔍 DEBUG: Final bar data:', barData);
+    return barData;
   };
   // === FINE MODIFICHE LOGICA GRAFICI ===
 
@@ -99,8 +108,16 @@ export default function Sondaggi() {
                   {questions
                     .filter(q => q.text && q.text.trim() !== '') // Filtra solo domande con testo valido
                     .map(q => {
+                    console.log('🔍 DEBUG: Rendering pie chart for question:', q.id, 'with text:', q.text);
                     const pieData = preparePieData(q.id);
-                    return pieData.length > 0 && (
+                    console.log('🔍 DEBUG: Pie data for question', q.id, ':', pieData);
+                    
+                    if (pieData.length === 0) {
+                      console.log('⚠️ DEBUG: Skipping pie chart for question', q.id, '- no data');
+                      return null;
+                    }
+                    
+                    return (
                       <Card key={q.id}>
                         <CardHeader><CardTitle className="text-xl">{q.text}</CardTitle></CardHeader>
                         <CardContent className="h-64">
