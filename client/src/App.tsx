@@ -599,7 +599,7 @@ function App() {
       <AuthProvider>
         <RegistrationProvider>
           <Router />
-          {location !== '/' && <Navbar />}
+          {location !== '/' && !location.startsWith('/reset-password') && <Navbar />}
           <Toaster />
         </RegistrationProvider>
       </AuthProvider>

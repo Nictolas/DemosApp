@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getApiUrl } from "@/lib/api-config";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function ResetPasswordConfirmPage() {
   const [searchParams] = useSearchParams();
@@ -11,6 +12,8 @@ export default function ResetPasswordConfirmPage() {
   
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,9 +57,13 @@ export default function ResetPasswordConfirmPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess("Password reimpostata con successo! Ora puoi accedere con la nuova password.");
+        setSuccess("Password reimpostata con successo! Reindirizzamento alla homepage...");
         setNewPassword("");
         setConfirmPassword("");
+        // Redirect alla homepage dopo 2 secondi
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2000);
       } else {
         setError(data.error || "Errore durante il reset della password.");
       }
@@ -98,26 +105,44 @@ export default function ResetPasswordConfirmPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block font-medium mb-2">Nuova password</label>
-              <Input
-                type="password"
-                placeholder="Inserisci la nuova password"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  placeholder="Inserisci la nuova password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showNewPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
             
             <div>
               <label className="block font-medium mb-2">Conferma password</label>
-              <Input
-                type="password"
-                placeholder="Conferma la nuova password"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-              />
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Conferma la nuova password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
