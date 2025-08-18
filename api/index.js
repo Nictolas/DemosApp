@@ -79,13 +79,16 @@ console.log('🔍 DEBUG: RESEND_API_KEY =', process.env.RESEND_API_KEY ? 'TROVAT
 // Funzione per inviare email di reset password
 async function sendResetPasswordEmail(email, resetUrl, userName) {
   try {
+    console.log('📧 Tentativo invio email a:', email);
+    console.log('📧 RESEND_API_KEY presente:', !!process.env.RESEND_API_KEY);
+    
     if (!process.env.RESEND_API_KEY) {
       console.log('⚠️ RESEND_API_KEY non configurata, saltando invio email');
       return { success: false, error: 'Email service not configured' };
     }
 
     const { data, error } = await resend.emails.send({
-      from: 'Demos Community <noreply@demos.community>',
+      from: 'Demos Community <onboarding@resend.dev>',
       to: [email],
       subject: 'Reset Password - Demos Community',
       html: `
