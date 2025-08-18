@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const crypto = require('crypto');
+const { Resend } = require('resend');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 console.log('✅ DEBUG: File index.js corretto in esecuzione');
 
@@ -70,6 +71,83 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+
+// Configurazione Resend per email
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log('🔍 DEBUG: RESEND_API_KEY =', process.env.RESEND_API_KEY ? 'TROVATA' : 'NON TROVATA');
+
+// Funzione per inviare email di reset password
+async function sendResetPasswordEmail(email, resetUrl, userName) {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.log('⚠️ RESEND_API_KEY non configurata, saltando invio email');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    const { data, error } = await resend.emails.send({
+      from: 'Demos Community <noreply@demos.community>',
+      to: [email],
+      subject: 'Reset Password - Demos Community',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="margin: 0; font-size: 28px;">Demos Community</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Reset della tua password</p>
+          </div>
+          
+          <div style="background: white; padding: 30px; border: 1px solid #e1e5e9; border-radius: 0 0 10px 10px;">
+            <h2 style="color: #333; margin-bottom: 20px;">Ciao ${userName || 'utente'}!</h2>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 25px;">
+              Hai richiesto il reset della password per il tuo account su Demos Community.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" 
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        color: white; 
+                        padding: 15px 30px; 
+                        text-decoration: none; 
+                        border-radius: 25px; 
+                        display: inline-block; 
+                        font-weight: bold;
+                        font-size: 16px;">
+                Reimposta Password
+              </a>
+            </div>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 15px;">
+              <strong>Importante:</strong> Questo link è valido solo per 1 ora. Se non hai richiesto tu questo reset, 
+              puoi ignorare questa email.
+            </p>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 25px;">
+              <p style="color: #666; margin: 0; font-size: 14px;">
+                Se il pulsante non funziona, copia e incolla questo link nel browser:<br>
+                <a href="${resetUrl}" style="color: #667eea; word-break: break-all;">${resetUrl}</a>
+              </p>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+            <p>© 2024 Demos Community. Tutti i diritti riservati.</p>
+          </div>
+        </div>
+      `
+    });
+
+    if (error) {
+      console.error('❌ Errore invio email Resend:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Email inviata con successo a:', email);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Errore generico invio email:', error);
+    return { success: false, error: error.message };
+  }
+}
 
 // Assicurazione schema minimale (colonne necessarie)
 async function ensureSchema() {
@@ -556,18 +634,32 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       [resetToken, resetTokenExpiry, user.id]
     );
     
-    // In produzione, qui invieresti l'email
-    // Per ora, restituiamo il token per test
+    // Costruisci URL di reset
     const resetUrl = `${process.env.FRONTEND_URL || 'https://demos.community'}/reset-password?token=${resetToken}`;
     
     console.log(`🔧 RESET PASSWORD: ${user.email} - Token: ${resetToken}`);
     console.log(`🔧 RESET URL: ${resetUrl}`);
     
-    res.json({ 
-      message: 'Email di reset inviata',
-      resetUrl: resetUrl, // Solo per test, rimuovere in produzione
-      token: resetToken   // Solo per test, rimuovere in produzione
-    });
+    // Invia email di reset
+    const emailResult = await sendResetPasswordEmail(
+      user.email, 
+      resetUrl, 
+      user.nome || user.email.split('@')[0]
+    );
+    
+    if (emailResult.success) {
+      res.json({ 
+        message: 'Email di reset inviata con successo! Controlla la tua casella di posta.',
+        resetUrl: resetUrl // Manteniamo per debug in sviluppo
+      });
+    } else {
+      console.error('❌ Errore invio email:', emailResult.error);
+      res.json({ 
+        message: 'Token di reset generato, ma errore nell\'invio email. Usa questo link per testare:',
+        resetUrl: resetUrl,
+        error: emailResult.error
+      });
+    }
   } catch (error) {
     console.error('Errore richiesta reset password:', error);
     res.status(500).json({ error: 'Errore interno del server' });
