@@ -382,17 +382,27 @@ app.get('/api/opinioni-list', async (req, res) => {
 // Endpoint per ottenere le opinioni di un utente specifico
 app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
   try {
-    console.log('👤 DEBUG: Richiesta opinioni utente:', req.user.id);
+    console.log('👤 DEBUG: Richiesta opinioni utente:', req.user.userId);
+    
+    if (!req.user.userId) {
+      console.error('❌ DEBUG: userId mancante nel token');
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido: userId mancante'
+      });
+    }
     
     // Prima prova a prendere da utenti
-    let result = await pool.query('SELECT * FROM utenti WHERE id = $1', [req.user.id]);
+    let result = await pool.query('SELECT * FROM utenti WHERE id = $1', [req.user.userId]);
     
     if (result.rows.length === 0) {
+      console.log('🔍 DEBUG: Utente non trovato in tabella utenti, provo users');
       // Se non trova in utenti, prova in users
-      result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+      result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.userId]);
     }
     
     if (result.rows.length === 0) {
+      console.log('❌ DEBUG: Utente non trovato in nessuna tabella');
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
@@ -419,7 +429,15 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
 // Endpoint per ottenere i rappresentanti
 app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   try {
-    console.log('🏛️ DEBUG: Richiesta rappresentanti per utente:', req.user.id);
+    console.log('🏛️ DEBUG: Richiesta rappresentanti per utente:', req.user.userId);
+    
+    if (!req.user.userId) {
+      console.error('❌ DEBUG: userId mancante nel token');
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido: userId mancante'
+      });
+    }
     
     // Per ora restituisce un array vuoto (da implementare la logica completa)
     res.json({
@@ -441,8 +459,10 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
   try {
     console.log('👥 DEBUG: Richiesta lista utenti');
     
-    // Verifica che l'utente sia Admin
-    if (req.user.role !== 'Admin') {
+    // Verifica che l'utente sia Admin usando la funzione corretta
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) {
+      console.log('❌ DEBUG: Accesso negato - utente non admin');
       return res.status(403).json({
         success: false,
         error: 'Accesso negato: solo Admin'
@@ -453,6 +473,7 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
     let result = await pool.query('SELECT id, email, nome, cognome, ruolo, status, created_at FROM utenti ORDER BY created_at DESC');
     
     if (result.rows.length === 0) {
+      console.log('🔍 DEBUG: Tabella utenti vuota, provo users');
       // Se utenti è vuoto, prova users
       result = await pool.query('SELECT id, email, nome, cognome, ruolo, status, created_at FROM users ORDER BY created_at DESC');
     }
@@ -478,8 +499,10 @@ app.get('/api/opinioni', verifyToken, async (req, res) => {
   try {
     console.log('📊 DEBUG: Richiesta opinioni ufficiali');
     
-    // Verifica che l'utente sia Admin
-    if (req.user.role !== 'Admin') {
+    // Verifica che l'utente sia Admin usando la funzione corretta
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) {
+      console.log('❌ DEBUG: Accesso negato - utente non admin');
       return res.status(403).json({
         success: false,
         error: 'Accesso negato: solo Admin'
@@ -509,8 +532,10 @@ app.get('/api/opinioni-proposte', verifyToken, async (req, res) => {
   try {
     console.log('💡 DEBUG: Richiesta opinioni proposte');
     
-    // Verifica che l'utente sia Admin
-    if (req.user.role !== 'Admin') {
+    // Verifica che l'utente sia Admin usando la funzione corretta
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) {
+      console.log('❌ DEBUG: Accesso negato - utente non admin');
       return res.status(403).json({
         success: false,
         error: 'Accesso negato: solo Admin'
@@ -1212,6 +1237,267 @@ app.get('/api/debug/utenti-table', async (req, res) => {
       success: false,
       error: 'Errore durante debug',
       details: error.message
+    });
+  }
+});
+
+// Endpoint per ottenere le statistiche dei sondaggi
+app.get('/api/sondaggi/stats', async (req, res) => {
+  try {
+    console.log('📊 DEBUG: Richiesta statistiche sondaggi');
+    
+    // Query per ottenere statistiche aggregate delle opinioni
+    const statsQuery = `
+      SELECT 
+        'energia_nucleare' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN energia_nucleare = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN energia_nucleare = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN energia_nucleare IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT energia_nucleare FROM utenti WHERE energia_nucleare IS NOT NULL
+        UNION ALL
+        SELECT energia_nucleare FROM users WHERE energia_nucleare IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'sperimentazione_animale' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN sperimentazione_animale = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN sperimentazione_animale = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN sperimentazione_animale IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT sperimentazione_animale FROM utenti WHERE sperimentazione_animale IS NOT NULL
+        UNION ALL
+        SELECT sperimentazione_animale FROM users WHERE sperimentazione_animale IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'legalizzazione_canapa' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN legalizzazione_canapa = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN legalizzazione_canapa = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN legalizzazione_canapa IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT legalizzazione_canapa FROM utenti WHERE legalizzazione_canapa IS NOT NULL
+        UNION ALL
+        SELECT legalizzazione_canapa FROM users WHERE legalizzazione_canapa IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'caccia' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN caccia = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN caccia = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN caccia IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT caccia FROM utenti WHERE caccia IS NOT NULL
+        UNION ALL
+        SELECT caccia FROM users WHERE caccia IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'cittadina_animale' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN cittadina_animale = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN cittadina_animale = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN cittadina_animale IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT cittadina_animale FROM utenti WHERE cittadina_animale IS NOT NULL
+        UNION ALL
+        SELECT cittadina_animale FROM users WHERE cittadina_animale IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'nato' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN nato = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN nato = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN nato IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT nato FROM utenti WHERE nato IS NOT NULL
+        UNION ALL
+        SELECT nato FROM users WHERE nato IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'matrimonio_gay' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN matrimonio_gay = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN matrimonio_gay = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN matrimonio_gay IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT matrimonio_gay FROM utenti WHERE matrimonio_gay IS NOT NULL
+        UNION ALL
+        SELECT matrimonio_gay FROM users WHERE matrimonio_gay IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'salario_minimo' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN salario_minimo = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN salario_minimo = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN salario_minimo IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT salario_minimo FROM utenti WHERE salario_minimo IS NOT NULL
+        UNION ALL
+        SELECT salario_minimo FROM users WHERE salario_minimo IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'carne_coltivata' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN carne_coltivata = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN carne_coltivata = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN carne_coltivata IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT carne_coltivata FROM utenti WHERE carne_coltivata IS NOT NULL
+        UNION ALL
+        SELECT carne_coltivata FROM users WHERE carne_coltivata IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'case_chiuse' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN case_chiuse = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN case_chiuse = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN case_chiuse IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT case_chiuse FROM utenti WHERE case_chiuse IS NOT NULL
+        UNION ALL
+        SELECT case_chiuse FROM users WHERE case_chiuse IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'eutanasia' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN eutanasia = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN eutanasia = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN eutanasia IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT eutanasia FROM utenti WHERE eutanasia IS NOT NULL
+        UNION ALL
+        SELECT eutanasia FROM users WHERE eutanasia IS NOT NULL
+      ) combined_utenti
+      
+      UNION ALL
+      
+      SELECT 
+        'omobitransfobia' as question,
+        COUNT(*) as total,
+        COUNT(CASE WHEN omobitransfobia = true THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN omobitransfobia = false THEN 1 END) as contrari,
+        COUNT(CASE WHEN omobitransfobia IS NULL THEN 1 END) as non_risposte
+      FROM (
+        SELECT omobitransfobia FROM utenti WHERE omobitransfobia IS NOT NULL
+        UNION ALL
+        SELECT omobitransfobia FROM users WHERE omobitransfobia IS NOT NULL
+      ) combined_utenti
+    `;
+    
+    const result = await pool.query(statsQuery);
+    
+    console.log('✅ DEBUG: Statistiche sondaggi calcolate:', result.rows.length, 'domande');
+    
+    // Formatta i dati per il frontend
+    const stats = {};
+    const questions = [];
+    
+    result.rows.forEach(row => {
+      stats[row.question] = {
+        total: parseInt(row.total) || 0,
+        favorevoli: parseInt(row.favorevoli) || 0,
+        contrari: parseInt(row.contrari) || 0,
+        non_risposte: parseInt(row.non_risposte) || 0
+      };
+      
+      questions.push({
+        id: row.question,
+        text: getOpinionQuestion(row.question)
+      });
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel calcolare statistiche sondaggi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel calcolare statistiche sondaggi'
+    });
+  }
+});
+
+// Funzione helper per ottenere il testo della domanda
+function getOpinionQuestion(questionId) {
+  const questions = {
+    'energia_nucleare': 'Energia Nucleare',
+    'sperimentazione_animale': 'Sperimentazione Animale',
+    'legalizzazione_canapa': 'Legalizzazione Canapa',
+    'caccia': 'Caccia',
+    'cittadina_animale': 'Cittadinanza Animale',
+    'nato': 'NATO',
+    'matrimonio_gay': 'Matrimonio Gay',
+    'salario_minimo': 'Salario Minimo',
+    'carne_coltivata': 'Carne Coltivata',
+    'case_chiuse': 'Case Chiuse',
+    'eutanasia': 'Eutanasia',
+    'omobitransfobia': 'Omobitransfobia'
+  };
+  
+  return questions[questionId] || questionId;
+}
+
+// Endpoint per ottenere i voti del governo
+app.get('/api/governo/voti', verifyToken, async (req, res) => {
+  try {
+    console.log('🏛️ DEBUG: Richiesta voti governo per utente:', req.user.userId);
+    
+    if (!req.user.userId) {
+      console.error('❌ DEBUG: userId mancante nel token');
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido: userId mancante'
+      });
+    }
+    
+    // Per ora restituisce un array vuoto (da implementare la logica completa)
+    res.json({
+      success: true,
+      data: []
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare voti governo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare voti governo'
     });
   }
 });
