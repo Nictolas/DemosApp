@@ -403,13 +403,20 @@ app.get('/api/opinioni-list', async (req, res) => {
   try {
     console.log('📋 DEBUG: Richiesta lista opinioni');
     
-    const result = await pool.query('SELECT * FROM opinioni ORDER BY created_at DESC');
+    // Ottieni le domande dalla tabella opinioni
+    const result = await pool.query('SELECT id, text FROM opinioni WHERE status = \'attiva\' ORDER BY created_at DESC');
     
     console.log('✅ DEBUG: Trovate', result.rows.length, 'opinioni');
     
+    // Formatta le risposte per il frontend
+    const formattedOpinions = result.rows.map(row => ({
+      id: row.id,
+      text: row.text || row.id // fallback al ID se text è null
+    }));
+    
     res.json({
       success: true,
-      data: result.rows
+      data: formattedOpinions
     });
     
   } catch (error) {
@@ -514,6 +521,67 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare opinioni utente'
+    });
+  }
+});
+
+// Endpoint per ottenere le risposte dell'utente alle opinioni
+app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
+  try {
+    console.log('👤 DEBUG: Richiesta risposte opinioni utente:', req.user.userId);
+    
+    if (!req.user.userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido: userId mancante'
+      });
+    }
+    
+    // Ottieni le risposte dell'utente dalla tabella users
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userData = userResult.rows[0];
+    
+    // Mappa le colonne opinioni alle risposte
+    const opinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+      'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+      'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    const userAnswers = {};
+    opinionFields.forEach(field => {
+      const value = userData[field];
+      if (value === 'Favorevole' || value === 'Contrario' || value === 'Indeciso') {
+        userAnswers[field] = value;
+      } else if (value === true) {
+        userAnswers[field] = 'Favorevole';
+      } else if (value === false) {
+        userAnswers[field] = 'Contrario';
+      } else {
+        userAnswers[field] = null; // Nessuna risposta
+      }
+    });
+    
+    console.log('✅ DEBUG: Trovate risposte per', Object.keys(userAnswers).filter(k => userAnswers[k]).length, 'opinioni');
+    
+    res.json({
+      success: true,
+      data: userAnswers
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare risposte opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare risposte opinioni'
     });
   }
 });

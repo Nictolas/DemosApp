@@ -75,27 +75,43 @@ export default function Opinioni() {
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
-  // 1. Caricamento dati con React Query
-  const { data, isLoading } = useQuery<UserOpinionsData>({
-    queryKey: ['opinioniData'],
+  // 1. Caricamento domande con React Query
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[]}>({
+    queryKey: ['opinioniQuestions'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni/utente");
-      if (!response.ok) throw new Error("Errore nel caricamento delle opinioni.");
+      const response = await apiRequest("GET", "/api/opinioni-list");
+      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
+      return response.json();
+    },
+    enabled: !!user
+  });
+
+  // 2. Caricamento risposte utente con React Query
+  const { data: userAnswersData, isLoading: isLoadingUserAnswers } = useQuery<{success: boolean, data: Record<string, string>}>({
+    queryKey: ['userOpinions'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/opinioni/user-answers");
+      if (!response.ok) throw new Error("Errore nel caricamento delle risposte.");
       return response.json();
     },
     enabled: !!user,
     onSuccess: (fetchedData) => {
       // Inizializza lo stato locale con le risposte dell'utente
-      setOpinions(fetchedData.userAnswers || {});
+      setOpinions(fetchedData.data || {});
     }
   });
+
+  // Combina i dati
+  const isLoading = isLoadingQuestions || isLoadingUserAnswers;
+  const questions = questionsData?.data || [];
+  const userAnswers = userAnswersData?.data || {};
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['opinioniData'] });
+      queryClient.invalidateQueries({ queryKey: ['userOpinions'] });
       setTimeout(() => setLocation("/menu"), 1500);
     },
     onError: (error: any) => {
@@ -108,7 +124,7 @@ export default function Opinioni() {
   };
 
   const handleSave = () => {
-    if (data?.questions.some(q => !opinions[q.id])) {
+    if (questions.some(q => !opinions[q.id])) {
       toast({ title: "Attenzione", description: "Per favore, rispondi a tutte le domande.", variant: "destructive" });
       return;
     }
@@ -118,8 +134,9 @@ export default function Opinioni() {
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
   
-  const { questions = [], blocco } = data || {};
-  const unlockDate = blocco?.unlockDate ? new Date(blocco.unlockDate).toLocaleString('it-IT') : null;
+  // Per ora non abbiamo il sistema di blocco, quindi sempre false
+  const blocco = { isBlocked: false, unlockDate: null };
+  const unlockDate = null;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white" style={{ paddingBottom: '80px' }}>
