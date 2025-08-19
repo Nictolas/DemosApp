@@ -669,10 +669,13 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
       });
     }
     
-    // Per ora restituisce un array vuoto (da implementare la logica completa)
+    // Per ora restituisce una struttura vuota ma valida (da implementare la logica completa)
     res.json({
       success: true,
-      data: []
+      data: {
+        rappresentanti: {}, // Nessun rappresentante selezionato
+        idMap: {} // Nessuna mappa ID
+      }
     });
     
   } catch (error) {

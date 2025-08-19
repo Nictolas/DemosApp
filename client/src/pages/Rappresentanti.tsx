@@ -35,14 +35,21 @@ export default function Rappresentanti() {
       const response = await apiRequest("GET", `/api/rappresentanti`);
       if (!response.ok) throw new Error("Errore nel caricamento dei rappresentanti");
       const result = await response.json();
-      // Normalizza struttura in caso il backend risponda { candidati: [...] }
+      
+      // Gestisce la nuova struttura dell'API
+      if (result.success && result.data) {
+        return result.data;
+      }
+      
+      // Fallback per struttura legacy
       if (Array.isArray(result?.candidati)) {
         const idMap: Record<string, string> = {};
         const rappresentanti: any = {};
-        // Placeholder: nessun rappresentante salvato → mappa vuota
-        return { rappresentanti, idMap } as any;
+        return { rappresentanti, idMap };
       }
-      return result;
+      
+      // Fallback per struttura vuota
+      return { rappresentanti: {}, idMap: {} };
     },
     enabled: !!user,
   });
@@ -105,6 +112,12 @@ export default function Rappresentanti() {
             <div className="flex items-center justify-center pt-16"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
           ) : isError ? (
             <Card className="p-8 text-center"><CardContent><h2 className="text-xl font-semibold text-red-600">Errore nel caricamento</h2><p>Impossibile caricare i tuoi rappresentanti.</p></CardContent></Card>
+          ) : !data || (Object.keys(data.rappresentanti).length === 0 && Object.keys(data.idMap).length === 0) ? (
+            <Card className="p-8 text-center"><CardContent>
+              <h2 className="text-xl font-semibold text-gray-600 mb-2">Nessun rappresentante selezionato</h2>
+              <p className="text-gray-500 mb-4">Non hai ancora scelto nessun rappresentante per le diverse categorie.</p>
+              <Button onClick={() => setShowCambiaModal({ categoria: 'europeo' })}>Scegli il primo rappresentante</Button>
+            </CardContent></Card>
           ) : (
             <>
               {/* Card Parlamento Europeo */}
