@@ -645,7 +645,7 @@ app.post('/api/debug/migrate-utenti-to-users', async (req, res) => {
 // Endpoint per ripristinare la tabella utenti
 app.post('/api/debug/restore-utenti', async (req, res) => {
   try {
-    console.log('🔄 DEBUG: Ripristino tabella utenti');
+    console.log('🔄 DEBUG: Ripristino tabella utenti da Firestore');
     
     // 1. Crea la tabella utenti con la struttura originale
     await pool.query(`
@@ -688,49 +688,128 @@ app.post('/api/debug/restore-utenti', async (req, res) => {
     
     console.log('✅ DEBUG: Tabella utenti creata');
     
-    // 2. Copia tutti i dati da users a utenti
-    const copyResult = await pool.query(`
-      INSERT INTO utenti (
-        id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
-        regione, provincia, comune, data_nascita, genere, cittadinanza,
-        paese_residenza, paese_elezione, paese_candidatura, grado_elezione, grado_candidatura,
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-        cittadina_animale, nato, matrimonio_gay, salario_minimo, carne_coltivata,
-        case_chiuse, eutanasia, omobitransfobia, created_at, updated_at
-      )
-      SELECT 
-        id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
-        regione, provincia, comune, data_nascita, genere, cittadinanza,
-        paese_residenza, paese_elezione, paese_candidatura, grado_elezione, grado_candidatura,
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-        cittadina_animale, nato, matrimonio_gay, salario_minimo, carne_coltivata,
-        case_chiuse, eutanasia, omobitransfobia, created_at, updated_at
-      FROM users
-    `);
+    // 2. Prendi tutti i dati da Firestore
+    const firestore = admin.firestore();
+    const utentiSnapshot = await firestore.collection('utenti').get();
     
-    console.log('✅ DEBUG: Dati copiati da users a utenti:', copyResult.rowCount);
+    if (utentiSnapshot.empty) {
+      throw new Error('Nessun utente trovato in Firestore');
+    }
     
-    // 3. Verifica finale
+    console.log('✅ DEBUG: Trovati', utentiSnapshot.size, 'utenti in Firestore');
+    
+    // 3. Inserisci ogni utente da Firestore a Neon
+    let inseriti = 0;
+    let errori = 0;
+    
+    for (const doc of utentiSnapshot.docs) {
+      try {
+        const utente = doc.data();
+        
+        // Prepara i dati per l'inserimento
+        const utenteData = {
+          id: doc.id,
+          email: utente.email || '',
+          nome: utente.nome || '',
+          cognome: utente.cognome || '',
+          password_hash: utente.password_hash || '',
+          ruolo: utente.ruolo || 'Elettore',
+          status: utente.status || 'pending',
+          avatar_config: utente.avatar_config ? JSON.stringify(utente.avatar_config) : null,
+          regione: utente.regione || null,
+          provincia: utente.provincia || null,
+          comune: utente.comune || null,
+          data_nascita: utente.data_nascita ? new Date(utente.data_nascita) : null,
+          genere: utente.genere || null,
+          cittadinanza: utente.cittadinanza || null,
+          paese_residenza: utente.paese_residenza || null,
+          paese_elezione: utente.paese_elezione || null,
+          paese_candidatura: utente.paese_candidatura || null,
+          grado_elezione: utente.grado_elezione || null,
+          grado_candidatura: utente.grado_candidatura || null,
+          energia_nucleare: utente.energia_nucleare || null,
+          sperimentazione_animale: utente.sperimentazione_animale || null,
+          legalizzazione_canapa: utente.legalizzazione_canapa || null,
+          caccia: utente.caccia || null,
+          cittadina_animale: utente.cittadina_animale || null,
+          nato: utente.nato || null,
+          matrimonio_gay: utente.matrimonio_gay || null,
+          salario_minimo: utente.salario_minimo || null,
+          carne_coltivata: utente.carne_coltivata || null,
+          case_chiuse: utente.case_chiuse || null,
+          eutanasia: utente.eutanasia || null,
+          omobitransfobia: utente.omobitransfobia || null,
+          created_at: utente.created_at ? new Date(utente.created_at) : new Date(),
+          updated_at: utente.updated_at ? new Date(utente.updated_at) : new Date()
+        };
+        
+        // Inserisci in Neon
+        await pool.query(`
+          INSERT INTO utenti (
+            id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
+            regione, provincia, comune, data_nascita, genere, cittadinanza,
+            paese_residenza, paese_elezione, paese_candidatura, grado_elezione, grado_candidatura,
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+            cittadina_animale, nato, matrimonio_gay, salario_minimo, carne_coltivata,
+            case_chiuse, eutanasia, omobitransfobia, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+          ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email, nome = EXCLUDED.nome, cognome = EXCLUDED.cognome,
+            password_hash = EXCLUDED.password_hash, ruolo = EXCLUDED.ruolo, status = EXCLUDED.status,
+            avatar_config = EXCLUDED.avatar_config, regione = EXCLUDED.regione, provincia = EXCLUDED.provincia,
+            comune = EXCLUDED.comune, data_nascita = EXCLUDED.data_nascita, genere = EXCLUDED.genere,
+            cittadinanza = EXCLUDED.cittadinanza, paese_residenza = EXCLUDED.paese_residenza,
+            paese_elezione = EXCLUDED.paese_elezione, paese_candidatura = EXCLUDED.paese_candidatura,
+            grado_elezione = EXCLUDED.grado_elezione, grado_candidatura = EXCLUDED.grado_candidatura,
+            energia_nucleare = EXCLUDED.energia_nucleare, sperimentazione_animale = EXCLUDED.sperimentazione_animale,
+            legalizzazione_canapa = EXCLUDED.legalizzazione_canapa, caccia = EXCLUDED.caccia,
+            cittadina_animale = EXCLUDED.cittadina_animale, nato = EXCLUDED.nato,
+            matrimonio_gay = EXCLUDED.matrimonio_gay, salario_minimo = EXCLUDED.salario_minimo,
+            carne_coltivata = EXCLUDED.carne_coltivata, case_chiuse = EXCLUDED.case_chiuse,
+            eutanasia = EXCLUDED.eutanasia, omobitransfobia = EXCLUDED.omobitransfobia,
+            updated_at = CURRENT_TIMESTAMP
+        `, [
+          utenteData.id, utenteData.email, utenteData.nome, utenteData.cognome,
+          utenteData.password_hash, utenteData.ruolo, utenteData.status, utenteData.avatar_config,
+          utenteData.regione, utenteData.provincia, utenteData.comune, utenteData.data_nascita,
+          utenteData.genere, utenteData.cittadinanza, utenteData.paese_residenza,
+          utenteData.paese_elezione, utenteData.paese_candidatura, utenteData.grado_elezione,
+          utenteData.grado_candidatura, utenteData.energia_nucleare, utenteData.sperimentazione_animale,
+          utenteData.legalizzazione_canapa, utenteData.caccia, utenteData.cittadina_animale,
+          utenteData.nato, utenteData.matrimonio_gay, utenteData.salario_minimo,
+          utenteData.carne_coltivata, utenteData.case_chiuse, utenteData.eutanasia,
+          utenteData.omobitransfobia, utenteData.created_at, utenteData.updated_at
+        ]);
+        
+        inseriti++;
+        
+      } catch (error) {
+        console.error('❌ Errore inserimento utente', doc.id, ':', error.message);
+        errori++;
+      }
+    }
+    
+    // 4. Verifica finale
     const utentiCount = await pool.query('SELECT COUNT(*) as total FROM utenti');
-    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
     
     console.log('✅ DEBUG: Ripristino completato');
 
     res.json({
       success: true,
-      message: 'Tabella utenti ripristinata con successo',
+      message: 'Tabella utenti ripristinata da Firestore con successo',
       data: {
-        utenti_ripristinati: parseInt(utentiCount.rows[0].total),
-        users_total: parseInt(usersCount.rows[0].total),
-        dati_copiati: copyResult.rowCount
+        utenti_firestore: utentiSnapshot.size,
+        utenti_inseriti: inseriti,
+        errori: errori,
+        utenti_finali: parseInt(utentiCount.rows[0].total)
       }
     });
     
   } catch (error) {
-    console.error('❌ Errore durante ripristino utenti:', error);
+    console.error('❌ Errore durante ripristino utenti da Firestore:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore durante ripristino',
+      error: 'Errore durante ripristino da Firestore',
       details: error.message
     });
   }
