@@ -54,17 +54,29 @@ export default function Rappresentanti() {
     enabled: !!user,
   });
 
-  // Debug logging
-  console.log('🔍 DEBUG Rappresentanti:', {
-    isAuthLoading,
-    user: !!user,
-    isLoading,
-    isError,
-    data,
-    dataKeys: data ? Object.keys(data) : null,
-    rappresentantiKeys: data?.rappresentanti ? Object.keys(data.rappresentanti) : null,
-    idMapKeys: data?.idMap ? Object.keys(data.idMap) : null
-  });
+  // Debug logging più dettagliato
+  console.log('🔍 DEBUG Rappresentanti - Valori singoli:');
+  console.log('  isAuthLoading:', isAuthLoading);
+  console.log('  user:', !!user);
+  console.log('  isLoading:', isLoading);
+  console.log('  isError:', isError);
+  console.log('  data:', data);
+  console.log('  data type:', typeof data);
+  console.log('  data keys:', data ? Object.keys(data) : 'data è null/undefined');
+  console.log('  rappresentanti:', data?.rappresentanti);
+  console.log('  idMap:', data?.idMap);
+  
+  // Log della condizione di rendering
+  const hasData = !!data;
+  const hasRappresentanti = data?.rappresentanti && Object.keys(data.rappresentanti).length > 0;
+  const hasIdMap = data?.idMap && Object.keys(data.idMap).length > 0;
+  const shouldShowEmpty = !data || (!hasRappresentanti && !hasIdMap);
+  
+  console.log('🔍 DEBUG Rendering conditions:');
+  console.log('  hasData:', hasData);
+  console.log('  hasRappresentanti:', hasRappresentanti);
+  console.log('  hasIdMap:', hasIdMap);
+  console.log('  shouldShowEmpty:', shouldShowEmpty);
 
   if (isAuthLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

@@ -669,12 +669,69 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
       });
     }
     
-    // Per ora restituisce una struttura vuota ma valida (da implementare la logica completa)
+    // 1. Ottieni i rappresentanti dell'utente corrente
+    const userResult = await pool.query(`
+      SELECT 
+        rappresentante_europeo, rappresentante_camera, rappresentante_senato, 
+        rappresentante_regionale, rappresentante_comune,
+        candidato_europeo, candidato_camera, candidato_senato, 
+        candidato_regionale, candidato_comune
+      FROM users 
+      WHERE id = $1
+    `, [req.user.userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userData = userResult.rows[0];
+    
+    // 2. Mappa delle categorie
+    const categorie = {
+      europeo: 'rappresentante_europeo',
+      camera: 'rappresentante_camera', 
+      senato: 'rappresentante_senato',
+      regionale: 'rappresentante_regionale',
+      comune: 'rappresentante_comune'
+    };
+    
+    // 3. Costruisci la risposta
+    const rappresentanti = {};
+    const idMap = {};
+    
+    for (const [categoria, campo] of Object.entries(categorie)) {
+      const rappresentanteId = userData[campo];
+      
+      if (rappresentanteId) {
+        // Ottieni i dati del rappresentante
+        const rappresentanteResult = await pool.query(`
+          SELECT nome, cognome, avatar_config 
+          FROM users 
+          WHERE firestore_uid = $1 OR id::text = $1
+        `, [rappresentanteId]);
+        
+        if (rappresentanteResult.rows.length > 0) {
+          const rappresentante = rappresentanteResult.rows[0];
+          rappresentanti[categoria] = {
+            nome: rappresentante.nome || 'Nome non disponibile',
+            cognome: rappresentante.cognome || 'Cognome non disponibile',
+            avatar_config: rappresentante.avatar_config
+          };
+          idMap[categoria] = rappresentanteId;
+        }
+      }
+    }
+    
+    console.log('✅ DEBUG: Rappresentanti trovati:', Object.keys(rappresentanti).length);
+    
     res.json({
       success: true,
       data: {
-        rappresentanti: {}, // Nessun rappresentante selezionato
-        idMap: {} // Nessuna mappa ID
+        rappresentanti,
+        idMap
       }
     });
     
