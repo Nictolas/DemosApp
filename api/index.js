@@ -2049,25 +2049,6 @@ app.post('/api/debug/convert-opinion-columns', async (req, res) => {
   }
 });
 
-// Gestione route non trovate
-app.use('*', (req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    error: 'Rota non trovata', 
-    path: req.originalUrl 
-  });
-});
-
-// Avvio server
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log('🚀 Server API database avviato sulla porta', PORT);
-  console.log('📊 Database Neon connesso');
-  console.log('🌐 API pronto (prefisso: /api)');
-});
-
-module.exports = app;
-
 // Endpoint per salvare le opinioni dell'utente
 app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
   try {
@@ -2162,13 +2143,35 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel salvare opinioni:', error);
+    console.error('❌ Errore nel salvataggio opinioni:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel salvare opinioni'
+      error: 'Errore nel salvataggio opinioni',
+      details: error.message
     });
   }
 });
+
+// Gestione route non trovate
+app.use('*', (req, res) => {
+  res.status(404).json({ 
+    success: false, 
+    error: 'Rota non trovata', 
+    path: req.originalUrl 
+  });
+});
+
+// Avvio server
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log('🚀 Server API database avviato sulla porta', PORT);
+  console.log('📊 Database Neon connesso');
+  console.log('🌐 API pronto (prefisso: /api)');
+});
+
+module.exports = app;
+
+
 
 // Endpoint per aggiornare la tabella users con i dati da Firestore
 app.post('/api/debug/update-users-from-firestore', async (req, res) => {
