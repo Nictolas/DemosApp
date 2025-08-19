@@ -345,6 +345,33 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// Endpoint di debug per verificare la tabella utenti
+app.get('/api/debug/utenti-table', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Inizio endpoint /api/debug/utenti-table (pubblico)');
+    
+    // Test ultra-semplice - solo connessione database
+    const result = await pool.query('SELECT 1 as test');
+    
+    console.log('✅ DEBUG: Connessione database OK');
+
+    res.json({
+      success: true,
+      message: 'Connessione database OK',
+      test: result.rows[0].test
+    });
+
+  } catch (error) {
+    console.error('❌ Errore durante debug tabella utenti:', error);
+    console.error('❌ Stack trace:', error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante debug',
+      details: error.message
+    });
+  }
+});
+
 // Gestione errori
 app.use((err, req, res, next) => {
   console.error('Errore server:', err);
