@@ -2163,16 +2163,10 @@ app.get('/api/opinioni/stats/:id/tutte-regioni', verifyToken, async (req, res) =
 });
 
 // Endpoint di debug per verificare la tabella utenti
-app.get('/api/debug/utenti-table', verifyToken, async (req, res) => {
+app.get('/api/debug/utenti-table', async (req, res) => {
   try {
-    console.log('🔍 DEBUG: Inizio endpoint /api/debug/utenti-table');
+    console.log('🔍 DEBUG: Inizio endpoint /api/debug/utenti-table (pubblico)');
     
-    // Verifica se l'utente è admin
-    const admin = await isRequesterAdmin(req.user.userId);
-    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
-
-    console.log('✅ DEBUG: Utente è admin');
-
     // Test semplice - conta righe totali
     const countResult = await pool.query('SELECT COUNT(*) as total FROM utenti');
     const totalRows = parseInt(countResult.rows[0].total);
@@ -2182,7 +2176,7 @@ app.get('/api/debug/utenti-table', verifyToken, async (req, res) => {
     res.json({
       success: true,
       totalRows,
-      message: 'Test endpoint funzionante'
+      message: 'Test endpoint funzionante (pubblico)'
     });
 
   } catch (error) {
