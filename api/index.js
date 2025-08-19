@@ -642,6 +642,61 @@ app.post('/api/debug/migrate-utenti-to-users', async (req, res) => {
   }
 });
 
+// Endpoint di debug semplificato per verificare lo stato dopo migrazione
+app.get('/api/debug/status', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Verifica stato dopo migrazione');
+    
+    // 1. Verifica tabella users
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    const usersTotal = parseInt(usersCount.rows[0].total);
+    
+    // 2. Verifica utenti per status
+    const pendingCount = await pool.query("SELECT COUNT(*) as total FROM users WHERE status = 'pending'");
+    const activeCount = await pool.query("SELECT COUNT(*) as total FROM users WHERE status = 'active'");
+    const rejectedCount = await pool.query("SELECT COUNT(*) as total FROM users WHERE status = 'rejected'");
+    
+    // 3. Verifica alcune opinioni
+    const opinionStats = await pool.query(`
+      SELECT 
+        COUNT(CASE WHEN energia_nucleare = true THEN 1 END) as energia_favorevole,
+        COUNT(CASE WHEN energia_nucleare = false THEN 1 END) as energia_contrario,
+        COUNT(CASE WHEN energia_nucleare IS NULL THEN 1 END) as energia_astenuto
+      FROM users
+    `);
+    
+    console.log('✅ DEBUG: Status verificato');
+
+    res.json({
+      success: true,
+      message: 'Status dopo migrazione',
+      data: {
+        users: {
+          total: usersTotal,
+          pending: parseInt(pendingCount.rows[0].total),
+          active: parseInt(activeCount.rows[0].total),
+          rejected: parseInt(rejectedCount.rowsCount)
+        },
+        opinioni: {
+          energia_nucleare: {
+            favorevole: parseInt(opinionStats.rows[0].energia_favorevole),
+            contrario: parseInt(opinionStats.rows[0].energia_contrario),
+            astenuto: parseInt(opinionStats.rows[0].energia_astenuto)
+          }
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore durante verifica status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante verifica',
+      details: error.message
+    });
+  }
+});
+
 // Endpoint per migrazione semplificata da utenti a users
 app.post('/api/debug/migrate-simple', async (req, res) => {
   try {
