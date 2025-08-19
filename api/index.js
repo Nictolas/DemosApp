@@ -2139,13 +2139,18 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
         // Prepara i dati completi per l'inserimento/aggiornamento
         const userData = {
           id: doc.id,
+          name: `${utente.nome || ''} ${utente.cognome || ''}`.trim() || utente.email || 'Utente',
           email: utente.email || '',
+          email_verified: utente.email_verified ? new Date(utente.email_verified) : null,
+          image: utente.avatar_config ? JSON.stringify(utente.avatar_config) : null,
+          created_at: utente.created_at ? new Date(utente.created_at) : new Date(),
+          updated_at: utente.updated_at ? new Date(utente.updated_at) : new Date(),
+          // Dati aggiuntivi per la nostra app
           nome: utente.nome || '',
           cognome: utente.cognome || '',
           password_hash: utente.password_hash || '',
           ruolo: utente.ruolo || 'Elettore',
           status: utente.status || 'pending',
-          avatar_config: utente.avatar_config ? JSON.stringify(utente.avatar_config) : null,
           regione: utente.regione || null,
           provincia: utente.provincia || null,
           comune: utente.comune || null,
@@ -2157,6 +2162,7 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
           paese_candidatura: utente.paese_candidatura || null,
           grado_elezione: utente.grado_elezione || null,
           grado_candidatura: utente.grado_candidatura || null,
+          // Opinioni
           energia_nucleare: convertOpinionValue(utente.energia_nucleare),
           sperimentazione_animale: convertOpinionValue(utente.sperimentazione_animale),
           legalizzazione_canapa: convertOpinionValue(utente.legalizzazione_canapa),
@@ -2168,47 +2174,47 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
           carne_coltivata: convertOpinionValue(utente.carne_coltivata),
           case_chiuse: convertOpinionValue(utente.case_chiuse),
           eutanasia: convertOpinionValue(utente.eutanasia),
-          omobitransfobia: convertOpinionValue(utente.omobitransfobia),
-          created_at: utente.created_at ? new Date(utente.created_at) : new Date(),
-          updated_at: utente.updated_at ? new Date(utente.updated_at) : new Date()
+          omobitransfobia: convertOpinionValue(utente.omobitransfobia)
         };
         
         // Inserisci o aggiorna in users con UPSERT
         const result = await pool.query(`
           INSERT INTO users (
-            id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
-            regione, provincia, comune, data_nascita, genere, cittadinanza,
-            paese_residenza, paese_elezione, paese_candidatura, grado_elezione, grado_candidatura,
+            id, name, email, email_verified, image, created_at, updated_at,
+            nome, cognome, password_hash, ruolo, status, regione, provincia, comune,
+            data_nascita, genere, cittadinanza, paese_residenza, paese_elezione,
+            paese_candidatura, grado_elezione, grado_candidatura,
             energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
             cittadina_animale, nato, matrimonio_gay, salario_minimo, carne_coltivata,
-            case_chiuse, eutanasia, omobitransfobia, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+            case_chiuse, eutanasia, omobitransfobia
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36)
           ON CONFLICT (id) DO UPDATE SET
-            email = EXCLUDED.email, nome = EXCLUDED.nome, cognome = EXCLUDED.cognome,
-            password_hash = EXCLUDED.password_hash, ruolo = EXCLUDED.ruolo, status = EXCLUDED.status,
-            avatar_config = EXCLUDED.avatar_config, regione = EXCLUDED.regione, provincia = EXCLUDED.provincia,
-            comune = EXCLUDED.comune, data_nascita = EXCLUDED.data_nascita, genere = EXCLUDED.genere,
-            cittadinanza = EXCLUDED.cittadinanza, paese_residenza = EXCLUDED.paese_residenza,
-            paese_elezione = EXCLUDED.paese_elezione, paese_candidatura = EXCLUDED.paese_candidatura,
-            grado_elezione = EXCLUDED.grado_elezione, grado_candidatura = EXCLUDED.grado_candidatura,
-            energia_nucleare = EXCLUDED.energia_nucleare, sperimentazione_animale = EXCLUDED.sperimentazione_animale,
-            legalizzazione_canapa = EXCLUDED.legalizzazione_canapa, caccia = EXCLUDED.caccia,
-            cittadina_animale = EXCLUDED.cittadina_animale, nato = EXCLUDED.nato,
+            name = EXCLUDED.name, email = EXCLUDED.email, email_verified = EXCLUDED.email_verified,
+            image = EXCLUDED.image, updated_at = CURRENT_TIMESTAMP,
+            nome = EXCLUDED.nome, cognome = EXCLUDED.cognome, password_hash = EXCLUDED.password_hash,
+            ruolo = EXCLUDED.ruolo, status = EXCLUDED.status, regione = EXCLUDED.regione,
+            provincia = EXCLUDED.provincia, comune = EXCLUDED.comune, data_nascita = EXCLUDED.data_nascita,
+            genere = EXCLUDED.genere, cittadinanza = EXCLUDED.cittadinanza,
+            paese_residenza = EXCLUDED.paese_residenza, paese_elezione = EXCLUDED.paese_elezione,
+            paese_candidatura = EXCLUDED.paese_candidatura, grado_elezione = EXCLUDED.grado_elezione,
+            grado_candidatura = EXCLUDED.grado_candidatura, energia_nucleare = EXCLUDED.energia_nucleare,
+            sperimentazione_animale = EXCLUDED.sperimentazione_animale, legalizzazione_canapa = EXCLUDED.legalizzazione_canapa,
+            caccia = EXCLUDED.caccia, cittadina_animale = EXCLUDED.cittadina_animale, nato = EXCLUDED.nato,
             matrimonio_gay = EXCLUDED.matrimonio_gay, salario_minimo = EXCLUDED.salario_minimo,
             carne_coltivata = EXCLUDED.carne_coltivata, case_chiuse = EXCLUDED.case_chiuse,
-            eutanasia = EXCLUDED.eutanasia, omobitransfobia = EXCLUDED.omobitransfobia,
-            updated_at = CURRENT_TIMESTAMP
+            eutanasia = EXCLUDED.eutanasia, omobitransfobia = EXCLUDED.omobitransfobia
         `, [
-          userData.id, userData.email, userData.nome, userData.cognome,
-          userData.password_hash, userData.ruolo, userData.status, userData.avatar_config,
-          userData.regione, userData.provincia, userData.comune, userData.data_nascita,
-          userData.genere, userData.cittadinanza, userData.paese_residenza,
-          userData.paese_elezione, userData.paese_candidatura, userData.grado_elezione,
-          userData.grado_candidatura, userData.energia_nucleare, userData.sperimentazione_animale,
-          userData.legalizzazione_canapa, userData.caccia, userData.cittadina_animale,
-          userData.nato, userData.matrimonio_gay, userData.salario_minimo,
-          userData.carne_coltivata, userData.case_chiuse, userData.eutanasia,
-          userData.omobitransfobia, userData.created_at, userData.updated_at
+          userData.id, userData.name, userData.email, userData.email_verified,
+          userData.image, userData.created_at, userData.updated_at,
+          userData.nome, userData.cognome, userData.password_hash, userData.ruolo,
+          userData.status, userData.regione, userData.provincia, userData.comune,
+          userData.data_nascita, userData.genere, userData.cittadinanza,
+          userData.paese_residenza, userData.paese_elezione, userData.paese_candidatura,
+          userData.grado_elezione, userData.grado_candidatura, userData.energia_nucleare,
+          userData.sperimentazione_animale, userData.legalizzazione_canapa, userData.caccia,
+          userData.cittadina_animale, userData.nato, userData.matrimonio_gay,
+          userData.salario_minimo, userData.carne_coltivata, userData.case_chiuse,
+          userData.eutanasia, userData.omobitransfobia
         ]);
         
         if (result.rowCount > 0) {
@@ -2301,8 +2307,6 @@ app.post('/api/debug/convert-users-columns', async (req, res) => {
         await pool.query(`ALTER TABLE users RENAME COLUMN ${field}_temp TO ${field}`);
         
         console.log(`✅ DEBUG: Colonna ${field} convertita in users`);
-      } else {
-        console.log(`ℹ️ DEBUG: Colonna ${field} già TEXT o non trovata`);
       }
     }
     
@@ -2322,6 +2326,65 @@ app.post('/api/debug/convert-users-columns', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nella conversione colonne users',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per aggiungere le colonne opinioni mancanti alla tabella users
+app.post('/api/debug/add-opinion-columns', async (req, res) => {
+  try {
+    console.log('🔄 DEBUG: Aggiunta colonne opinioni alla tabella users');
+    
+    const opinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+      'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+      'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    // Controlla quali colonne esistono già
+    const existingColumns = await pool.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name IN (${opinionFields.map((_, i) => `$${i + 1}`).join(',')})
+    `, opinionFields);
+    
+    const existingColumnNames = existingColumns.rows.map(row => row.column_name);
+    const missingColumns = opinionFields.filter(field => !existingColumnNames.includes(field));
+    
+    console.log('📊 DEBUG: Colonne esistenti:', existingColumnNames);
+    console.log('📊 DEBUG: Colonne mancanti:', missingColumns);
+    
+    // Aggiungi le colonne mancanti
+    for (const field of missingColumns) {
+      console.log(`🔄 DEBUG: Aggiunta colonna ${field}`);
+      await pool.query(`ALTER TABLE users ADD COLUMN ${field} TEXT`);
+      console.log(`✅ DEBUG: Colonna ${field} aggiunta`);
+    }
+    
+    // Verifica finale
+    const finalColumns = await pool.query(`
+      SELECT column_name, data_type FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name IN (${opinionFields.map((_, i) => `$${i + 1}`).join(',')})
+      ORDER BY column_name
+    `, opinionFields);
+    
+    console.log('✅ DEBUG: Colonne opinioni aggiunte');
+    
+    res.json({
+      success: true,
+      message: 'Colonne opinioni aggiunte alla tabella users',
+      data: {
+        existing_columns: existingColumnNames,
+        added_columns: missingColumns,
+        final_columns: finalColumns.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiunta colonne opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiunta colonne opinioni',
       details: error.message
     });
   }
