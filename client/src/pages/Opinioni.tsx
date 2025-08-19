@@ -131,10 +131,21 @@ export default function Opinioni() {
   };
 
   const handleSave = () => {
-    if (questions.some(q => !opinions[q.id])) {
+    console.log('🔍 DEBUG handleSave:');
+    console.log('  questions:', questions);
+    console.log('  opinions:', opinions);
+    console.log('  questions.map(q => ({ id: q.id, hasOpinion: !!opinions[q.id] })):', questions.map(q => ({ id: q.id, hasOpinion: !!opinions[q.id] })));
+    
+    const missingQuestions = questions.filter(q => !opinions[q.id]);
+    console.log('  missingQuestions:', missingQuestions);
+    
+    if (missingQuestions.length > 0) {
+      console.log('❌ DEBUG: Bloccato salvataggio - domande mancanti:', missingQuestions.map(q => q.id));
       toast({ title: "Attenzione", description: "Per favore, rispondi a tutte le domande.", variant: "destructive" });
       return;
     }
+    
+    console.log('✅ DEBUG: Procedo con il salvataggio');
     saveMutation.mutate(opinions);
   };
 
