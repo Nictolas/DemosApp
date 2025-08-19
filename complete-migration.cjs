@@ -1,13 +1,14 @@
+require('dotenv').config();
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 
 // Configurazione Neon Database
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:YOUR_PASSWORD@ep-misty-cherry-02001685.eu-west-1.aws.neon.tech/neondb?sslmode=require'
+  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require'
 });
 
-// Configurazione Firestore
-const serviceAccount = require('./api/firebase-config.cjs');
+// Configurazione Firestore - usa direttamente il file JSON
+const serviceAccount = require('./serviceAccountKey.json');
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -17,6 +18,7 @@ const firestore = admin.firestore();
 async function completeMigration() {
   try {
     console.log('🚀 DEBUG: COMPLETAMENTO MIGRAZIONE - Aggiunta colonne e dati mancanti');
+    console.log('🔍 DEBUG: DATABASE_URL =', process.env.DATABASE_URL ? 'TROVATA' : 'NON TROVATA');
     
     // 1. DEFINISCO TUTTE LE COLONNE NECESSARIE
     const allColumns = {
@@ -100,7 +102,37 @@ async function completeMigration() {
       return 'Indeciso'; // Default per valori null/undefined
     };
     
-    // 6. AGGIORNA TUTTI GLI UTENTI ESISTENTI
+    // 6. FUNZIONE PER CONVERTIRE DATE
+    const convertDate = (dateValue) => {
+      if (!dateValue) return null;
+      
+      try {
+        // Se è già una data valida
+        if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
+          return dateValue;
+        }
+        
+        // Se è una stringa, prova a convertirla
+        if (typeof dateValue === 'string') {
+          const parsed = new Date(dateValue);
+          if (!isNaN(parsed.getTime())) {
+            return parsed;
+          }
+        }
+        
+        // Se è un timestamp Firestore
+        if (dateValue && dateValue.toDate) {
+          return dateValue.toDate();
+        }
+        
+        return null;
+      } catch (error) {
+        console.log(`⚠️ Errore conversione data: ${dateValue}`, error.message);
+        return null;
+      }
+    };
+    
+    // 7. AGGIORNA TUTTI GLI UTENTI ESISTENTI
     let aggiornati = 0;
     let errori = 0;
     
@@ -126,7 +158,7 @@ async function completeMigration() {
           paese_residenza: utente.paese_residenza || null,
           
           // Dati aggiuntivi
-          data_nascita: utente.data_nascita ? new Date(utente.data_nascita) : null,
+          data_nascita: convertDate(utente.data_nascita),
           genere: utente.genere || null,
           cittadinanza: utente.cittadinanza || null,
           paese_elezione: utente.paese_elezione || null,
@@ -177,7 +209,7 @@ async function completeMigration() {
       }
     }
     
-    // 7. VERIFICA FINALE
+    // 8. VERIFICA FINALE
     const finalUsersCount = await pool.query('SELECT COUNT(*) as total FROM users');
     const usersWithOpinions = await pool.query(`
       SELECT COUNT(*) as count 
