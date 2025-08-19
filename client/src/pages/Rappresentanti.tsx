@@ -54,6 +54,18 @@ export default function Rappresentanti() {
     enabled: !!user,
   });
 
+  // Debug logging
+  console.log('🔍 DEBUG Rappresentanti:', {
+    isAuthLoading,
+    user: !!user,
+    isLoading,
+    isError,
+    data,
+    dataKeys: data ? Object.keys(data) : null,
+    rappresentantiKeys: data?.rappresentanti ? Object.keys(data.rappresentanti) : null,
+    idMapKeys: data?.idMap ? Object.keys(data.idMap) : null
+  });
+
   if (isAuthLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
