@@ -435,7 +435,7 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
       } else if (userData[field] === false) {
         userAnswers[field] = 'Contrario';
       } else {
-        userAnswers[field] = null; // Non ha ancora risposto
+        userAnswers[field] = 'Indeciso'; // null diventa "Indeciso" per leggerezza
       }
     });
     
