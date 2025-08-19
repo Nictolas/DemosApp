@@ -2167,16 +2167,15 @@ app.get('/api/debug/utenti-table', async (req, res) => {
   try {
     console.log('🔍 DEBUG: Inizio endpoint /api/debug/utenti-table (pubblico)');
     
-    // Test semplice - conta righe totali
-    const countResult = await pool.query('SELECT COUNT(*) as total FROM utenti');
-    const totalRows = parseInt(countResult.rows[0].total);
-
-    console.log('✅ DEBUG: Debug completato - righe totali:', totalRows);
+    // Test ultra-semplice - solo connessione database
+    const result = await pool.query('SELECT 1 as test');
+    
+    console.log('✅ DEBUG: Connessione database OK');
 
     res.json({
       success: true,
-      totalRows,
-      message: 'Test endpoint funzionante (pubblico)'
+      message: 'Connessione database OK',
+      test: result.rows[0].test
     });
 
   } catch (error) {
