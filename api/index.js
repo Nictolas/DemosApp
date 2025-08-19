@@ -422,7 +422,7 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
     // 3. Prepara le risposte dell'utente
     const userAnswers = {};
     
-    // Mappa le colonne boolean alle risposte
+    // Mappa le colonne text alle risposte
     const opinionFields = [
       'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
       'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
@@ -430,12 +430,18 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
     ];
     
     opinionFields.forEach(field => {
-      if (userData[field] === true) {
-        userAnswers[field] = 'Favorevole';
-      } else if (userData[field] === false) {
-        userAnswers[field] = 'Contrario';
+      const value = userData[field];
+      if (value === 'Favorevole' || value === 'Contrario' || value === 'Indeciso') {
+        userAnswers[field] = value;
       } else {
-        userAnswers[field] = 'Indeciso'; // null diventa "Indeciso" per leggerezza
+        // Fallback per valori boolean legacy o null
+        if (value === true) {
+          userAnswers[field] = 'Favorevole';
+        } else if (value === false) {
+          userAnswers[field] = 'Contrario';
+        } else {
+          userAnswers[field] = 'Indeciso';
+        }
       }
     });
     
@@ -1617,6 +1623,164 @@ app.get('/api/debug/check-data', async (req, res) => {
   }
 });
 
+// Endpoint di debug per controllare la struttura delle colonne opinioni
+app.get('/api/debug/check-columns', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Controllo struttura colonne opinioni');
+    
+    // Controlla struttura tabella users
+    const usersColumns = await pool.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      AND column_name IN (
+        'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+        'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+        'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+      )
+      ORDER BY column_name
+    `);
+    
+    // Controlla struttura tabella utenti
+    const utentiColumns = await pool.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'utenti' 
+      AND column_name IN (
+        'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+        'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+        'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+      )
+      ORDER BY column_name
+    `);
+    
+    console.log('✅ DEBUG: Controllo struttura completato');
+    
+    res.json({
+      success: true,
+      data: {
+        users: usersColumns.rows,
+        utenti: utentiColumns.rows,
+        summary: {
+          users_boolean_count: usersColumns.rows.filter(c => c.data_type === 'boolean').length,
+          utenti_boolean_count: utentiColumns.rows.filter(c => c.data_type === 'boolean').length,
+          needs_text_conversion: usersColumns.rows.some(c => c.data_type === 'boolean') || utentiColumns.rows.some(c => c.data_type === 'boolean')
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel controllo struttura:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel controllo struttura',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per convertire le colonne opinioni da boolean a text
+app.post('/api/debug/convert-opinion-columns', async (req, res) => {
+  try {
+    console.log('🔄 DEBUG: Conversione colonne opinioni da boolean a text');
+    
+    const opinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+      'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+      'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    // 1. Converti tabella users
+    console.log('📊 DEBUG: Conversione tabella users');
+    for (const field of opinionFields) {
+      // Controlla se la colonna è boolean
+      const columnCheck = await pool.query(`
+        SELECT data_type FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = $1
+      `, [field]);
+      
+      if (columnCheck.rows.length > 0 && columnCheck.rows[0].data_type === 'boolean') {
+        console.log(`🔄 DEBUG: Conversione colonna ${field} in users`);
+        
+        // Aggiungi colonna temporanea
+        await pool.query(`ALTER TABLE users ADD COLUMN ${field}_temp TEXT`);
+        
+        // Copia dati convertiti
+        await pool.query(`
+          UPDATE users SET ${field}_temp = 
+            CASE 
+              WHEN ${field} = true THEN 'Favorevole'
+              WHEN ${field} = false THEN 'Contrario'
+              ELSE 'Indeciso'
+            END
+        `);
+        
+        // Rimuovi colonna boolean
+        await pool.query(`ALTER TABLE users DROP COLUMN ${field}`);
+        
+        // Rinomina colonna temporanea
+        await pool.query(`ALTER TABLE users RENAME COLUMN ${field}_temp TO ${field}`);
+        
+        console.log(`✅ DEBUG: Colonna ${field} convertita in users`);
+      }
+    }
+    
+    // 2. Converti tabella utenti
+    console.log('📊 DEBUG: Conversione tabella utenti');
+    for (const field of opinionFields) {
+      // Controlla se la colonna è boolean
+      const columnCheck = await pool.query(`
+        SELECT data_type FROM information_schema.columns 
+        WHERE table_name = 'utenti' AND column_name = $1
+      `, [field]);
+      
+      if (columnCheck.rows.length > 0 && columnCheck.rows[0].data_type === 'boolean') {
+        console.log(`🔄 DEBUG: Conversione colonna ${field} in utenti`);
+        
+        // Aggiungi colonna temporanea
+        await pool.query(`ALTER TABLE utenti ADD COLUMN ${field}_temp TEXT`);
+        
+        // Copia dati convertiti
+        await pool.query(`
+          UPDATE utenti SET ${field}_temp = 
+            CASE 
+              WHEN ${field} = true THEN 'Favorevole'
+              WHEN ${field} = false THEN 'Contrario'
+              ELSE 'Indeciso'
+            END
+        `);
+        
+        // Rimuovi colonna boolean
+        await pool.query(`ALTER TABLE utenti DROP COLUMN ${field}`);
+        
+        // Rinomina colonna temporanea
+        await pool.query(`ALTER TABLE utenti RENAME COLUMN ${field}_temp TO ${field}`);
+        
+        console.log(`✅ DEBUG: Colonna ${field} convertita in utenti`);
+      }
+    }
+    
+    console.log('✅ DEBUG: Conversione completata');
+    
+    res.json({
+      success: true,
+      message: 'Colonne opinioni convertite da boolean a text',
+      data: {
+        converted_fields: opinionFields,
+        tables: ['users', 'utenti']
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella conversione colonne:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella conversione colonne',
+      details: error.message
+    });
+  }
+});
+
 // Gestione route non trovate
 app.use('*', (req, res) => {
   res.status(404).json({ 
@@ -1635,4 +1799,106 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
+// Endpoint per salvare le opinioni dell'utente
+app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
+  try {
+    console.log('💾 DEBUG: Salvataggio opinioni utente:', req.user.userId);
+    
+    if (!req.user.userId) {
+      console.error('❌ DEBUG: userId mancante nel token');
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido: userId mancante'
+      });
+    }
+    
+    const { opinions } = req.body;
+    
+    if (!opinions || typeof opinions !== 'object') {
+      console.error('❌ DEBUG: Dati opinioni non validi');
+      return res.status(400).json({
+        success: false,
+        error: 'Dati opinioni non validi'
+      });
+    }
+    
+    console.log('📊 DEBUG: Opinion da salvare:', Object.keys(opinions).length);
+    
+    // Prepara la query di aggiornamento
+    const opinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+      'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+      'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    opinionFields.forEach(field => {
+      if (opinions[field] && ['Favorevole', 'Contrario', 'Indeciso'].includes(opinions[field])) {
+        updateFields.push(`${field} = $${paramIndex}`);
+        updateValues.push(opinions[field]);
+        paramIndex++;
+      }
+    });
+    
+    if (updateFields.length === 0) {
+      console.error('❌ DEBUG: Nessuna opinione valida da salvare');
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare'
+      });
+    }
+    
+    // Aggiungi userId come ultimo parametro
+    updateValues.push(req.user.userId);
+    
+    // Prima prova a salvare in users
+    let result = await pool.query(`
+      UPDATE users 
+      SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramIndex}
+      RETURNING id
+    `, updateValues);
+    
+    if (result.rowCount === 0) {
+      console.log('🔍 DEBUG: Utente non trovato in users, provo utenti');
+      // Se non trova in users, prova in utenti
+      result = await pool.query(`
+        UPDATE utenti 
+        SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $${paramIndex}
+        RETURNING id
+      `, updateValues);
+    }
+    
+    if (result.rowCount === 0) {
+      console.error('❌ DEBUG: Utente non trovato in nessuna tabella');
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    console.log('✅ DEBUG: Opinion salvate con successo');
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      data: {
+        updated_fields: updateFields.length,
+        user_id: req.user.userId
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare opinioni'
+    });
+  }
+});
 
