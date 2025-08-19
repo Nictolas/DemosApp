@@ -870,7 +870,7 @@ app.post('/api/debug/restore-utenti', async (req, res) => {
   try {
     console.log('🔄 DEBUG: Ripristino tabella utenti da Firestore');
     
-    // 1. Crea la tabella utenti con la struttura originale
+    // 1. Crea la tabella utenti con la struttura TEXT per le opinioni
     await pool.query(`
       CREATE TABLE IF NOT EXISTS utenti (
         id VARCHAR(255) PRIMARY KEY,
@@ -892,24 +892,24 @@ app.post('/api/debug/restore-utenti', async (req, res) => {
         paese_candidatura VARCHAR(255),
         grado_elezione VARCHAR(100),
         grado_candidatura VARCHAR(100),
-        energia_nucleare BOOLEAN,
-        sperimentazione_animale BOOLEAN,
-        legalizzazione_canapa BOOLEAN,
-        caccia BOOLEAN,
-        cittadina_animale BOOLEAN,
-        nato BOOLEAN,
-        matrimonio_gay BOOLEAN,
-        salario_minimo BOOLEAN,
-        carne_coltivata BOOLEAN,
-        case_chiuse BOOLEAN,
-        eutanasia BOOLEAN,
-        omobitransfobia BOOLEAN,
+        energia_nucleare TEXT,
+        sperimentazione_animale TEXT,
+        legalizzazione_canapa TEXT,
+        caccia TEXT,
+        cittadina_animale TEXT,
+        nato TEXT,
+        matrimonio_gay TEXT,
+        salario_minimo TEXT,
+        carne_coltivata TEXT,
+        case_chiuse TEXT,
+        eutanasia TEXT,
+        omobitransfobia TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `);
     
-    console.log('✅ DEBUG: Tabella utenti creata');
+    console.log('✅ DEBUG: Tabella utenti creata con colonne TEXT');
     
     // 2. Prendi tutti i dati da Firestore
     const firestore = admin.firestore();
@@ -928,6 +928,16 @@ app.post('/api/debug/restore-utenti', async (req, res) => {
     for (const doc of utentiSnapshot.docs) {
       try {
         const utente = doc.data();
+        
+        // Funzione per convertire i valori delle opinioni
+        const convertOpinionValue = (value) => {
+          if (value === true) return 'Favorevole';
+          if (value === false) return 'Contrario';
+          if (value === 'Indeciso' || value === 'indeciso') return 'Indeciso';
+          if (value === 'Favorevole' || value === 'favorevole') return 'Favorevole';
+          if (value === 'Contrario' || value === 'contrario') return 'Contrario';
+          return 'Indeciso'; // Default per valori null/undefined
+        };
         
         // Prepara i dati per l'inserimento
         const utenteData = {
@@ -950,18 +960,18 @@ app.post('/api/debug/restore-utenti', async (req, res) => {
           paese_candidatura: utente.paese_candidatura || null,
           grado_elezione: utente.grado_elezione || null,
           grado_candidatura: utente.grado_candidatura || null,
-          energia_nucleare: utente.energia_nucleare || null,
-          sperimentazione_animale: utente.sperimentazione_animale || null,
-          legalizzazione_canapa: utente.legalizzazione_canapa || null,
-          caccia: utente.caccia || null,
-          cittadina_animale: utente.cittadina_animale || null,
-          nato: utente.nato || null,
-          matrimonio_gay: utente.matrimonio_gay || null,
-          salario_minimo: utente.salario_minimo || null,
-          carne_coltivata: utente.carne_coltivata || null,
-          case_chiuse: utente.case_chiuse || null,
-          eutanasia: utente.eutanasia || null,
-          omobitransfobia: utente.omobitransfobia || null,
+          energia_nucleare: convertOpinionValue(utente.energia_nucleare),
+          sperimentazione_animale: convertOpinionValue(utente.sperimentazione_animale),
+          legalizzazione_canapa: convertOpinionValue(utente.legalizzazione_canapa),
+          caccia: convertOpinionValue(utente.caccia),
+          cittadina_animale: convertOpinionValue(utente.cittadina_animale),
+          nato: convertOpinionValue(utente.nato),
+          matrimonio_gay: convertOpinionValue(utente.matrimonio_gay),
+          salario_minimo: convertOpinionValue(utente.salario_minimo),
+          carne_coltivata: convertOpinionValue(utente.carne_coltivata),
+          case_chiuse: convertOpinionValue(utente.case_chiuse),
+          eutanasia: convertOpinionValue(utente.eutanasia),
+          omobitransfobia: convertOpinionValue(utente.omobitransfobia),
           created_at: utente.created_at ? new Date(utente.created_at) : new Date(),
           updated_at: utente.updated_at ? new Date(utente.updated_at) : new Date()
         };
@@ -1898,6 +1908,108 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel salvare opinioni'
+    });
+  }
+});
+
+// Endpoint per aggiornare la tabella users con i dati da Firestore
+app.post('/api/debug/update-users-from-firestore', async (req, res) => {
+  try {
+    console.log('🔄 DEBUG: Aggiornamento tabella users da Firestore');
+    
+    // 1. Prendi tutti i dati da Firestore
+    const firestore = admin.firestore();
+    const utentiSnapshot = await firestore.collection('utenti').get();
+    
+    if (utentiSnapshot.empty) {
+      throw new Error('Nessun utente trovato in Firestore');
+    }
+    
+    console.log('✅ DEBUG: Trovati', utentiSnapshot.size, 'utenti in Firestore');
+    
+    // 2. Aggiorna ogni utente nella tabella users
+    let aggiornati = 0;
+    let errori = 0;
+    
+    for (const doc of utentiSnapshot.docs) {
+      try {
+        const utente = doc.data();
+        
+        // Funzione per convertire i valori delle opinioni
+        const convertOpinionValue = (value) => {
+          if (value === true) return 'Favorevole';
+          if (value === false) return 'Contrario';
+          if (value === 'Indeciso' || value === 'indeciso') return 'Indeciso';
+          if (value === 'Favorevole' || value === 'favorevole') return 'Favorevole';
+          if (value === 'Contrario' || value === 'contrario') return 'Contrario';
+          return 'Indeciso'; // Default per valori null/undefined
+        };
+        
+        // Aggiorna l'utente nella tabella users
+        const result = await pool.query(`
+          UPDATE users SET
+            energia_nucleare = $1,
+            sperimentazione_animale = $2,
+            legalizzazione_canapa = $3,
+            caccia = $4,
+            cittadina_animale = $5,
+            nato = $6,
+            matrimonio_gay = $7,
+            salario_minimo = $8,
+            carne_coltivata = $9,
+            case_chiuse = $10,
+            eutanasia = $11,
+            omobitransfobia = $12,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $13
+        `, [
+          convertOpinionValue(utente.energia_nucleare),
+          convertOpinionValue(utente.sperimentazione_animale),
+          convertOpinionValue(utente.legalizzazione_canapa),
+          convertOpinionValue(utente.caccia),
+          convertOpinionValue(utente.cittadina_animale),
+          convertOpinionValue(utente.nato),
+          convertOpinionValue(utente.matrimonio_gay),
+          convertOpinionValue(utente.salario_minimo),
+          convertOpinionValue(utente.carne_coltivata),
+          convertOpinionValue(utente.case_chiuse),
+          convertOpinionValue(utente.eutanasia),
+          convertOpinionValue(utente.omobitransfobia),
+          doc.id
+        ]);
+        
+        if (result.rowCount > 0) {
+          aggiornati++;
+        }
+        
+      } catch (error) {
+        console.error('❌ Errore aggiornamento utente', doc.id, ':', error.message);
+        errori++;
+      }
+    }
+    
+    // 3. Verifica finale
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    
+    console.log('✅ DEBUG: Aggiornamento completato');
+
+    res.json({
+      success: true,
+      message: 'Tabella users aggiornata da Firestore con successo',
+      data: {
+        utenti_firestore: utentiSnapshot.size,
+        utenti_aggiornati: aggiornati,
+        errori: errori,
+        users_total: parseInt(usersCount.rows[0].total)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore durante aggiornamento users da Firestore:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante aggiornamento da Firestore',
+      details: error.message
     });
   }
 });
