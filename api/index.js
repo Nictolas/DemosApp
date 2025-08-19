@@ -2173,7 +2173,7 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
           updated_at: utente.updated_at ? new Date(utente.updated_at) : new Date()
         };
         
-        // Inserisci o aggiorna in users
+        // Inserisci o aggiorna in users con UPSERT
         const result = await pool.query(`
           INSERT INTO users (
             id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
@@ -2225,6 +2225,13 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
     
     // 3. Verifica finale
     const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    const usersWithOpinions = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL
+    `);
     
     console.log('✅ DEBUG: Sincronizzazione completata');
 
@@ -2236,7 +2243,8 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
         utenti_inseriti: inseriti,
         utenti_aggiornati: aggiornati,
         errori: errori,
-        users_total: parseInt(usersCount.rows[0].total)
+        users_total: parseInt(usersCount.rows[0].total),
+        users_with_opinions: parseInt(usersWithOpinions.rows[0].count)
       }
     });
     
@@ -2245,6 +2253,75 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore durante sincronizzazione da Firestore',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per convertire le colonne opinioni da boolean a text nella tabella users
+app.post('/api/debug/convert-users-columns', async (req, res) => {
+  try {
+    console.log('🔄 DEBUG: Conversione colonne opinioni da boolean a text nella tabella users');
+    
+    const opinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+      'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+      'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    // Converti tabella users
+    console.log('📊 DEBUG: Conversione tabella users');
+    for (const field of opinionFields) {
+      // Controlla se la colonna è boolean
+      const columnCheck = await pool.query(`
+        SELECT data_type FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = $1
+      `, [field]);
+      
+      if (columnCheck.rows.length > 0 && columnCheck.rows[0].data_type === 'boolean') {
+        console.log(`🔄 DEBUG: Conversione colonna ${field} in users`);
+        
+        // Aggiungi colonna temporanea
+        await pool.query(`ALTER TABLE users ADD COLUMN ${field}_temp TEXT`);
+        
+        // Copia dati convertiti
+        await pool.query(`
+          UPDATE users SET ${field}_temp = 
+            CASE 
+              WHEN ${field} = true THEN 'Favorevole'
+              WHEN ${field} = false THEN 'Contrario'
+              ELSE 'Indeciso'
+            END
+        `);
+        
+        // Rimuovi colonna boolean
+        await pool.query(`ALTER TABLE users DROP COLUMN ${field}`);
+        
+        // Rinomina colonna temporanea
+        await pool.query(`ALTER TABLE users RENAME COLUMN ${field}_temp TO ${field}`);
+        
+        console.log(`✅ DEBUG: Colonna ${field} convertita in users`);
+      } else {
+        console.log(`ℹ️ DEBUG: Colonna ${field} già TEXT o non trovata`);
+      }
+    }
+    
+    console.log('✅ DEBUG: Conversione completata');
+    
+    res.json({
+      success: true,
+      message: 'Colonne opinioni convertite da boolean a text nella tabella users',
+      data: {
+        converted_fields: opinionFields,
+        table: 'users'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella conversione colonne users:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella conversione colonne users',
       details: error.message
     });
   }
