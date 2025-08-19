@@ -94,11 +94,25 @@ export default function Rappresentanti() {
   ];
 
   const renderRappresentante = (categoriaId: string) => {
-    const rappresentanteData = data?.rappresentanti[categoriaId];
-    const rappresentanteUid = data?.idMap[categoriaId];
+    // Controlli di sicurezza per evitare TypeError
+    if (!data || !data.rappresentanti || !data.idMap) {
+      return (
+        <div className="flex flex-col space-y-3 items-center">
+          <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+            <User className="h-10 w-10 text-gray-400" />
+          </div>
+          <div className="text-center">
+            <p className="text-gray-500 italic">Nessuno scelto</p>
+          </div>
+        </div>
+      );
+    }
+    
+    const rappresentanteData = data.rappresentanti[categoriaId];
+    const rappresentanteUid = data.idMap[categoriaId];
 
     let avatarContent;
-    if (rappresentanteData?.avatar_config) {
+    if (rappresentanteData && rappresentanteData.avatar_config) {
       try {
         const config = JSON.parse(rappresentanteData.avatar_config);
         avatarContent = <CustomAvatar config={config} size={80} className="w-full h-full" />;
@@ -111,10 +125,12 @@ export default function Rappresentanti() {
           {avatarContent || <User className="h-10 w-10 text-gray-400" />}
         </div>
         <div className="text-center">
-          {rappresentanteData ? (
+          {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
             <p className="font-medium text-primary cursor-pointer hover:underline" onClick={(e) => {
                 e.stopPropagation(); // Previeni l'apertura del modal di cambio
-                setOpinioniDialogData({ utenteId: rappresentanteUid!, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoriaId });
+                if (rappresentanteUid && rappresentanteData) {
+                  setOpinioniDialogData({ utenteId: rappresentanteUid, nome: rappresentanteData.nome, cognome: rappresentanteData.cognome, avatarConfig: rappresentanteData.avatar_config, categoria: categoriaId });
+                }
             }}>
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
             </p>
@@ -139,7 +155,7 @@ export default function Rappresentanti() {
           ) : (
             <>
               {/* Messaggio informativo se non ci sono rappresentanti */}
-              {(!data || (Object.keys(data.rappresentanti).length === 0 && Object.keys(data.idMap).length === 0)) && (
+              {(!data || !data.rappresentanti || !data.idMap || (Object.keys(data.rappresentanti).length === 0 && Object.keys(data.idMap).length === 0)) && (
                 <Card className="p-6 text-center mb-6">
                   <CardContent>
                     <h2 className="text-xl font-semibold text-gray-600 mb-2">Nessun rappresentante selezionato</h2>
