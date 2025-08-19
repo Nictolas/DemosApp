@@ -2162,7 +2162,7 @@ app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
           paese_candidatura: utente.paese_candidatura || null,
           grado_elezione: utente.grado_elezione || null,
           grado_candidatura: utente.grado_candidatura || null,
-          // Opinioni
+          // Opinioni (convertite)
           energia_nucleare: convertOpinionValue(utente.energia_nucleare),
           sperimentazione_animale: convertOpinionValue(utente.sperimentazione_animale),
           legalizzazione_canapa: convertOpinionValue(utente.legalizzazione_canapa),
@@ -2385,6 +2385,366 @@ app.post('/api/debug/add-opinion-columns', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nell\'aggiunta colonne opinioni',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per verificare la struttura attuale della tabella users
+app.get('/api/debug/check-users-structure', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Verifica struttura tabella users');
+    
+    // 1. Verifica colonne attuali in users
+    const usersColumns = await pool.query(`
+      SELECT column_name, data_type, is_nullable 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      ORDER BY ordinal_position
+    `);
+    
+    // 2. Verifica dati in users
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    const usersSample = await pool.query('SELECT * FROM users LIMIT 3');
+    
+    // 3. Verifica dati in Firestore
+    const firestore = admin.firestore();
+    const utentiSnapshot = await firestore.collection('utenti').get();
+    
+    let firestoreSample = [];
+    if (!utentiSnapshot.empty) {
+      firestoreSample = utentiSnapshot.docs.slice(0, 3).map(doc => ({
+        id: doc.id,
+        data: doc.data()
+      }));
+    }
+    
+    console.log('✅ DEBUG: Verifica struttura completata');
+    
+    res.json({
+      success: true,
+      message: 'Struttura tabella users verificata',
+      data: {
+        users_columns: usersColumns.rows,
+        users_count: parseInt(usersCount.rows[0].total),
+        users_sample: usersSample.rows,
+        firestore_count: utentiSnapshot.size,
+        firestore_sample: firestoreSample
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella verifica struttura:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella verifica struttura',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint DEFINITIVO per migrazione completa da Firestore a Neon
+app.post('/api/debug/migrate-complete', async (req, res) => {
+  try {
+    console.log('🚀 DEBUG: MIGRAZIONE DEFINITIVA DA FIRESTORE A NEON');
+    
+    // 1. DEFINISCO TUTTE LE COLONNE NECESSARIE
+    const allColumns = {
+      // Colonne base (già esistenti)
+      base: ['id', 'name', 'email', 'email_verified', 'image', 'created_at', 'updated_at'],
+      
+      // Colonne personali
+      personal: ['nome', 'cognome', 'password_hash', 'ruolo', 'status'],
+      
+      // Colonne geografiche
+      geographic: ['regione', 'provincia', 'comune', 'regione_residenza', 'provincia_residenza', 'paese_residenza'],
+      
+      // Colonne personali aggiuntive
+      additional: ['data_nascita', 'genere', 'cittadinanza', 'paese_elezione', 'paese_candidatura', 'grado_elezione', 'grado_candidatura'],
+      
+      // Colonne opinioni
+      opinions: [
+        'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+        'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+        'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+      ]
+    };
+    
+    const allColumnNames = [
+      ...allColumns.base,
+      ...allColumns.personal,
+      ...allColumns.geographic,
+      ...allColumns.additional,
+      ...allColumns.opinions
+    ];
+    
+    console.log('📊 DEBUG: Colonne totali da gestire:', allColumnNames.length);
+    
+    // 2. VERIFICA COLONNE ESISTENTI
+    const existingColumns = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'users'
+    `);
+    
+    const existingColumnNames = existingColumns.rows.map(row => row.column_name);
+    console.log('📊 DEBUG: Colonne esistenti:', existingColumnNames.length);
+    
+    // 3. AGGIUNGI COLONNE MANCANTI
+    const missingColumns = allColumnNames.filter(col => !existingColumnNames.includes(col));
+    console.log('📊 DEBUG: Colonne mancanti:', missingColumns);
+    
+    for (const column of missingColumns) {
+      let columnType = 'TEXT';
+      
+      // Definisci il tipo corretto per ogni colonna
+      if (['id'].includes(column)) columnType = 'UUID';
+      else if (['name', 'email', 'nome', 'cognome', 'ruolo', 'status', 'genere', 'cittadinanza'].includes(column)) columnType = 'VARCHAR(255)';
+      else if (['password_hash'].includes(column)) columnType = 'TEXT';
+      else if (['email_verified', 'created_at', 'updated_at', 'data_nascita'].includes(column)) columnType = 'TIMESTAMP';
+      else if (['image', 'avatar_config'].includes(column)) columnType = 'TEXT';
+      else if (allColumns.opinions.includes(column)) columnType = 'TEXT';
+      else columnType = 'VARCHAR(255)';
+      
+      console.log(`🔄 DEBUG: Aggiunta colonna ${column} (${columnType})`);
+      await pool.query(`ALTER TABLE users ADD COLUMN ${column} ${columnType}`);
+    }
+    
+    // 4. PRENDI TUTTI I DATI DA FIRESTORE
+    console.log('🔄 DEBUG: Recupero dati da Firestore...');
+    const firestore = admin.firestore();
+    const utentiSnapshot = await firestore.collection('utenti').get();
+    
+    if (utentiSnapshot.empty) {
+      throw new Error('Nessun utente trovato in Firestore');
+    }
+    
+    console.log('✅ DEBUG: Trovati', utentiSnapshot.size, 'utenti in Firestore');
+    
+    // 5. FUNZIONE PER CONVERTIRE VALORI OPINIONI
+    const convertOpinionValue = (value) => {
+      if (value === true) return 'Favorevole';
+      if (value === false) return 'Contrario';
+      if (value === 'Indeciso' || value === 'indeciso') return 'Indeciso';
+      if (value === 'Favorevole' || value === 'favorevole') return 'Favorevole';
+      if (value === 'Contrario' || value === 'contrario') return 'Contrario';
+      return 'Indeciso'; // Default per valori null/undefined
+    };
+    
+    // 6. MIGRA TUTTI GLI UTENTI
+    let inseriti = 0;
+    let aggiornati = 0;
+    let errori = 0;
+    
+    for (const doc of utentiSnapshot.docs) {
+      try {
+        const utente = doc.data();
+        
+        // Prepara TUTTI i dati
+        const userData = {
+          // Colonne base
+          id: doc.id,
+          name: `${utente.nome || ''} ${utente.cognome || ''}`.trim() || utente.email || 'Utente',
+          email: utente.email || '',
+          email_verified: utente.email_verified ? new Date(utente.email_verified) : null,
+          image: utente.avatar_config ? JSON.stringify(utente.avatar_config) : null,
+          created_at: utente.created_at ? new Date(utente.created_at) : new Date(),
+          updated_at: utente.updated_at ? new Date(utente.updated_at) : new Date(),
+          
+          // Dati personali
+          nome: utente.nome || '',
+          cognome: utente.cognome || '',
+          password_hash: utente.password_hash || '',
+          ruolo: utente.ruolo || 'Elettore',
+          status: utente.status || 'pending',
+          
+          // Dati geografici
+          regione: utente.regione || null,
+          provincia: utente.provincia || null,
+          comune: utente.comune || null,
+          regione_residenza: utente.regione_residenza || utente.regione || null,
+          provincia_residenza: utente.provincia_residenza || utente.provincia || null,
+          paese_residenza: utente.paese_residenza || null,
+          
+          // Dati aggiuntivi
+          data_nascita: utente.data_nascita ? new Date(utente.data_nascita) : null,
+          genere: utente.genere || null,
+          cittadinanza: utente.cittadinanza || null,
+          paese_elezione: utente.paese_elezione || null,
+          paese_candidatura: utente.paese_candidatura || null,
+          grado_elezione: utente.grado_elezione || null,
+          grado_candidatura: utente.grado_candidatura || null,
+          
+          // Opinioni (convertite)
+          energia_nucleare: convertOpinionValue(utente.energia_nucleare),
+          sperimentazione_animale: convertOpinionValue(utente.sperimentazione_animale),
+          legalizzazione_canapa: convertOpinionValue(utente.legalizzazione_canapa),
+          caccia: convertOpinionValue(utente.caccia),
+          cittadina_animale: convertOpinionValue(utente.cittadina_animale),
+          nato: convertOpinionValue(utente.nato),
+          matrimonio_gay: convertOpinionValue(utente.matrimonio_gay),
+          salario_minimo: convertOpinionValue(utente.salario_minimo),
+          carne_coltivata: convertOpinionValue(utente.carne_coltivata),
+          case_chiuse: convertOpinionValue(utente.case_chiuse),
+          eutanasia: convertOpinionValue(utente.eutanasia),
+          omobitransfobia: convertOpinionValue(utente.omobitransfobia)
+        };
+        
+        // Crea la query dinamica per l'INSERT
+        const columns = Object.keys(userData);
+        const values = Object.values(userData);
+        const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+        
+        const insertQuery = `
+          INSERT INTO users (${columns.join(', ')})
+          VALUES (${placeholders})
+          ON CONFLICT (id) DO UPDATE SET
+          ${columns.filter(col => col !== 'id').map(col => `${col} = EXCLUDED.${col}`).join(', ')}
+        `;
+        
+        const result = await pool.query(insertQuery, values);
+        
+        if (result.rowCount > 0) {
+          aggiornati++;
+        } else {
+          inseriti++;
+        }
+        
+      } catch (error) {
+        console.error('❌ Errore migrazione utente', doc.id, ':', error.message);
+        errori++;
+      }
+    }
+    
+    // 7. VERIFICA FINALE
+    const finalUsersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    const usersWithOpinions = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL
+    `);
+    
+    const finalColumns = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      ORDER BY ordinal_position
+    `);
+    
+    console.log('✅ DEBUG: MIGRAZIONE DEFINITIVA COMPLETATA');
+    
+    res.json({
+      success: true,
+      message: 'MIGRAZIONE DEFINITIVA COMPLETATA - Tutti i dati da Firestore migrati in Neon',
+      data: {
+        // Statistiche migrazione
+        firestore_utenti: utentiSnapshot.size,
+        utenti_inseriti: inseriti,
+        utenti_aggiornati: aggiornati,
+        errori: errori,
+        
+        // Verifica finale
+        users_total: parseInt(finalUsersCount.rows[0].total),
+        users_with_opinions: parseInt(usersWithOpinions.rows[0].count),
+        
+        // Struttura finale
+        colonne_totali: finalColumns.rows.length,
+        colonne_aggiunte: missingColumns.length,
+        
+        // Dettagli colonne
+        colonne_finali: finalColumns.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore durante migrazione definitiva:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante migrazione definitiva',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per verifica finale della migrazione
+app.get('/api/debug/verify-migration', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Verifica finale migrazione');
+    
+    // 1. Verifica struttura finale
+    const finalColumns = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      ORDER BY ordinal_position
+    `);
+    
+    // 2. Verifica dati
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    const usersWithOpinions = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL
+    `);
+    
+    const usersWithGeographic = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE regione IS NOT NULL 
+         OR provincia IS NOT NULL 
+         OR comune IS NOT NULL
+    `);
+    
+    // 3. Campione di dati
+    const sampleData = await pool.query(`
+      SELECT id, name, email, ruolo, regione, energia_nucleare, caccia, nato
+      FROM users 
+      LIMIT 5
+    `);
+    
+    // 4. Statistiche opinioni
+    const opinionStats = await pool.query(`
+      SELECT 
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN energia_nucleare IS NOT NULL THEN 1 END) as energia_nucleare_count,
+        COUNT(CASE WHEN caccia IS NOT NULL THEN 1 END) as caccia_count,
+        COUNT(CASE WHEN nato IS NOT NULL THEN 1 END) as nato_count,
+        COUNT(CASE WHEN eutanasia IS NOT NULL THEN 1 END) as eutanasia_count
+      FROM users
+    `);
+    
+    console.log('✅ DEBUG: Verifica finale completata');
+    
+    res.json({
+      success: true,
+      message: 'Verifica finale migrazione completata',
+      data: {
+        // Struttura
+        colonne_totali: finalColumns.rows.length,
+        colonne_presenti: finalColumns.rows.map(row => `${row.column_name} (${row.data_type})`),
+        
+        // Dati
+        users_total: parseInt(usersCount.rows[0].total),
+        users_with_opinions: parseInt(usersWithOpinions.rows[0].count),
+        users_with_geographic: parseInt(usersWithGeographic.rows[0].count),
+        
+        // Statistiche opinioni
+        opinion_stats: opinionStats.rows[0],
+        
+        // Campione dati
+        sample_data: sampleData.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella verifica finale:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella verifica finale',
       details: error.message
     });
   }
