@@ -356,30 +356,178 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
   }
 });
 
-// Endpoint per gestire utenti (admin)
-app.get('/api/utenti', verifyToken, async (req, res) => {
+// Endpoint per ottenere la lista delle opinioni
+app.get('/api/opinioni-list', async (req, res) => {
   try {
-    // Verifica se l'utente è admin
-    const admin = await isRequesterAdmin(req.user.userId);
-    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
-
-    // Recupera tutti gli utenti dalla tabella users
-    const result = await pool.query(`
-      SELECT id, email, nome, cognome, ruolo, status, created_at
-      FROM users 
-      ORDER BY created_at DESC
-    `);
-
+    console.log('📋 DEBUG: Richiesta lista opinioni');
+    
+    const result = await pool.query('SELECT * FROM opinioni ORDER BY created_at DESC');
+    
+    console.log('✅ DEBUG: Trovate', result.rows.length, 'opinioni');
+    
     res.json({
       success: true,
       data: result.rows
     });
-
+    
   } catch (error) {
-    console.error('Errore recupero utenti:', error);
+    console.error('❌ Errore nel recuperare lista opinioni:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore nel recuperare lista opinioni'
+    });
+  }
+});
+
+// Endpoint per ottenere le opinioni di un utente specifico
+app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
+  try {
+    console.log('👤 DEBUG: Richiesta opinioni utente:', req.user.id);
+    
+    // Prima prova a prendere da utenti
+    let result = await pool.query('SELECT * FROM utenti WHERE id = $1', [req.user.id]);
+    
+    if (result.rows.length === 0) {
+      // Se non trova in utenti, prova in users
+      result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    }
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userData = result.rows[0];
+    console.log('✅ DEBUG: Trovati dati utente per opinioni');
+    
+    res.json({
+      success: true,
+      data: userData
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare opinioni utente'
+    });
+  }
+});
+
+// Endpoint per ottenere i rappresentanti
+app.get('/api/rappresentanti', verifyToken, async (req, res) => {
+  try {
+    console.log('🏛️ DEBUG: Richiesta rappresentanti per utente:', req.user.id);
+    
+    // Per ora restituisce un array vuoto (da implementare la logica completa)
+    res.json({
+      success: true,
+      data: []
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare rappresentanti:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare rappresentanti'
+    });
+  }
+});
+
+// Endpoint per ottenere tutti gli utenti (Gestisci Utenti)
+app.get('/api/utenti', verifyToken, async (req, res) => {
+  try {
+    console.log('👥 DEBUG: Richiesta lista utenti');
+    
+    // Verifica che l'utente sia Admin
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato: solo Admin'
+      });
+    }
+    
+    // Prima prova a prendere da utenti
+    let result = await pool.query('SELECT id, email, nome, cognome, ruolo, status, created_at FROM utenti ORDER BY created_at DESC');
+    
+    if (result.rows.length === 0) {
+      // Se utenti è vuoto, prova users
+      result = await pool.query('SELECT id, email, nome, cognome, ruolo, status, created_at FROM users ORDER BY created_at DESC');
+    }
+    
+    console.log('✅ DEBUG: Trovati', result.rows.length, 'utenti');
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare lista utenti:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare lista utenti'
+    });
+  }
+});
+
+// Endpoint per ottenere le opinioni ufficiali (Gestisci Opinioni)
+app.get('/api/opinioni', verifyToken, async (req, res) => {
+  try {
+    console.log('📊 DEBUG: Richiesta opinioni ufficiali');
+    
+    // Verifica che l'utente sia Admin
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato: solo Admin'
+      });
+    }
+    
+    const result = await pool.query('SELECT * FROM opinioni ORDER BY created_at DESC');
+    
+    console.log('✅ DEBUG: Trovate', result.rows.length, 'opinioni ufficiali');
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni ufficiali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare opinioni ufficiali'
+    });
+  }
+});
+
+// Endpoint per ottenere le opinioni proposte dagli utenti (Gestisci Opinioni)
+app.get('/api/opinioni-proposte', verifyToken, async (req, res) => {
+  try {
+    console.log('💡 DEBUG: Richiesta opinioni proposte');
+    
+    // Verifica che l'utente sia Admin
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato: solo Admin'
+      });
+    }
+    
+    // Per ora restituisce un array vuoto (da implementare la logica completa)
+    res.json({
+      success: true,
+      data: []
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni proposte:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare opinioni proposte'
     });
   }
 });
