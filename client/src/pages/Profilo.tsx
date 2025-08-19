@@ -77,7 +77,10 @@ export default function Profilo({ userId }: { userId?: string }) {
       try {
         const res = await apiRequest("GET", "/api/opinioni-list");
         if (!res.ok) throw new Error();
-        setOpinionQuestions(await res.json());
+        const result = await res.json();
+        // Gestisce sia il formato nuovo (con success/data) che quello vecchio (array diretto)
+        const questions = result.success ? result.data : result;
+        setOpinionQuestions(Array.isArray(questions) ? questions : []);
       } catch {
         setOpinionQuestions([]);
       }
@@ -128,7 +131,7 @@ export default function Profilo({ userId }: { userId?: string }) {
           });
           
           // Opinion dinamiche se ci sono domande caricate
-          if (opinionQuestions.length > 0) {
+          if (Array.isArray(opinionQuestions) && opinionQuestions.length > 0) {
             opinionQuestions.forEach(q => {
               if (userData[q.id]) {
                 userOpinionsData[q.id] = userData[q.id];
@@ -199,7 +202,7 @@ export default function Profilo({ userId }: { userId?: string }) {
 
   // --- LASCIATO IDENTICO --- (Logica per le opinioni)
   const allOpinionKeys = Array.from(new Set([
-    ...opinionQuestions.map(q => q.id),
+    ...(Array.isArray(opinionQuestions) ? opinionQuestions.map(q => q.id) : []),
     ...Object.keys(userOpinions)
   ]));
 
@@ -255,7 +258,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     allOpinionKeys.forEach((key) => {
       const value = userOpinions[key];
       if (!value) return;
-      const q = opinionQuestions.find(q => q.id === key);
+      const q = Array.isArray(opinionQuestions) ? opinionQuestions.find(q => q.id === key) : null;
       const label = getOpinionTopic(key, q?.text || '');
       if (value === "Favorevole") favorevoli.push({ id: key, label });
       else if (value === "Indeciso") indecisi.push({ id: key, label });

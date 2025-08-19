@@ -69,7 +69,10 @@ export function ViewOpinioniDialog({
       try {
         const res = await apiRequest("GET", "/api/opinioni-list");
         if (!res.ok) throw new Error();
-        setQuestions(await res.json());
+        const result = await res.json();
+        // Gestisce sia il formato nuovo (con success/data) che quello vecchio (array diretto)
+        const questions = result.success ? result.data : result;
+        setQuestions(Array.isArray(questions) ? questions : []);
       } catch {
         toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
       } finally {
@@ -80,7 +83,7 @@ export function ViewOpinioniDialog({
   }, []);
 
   useEffect(() => {
-    if (open && utenteId && questions.length > 0) {
+    if (open && utenteId && Array.isArray(questions) && questions.length > 0) {
       loadUserOpinions();
     }
     // eslint-disable-next-line
@@ -99,7 +102,7 @@ export function ViewOpinioniDialog({
         }
         const data = userDoc.data();
         // Recupera la lista delle domande dinamiche
-        let opinioniList: {id: string, text: string}[] = questions;
+        let opinioniList: {id: string, text: string}[] = Array.isArray(questions) ? questions : [];
         // Filtra solo i campi che sono opinioni
         const opinioni: Record<string, string> = {};
         for (const key of Object.keys(data)) {
@@ -122,7 +125,7 @@ export function ViewOpinioniDialog({
         setIsLoadingMyOpinions(false);
       }
     };
-    if (user && open && questions.length > 0) fetchMyOpinions();
+    if (user && open && Array.isArray(questions) && questions.length > 0) fetchMyOpinions();
     // eslint-disable-next-line
   }, [user, open, questions]);
 
