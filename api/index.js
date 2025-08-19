@@ -642,6 +642,100 @@ app.post('/api/debug/migrate-utenti-to-users', async (req, res) => {
   }
 });
 
+// Endpoint per ripristinare la tabella utenti
+app.post('/api/debug/restore-utenti', async (req, res) => {
+  try {
+    console.log('🔄 DEBUG: Ripristino tabella utenti');
+    
+    // 1. Crea la tabella utenti con la struttura originale
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS utenti (
+        id VARCHAR(255) PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        nome VARCHAR(255),
+        cognome VARCHAR(255),
+        password_hash VARCHAR(255),
+        ruolo VARCHAR(100) DEFAULT 'Elettore',
+        status VARCHAR(100) DEFAULT 'pending',
+        avatar_config TEXT,
+        regione VARCHAR(255),
+        provincia VARCHAR(255),
+        comune VARCHAR(255),
+        data_nascita DATE,
+        genere VARCHAR(50),
+        cittadinanza VARCHAR(255),
+        paese_residenza VARCHAR(255),
+        paese_elezione VARCHAR(255),
+        paese_candidatura VARCHAR(255),
+        grado_elezione VARCHAR(100),
+        grado_candidatura VARCHAR(100),
+        energia_nucleare BOOLEAN,
+        sperimentazione_animale BOOLEAN,
+        legalizzazione_canapa BOOLEAN,
+        caccia BOOLEAN,
+        cittadina_animale BOOLEAN,
+        nato BOOLEAN,
+        matrimonio_gay BOOLEAN,
+        salario_minimo BOOLEAN,
+        carne_coltivata BOOLEAN,
+        case_chiuse BOOLEAN,
+        eutanasia BOOLEAN,
+        omobitransfobia BOOLEAN,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('✅ DEBUG: Tabella utenti creata');
+    
+    // 2. Copia tutti i dati da users a utenti
+    const copyResult = await pool.query(`
+      INSERT INTO utenti (
+        id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
+        regione, provincia, comune, data_nascita, genere, cittadinanza,
+        paese_residenza, paese_elezione, paese_candidatura, grado_elezione, grado_candidatura,
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+        cittadina_animale, nato, matrimonio_gay, salario_minimo, carne_coltivata,
+        case_chiuse, eutanasia, omobitransfobia, created_at, updated_at
+      )
+      SELECT 
+        id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
+        regione, provincia, comune, data_nascita, genere, cittadinanza,
+        paese_residenza, paese_elezione, paese_candidatura, grado_elezione, grado_candidatura,
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+        cittadina_animale, nato, matrimonio_gay, salario_minimo, carne_coltivata,
+        case_chiuse, eutanasia, omobitransfobia, created_at, updated_at
+      FROM users
+    `);
+    
+    console.log('✅ DEBUG: Dati copiati da users a utenti:', copyResult.rowCount);
+    
+    // 3. Verifica finale
+    const utentiCount = await pool.query('SELECT COUNT(*) as total FROM utenti');
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    
+    console.log('✅ DEBUG: Ripristino completato');
+
+    res.json({
+      success: true,
+      message: 'Tabella utenti ripristinata con successo',
+      data: {
+        utenti_ripristinati: parseInt(utentiCount.rows[0].total),
+        users_total: parseInt(usersCount.rows[0].total),
+        dati_copiati: copyResult.rowCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore durante ripristino utenti:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante ripristino',
+      details: error.message
+    });
+  }
+});
+
 // Endpoint di debug semplificato per verificare lo stato dopo migrazione
 app.get('/api/debug/status', async (req, res) => {
   try {
