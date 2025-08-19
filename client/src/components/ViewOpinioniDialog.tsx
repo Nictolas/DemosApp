@@ -67,12 +67,18 @@ export function ViewOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await apiRequest("GET", "/api/opinioni-list");
+        const res = await apiRequest("GET", "/api/opinioni/profile");
         if (!res.ok) throw new Error();
         const result = await res.json();
-        // Gestisce sia il formato nuovo (con success/data) che quello vecchio (array diretto)
-        const questions = result.success ? result.data : result;
-        setQuestions(Array.isArray(questions) ? questions : []);
+        if (result.success && result.data) {
+          setQuestions(Array.isArray(result.data.questions) ? result.data.questions : []);
+          // Aggiorna anche le opinioni dell'utente se disponibili
+          if (result.data.userAnswers) {
+            setUserOpinions(result.data.userAnswers);
+          }
+        } else {
+          setQuestions([]);
+        }
       } catch {
         toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
       } finally {

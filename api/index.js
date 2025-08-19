@@ -586,6 +586,76 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint per il profilo: domande + risposte utente
+app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
+  try {
+    console.log('👤 DEBUG: Richiesta opinioni per profilo:', req.user.userId);
+    
+    if (!req.user.userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido: userId mancante'
+      });
+    }
+    
+    // 1. Ottieni le domande dalla tabella opinioni
+    const questionsResult = await pool.query('SELECT id, text FROM opinioni WHERE status = \'attiva\' ORDER BY created_at DESC');
+    const questions = questionsResult.rows;
+    
+    // 2. Ottieni le risposte dell'utente dalla tabella users
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userData = userResult.rows[0];
+    
+    // 3. Prepara le risposte dell'utente
+    const opinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+      'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+      'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    const userAnswers = {};
+    opinionFields.forEach(field => {
+      const value = userData[field];
+      if (value === 'Favorevole' || value === 'Contrario' || value === 'Indeciso') {
+        userAnswers[field] = value;
+      } else if (value === true) {
+        userAnswers[field] = 'Favorevole';
+      } else if (value === false) {
+        userAnswers[field] = 'Contrario';
+      } else {
+        userAnswers[field] = null;
+      }
+    });
+    
+    // 4. Restituisci sia le domande che le risposte
+    res.json({
+      success: true,
+      data: {
+        questions: questions.map(q => ({
+          id: q.id,
+          text: q.text || q.id
+        })),
+        userAnswers: userAnswers
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni per profilo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare opinioni per profilo'
+    });
+  }
+});
+
 // Endpoint per ottenere i rappresentanti
 app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   try {

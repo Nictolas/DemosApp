@@ -75,12 +75,18 @@ export default function Profilo({ userId }: { userId?: string }) {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const res = await apiRequest("GET", "/api/opinioni-list");
+        const res = await apiRequest("GET", "/api/opinioni/profile");
         if (!res.ok) throw new Error();
         const result = await res.json();
-        // Gestisce sia il formato nuovo (con success/data) che quello vecchio (array diretto)
-        const questions = result.success ? result.data : result;
-        setOpinionQuestions(Array.isArray(questions) ? questions : []);
+        if (result.success && result.data) {
+          setOpinionQuestions(Array.isArray(result.data.questions) ? result.data.questions : []);
+          // Aggiorna anche le opinioni dell'utente
+          if (result.data.userAnswers) {
+            setUserOpinions(result.data.userAnswers);
+          }
+        } else {
+          setOpinionQuestions([]);
+        }
       } catch {
         setOpinionQuestions([]);
       }
