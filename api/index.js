@@ -2014,3 +2014,239 @@ app.post('/api/debug/update-users-from-firestore', async (req, res) => {
   }
 });
 
+// Endpoint di debug per confrontare i dati tra tabelle
+app.get('/api/debug/compare-data', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Confronto dati tra tabelle');
+    
+    // 1. Conta utenti in users
+    const usersCount = await pool.query('SELECT COUNT(*) as count FROM users');
+    const usersWithOpinions = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL
+    `);
+    
+    // 2. Conta utenti in utenti
+    const utentiCount = await pool.query('SELECT COUNT(*) as count FROM utenti');
+    const utentiWithOpinions = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM utenti 
+      WHERE energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL
+    `);
+    
+    // 3. Conta utenti con dati geografici in users
+    const usersWithGeo = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM users 
+      WHERE regione IS NOT NULL 
+         OR provincia IS NOT NULL 
+         OR comune IS NOT NULL
+    `);
+    
+    // 4. Conta utenti con dati geografici in utenti
+    const utentiWithGeo = await pool.query(`
+      SELECT COUNT(*) as count 
+      FROM utenti 
+      WHERE regione IS NOT NULL 
+         OR provincia IS NOT NULL 
+         OR comune IS NOT NULL
+    `);
+    
+    // 5. Esempio di dati mancanti
+    const missingDataExample = await pool.query(`
+      SELECT u.id, u.email, u.regione, u.provincia, u.comune,
+             u.energia_nucleare, u.sperimentazione_animale
+      FROM utenti u
+      LEFT JOIN users us ON u.id = us.id
+      WHERE (u.regione IS NOT NULL OR u.energia_nucleare IS NOT NULL)
+        AND (us.regione IS NULL AND us.energia_nucleare IS NULL)
+      LIMIT 5
+    `);
+    
+    console.log('✅ DEBUG: Confronto completato');
+    
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: parseInt(usersCount.rows[0].count),
+          with_opinions: parseInt(usersWithOpinions.rows[0].count),
+          with_geo: parseInt(usersWithGeo.rows[0].count)
+        },
+        utenti: {
+          total: parseInt(utentiCount.rows[0].count),
+          with_opinions: parseInt(utentiWithOpinions.rows[0].count),
+          with_geo: parseInt(utentiWithGeo.rows[0].count)
+        },
+        missing_data_example: missingDataExample.rows,
+        summary: {
+          needs_sync: parseInt(utentiCount.rows[0].count) > parseInt(usersCount.rows[0].count) ||
+                     parseInt(utentiWithOpinions.rows[0].count) > parseInt(usersWithOpinions.rows[0].count) ||
+                     parseInt(utentiWithGeo.rows[0].count) > parseInt(usersWithGeo.rows[0].count)
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel confronto dati:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel confronto dati',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint per sincronizzazione completa della tabella users da Firestore
+app.post('/api/debug/sync-users-from-firestore', async (req, res) => {
+  try {
+    console.log('🔄 DEBUG: Sincronizzazione completa tabella users da Firestore');
+    
+    // 1. Prendi tutti i dati da Firestore
+    const firestore = admin.firestore();
+    const utentiSnapshot = await firestore.collection('utenti').get();
+    
+    if (utentiSnapshot.empty) {
+      throw new Error('Nessun utente trovato in Firestore');
+    }
+    
+    console.log('✅ DEBUG: Trovati', utentiSnapshot.size, 'utenti in Firestore');
+    
+    // 2. Sincronizza ogni utente nella tabella users
+    let inseriti = 0;
+    let aggiornati = 0;
+    let errori = 0;
+    
+    for (const doc of utentiSnapshot.docs) {
+      try {
+        const utente = doc.data();
+        
+        // Funzione per convertire i valori delle opinioni
+        const convertOpinionValue = (value) => {
+          if (value === true) return 'Favorevole';
+          if (value === false) return 'Contrario';
+          if (value === 'Indeciso' || value === 'indeciso') return 'Indeciso';
+          if (value === 'Favorevole' || value === 'favorevole') return 'Favorevole';
+          if (value === 'Contrario' || value === 'contrario') return 'Contrario';
+          return 'Indeciso'; // Default per valori null/undefined
+        };
+        
+        // Prepara i dati completi per l'inserimento/aggiornamento
+        const userData = {
+          id: doc.id,
+          email: utente.email || '',
+          nome: utente.nome || '',
+          cognome: utente.cognome || '',
+          password_hash: utente.password_hash || '',
+          ruolo: utente.ruolo || 'Elettore',
+          status: utente.status || 'pending',
+          avatar_config: utente.avatar_config ? JSON.stringify(utente.avatar_config) : null,
+          regione: utente.regione || null,
+          provincia: utente.provincia || null,
+          comune: utente.comune || null,
+          data_nascita: utente.data_nascita ? new Date(utente.data_nascita) : null,
+          genere: utente.genere || null,
+          cittadinanza: utente.cittadinanza || null,
+          paese_residenza: utente.paese_residenza || null,
+          paese_elezione: utente.paese_elezione || null,
+          paese_candidatura: utente.paese_candidatura || null,
+          grado_elezione: utente.grado_elezione || null,
+          grado_candidatura: utente.grado_candidatura || null,
+          energia_nucleare: convertOpinionValue(utente.energia_nucleare),
+          sperimentazione_animale: convertOpinionValue(utente.sperimentazione_animale),
+          legalizzazione_canapa: convertOpinionValue(utente.legalizzazione_canapa),
+          caccia: convertOpinionValue(utente.caccia),
+          cittadina_animale: convertOpinionValue(utente.cittadina_animale),
+          nato: convertOpinionValue(utente.nato),
+          matrimonio_gay: convertOpinionValue(utente.matrimonio_gay),
+          salario_minimo: convertOpinionValue(utente.salario_minimo),
+          carne_coltivata: convertOpinionValue(utente.carne_coltivata),
+          case_chiuse: convertOpinionValue(utente.case_chiuse),
+          eutanasia: convertOpinionValue(utente.eutanasia),
+          omobitransfobia: convertOpinionValue(utente.omobitransfobia),
+          created_at: utente.created_at ? new Date(utente.created_at) : new Date(),
+          updated_at: utente.updated_at ? new Date(utente.updated_at) : new Date()
+        };
+        
+        // Inserisci o aggiorna in users
+        const result = await pool.query(`
+          INSERT INTO users (
+            id, email, nome, cognome, password_hash, ruolo, status, avatar_config,
+            regione, provincia, comune, data_nascita, genere, cittadinanza,
+            paese_residenza, paese_elezione, paese_candidatura, grado_elezione, grado_candidatura,
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+            cittadina_animale, nato, matrimonio_gay, salario_minimo, carne_coltivata,
+            case_chiuse, eutanasia, omobitransfobia, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
+          ON CONFLICT (id) DO UPDATE SET
+            email = EXCLUDED.email, nome = EXCLUDED.nome, cognome = EXCLUDED.cognome,
+            password_hash = EXCLUDED.password_hash, ruolo = EXCLUDED.ruolo, status = EXCLUDED.status,
+            avatar_config = EXCLUDED.avatar_config, regione = EXCLUDED.regione, provincia = EXCLUDED.provincia,
+            comune = EXCLUDED.comune, data_nascita = EXCLUDED.data_nascita, genere = EXCLUDED.genere,
+            cittadinanza = EXCLUDED.cittadinanza, paese_residenza = EXCLUDED.paese_residenza,
+            paese_elezione = EXCLUDED.paese_elezione, paese_candidatura = EXCLUDED.paese_candidatura,
+            grado_elezione = EXCLUDED.grado_elezione, grado_candidatura = EXCLUDED.grado_candidatura,
+            energia_nucleare = EXCLUDED.energia_nucleare, sperimentazione_animale = EXCLUDED.sperimentazione_animale,
+            legalizzazione_canapa = EXCLUDED.legalizzazione_canapa, caccia = EXCLUDED.caccia,
+            cittadina_animale = EXCLUDED.cittadina_animale, nato = EXCLUDED.nato,
+            matrimonio_gay = EXCLUDED.matrimonio_gay, salario_minimo = EXCLUDED.salario_minimo,
+            carne_coltivata = EXCLUDED.carne_coltivata, case_chiuse = EXCLUDED.case_chiuse,
+            eutanasia = EXCLUDED.eutanasia, omobitransfobia = EXCLUDED.omobitransfobia,
+            updated_at = CURRENT_TIMESTAMP
+        `, [
+          userData.id, userData.email, userData.nome, userData.cognome,
+          userData.password_hash, userData.ruolo, userData.status, userData.avatar_config,
+          userData.regione, userData.provincia, userData.comune, userData.data_nascita,
+          userData.genere, userData.cittadinanza, userData.paese_residenza,
+          userData.paese_elezione, userData.paese_candidatura, userData.grado_elezione,
+          userData.grado_candidatura, userData.energia_nucleare, userData.sperimentazione_animale,
+          userData.legalizzazione_canapa, userData.caccia, userData.cittadina_animale,
+          userData.nato, userData.matrimonio_gay, userData.salario_minimo,
+          userData.carne_coltivata, userData.case_chiuse, userData.eutanasia,
+          userData.omobitransfobia, userData.created_at, userData.updated_at
+        ]);
+        
+        if (result.rowCount > 0) {
+          aggiornati++;
+        } else {
+          inseriti++;
+        }
+        
+      } catch (error) {
+        console.error('❌ Errore sincronizzazione utente', doc.id, ':', error.message);
+        errori++;
+      }
+    }
+    
+    // 3. Verifica finale
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    
+    console.log('✅ DEBUG: Sincronizzazione completata');
+
+    res.json({
+      success: true,
+      message: 'Tabella users sincronizzata completamente da Firestore',
+      data: {
+        utenti_firestore: utentiSnapshot.size,
+        utenti_inseriti: inseriti,
+        utenti_aggiornati: aggiornati,
+        errori: errori,
+        users_total: parseInt(usersCount.rows[0].total)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore durante sincronizzazione users da Firestore:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante sincronizzazione da Firestore',
+      details: error.message
+    });
+  }
+});
+
