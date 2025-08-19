@@ -392,16 +392,23 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
       });
     }
     
-    // Prima prova a prendere da utenti
-    let result = await pool.query('SELECT * FROM utenti WHERE id = $1', [req.user.userId]);
+    // 1. Ottieni le domande dalla tabella opinioni
+    console.log('📋 DEBUG: Recupero domande dalla tabella opinioni');
+    const questionsResult = await pool.query('SELECT * FROM opinioni ORDER BY created_at DESC');
+    const questions = questionsResult.rows;
+    console.log('✅ DEBUG: Trovate', questions.length, 'domande');
     
-    if (result.rows.length === 0) {
-      console.log('🔍 DEBUG: Utente non trovato in tabella utenti, provo users');
-      // Se non trova in utenti, prova in users
-      result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.userId]);
+    // 2. Ottieni le risposte dell'utente dalla tabella users
+    console.log('👤 DEBUG: Recupero risposte utente dalla tabella users');
+    let userResult = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.userId]);
+    
+    if (userResult.rows.length === 0) {
+      console.log('🔍 DEBUG: Utente non trovato in users, provo utenti');
+      // Se non trova in users, prova in utenti
+      userResult = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.userId]);
     }
     
-    if (result.rows.length === 0) {
+    if (userResult.rows.length === 0) {
       console.log('❌ DEBUG: Utente non trovato in nessuna tabella');
       return res.status(404).json({
         success: false,
@@ -409,12 +416,49 @@ app.get('/api/opinioni/utente', verifyToken, async (req, res) => {
       });
     }
     
-    const userData = result.rows[0];
-    console.log('✅ DEBUG: Trovati dati utente per opinioni');
+    const userData = userResult.rows[0];
+    console.log('✅ DEBUG: Trovati dati utente');
+    
+    // 3. Prepara le risposte dell'utente
+    const userAnswers = {};
+    
+    // Mappa le colonne boolean alle risposte
+    const opinionFields = [
+      'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+      'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+      'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    opinionFields.forEach(field => {
+      if (userData[field] === true) {
+        userAnswers[field] = 'Favorevole';
+      } else if (userData[field] === false) {
+        userAnswers[field] = 'Contrario';
+      } else {
+        userAnswers[field] = null; // Non ha ancora risposto
+      }
+    });
+    
+    console.log('✅ DEBUG: Preparate risposte utente per', Object.keys(userAnswers).length, 'campi');
+    
+    // 4. Prepara la risposta finale
+    const responseData = {
+      questions: questions.map(q => ({
+        id: q.id,
+        text: q.domanda || q.testo || q.text || q.id
+      })),
+      userAnswers: userAnswers,
+      blocco: {
+        isBlocked: false, // Per ora sempre false
+        unlockDate: null
+      }
+    };
+    
+    console.log('✅ DEBUG: Risposta preparata con', responseData.questions.length, 'domande e', Object.keys(responseData.userAnswers).length, 'risposte');
     
     res.json({
       success: true,
-      data: userData
+      data: responseData
     });
     
   } catch (error) {
@@ -1498,6 +1542,77 @@ app.get('/api/governo/voti', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare voti governo'
+    });
+  }
+});
+
+// Endpoint di debug per controllare i dati importati
+app.get('/api/debug/check-data', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Controllo dati importati');
+    
+    // 1. Controlla tabella opinioni
+    const opinioniResult = await pool.query('SELECT COUNT(*) as count FROM opinioni');
+    const opinioniCount = parseInt(opinioniResult.rows[0].count);
+    
+    // 2. Controlla tabella users
+    const usersResult = await pool.query('SELECT COUNT(*) as count FROM users');
+    const usersCount = parseInt(usersResult.rows[0].count);
+    
+    // 3. Controlla tabella utenti
+    const utentiResult = await pool.query('SELECT COUNT(*) as count FROM utenti');
+    const utentiCount = parseInt(utentiResult.rows[0].count);
+    
+    // 4. Controlla se ci sono risposte nelle opinioni
+    const opinioniWithData = await pool.query(`
+      SELECT 
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN energia_nucleare IS NOT NULL THEN 1 END) as energia_nucleare_responses,
+        COUNT(CASE WHEN sperimentazione_animale IS NOT NULL THEN 1 END) as sperimentazione_animale_responses,
+        COUNT(CASE WHEN legalizzazione_canapa IS NOT NULL THEN 1 END) as legalizzazione_canapa_responses,
+        COUNT(CASE WHEN caccia IS NOT NULL THEN 1 END) as caccia_responses
+      FROM users
+    `);
+    
+    const opinioniData = opinioniWithData.rows[0];
+    
+    console.log('✅ DEBUG: Controllo completato');
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: {
+          count: opinioniCount,
+          status: opinioniCount > 0 ? 'OK' : 'VUOTA'
+        },
+        users: {
+          count: usersCount,
+          status: usersCount > 0 ? 'OK' : 'VUOTA',
+          opinioni_responses: {
+            total_users: parseInt(opinioniData.total_users),
+            energia_nucleare: parseInt(opinioniData.energia_nucleare_responses),
+            sperimentazione_animale: parseInt(opinioniData.sperimentazione_animale_responses),
+            legalizzazione_canapa: parseInt(opinioniData.legalizzazione_canapa_responses),
+            caccia: parseInt(opinioniData.caccia_responses)
+          }
+        },
+        utenti: {
+          count: utentiCount,
+          status: utentiCount > 0 ? 'OK' : 'VUOTA'
+        },
+        summary: {
+          needs_firestore_import: opinioniCount === 0 || usersCount === 0,
+          has_opinion_responses: parseInt(opinioniData.energia_nucleare_responses) > 0
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel controllo dati:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel controllo dati',
+      details: error.message
     });
   }
 });
