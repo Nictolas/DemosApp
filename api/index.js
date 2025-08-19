@@ -2167,15 +2167,111 @@ app.get('/api/debug/utenti-table', async (req, res) => {
   try {
     console.log('🔍 DEBUG: Inizio endpoint /api/debug/utenti-table (pubblico)');
     
-    // Test ultra-semplice - solo connessione database
-    const result = await pool.query('SELECT 1 as test');
+    // 1. Verifica tabella utenti in Neon
+    console.log('📊 DEBUG: Verifica tabella utenti in Neon');
+    const utentiCount = await pool.query('SELECT COUNT(*) as total FROM utenti');
+    const utentiTotal = parseInt(utentiCount.rows[0].total);
     
-    console.log('✅ DEBUG: Connessione database OK');
+    // 2. Verifica tabella users in Neon
+    console.log('📊 DEBUG: Verifica tabella users in Neon');
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    const usersTotal = parseInt(usersCount.rows[0].total);
+    
+    // 3. Verifica colonne opinioni in utenti
+    console.log('🎯 DEBUG: Verifica colonne opinioni in utenti');
+    const opinionColumns = [
+      'cittadina_animale', 'nato', 'sperimentazione_animale', 'matrimonio_gay',
+      'salario_minimo', 'carne_coltivata', 'case_chiuse', 'energia_nucleare',
+      'legalizzazione_canapa', 'caccia', 'eutanasia', 'omobitransfobia'
+    ];
+    
+    const utentiOpinions = {};
+    for (const column of opinionColumns) {
+      try {
+        const result = await pool.query(`
+          SELECT 
+            COUNT(CASE WHEN ${column} = true THEN 1 END) as favorevole,
+            COUNT(CASE WHEN ${column} = false THEN 1 END) as contrario,
+            COUNT(CASE WHEN ${column} IS NULL THEN 1 END) as astenuto
+          FROM utenti
+        `);
+        
+        const row = result.rows[0];
+        utentiOpinions[column] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+      } catch (error) {
+        utentiOpinions[column] = { error: error.message };
+      }
+    }
+    
+    // 4. Verifica colonne opinioni in users
+    console.log('🎯 DEBUG: Verifica colonne opinioni in users');
+    const usersOpinions = {};
+    for (const column of opinionColumns) {
+      try {
+        const result = await pool.query(`
+          SELECT 
+            COUNT(CASE WHEN ${column} = true THEN 1 END) as favorevole,
+            COUNT(CASE WHEN ${column} = false THEN 1 END) as contrario,
+            COUNT(CASE WHEN ${column} IS NULL THEN 1 END) as astenuto
+          FROM users
+        `);
+        
+        const row = result.rows[0];
+        usersOpinions[column] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+      } catch (error) {
+        usersOpinions[column] = { error: error.message };
+      }
+    }
+    
+    // 5. Verifica connessione Firestore
+    console.log('🔥 DEBUG: Verifica connessione Firestore');
+    let firestoreStatus = 'Non configurato';
+    let firestoreData = null;
+    
+    try {
+      // Verifica se le variabili Firestore sono configurate
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY) {
+        firestoreStatus = 'Configurato';
+        
+        // Per ora non facciamo query dirette a Firestore
+        // ma verifichiamo che le credenziali siano presenti
+        firestoreData = {
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+          hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL
+        };
+      }
+    } catch (error) {
+      firestoreStatus = `Errore: ${error.message}`;
+    }
+
+    console.log('✅ DEBUG: Debug completato');
 
     res.json({
       success: true,
-      message: 'Connessione database OK',
-      test: result.rows[0].test
+      neon: {
+        utenti: {
+          total: utentiTotal,
+          opinioni: utentiOpinions
+        },
+        users: {
+          total: usersTotal,
+          opinioni: usersOpinions
+        }
+      },
+      firestore: {
+        status: firestoreStatus,
+        config: firestoreData
+      },
+      message: 'Debug completo - verifica entrambe le tabelle e Firestore'
     });
 
   } catch (error) {
