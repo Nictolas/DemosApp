@@ -21,7 +21,11 @@ async function finalVerification() {
         COUNT(CASE WHEN paese_residenza IS NOT NULL THEN 1 END) as with_paese_residenza,
         COUNT(CASE WHEN data_nascita IS NOT NULL THEN 1 END) as with_data_nascita,
         COUNT(CASE WHEN genere IS NOT NULL THEN 1 END) as with_genere,
-        COUNT(CASE WHEN cittadinanza IS NOT NULL THEN 1 END) as with_cittadinanza
+        COUNT(CASE WHEN cittadinanza IS NOT NULL THEN 1 END) as with_cittadinanza,
+        COUNT(CASE WHEN grado_elezione IS NOT NULL THEN 1 END) as with_grado_elezione,
+        COUNT(CASE WHEN regione IS NOT NULL THEN 1 END) as with_regione_elezione,
+        COUNT(CASE WHEN provincia IS NOT NULL THEN 1 END) as with_provincia_elezione,
+        COUNT(CASE WHEN comune IS NOT NULL THEN 1 END) as with_comune_elezione
       FROM users
     `);
     
@@ -36,13 +40,18 @@ async function finalVerification() {
     console.log(`- Con data_nascita: ${s.with_data_nascita}`);
     console.log(`- Con genere: ${s.with_genere}`);
     console.log(`- Con cittadinanza: ${s.with_cittadinanza}`);
+    console.log(`- Con grado_elezione: ${s.with_grado_elezione}`);
+    console.log(`- Con regione_elezione: ${s.with_regione_elezione}`);
+    console.log(`- Con provincia_elezione: ${s.with_provincia_elezione}`);
+    console.log(`- Con comune_elezione: ${s.with_comune_elezione}`);
     
     // 2. CAMPIONE UTENTI COMPLETO
     const sampleUsers = await pool.query(`
       SELECT id, name, email, nome, cognome, 
              energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
              regione_residenza, provincia_residenza, comune_residenza, paese_residenza,
-             data_nascita, genere, cittadinanza
+             data_nascita, genere, cittadinanza,
+             grado_elezione, paese_elezione, regione, provincia, comune
       FROM users 
       WHERE energia_nucleare IS NOT NULL 
       LIMIT 5
@@ -58,6 +67,11 @@ async function finalVerification() {
       console.log(`   📅 Data Nascita: ${user.data_nascita || 'N/A'}`);
       console.log(`   👤 Genere: ${user.genere || 'N/A'}`);
       console.log(`   🏛️ Cittadinanza: ${user.cittadinanza || 'N/A'}`);
+      console.log(`   🏛️ Grado Elezione: ${user.grado_elezione || 'N/A'}`);
+      console.log(`   🏛️ Paese Elezione: ${user.paese_elezione || 'N/A'}`);
+      console.log(`   📍 Regione Elezione: ${user.regione || 'N/A'}`);
+      console.log(`   📍 Provincia Elezione: ${user.provincia || 'N/A'}`);
+      console.log(`   📍 Comune Elezione: ${user.comune || 'N/A'}`);
       console.log(`   💭 Energia Nucleare: ${user.energia_nucleare || 'N/A'}`);
       console.log(`   💭 Sperimentazione Animale: ${user.sperimentazione_animale || 'N/A'}`);
       console.log(`   💭 Legalizzazione Canapa: ${user.legalizzazione_canapa || 'N/A'}`);
@@ -111,6 +125,22 @@ async function finalVerification() {
     console.log('\n📊 DISTRIBUZIONE COMUNI RESIDENZA (Top 10):');
     comuneStats.rows.forEach(stat => {
       console.log(`   ${stat.comune_residenza}: ${stat.count} utenti`);
+    });
+    
+    // 6. DISTRIBUZIONE GRADI ELEZIONE
+    const electionStats = await pool.query(`
+      SELECT 
+        grado_elezione,
+        COUNT(*) as count
+      FROM users 
+      WHERE grado_elezione IS NOT NULL
+      GROUP BY grado_elezione
+      ORDER BY count DESC
+    `);
+    
+    console.log('\n📊 DISTRIBUZIONE GRADI ELEZIONE:');
+    electionStats.rows.forEach(stat => {
+      console.log(`   ${stat.grado_elezione}: ${stat.count} utenti`);
     });
     
     await pool.end();
