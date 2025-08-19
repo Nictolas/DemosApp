@@ -25,7 +25,8 @@ async function finalVerification() {
         COUNT(CASE WHEN grado_elezione IS NOT NULL THEN 1 END) as with_grado_elezione,
         COUNT(CASE WHEN regione IS NOT NULL THEN 1 END) as with_regione_elezione,
         COUNT(CASE WHEN provincia IS NOT NULL THEN 1 END) as with_provincia_elezione,
-        COUNT(CASE WHEN comune IS NOT NULL THEN 1 END) as with_comune_elezione
+        COUNT(CASE WHEN comune IS NOT NULL THEN 1 END) as with_comune_elezione,
+        COUNT(CASE WHEN fonti_opinioni IS NOT NULL THEN 1 END) as with_fonti_opinioni
       FROM users
     `);
     
@@ -44,6 +45,7 @@ async function finalVerification() {
     console.log(`- Con regione_elezione: ${s.with_regione_elezione}`);
     console.log(`- Con provincia_elezione: ${s.with_provincia_elezione}`);
     console.log(`- Con comune_elezione: ${s.with_comune_elezione}`);
+    console.log(`- Con fonti_opinioni: ${s.with_fonti_opinioni}`);
     
     // 2. CAMPIONE UTENTI COMPLETO
     const sampleUsers = await pool.query(`
@@ -51,7 +53,8 @@ async function finalVerification() {
              energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
              regione_residenza, provincia_residenza, comune_residenza, paese_residenza,
              data_nascita, genere, cittadinanza,
-             grado_elezione, paese_elezione, regione, provincia, comune
+             grado_elezione, paese_elezione, regione, provincia, comune,
+             fonti_opinioni
       FROM users 
       WHERE energia_nucleare IS NOT NULL 
       LIMIT 5
@@ -75,6 +78,14 @@ async function finalVerification() {
       console.log(`   💭 Energia Nucleare: ${user.energia_nucleare || 'N/A'}`);
       console.log(`   💭 Sperimentazione Animale: ${user.sperimentazione_animale || 'N/A'}`);
       console.log(`   💭 Legalizzazione Canapa: ${user.legalizzazione_canapa || 'N/A'}`);
+      
+      // Mostra fonti se presenti
+      if (user.fonti_opinioni) {
+        console.log(`   📰 Fonti opinioni: ${Object.keys(user.fonti_opinioni).length} argomenti`);
+        Object.entries(user.fonti_opinioni).forEach(([topic, url]) => {
+          console.log(`      - ${topic}: ${url.substring(0, 60)}...`);
+        });
+      }
     });
     
     // 3. DISTRIBUZIONE OPINIONI
@@ -142,6 +153,17 @@ async function finalVerification() {
     electionStats.rows.forEach(stat => {
       console.log(`   ${stat.grado_elezione}: ${stat.count} utenti`);
     });
+    
+    // 7. DISTRIBUZIONE FONTI OPINIONI
+    const sourcesStats = await pool.query(`
+      SELECT 
+        COUNT(*) as total_with_sources
+      FROM users 
+      WHERE fonti_opinioni IS NOT NULL
+    `);
+    
+    console.log('\n📊 DISTRIBUZIONE FONTI OPINIONI:');
+    console.log(`   Utenti con fonti: ${sourcesStats.rows[0].total_with_sources || 0}`);
     
     await pool.end();
     console.log('\n✅ VERIFICA FINALE COMPLETATA - MIGRAZIONE RIUSCITA!');
