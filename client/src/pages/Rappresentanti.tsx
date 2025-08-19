@@ -154,15 +154,7 @@ export default function Rappresentanti() {
             <Card className="p-8 text-center"><CardContent><h2 className="text-xl font-semibold text-red-600">Errore nel caricamento</h2><p>Impossibile caricare i tuoi rappresentanti.</p></CardContent></Card>
           ) : (
             <>
-              {/* Messaggio informativo se non ci sono rappresentanti */}
-              {(!data || !data.rappresentanti || !data.idMap || (Object.keys(data.rappresentanti).length === 0 && Object.keys(data.idMap).length === 0)) && (
-                <Card className="p-6 text-center mb-6">
-                  <CardContent>
-                    <h2 className="text-xl font-semibold text-gray-600 mb-2">Nessun rappresentante selezionato</h2>
-                    <p className="text-gray-500 mb-4">Non hai ancora scelto nessun rappresentante per le diverse categorie. Clicca sulle card qui sotto per iniziare a scegliere!</p>
-                  </CardContent>
-                </Card>
-              )}
+
               
               {/* Card Parlamento Europeo */}
               {(() => {
