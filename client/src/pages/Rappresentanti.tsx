@@ -136,14 +136,18 @@ export default function Rappresentanti() {
             <div className="flex items-center justify-center pt-16"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>
           ) : isError ? (
             <Card className="p-8 text-center"><CardContent><h2 className="text-xl font-semibold text-red-600">Errore nel caricamento</h2><p>Impossibile caricare i tuoi rappresentanti.</p></CardContent></Card>
-          ) : !data || (Object.keys(data.rappresentanti).length === 0 && Object.keys(data.idMap).length === 0) ? (
-            <Card className="p-8 text-center"><CardContent>
-              <h2 className="text-xl font-semibold text-gray-600 mb-2">Nessun rappresentante selezionato</h2>
-              <p className="text-gray-500 mb-4">Non hai ancora scelto nessun rappresentante per le diverse categorie.</p>
-              <Button onClick={() => setShowCambiaModal({ categoria: 'europeo' })}>Scegli il primo rappresentante</Button>
-            </CardContent></Card>
           ) : (
             <>
+              {/* Messaggio informativo se non ci sono rappresentanti */}
+              {(!data || (Object.keys(data.rappresentanti).length === 0 && Object.keys(data.idMap).length === 0)) && (
+                <Card className="p-6 text-center mb-6">
+                  <CardContent>
+                    <h2 className="text-xl font-semibold text-gray-600 mb-2">Nessun rappresentante selezionato</h2>
+                    <p className="text-gray-500 mb-4">Non hai ancora scelto nessun rappresentante per le diverse categorie. Clicca sulle card qui sotto per iniziare a scegliere!</p>
+                  </CardContent>
+                </Card>
+              )}
+              
               {/* Card Parlamento Europeo */}
               {(() => {
                 const categoria = categorie[0];
@@ -158,6 +162,7 @@ export default function Rappresentanti() {
                   </div>
                 );
               })()}
+              
               {/* Altre card */}
               <div className="grid grid-cols-2 gap-2 pb-2">
                 {categorie.slice(1).map((categoria) => {
