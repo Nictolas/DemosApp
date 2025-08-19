@@ -670,8 +670,10 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
     }
     
     // 1. Ottieni i rappresentanti dell'utente corrente
+    console.log('🔍 DEBUG: Cercando utente con ID:', req.user.userId);
     const userResult = await pool.query(`
       SELECT 
+        id, email, nome, cognome,
         rappresentante_europeo, rappresentante_camera, rappresentante_senato, 
         rappresentante_regionale, rappresentante_comune,
         candidato_europeo, candidato_camera, candidato_senato, 
@@ -681,6 +683,7 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
     `, [req.user.userId]);
     
     if (userResult.rows.length === 0) {
+      console.log('❌ DEBUG: Utente non trovato con ID:', req.user.userId);
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
@@ -688,6 +691,15 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
     }
     
     const userData = userResult.rows[0];
+    console.log('✅ DEBUG: Utente trovato:', { 
+      id: userData.id, 
+      email: userData.email, 
+      nome: userData.nome,
+      rappresentanti: {
+        europeo: userData.rappresentante_europeo,
+        regionale: userData.rappresentante_regionale
+      }
+    });
     
     // 2. Mappa delle categorie
     const categorie = {
@@ -704,6 +716,7 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
     
     for (const [categoria, campo] of Object.entries(categorie)) {
       const rappresentanteId = userData[campo];
+      console.log(`🔍 DEBUG: Categoria ${categoria}:`, rappresentanteId);
       
       if (rappresentanteId) {
         // Ottieni i dati del rappresentante
@@ -713,6 +726,8 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
           WHERE firestore_uid = $1 OR id::text = $1
         `, [rappresentanteId]);
         
+        console.log(`🔍 DEBUG: Risultato query rappresentante ${categoria}:`, rappresentanteResult.rows.length, 'righe');
+        
         if (rappresentanteResult.rows.length > 0) {
           const rappresentante = rappresentanteResult.rows[0];
           rappresentanti[categoria] = {
@@ -721,11 +736,14 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
             avatar_config: rappresentante.avatar_config
           };
           idMap[categoria] = rappresentanteId;
+          console.log(`✅ DEBUG: Rappresentante ${categoria} aggiunto:`, rappresentanti[categoria]);
         }
       }
     }
     
     console.log('✅ DEBUG: Rappresentanti trovati:', Object.keys(rappresentanti).length);
+    console.log('✅ DEBUG: Rappresentanti finali:', rappresentanti);
+    console.log('✅ DEBUG: ID Map finale:', idMap);
     
     res.json({
       success: true,
