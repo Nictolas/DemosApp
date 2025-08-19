@@ -365,6 +365,81 @@ app.post('/api/debug/migrate-utenti-to-users', async (req, res) => {
   }
 });
 
+// Endpoint per migrazione semplificata da utenti a users
+app.post('/api/debug/migrate-simple', async (req, res) => {
+  try {
+    console.log('🔄 DEBUG: Inizio migrazione semplificata');
+    
+    // 1. Conta righe in entrambe le tabelle
+    const utentiCount = await pool.query('SELECT COUNT(*) as total FROM utenti');
+    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    
+    console.log('📊 DEBUG: Righe in utenti:', utentiCount.rows[0].total);
+    console.log('📊 DEBUG: Righe in users:', usersCount.rows[0].total);
+    
+    // 2. Copia dati semplici (solo email e opinioni base)
+    const copyResult = await pool.query(`
+      INSERT INTO users (id, email, nome, cognome, ruolo, status,
+                        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia)
+      SELECT 
+        gen_random_uuid() as id,
+        email,
+        COALESCE(nome, 'Utente') as nome,
+        COALESCE(cognome, 'Anonimo') as cognome,
+        COALESCE(ruolo, 'Elettore') as ruolo,
+        COALESCE(status, 'pending') as status,
+        energia_nucleare,
+        sperimentazione_animale,
+        legalizzazione_canapa,
+        caccia
+      FROM utenti
+      WHERE email NOT IN (SELECT email FROM users)
+    `);
+    
+    console.log('✅ DEBUG: Copiate nuove righe:', copyResult.rowCount);
+    
+    // 3. Aggiorna opinioni esistenti
+    const updateResult = await pool.query(`
+      UPDATE users u
+      SET 
+        energia_nucleare = t.energia_nucleare,
+        sperimentazione_animale = t.sperimentazione_animale,
+        legalizzazione_canapa = t.legalizzazione_canapa,
+        caccia = t.caccia
+      FROM utenti t
+      WHERE LOWER(u.email) = LOWER(t.email)
+    `);
+    
+    console.log('✅ DEBUG: Aggiornate righe esistenti:', updateResult.rowCount);
+    
+    // 4. Verifica finale
+    const finalUsersCount = await pool.query('SELECT COUNT(*) as total FROM users');
+    
+    // 5. Elimina tabella utenti
+    await pool.query('DROP TABLE IF EXISTS utenti CASCADE');
+    console.log('✅ DEBUG: Tabella utenti eliminata');
+    
+    res.json({
+      success: true,
+      message: 'Migrazione semplificata completata',
+      data: {
+        utenti_originali: parseInt(utentiCount.rows[0].total),
+        users_finali: parseInt(finalUsersCount.rows[0].total),
+        nuove_righe: copyResult.rowCount,
+        righe_aggiornate: updateResult.rowCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore durante migrazione semplificata:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante migrazione',
+      details: error.message
+    });
+  }
+});
+
 // Endpoint di debug per verificare la tabella utenti
 app.get('/api/debug/utenti-table', async (req, res) => {
   try {
