@@ -26,7 +26,7 @@ async function migrateVotiReferendumAbrogativi() {
       CREATE TABLE IF NOT EXISTS voti_referendum_abrogativi (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         userid UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        firestore_uid_ref TEXT NOT NULL,
+        firestore_uid_backup TEXT NOT NULL,
         referendum_id TEXT NOT NULL,
         timestamp TIMESTAMP DEFAULT NOW(),
         created_at TIMESTAMP DEFAULT NOW(),
@@ -92,7 +92,7 @@ async function migrateVotiReferendumAbrogativi() {
         
         // Inserisci il voto in Neon
         const insertQuery = `
-          INSERT INTO voti_referendum_abrogativi (userid, firestore_uid_ref, referendum_id, timestamp, created_at, updated_at)
+          INSERT INTO voti_referendum_abrogativi (userid, firestore_uid_backup, referendum_id, timestamp, created_at, updated_at)
           VALUES ($1, $2, $3, $4, NOW(), NOW())
           ON CONFLICT (userid, referendum_id) DO UPDATE SET
             timestamp = EXCLUDED.timestamp,
@@ -134,7 +134,7 @@ async function migrateVotiReferendumAbrogativi() {
     // 5. MOSTRA ALCUNI ESEMPI
     console.log('\n📊 ESEMPI VOTI MIGRATI:');
     const sampleVotes = await pool.query(`
-      SELECT vra.referendum_id, vra.timestamp, u.nome as user_nome, u.cognome as user_cognome, vra.firestore_uid_ref
+      SELECT vra.referendum_id, vra.timestamp, u.nome as user_nome, u.cognome as user_cognome, vra.firestore_uid_backup
       FROM voti_referendum_abrogativi vra
       JOIN users u ON vra.userid = u.id
       ORDER BY vra.timestamp DESC
@@ -145,7 +145,7 @@ async function migrateVotiReferendumAbrogativi() {
       console.log(`🗳️ Referendum: ${vote.referendum_id}`);
       console.log(`   👤 Votato da: ${vote.user_nome} ${vote.user_cognome}`);
       console.log(`   📅 Timestamp: ${vote.timestamp}`);
-      console.log(`   🔗 Firestore UID: ${vote.firestore_uid_ref}`);
+      console.log(`   🔗 Firestore UID: ${vote.firestore_uid_backup}`);
     });
     
     console.log('\n✅ MIGRAZIONE VOTI REFERENDUM ABROGATIVI COMPLETATA');
