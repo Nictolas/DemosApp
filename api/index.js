@@ -190,6 +190,172 @@ const isRequesterAdmin = async (userId) => {
   }
 };
 
+// Endpoint di autenticazione
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email e password richiesti' });
+    }
+
+    // Cerca utente nella tabella users
+    const result = await pool.query(
+      'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Credenziali non valide' });
+    }
+
+    const user = result.rows[0];
+    
+    // Verifica password
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ success: false, error: 'Credenziali non valide' });
+    }
+
+    // Genera JWT token
+    const token = jwt.sign(
+      { 
+        userId: user.id,
+        email: user.email 
+      },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        email: user.email,
+        name: `${user.nome || ''} ${user.cognome || ''}`.trim() || user.email,
+        role: user.ruolo || 'Elettore',
+        status: user.status
+      },
+      token
+    });
+
+  } catch (error) {
+    console.error('Errore login:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, nome, cognome, ruolo } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email e password richiesti' });
+    }
+
+    // Verifica se l'utente esiste già
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'Un utente con questa email esiste già'
+      });
+    }
+    
+    // Hash della password
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    
+    // Crea nuovo utente
+    const result = await pool.query(
+      `INSERT INTO users (id, email, nome, cognome, password_hash, ruolo, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, email, nome, cognome, ruolo, status`,
+      [
+        crypto.randomUUID(),
+        email.toLowerCase(),
+        nome || '',
+        cognome || '',
+        passwordHash,
+        ruolo || 'Elettore',
+        'pending'
+      ]
+    );
+    
+    const user = result.rows[0];
+    
+    // Genera JWT token
+    const token = jwt.sign(
+      { 
+        userId: user.id,
+        email: user.email 
+      },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: '24h' }
+    );
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: user.id,
+        email: user.email,
+        name: `${user.nome} ${user.cognome}`.trim(),
+        role: user.ruolo,
+        status: user.status
+      },
+      token,
+      message: 'Registrazione completata con successo'
+    });
+  } catch (error) {
+    console.error('Errore registrazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+app.get('/api/utenti/me', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const result = await pool.query(
+      'SELECT id, email, nome, cognome, ruolo, status FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Utente non trovato' });
+    }
+
+    const user = result.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        email: user.email,
+        name: `${user.nome || ''} ${user.cognome || ''}`.trim() || user.email,
+        role: user.ruolo,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error('Errore recupero utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 // Endpoint per migrazione completa da utenti a users
 app.post('/api/debug/migrate-utenti-to-users', async (req, res) => {
   try {
