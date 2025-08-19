@@ -326,8 +326,9 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     
+    // Cerca direttamente nella tabella users (che ha tutti i campi)
     const result = await pool.query(
-      'SELECT id, email, nome, cognome, ruolo, status FROM users WHERE id = $1',
+      'SELECT * FROM users WHERE id = $1',
       [userId]
     );
 
@@ -337,14 +338,55 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
 
     const user = result.rows[0];
     
+    // Restituisci tutti i campi disponibili dalla tabella users
     res.json({
       success: true,
       data: {
         id: user.id,
         email: user.email,
+        nome: user.nome || '',
+        cognome: user.cognome || '',
         name: `${user.nome || ''} ${user.cognome || ''}`.trim() || user.email,
-        role: user.ruolo,
-        status: user.status
+        role: user.ruolo || user.role,
+        status: user.status,
+        // Dati personali
+        data_nascita: user.data_nascita,
+        genere: user.genere,
+        cittadinanza: user.cittadinanza,
+        // Residenza
+        paese_residenza: user.paese_residenza,
+        regione_residenza: user.regione_residenza,
+        provincia_residenza: user.provincia_residenza,
+        comune_residenza: user.comune_residenza,
+        // Elezione
+        paese_elezione: user.paese_elezione,
+        regione_elezione: user.regione_elezione,
+        provincia_elezione: user.provincia_elezione,
+        comune_elezione: user.comune_elezione,
+        grado_elezione: user.grado_elezione,
+        // Candidatura
+        paese_candidatura: user.paese_candidatura,
+        regione_candidatura: user.regione_candidatura,
+        provincia_candidatura: user.provincia_candidatura,
+        comune_candidatura: user.comune_candidatura,
+        grado_candidatura: user.grado_candidatura,
+        // Opinioni
+        energia_nucleare: user.energia_nucleare,
+        sperimentazione_animale: user.sperimentazione_animale,
+        legalizzazione_canapa: user.legalizzazione_canapa,
+        caccia: user.caccia,
+        cittadina_animale: user.cittadina_animale,
+        nato: user.nato,
+        matrimonio_gay: user.matrimonio_gay,
+        salario_minimo: user.salario_minimo,
+        carne_coltivata: user.carne_coltivata,
+        case_chiuse: user.case_chiuse,
+        eutanasia: user.eutanasia,
+        omobitransfobia: user.omobitransfobia,
+        // Altri campi
+        avatar_config: user.avatar_config,
+        created_at: user.created_at,
+        updated_at: user.updated_at
       }
     });
   } catch (error) {
