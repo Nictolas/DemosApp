@@ -134,19 +134,23 @@ export default function Opinioni() {
     console.log('🔍 DEBUG handleSave:');
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
-    console.log('  questions.map(q => ({ id: q.id, hasOpinion: !!opinions[q.id] })):', questions.map(q => ({ id: q.id, hasOpinion: !!opinions[q.id] })));
     
-    const missingQuestions = questions.filter(q => !opinions[q.id]);
-    console.log('  missingQuestions:', missingQuestions);
+    // Filtra solo le opinioni che hanno un valore (non null/undefined)
+    const opinionsToSave = Object.fromEntries(
+      Object.entries(opinions).filter(([key, value]) => value !== null && value !== undefined)
+    );
     
-    if (missingQuestions.length > 0) {
-      console.log('❌ DEBUG: Bloccato salvataggio - domande mancanti:', missingQuestions.map(q => q.id));
-      toast({ title: "Attenzione", description: "Per favore, rispondi a tutte le domande.", variant: "destructive" });
+    console.log('  opinionsToSave:', opinionsToSave);
+    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
+    
+    if (Object.keys(opinionsToSave).length === 0) {
+      console.log('❌ DEBUG: Nessuna opinione da salvare');
+      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
       return;
     }
     
     console.log('✅ DEBUG: Procedo con il salvataggio');
-    saveMutation.mutate(opinions);
+    saveMutation.mutate(opinionsToSave);
   };
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
