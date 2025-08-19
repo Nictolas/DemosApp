@@ -106,6 +106,13 @@ export default function Opinioni() {
   const questions = questionsData?.data || [];
   const userAnswers = userAnswersData?.data || {};
 
+  // Sincronizza le opinioni quando userAnswers è disponibile
+  useEffect(() => {
+    if (userAnswers && Object.keys(userAnswers).length > 0) {
+      setOpinions(userAnswers);
+    }
+  }, [userAnswers]);
+
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
