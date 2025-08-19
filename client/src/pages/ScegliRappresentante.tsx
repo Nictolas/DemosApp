@@ -76,17 +76,23 @@ export default function ScegliRappresentante() {
       setLoading(true);
       try {
         // 1. Carica i dati dell'utente corrente e i politici/candidati tramite API
-        // Usiamo un endpoint che fa tutto il lavoro pesante lato server
+        // Usiamo il nuovo endpoint per utenti disponibili
         const response = await apiRequest(
           "GET", 
-          `/api/rappresentanti?grado=${encodeURIComponent(getTitolo())}&categoria=${encodeURIComponent(categoria || '')}`
+          `/api/rappresentanti/disponibili?grado=${encodeURIComponent(getTitolo())}&categoria=${encodeURIComponent(categoria || '')}`
         );
 
         if (!response.ok) {
           throw new Error("Errore nel caricamento dei dati dal server.");
         }
         
-        const { candidati, utente } = await response.json();
+        const result = await response.json();
+        
+        if (!result.success) {
+          throw new Error(result.error || "Errore nel caricamento dei dati");
+        }
+        
+        const { candidati, utente } = result.data;
         
         // 2. Imposta i dati ricevuti
         setRappresentanteSelezionato(utente[getFieldName()] || null);

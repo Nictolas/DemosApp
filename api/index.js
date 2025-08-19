@@ -762,6 +762,215 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint per ottenere gli utenti disponibili per la selezione dei rappresentanti
+app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Richiesta utenti disponibili per categoria:', req.query.categoria);
+    
+    const { grado, categoria } = req.query;
+    
+    if (!categoria) {
+      return res.status(400).json({
+        success: false,
+        error: 'Parametro categoria richiesto'
+      });
+    }
+    
+    // 1. Ottieni i dati dell'utente corrente
+    const userResult = await pool.query(`
+      SELECT 
+        id, email, nome, cognome,
+        rappresentante_europeo, rappresentante_camera, rappresentante_senato, 
+        rappresentante_regionale, rappresentante_comune,
+        candidato_europeo, candidato_camera, candidato_senato, 
+        candidato_regionale, candidato_comune
+      FROM users 
+      WHERE id = $1
+    `, [req.user.userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userData = userResult.rows[0];
+    
+    // 2. Carica tutti gli utenti disponibili per la categoria specifica
+    let candidatiQuery = '';
+    let candidatiParams = [];
+    
+    switch (categoria) {
+      case 'europeo':
+        candidatiQuery = `
+          SELECT 
+            id, email, nome, cognome, avatar_config,
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
+            caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+            carne_coltivata, case_chiuse, eutanasia, omobitransfobia
+          FROM users 
+          WHERE id != $1 
+          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
+               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
+               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
+               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
+               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
+               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          ORDER BY nome, cognome
+        `;
+        candidatiParams = [req.user.userId];
+        break;
+        
+      case 'camera':
+      case 'senato':
+        candidatiQuery = `
+          SELECT 
+            id, email, nome, cognome, avatar_config,
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
+            caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+            carne_coltivata, case_chiuse, eutanasia, omobitransfobia
+          FROM users 
+          WHERE id != $1 
+          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
+               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
+               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
+               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
+               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
+               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          ORDER BY nome, cognome
+        `;
+        candidatiParams = [req.user.userId];
+        break;
+        
+      case 'regione':
+        candidatiQuery = `
+          SELECT 
+            id, email, nome, cognome, avatar_config,
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
+            caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+            carne_coltivata, case_chiuse, eutanasia, omobitransfobia
+          FROM users 
+          WHERE id != $1 
+          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
+               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
+               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
+               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
+               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
+               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          ORDER BY nome, cognome
+        `;
+        candidatiParams = [req.user.userId];
+        break;
+        
+      case 'comune':
+        candidatiQuery = `
+          SELECT 
+            id, email, nome, cognome, avatar_config,
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
+            caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+            carne_coltivata, case_chiuse, eutanasia, omobitransfobia
+          FROM users 
+          WHERE id != $1 
+          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
+               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
+               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
+               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
+               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
+               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          ORDER BY nome, cognome
+        `;
+        candidatiParams = [req.user.userId];
+        break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Categoria non valida'
+        });
+    }
+    
+    const candidatiResult = await pool.query(candidatiQuery, candidatiParams);
+    console.log('✅ DEBUG: Trovati', candidatiResult.rows.length, 'candidati per categoria', categoria);
+    
+    // 3. Calcola le opinioni comuni per ogni candidato
+    const candidati = candidatiResult.rows.map(candidato => {
+      const opinioniComuni = calculateOpinioniComuni(userData, candidato);
+      
+      return {
+        id: candidato.id,
+        nome: candidato.nome || 'Nome non disponibile',
+        cognome: candidato.cognome || 'Cognome non disponibile',
+        email: candidato.email,
+        ruolo: 'Cittadino',
+        grado_elezione: grado || 'Cittadino',
+        opinioni_comuni: opinioniComuni,
+        avatar_config: candidato.avatar_config,
+        energia_nucleare: candidato.energia_nucleare,
+        sperimentazione_animale: candidato.sperimentazione_animale,
+        legalizzazione_canapa: candidato.legalizzazione_canapa,
+        caccia: candidato.caccia,
+        cittadina_animale: candidato.cittadina_animale,
+        nato: candidato.nato,
+        matrimonio_gay: candidato.matrimonio_gay,
+        salario_minimo: candidato.salario_minimo,
+        carne_coltivata: candidato.carne_coltivata,
+        case_chiuse: candidato.case_chiuse,
+        eutanasia: candidato.eutanasia,
+        omobitransfobia: candidato.omobitransfobia
+      };
+    });
+    
+    // 4. Ordina per opinioni comuni (decrescente) e poi per nome
+    candidati.sort((a, b) => {
+      if (b.opinioni_comuni !== a.opinioni_comuni) {
+        return b.opinioni_comuni - a.opinioni_comuni;
+        return a.nome.localeCompare(b.nome);
+      }
+    });
+    
+    // 5. Prendi solo i primi 20 candidati per performance
+    const candidatiLimitati = candidati.slice(0, 20);
+    
+    console.log('✅ DEBUG: Restituiti', candidatiLimitati.length, 'candidati ordinati');
+    
+    res.json({
+      success: true,
+      data: {
+        candidati: candidatiLimitati,
+        utente: userData
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare candidati:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare candidati',
+      details: error.message
+    });
+  }
+});
+
+// Funzione helper per calcolare le opinioni comuni
+function calculateOpinioniComuni(user1, user2) {
+  const opinioniFields = [
+    'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+    'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+    'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+  ];
+  
+  let opinioniComuni = 0;
+  
+  opinioniFields.forEach(field => {
+    if (user1[field] && user2[field] && user1[field] === user2[field]) {
+      opinioniComuni++;
+    }
+  });
+  
+  return opinioniComuni;
+}
+
 // Endpoint per ottenere tutti gli utenti (Gestisci Utenti)
 app.get('/api/utenti', verifyToken, async (req, res) => {
   try {
