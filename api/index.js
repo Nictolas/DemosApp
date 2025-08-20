@@ -783,7 +783,8 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
         rappresentante_europeo, rappresentante_camera, rappresentante_senato, 
         rappresentante_regionale, rappresentante_comune,
         candidato_europeo, candidato_camera, candidato_senato, 
-        candidato_regionale, candidato_comune
+        candidato_regionale, candidato_comune,
+        regione_residenza, comune_residenza
       FROM users 
       WHERE id = $1
     `, [req.user.userId]);
@@ -805,82 +806,103 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
       case 'europeo':
         candidatiQuery = `
           SELECT 
-            id, email, nome, cognome, avatar_config,
+            id, email, nome, cognome, avatar_config, ruolo, grado_elezione,
             energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
             caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
             carne_coltivata, case_chiuse, eutanasia, omobitransfobia
           FROM users 
           WHERE id != $1 
-          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
-               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
-               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
-               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
-               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
-               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          AND ruolo IN ('Politico', 'Candidato Politico')
+          AND grado_elezione = 'Europeo'
           ORDER BY nome, cognome
         `;
         candidatiParams = [req.user.userId];
         break;
         
       case 'camera':
-      case 'senato':
         candidatiQuery = `
           SELECT 
-            id, email, nome, cognome, avatar_config,
+            id, email, nome, cognome, avatar_config, ruolo, grado_elezione,
             energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
             caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
             carne_coltivata, case_chiuse, eutanasia, omobitransfobia
           FROM users 
           WHERE id != $1 
-          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
-               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
-               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
-               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
-               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
-               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          AND ruolo IN ('Politico', 'Candidato Politico')
+          AND grado_elezione = 'Camera'
+          ORDER BY nome, cognome
+        `;
+        candidatiParams = [req.user.userId];
+        break;
+        
+      case 'senato':
+        candidatiQuery = `
+          SELECT 
+            id, email, nome, cognome, avatar_config, ruolo, grado_elezione,
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
+            caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+            carne_coltivata, case_chiuse, eutanasia, omobitransfobia
+          FROM users 
+          WHERE id != $1 
+          AND ruolo IN ('Politico', 'Candidato Politico')
+          AND grado_elezione = 'Senato'
           ORDER BY nome, cognome
         `;
         candidatiParams = [req.user.userId];
         break;
         
       case 'regione':
+        if (!userData.regione_residenza) {
+          console.log('⚠️ DEBUG: Utente senza regione_residenza, impossibile filtrare per regione');
+          return res.json({
+            success: true,
+            data: {
+              candidati: [],
+              utente: userData
+            }
+          });
+        }
         candidatiQuery = `
           SELECT 
-            id, email, nome, cognome, avatar_config,
+            id, email, nome, cognome, avatar_config, ruolo, grado_elezione,
             energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
             caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
             carne_coltivata, case_chiuse, eutanasia, omobitransfobia
           FROM users 
           WHERE id != $1 
-          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
-               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
-               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
-               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
-               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
-               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          AND ruolo IN ('Politico', 'Candidato Politico')
+          AND grado_elezione = 'Regionale'
+          AND regione_elezione = $2
           ORDER BY nome, cognome
         `;
-        candidatiParams = [req.user.userId];
+        candidatiParams = [req.user.userId, userData.regione_residenza];
         break;
         
       case 'comune':
+        if (!userData.comune_residenza) {
+          console.log('⚠️ DEBUG: Utente senza comune_residenza, impossibile filtrare per comune');
+          return res.json({
+            success: true,
+            data: {
+              candidati: [],
+              utente: userData
+            }
+          });
+        }
         candidatiQuery = `
           SELECT 
-            id, email, nome, cognome, avatar_config,
+            id, email, nome, cognome, avatar_config, ruolo, grado_elezione,
             energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
             caccia, cittadina_animale, nato, matrimonio_gay, salario_minimo,
             carne_coltivata, case_chiuse, eutanasia, omobitransfobia
           FROM users 
           WHERE id != $1 
-          AND (energia_nucleare IS NOT NULL OR sperimentazione_animale IS NOT NULL 
-               OR legalizzazione_canapa IS NOT NULL OR caccia IS NOT NULL 
-               OR cittadina_animale IS NOT NULL OR nato IS NOT NULL 
-               OR matrimonio_gay IS NOT NULL OR salario_minimo IS NOT NULL 
-               OR carne_coltivata IS NOT NULL OR case_chiuse IS NOT NULL 
-               OR eutanasia IS NOT NULL OR omobitransfobia IS NOT NULL)
+          AND ruolo IN ('Politico', 'Candidato Politico')
+          AND grado_elezione = 'Comunale'
+          AND comune_elezione = $2
           ORDER BY nome, cognome
         `;
-        candidatiParams = [req.user.userId];
+        candidatiParams = [req.user.userId, userData.comune_residenza];
         break;
         
       default:
@@ -902,8 +924,8 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
         nome: candidato.nome || 'Nome non disponibile',
         cognome: candidato.cognome || 'Cognome non disponibile',
         email: candidato.email,
-        ruolo: 'Cittadino',
-        grado_elezione: grado || 'Cittadino',
+        ruolo: candidato.ruolo || 'Cittadino',
+        grado_elezione: candidato.grado_elezione || grado || 'Cittadino',
         opinioni_comuni: opinioniComuni,
         avatar_config: candidato.avatar_config,
         energia_nucleare: candidato.energia_nucleare,
