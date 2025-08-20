@@ -1219,7 +1219,7 @@ app.get('/api/opinioni', verifyToken, async (req, res) => {
       });
     }
     
-    const result = await pool.query('SELECT * FROM opinioni ORDER BY created_at DESC');
+    const result = await pool.query('SELECT * FROM opinioni ORDER BY id');
     
     console.log('✅ DEBUG: Trovate', result.rows.length, 'opinioni ufficiali');
     
@@ -1301,8 +1301,8 @@ app.post('/api/opinioni', verifyToken, async (req, res) => {
     
     // Inserisci la nuova opinione
     const result = await pool.query(`
-      INSERT INTO opinioni (id, text, grado_opinione, status, created_at)
-      VALUES ($1, $2, $3, 'attiva', CURRENT_TIMESTAMP)
+      INSERT INTO opinioni (id, text, grado_opinione)
+      VALUES ($1, $2, $3)
       RETURNING *
     `, [id, text, grado_opinione]);
     
@@ -1358,7 +1358,7 @@ app.put('/api/opinioni/:id', verifyToken, async (req, res) => {
     // Aggiorna l'opinione
     const result = await pool.query(`
       UPDATE opinioni 
-      SET text = $1, grado_opinione = $2, data_modifica = CURRENT_TIMESTAMP
+      SET text = $1, grado_opinione = $2
       WHERE id = $3
       RETURNING *
     `, [text, grado_opinione, opinionId]);
