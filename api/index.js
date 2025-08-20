@@ -1040,19 +1040,9 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
     
     console.log('✅ DEBUG: Utente è admin, procedo con il caricamento');
     
-    // Carica tutti gli utenti dalla tabella users con tutte le colonne tranne le opinioni
+    // Carica tutti gli utenti dalla tabella users con colonne base sicure
     const result = await pool.query(`
-      SELECT 
-        id, email, nome, cognome, ruolo, status, created_at, updated_at,
-        avatar_config, firestore_uid, auth_provider,
-        grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
-        paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
-        rappresentante_europeo, rappresentante_camera, rappresentante_senato, 
-        rappresentante_regionale, rappresentante_comune,
-        candidato_europeo, candidato_camera, candidato_senato, 
-        candidato_regionale, candidato_comune
-      FROM users 
-      ORDER BY created_at DESC
+      SELECT * FROM users ORDER BY created_at DESC
     `);
     
     console.log('✅ DEBUG: Trovati', result.rows.length, 'utenti');
