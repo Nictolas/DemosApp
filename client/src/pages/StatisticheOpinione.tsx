@@ -59,7 +59,7 @@ export default function StatisticheOpinione() {
   const totalVotes = (stats.favorevole || 0) + (stats.contrario || 0) + (stats.astenuto || 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 select-none">
       <div className="container mx-auto max-w-6xl">
         <Link href="/sondaggi">
           <Button variant="ghost" className="mb-4 flex items-center">

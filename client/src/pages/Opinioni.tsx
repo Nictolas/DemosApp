@@ -50,7 +50,7 @@ export default function Opinioni() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden" style={{ paddingBottom: '80px' }}>
+      <div className="min-h-screen flex flex-col overflow-hidden select-none" style={{ paddingBottom: '80px' }}>
         <div className="container mx-auto px-4 py-8">
 
 
