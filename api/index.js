@@ -2157,6 +2157,7 @@ app.get('/api/sondaggi/stats', async (req, res) => {
     
     for (const opinion of opinionsResult.rows) {
       // Mappa l'ID dell'opinione alla colonna corrispondente nella tabella users
+      // Questa mappatura deve corrispondere esattamente ai nomi delle colonne in users
       const columnMap = {
         'energia_nucleare': 'energia_nucleare',
         'sperimentazione_animale': 'sperimentazione_animale',
@@ -2174,7 +2175,7 @@ app.get('/api/sondaggi/stats', async (req, res) => {
       
       const columnName = columnMap[opinion.id];
       if (columnName) {
-        // Conta le risposte per questa opinione
+        // Conta le risposte per questa opinione dalla tabella users
         const statsQuery = `
           SELECT 
             COUNT(*) as total,
@@ -2200,6 +2201,8 @@ app.get('/api/sondaggi/stats', async (req, res) => {
         });
         
         console.log(`✅ DEBUG: Statistiche per ${opinion.id}:`, stats[opinion.id]);
+      } else {
+        console.log(`⚠️ DEBUG: Nessuna colonna trovata per l'opinione: ${opinion.id}`);
       }
     }
     
