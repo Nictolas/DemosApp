@@ -21,6 +21,61 @@ type User = {
   email: string;
   ruolo: string;
   status: 'pending' | 'active' | 'rejected';
+  // Aggiungo tutte le altre colonne possibili
+  [key: string]: any; // Per permettere colonne dinamiche
+};
+
+// Colonne delle opinioni da escludere
+const OPINION_COLUMNS = [
+  'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
+  'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+  'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+];
+
+// Funzione per ottenere le colonne da mostrare
+const getDisplayColumns = (users: any[]) => {
+  if (!users || users.length === 0) return [];
+  
+  const firstUser = users[0];
+  const allColumns = Object.keys(firstUser);
+  
+  // Filtra le colonne delle opinioni
+  const displayColumns = allColumns.filter(col => !OPINION_COLUMNS.includes(col));
+  
+  // Ordina le colonne in modo logico
+  const priorityColumns = ['id', 'nome', 'cognome', 'email', 'ruolo', 'status'];
+  const sortedColumns = [
+    ...priorityColumns.filter(col => displayColumns.includes(col)),
+    ...displayColumns.filter(col => !priorityColumns.includes(col))
+  ];
+  
+  return sortedColumns;
+};
+
+// Funzione per formattare il valore di una colonna
+const formatColumnValue = (value: any, columnName: string) => {
+  if (value === null || value === undefined) return '-';
+  
+  // Formatta date
+  if (columnName.includes('_at') || columnName.includes('data_')) {
+    try {
+      return new Date(value).toLocaleDateString('it-IT');
+    } catch {
+      return value;
+    }
+  }
+  
+  // Formatta booleani
+  if (typeof value === 'boolean') {
+    return value ? 'Sì' : 'No';
+  }
+  
+  // Formatta JSON
+  if (typeof value === 'object') {
+    return JSON.stringify(value).substring(0, 50) + (JSON.stringify(value).length > 50 ? '...' : '');
+  }
+  
+  return String(value);
 };
 
 export default function GestisciUtenti() {
@@ -102,6 +157,9 @@ export default function GestisciUtenti() {
       onError: (error: any) => toast({ title: 'Errore', description: error.message || 'Eliminazione fallita.', variant: 'destructive' }),
   });
 
+  // Ottieni le colonne da mostrare
+  const displayColumns = getDisplayColumns(utenti);
+  
   const filteredAndSortedUsers = useMemo(() => {
     // Protezione aggiuntiva: assicurati che utenti sia un array
     if (!Array.isArray(utenti)) {
@@ -110,12 +168,17 @@ export default function GestisciUtenti() {
     }
     
     return utenti
-      .filter(u =>
-        (u.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (u.cognome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (u.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (u.ruolo || '').toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      .filter(u => {
+        // Ricerca su tutte le colonne di testo
+        const searchLower = searchTerm.toLowerCase();
+        return displayColumns.some(col => {
+          const value = u[col];
+          if (typeof value === 'string') {
+            return value.toLowerCase().includes(searchLower);
+          }
+          return false;
+        });
+      })
       .sort((a, b) => {
         if (!sortField) return 0;
         const valA = a[sortField];
@@ -124,7 +187,7 @@ export default function GestisciUtenti() {
         if (valA > valB) return sortDirection === "asc" ? 1 : -1;
         return 0;
       });
-  }, [utenti, searchTerm, sortField, sortDirection]);
+  }, [utenti, searchTerm, sortField, sortDirection, displayColumns]);
 
   const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
   const paginatedUsers = filteredAndSortedUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
@@ -171,24 +234,39 @@ export default function GestisciUtenti() {
                         <CardTitle className="text-xl font-bold text-yellow-600 flex items-center"><AlertCircle className="mr-2 h-5 w-5" />Utenti in Attesa ({pendingUsers.length})</CardTitle>
                         <CardDescription>Questi utenti attendono la tua approvazione per accedere.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead>Ruolo</TableHead><TableHead className="text-right">Azioni</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {pendingUsers.map((pendingUser) => (
-                                    <TableRow key={pendingUser.id}>
-                                        <TableCell><Link href={`/menu/profilo/${pendingUser.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">{pendingUser.nome} {pendingUser.cognome}</Link></TableCell>
-                                        <TableCell>{pendingUser.email}</TableCell>
-                                        <TableCell>{pendingUser.ruolo}</TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button size="sm" variant="outline" className="text-red-500 hover:text-red-700" onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: false })} disabled={approvalMutation.isPending}>Rifiuta</Button>
-                                            <Button size="sm" className="bg-green-500 hover:bg-green-600" onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: true })} disabled={approvalMutation.isPending}>Approva</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
+                                         <CardContent>
+                         <div className="overflow-x-auto">
+                             <Table>
+                                 <TableHeader>
+                                     <TableRow>
+                                         <TableHead>Nome</TableHead>
+                                         <TableHead>Email</TableHead>
+                                         <TableHead>Ruolo</TableHead>
+                                         <TableHead>Status</TableHead>
+                                         <TableHead className="text-right">Azioni</TableHead>
+                                     </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                     {pendingUsers.map((pendingUser: any) => (
+                                         <TableRow key={pendingUser.id}>
+                                             <TableCell>
+                                                 <Link href={`/menu/profilo/${pendingUser.uid || pendingUser.id}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
+                                                     {pendingUser.nome} {pendingUser.cognome}
+                                                 </Link>
+                                             </TableCell>
+                                             <TableCell>{pendingUser.email}</TableCell>
+                                             <TableCell>{pendingUser.ruolo}</TableCell>
+                                             <TableCell>{formatColumnValue(pendingUser.status, 'status')}</TableCell>
+                                             <TableCell className="text-right space-x-2">
+                                                 <Button size="sm" variant="outline" className="text-red-500 hover:text-red-700" onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: false })} disabled={approvalMutation.isPending}>Rifiuta</Button>
+                                                 <Button size="sm" className="bg-green-500 hover:bg-green-600" onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: true })} disabled={approvalMutation.isPending}>Approva</Button>
+                                             </TableCell>
+                                         </TableRow>
+                                     ))}
+                                 </TableBody>
+                             </Table>
+                         </div>
+                     </CardContent>
                 </Card>
             )}
 
@@ -201,25 +279,46 @@ export default function GestisciUtenti() {
                   <div className="flex items-center mb-4">
                       <div className="relative flex-1"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Cerca utenti..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
                   </div>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader><TableRow><TableHead onClick={() => handleSort('nome')} className="cursor-pointer">Nome</TableHead><TableHead onClick={() => handleSort('email')} className="cursor-pointer">Email</TableHead><TableHead onClick={() => handleSort('ruolo')} className="cursor-pointer">Ruolo</TableHead><TableHead className="text-right">Azioni</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {paginatedUsers.length > 0 ? paginatedUsers.map((u) => (
-                          <TableRow key={u.id}>
-                              <TableCell className="font-medium"><Link href={`/menu/profilo/${u.uid}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">{u.nome} {u.cognome}</Link></TableCell>
-                              <TableCell>{u.email}</TableCell>
-                              <TableCell>{u.ruolo}</TableCell>
-                              <TableCell className="text-right flex justify-end gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => { setSelectedUser(u); setShowEditDialog(true); }}><Edit className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="sm" onClick={() => { setSelectedUser(u); setShowEditOpinioniDialog(true); }}>📝</Button>
-                                <Button variant="ghost" size="sm" onClick={() => setUserToDelete(u)}><Trash2 className="h-4 w-4" /></Button>
-                              </TableCell>
-                          </TableRow>
-                        )) : <TableRow><TableCell colSpan={4} className="text-center">Nessun utente trovato.</TableCell></TableRow>}
-                      </TableBody>
-                    </Table>
-                  </div>
+                                     <div className="rounded-md border overflow-x-auto">
+                     <Table>
+                       <TableHeader>
+                         <TableRow>
+                           {displayColumns.map((col) => (
+                             <TableHead 
+                               key={col} 
+                               onClick={() => handleSort(col as keyof User)} 
+                               className="cursor-pointer hover:bg-gray-50"
+                             >
+                               {col.charAt(0).toUpperCase() + col.slice(1).replace(/_/g, ' ')}
+                             </TableHead>
+                           ))}
+                           <TableHead className="text-right">Azioni</TableHead>
+                         </TableRow>
+                       </TableHeader>
+                       <TableBody>
+                         {paginatedUsers.length > 0 ? paginatedUsers.map((u) => (
+                           <TableRow key={u.id}>
+                             {displayColumns.map((col) => (
+                               <TableCell key={col} className="max-w-xs truncate">
+                                 {col === 'nome' && u.cognome ? (
+                                   <Link href={`/menu/profilo/${u.uid || u.id}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
+                                     {formatColumnValue(u[col], col)} {formatColumnValue(u.cognome, 'cognome')}
+                                   </Link>
+                                 ) : (
+                                   formatColumnValue(u[col], col)
+                                 )}
+                               </TableCell>
+                             ))}
+                             <TableCell className="text-right flex justify-end gap-1">
+                               <Button variant="ghost" size="sm" onClick={() => { setSelectedUser(u); setShowEditDialog(true); }}><Edit className="h-4 w-4" /></Button>
+                               <Button variant="ghost" size="sm" onClick={() => { setSelectedUser(u); setShowEditOpinioniDialog(true); }}>📝</Button>
+                               <Button variant="ghost" size="sm" onClick={() => setUserToDelete(u)}><Trash2 className="h-4 w-4" /></Button>
+                             </TableCell>
+                           </TableRow>
+                         )) : <TableRow><TableCell colSpan={displayColumns.length + 1} className="text-center">Nessun utente trovato.</TableCell></TableRow>}
+                       </TableBody>
+                     </Table>
+                   </div>
                   {totalPages > 1 && (
                     <div className="flex justify-center items-center gap-2 mt-4">
                       <Button size="sm" variant="outline" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prec.</Button>
