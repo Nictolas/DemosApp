@@ -160,11 +160,19 @@ export default function Rappresentanti() {
                 <p><strong>DEBUG:</strong> isLoading={isLoading.toString()}, isError={isError.toString()}</p>
                 <p><strong>DEBUG:</strong> hasData={hasData.toString()}, hasRappresentanti={hasRappresentanti.toString()}</p>
                 <p><strong>DEBUG:</strong> Categorie da renderizzare: {categorie.length}</p>
+                <p><strong>DEBUG:</strong> Rappresentanti keys: {data?.rappresentanti ? Object.keys(data.rappresentanti).join(', ') : 'null'}</p>
+                <p><strong>DEBUG:</strong> ID Map keys: {data?.idMap ? Object.keys(data.idMap).join(', ') : 'null'}</p>
+              </div>
+              
+              {/* Test card visibile */}
+              <div className="mb-4 p-4 bg-red-100 border border-red-400 rounded">
+                <p><strong>TEST CARD:</strong> Questa card dovrebbe essere visibile!</p>
               </div>
               
               {/* Card Parlamento Europeo */}
               {(() => {
                 const categoria = categorie[0];
+                console.log('🔍 DEBUG: Rendering categoria:', categoria.id, categoria.nome);
                 return (
                   <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4 cursor-pointer" onClick={() => setShowCambiaModal({ categoria: categoria.id })}>
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" /><polygon points="100,20 0,35 0,100 100,100" fill="#fff" /></svg>
