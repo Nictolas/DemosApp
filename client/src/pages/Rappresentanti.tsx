@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowLeft, User } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { PageTransition } from "@/components/PageTransition";
 import { CustomAvatar } from "@/components/CustomAvatar";
@@ -143,7 +143,7 @@ export default function Rappresentanti() {
     <PageTransition>
       <div className="min-h-screen flex flex-col overflow-hidden" style={{ paddingBottom: '80px' }}>
         <div className="container mx-auto px-4 py-8">
-          <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
+
 
           {isLoading ? (
             <div className="flex items-center justify-center pt-16"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>

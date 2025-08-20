@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, ArrowLeft, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 
 export default function Opinioni() {
@@ -52,11 +52,7 @@ export default function Opinioni() {
     <PageTransition>
       <div className="min-h-screen flex flex-col overflow-hidden" style={{ paddingBottom: '80px' }}>
         <div className="container mx-auto px-4 py-8">
-          <Link href="/menu">
-            <Button variant="ghost" className="mb-4 flex items-center">
-              <ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu
-            </Button>
-          </Link>
+
 
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Le tue Opinioni</h1>
