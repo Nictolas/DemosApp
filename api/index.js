@@ -546,15 +546,29 @@ app.get('/api/opinioni-list', async (req, res) => {
   try {
     console.log('📋 DEBUG: Richiesta lista opinioni');
     
-    // Ottieni le domande dalla tabella opinioni
-    const result = await pool.query('SELECT id, text FROM opinioni WHERE status = \'attiva\' ORDER BY created_at DESC');
+    const { grado } = req.query;
+    console.log('🔍 DEBUG: Filtro grado richiesto:', grado);
     
-    console.log('✅ DEBUG: Trovate', result.rows.length, 'opinioni');
+    let query = 'SELECT id, text, grado_opinione FROM opinioni';
+    let params = [];
+    
+    if (grado) {
+      query += ' WHERE grado_opinione = $1';
+      params.push(grado);
+    }
+    
+    query += ' ORDER BY id';
+    
+    // Ottieni le domande dalla tabella opinioni
+    const result = await pool.query(query, params);
+    
+    console.log('✅ DEBUG: Trovate', result.rows.length, 'opinioni per grado:', grado || 'tutti');
     
     // Formatta le risposte per il frontend
     const formattedOpinions = result.rows.map(row => ({
       id: row.id,
-      text: row.text || row.id // fallback al ID se text è null
+      text: row.text || row.id, // fallback al ID se text è null
+      grado_opinione: row.grado_opinione || 'Nazionale'
     }));
     
     res.json({
