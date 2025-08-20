@@ -28,7 +28,8 @@ export default function Sondaggi() {
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/sondaggi/stats");
       if (!response.ok) throw new Error("Errore nel caricamento delle statistiche.");
-      return response.json();
+      const result = await response.json();
+      return result.data; // Estrai i dati dalla risposta
     },
     enabled: !!user,
   });
