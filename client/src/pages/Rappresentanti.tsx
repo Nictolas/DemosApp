@@ -68,16 +68,12 @@ export default function Rappresentanti() {
   
   // Log della condizione di rendering
   const hasData = !!data;
-  const hasRappresentanti = data?.rappresentanti && Object.keys(data.rappresentanti).length > 0;
-  const hasIdMap = data?.idMap && Object.keys(data.idMap).length > 0;
-  // Rimuovo shouldShowEmpty - mostriamo sempre la pagina anche se non ci sono rappresentanti
-  // const shouldShowEmpty = !data || (!hasRappresentanti && !hasIdMap);
+  // Rimuovo completamente i controlli hasRappresentanti e hasIdMap
+  // Le card devono essere sempre visibili per permettere la selezione
   
   console.log('🔍 DEBUG Rendering conditions:');
   console.log('  hasData:', hasData);
-  console.log('  hasRappresentanti:', hasRappresentanti);
-  console.log('  hasIdMap:', hasIdMap);
-  // console.log('  shouldShowEmpty:', shouldShowEmpty);
+  console.log('  Mostrando sempre le card per permettere selezione rappresentanti');
 
   if (isAuthLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -155,19 +151,7 @@ export default function Rappresentanti() {
             <Card className="p-8 text-center"><CardContent><h2 className="text-xl font-semibold text-red-600">Errore nel caricamento</h2><p>Impossibile caricare i tuoi rappresentanti.</p></CardContent></Card>
           ) : (
             <>
-              {/* Debug info */}
-              <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded">
-                <p><strong>DEBUG:</strong> isLoading={isLoading.toString()}, isError={isError.toString()}</p>
-                <p><strong>DEBUG:</strong> hasData={hasData.toString()}, hasRappresentanti={hasRappresentanti.toString()}</p>
-                <p><strong>DEBUG:</strong> Categorie da renderizzare: {categorie.length}</p>
-                <p><strong>DEBUG:</strong> Rappresentanti keys: {data?.rappresentanti ? Object.keys(data.rappresentanti).join(', ') : 'null'}</p>
-                <p><strong>DEBUG:</strong> ID Map keys: {data?.idMap ? Object.keys(data.idMap).join(', ') : 'null'}</p>
-              </div>
-              
-              {/* Test card visibile */}
-              <div className="mb-4 p-4 bg-red-100 border border-red-400 rounded">
-                <p><strong>TEST CARD:</strong> Questa card dovrebbe essere visibile!</p>
-              </div>
+
               
               {/* Card Parlamento Europeo */}
               {(() => {
