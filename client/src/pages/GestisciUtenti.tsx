@@ -24,11 +24,14 @@ type User = {
   [key: string]: any; // Per permettere colonne dinamiche
 };
 
-// Colonne delle opinioni da escludere
-const OPINION_COLUMNS = [
+// Colonne da escludere dalla visualizzazione
+const HIDDEN_COLUMNS = [
+  // Colonne delle opinioni
   'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa',
   'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
-  'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia'
+  'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia',
+  // Colonne specifiche da nascondere
+  'id', 'nome', 'cognome', 'password_hash', 'avatar_config', 'fonti_opinioni', 'firestore_uid'
 ];
 
 // Funzione per ottenere le colonne da mostrare
@@ -38,11 +41,11 @@ const getDisplayColumns = (users: any[]) => {
   const firstUser = users[0];
   const allColumns = Object.keys(firstUser);
   
-  // Filtra le colonne delle opinioni
-  const displayColumns = allColumns.filter(col => !OPINION_COLUMNS.includes(col));
+  // Filtra le colonne nascoste
+  const displayColumns = allColumns.filter(col => !HIDDEN_COLUMNS.includes(col));
   
   // Ordina le colonne in modo logico
-  const priorityColumns = ['id', 'nome', 'cognome', 'email', 'ruolo', 'status'];
+  const priorityColumns = ['email', 'ruolo', 'status'];
   const sortedColumns = [
     ...priorityColumns.filter(col => displayColumns.includes(col)),
     ...displayColumns.filter(col => !priorityColumns.includes(col))
@@ -412,54 +415,50 @@ export default function GestisciUtenti() {
                               onClick={() => handleSort(column as keyof User)}
                             >
                               <div className="flex items-center space-x-1">
-                                <span className="capitalize">
-                                  {column === 'id' ? 'ID' : 
-                                   column === 'nome' ? 'Nome' :
-                                   column === 'cognome' ? 'Cognome' :
-                                   column === 'email' ? 'Email' :
-                                   column === 'ruolo' ? 'Ruolo' :
-                                   column === 'status' ? 'Status' :
-                                   column === 'created_at' ? 'Data Creazione' :
-                                   column === 'data_nascita' ? 'Data Nascita' :
-                                   column === 'genere' ? 'Genere' :
-                                   column === 'cittadinanza' ? 'Cittadinanza' :
-                                   column === 'regione' ? 'Regione' :
-                                   column === 'provincia' ? 'Provincia' :
-                                   column === 'comune' ? 'Comune' :
-                                   column === 'paese' ? 'Paese' :
-                                   column === 'telefono' ? 'Telefono' :
-                                   column === 'professione' ? 'Professione' :
-                                   column === 'istruzione' ? 'Istruzione' :
-                                   column === 'reddito' ? 'Reddito' :
-                                   column === 'partito' ? 'Partito' :
-                                   column === 'is_admin' ? 'Admin' :
-                                   column === 'is_premium' ? 'Premium' :
-                                   column === 'premium' ? 'Premium' :
-                                   column === 'avatar_url' ? 'Avatar' :
-                                   column === 'bio' ? 'Biografia' :
-                                   column === 'social_links' ? 'Social' :
-                                   column === 'preferenze_notifiche' ? 'Notifiche' :
-                                   column === 'notifiche_preferenze' ? 'Notifiche' :
-                                   column === 'avatar_config' ? 'Config Avatar' :
-                                   column === 'paese_candidatura' ? 'Paese Candidatura' :
-                                   column === 'regione_candidatura' ? 'Regione Candidatura' :
-                                   column === 'provincia_candidatura' ? 'Provincia Candidatura' :
-                                   column === 'comune_candidatura' ? 'Comune Candidatura' :
-                                   column === 'candidato_attivo' ? 'Candidato Attivo' :
-                                   column === 'data_candidatura' ? 'Data Candidatura' :
-                                   column === 'status_candidatura' ? 'Status Candidatura' :
-                                   column === 'note_candidatura' ? 'Note Candidatura' :
-                                   column === 'comune_elezione' ? 'Comune Elezione' :
-                                   column === 'grado_elezione' ? 'Grado Elezione' :
-                                   column === 'paese_elezione' ? 'Paese Elezione' :
-                                   column === 'grado_candidatura' ? 'Grado Candidatura' :
-                                   column === 'approved_at' ? 'Data Approvazione' :
-                                   column === 'ultimo_accesso' ? 'Ultimo Accesso' :
-                                   column === 'data_registrazione' ? 'Data Registrazione' :
-                                   column === 'sesso' ? 'Sesso' :
-                                   column === 'indirizzo' ? 'Indirizzo' :
-                                   column === 'name' ? 'Nome Completo' :
-                                   column}
+                                                                 <span className="capitalize">
+                                   {column === 'email' ? 'Email' :
+                                    column === 'ruolo' ? 'Ruolo' :
+                                    column === 'status' ? 'Status' :
+                                    column === 'created_at' ? 'Data Creazione' :
+                                    column === 'data_nascita' ? 'Data Nascita' :
+                                    column === 'genere' ? 'Genere' :
+                                    column === 'cittadinanza' ? 'Cittadinanza' :
+                                    column === 'regione' ? 'Regione' :
+                                    column === 'provincia' ? 'Provincia' :
+                                    column === 'comune' ? 'Comune' :
+                                    column === 'paese' ? 'Paese' :
+                                    column === 'telefono' ? 'Telefono' :
+                                    column === 'professione' ? 'Professione' :
+                                    column === 'istruzione' ? 'Istruzione' :
+                                    column === 'reddito' ? 'Reddito' :
+                                    column === 'partito' ? 'Partito' :
+                                    column === 'is_admin' ? 'Admin' :
+                                    column === 'is_premium' ? 'Premium' :
+                                    column === 'premium' ? 'Premium' :
+                                    column === 'avatar_url' ? 'Avatar' :
+                                    column === 'bio' ? 'Biografia' :
+                                    column === 'social_links' ? 'Social' :
+                                    column === 'preferenze_notifiche' ? 'Notifiche' :
+                                    column === 'notifiche_preferenze' ? 'Notifiche' :
+                                    column === 'paese_candidatura' ? 'Paese Candidatura' :
+                                    column === 'regione_candidatura' ? 'Regione Candidatura' :
+                                    column === 'provincia_candidatura' ? 'Provincia Candidatura' :
+                                    column === 'comune_candidatura' ? 'Comune Candidatura' :
+                                    column === 'candidato_attivo' ? 'Candidato Attivo' :
+                                    column === 'data_candidatura' ? 'Data Candidatura' :
+                                    column === 'status_candidatura' ? 'Status Candidatura' :
+                                    column === 'note_candidatura' ? 'Note Candidatura' :
+                                    column === 'comune_elezione' ? 'Comune Elezione' :
+                                    column === 'grado_elezione' ? 'Grado Elezione' :
+                                    column === 'paese_elezione' ? 'Paese Elezione' :
+                                    column === 'grado_candidatura' ? 'Grado Candidatura' :
+                                    column === 'approved_at' ? 'Data Approvazione' :
+                                    column === 'ultimo_accesso' ? 'Ultimo Accesso' :
+                                    column === 'data_registrazione' ? 'Data Registrazione' :
+                                    column === 'sesso' ? 'Sesso' :
+                                    column === 'indirizzo' ? 'Indirizzo' :
+                                    column === 'name' ? 'Nome Completo' :
+                                    column}
                                 </span>
                                 {sortField === column && (
                                   <span className="text-blue-600">
