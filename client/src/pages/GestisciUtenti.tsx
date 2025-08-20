@@ -44,11 +44,14 @@ const getDisplayColumns = (users: any[]) => {
   // Filtra le colonne nascoste
   const displayColumns = allColumns.filter(col => !HIDDEN_COLUMNS.includes(col));
   
+  // Aggiungi colonna "Nome Completo" all'inizio
+  const columnsWithFullName = ['nome_completo', ...displayColumns];
+  
   // Ordina le colonne in modo logico
-  const priorityColumns = ['email', 'ruolo', 'status'];
+  const priorityColumns = ['nome_completo', 'email', 'ruolo', 'status'];
   const sortedColumns = [
-    ...priorityColumns.filter(col => displayColumns.includes(col)),
-    ...displayColumns.filter(col => !priorityColumns.includes(col))
+    ...priorityColumns.filter(col => columnsWithFullName.includes(col)),
+    ...columnsWithFullName.filter(col => !priorityColumns.includes(col))
   ];
   
   return sortedColumns;
@@ -128,6 +131,18 @@ const renderColumnValue = (value: any, columnName: string, user?: User) => {
     );
   }
   
+  // Gestione speciale per la colonna "Nome Completo" o "name"
+  if ((columnName === 'nome_completo' || columnName === 'name') && user) {
+    return (
+      <Link 
+        href={`/menu/profilo/${user.id}?from=utenti`} 
+        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+      >
+        {user.nome} {user.cognome}
+      </Link>
+    );
+  }
+  
   return formatColumnValue(value, columnName, user);
 };
 
@@ -150,7 +165,7 @@ export default function GestisciUtenti() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showEditOpinioniDialog, setShowEditOpinioniDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [sortField, setSortField] = useState<keyof User>('email');
+  const [sortField, setSortField] = useState<keyof User>('nome_completo');
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 20;
@@ -239,6 +254,15 @@ export default function GestisciUtenti() {
        })
              .sort((a, b) => {
          if (!sortField) return 0;
+         
+         // Gestione speciale per la colonna nome_completo
+         if (sortField === 'nome_completo') {
+           const fullNameA = `${a.nome || ''} ${a.cognome || ''}`.toLowerCase();
+           const fullNameB = `${b.nome || ''} ${b.cognome || ''}`.toLowerCase();
+           if (fullNameA < fullNameB) return sortDirection === "asc" ? -1 : 1;
+           if (fullNameA > fullNameB) return sortDirection === "asc" ? 1 : -1;
+           return 0;
+         }
          
          const valA = a[sortField];
          const valB = b[sortField];
@@ -473,7 +497,7 @@ export default function GestisciUtenti() {
                   <div className="relative flex-1 max-w-2xl">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                                          <Input 
-                       placeholder="🔍 Cerca utenti per nome, email o ruolo..." 
+                       placeholder="🔍 Cerca utenti per nome completo, email o ruolo..." 
                        className="pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-blue-500 rounded-lg transition-colors" 
                        value={searchTerm} 
                        onChange={(e) => setSearchTerm(e.target.value)} 
@@ -498,7 +522,8 @@ export default function GestisciUtenti() {
                             >
                               <div className="flex items-center space-x-1">
                                                                  <span className="capitalize">
-                                   {column === 'email' ? 'Email' :
+                                   {column === 'nome_completo' ? 'Nome Completo' :
+                                    column === 'email' ? 'Email' :
                                     column === 'ruolo' ? 'Ruolo' :
                                     column === 'status' ? 'Status' :
                                     column === 'created_at' ? 'Data Creazione' :
