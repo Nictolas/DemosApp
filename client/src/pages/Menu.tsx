@@ -18,31 +18,10 @@ export default function Menu() {
   const { user, isLoading, error, logoutMutation } = useAuth();
   const { toast } = useToast();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [userRole, setUserRole] = useState<string>('');
   const [, setLocation] = useLocation();
   
-  // Verifica se l'utente è admin
-  useEffect(() => {
-    const checkIfAdmin = async () => {
-      if (!user) return;
-      try {
-        const response = await apiRequest("GET", `/api/utenti/me`);
-        if (response.ok) {
-          const result = await response.json();
-          const data = result?.data || result; // compat
-          setIsAdmin((data?.role || data?.ruolo) === 'Admin');
-          setUserRole(data?.role || data?.ruolo || '');
-        } else {
-          console.error("Errore nel verificare il ruolo");
-        }
-      } catch (error) {
-        console.error("Errore:", error);
-      }
-    };
-    
-    checkIfAdmin();
-  }, [user]);
+  // Determina se l'utente è admin direttamente dai dati dell'utente
+  const isAdmin = user?.role === 'Admin' || user?.ruolo === 'Admin';
 
   // Funzione per effettuare il logout
   const handleLogout = async () => {

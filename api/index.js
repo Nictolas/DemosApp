@@ -322,6 +322,144 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Endpoint per richiedere reset password
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Email richiesta' 
+      });
+    }
+
+    console.log('🔍 DEBUG: Richiesta reset password per email:', email);
+
+    // Verifica se l'utente esiste
+    const userResult = await pool.query(
+      'SELECT id, email, nome, cognome FROM users WHERE LOWER(email) = LOWER($1)',
+      [email.toLowerCase()]
+    );
+
+    if (userResult.rows.length === 0) {
+      // Per sicurezza, non rivelare se l'email esiste o meno
+      console.log('⚠️ Tentativo reset password per email non esistente:', email);
+      return res.status(200).json({
+        success: true,
+        message: 'Se l\'email esiste nel nostro database, riceverai un link per il reset della password'
+      });
+    }
+
+    const user = userResult.rows[0];
+    console.log('✅ Utente trovato per reset password:', user.email);
+
+    // Genera token di reset (valido per 1 ora)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 ora
+
+    // Salva il token nel database
+    await pool.query(
+      'UPDATE users SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3',
+      [resetToken, resetTokenExpiry, user.id]
+    );
+
+    // Costruisci l'URL di reset
+    const resetUrl = `https://www.demos.community/reset-password-confirm?token=${resetToken}`;
+    
+    // Invia email di reset
+    const emailResult = await sendResetPasswordEmail(
+      user.email, 
+      resetUrl, 
+      `${user.nome} ${user.cognome}`.trim() || user.email
+    );
+
+    if (emailResult.success) {
+      console.log('✅ Email di reset inviata con successo a:', user.email);
+      res.status(200).json({
+        success: true,
+        message: 'Se l\'email esiste nel nostro database, riceverai un link per il reset della password'
+      });
+    } else {
+      console.error('❌ Errore invio email di reset:', emailResult.error);
+      res.status(500).json({
+        success: false,
+        error: 'Errore nell\'invio dell\'email di reset'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Errore forgot-password:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// Endpoint per confermare reset password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Token e nuova password richiesti' 
+      });
+    }
+
+    console.log('🔍 DEBUG: Tentativo reset password con token');
+
+    // Trova l'utente con il token valido
+    const userResult = await pool.query(
+      'SELECT id, email, reset_token_expiry FROM users WHERE reset_token = $1',
+      [token]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token di reset non valido'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Verifica se il token è scaduto
+    if (new Date() > new Date(user.reset_token_expiry)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token di reset scaduto'
+      });
+    }
+
+    // Hash della nuova password
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    // Aggiorna la password e rimuovi il token
+    await pool.query(
+      'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
+      [passwordHash, user.id]
+    );
+
+    console.log('✅ Password aggiornata con successo per:', user.email);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password aggiornata con successo'
+    });
+
+  } catch (error) {
+    console.error('❌ Errore reset-password:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     console.log('🔍 DEBUG: Richiesta /api/utenti/me per userId:', req.user.userId);
