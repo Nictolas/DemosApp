@@ -2151,31 +2151,59 @@ app.get('/api/sondaggi/stats', async (req, res) => {
     
     console.log('✅ DEBUG: Trovate', opinionsResult.rows.length, 'opinioni');
     
-    // Per ora restituiamo dati di esempio poiché non abbiamo ancora un sistema di risposte utente
-    // In futuro questo dovrebbe essere collegato alle risposte degli utenti
+    // Ottieni le statistiche reali dalla tabella users
     const stats = {};
     const questions = [];
     
-    opinionsResult.rows.forEach(row => {
-      // Genera statistiche di esempio per dimostrazione
-      const total = Math.floor(Math.random() * 100) + 20; // 20-120 utenti
-      const favorevoli = Math.floor(total * (0.3 + Math.random() * 0.4)); // 30-70% favorevoli
-      const contrari = Math.floor(total * (0.2 + Math.random() * 0.3)); // 20-50% contrari
-      const astenuti = total - favorevoli - contrari;
-      
-      stats[row.id] = {
-        favorevole: favorevoli,
-        contrario: contrari,
-        astenuto: Math.max(0, astenuti)
+    for (const opinion of opinionsResult.rows) {
+      // Mappa l'ID dell'opinione alla colonna corrispondente nella tabella users
+      const columnMap = {
+        'energia_nucleare': 'energia_nucleare',
+        'sperimentazione_animale': 'sperimentazione_animale',
+        'legalizzazione_canapa': 'legalizzazione_canapa',
+        'caccia': 'caccia',
+        'cittadina_animale': 'cittadina_animale',
+        'nato': 'nato',
+        'matrimonio_gay': 'matrimonio_gay',
+        'salario_minimo': 'salario_minimo',
+        'carne_coltivata': 'carne_coltivata',
+        'case_chiuse': 'case_chiuse',
+        'eutanasia': 'eutanasia',
+        'omobitransfobia': 'omobitransfobia'
       };
       
-      questions.push({
-        id: row.id,
-        text: row.text || row.id
-      });
-    });
+      const columnName = columnMap[opinion.id];
+      if (columnName) {
+        // Conta le risposte per questa opinione
+        const statsQuery = `
+          SELECT 
+            COUNT(*) as total,
+            COUNT(CASE WHEN "${columnName}" = 'Favorevole' THEN 1 END) as favorevoli,
+            COUNT(CASE WHEN "${columnName}" = 'Contrario' THEN 1 END) as contrari,
+            COUNT(CASE WHEN "${columnName}" = 'Indeciso' THEN 1 END) as indecisi,
+            COUNT(CASE WHEN "${columnName}" IS NULL THEN 1 END) as null_values
+          FROM users
+        `;
+        
+        const statsResult = await pool.query(statsQuery);
+        const rowStats = statsResult.rows[0];
+        
+        stats[opinion.id] = {
+          favorevole: parseInt(rowStats.favorevoli) || 0,
+          contrario: parseInt(rowStats.contrari) || 0,
+          astenuto: parseInt(rowStats.indecisi) || 0
+        };
+        
+        questions.push({
+          id: opinion.id,
+          text: opinion.text || opinion.id
+        });
+        
+        console.log(`✅ DEBUG: Statistiche per ${opinion.id}:`, stats[opinion.id]);
+      }
+    }
     
-    console.log('✅ DEBUG: Statistiche generate per', Object.keys(stats).length, 'opinioni');
+    console.log('✅ DEBUG: Statistiche calcolate per', Object.keys(stats).length, 'opinioni');
     
     res.json({
       success: true,
