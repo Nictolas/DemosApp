@@ -106,9 +106,11 @@ export default function Menu() {
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
                  }}
                  onTouchStart={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
                  onTouchEnd={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
                    setTimeout(() => setLocation("/elezioni"), 100);
                  }}
@@ -140,9 +142,11 @@ export default function Menu() {
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
                  }}
                  onTouchStart={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
                  onTouchEnd={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
                    setTimeout(() => setLocation("/strumenti"), 100);
                  }}
@@ -173,6 +177,15 @@ export default function Menu() {
                  onMouseLeave={(e) => {
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
                  }}
+                 onTouchStart={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onTouchEnd={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/podio-trasparenza"), 100);
+                 }}
                  onContextMenu={e => e.preventDefault()}
                >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -199,6 +212,15 @@ export default function Menu() {
                  }}
                  onMouseLeave={(e) => {
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onTouchStart={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onTouchEnd={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/notifiche"), 100);
                  }}
                  onContextMenu={e => e.preventDefault()}
                >
@@ -227,6 +249,15 @@ export default function Menu() {
                  onMouseLeave={(e) => {
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
                  }}
+                 onTouchStart={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onTouchEnd={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/vota"), 100);
+                 }}
                  onContextMenu={e => e.preventDefault()}
                >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -254,6 +285,15 @@ export default function Menu() {
                  onMouseLeave={(e) => {
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
                  }}
+                 onTouchStart={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onTouchEnd={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/eventi"), 100);
+                 }}
                  onContextMenu={e => e.preventDefault()}
                >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -280,6 +320,15 @@ export default function Menu() {
                  }}
                  onMouseLeave={(e) => {
                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onTouchStart={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onTouchEnd={(e) => {
+                   e.preventDefault(); // Previene il comportamento predefinito
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/proponi"), 100);
                  }}
                  onContextMenu={e => e.preventDefault()}
                >
@@ -309,6 +358,15 @@ export default function Menu() {
                    onMouseLeave={(e) => {
                      e.currentTarget.classList.remove('scale-95', 'shadow-md');
                    }}
+                   onTouchStart={(e) => {
+                     e.preventDefault(); // Previene il comportamento predefinito
+                     e.currentTarget.classList.add('scale-95', 'shadow-md');
+                   }}
+                   onTouchEnd={(e) => {
+                     e.preventDefault(); // Previene il comportamento predefinito
+                     e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                     setTimeout(() => setLocation("/gestisci"), 100);
+                 }}
                    onContextMenu={e => e.preventDefault()}
                  >
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
