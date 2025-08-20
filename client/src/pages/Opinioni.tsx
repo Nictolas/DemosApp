@@ -1,8 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link, useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Loader2, MessageSquare } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -59,7 +58,7 @@ export default function Opinioni() {
             <p className="text-gray-600">Scegli la categoria di opinioni che vuoi esprimere</p>
           </div>
 
-          {/* Griglia 2x2 con tutte e 4 le card di dimensioni uguali */}
+          {/* Griglia 2x2 con card trasformate in pulsanti */}
           <div className="grid grid-cols-2 gap-4 pb-2">
             {categorie.map((categoria) => {
               const colorMap = { 
@@ -71,31 +70,45 @@ export default function Opinioni() {
               const color = colorMap[categoria.color as keyof typeof colorMap];
               
               return (
-                <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden">
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <button
+                  key={categoria.id}
+                  type="button"
+                  className="relative w-full h-48 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                  onMouseDown={(e) => {
+                    e.currentTarget.classList.add('scale-95', 'shadow-md');
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                    setTimeout(() => setLocation(categoria.path), 100);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault(); // Previene il comportamento predefinito
+                    e.currentTarget.classList.add('scale-95', 'shadow-md');
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault(); // Previene il comportamento predefinito
+                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                    setTimeout(() => setLocation(categoria.path), 100);
+                  }}
+                  onContextMenu={e => e.preventDefault()}
+                >
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                   </svg>
-                  <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
+                  <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center h-full">
                     <MessageSquare className="h-8 md:h-12 w-8 md:w-12 mb-2" style={{ color: color.icon }} />
                     <div className="text-base md:text-xl font-bold mb-1 text-center leading-tight" style={{ color: color.text }}>
                       {categoria.nome}
                     </div>
-                    <p className="text-sm text-center mb-3" style={{ color: color.text }}>
+                    <p className="text-sm text-center" style={{ color: color.text }}>
                       {categoria.descrizione}
                     </p>
-                    <Button 
-                      className="px-4 py-2 text-sm"
-                      style={{ 
-                        backgroundColor: color.icon, 
-                        borderColor: color.icon 
-                      }}
-                      onClick={() => setLocation(categoria.path)}
-                    >
-                      Esprimi opinioni
-                    </Button>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
