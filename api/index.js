@@ -568,7 +568,7 @@ app.get('/api/opinioni-list', async (req, res) => {
     const formattedOpinions = result.rows.map(row => ({
       id: row.id,
       text: row.text || row.id, // fallback al ID se text è null
-      grado_opinione: row.grado_opinione || 'Nazionale'
+      grado_opinione: row.grado_opinione
     }));
     
     res.json({
