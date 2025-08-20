@@ -16,22 +16,35 @@ import { zodResolver } from "@hookform/resolvers/zod";
 // === AGGIUNTO ===
 import { apiRequest } from "@/lib/queryClient";
 
-// L'interfaccia e lo schema rimangono identici
+// Interfaccia aggiornata per corrispondere ai dati dell'API
 interface Elezione {
   id: string;
-  tipo: 'sovranazione' | 'stato' | 'regione' | 'provincia' | 'comune';
+  titolo: string;
+  descrizione: string;
+  tipo: string;
   zona: string;
-  dataInizio: string;
-  dataFine: string;
-  circa: boolean;
+  data_inizio: string;
+  data_fine: string;
+  status: string;
+  quorum: number;
+  candidati: any;
+  regole: any;
+  note: string;
+  circa: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const elezioneSchema = z.object({
-  tipo: z.enum(['sovranazione', 'stato', 'regione', 'provincia', 'comune']),
+  titolo: z.string().min(1, "Titolo è richiesto"),
+  descrizione: z.string().min(1, "Descrizione è richiesta"),
+  tipo: z.string().min(1, "Tipo è richiesto"),
   zona: z.string().min(1, "Zona è richiesta"),
-  dataInizio: z.string().min(1, "Data inizio è richiesta"),
-  dataFine: z.string().min(1, "Data fine è richiesta"),
-  circa: z.boolean().default(false),
+  data_inizio: z.string().min(1, "Data inizio è richiesta"),
+  data_fine: z.string().min(1, "Data fine è richiesta"),
+  quorum: z.number().min(0, "Quorum deve essere >= 0"),
+  note: z.string().optional(),
+  circa: z.string().optional(),
 });
 
 type ElezioneForm = z.infer<typeof elezioneSchema>;
@@ -45,7 +58,17 @@ export default function GestisciElezioni() {
   const { toast } = useToast();
   const form = useForm<ElezioneForm>({
     resolver: zodResolver(elezioneSchema),
-    defaultValues: { zona: "", dataInizio: "", dataFine: "", circa: false },
+    defaultValues: { 
+      titolo: "", 
+      descrizione: "", 
+      tipo: "generale", 
+      zona: "", 
+      data_inizio: "", 
+      data_fine: "", 
+      quorum: 50,
+      note: "",
+      circa: ""
+    },
   });
 
   // === INIZIO MODIFICHE PRINCIPALI ===
@@ -55,10 +78,19 @@ export default function GestisciElezioni() {
       // 1. Carica le elezioni tramite API
       const response = await apiRequest("GET", "/api/elezioni");
       if (!response.ok) throw new Error("Errore nel caricamento.");
-      const data = await response.json();
-      setElezioni(data);
+      const result = await response.json();
+      
+      // Estrai i dati dalla risposta { success: true, data: [...] }
+      if (result.success && Array.isArray(result.data)) {
+        setElezioni(result.data);
+      } else {
+        console.error('❌ DEBUG: Formato risposta API non valido:', result);
+        setElezioni([]);
+      }
     } catch (error) {
+      console.error('❌ DEBUG: Errore nel caricamento elezioni:', error);
       toast({ title: "Errore", description: "Impossibile caricare le elezioni", variant: "destructive" });
+      setElezioni([]);
     } finally {
       setLoading(false);
     }
@@ -71,13 +103,20 @@ export default function GestisciElezioni() {
   const handleSubmit = async (data: ElezioneForm) => {
     setSubmitting(true);
     try {
+      // Converti le date per l'API
+      const elezioneData = {
+        ...data,
+        data_inizio: new Date(data.data_inizio).toISOString(),
+        data_fine: new Date(data.data_fine).toISOString()
+      };
+
       let response;
       if (editingElezione) {
         // 2. Aggiorna un'elezione esistente tramite API
-        response = await apiRequest("PUT", `/api/elezioni/${editingElezione.id}`, data);
+        response = await apiRequest("PUT", `/api/elezioni/${editingElezione.id}`, elezioneData);
       } else {
         // 3. Crea una nuova elezione tramite API
-        response = await apiRequest("POST", "/api/elezioni", data);
+        response = await apiRequest("POST", "/api/elezioni", elezioneData);
       }
 
       if (!response.ok) throw new Error("Salvataggio fallito.");
@@ -87,10 +126,27 @@ export default function GestisciElezioni() {
       resetForm();
       await loadElezioni();
     } catch (error) {
+      console.error('❌ DEBUG: Errore nel salvataggio:', error);
       toast({ title: "Errore", description: "Impossibile salvare l'elezione", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = (elezione: Elezione) => {
+    setEditingElezione(elezione);
+    form.reset({
+      titolo: elezione.titolo || "",
+      descrizione: elezione.descrizione || "",
+      tipo: elezione.tipo || "generale",
+      zona: elezione.zona || "",
+      data_inizio: elezione.data_inizio ? elezione.data_inizio.slice(0, 16) : "", // Formato per datetime-local
+      data_fine: elezione.data_fine ? elezione.data_fine.slice(0, 16) : "", // Formato per datetime-local
+      quorum: elezione.quorum || 50,
+      note: elezione.note || "",
+      circa: elezione.circa || ""
+    });
+    setIsDialogOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -108,34 +164,22 @@ export default function GestisciElezioni() {
   };
   // === FINE MODIFICHE PRINCIPALI ===
 
-  const handleEdit = (elezione: Elezione) => {
-    setEditingElezione(elezione);
-    form.reset({ ...elezione });
-    setIsDialogOpen(true);
-  };
-
   const resetForm = () => {
     setEditingElezione(null);
-    form.reset({ tipo: undefined, zona: "", dataInizio: "", dataFine: "", circa: false });
+    form.reset({ 
+      titolo: "", 
+      descrizione: "", 
+      tipo: "generale", 
+      zona: "", 
+      data_inizio: "", 
+      data_fine: "", 
+      quorum: 50,
+      note: "",
+      circa: ""
+    });
   };
   
-  const watchedTipo = form.watch('tipo');
-  useEffect(() => {
-    if (watchedTipo) form.setValue('zona', '');
-  }, [watchedTipo, form]);
 
-  const getZoneOptions = (tipo?: string) => {
-    if (!tipo) return [];
-    // ... (questa logica rimane identica)
-    switch (tipo) {
-      case 'sovranazione': return ['Europa'];
-      case 'stato': return ['Austria', 'Belgio', /* ...tutti gli stati... */, 'Italia', /* ... */ 'Ungheria'];
-      case 'regione': return ['Abruzzo', 'Basilicata', /* ...tutte le regioni... */, 'Veneto'];
-      case 'provincia': return ['Pisa', 'Firenze', /* ...etc... */];
-      case 'comune': return ['Bientina', 'Buti', /* ...etc... */];
-      default: return [];
-    }
-  };
 
   const handleDialogOpenChange = (open: boolean) => {
     setIsDialogOpen(open);
@@ -166,17 +210,32 @@ export default function GestisciElezioni() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-4">
+                <FormField control={form.control} name="titolo" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Titolo</FormLabel>
+                    <FormControl><Input placeholder="Titolo dell'elezione" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="descrizione" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrizione</FormLabel>
+                    <FormControl><Input placeholder="Descrizione dell'elezione" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="tipo" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo di Elezione</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Seleziona un tipo" /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="sovranazione">Sovranazione</SelectItem>
-                        <SelectItem value="stato">Stato</SelectItem>
-                        <SelectItem value="regione">Regione</SelectItem>
-                        <SelectItem value="provincia">Provincia</SelectItem>
-                        <SelectItem value="comune">Comune</SelectItem>
+                        <SelectItem value="generale">Generale</SelectItem>
+                        <SelectItem value="comunale">Comunale</SelectItem>
+                        <SelectItem value="regionale">Regionale</SelectItem>
+                        <SelectItem value="nazionale">Nazionale</SelectItem>
+                        <SelectItem value="europea">Europea</SelectItem>
+                        <SelectItem value="referendum">Referendum</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -185,40 +244,47 @@ export default function GestisciElezioni() {
                 <FormField control={form.control} name="zona" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Zona</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!watchedTipo}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Seleziona la zona" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {getZoneOptions(watchedTipo).map((zona) => <SelectItem key={zona} value={zona}>{zona}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <FormControl><Input placeholder="Zona geografica" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="circa" render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
-                    <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Circa (data approssimativa)</FormLabel>
-                      <p className="text-sm text-muted-foreground">Se spuntato, inserisci solo l'anno nelle date.</p>
-                    </div>
-                  </FormItem>
-                )} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField control={form.control} name="dataInizio" render={({ field }) => (
+                  <FormField control={form.control} name="data_inizio" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Data Inizio</FormLabel>
-                      <FormControl><Input type={form.watch('circa') ? "number" : "date"} {...field} /></FormControl>
+                      <FormControl><Input type="datetime-local" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="dataFine" render={({ field }) => (
+                  <FormField control={form.control} name="data_fine" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Data Fine</FormLabel>
-                      <FormControl><Input type={form.watch('circa') ? "number" : "date"} {...field} /></FormControl>
+                      <FormControl><Input type="datetime-local" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                 </div>
+                <FormField control={form.control} name="quorum" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quorum (%)</FormLabel>
+                    <FormControl><Input type="number" min="0" max="100" {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="note" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note</FormLabel>
+                    <FormControl><Input placeholder="Note aggiuntive" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="circa" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Circa</FormLabel>
+                    <FormControl><Input placeholder="Informazioni aggiuntive" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>Annulla</Button>
                   <Button type="submit" disabled={submitting}>{submitting ? "Salvando..." : "Salva Elezione"}</Button>
@@ -236,15 +302,34 @@ export default function GestisciElezioni() {
           : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader><TableRow><TableHead>Tipo</TableHead><TableHead>Zona</TableHead><TableHead>Data Inizio</TableHead><TableHead>Data Fine</TableHead><TableHead>Circa</TableHead><TableHead className="text-right">Azioni</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Titolo</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Zona</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Data Inizio</TableHead>
+                    <TableHead>Data Fine</TableHead>
+                    <TableHead>Quorum</TableHead>
+                    <TableHead className="text-right">Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {elezioni.map((elezione) => (
                     <TableRow key={elezione.id}>
-                      <TableCell className="font-medium capitalize">{elezione.tipo}</TableCell>
+                      <TableCell className="font-medium">{elezione.titolo}</TableCell>
+                      <TableCell className="capitalize">{elezione.tipo}</TableCell>
                       <TableCell>{elezione.zona}</TableCell>
-                      <TableCell>{elezione.circa ? elezione.dataInizio : formatDate(elezione.dataInizio)}</TableCell>
-                      <TableCell>{elezione.circa ? elezione.dataFine : formatDate(elezione.dataFine)}</TableCell>
-                      <TableCell>{elezione.circa ? 'Sì' : 'No'}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          elezione.status === 'attiva' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {elezione.status}
+                        </span>
+                      </TableCell>
+                      <TableCell>{formatDate(elezione.data_inizio)}</TableCell>
+                      <TableCell>{formatDate(elezione.data_fine)}</TableCell>
+                      <TableCell>{elezione.quorum}%</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
                           <Button variant="outline" size="sm" onClick={() => handleEdit(elezione)}><Edit className="h-4 w-4" /></Button>
