@@ -219,7 +219,7 @@ export default function GestisciUtenti() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
-      <div className="container mx-auto max-w-5xl">
+             <div className="w-full px-6">
         {/* Header moderno con gradiente */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
@@ -248,8 +248,8 @@ export default function GestisciUtenti() {
             <div className="text-center text-red-500 p-8">Errore nel caricamento degli utenti.</div>
         ) : (
           <>
-            {/* Dashboard statistiche */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                         {/* Dashboard statistiche - righe larghe tutto lo schermo */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
@@ -321,7 +321,7 @@ export default function GestisciUtenti() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {pendingUsers.map((pendingUser: any) => (
                                 <Card key={pendingUser.id} className="border-yellow-200 bg-white/80 hover:shadow-md transition-all duration-200">
                                     <CardContent className="p-4">
@@ -385,8 +385,8 @@ export default function GestisciUtenti() {
               </CardHeader>
               <CardContent>
                 {/* Barra di ricerca migliorata */}
-                <div className="flex items-center mb-6">
-                  <div className="relative flex-1 max-w-md">
+                                 <div className="flex items-center mb-6">
+                   <div className="relative flex-1 max-w-2xl">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input 
                       placeholder="🔍 Cerca utenti per nome, email o ruolo..." 
@@ -402,7 +402,7 @@ export default function GestisciUtenti() {
 
                 {/* Layout a schede per gli utenti */}
                 {paginatedUsers.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                     {paginatedUsers.map((u: any) => (
                       <Card key={u.id} className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-blue-100">
                         <CardContent className="p-6">
