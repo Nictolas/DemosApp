@@ -23,6 +23,24 @@ export default function Menu() {
   // Determina se l'utente è admin direttamente dai dati dell'utente
   const isAdmin = user?.role === 'Admin' || user?.ruolo === 'Admin';
 
+  // Funzione per navigare con effetto "ripristino pulsante"
+  const navigateWithButtonReset = (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    const button = event.currentTarget;
+    
+    // Aggiungi classe per effetto "premuto" (schiacciato)
+    button.classList.add('scale-95', 'shadow-md');
+    
+    // Dopo 150ms, ripristina il pulsante allo stato originale
+    setTimeout(() => {
+      button.classList.remove('scale-95', 'shadow-md');
+      
+      // Dopo altri 100ms (quando il pulsante è tornato normale), naviga
+      setTimeout(() => {
+        setLocation(path);
+      }, 100);
+    }, 150);
+  };
+
   // Funzione per effettuare il logout
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -74,12 +92,28 @@ export default function Menu() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-3 p-6">
               {/* Altri pulsanti menu con nuova estetica */}
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/elezioni")}
-                onContextMenu={e => e.preventDefault()}
-              >
+                             <button
+                 type="button"
+                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 onMouseDown={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onMouseUp={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/elezioni"), 100);
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onTouchStart={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onTouchEnd={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/elezioni"), 100);
+                 }}
+                 onContextMenu={e => e.preventDefault()}
+               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -92,12 +126,28 @@ export default function Menu() {
                   <div className="text-gray-700 font-semibold text-lg select-none">Elezioni</div>
                 </div>
               </button>
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/strumenti")}
-                onContextMenu={e => e.preventDefault()}
-              >
+                             <button
+                 type="button"
+                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 onMouseDown={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onMouseUp={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/strumenti"), 100);
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onTouchStart={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onTouchEnd={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/strumenti"), 100);
+                 }}
+                 onContextMenu={e => e.preventDefault()}
+               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -110,12 +160,21 @@ export default function Menu() {
                   <div className="text-gray-700 font-semibold text-lg select-none">Strumenti</div>
                 </div>
               </button>
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/podio-trasparenza")}
-                onContextMenu={e => e.preventDefault()}
-              >
+                             <button
+                 type="button"
+                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 onMouseDown={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onMouseUp={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/podio-trasparenza"), 100);
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onContextMenu={e => e.preventDefault()}
+               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#fef3c7" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -128,12 +187,21 @@ export default function Menu() {
                   <div className="text-gray-700 font-semibold text-lg select-none">Podio Trasparenza</div>
                 </div>
               </button>
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/notifiche")}
-                onContextMenu={e => e.preventDefault()}
-              >
+                             <button
+                 type="button"
+                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 onMouseDown={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onMouseUp={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/notifiche"), 100);
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onContextMenu={e => e.preventDefault()}
+               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#bae6fd" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -146,12 +214,21 @@ export default function Menu() {
                   <div className="text-gray-700 font-semibold text-lg select-none">Notifiche</div>
                 </div>
               </button>
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/vota")}
-                onContextMenu={e => e.preventDefault()}
-              >
+                             <button
+                 type="button"
+                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 onMouseDown={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onMouseUp={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/vota"), 100);
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onContextMenu={e => e.preventDefault()}
+               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#bbf7d0" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -164,12 +241,21 @@ export default function Menu() {
                   <div className="text-gray-700 font-semibold text-lg select-none">Vota</div>
                 </div>
               </button>
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/eventi")}
-                onContextMenu={e => e.preventDefault()}
-              >
+                             <button
+                 type="button"
+                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 onMouseDown={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onMouseUp={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/eventi"), 100);
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onContextMenu={e => e.preventDefault()}
+               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#fbcfe8" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -182,12 +268,21 @@ export default function Menu() {
                   <div className="text-gray-700 font-semibold text-lg select-none">Eventi</div>
                 </div>
               </button>
-              <button
-                type="button"
-                className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setLocation("/proponi")}
-                onContextMenu={e => e.preventDefault()}
-              >
+                             <button
+                 type="button"
+                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 onMouseDown={(e) => {
+                   e.currentTarget.classList.add('scale-95', 'shadow-md');
+                 }}
+                 onMouseUp={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   setTimeout(() => setLocation("/proponi"), 100);
+                 }}
+                 onMouseLeave={(e) => {
+                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                 }}
+                 onContextMenu={e => e.preventDefault()}
+               >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
@@ -200,13 +295,22 @@ export default function Menu() {
                   <div className="text-gray-700 font-semibold text-lg select-none">Proponi</div>
                 </div>
               </button>
-              {isAdmin && (
-                <button
-                  type="button"
-                  className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-                  onClick={() => setLocation("/gestisci")}
-                  onContextMenu={e => e.preventDefault()}
-                >
+                             {isAdmin && (
+                 <button
+                   type="button"
+                   className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                   onMouseDown={(e) => {
+                     e.currentTarget.classList.add('scale-95', 'shadow-md');
+                   }}
+                   onMouseUp={(e) => {
+                     e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                     setTimeout(() => setLocation("/gestisci"), 100);
+                   }}
+                   onMouseLeave={(e) => {
+                     e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                   }}
+                   onContextMenu={e => e.preventDefault()}
+                 >
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                     <polygon points="100,0 0,0 0,35 100,20" fill="#fecaca" />
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
