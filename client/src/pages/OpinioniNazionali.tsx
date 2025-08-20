@@ -11,7 +11,6 @@ import { apiRequest } from "@/lib/queryClient";
 interface Question {
   id: string;
   text: string;
-  grado_opinione: string;
 }
 
 interface UserOpinionsData {
@@ -76,12 +75,12 @@ export default function OpinioniNazionali() {
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
-  // 1. Caricamento domande nazionali con React Query
+  // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[]}>({
-    queryKey: ['opinioniNazionali'],
+    queryKey: ['opinioniQuestions'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Nazionale");
-      if (!response.ok) throw new Error("Errore nel caricamento delle domande nazionali.");
+      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
       return response.json();
     },
     enabled: !!user
@@ -132,7 +131,7 @@ export default function OpinioniNazionali() {
   };
 
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave Opinioni Nazionali:');
+    console.log('🔍 DEBUG handleSave:');
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
     
@@ -173,10 +172,7 @@ export default function OpinioniNazionali() {
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
             ) : questions.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Nessuna opinione nazionale disponibile al momento.</p>
-                <p className="text-sm text-muted-foreground mt-2">Le opinioni nazionali verranno aggiunte dagli amministratori.</p>
-              </div>
+              <div className="text-center py-8"><p className="text-muted-foreground">Nessuna domanda disponibile.</p></div>
             ) : (
               <>
                 {questions.map((question) => (
@@ -200,7 +196,7 @@ export default function OpinioniNazionali() {
                 ))}
                 <div className="flex justify-center pt-6">
                   <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
-                    {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni nazionali"}
+                    {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
                   </Button>
                 </div>
                 {blocco?.isBlocked && (
