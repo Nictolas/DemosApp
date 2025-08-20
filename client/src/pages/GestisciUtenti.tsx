@@ -50,7 +50,8 @@ export default function GestisciUtenti() {
       const pendingUsersData = await pendingUsersResponse.json();
       return { utenti: allUsersData, pendingUsers: pendingUsersData };
     },
-    enabled: !!user,
+    // Evita che le query vengano eseguite se l'utente non è Admin
+    enabled: !!user && (user as any).ruolo === 'Admin',
   });
 
   // Estrai i dati con fallback sicuro e logging per debug
