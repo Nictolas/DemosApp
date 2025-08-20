@@ -31,7 +31,8 @@ export default function StatisticheOpinione() {
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}`);
       if (!response.ok) throw new Error("Errore nel caricamento delle statistiche.");
-      return response.json();
+      const result = await response.json();
+      return result.data; // Estrai i dati dalla risposta
     },
     enabled: !!user && !!opinionId,
   });

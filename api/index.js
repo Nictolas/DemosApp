@@ -2140,6 +2140,113 @@ app.get('/api/debug/utenti-table', async (req, res) => {
   }
 });
 
+// Endpoint per ottenere le statistiche dettagliate di un'opinione specifica
+app.get('/api/opinioni/stats/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('📊 DEBUG: Richiesta statistiche dettagliate per opinione:', id);
+    
+    // Mappa l'ID dell'opinione alla colonna corrispondente nella tabella users
+    const columnMap = {
+      'energia_nucleare': 'energia_nucleare',
+      'sperimentazione_animale': 'sperimentazione_animale',
+      'legalizzazione_canapa': 'legalizzazione_canapa',
+      'caccia': 'caccia',
+      'cittadina_animale': 'cittadina_animale',
+      'nato': 'nato',
+      'matrimonio_gay': 'matrimonio_gay',
+      'salario_minimo': 'salario_minimo',
+      'carne_coltivata': 'carne_coltivata',
+      'case_chiuse': 'case_chiuse',
+      'eutanasia': 'eutanasia',
+      'omobitransfobia': 'omobitransfobia'
+    };
+    
+    const columnName = columnMap[id];
+    if (!columnName) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    // Ottieni il testo dell'opinione dalla tabella opinioni
+    const opinionQuery = 'SELECT text FROM opinioni WHERE id = $1';
+    const opinionResult = await pool.query(opinionQuery, [id]);
+    
+    if (opinionResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    const questionText = opinionResult.rows[0].text || id;
+    
+    // Ottieni le statistiche generali
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN "${columnName}" = 'Favorevole' THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN "${columnName}" = 'Contrario' THEN 1 END) as contrari,
+        COUNT(CASE WHEN "${columnName}" = 'Indeciso' THEN 1 END) as indecisi,
+        COUNT(CASE WHEN "${columnName}" IS NULL THEN 1 END) as null_values
+      FROM users
+    `;
+    
+    const statsResult = await pool.query(statsQuery);
+    const rowStats = statsResult.rows[0];
+    
+    const stats = {
+      favorevole: parseInt(rowStats.favorevoli) || 0,
+      contrario: parseInt(rowStats.contrari) || 0,
+      astenuto: parseInt(rowStats.indecisi) || 0,
+      total: parseInt(rowStats.total) || 0
+    };
+    
+    // Ottieni le statistiche per regione
+    const regionalStatsQuery = `
+      SELECT 
+        regione,
+        COUNT(*) as total,
+        COUNT(CASE WHEN "${columnName}" = 'Favorevole' THEN 1 END) as favorevoli,
+        COUNT(CASE WHEN "${columnName}" = 'Contrario' THEN 1 END) as contrari,
+        COUNT(CASE WHEN "${columnName}" = 'Indeciso' THEN 1 END) as indecisi
+      FROM users 
+      WHERE regione IS NOT NULL AND "${columnName}" IS NOT NULL
+      GROUP BY regione
+      ORDER BY total DESC
+    `;
+    
+    const regionalResult = await pool.query(regionalStatsQuery);
+    const regionalStats = regionalResult.rows.map(row => ({
+      regione: row.regione,
+      totale: parseInt(row.total) || 0,
+      favorevole: parseInt(row.favorevoli) || 0,
+      contrario: parseInt(row.contrari) || 0,
+      indeciso: parseInt(row.indecisi) || 0
+    }));
+    
+    console.log(`✅ DEBUG: Statistiche generate per opinione ${id}:`, stats);
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questionText,
+        regionalStats
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel calcolare statistiche opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel calcolare statistiche opinione'
+    });
+  }
+});
+
 // Endpoint per ottenere le statistiche dei sondaggi
 app.get('/api/sondaggi/stats', async (req, res) => {
   try {
