@@ -44,18 +44,21 @@ const getDisplayColumns = (users: any[]) => {
   // Filtra le colonne nascoste
   const displayColumns = allColumns.filter(col => !HIDDEN_COLUMNS.includes(col));
   
+  // Aggiungi colonna "Nome Completo" all'inizio
+  const columnsWithFullName = ['nome_completo', ...displayColumns];
+  
   // Ordina le colonne in modo logico
-  const priorityColumns = ['email', 'ruolo', 'status'];
+  const priorityColumns = ['nome_completo', 'email', 'ruolo', 'status'];
   const sortedColumns = [
-    ...priorityColumns.filter(col => displayColumns.includes(col)),
-    ...displayColumns.filter(col => !priorityColumns.includes(col))
+    ...priorityColumns.filter(col => columnsWithFullName.includes(col)),
+    ...columnsWithFullName.filter(col => !priorityColumns.includes(col))
   ];
   
   return sortedColumns;
 };
 
 // Funzione per formattare il valore di una colonna
-const formatColumnValue = (value: any, columnName: string) => {
+const formatColumnValue = (value: any, columnName: string, user?: User) => {
   if (value === null || value === undefined) return '-';
   
   // Formatta date
@@ -99,7 +102,7 @@ export default function GestisciUtenti() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showEditOpinioniDialog, setShowEditOpinioniDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [sortField, setSortField] = useState<keyof User>('nome');
+  const [sortField, setSortField] = useState<keyof User>('nome_completo');
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 20;
@@ -170,25 +173,40 @@ export default function GestisciUtenti() {
     }
     
     return utenti
-      .filter(u => {
-        // Ricerca su tutte le colonne di testo
-        const searchLower = searchTerm.toLowerCase();
-        return displayColumns.some(col => {
-          const value = u[col];
-          if (typeof value === 'string') {
-            return value.toLowerCase().includes(searchLower);
-          }
-          return false;
-        });
-      })
-      .sort((a, b) => {
-        if (!sortField) return 0;
-        const valA = a[sortField];
-        const valB = b[sortField];
-        if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-        if (valA > valB) return sortDirection === "asc" ? 1 : -1;
-        return 0;
-      });
+             .filter(u => {
+         // Ricerca su tutte le colonne di testo
+         const searchLower = searchTerm.toLowerCase();
+         
+         // Ricerca speciale per nome completo
+         const fullName = `${u.nome || ''} ${u.cognome || ''}`.toLowerCase();
+         if (fullName.includes(searchLower)) return true;
+         
+         return displayColumns.some(col => {
+           const value = u[col];
+           if (typeof value === 'string') {
+             return value.toLowerCase().includes(searchLower);
+           }
+           return false;
+         });
+       })
+             .sort((a, b) => {
+         if (!sortField) return 0;
+         
+         // Gestione speciale per la colonna nome_completo
+         if (sortField === 'nome_completo') {
+           const fullNameA = `${a.nome || ''} ${a.cognome || ''}`.toLowerCase();
+           const fullNameB = `${b.nome || ''} ${b.cognome || ''}`.toLowerCase();
+           if (fullNameA < fullNameB) return sortDirection === "asc" ? -1 : 1;
+           if (fullNameA > fullNameB) return sortDirection === "asc" ? 1 : -1;
+           return 0;
+         }
+         
+         const valA = a[sortField];
+         const valB = b[sortField];
+         if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+         if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+         return 0;
+       });
   }, [utenti, searchTerm, sortField, sortDirection, displayColumns]);
 
   const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
@@ -390,12 +408,12 @@ export default function GestisciUtenti() {
                 <div className="flex items-center mb-6">
                   <div className="relative flex-1 max-w-2xl">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input 
-                      placeholder="🔍 Cerca utenti per nome, email o ruolo..." 
-                      className="pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-blue-500 rounded-lg transition-colors" 
-                      value={searchTerm} 
-                      onChange={(e) => setSearchTerm(e.target.value)} 
-                    />
+                                         <Input 
+                       placeholder="🔍 Cerca utenti per nome completo, email o ruolo..." 
+                       className="pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-blue-500 rounded-lg transition-colors" 
+                       value={searchTerm} 
+                       onChange={(e) => setSearchTerm(e.target.value)} 
+                     />
                   </div>
                   <div className="ml-4 text-sm text-gray-500">
                     {filteredAndSortedUsers.length} utenti trovati
@@ -416,7 +434,8 @@ export default function GestisciUtenti() {
                             >
                               <div className="flex items-center space-x-1">
                                                                  <span className="capitalize">
-                                   {column === 'email' ? 'Email' :
+                                   {column === 'nome_completo' ? 'Nome Completo' :
+                                    column === 'email' ? 'Email' :
                                     column === 'ruolo' ? 'Ruolo' :
                                     column === 'status' ? 'Status' :
                                     column === 'created_at' ? 'Data Creazione' :
@@ -476,9 +495,20 @@ export default function GestisciUtenti() {
                           <TableRow key={u.id} className="hover:bg-gray-50">
                             {displayColumns.map((column) => (
                               <TableCell key={column} className="max-w-[200px]">
-                                <div className="truncate" title={formatColumnValue(u[column], column)}>
-                                  {formatColumnValue(u[column], column)}
-                                </div>
+                                {column === 'nome_completo' ? (
+                                  <div className="truncate">
+                                    <Link 
+                                      href={`/menu/profilo/${u.id}?from=utenti`} 
+                                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+                                    >
+                                      {u.nome} {u.cognome}
+                                    </Link>
+                                  </div>
+                                ) : (
+                                  <div className="truncate" title={formatColumnValue(u[column], column)}>
+                                    {formatColumnValue(u[column], column)}
+                                  </div>
+                                )}
                               </TableCell>
                             ))}
                             <TableCell className="text-center">
