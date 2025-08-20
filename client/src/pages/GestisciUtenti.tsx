@@ -209,8 +209,8 @@ export default function GestisciUtenti() {
   }
   
   // Controllo più flessibile per il ruolo admin
-  const isAdmin = user.role === 'Admin' || (user as any).ruolo === 'Admin';
-  console.log('🔍 DEBUG GestisciUtenti - Admin check:', { isAdmin, userRole: user.role, userRuolo: (user as any).ruolo });
+  const isAdmin = user.role === 'Admin' || (user as any)?.ruolo === 'Admin';
+  console.log('🔍 DEBUG GestisciUtenti - Admin check:', { isAdmin, userRole: user.role, userRuolo: (user as any)?.ruolo });
   
   if (!isAdmin) {
     console.log('🔍 DEBUG GestisciUtenti - Redirecting to menu: user is not admin');
@@ -219,7 +219,7 @@ export default function GestisciUtenti() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
-             <div className="w-full px-6">
+      <div className="w-full px-6">
         {/* Header moderno con gradiente */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
@@ -248,8 +248,8 @@ export default function GestisciUtenti() {
             <div className="text-center text-red-500 p-8">Errore nel caricamento degli utenti.</div>
         ) : (
           <>
-                         {/* Dashboard statistiche - righe larghe tutto lo schermo */}
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Dashboard statistiche - righe larghe tutto lo schermo */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
@@ -321,7 +321,7 @@ export default function GestisciUtenti() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {pendingUsers.map((pendingUser: any) => (
                                 <Card key={pendingUser.id} className="border-yellow-200 bg-white/80 hover:shadow-md transition-all duration-200">
                                     <CardContent className="p-4">
@@ -372,7 +372,7 @@ export default function GestisciUtenti() {
                 </Card>
             )}
 
-            {/* Sezione utenti attivi con layout moderno */}
+            {/* Sezione utenti attivi con TABELLA tradizionale */}
             <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-2xl text-gray-800">
@@ -385,8 +385,8 @@ export default function GestisciUtenti() {
               </CardHeader>
               <CardContent>
                 {/* Barra di ricerca migliorata */}
-                                 <div className="flex items-center mb-6">
-                   <div className="relative flex-1 max-w-2xl">
+                <div className="flex items-center mb-6">
+                  <div className="relative flex-1 max-w-2xl">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input 
                       placeholder="🔍 Cerca utenti per nome, email o ruolo..." 
@@ -400,90 +400,128 @@ export default function GestisciUtenti() {
                   </div>
                 </div>
 
-                {/* Layout a schede per gli utenti */}
+                {/* TABELLA tradizionale invece delle card */}
                 {paginatedUsers.length > 0 ? (
-                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                    {paginatedUsers.map((u: any) => (
-                      <Card key={u.id} className="group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-white to-gray-50 hover:from-blue-50 hover:to-blue-100">
-                        <CardContent className="p-6">
-                          {/* Header con nome e ruolo */}
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                <Link href={`/menu/profilo/${u.uid || u.id}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
-                                  {u.nome} {u.cognome}
-                                </Link>
-                              </h3>
-                              <p className="text-sm text-gray-600">{u.email}</p>
-                            </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              u.ruolo === 'Admin' 
-                                ? 'bg-purple-100 text-purple-800 border border-purple-200' 
-                                : u.ruolo === 'Candidato Politico'
-                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                : u.ruolo === 'Politico'
-                                ? 'bg-green-100 text-green-800 border border-green-200'
-                                : 'bg-gray-100 text-gray-800 border border-gray-200'
-                            }`}>
-                              {u.ruolo}
-                            </span>
-                          </div>
-                          
-                          {/* Dettagli utente */}
-                          <div className="space-y-2 mb-4">
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <Shield className="h-4 w-4 text-blue-500" />
-                              <span>ID: {u.id.substring(0, 8)}...</span>
-                            </div>
-                            {u.status && (
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  u.status === 'active' ? 'bg-green-500' : 
-                                  u.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-                                }`} />
-                                <span className="capitalize">{u.status}</span>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {displayColumns.map((column) => (
+                            <TableHead 
+                              key={column}
+                              className="cursor-pointer hover:bg-gray-50"
+                              onClick={() => handleSort(column as keyof User)}
+                            >
+                              <div className="flex items-center space-x-1">
+                                <span className="capitalize">
+                                  {column === 'id' ? 'ID' : 
+                                   column === 'nome' ? 'Nome' :
+                                   column === 'cognome' ? 'Cognome' :
+                                   column === 'email' ? 'Email' :
+                                   column === 'ruolo' ? 'Ruolo' :
+                                   column === 'status' ? 'Status' :
+                                   column === 'created_at' ? 'Data Registrazione' :
+                                   column === 'updated_at' ? 'Ultimo Aggiornamento' :
+                                   column === 'uid' ? 'UID' :
+                                   column === 'data_nascita' ? 'Data Nascita' :
+                                   column === 'genere' ? 'Genere' :
+                                   column === 'cittadinanza' ? 'Cittadinanza' :
+                                   column === 'regione' ? 'Regione' :
+                                   column === 'provincia' ? 'Provincia' :
+                                   column === 'comune' ? 'Comune' :
+                                   column === 'paese' ? 'Paese' :
+                                   column === 'telefono' ? 'Telefono' :
+                                   column === 'professione' ? 'Professione' :
+                                   column === 'istruzione' ? 'Istruzione' :
+                                   column === 'reddito' ? 'Reddito' :
+                                   column === 'partito' ? 'Partito' :
+                                   column === 'is_admin' ? 'Admin' :
+                                   column === 'is_premium' ? 'Premium' :
+                                   column === 'premium' ? 'Premium' :
+                                   column === 'avatar_url' ? 'Avatar' :
+                                   column === 'bio' ? 'Biografia' :
+                                   column === 'social_links' ? 'Social' :
+                                   column === 'preferenze_notifiche' ? 'Notifiche' :
+                                   column === 'notifiche_preferenze' ? 'Notifiche' :
+                                   column === 'avatar_config' ? 'Config Avatar' :
+                                   column === 'fcm_tokens' ? 'FCM Tokens' :
+                                   column === 'paese_candidatura' ? 'Paese Candidatura' :
+                                   column === 'regione_candidatura' ? 'Regione Candidatura' :
+                                   column === 'provincia_candidatura' ? 'Provincia Candidatura' :
+                                   column === 'comune_candidatura' ? 'Comune Candidatura' :
+                                   column === 'candidato_attivo' ? 'Candidato Attivo' :
+                                   column === 'data_candidatura' ? 'Data Candidatura' :
+                                   column === 'status_candidatura' ? 'Status Candidatura' :
+                                   column === 'note_candidatura' ? 'Note Candidatura' :
+                                   column === 'comune_elezione' ? 'Comune Elezione' :
+                                   column === 'grado_elezione' ? 'Grado Elezione' :
+                                   column === 'paese_elezione' ? 'Paese Elezione' :
+                                   column === 'grado_candidatura' ? 'Grado Candidatura' :
+                                   column === 'approved_at' ? 'Data Approvazione' :
+                                   column === 'ultimo_accesso' ? 'Ultimo Accesso' :
+                                   column === 'data_registrazione' ? 'Data Registrazione' :
+                                   column === 'sesso' ? 'Sesso' :
+                                   column === 'indirizzo' ? 'Indirizzo' :
+                                   column === 'name' ? 'Nome Completo' :
+                                   column === 'image' ? 'Immagine' :
+                                   column === 'email_verified' ? 'Email Verificata' :
+                                   column}
+                                </span>
+                                {sortField === column && (
+                                  <span className="text-blue-600">
+                                    {sortDirection === 'asc' ? '↑' : '↓'}
+                                  </span>
+                                )}
                               </div>
-                            )}
-                            {u.createdAt && (
-                              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                <Calendar className="h-4 w-4 text-purple-500" />
-                                <span>Registrato: {new Date(u.createdAt).toLocaleDateString('it-IT')}</span>
+                            </TableHead>
+                          ))}
+                          <TableHead className="text-center">Azioni</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedUsers.map((u: User) => (
+                          <TableRow key={u.id} className="hover:bg-gray-50">
+                            {displayColumns.map((column) => (
+                              <TableCell key={column} className="max-w-[200px]">
+                                <div className="truncate" title={formatColumnValue(u[column], column)}>
+                                  {formatColumnValue(u[column], column)}
+                                </div>
+                              </TableCell>
+                            ))}
+                            <TableCell className="text-center">
+                              <div className="flex space-x-2 justify-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => { setSelectedUser(u); setShowEditDialog(true); }}
+                                  className="hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Modifica
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => { setSelectedUser(u); setShowEditOpinioniDialog(true); }}
+                                  className="hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors"
+                                >
+                                  📝 Opinioni
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => setUserToDelete(u)}
+                                  className="hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Elimina
+                                </Button>
                               </div>
-                            )}
-                          </div>
-                          
-                          {/* Azioni */}
-                          <div className="flex space-x-2 pt-3 border-t border-gray-100">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => { setSelectedUser(u); setShowEditDialog(true); }}
-                              className="flex-1 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors"
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Modifica
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => { setSelectedUser(u); setShowEditOpinioniDialog(true); }}
-                              className="flex-1 hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors"
-                            >
-                              📝 Opinioni
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => setUserToDelete(u)}
-                              className="flex-1 hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Elimina
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 ) : (
                   <div className="text-center py-12">
