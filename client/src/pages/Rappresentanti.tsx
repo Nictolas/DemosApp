@@ -141,8 +141,14 @@ export default function Rappresentanti() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden select-none overflow-x-hidden touch-pan-x-none" style={{ paddingBottom: '80px' }}>
-        <div className="container mx-auto px-4 py-8 overflow-x-hidden max-w-full">
+      <style jsx global>{`
+        body, html {
+          overflow: hidden !important;
+          touch-action: none !important;
+        }
+      `}</style>
+      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '80px' }}>
+        <div className="container mx-auto px-4 py-8 overflow-hidden max-w-full h-full">
 
 
           {isLoading ? (
@@ -158,7 +164,7 @@ export default function Rappresentanti() {
                 const categoria = categorie[0];
                 console.log('🔍 DEBUG: Rendering categoria:', categoria.id, categoria.nome);
                 return (
-                  <div className="relative w-full rounded-2xl shadow-lg overflow-hidden overflow-x-hidden mb-4 cursor-pointer" onClick={() => setShowCambiaModal({ categoria: categoria.id })}>
+                                     <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4 cursor-pointer" onClick={() => setShowCambiaModal({ categoria: categoria.id })}>
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" /><polygon points="100,20 0,35 0,100 100,100" fill="#fff" /></svg>
                     <div className="relative z-10 p-6 flex flex-col items-center justify-center">
                       <User className="h-12 w-12 text-blue-600 mb-2" />
@@ -175,7 +181,7 @@ export default function Rappresentanti() {
                   const colorMap = { green: "#bbf7d0", purple: "#ede9fe", orange: "#fef9c3", teal: "#a7f3d0" };
                   const color = colorMap[categoria.color as keyof typeof colorMap];
                   return (
-                    <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden overflow-x-hidden cursor-pointer" onClick={() => setShowCambiaModal({ categoria: categoria.id })}>
+                                         <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer" onClick={() => setShowCambiaModal({ categoria: categoria.id })}>
                       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,0 0,0 0,35 100,20" fill={color} /><polygon points="100,20 0,35 0,100 100,100" fill="#fff" /></svg>
                       <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
                         <User className={`h-8 md:h-12 w-8 md:w-12 mb-2 text-${categoria.color}-600`} />
@@ -196,7 +202,7 @@ export default function Rappresentanti() {
           avatarConfig={opinioniDialogData?.avatarConfig} categoria={opinioniDialogData?.categoria as any}
         />
         {showCambiaModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 overflow-x-hidden" onClick={() => setShowCambiaModal(false)}>
+                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 overflow-hidden" onClick={() => setShowCambiaModal(false)}>
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-xs flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
               <h2 className="text-lg font-bold mb-4 text-center">Come vuoi scegliere il rappresentante?</h2>
               <Button className="w-full mb-2" onClick={() => showCambiaModal && setLocation(`/scegli-rappresentante/${showCambiaModal.categoria}`)}>Per Compatibilità di Idee</Button>
