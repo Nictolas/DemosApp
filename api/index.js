@@ -2416,6 +2416,36 @@ app.delete('/api/elezioni/:id', async (req, res) => {
   }
 });
 
+// Endpoint per ottenere le prossime elezioni
+app.get('/api/elezioni/prossime', async (req, res) => {
+  try {
+    console.log('🗳️ DEBUG: Richiesta prossime elezioni');
+    
+    // Ottieni le elezioni future ordinate per data
+    const elezioniQuery = `
+      SELECT id, tipo, zona, circa, datainizio, datafine, created_at, updated_at
+      FROM elezioni 
+      WHERE datainizio >= EXTRACT(YEAR FROM CURRENT_DATE)::TEXT
+      ORDER BY datainizio ASC, datafine ASC
+    `;
+    
+    const elezioniResult = await pool.query(elezioniQuery);
+    console.log('✅ DEBUG: Trovate', elezioniResult.rows.length, 'prossime elezioni');
+    
+    res.json({
+      success: true,
+      data: elezioniResult.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare prossime elezioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare prossime elezioni'
+    });
+  }
+});
+
 // Endpoint per ottenere le statistiche dei sondaggi
 app.get('/api/sondaggi/stats', async (req, res) => {
   try {
