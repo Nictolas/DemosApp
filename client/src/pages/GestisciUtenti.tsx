@@ -15,7 +15,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type User = {
   id: string;
-  uid: string;
   nome: string;
   cognome: string;
   email: string;
@@ -328,7 +327,7 @@ export default function GestisciUtenti() {
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="flex-1">
                                                 <h3 className="font-semibold text-gray-900 mb-1">
-                                                    <Link href={`/menu/profilo/${pendingUser.uid || pendingUser.id}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
+                                                    <Link href={`/menu/profilo/${pendingUser.id}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
                                                         {pendingUser.nome} {pendingUser.cognome}
                                                     </Link>
                                                 </h3>
@@ -420,9 +419,7 @@ export default function GestisciUtenti() {
                                    column === 'email' ? 'Email' :
                                    column === 'ruolo' ? 'Ruolo' :
                                    column === 'status' ? 'Status' :
-                                   column === 'created_at' ? 'Data Registrazione' :
-                                   column === 'updated_at' ? 'Ultimo Aggiornamento' :
-                                   column === 'uid' ? 'UID' :
+                                   column === 'created_at' ? 'Data Creazione' :
                                    column === 'data_nascita' ? 'Data Nascita' :
                                    column === 'genere' ? 'Genere' :
                                    column === 'cittadinanza' ? 'Cittadinanza' :
@@ -444,7 +441,6 @@ export default function GestisciUtenti() {
                                    column === 'preferenze_notifiche' ? 'Notifiche' :
                                    column === 'notifiche_preferenze' ? 'Notifiche' :
                                    column === 'avatar_config' ? 'Config Avatar' :
-                                   column === 'fcm_tokens' ? 'FCM Tokens' :
                                    column === 'paese_candidatura' ? 'Paese Candidatura' :
                                    column === 'regione_candidatura' ? 'Regione Candidatura' :
                                    column === 'provincia_candidatura' ? 'Provincia Candidatura' :
@@ -463,8 +459,6 @@ export default function GestisciUtenti() {
                                    column === 'sesso' ? 'Sesso' :
                                    column === 'indirizzo' ? 'Indirizzo' :
                                    column === 'name' ? 'Nome Completo' :
-                                   column === 'image' ? 'Immagine' :
-                                   column === 'email_verified' ? 'Email Verificata' :
                                    column}
                                 </span>
                                 {sortField === column && (
@@ -580,7 +574,7 @@ export default function GestisciUtenti() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Annulla</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => userToDelete && deleteMutation.mutate(userToDelete.uid)} className="bg-red-500 hover:bg-red-600 text-white" disabled={deleteMutation.isPending}>
+                    <AlertDialogAction onClick={() => userToDelete && deleteMutation.mutate(userToDelete.id)} className="bg-red-500 hover:bg-red-600 text-white" disabled={deleteMutation.isPending}>
                         {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin"/> : "Elimina"}
                     </AlertDialogAction>
                 </AlertDialogFooter>
@@ -589,8 +583,8 @@ export default function GestisciUtenti() {
 
         {selectedUser && (
             <>
-                <EditUserDialog userUid={selectedUser.uid} open={showEditDialog} onOpenChange={setShowEditDialog} onUserUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} />
-                <EditOpinioniDialog utenteId={selectedUser.uid} open={showEditOpinioniDialog} onOpenChange={setShowEditOpinioniDialog} />
+                <EditUserDialog userUid={selectedUser.id} open={showEditDialog} onOpenChange={setShowEditDialog} onUserUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} />
+                <EditOpinioniDialog utenteId={selectedUser.id} open={showEditOpinioniDialog} onOpenChange={setShowEditOpinioniDialog} />
             </>
         )}
       </div>
