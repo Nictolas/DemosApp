@@ -28,6 +28,15 @@ export default function GestisciUtenti() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Debug logging per capire il ruolo dell'utente
+  console.log('🔍 DEBUG GestisciUtenti - Auth state:', {
+    user: user ? { id: user.id, email: user.email, role: user.role, ruolo: (user as any).ruolo } : null,
+    isAuthLoading,
+    userRole: user?.role,
+    userRuolo: (user as any)?.ruolo,
+    isAdmin: user?.role === 'Admin' || (user as any)?.ruolo === 'Admin'
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -129,7 +138,13 @@ export default function GestisciUtenti() {
   if (!user) {
     return <Redirect to="/auth" />;
   }
-  if (user.ruolo !== 'Admin') {
+  
+  // Controllo più flessibile per il ruolo admin
+  const isAdmin = user.role === 'Admin' || (user as any).ruolo === 'Admin';
+  console.log('🔍 DEBUG GestisciUtenti - Admin check:', { isAdmin, userRole: user.role, userRuolo: (user as any).ruolo });
+  
+  if (!isAdmin) {
+    console.log('🔍 DEBUG GestisciUtenti - Redirecting to menu: user is not admin');
     return <Redirect to="/menu" />;
   }
   
