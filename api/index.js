@@ -1145,7 +1145,7 @@ app.get('/api/debug/check-admin', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG: Risultato verifica admin:', admin);
     
     // Ottieni anche i dati dell'utente per debug
-    const userResult = await pool.query('SELECT id, email, nome, cognome, ruolo FROM users WHERE id = $1', [req.user.userId]);
+    const userResult = await pool.query('SELECT id, email, nome, cognome, ruolo, avatar_config FROM users WHERE id = $1', [req.user.userId]);
     const userData = userResult.rows[0] || null;
     
     res.json({
