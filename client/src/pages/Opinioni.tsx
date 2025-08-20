@@ -50,16 +50,16 @@ export default function Opinioni() {
   return (
     <PageTransition>
       <div className="min-h-screen flex flex-col overflow-hidden select-none" style={{ paddingBottom: '80px' }}>
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-6 flex flex-col h-full">
 
 
-          <div className="text-center mb-8">
+          <div className="text-center mb-6 flex-shrink-0">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Le tue Opinioni</h1>
             <p className="text-gray-600">Scegli la categoria di opinioni che vuoi esprimere</p>
           </div>
 
-          {/* Griglia 2x2 con card trasformate in pulsanti */}
-          <div className="grid grid-cols-2 gap-4 pb-2">
+          {/* Griglia 2x2 con card trasformate in pulsanti - altezza ottimizzata */}
+          <div className="grid grid-cols-2 gap-4 h-full flex-1">
             {categorie.map((categoria) => {
               const colorMap = { 
                 blue: { bg: "#dbeafe", text: "#1e40af", icon: "#2563eb" },
@@ -73,7 +73,7 @@ export default function Opinioni() {
                 <button
                   key={categoria.id}
                   type="button"
-                  className="relative w-full h-48 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                  className="relative w-full h-full min-h-56 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                   onMouseDown={(e) => {
                     e.currentTarget.classList.add('scale-95', 'shadow-md');
                   }}
