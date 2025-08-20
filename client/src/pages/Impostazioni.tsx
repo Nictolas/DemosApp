@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, MessageSquare, Users, TestTube } from "lucide-react";
+import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, MessageSquare, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { getApiUrl } from "@/lib/api-config";
@@ -149,46 +149,6 @@ export default function Impostazioni() {
         </div>
 
         <div className="grid gap-6">
-          {/* Info Utente */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Informazioni Account
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p><strong>Email:</strong> {user.email}</p>
-                <p><strong>Nome:</strong> {user.name}</p>
-                <p><strong>Ruolo:</strong> {user.role}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Avviso Migrazione */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TestTube className="h-5 w-5" />
-                Stato Migrazione
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">🚀 Migrazione in corso</h3>
-                <p className="text-blue-800 text-sm mb-3">
-                  Stiamo migrando il sistema di autenticazione da Firebase a Auth.js + Neon PostgreSQL.
-                  Alcune funzionalità potrebbero essere temporaneamente disabilitate.
-                </p>
-                <div className="text-sm text-blue-700">
-                  <p>✅ <strong>Funzionanti:</strong> Login, Logout, Registrazione</p>
-                  <p>🔄 <strong>In migrazione:</strong> Cambio password, Eliminazione account, Notifiche</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Azioni Account */}
           <Card>
             <CardHeader>
