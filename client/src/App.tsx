@@ -11,6 +11,10 @@ import Profilo from "@/pages/Profilo";
 import GestisciUtenti from "@/pages/GestisciUtenti";
 import GestisciElezioni from "@/pages/GestisciElezioni";
 import Opinioni from "@/pages/Opinioni";
+import OpinioniEuropee from "@/pages/OpinioniEuropee";
+import OpinioniNazionali from "@/pages/OpinioniNazionali";
+import OpinioniRegionali from "@/pages/OpinioniRegionali";
+import OpinioniComunali from "@/pages/OpinioniComunali";
 import Rappresentanti from "@/pages/Rappresentanti";
 import Elezioni from "@/pages/Elezioni";
 import ScegliRappresentante from "@/pages/ScegliRappresentante";
@@ -226,6 +230,34 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute path="/opinioni" component={Opinioni} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni-europee">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/opinioni-europee" component={OpinioniEuropee} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni-nazionali">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/opinioni-nazionali" component={OpinioniNazionali} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni-regionali">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/opinioni-regionali" component={OpinioniRegionali} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/opinioni-comunali">
+        {(params) => (
+          <PageTransition location={location} type="fade-side">
+            <ProtectedRoute path="/opinioni-comunali" component={OpinioniComunali} />
           </PageTransition>
         )}
       </Route>
