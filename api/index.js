@@ -2254,9 +2254,7 @@ app.get('/api/elezioni', async (req, res) => {
     
     const query = `
       SELECT 
-        id, titolo, descrizione, tipo, zona, 
-        data_inizio, data_fine, status, quorum,
-        candidati, regole, risultati, note, circa,
+        id, tipo, zona, circa, datainizio, datafine,
         createdAt, updatedAt
       FROM elezioni 
       ORDER BY createdAt DESC
@@ -2282,12 +2280,12 @@ app.get('/api/elezioni', async (req, res) => {
 // Endpoint per creare una nuova elezione
 app.post('/api/elezioni', async (req, res) => {
   try {
-    const { titolo, descrizione, tipo, zona, data_inizio, data_fine, quorum, candidati, regole, note, circa } = req.body;
+    const { tipo, zona, datainizio, datafine, circa } = req.body;
     
-    if (!titolo) {
+    if (!tipo || !zona) {
       return res.status(400).json({
         success: false,
-        error: 'Il titolo è obbligatorio'
+        error: 'Tipo e zona sono obbligatori'
       });
     }
     
@@ -2295,19 +2293,14 @@ app.post('/api/elezioni', async (req, res) => {
     
     const query = `
       INSERT INTO elezioni (
-        id, titolo, descrizione, tipo, zona, 
-        data_inizio, data_fine, quorum, candidati, 
-        regole, note, circa, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'attiva')
+        id, tipo, zona, circa, datainizio, datafine,
+        createdAt, updatedAt
+      ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING *
     `;
     
     const values = [
-      id, titolo, descrizione, tipo || 'generale', zona, 
-      data_inizio, data_fine, quorum, 
-      candidati ? JSON.stringify(candidati) : null,
-      regole ? JSON.stringify(regole) : null,
-      note, circa
+      id, tipo, zona, circa || true, datainizio, datafine
     ];
     
     const result = await pool.query(query, values);
@@ -2331,32 +2324,21 @@ app.post('/api/elezioni', async (req, res) => {
 app.put('/api/elezioni/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { titolo, descrizione, tipo, zona, data_inizio, data_fine, quorum, candidati, regole, note, circa, status } = req.body;
+    const { tipo, zona, datainizio, datafine, circa } = req.body;
     
     const query = `
       UPDATE elezioni SET 
-        titolo = COALESCE($1, titolo),
-        descrizione = COALESCE($2, descrizione),
-        tipo = COALESCE($3, tipo),
-        zona = COALESCE($4, zona),
-        data_inizio = COALESCE($5, data_inizio),
-        data_fine = COALESCE($6, data_fine),
-        quorum = COALESCE($7, quorum),
-        candidati = COALESCE($8, candidati),
-        regole = COALESCE($9, regole),
-        note = COALESCE($10, note),
-        circa = COALESCE($11, circa),
-        status = COALESCE($12, status),
+        tipo = COALESCE($1, tipo),
+        zona = COALESCE($2, zona),
+        datainizio = COALESCE($3, datainizio),
+        datafine = COALESCE($4, datafine),
+        circa = COALESCE($5, circa),
         updatedAt = CURRENT_TIMESTAMP
-      WHERE id = $13
+      WHERE id = $6
       RETURNING *
     `;
     
-    const values = [
-      titolo, descrizione, tipo, zona, data_inizio, data_fine,
-      quorum, candidati ? JSON.stringify(candidati) : null,
-      regole ? JSON.stringify(regole) : null, note, circa, status, id
-    ];
+    const values = [tipo, zona, datainizio, datafine, circa, id];
     
     const result = await pool.query(query, values);
     
