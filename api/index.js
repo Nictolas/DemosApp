@@ -993,13 +993,43 @@ function calculateOpinioniComuni(user1, user2) {
   return opinioniComuni;
 }
 
+// Endpoint di debug per verificare se l'utente è admin
+app.get('/api/debug/check-admin', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Verifica admin per utente ID:', req.user.userId);
+    
+    const admin = await isRequesterAdmin(req.user.userId);
+    console.log('🔍 DEBUG: Risultato verifica admin:', admin);
+    
+    // Ottieni anche i dati dell'utente per debug
+    const userResult = await pool.query('SELECT id, email, nome, cognome, ruolo FROM users WHERE id = $1', [req.user.userId]);
+    const userData = userResult.rows[0] || null;
+    
+    res.json({
+      success: true,
+      data: {
+        isAdmin: admin,
+        user: userData
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore verifica admin:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore verifica admin'
+    });
+  }
+});
+
 // Endpoint per ottenere tutti gli utenti (Gestisci Utenti)
 app.get('/api/utenti', verifyToken, async (req, res) => {
   try {
-    console.log('👥 DEBUG: Richiesta lista utenti');
+    console.log('👥 DEBUG: Richiesta lista utenti da utente ID:', req.user.userId);
     
     // Verifica che l'utente sia Admin usando la funzione corretta
     const admin = await isRequesterAdmin(req.user.userId);
+    console.log('🔍 DEBUG: Risultato verifica admin:', admin);
+    
     if (!admin) {
       console.log('❌ DEBUG: Accesso negato - utente non admin');
       return res.status(403).json({
@@ -1008,14 +1038,22 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
       });
     }
     
-    // Prima prova a prendere da utenti
-    let result = await pool.query('SELECT id, email, nome, cognome, ruolo, status, created_at FROM utenti ORDER BY created_at DESC');
+    console.log('✅ DEBUG: Utente è admin, procedo con il caricamento');
     
-    if (result.rows.length === 0) {
-      console.log('🔍 DEBUG: Tabella utenti vuota, provo users');
-      // Se utenti è vuoto, prova users
-      result = await pool.query('SELECT id, email, nome, cognome, ruolo, status, created_at FROM users ORDER BY created_at DESC');
-    }
+    // Carica tutti gli utenti dalla tabella users con tutte le colonne tranne le opinioni
+    const result = await pool.query(`
+      SELECT 
+        id, email, nome, cognome, ruolo, status, created_at, updated_at,
+        avatar_config, firestore_uid, auth_provider,
+        grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+        paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+        rappresentante_europeo, rappresentante_camera, rappresentante_senato, 
+        rappresentante_regionale, rappresentante_comune,
+        candidato_europeo, candidato_camera, candidato_senato, 
+        candidato_regionale, candidato_comune
+      FROM users 
+      ORDER BY created_at DESC
+    `);
     
     console.log('✅ DEBUG: Trovati', result.rows.length, 'utenti');
     
