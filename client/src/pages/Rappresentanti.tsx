@@ -155,7 +155,12 @@ export default function Rappresentanti() {
             <Card className="p-8 text-center"><CardContent><h2 className="text-xl font-semibold text-red-600">Errore nel caricamento</h2><p>Impossibile caricare i tuoi rappresentanti.</p></CardContent></Card>
           ) : (
             <>
-
+              {/* Debug info */}
+              <div className="mb-4 p-4 bg-yellow-100 border border-yellow-400 rounded">
+                <p><strong>DEBUG:</strong> isLoading={isLoading.toString()}, isError={isError.toString()}</p>
+                <p><strong>DEBUG:</strong> hasData={hasData.toString()}, hasRappresentanti={hasRappresentanti.toString()}</p>
+                <p><strong>DEBUG:</strong> Categorie da renderizzare: {categorie.length}</p>
+              </div>
               
               {/* Card Parlamento Europeo */}
               {(() => {
