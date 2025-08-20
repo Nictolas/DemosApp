@@ -171,21 +171,27 @@ const verifyToken = (req, res, next) => {
 // Funzione per verificare se l'utente è admin
 const isRequesterAdmin = async (userId) => {
   try {
-    console.log('🔍 DEBUG: Ricerca utente con ID:', userId);
+    console.log('🔍 DEBUG isRequesterAdmin: Ricerca utente con ID:', userId);
     
     const result = await pool.query('SELECT ruolo FROM users WHERE id = $1', [userId]);
+    console.log('🔍 DEBUG isRequesterAdmin: Query risultato righe:', result.rows.length);
     
     if (result.rows.length === 0) {
-      console.log('❌ DEBUG: Utente non trovato');
+      console.log('❌ DEBUG isRequesterAdmin: Utente non trovato');
       return false;
     }
     
     const user = result.rows[0];
-    console.log('✅ DEBUG: Utente trovato:', user);
+    console.log('✅ DEBUG isRequesterAdmin: Utente trovato:', user);
+    console.log('🔍 DEBUG isRequesterAdmin: Ruolo utente:', user.ruolo);
+    console.log('🔍 DEBUG isRequesterAdmin: Confronto con "Admin":', user.ruolo === 'Admin');
     
-    return user.ruolo === 'Admin';
+    const isAdmin = user.ruolo === 'Admin';
+    console.log('🔍 DEBUG isRequesterAdmin: Risultato finale:', isAdmin);
+    
+    return isAdmin;
   } catch (error) {
-    console.error('❌ DEBUG: Errore verifica admin:', error);
+    console.error('❌ DEBUG isRequesterAdmin: Errore verifica admin:', error);
     return false;
   }
 };
@@ -1514,17 +1520,31 @@ app.post('/api/utenti/reject', verifyToken, async (req, res) => {
 // Endpoint per eliminare utente
 app.delete('/api/utenti/:id', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG DELETE: Richiesta eliminazione utente');
+    console.log('🔍 DEBUG DELETE: User ID dalla richiesta:', req.user.userId);
+    console.log('🔍 DEBUG DELETE: ID utente da eliminare:', req.params.id);
+    
     const admin = await isRequesterAdmin(req.user.userId);
-    if (!admin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    console.log('🔍 DEBUG DELETE: Verifica admin risultato:', admin);
+    
+    if (!admin) {
+      console.log('❌ DEBUG DELETE: Utente non autorizzato');
+      return res.status(403).json({ success: false, error: 'Non autorizzato' });
+    }
     
     const { id } = req.params;
-    if (!id) return res.status(400).json({ success: false, error: 'ID mancante' });
+    if (!id) {
+      console.log('❌ DEBUG DELETE: ID mancante');
+      return res.status(400).json({ success: false, error: 'ID mancante' });
+    }
     
-    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    console.log('🗑️ DEBUG DELETE: Eseguo query DELETE per utente ID:', id);
+    const deleteResult = await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    console.log('✅ DEBUG DELETE: Query DELETE completata, righe eliminate:', deleteResult.rowCount);
     
-    return res.json({ success: true });
+    return res.json({ success: true, message: `Utente eliminato con successo. Righe eliminate: ${deleteResult.rowCount}` });
   } catch (error) {
-    console.error('Errore delete utente:', error);
+    console.error('❌ DEBUG DELETE: Errore durante eliminazione:', error);
     return res.status(500).json({ success: false, error: 'Errore interno del server' });
   }
 });
