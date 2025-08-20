@@ -74,6 +74,12 @@ export default function GestisciUtenti() {
     pendingUsers: Array.isArray(pendingUsers) ? `${pendingUsers.length} pending` : `Non array: ${typeof pendingUsers}`
   });
 
+  // Debug logging per vedere tutte le colonne disponibili
+  console.log('🔍 DEBUG GestisciUtenti - Colonne disponibili:', {
+    firstUser: utenti?.[0] ? Object.keys(utenti[0]) : 'Nessun utente',
+    totalUsers: utenti?.length || 0
+  });
+
   const approvalMutation = useMutation({
     mutationFn: ({ userId, approve }: { userId: string, approve: boolean }) => {
         const endpoint = approve ? '/api/utenti/approve' : '/api/utenti/reject';
