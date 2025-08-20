@@ -2247,6 +2247,173 @@ app.get('/api/opinioni/stats/:id', async (req, res) => {
   }
 });
 
+// Endpoint per gestire le elezioni
+app.get('/api/elezioni', async (req, res) => {
+  try {
+    console.log('🗳️ DEBUG: Richiesta lista elezioni');
+    
+    const query = `
+      SELECT 
+        id, titolo, descrizione, tipo, zona, 
+        data_inizio, data_fine, status, quorum,
+        candidati, regole, risultati, note, circa,
+        createdAt, updatedAt
+      FROM elezioni 
+      ORDER BY createdAt DESC
+    `;
+    
+    const result = await pool.query(query);
+    console.log('✅ DEBUG: Trovate', result.rows.length, 'elezioni');
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare le elezioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare le elezioni'
+    });
+  }
+});
+
+// Endpoint per creare una nuova elezione
+app.post('/api/elezioni', async (req, res) => {
+  try {
+    const { titolo, descrizione, tipo, zona, data_inizio, data_fine, quorum, candidati, regole, note, circa } = req.body;
+    
+    if (!titolo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Il titolo è obbligatorio'
+      });
+    }
+    
+    const id = `elezione_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const query = `
+      INSERT INTO elezioni (
+        id, titolo, descrizione, tipo, zona, 
+        data_inizio, data_fine, quorum, candidati, 
+        regole, note, circa, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'attiva')
+      RETURNING *
+    `;
+    
+    const values = [
+      id, titolo, descrizione, tipo || 'generale', zona, 
+      data_inizio, data_fine, quorum, 
+      candidati ? JSON.stringify(candidati) : null,
+      regole ? JSON.stringify(regole) : null,
+      note, circa
+    ];
+    
+    const result = await pool.query(query, values);
+    console.log('✅ DEBUG: Elezione creata:', id);
+    
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella creazione elezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione elezione'
+    });
+  }
+});
+
+// Endpoint per aggiornare un'elezione
+app.put('/api/elezioni/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titolo, descrizione, tipo, zona, data_inizio, data_fine, quorum, candidati, regole, note, circa, status } = req.body;
+    
+    const query = `
+      UPDATE elezioni SET 
+        titolo = COALESCE($1, titolo),
+        descrizione = COALESCE($2, descrizione),
+        tipo = COALESCE($3, tipo),
+        zona = COALESCE($4, zona),
+        data_inizio = COALESCE($5, data_inizio),
+        data_fine = COALESCE($6, data_fine),
+        quorum = COALESCE($7, quorum),
+        candidati = COALESCE($8, candidati),
+        regole = COALESCE($9, regole),
+        note = COALESCE($10, note),
+        circa = COALESCE($11, circa),
+        status = COALESCE($12, status),
+        updatedAt = CURRENT_TIMESTAMP
+      WHERE id = $13
+      RETURNING *
+    `;
+    
+    const values = [
+      titolo, descrizione, tipo, zona, data_inizio, data_fine,
+      quorum, candidati ? JSON.stringify(candidati) : null,
+      regole ? JSON.stringify(regole) : null, note, circa, status, id
+    ];
+    
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Elezione non trovata'
+      });
+    }
+    
+    console.log('✅ DEBUG: Elezione aggiornata:', id);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento elezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento elezione'
+    });
+  }
+});
+
+// Endpoint per eliminare un'elezione
+app.delete('/api/elezioni/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = 'DELETE FROM elezioni WHERE id = $1 RETURNING *';
+    const result = await pool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Elezione non trovata'
+      });
+    }
+    
+    console.log('✅ DEBUG: Elezione eliminata:', id);
+    
+    res.json({
+      success: true,
+      message: 'Elezione eliminata con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione elezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione elezione'
+    });
+  }
+});
+
 // Endpoint per ottenere le statistiche dei sondaggi
 app.get('/api/sondaggi/stats', async (req, res) => {
   try {
