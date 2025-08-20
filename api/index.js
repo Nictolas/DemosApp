@@ -324,15 +324,20 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG: Richiesta /api/utenti/me per userId:', req.user.userId);
     const userId = req.user.userId;
     
     // Cerca direttamente nella tabella users (che ha tutti i campi)
+    console.log('🔍 DEBUG: Eseguendo query per userId:', userId);
     const result = await pool.query(
       'SELECT * FROM users WHERE id = $1',
       [userId]
     );
 
+    console.log('✅ DEBUG: Risultato query:', result.rows.length, 'righe trovate');
+
     if (result.rows.length === 0) {
+      console.log('❌ DEBUG: Utente non trovato nel database');
       return res.status(404).json({ success: false, error: 'Utente non trovato' });
     }
 
