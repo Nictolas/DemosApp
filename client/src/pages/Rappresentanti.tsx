@@ -70,13 +70,14 @@ export default function Rappresentanti() {
   const hasData = !!data;
   const hasRappresentanti = data?.rappresentanti && Object.keys(data.rappresentanti).length > 0;
   const hasIdMap = data?.idMap && Object.keys(data.idMap).length > 0;
-  const shouldShowEmpty = !data || (!hasRappresentanti && !hasIdMap);
+  // Rimuovo shouldShowEmpty - mostriamo sempre la pagina anche se non ci sono rappresentanti
+  // const shouldShowEmpty = !data || (!hasRappresentanti && !hasIdMap);
   
   console.log('🔍 DEBUG Rendering conditions:');
   console.log('  hasData:', hasData);
   console.log('  hasRappresentanti:', hasRappresentanti);
   console.log('  hasIdMap:', hasIdMap);
-  console.log('  shouldShowEmpty:', shouldShowEmpty);
+  // console.log('  shouldShowEmpty:', shouldShowEmpty);
 
   if (isAuthLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
