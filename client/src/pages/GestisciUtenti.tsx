@@ -44,17 +44,44 @@ const getDisplayColumns = (users: any[]) => {
   // Filtra le colonne nascoste
   const displayColumns = allColumns.filter(col => !HIDDEN_COLUMNS.includes(col));
   
-  // Aggiungi colonna "Nome Completo" all'inizio
-  const columnsWithFullName = ['nome_completo', ...displayColumns];
-  
   // Ordina le colonne in modo logico
-  const priorityColumns = ['nome_completo', 'email', 'ruolo', 'status'];
+  const priorityColumns = ['email', 'ruolo', 'status'];
   const sortedColumns = [
-    ...priorityColumns.filter(col => columnsWithFullName.includes(col)),
-    ...columnsWithFullName.filter(col => !priorityColumns.includes(col))
+    ...priorityColumns.filter(col => displayColumns.includes(col)),
+    ...displayColumns.filter(col => !priorityColumns.includes(col))
   ];
   
   return sortedColumns;
+};
+
+// Funzione per ottenere il colore del ruolo
+const getRoleColor = (ruolo: string) => {
+  switch (ruolo?.toLowerCase()) {
+    case 'politico':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'candidato':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'candidato politico':
+      return 'bg-purple-100 text-purple-800 border-purple-200';
+    case 'admin':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
+
+// Funzione per ottenere il colore del genere
+const getGenderColor = (genere: string) => {
+  switch (genere?.toLowerCase()) {
+    case 'uomo':
+      return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+    case 'donna':
+      return 'bg-pink-100 text-pink-800 border-pink-200';
+    case 'altro':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
 };
 
 // Funzione per formattare il valore di una colonna
@@ -83,6 +110,27 @@ const formatColumnValue = (value: any, columnName: string, user?: User) => {
   return String(value);
 };
 
+// Funzione per renderizzare il valore con targhette colorate
+const renderColumnValue = (value: any, columnName: string, user?: User) => {
+  if (columnName === 'ruolo' && value) {
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleColor(value)}`}>
+        {value}
+      </span>
+    );
+  }
+  
+  if (columnName === 'genere' && value) {
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getGenderColor(value)}`}>
+        {value}
+      </span>
+    );
+  }
+  
+  return formatColumnValue(value, columnName, user);
+};
+
 export default function GestisciUtenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
@@ -102,7 +150,7 @@ export default function GestisciUtenti() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showEditOpinioniDialog, setShowEditOpinioniDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [sortField, setSortField] = useState<keyof User>('nome_completo');
+  const [sortField, setSortField] = useState<keyof User>('email');
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 20;
@@ -191,15 +239,6 @@ export default function GestisciUtenti() {
        })
              .sort((a, b) => {
          if (!sortField) return 0;
-         
-         // Gestione speciale per la colonna nome_completo
-         if (sortField === 'nome_completo') {
-           const fullNameA = `${a.nome || ''} ${a.cognome || ''}`.toLowerCase();
-           const fullNameB = `${b.nome || ''} ${b.cognome || ''}`.toLowerCase();
-           if (fullNameA < fullNameB) return sortDirection === "asc" ? -1 : 1;
-           if (fullNameA > fullNameB) return sortDirection === "asc" ? 1 : -1;
-           return 0;
-         }
          
          const valA = a[sortField];
          const valB = b[sortField];
@@ -327,89 +366,114 @@ export default function GestisciUtenti() {
               </Card>
             </div>
 
-            {pendingUsers.length > 0 && (
-                <Card className="mb-8 border-0 bg-gradient-to-r from-yellow-50 to-orange-50 shadow-lg">
-                    <CardHeader className="pb-4">
-                        <CardTitle className="text-2xl font-bold text-yellow-700 flex items-center">
-                            <div className="p-2 bg-yellow-500 rounded-lg mr-3">
-                                <AlertCircle className="h-6 w-6 text-white" />
-                            </div>
-                            Richieste di Approvazione ({pendingUsers.length})
-                        </CardTitle>
-                        <CardDescription className="text-yellow-600 text-lg">
-                            ⚠️ Questi utenti attendono la tua approvazione per accedere alla piattaforma
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {pendingUsers.map((pendingUser: any) => (
-                                <Card key={pendingUser.id} className="border-yellow-200 bg-white/80 hover:shadow-md transition-all duration-200">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex-1">
-                                                <h3 className="font-semibold text-gray-900 mb-1">
-                                                    <Link href={`/menu/profilo/${pendingUser.id}?from=utenti`} className="cursor-pointer text-blue-600 hover:underline">
-                                                        {pendingUser.nome} {pendingUser.cognome}
-                                                    </Link>
-                                                </h3>
-                                                <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                                                    <Mail className="h-4 w-4" />
-                                                    <span>{pendingUser.email}</span>
-                                                </div>
-                                                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                                                    <Shield className="h-4 w-4" />
-                                                    <span className="capitalize">{pendingUser.ruolo}</span>
-                                                </div>
-                                            </div>
-                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                                                In Attesa
-                                            </span>
-                                        </div>
-                                        <div className="flex space-x-2 pt-3 border-t border-yellow-100">
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline" 
-                                                className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" 
-                                                onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: false })} 
-                                                disabled={approvalMutation.isPending}
-                                            >
-                                                Rifiuta
-                                            </Button>
-                                            <Button 
-                                                size="sm" 
-                                                className="bg-green-500 hover:bg-green-600" 
-                                                onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: true })} 
-                                                disabled={approvalMutation.isPending}
-                                            >
-                                                Approva
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+            
 
-            {/* Sezione utenti attivi con TABELLA tradizionale */}
-            <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center text-2xl text-gray-800">
-                  <Users className="h-6 w-6 mr-3 text-blue-600" />
-                  Utenti Attivi
-                </CardTitle>
-                <CardDescription className="text-gray-600">
-                  Visualizza e gestisci tutti gli utenti della piattaforma
-                </CardDescription>
-              </CardHeader>
+                         {/* Sezione utenti in attesa con TABELLA tradizionale */}
+             <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg mb-8">
+               <CardHeader className="pb-4">
+                 <CardTitle className="flex items-center text-2xl text-gray-800">
+                   <AlertCircle className="h-6 w-6 mr-3 text-yellow-600" />
+                   Utenti in Attesa
+                 </CardTitle>
+                 <CardDescription className="text-gray-600">
+                   Visualizza e gestisci gli utenti che attendono l'approvazione
+                 </CardDescription>
+               </CardHeader>
+               <CardContent>
+                 {pendingUsers.length > 0 ? (
+                   <div className="overflow-x-auto">
+                     <Table>
+                       <TableHeader>
+                         <TableRow>
+                           <TableHead className="text-left">Nome Completo</TableHead>
+                           <TableHead className="text-left">Email</TableHead>
+                           <TableHead className="text-left">Ruolo</TableHead>
+                           <TableHead className="text-left">Genere</TableHead>
+                           <TableHead className="text-left">Data Creazione</TableHead>
+                           <TableHead className="text-center">Azioni</TableHead>
+                         </TableRow>
+                       </TableHeader>
+                       <TableBody>
+                         {pendingUsers.map((pendingUser: any) => (
+                           <TableRow key={pendingUser.id} className="hover:bg-gray-50">
+                             <TableCell className="max-w-[200px]">
+                               <div className="truncate">
+                                 <Link 
+                                   href={`/menu/profilo/${pendingUser.id}?from=utenti`} 
+                                   className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+                                 >
+                                   {pendingUser.nome} {pendingUser.cognome}
+                                 </Link>
+                               </div>
+                             </TableCell>
+                             <TableCell className="max-w-[200px]">
+                               <div className="truncate">{pendingUser.email}</div>
+                             </TableCell>
+                             <TableCell className="max-w-[150px]">
+                               {renderColumnValue(pendingUser.ruolo, 'ruolo', pendingUser)}
+                             </TableCell>
+                             <TableCell className="max-w-[100px]">
+                               {renderColumnValue(pendingUser.genere, 'genere', pendingUser)}
+                             </TableCell>
+                             <TableCell className="max-w-[150px]">
+                               <div className="truncate">
+                                 {formatColumnValue(pendingUser.created_at, 'created_at')}
+                               </div>
+                             </TableCell>
+                             <TableCell className="text-center">
+                               <div className="flex space-x-2 justify-center">
+                                 <Button 
+                                   size="sm" 
+                                   variant="outline" 
+                                   className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" 
+                                   onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: false })} 
+                                   disabled={approvalMutation.isPending}
+                                 >
+                                   Rifiuta
+                                 </Button>
+                                 <Button 
+                                   size="sm" 
+                                   className="bg-green-500 hover:bg-green-600" 
+                                   onClick={() => approvalMutation.mutate({ userId: pendingUser.id, approve: true })} 
+                                   disabled={approvalMutation.isPending}
+                                 >
+                                   Approva
+                                 </Button>
+                               </div>
+                             </TableCell>
+                           </TableRow>
+                         ))}
+                       </TableBody>
+                     </Table>
+                   </div>
+                 ) : (
+                   <div className="text-center py-8">
+                     <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                     <h3 className="text-lg font-medium text-gray-900 mb-2">Nessun utente in attesa</h3>
+                     <p className="text-gray-500">Tutti gli utenti sono stati approvati</p>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
+
+             {/* Sezione utenti attivi con TABELLA tradizionale */}
+             <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg">
+               <CardHeader className="pb-4">
+                 <CardTitle className="flex items-center text-2xl text-gray-800">
+                   <Users className="h-6 w-6 mr-3 text-blue-600" />
+                   Utenti Attivi
+                 </CardTitle>
+                 <CardDescription className="text-gray-600">
+                   Visualizza e gestisci tutti gli utenti della piattaforma
+                 </CardDescription>
+               </CardHeader>
               <CardContent>
                 {/* Barra di ricerca migliorata */}
                 <div className="flex items-center mb-6">
                   <div className="relative flex-1 max-w-2xl">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                                          <Input 
-                       placeholder="🔍 Cerca utenti per nome completo, email o ruolo..." 
+                       placeholder="🔍 Cerca utenti per nome, email o ruolo..." 
                        className="pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-blue-500 rounded-lg transition-colors" 
                        value={searchTerm} 
                        onChange={(e) => setSearchTerm(e.target.value)} 
@@ -434,8 +498,7 @@ export default function GestisciUtenti() {
                             >
                               <div className="flex items-center space-x-1">
                                                                  <span className="capitalize">
-                                   {column === 'nome_completo' ? 'Nome Completo' :
-                                    column === 'email' ? 'Email' :
+                                   {column === 'email' ? 'Email' :
                                     column === 'ruolo' ? 'Ruolo' :
                                     column === 'status' ? 'Status' :
                                     column === 'created_at' ? 'Data Creazione' :
@@ -495,20 +558,9 @@ export default function GestisciUtenti() {
                           <TableRow key={u.id} className="hover:bg-gray-50">
                             {displayColumns.map((column) => (
                               <TableCell key={column} className="max-w-[200px]">
-                                {column === 'nome_completo' ? (
-                                  <div className="truncate">
-                                    <Link 
-                                      href={`/menu/profilo/${u.id}?from=utenti`} 
-                                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
-                                    >
-                                      {u.nome} {u.cognome}
-                                    </Link>
-                                  </div>
-                                ) : (
-                                  <div className="truncate" title={formatColumnValue(u[column], column)}>
-                                    {formatColumnValue(u[column], column)}
-                                  </div>
-                                )}
+                                <div className="truncate" title={formatColumnValue(u[column], column)}>
+                                  {renderColumnValue(u[column], column, u)}
+                                </div>
                               </TableCell>
                             ))}
                             <TableCell className="text-center">
