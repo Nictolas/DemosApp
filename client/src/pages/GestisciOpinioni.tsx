@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ArrowLeft, Trash2, Plus, Edit, MessageSquare, Check, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Opinione {
   id: string;
   text: string;
+  grado_opinione: string;
 }
 
 interface OpinioneProposta {
@@ -19,6 +21,8 @@ interface OpinioneProposta {
   voti: number;
 }
 
+const GRADI_OPINIONE = ['Europeo', 'Nazionale', 'Regionale', 'Comunale'];
+
 export default function GestisciOpinioni() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
@@ -26,11 +30,13 @@ export default function GestisciOpinioni() {
   
   const [newId, setNewId] = useState("");
   const [newText, setNewText] = useState("");
+  const [newGrado, setNewGrado] = useState("Nazionale");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [editGrado, setEditGrado] = useState("Nazionale");
 
   // 1. Caricamento opinioni ufficiali con React Query
-  const { data: opinioniResponse, isLoading, isError: isOpinioniError } = useQuery<Opinione[]>({
+  const { data: opinioniResponse, isLoading, isError: isOpinioniError } = useQuery<{success: boolean, data: Opinione[]}>({
     queryKey: ['opinioni'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/opinioni');
@@ -69,8 +75,8 @@ export default function GestisciOpinioni() {
   
   // 3. Mutazioni per le opinioni ufficiali
   const addMutation = useMutation({
-    mutationFn: (newData: { id: string; text: string }) => apiRequest('POST', '/api/opinioni', newData),
-    onSuccess: () => { toast({ title: "Successo", description: "Opinione aggiunta." }); setNewId(""); setNewText(""); invalidateAll(); },
+    mutationFn: (newData: { id: string; text: string; grado_opinione: string }) => apiRequest('POST', '/api/opinioni', newData),
+    onSuccess: () => { toast({ title: "Successo", description: "Opinione aggiunta." }); setNewId(""); setNewText(""); setNewGrado("Nazionale"); invalidateAll(); },
     onError: () => toast({ title: "Errore", description: "Impossibile aggiungere l'opinione.", variant: "destructive" }),
   });
 
@@ -81,8 +87,8 @@ export default function GestisciOpinioni() {
   });
   
   const editMutation = useMutation({
-    mutationFn: (updatedData: { id: string; text: string }) => apiRequest('PUT', `/api/opinioni/${updatedData.id}`, { text: updatedData.text }),
-    onSuccess: () => { toast({ title: "Successo", description: "Opinione aggiornata." }); setEditingId(null); setEditText(""); invalidateAll(); },
+    mutationFn: (updatedData: { id: string; text: string; grado_opinione: string }) => apiRequest('PUT', `/api/opinioni/${updatedData.id}`, { text: updatedData.text, grado_opinione: updatedData.grado_opinione }),
+    onSuccess: () => { toast({ title: "Successo", description: "Opinione aggiornata." }); setEditingId(null); setEditText(""); setEditGrado("Nazionale"); invalidateAll(); },
     onError: () => toast({ title: "Errore", description: "Impossibile aggiornare l'opinione.", variant: "destructive" }),
   });
 
@@ -101,7 +107,7 @@ export default function GestisciOpinioni() {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newId.trim() || !newText.trim()) return;
-    addMutation.mutate({ id: newId.trim(), text: newText.trim() });
+    addMutation.mutate({ id: newId.trim(), text: newText.trim(), grado_opinione: newGrado });
   };
 
   const handleDelete = (id: string) => {
@@ -112,7 +118,7 @@ export default function GestisciOpinioni() {
 
   const handleEditSave = () => {
     if (!editingId || !editText.trim()) return;
-    editMutation.mutate({ id: editingId, text: editText.trim() });
+    editMutation.mutate({ id: editingId, text: editText.trim(), grado_opinione: editGrado });
   };
 
   return (
@@ -154,20 +160,47 @@ export default function GestisciOpinioni() {
             : isOpinioniError ? <div className="text-center text-red-500 py-8">Errore nel caricamento delle opinioni.</div>
             : (
               <>
-                <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-2 mb-6 items-center">
-                  <Input placeholder="ID (es. caccia)" value={newId} onChange={e => setNewId(e.target.value)} className="max-w-xs" />
-                  <Input placeholder="Testo (es. Caccia)" value={newText} onChange={e => setNewText(e.target.value)} className="flex-1" />
-                  <Button type="submit" disabled={addMutation.isPending || !newId.trim() || !newText.trim()}>
-                    {addMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}Aggiungi
-                  </Button>
+                <form onSubmit={handleAdd} className="flex flex-col gap-2 mb-6">
+                  <div className="flex flex-col md:flex-row gap-2">
+                    <Input placeholder="ID (es. caccia)" value={newId} onChange={e => setNewId(e.target.value)} className="max-w-xs" />
+                    <Input placeholder="Testo (es. Caccia)" value={newText} onChange={e => setNewText(e.target.value)} className="flex-1" />
+                    <Select onValueChange={setNewGrado} defaultValue={newGrado}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Grado Opinione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GRADI_OPINIONE.map(grado => (
+                          <SelectItem key={grado} value={grado}>{grado}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button type="submit" disabled={addMutation.isPending || !newId.trim() || !newText.trim()}>
+                      {addMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1" />}Aggiungi
+                    </Button>
+                  </div>
                 </form>
                 <div className="space-y-2">
                   {Array.isArray(opinioni) && opinioni.length > 0 ? opinioni.map((op) => (
                     <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-sm">
-                        {editingId === op.id ? (
-                            <Input value={editText} onChange={e => setEditText(e.target.value)} className="flex-1 mr-2"/>
+                                                {editingId === op.id ? (
+                            <div className="flex flex-col md:flex-row gap-2 flex-1">
+                                <Input value={editText} onChange={e => setEditText(e.target.value)} className="flex-1" />
+                                <Select onValueChange={setEditGrado} defaultValue={editGrado}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Grado Opinione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {GRADI_OPINIONE.map(grado => (
+                                            <SelectItem key={grado} value={grado}>{grado}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         ) : (
+                          <div className="flex flex-col">
                             <span className="font-medium">{op.text} <span className="text-xs text-muted-foreground">({op.id})</span></span>
+                            <span className="text-xs text-muted-foreground">Grado: {op.grado_opinione}</span>
+                          </div>
                         )}
                       <div className="flex gap-2">
                         {editingId === op.id ? (
@@ -179,7 +212,7 @@ export default function GestisciOpinioni() {
                           </>
                         ) : (
                           <>
-                            <Button size="sm" variant="outline" onClick={() => {setEditingId(op.id); setEditText(op.text);}}>
+                            <Button size="sm" variant="outline" onClick={() => {setEditingId(op.id); setEditText(op.text); setEditGrado(op.grado_opinione);}}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button size="sm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => handleDelete(op.id)}>

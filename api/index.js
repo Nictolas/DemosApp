@@ -1267,6 +1267,171 @@ app.get('/api/opinioni-proposte', verifyToken, async (req, res) => {
   }
 });
 
+// Endpoint per aggiungere una nuova opinione
+app.post('/api/opinioni', verifyToken, async (req, res) => {
+  try {
+    console.log('➕ DEBUG: Richiesta aggiunta opinione');
+    
+    // Verifica che l'utente sia Admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato: solo Admin'
+      });
+    }
+    
+    const { id, text, grado_opinione } = req.body;
+    
+    if (!id || !text || !grado_opinione) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID, testo e grado opinione sono richiesti'
+      });
+    }
+    
+    // Verifica che il grado sia valido
+    const gradiValidi = ['Europeo', 'Nazionale', 'Regionale', 'Comunale'];
+    if (!gradiValidi.includes(grado_opinione)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Grado opinione non valido'
+      });
+    }
+    
+    // Inserisci la nuova opinione
+    const result = await pool.query(`
+      INSERT INTO opinioni (id, text, grado_opinione, status, created_at)
+      VALUES ($1, $2, $3, 'attiva', CURRENT_TIMESTAMP)
+      RETURNING *
+    `, [id, text, grado_opinione]);
+    
+    console.log('✅ DEBUG: Opinione aggiunta:', result.rows[0]);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiungere opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiungere opinione'
+    });
+  }
+});
+
+// Endpoint per modificare un'opinione
+app.put('/api/opinioni/:id', verifyToken, async (req, res) => {
+  try {
+    console.log('✏️ DEBUG: Richiesta modifica opinione:', req.params.id);
+    
+    // Verifica che l'utente sia Admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato: solo Admin'
+      });
+    }
+    
+    const { text, grado_opinione } = req.body;
+    const opinionId = req.params.id;
+    
+    if (!text || !grado_opinione) {
+      return res.status(400).json({
+        success: false,
+        error: 'Testo e grado opinione sono richiesti'
+      });
+    }
+    
+    // Verifica che il grado sia valido
+    const gradiValidi = ['Europeo', 'Nazionale', 'Regionale', 'Comunale'];
+    if (!gradiValidi.includes(grado_opinione)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Grado opinione non valido'
+      });
+    }
+    
+    // Aggiorna l'opinione
+    const result = await pool.query(`
+      UPDATE opinioni 
+      SET text = $1, grado_opinione = $2, data_modifica = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING *
+    `, [text, grado_opinione, opinionId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    console.log('✅ DEBUG: Opinione modificata:', result.rows[0]);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella modifica opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella modifica opinione'
+    });
+  }
+});
+
+// Endpoint per eliminare un'opinione
+app.delete('/api/opinioni/:id', verifyToken, async (req, res) => {
+  try {
+    console.log('🗑️ DEBUG: Richiesta eliminazione opinione:', req.params.id);
+    
+    // Verifica che l'utente sia Admin
+    const admin = await isRequesterAdmin(req.user.userId);
+    if (!admin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato: solo Admin'
+      });
+    }
+    
+    const opinionId = req.params.id;
+    
+    // Elimina l'opinione
+    const result = await pool.query(`
+      DELETE FROM opinioni 
+      WHERE id = $1
+      RETURNING *
+    `, [opinionId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    console.log('✅ DEBUG: Opinione eliminata:', result.rows[0]);
+    
+    res.json({
+      success: true,
+      message: 'Opinione eliminata con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione opinione'
+    });
+  }
+});
+
 // Endpoint per utenti in attesa di approvazione
 app.get('/api/utenti/pending', verifyToken, async (req, res) => {
   try {
