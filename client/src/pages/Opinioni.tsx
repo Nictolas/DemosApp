@@ -1,215 +1,128 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { Redirect, useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Redirect, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-
-interface Question {
-  id: string;
-  text: string;
-}
-
-interface UserOpinionsData {
-  questions: Question[];
-  userAnswers: Record<string, string>;
-  blocco: {
-    isBlocked: boolean;
-    unlockDate?: string;
-  };
-}
-
-const options = [
-  { value: "Favorevole", color: "bg-green-600 text-white" },
-  { value: "Indeciso", color: "bg-yellow-500 text-white" },
-  { value: "Contrario", color: "bg-red-600 text-white" }
-];
-
-// Mappatura degli ID delle opinioni ai loro argomenti
-const getOpinionTopic = (id: string, questionText: string): string => {
-  // Mappatura per le opinioni base
-  const baseOpinionsMap: Record<string, string> = {
-    'energia_nucleare': 'Energia Nucleare',
-    'sperimentazione_animale': 'Sperimentazione Animale',
-    'legalizzazione_canapa': 'Legalizzazione Canapa',
-    'caccia': 'Caccia',
-    'cittadina_animale': 'Cittadinanza Animale',
-    'eutanasia': 'Eutanasia',
-    'case_chiuse': 'Case Chiuse',
-    'salario_minimo': 'Salario Minimo',
-    'matrimonio_gay': 'Matrimonio Gay',
-    'nato': 'NATO',
-    'omobitransfobia': 'Legge contro l\'omobitransfobia'
-  };
-  
-  // Se è un'opinione base, usa la mappatura
-  if (baseOpinionsMap[id]) {
-    return baseOpinionsMap[id];
-  }
-  
-  // Per le opinioni dinamiche, estrai l'argomento dalla domanda
-  if (questionText) {
-    // Rimuovi "Sei favorevole a" o "Sei favorevole alla" dall'inizio
-    let topic = questionText.replace(/^Sei favorevole (a|alla) /i, '');
-    
-    // Rimuovi il punto interrogativo alla fine
-    topic = topic.replace(/\?$/, '');
-    
-    // Capitalizza la prima lettera
-    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
-    
-    return topic;
-  }
-  
-  // Fallback: usa l'ID
-  return id;
-};
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, ArrowLeft, MessageSquare } from "lucide-react";
+import { PageTransition } from "@/components/PageTransition";
 
 export default function Opinioni() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const [opinions, setOpinions] = useState<Record<string, string>>({});
 
-  // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[]}>({
-    queryKey: ['opinioniQuestions'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list");
-      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      return response.json();
+  if (isAuthLoading) {
+    return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+
+  const categorie = [
+    { 
+      id: "europee", 
+      nome: "Opinioni Europee", 
+      descrizione: "Temi di rilevanza europea",
+      color: "blue",
+      path: "/opinioni-europee"
     },
-    enabled: !!user
-  });
-
-  // 2. Caricamento risposte utente con React Query
-  const { data: userAnswersData, isLoading: isLoadingUserAnswers } = useQuery<{success: boolean, data: Record<string, string>}>({
-    queryKey: ['userOpinions'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni/user-answers");
-      if (!response.ok) throw new Error("Errore nel caricamento delle risposte.");
-      return response.json();
+    { 
+      id: "nazionali", 
+      nome: "Opinioni Nazionali", 
+      descrizione: "Temi di rilevanza nazionale",
+      color: "green",
+      path: "/opinioni-nazionali"
     },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-      // Inizializza lo stato locale con le risposte dell'utente
-      setOpinions(fetchedData.data || {});
-    }
-  });
-
-  // Combina i dati
-  const isLoading = isLoadingQuestions || isLoadingUserAnswers;
-  const questions = questionsData?.data || [];
-  const userAnswers = userAnswersData?.data || {};
-
-  // Sincronizza le opinioni quando userAnswers è disponibile
-  useEffect(() => {
-    if (userAnswers && Object.keys(userAnswers).length > 0) {
-      setOpinions(userAnswers);
-    }
-  }, [userAnswers]);
-
-  // 2. Mutazione per salvare le opinioni
-  const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
-    onSuccess: () => {
-      toast({ title: "Successo", description: "Le tue opinioni sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['userOpinions'] });
-      setTimeout(() => setLocation("/menu"), 1500);
+    { 
+      id: "regionali", 
+      nome: "Opinioni Regionali", 
+      descrizione: "Temi di rilevanza regionale",
+      color: "purple",
+      path: "/opinioni-regionali"
     },
-    onError: (error: any) => {
-      toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
+    { 
+      id: "comunali", 
+      nome: "Opinioni Comunali", 
+      descrizione: "Temi di rilevanza comunale",
+      color: "orange",
+      path: "/opinioni-comunali"
     }
-  });
-
-  const handleOpinionChange = (questionId: string, value: string) => {
-    setOpinions(prev => ({ ...prev, [questionId]: value }));
-  };
-
-  const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
-    
-    // Filtra solo le opinioni che hanno un valore (non null/undefined)
-    const opinionsToSave = Object.fromEntries(
-      Object.entries(opinions).filter(([key, value]) => value !== null && value !== undefined)
-    );
-    
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
-    
-    if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
-      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
-      return;
-    }
-    
-    console.log('✅ DEBUG: Procedo con il salvataggio');
-    saveMutation.mutate(opinionsToSave);
-  };
-
-  if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (!user) return <Redirect to="/auth" />;
-  
-  // Per ora non abbiamo il sistema di blocco, quindi sempre false
-  const blocco = { isBlocked: false, unlockDate: null };
-  const unlockDate = null;
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white" style={{ paddingBottom: '80px' }}>
-      <div className="container mx-auto px-4 py-8">
-        <Card className="w-full max-w-4xl mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Le tue Opinioni</CardTitle>
-            <CardDescription>Esprimi la tua opinione su temi importanti per trovare rappresentanti con idee simili alle tue.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
-            ) : questions.length === 0 ? (
-              <div className="text-center py-8"><p className="text-muted-foreground">Nessuna domanda disponibile.</p></div>
-            ) : (
-              <>
-                {questions.map((question) => (
-                  <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-center">{getOpinionTopic(question.id, question.text)}</h3>
-                    <div className="flex justify-center">
-                      <div className="flex w-full max-w-md">
-                        {options.map((option, idx) => (
-                          <button
-                            key={option.value} type="button"
-                            className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${opinions[question.id] === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-100 z-0'}`}
-                            onClick={() => handleOpinionChange(question.id, option.value)}
-                            disabled={blocco?.isBlocked}
-                          >
-                            {option.value}
-                          </button>
-                        ))}
-                      </div>
+    <PageTransition>
+      <div className="min-h-screen flex flex-col overflow-hidden" style={{ paddingBottom: '80px' }}>
+        <div className="container mx-auto px-4 py-8">
+          <Link href="/menu">
+            <Button variant="ghost" className="mb-4 flex items-center">
+              <ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu
+            </Button>
+          </Link>
+
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Le tue Opinioni</h1>
+            <p className="text-gray-600">Scegli la categoria di opinioni che vuoi esprimere</p>
+          </div>
+
+          {/* Card principale - Opinioni Europee */}
+          <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4">
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+            </svg>
+            <div className="relative z-10 p-6 flex flex-col items-center justify-center">
+              <MessageSquare className="h-12 w-12 text-blue-600 mb-2" />
+              <div className="text-2xl font-bold text-blue-800 mb-1">{categorie[0].nome}</div>
+              <p className="text-blue-600 text-center mb-4">{categorie[0].descrizione}</p>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                onClick={() => setLocation(categorie[0].path)}
+              >
+                Esprimi le tue opinioni
+              </Button>
+            </div>
+          </div>
+          
+          {/* Altre card in griglia 2x2 */}
+          <div className="grid grid-cols-2 gap-2 pb-2">
+            {categorie.slice(1).map((categoria) => {
+              const colorMap = { 
+                green: { bg: "#bbf7d0", text: "#166534", icon: "#16a34a" }, 
+                purple: { bg: "#ede9fe", text: "#581c87", icon: "#9333ea" }, 
+                orange: { bg: "#fef9c3", text: "#92400e", icon: "#ea580c" }
+              };
+              const color = colorMap[categoria.color as keyof typeof colorMap];
+              
+              return (
+                <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
+                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
+                    <MessageSquare className="h-8 md:h-12 w-8 md:w-12 mb-2" style={{ color: color.icon }} />
+                    <div className="text-base md:text-xl font-bold mb-1 text-center leading-tight" style={{ color: color.text }}>
+                      {categoria.nome}
                     </div>
+                    <p className="text-sm text-center mb-3" style={{ color: color.text }}>
+                      {categoria.descrizione}
+                    </p>
+                    <Button 
+                      className="px-4 py-2 text-sm"
+                      style={{ 
+                        backgroundColor: color.icon, 
+                        borderColor: color.icon 
+                      }}
+                      onClick={() => setLocation(categoria.path)}
+                    >
+                      Esprimi opinioni
+                    </Button>
                   </div>
-                ))}
-                <div className="flex justify-center pt-6">
-                  <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
-                    {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
-                  </Button>
                 </div>
-                {blocco?.isBlocked && (
-                  <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
-                    <b>Hai già modificato le opinioni questa settimana.</b><br />
-                    Potrai farlo di nuovo dal: {unlockDate || "-"}
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }
