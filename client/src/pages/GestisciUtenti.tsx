@@ -300,9 +300,9 @@ export default function GestisciUtenti() {
     return <Redirect to="/menu" />;
   }
   
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
-      <div className="w-full px-6">
+     return (
+     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 select-none">
+       <div className="w-full px-6">
         {/* Header moderno con gradiente */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
