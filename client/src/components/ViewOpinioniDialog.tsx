@@ -62,8 +62,10 @@ export function ViewOpinioniDialog({
     }
   };
 
-  // Carica le domande dinamiche
+  // Carica le domande dinamiche solo quando il dialog è aperto
   useEffect(() => {
+    if (!open) return; // Non fare nulla se il dialog non è aperto
+    
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
@@ -86,7 +88,7 @@ export function ViewOpinioniDialog({
       }
     };
     fetchQuestions();
-  }, []);
+  }, [open]); // Dipendenza da 'open' invece che array vuoto
 
   useEffect(() => {
     if (open && utenteId && Array.isArray(questions) && questions.length > 0) {
