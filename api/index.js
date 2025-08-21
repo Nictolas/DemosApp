@@ -72,8 +72,8 @@ const pool = new Pool({
   }
 });
 
-// Configurazione Resend per email
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Configurazione Resend per email (commentato temporaneamente per test)
+// const resend = new Resend(process.env.RESEND_API_KEY);
 console.log('🔍 DEBUG: RESEND_API_KEY =', process.env.RESEND_API_KEY ? 'TROVATA' : 'NON TROVATA');
 
 // Funzione per inviare email di reset password
@@ -87,6 +87,7 @@ async function sendResetPasswordEmail(email, resetUrl, userName) {
       return { success: false, error: 'Email service not configured' };
     }
 
+    /*
     const { data, error } = await resend.emails.send({
       from: 'Demos Community <onboarding@resend.dev>',
       to: [email],
@@ -120,7 +121,9 @@ async function sendResetPasswordEmail(email, resetUrl, userName) {
         </div>
       `
     });
+    */
 
+    /*
     if (error) {
       console.error('❌ Errore invio email Resend:', error);
       return { success: false, error: error.message };
@@ -128,6 +131,11 @@ async function sendResetPasswordEmail(email, resetUrl, userName) {
 
     console.log('✅ Email inviata con successo a:', email);
     return { success: true, data };
+    */
+    
+    // Per ora restituiamo successo senza inviare email
+    console.log('✅ Email temporaneamente disabilitata per test');
+    return { success: true, data: { message: 'Email service temporarily disabled' } };
   } catch (error) {
     console.error('❌ Errore generico invio email:', error);
     return { success: false, error: error.message };
@@ -3096,6 +3104,245 @@ app.get('/api/debug/compare-data', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel confronto dati:', error);
+// ===== ENDPOINTS PER VOTI CAPO DI STATO =====
+
+// GET /api/capo-stato - Ottieni tutti i voti per il capo di stato
+app.get('/api/capo-stato', async (req, res) => {
+  try {
+    console.log('👑 DEBUG: Richiesta voti capo di stato');
+    
+    // Ottieni tutti i voti ordinati per timestamp
+    const votiQuery = `
+      SELECT v.id, v.nome, v.userid, v.timestamp, u.nome as nome_utente, u.cognome as cognome_utente
+      FROM voti_capo_stato v
+      LEFT JOIN users u ON v.userid = u.id
+      ORDER BY v.timestamp DESC
+    `;
+    
+    const votiResult = await pool.query(votiQuery);
+    console.log('✅ DEBUG: Trovati', votiResult.rows.length, 'voti capo di stato');
+    
+    res.json({
+      success: true,
+      data: votiResult.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare voti capo di stato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare voti capo di stato'
+    });
+  }
+});
+
+// GET /api/capo-stato/stats - Ottieni statistiche dei voti per il capo di stato
+app.get('/api/capo-stato/stats', async (req, res) => {
+  try {
+    console.log('📊 DEBUG: Richiesta statistiche voti capo di stato');
+    
+    // Ottieni conteggio voti per candidato
+    const statsQuery = `
+      SELECT nome, COUNT(*) as voti
+      FROM voti_capo_stato
+      GROUP BY nome
+      ORDER BY voti DESC
+    `;
+    
+    const statsResult = await pool.query(statsQuery);
+    console.log('✅ DEBUG: Statistiche calcolate per', statsResult.rows.length, 'candidati');
+    
+    res.json({
+      success: true,
+      data: statsResult.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel calcolare statistiche voti capo di stato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel calcolare statistiche voti capo di stato'
+    });
+  }
+});
+
+// POST /api/capo-stato - Aggiungi un nuovo voto per il capo di stato
+app.post('/api/capo-stato', async (req, res) => {
+  try {
+    console.log('🗳️ DEBUG: Nuovo voto capo di stato');
+    
+    const { nome, userid } = req.body;
+    
+    if (!nome || !userid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome candidato e userid sono obbligatori'
+      });
+    }
+    
+    // Verifica che l'utente esista
+    const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [userid]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    // Inserisci il voto
+    const insertQuery = `
+      INSERT INTO voti_capo_stato (id, nome, userid, timestamp, created_at, updated_at)
+      VALUES (gen_random_uuid(), $1, $2, NOW(), NOW(), NOW())
+      ON CONFLICT (userid, nome) DO UPDATE SET
+        timestamp = NOW(),
+        updated_at = NOW()
+      RETURNING *
+    `;
+    
+    const insertResult = await pool.query(insertQuery, [nome, userid]);
+    console.log('✅ DEBUG: Voto inserito/aggiornato per candidato:', nome);
+    
+    res.json({
+      success: true,
+      data: insertResult.rows[0],
+      message: 'Voto registrato con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'inserimento voto capo di stato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'inserimento del voto'
+    });
+  }
+});
+
+// GET /api/capo-stato/user/:userid - Ottieni i voti di un utente specifico
+app.get('/api/capo-stato/user/:userid', async (req, res) => {
+  try {
+    console.log('👤 DEBUG: Richiesta voti utente capo di stato');
+    
+    const { userid } = req.params;
+    
+    if (!userid) {
+      return res.status(400).json({
+        success: false,
+        error: 'UserID è obbligatorio'
+      });
+    }
+    
+    // Ottieni i voti dell'utente
+    const votiQuery = `
+      SELECT id, nome, timestamp
+      FROM voti_capo_stato
+      WHERE userid = $1
+      ORDER BY timestamp DESC
+    `;
+    
+    const votiResult = await pool.query(votiQuery, [userid]);
+    console.log('✅ DEBUG: Trovati', votiResult.rows.length, 'voti per utente:', userid);
+    
+    res.json({
+      success: true,
+      data: votiResult.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare voti utente capo di stato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare voti utente'
+    });
+  }
+});
+
+// DELETE /api/capo-stato/:id - Rimuovi un voto specifico per ID
+app.delete('/api/capo-stato/:id', async (req, res) => {
+  try {
+    console.log('🗑️ DEBUG: Rimozione voto capo di stato per ID');
+    
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID voto è obbligatorio'
+      });
+    }
+    
+    // Rimuovi il voto
+    const deleteResult = await pool.query('DELETE FROM voti_capo_stato WHERE id = $1 RETURNING *', [id]);
+    
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Voto non trovato'
+      });
+    }
+    
+    console.log('✅ DEBUG: Voto rimosso con ID:', id);
+    
+    res.json({
+      success: true,
+      data: deleteResult.rows[0],
+      message: 'Voto rimosso con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella rimozione voto capo di stato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella rimozione del voto'
+    });
+  }
+});
+
+// DELETE /api/capo-stato/user/:userid/candidato/:nome - Rimuovi un voto specifico di un utente per candidato
+app.delete('/api/capo-stato/user/:userid/candidato/:nome', async (req, res) => {
+  try {
+    console.log('🗑️ DEBUG: Rimozione voto capo di stato per utente e candidato');
+    
+    const { userid, nome } = req.params;
+    
+    if (!userid || !nome) {
+      return res.status(400).json({
+        success: false,
+        error: 'UserID e nome candidato sono obbligatori'
+      });
+    }
+    
+    // Rimuovi il voto
+    const deleteResult = await pool.query(
+      'DELETE FROM voti_capo_stato WHERE userid = $1 AND nome = $2 RETURNING *', 
+      [userid, nome]
+    );
+    
+    if (deleteResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Voto non trovato'
+      });
+    }
+    
+    console.log('✅ DEBUG: Voto rimosso per utente:', userid, 'candidato:', nome);
+    
+    res.json({
+      success: true,
+      data: deleteResult.rows[0],
+      message: 'Voto rimosso con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella rimozione voto capo di stato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella rimozione del voto'
+    });
+  }
+});
+
+
+
     res.status(500).json({
       success: false,
       error: 'Errore nel confronto dati',
