@@ -770,7 +770,7 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
     }
     
     // 1. Ottieni le domande dalla tabella opinioni
-    const questionsResult = await pool.query('SELECT id, text FROM opinioni WHERE status = \'attiva\' ORDER BY created_at DESC');
+    const questionsResult = await pool.query('SELECT id, text FROM opinioni ORDER BY id');
     const questions = questionsResult.rows;
     
     // 2. Ottieni le risposte dell'utente dalla tabella users

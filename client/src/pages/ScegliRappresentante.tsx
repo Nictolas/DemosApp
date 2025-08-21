@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Check, User, ThumbsUp } from "lucide-react";
+import { Loader2, Check, User, ThumbsUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { PageTransition } from "@/components/PageTransition";
@@ -196,12 +196,6 @@ export default function ScegliRappresentante() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col mb-6">
           <div className="flex items-center mb-2">
-            <Button variant="ghost" className="mr-2" asChild>
-              <Link to="/rappresentanti">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Indietro
-              </Link>
-            </Button>
             <h1 className="text-2xl font-bold">Scegli Rappresentante {getTitolo()}</h1>
           </div>
         </div>
