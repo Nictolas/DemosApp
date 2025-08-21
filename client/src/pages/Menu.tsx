@@ -69,33 +69,33 @@ export default function Menu() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white select-none" style={{ paddingBottom: '80px' }}>
+    <div className="h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white select-none overflow-hidden" style={{ paddingBottom: '80px' }}>
       {isLoading ? (
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="container mx-auto px-4 py-8">
-          <Card className="w-full max-w-4xl mx-auto">
-            <CardHeader className="text-center">
+        <div className="container mx-auto px-4 py-4 h-full flex flex-col">
+          <Card className="w-full max-w-4xl mx-auto flex-1 flex flex-col">
+            <CardHeader className="text-center flex-shrink-0 pt-6 pb-4">
               <img 
                 src={appIcon} 
                 alt="Logo Demos" 
-                className={`w-24 h-24 mx-auto mb-4 ${isAdmin ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                className={`w-20 h-20 mx-auto mb-3 ${isAdmin ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                 onClick={isAdmin ? () => setLocation("/gestisci") : undefined}
               />
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+              <CardTitle className="text-2xl font-bold text-gray-800 mb-2">
                 Menu Principale
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-gray-600">
                 Benvenuto nell'applicazione DEMOS. Seleziona un'opzione per continuare.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3 p-6">
+            <CardContent className="grid grid-cols-2 gap-2 p-4 flex-1">
               {/* Altri pulsanti menu con nuova estetica */}
                              <button
                  type="button"
-                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                  onMouseDown={(e) => {
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
@@ -122,16 +122,16 @@ export default function Menu() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                    <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <Vote className="h-8 w-8 text-yellow-600 relative z-10" />
+                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                    <Vote className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Vote className="h-6 w-6 text-yellow-600 relative z-10" />
                   </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Elezioni</div>
                 </div>
               </button>
-                             <button
+                                                           <button
                  type="button"
-                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                  onMouseDown={(e) => {
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
@@ -158,17 +158,17 @@ export default function Menu() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                    <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <Megaphone className="h-8 w-8 text-purple-600 relative z-10" />
+                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                    <Megaphone className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Megaphone className="h-6 w-6 text-purple-600 relative z-10" />
                   </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Strumenti</div>
                 </div>
               </button>
 
-                             <button
+                                                           <button
                  type="button"
-                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                  onMouseDown={(e) => {
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
@@ -195,16 +195,16 @@ export default function Menu() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                    <Bell className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <Bell className="h-8 w-8 text-blue-400 relative z-10" />
+                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                    <Bell className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Bell className="h-6 w-6 text-blue-400 relative z-10" />
                   </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Notifiche</div>
                 </div>
               </button>
-                             <button
+                                                           <button
                  type="button"
-                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                  onMouseDown={(e) => {
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
@@ -231,16 +231,16 @@ export default function Menu() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                    <Vote className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <Vote className="h-8 w-8 text-green-600 relative z-10" />
+                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                    <Vote className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Vote className="h-6 w-6 text-green-600 relative z-10" />
                   </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Vota</div>
                 </div>
               </button>
-                             <button
+                                                           <button
                  type="button"
-                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                  onMouseDown={(e) => {
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
@@ -267,16 +267,16 @@ export default function Menu() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                    <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <Megaphone className="h-8 w-8 text-pink-600 relative z-10" />
+                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                    <Megaphone className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <Megaphone className="h-6 w-6 text-pink-600 relative z-10" />
                   </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Eventi</div>
                 </div>
               </button>
-                             <button
+                                                           <button
                  type="button"
-                 className="relative w-full h-40 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                  onMouseDown={(e) => {
                    e.currentTarget.classList.add('scale-95', 'shadow-md');
                  }}
@@ -303,9 +303,9 @@ export default function Menu() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                    <FileText className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <FileText className="h-8 w-8 text-yellow-600 relative z-10" />
+                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                    <FileText className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <FileText className="h-6 w-6 text-yellow-600 relative z-10" />
                   </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Proponi</div>
                 </div>
