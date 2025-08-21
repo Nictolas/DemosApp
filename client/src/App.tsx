@@ -647,7 +647,7 @@ function App() {
       <AuthProvider>
         <RegistrationProvider>
           <Router />
-          {location !== '/' && !location.startsWith('/reset-password') && <Navbar />}
+          {location !== '/' && !location.startsWith('/reset-password') && !location.startsWith('/auth') && <Navbar />}
           <Toaster />
         </RegistrationProvider>
       </AuthProvider>
