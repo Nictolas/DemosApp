@@ -241,12 +241,14 @@ export default function Rappresentanti() {
             </>
           )}
         </div>
-        <ViewOpinioniDialog
-          open={!!opinioniDialogData} onOpenChange={(open) => !open && setOpinioniDialogData(null)}
-          utenteId={opinioniDialogData?.utenteId || ''}
-          nome={opinioniDialogData?.nome} cognome={opinioniDialogData?.cognome}
-          avatarConfig={opinioniDialogData?.avatarConfig} categoria={opinioniDialogData?.categoria as any}
-        />
+        {opinioniDialogData && (
+          <ViewOpinioniDialog
+            open={!!opinioniDialogData} onOpenChange={(open) => !open && setOpinioniDialogData(null)}
+            utenteId={opinioniDialogData?.utenteId || ''}
+            nome={opinioniDialogData?.nome} cognome={opinioniDialogData?.cognome}
+            avatarConfig={opinioniDialogData?.avatarConfig} categoria={opinioniDialogData?.categoria as any}
+          />
+        )}
 
       </div>
     </PageTransition>
