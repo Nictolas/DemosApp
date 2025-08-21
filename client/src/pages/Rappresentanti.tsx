@@ -163,14 +163,37 @@ export default function Rappresentanti() {
                 const categoria = categorie[0];
                 console.log('🔍 DEBUG: Rendering categoria:', categoria.id, categoria.nome);
                 return (
-                                     <div className="relative w-full rounded-2xl shadow-lg overflow-hidden mb-4 cursor-pointer" onClick={() => setLocation(`/scegli-rappresentante/${categoria.id}`)}>
+                                     <button
+                                       type="button"
+                                       className="relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform mb-4"
+                                       onMouseDown={(e) => {
+                                         e.currentTarget.classList.add('scale-95', 'shadow-md');
+                                       }}
+                                       onMouseUp={(e) => {
+                                         e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                                         setTimeout(() => setLocation(`/scegli-rappresentante/${categoria.id}`), 100);
+                                       }}
+                                       onMouseLeave={(e) => {
+                                         e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                                       }}
+                                       onTouchStart={(e) => {
+                                         e.preventDefault();
+                                         e.currentTarget.classList.add('scale-95', 'shadow-md');
+                                       }}
+                                       onTouchEnd={(e) => {
+                                         e.preventDefault();
+                                         e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                                         setTimeout(() => setLocation(`/scegli-rappresentante/${categoria.id}`), 100);
+                                       }}
+                                       onContextMenu={e => e.preventDefault()}
+                                     >
                     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" /><polygon points="100,20 0,35 0,100 100,100" fill="#fff" /></svg>
                     <div className="relative z-10 p-6 flex flex-col items-center justify-center">
                       <User className="h-12 w-12 text-blue-600 mb-2" />
                       <div className="text-2xl font-bold text-blue-800 mb-1">{categoria.nome}</div>
                       {renderRappresentante(categoria.id)}
                     </div>
-                  </div>
+                  </button>
                 );
               })()}
               
@@ -180,14 +203,38 @@ export default function Rappresentanti() {
                   const colorMap = { green: "#bbf7d0", purple: "#ede9fe", orange: "#fef9c3", teal: "#a7f3d0" };
                   const color = colorMap[categoria.color as keyof typeof colorMap];
                   return (
-                                         <div key={categoria.id} className="relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer" onClick={() => setLocation(`/scegli-rappresentante/${categoria.id}`)}>
+                                         <button
+                                           key={categoria.id}
+                                           type="button"
+                                           className="relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                                           onMouseDown={(e) => {
+                                             e.currentTarget.classList.add('scale-95', 'shadow-md');
+                                           }}
+                                           onMouseUp={(e) => {
+                                             e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                                             setTimeout(() => setLocation(`/scegli-rappresentante/${categoria.id}`), 100);
+                                           }}
+                                           onMouseLeave={(e) => {
+                                             e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                                           }}
+                                           onTouchStart={(e) => {
+                                             e.preventDefault();
+                                             e.currentTarget.classList.add('scale-95', 'shadow-md');
+                                           }}
+                                           onTouchEnd={(e) => {
+                                             e.preventDefault();
+                                             e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                                             setTimeout(() => setLocation(`/scegli-rappresentante/${categoria.id}`), 100);
+                                           }}
+                                           onContextMenu={e => e.preventDefault()}
+                                         >
                       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="100,0 0,0 0,35 100,20" fill={color} /><polygon points="100,20 0,35 0,100 100,100" fill="#fff" /></svg>
                       <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
                         <User className={`h-8 md:h-12 w-8 md:w-12 mb-2 text-${categoria.color}-600`} />
                         <div className={`text-base md:text-xl font-bold mb-1 text-center leading-tight text-${categoria.color}-800`}>{categoria.nome}</div>
                         {renderRappresentante(categoria.id)}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
