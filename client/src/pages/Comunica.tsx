@@ -140,8 +140,20 @@ export default function Comunica() {
   // Submit comunicazione
   const submitComunicazione = useMutation({
     mutationFn: async (data: ComunicaFormData) => {
-      // TODO: Implementare endpoint /api/comunicazioni
-      throw new Error("Funzionalità comunicazioni non ancora implementata");
+      const zona = generateZona();
+      const comunicazioneData = {
+        ...data,
+        zona,
+        isDuplicate: !!existingComunicazione,
+      };
+      
+      const response = await apiRequest("POST", "/api/comunicazioni", comunicazioneData);
+      
+      if (!response.ok) {
+        throw new Error("Errore nell'invio della comunicazione");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -171,8 +183,13 @@ export default function Comunica() {
   // Submit nuovo evento
   const submitEvento = useMutation({
     mutationFn: async (data: EventoFormData) => {
-      // TODO: Implementare endpoint /api/eventi
-      throw new Error("Funzionalità eventi non ancora implementata");
+      const response = await apiRequest("POST", "/api/eventi", data);
+      
+      if (!response.ok) {
+        throw new Error("Errore nell'invio del evento");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -381,7 +398,7 @@ export default function Comunica() {
         </div>
 
         {/* Ultima Votazione Section */}
-        {ultimaComunicazione && (
+        {ultimaComunicazione?.comunicazione && (
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
               <CardTitle className="text-xl font-bold">Ultima Votazione</CardTitle>
@@ -393,7 +410,7 @@ export default function Comunica() {
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-3">
                 <div>
                   <span className="font-medium">Titolo:</span>
-                  <p className="text-sm mt-1">{ultimaComunicazione.titolo}</p>
+                  <p className="text-sm mt-1">{ultimaComunicazione.comunicazione.titolo}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -401,14 +418,14 @@ export default function Comunica() {
                     <Badge 
                       variant="outline" 
                       className={`ml-2 ${
-                        ultimaComunicazione.voto_dato === "Favorevole" 
+                        ultimaComunicazione.comunicazione.voto_dato === "Favorevole" 
                           ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                          : ultimaComunicazione.voto_dato === "Contrario"
+                          : ultimaComunicazione.comunicazione.voto_dato === "Contrario"
                           ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
                           : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
                       }`}
                     >
-                      {ultimaComunicazione.voto_dato}
+                      {ultimaComunicazione.comunicazione.voto_dato}
                     </Badge>
                   </div>
                   <div>
@@ -416,31 +433,31 @@ export default function Comunica() {
                     <Badge 
                       variant="outline" 
                       className={`ml-2 ${
-                        ultimaComunicazione.vincitore === "Favorevole" 
+                        ultimaComunicazione.comunicazione.vincitore === "Favorevole" 
                           ? "border-green-300 text-green-700 dark:border-green-700 dark:text-green-400"
-                          : ultimaComunicazione.vincitore === "Contrario"
+                          : ultimaComunicazione.comunicazione.vincitore === "Contrario"
                           ? "border-red-300 text-red-700 dark:border-red-700 dark:text-red-400"
                           : "border-yellow-300 text-yellow-700 dark:border-yellow-700 dark:text-yellow-400"
                       }`}
                     >
-                      {ultimaComunicazione.vincitore}
+                      {ultimaComunicazione.comunicazione.vincitore}
                     </Badge>
                   </div>
                 </div>
-                {ultimaComunicazione.commento && (
+                {ultimaComunicazione.comunicazione.commento && (
                   <div>
                     <span className="font-medium text-sm">Commento:</span>
-                    <p className="text-sm mt-1 italic">"{ultimaComunicazione.commento}"</p>
+                    <p className="text-sm mt-1 italic">"{ultimaComunicazione.comunicazione.commento}"</p>
                   </div>
                 )}
                 <div>
                   <span className="font-medium text-sm">Zona:</span>
-                  <p className="text-sm mt-1">{ultimaComunicazione.zona}</p>
+                  <p className="text-sm mt-1">{ultimaComunicazione.comunicazione.zona}</p>
                 </div>
                 <div>
                   <span className="font-medium text-sm">Data:</span>
                   <p className="text-sm mt-1">
-                    {new Date(ultimaComunicazione.data_creazione).toLocaleDateString('it-IT', {
+                    {new Date(ultimaComunicazione.comunicazione.data_creazione).toLocaleDateString('it-IT', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric',
@@ -454,11 +471,11 @@ export default function Comunica() {
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
                       <ThumbsUp className="h-4 w-4 text-green-600" />
-                      <span className="text-sm font-medium">{ultimaComunicazione.likes || 0}</span>
+                      <span className="text-sm font-medium">{ultimaComunicazione.comunicazione.likes || 0}</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <ThumbsDown className="h-4 w-4 text-red-600" />
-                      <span className="text-sm font-medium">{ultimaComunicazione.dislikes || 0}</span>
+                      <span className="text-sm font-medium">{ultimaComunicazione.comunicazione.dislikes || 0}</span>
                     </div>
                   </div>
                 </div>
