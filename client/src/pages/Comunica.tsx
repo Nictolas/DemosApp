@@ -69,29 +69,18 @@ export default function Comunica() {
 
   // Get complete user data including role
   const { data: userData } = useQuery({
-    queryKey: ["/api/users", user?.email],
+    queryKey: ["/api/utenti/me", user?.email],
     queryFn: async () => {
       if (!user?.email) return null;
-      const response = await apiRequest("GET", `/api/users/${encodeURIComponent(user.uid)}`);
+      const response = await apiRequest("GET", `/api/utenti/me`);
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },
     enabled: !!user?.email,
   });
 
-  // Get user's last communication
-  const { data: ultimaComunicazione } = useQuery({
-    queryKey: ["/api/ultima-comunicazione"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", '/api/ultima-comunicazione');
-      if (!response.ok) {
-        if (response.status === 404) return null; // No previous communication
-        throw new Error('Failed to fetch last communication');
-      }
-      return response.json();
-    },
-    enabled: !!user?.email,
-  });
+  // Get user's last communication - temporaneamente disabilitato
+  const ultimaComunicazione = null;
 
   // Generate zona based on user's election data
   const generateZona = () => {
@@ -114,46 +103,17 @@ export default function Comunica() {
     return "Zona non specificata";
   };
 
-  // Check for existing comunicazione
+  // Check for existing comunicazione - temporaneamente disabilitato
   const checkDuplicate = async (titolo: string) => {
-    if (!titolo.trim()) return;
-    
-    setCheckingDuplicate(true);
-    try {
-      const zona = generateZona();
-      const response = await apiRequest("GET", `/api/comunicazioni/check-duplicate?titolo=${encodeURIComponent(titolo)}&zona=${encodeURIComponent(zona)}`);
-      const data = await response.json();
-      
-      if (data.exists) {
-        setExistingComunicazione(data.comunicazione);
-        form.setValue("vincitore", data.comunicazione.vincitore);
-      } else {
-        setExistingComunicazione(null);
-      }
-    } catch (error) {
-      console.error("Errore nel controllo duplicati:", error);
-    } finally {
-      setCheckingDuplicate(false);
-    }
+    // TODO: Implementare endpoint /api/comunicazioni/check-duplicate
+    console.log("Controllo duplicati temporaneamente disabilitato");
   };
 
   // Submit comunicazione
   const submitComunicazione = useMutation({
     mutationFn: async (data: ComunicaFormData) => {
-      const zona = generateZona();
-      const comunicazioneData = {
-        ...data,
-        zona,
-        isDuplicate: !!existingComunicazione,
-      };
-      
-      const response = await apiRequest("POST", "/api/comunicazioni", comunicazioneData);
-      
-      if (!response.ok) {
-        throw new Error("Errore nell'invio della comunicazione");
-      }
-      
-      return response.json();
+      // TODO: Implementare endpoint /api/comunicazioni
+      throw new Error("Funzionalità comunicazioni non ancora implementata");
     },
     onSuccess: () => {
       toast({
@@ -183,13 +143,8 @@ export default function Comunica() {
   // Submit nuovo evento
   const submitEvento = useMutation({
     mutationFn: async (data: EventoFormData) => {
-      const response = await apiRequest("POST", "/api/eventi", data);
-      
-      if (!response.ok) {
-        throw new Error("Errore nell'invio del evento");
-      }
-      
-      return response.json();
+      // TODO: Implementare endpoint /api/eventi
+      throw new Error("Funzionalità eventi non ancora implementata");
     },
     onSuccess: () => {
       toast({
