@@ -1,59 +1,41 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// Configurazione Neon Database
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:[REDACTED_NEON_PASSWORD]@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require'
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 async function checkUsersStructure() {
   try {
-    console.log('🔍 DEBUG: CONTROLLO STRUTTURA TABELLA USERS');
+    console.log('🔍 Controllo struttura tabella users...');
     
-    // Controlla la struttura della tabella
-    const columns = await pool.query(`
-      SELECT column_name, data_type, is_nullable
+    const query = `
+      SELECT column_name, data_type, is_nullable, column_default
       FROM information_schema.columns 
       WHERE table_name = 'users' 
-      ORDER BY ordinal_position
-    `);
+      ORDER BY ordinal_position;
+    `;
     
-    console.log('\n📊 STRUTTURA COLONNE:');
-    columns.rows.forEach(col => {
-      console.log(`${col.column_name}: ${col.data_type} (${col.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'})`);
+    const result = await pool.query(query);
+    console.log('📋 Struttura tabella users:');
+    result.rows.forEach(row => {
+      console.log(`  - ${row.column_name}: ${row.data_type} ${row.is_nullable === 'YES' ? '(nullable)' : '(NOT NULL)'} ${row.column_default ? `[default: ${row.column_default}]` : ''}`);
     });
     
-    // Controlla alcuni utenti esistenti
-    const users = await pool.query(`
-      SELECT id, name, email, created_at 
-      FROM users 
-      LIMIT 5
-    `);
-    
-    console.log('\n📊 PRIMI 5 UTENTI:');
-    users.rows.forEach(user => {
-      console.log(`ID: ${user.id} (tipo: ${typeof user.id})`);
-      console.log(`  Nome: ${user.name}`);
-      console.log(`  Email: ${user.email}`);
-      console.log(`  Creato: ${user.created_at}`);
-      console.log('---');
-    });
-    
-    // Controlla se ci sono utenti con opinioni
-    const usersWithOpinions = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM users 
-      WHERE energia_nucleare IS NOT NULL 
-         OR sperimentazione_animale IS NOT NULL 
-         OR legalizzazione_canapa IS NOT NULL
-    `);
-    
-    console.log(`\n📊 Utenti con opinioni: ${usersWithOpinions.rows[0].count}`);
-    
-    await pool.end();
+    // Cerca specificamente la colonna ID
+    const idColumn = result.rows.find(row => row.column_name.toLowerCase().includes('id'));
+    if (idColumn) {
+      console.log(`\n🎯 Colonna ID trovata: ${idColumn.column_name}`);
+    } else {
+      console.log('\n❌ Nessuna colonna ID trovata');
+    }
     
   } catch (error) {
-    console.error('❌ Errore:', error);
+    console.error('❌ Errore durante il controllo della struttura:', error);
+  } finally {
     await pool.end();
   }
 }
