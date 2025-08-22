@@ -79,8 +79,19 @@ export default function Comunica() {
     enabled: !!user?.email,
   });
 
-  // Get user's last communication - temporaneamente disabilitato
-  const ultimaComunicazione = null;
+  // Get user's last communication
+  const { data: ultimaComunicazione } = useQuery({
+    queryKey: ["/api/ultima-comunicazione"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", '/api/ultima-comunicazione');
+      if (!response.ok) {
+        if (response.status === 404) return null; // No previous communication
+        throw new Error('Failed to fetch last communication');
+      }
+      return response.json();
+    },
+    enabled: !!user?.email,
+  });
 
   // Generate zona based on user's election data
   const generateZona = () => {
@@ -103,10 +114,27 @@ export default function Comunica() {
     return "Zona non specificata";
   };
 
-  // Check for existing comunicazione - temporaneamente disabilitato
+  // Check for existing comunicazione
   const checkDuplicate = async (titolo: string) => {
-    // TODO: Implementare endpoint /api/comunicazioni/check-duplicate
-    console.log("Controllo duplicati temporaneamente disabilitato");
+    if (!titolo.trim()) return;
+    
+    setCheckingDuplicate(true);
+    try {
+      const zona = generateZona();
+      const response = await apiRequest("GET", `/api/comunicazioni/check-duplicate?titolo=${encodeURIComponent(titolo)}&zona=${encodeURIComponent(zona)}`);
+      const data = await response.json();
+      
+      if (data.exists) {
+        setExistingComunicazione(data.comunicazione);
+        form.setValue("vincitore", data.comunicazione.vincitore);
+      } else {
+        setExistingComunicazione(null);
+      }
+    } catch (error) {
+      console.error("Errore nel controllo duplicati:", error);
+    } finally {
+      setCheckingDuplicate(false);
+    }
   };
 
   // Submit comunicazione

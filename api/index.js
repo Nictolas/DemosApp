@@ -2918,6 +2918,216 @@ app.listen(PORT, () => {
   console.log('🌐 API pronto (prefisso: /api)');
 });
 
+// ===== ENDPOINTS PER COMUNICAZIONI =====
+
+// Endpoint per creare una nuova comunicazione
+app.post('/api/comunicazioni', verifyToken, async (req, res) => {
+  try {
+    const { titolo, voto_dato, commento, vincitore, zona } = req.body;
+    const utente_id = req.user.userId;
+
+    // Validazione
+    if (!titolo || !voto_dato || !vincitore || !zona) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tutti i campi obbligatori devono essere forniti'
+      });
+    }
+
+    // Verifica valori validi
+    const votiValidi = ['Favorevole', 'Contrario', 'Astenuto'];
+    if (!votiValidi.includes(voto_dato) || !votiValidi.includes(vincitore)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Voto e vincitore devono essere: Favorevole, Contrario o Astenuto'
+      });
+    }
+
+    // Inserisci la comunicazione
+    const insertQuery = `
+      INSERT INTO comunicazioni (titolo, voto_dato, commento, vincitore, zona, utente_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `;
+
+    const result = await pool.query(insertQuery, [
+      titolo, voto_dato, commento || null, vincitore, zona, utente_id
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Comunicazione creata con successo',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('❌ Errore creazione comunicazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// Endpoint per verificare duplicati di comunicazioni
+app.get('/api/comunicazioni/check-duplicate', verifyToken, async (req, res) => {
+  try {
+    const { titolo, zona } = req.query;
+    const utente_id = req.user.userId;
+
+    if (!titolo || !zona) {
+      return res.status(400).json({
+        success: false,
+        error: 'Titolo e zona sono richiesti'
+      });
+    }
+
+    // Cerca comunicazioni esistenti con stesso titolo e zona
+    const query = `
+      SELECT * FROM comunicazioni 
+      WHERE titolo = $1 AND zona = $2 AND utente_id = $3
+      ORDER BY data_creazione DESC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [titolo, zona, utente_id]);
+
+    if (result.rows.length > 0) {
+      res.json({
+        success: true,
+        exists: true,
+        comunicazione: result.rows[0]
+      });
+    } else {
+      res.json({
+        success: true,
+        exists: false,
+        comunicazione: null
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Errore controllo duplicati:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// Endpoint per ottenere l'ultima comunicazione dell'utente
+app.get('/api/ultima-comunicazione', verifyToken, async (req, res) => {
+  try {
+    const utente_id = req.user.userId;
+
+    const query = `
+      SELECT * FROM comunicazioni 
+      WHERE utente_id = $1
+      ORDER BY data_creazione DESC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [utente_id]);
+
+    if (result.rows.length > 0) {
+      res.json({
+        success: true,
+        comunicazione: result.rows[0]
+      });
+    } else {
+      res.json({
+        success: true,
+        comunicazione: null
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Errore recupero ultima comunicazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER EVENTI =====
+
+// Endpoint per creare un nuovo evento
+app.post('/api/eventi', verifyToken, async (req, res) => {
+  try {
+    const { 
+      nome_evento, tipologia_evento, paese_evento, regione_evento, 
+      provincia_evento, comune_evento, indirizzo_evento, orario_evento, 
+      inizio_evento, fine_evento 
+    } = req.body;
+    const utente_id = req.user.userId;
+
+    // Validazione
+    if (!nome_evento || !tipologia_evento) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome evento e tipologia sono obbligatori'
+      });
+    }
+
+    // Inserisci l'evento
+    const insertQuery = `
+      INSERT INTO eventi (
+        nome_evento, tipologia_evento, paese_evento, regione_evento,
+        provincia_evento, comune_evento, indirizzo_evento, orario_evento,
+        inizio_evento, fine_evento
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *
+    `;
+
+    const result = await pool.query(insertQuery, [
+      nome_evento, tipologia_evento, paese_evento || null, regione_evento || null,
+      provincia_evento || null, comune_evento || null, indirizzo_evento || null,
+      orario_evento || null, inizio_evento || null, fine_evento || null
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Evento creato con successo',
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('❌ Errore creazione evento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// Endpoint per ottenere tutti gli eventi
+app.get('/api/eventi', async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM eventi 
+      ORDER BY inizio_evento DESC, nome_evento ASC
+    `;
+
+    const result = await pool.query(query);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error('❌ Errore recupero eventi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// ===== FINE ENDPOINTS =====
+
 module.exports = app;
 
 
