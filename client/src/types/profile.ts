@@ -2,6 +2,7 @@ export type UserInfo = {
   id?: string;
   nome: string;
   cognome: string;
+  email: string;
   data_nascita: string;
   genere: string;
   cittadinanza: string;

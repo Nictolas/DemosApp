@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { apiRequest } from "@/lib/queryClient";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { UserInfo } from "@/types/profile";
 
@@ -21,44 +20,17 @@ export function ProfileCandidates({ userInfo }: ProfileCandidatesProps) {
     };
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
-    for (const [key, uid] of Object.entries(candidates)) {
-      if (uid && typeof uid === 'string') {
-        try {
-          const response = await apiRequest("GET", `/api/users/${encodeURIComponent(uid)}`);
-          if (response.ok) {
-            const userData = await response.json();
-            names[key] = `${userData.nome} ${userData.cognome}`;
-            if (userData.avatar_config) {
-              try {
-                const avatarConfig = JSON.parse(userData.avatar_config);
-                const updatedConfig = {
-                  skinColor: avatarConfig.skinColor || "#FDBCB4",
-                  hairColor: avatarConfig.hairColor || "#8B4513",
-                  hairStyle: avatarConfig.hairStyle || "short",
-                  mustacheStyle: avatarConfig.mustacheStyle || (avatarConfig.mustache ? "classic" : "none"),
-                  mustacheColor: avatarConfig.mustacheColor || "#2C1810",
-                  beardStyle: avatarConfig.beardStyle || "none",
-                  beardColor: avatarConfig.beardColor || "#2C1810",
-                  noseStyle: avatarConfig.noseStyle || "normal",
-                  suitColor: avatarConfig.suitColor || "#2C3E50",
-                  tieColor: avatarConfig.tieColor || "#E74C3C"
-                };
-                avatars[key] = updatedConfig;
-              } catch (error) {
-                console.error("Errore nel parsing dell'avatar del candidato:", error);
-              }
-            }
-          } else {
-            names[key] = "Non selezionato";
-          }
-        } catch (error) {
-          console.error(`Errore nel recupero dati per ${uid}:`, error);
-          names[key] = "Non selezionato";
-        }
+    
+    // Per ora, mostra solo i nomi se sono presenti nei dati utente
+    // In futuro potremmo implementare una chiamata API per ottenere i dettagli completi
+    for (const [key, value] of Object.entries(candidates)) {
+      if (value && typeof value === 'string') {
+        names[key] = value; // Usa direttamente il valore se è già un nome
       } else {
         names[key] = "Non selezionato";
       }
     }
+    
     setCandidateNames(names);
     setCandidateAvatars(avatars);
   };

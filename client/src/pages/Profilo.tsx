@@ -9,45 +9,14 @@ import { EditProfileForm } from "@/components/EditProfileForm";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuthReady } from "@/hooks/use-auth-ready";
+import { UserInfo } from "@/types/profile";
 
 // === AGGIUNTO ===
 // Importa i componenti che sostituiscono le parti rimosse
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
 
-
 // --- LASCIATO IDENTICO ---
-export type UserInfo = {
-  id?: string;
-  nome: string;
-  cognome: string;
-  data_nascita: string;
-  genere: string;
-  cittadinanza: string;
-  ruolo: string;
-  paese_residenza: string;
-  regione_residenza: string;
-  provincia_residenza: string;
-  comune_residenza: string;
-  paese_elezione?: string;
-  regione_elezione?: string;
-  provincia_elezione?: string;
-  comune_elezione?: string;
-  grado_elezione?: string;
-  paese_candidatura?: string;
-  regione_candidatura?: string;
-  provincia_candidatura?: string;
-  comune_candidatura?: string;
-  grado_candidatura?: string;
-  energia_nucleare?: string;
-  sperimentazione_animale?: string;
-  legalizzazione_canapa?: string;
-  caccia?: string;
-  avatar_config?: string;
-  status?: string;
-  [key: string]: any;
-};
-
 export default function Profilo({ userId }: { userId?: string }) {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
@@ -62,7 +31,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   // const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
   // const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
   // const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
-  // const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
+  // const [candidateAvatars, setCandidateNames] = useState<Record<string, any>>({});
   
   // --- LASCIATO IDENTICO ---
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
@@ -72,137 +41,146 @@ export default function Profilo({ userId }: { userId?: string }) {
 
   const fromGestisciUtenti = typeof window !== 'undefined' && (window.location.search.includes('from=utenti') || window.location.hash.includes('from=utenti'));
 
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
-        const res = await apiRequest("GET", "/opinioni/profile");
-        if (!res.ok) throw new Error();
-        const result = await res.json();
-        if (result.success && result.data) {
-          setOpinionQuestions(Array.isArray(result.data.questions) ? result.data.questions : []);
-          // Aggiorna anche le opinioni dell'utente
-          if (result.data.userAnswers) {
-            setUserOpinions(result.data.userAnswers);
-          }
-        } else {
-          setOpinionQuestions([]);
-        }
-      } catch {
-        setOpinionQuestions([]);
+  // === RIFATTORIZZATO ===
+  // Funzione unificata per caricare tutti i dati del profilo
+  const fetchAllProfileData = async () => {
+    if (!user) return;
+    
+    setIsLoadingInfo(true);
+    setError(null);
+    
+    try {
+      console.log('🔍 DEBUG Profilo - Iniziando caricamento dati profilo...');
+      
+      // 1. Carica dati utente
+      console.log('🔍 DEBUG Profilo - Caricando dati utente...');
+      const userResponse = await apiRequest("GET", "/utenti/me");
+      if (!userResponse.ok) {
+        throw new Error(`Errore nel caricamento dati utente: ${userResponse.status}`);
       }
-    };
-    fetchQuestions();
-  }, []);
+      
+      const userResult = await userResponse.json();
+      console.log('🔍 DEBUG Profilo - Risposta API utente:', userResult);
+      
+      if (!userResult.success) {
+        throw new Error(userResult.message || 'Errore nel caricamento dati utente');
+      }
+      
+      const userData = userResult.data || userResult;
+      console.log('🔍 DEBUG Profilo - Dati utente estratti:', userData);
+      
+      setUserInfo(userData as UserInfo);
+      
+      // 2. Carica opinioni utente
+      console.log('🔍 DEBUG Profilo - Caricando opinioni utente...');
+      const userOpinionsData: Record<string, string> = {};
+      
+      // Opinion base dal database
+      const baseOpinions = ['energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia'];
+      baseOpinions.forEach(opinion => {
+        if (userData[opinion]) {
+          userOpinionsData[opinion] = userData[opinion];
+        }
+      });
+      
+      setUserOpinions(userOpinionsData);
+      
+      // 3. Carica domande opinioni
+      console.log('🔍 DEBUG Profilo - Caricando domande opinioni...');
+      try {
+        const opinionsResponse = await apiRequest("GET", "/opinioni/profile");
+        if (opinionsResponse.ok) {
+          const opinionsResult = await opinionsResponse.json();
+          if (opinionsResult.success && opinionsResult.data) {
+            setOpinionQuestions(Array.isArray(opinionsResult.data.questions) ? opinionsResult.data.questions : []);
+            // Aggiorna anche le opinioni dell'utente
+            if (opinionsResult.data.userAnswers) {
+              setUserOpinions(prev => ({ ...prev, ...opinionsResult.data.userAnswers }));
+            }
+          }
+        }
+      } catch (opinionsError) {
+        console.warn('⚠️ Avviso: Errore nel caricamento opinioni (non critico):', opinionsError);
+        // Non bloccare il caricamento per questo errore
+      }
+      
+      // 4. Carica governo ideale
+      console.log('🔍 DEBUG Profilo - Caricando governo ideale...');
+      try {
+        const governoResponse = await apiRequest("GET", "/governo/voti");
+        if (governoResponse.ok) {
+          const governoResult = await governoResponse.json();
+          if (governoResult.success && governoResult.voti) {
+            const voti = governoResult.voti;
+            const votiGoverno: Record<string, string> = {};
+            
+            // Converti i voti in un oggetto categoria -> candidato
+            voti.forEach((voto: any) => {
+              if (voto.categoria && voto.nome_ministro) {
+                votiGoverno[voto.categoria] = voto.nome_ministro;
+              }
+            });
+            
+            setGovernoIdeale(votiGoverno);
+          }
+        }
+      } catch (governoError) {
+        console.warn('⚠️ Avviso: Errore nel caricamento governo (non critico):', governoError);
+        // Non bloccare il caricamento per questo errore
+      }
+      
+      // 5. Carica configurazione avatar
+      if (userData.avatar_config) {
+        try {
+          const config = JSON.parse(userData.avatar_config);
+          const updatedConfig = {
+            skinColor: config.skinColor || "#FDBCB4",
+            hairColor: config.hairColor || "#8B4513",
+            hairStyle: config.hairStyle || "short",
+            mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
+            mustacheColor: config.mustacheColor || "#2C3E50",
+            beardStyle: config.beardStyle || "none",
+            beardColor: config.beardColor || "#2C3E50",
+            noseStyle: config.noseStyle || "normal",
+            suitColor: config.suitColor || "#2C3E50",
+            tieColor: config.tieColor || "#E74C3C"
+          };
+          setAvatarConfig(updatedConfig);
+        } catch (error) {
+          console.error("Errore nel parsing della configurazione avatar:", error);
+        }
+      }
+      
+      console.log('✅ DEBUG Profilo - Caricamento completato con successo');
+      
+    } catch (error) {
+      console.error('❌ DEBUG Profilo - Errore nel caricamento:', error);
+      setError(error instanceof Error ? error.message : "Errore nel caricamento dei dati del profilo");
+      setUserInfo(null);
+    } finally {
+      setIsLoadingInfo(false);
+    }
+  };
+
+  // === RIFATTORIZZATO ===
+  // useEffect unificato per caricare i dati quando l'utente è disponibile
+  useEffect(() => {
+    if (user && authReady) {
+      fetchAllProfileData();
+    } else if (!user && !isLoading) {
+      setIsLoadingInfo(false);
+    }
+  }, [user, authReady]);
 
   // === CANCELLATO ===
   // const fetchRepresentativeNames = async (userInfo: any) => { ... };
   // const fetchCandidateNames = async (userInfo: any) => { ... };
 
-  // --- LASCIATO IDENTICO ---
-  const fetchGovernoIdeale = async () => {
-    if (!user) return;
-    
-    try {
-      const response = await apiRequest("GET", `/governo/voti`);
-      
-      if (response.ok) {
-        const result = await response.json();
-        // Estrai i voti dalla struttura della risposta
-        const voti = result.voti || [];
-        const votiGoverno: Record<string, string> = {};
-        
-        // Converti i voti in un oggetto categoria -> candidato
-        voti.forEach((voto: any) => {
-          if (voto.categoria && voto.nome_ministro) {
-            votiGoverno[voto.categoria] = voto.nome_ministro;
-          }
-        });
-        
-        setGovernoIdeale(votiGoverno);
-      }
-    } catch (error) {
-      console.error('Errore nel recupero delle selezioni di governo:', error);
-    }
-  };
+  // === CANCELLATO ===
+  // const fetchGovernoIdeale = async () => { ... };
 
-  useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const response = await apiRequest("GET", `/utenti/me`);
-        if (response.ok) {
-                  const result = await response.json();
-        console.log('🔍 DEBUG Profilo - API response:', result);
-        const userData = result?.data || result;
-        console.log('🔍 DEBUG Profilo - userData:', userData);
-          setUserInfo(userData as UserInfo);
-          
-          // Carica le opinioni dell'utente
-          const userOpinionsData: Record<string, string> = {};
-          
-          // Opinion base dal database
-          const baseOpinions = ['energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia'];
-          baseOpinions.forEach(opinion => {
-            if (userData[opinion]) {
-              userOpinionsData[opinion] = userData[opinion];
-            }
-          });
-          
-          // Opinion dinamiche se ci sono domande caricate
-          if (Array.isArray(opinionQuestions) && opinionQuestions.length > 0) {
-            opinionQuestions.forEach(q => {
-              if (userData[q.id]) {
-                userOpinionsData[q.id] = userData[q.id];
-              }
-            });
-          }
-          
-          setUserOpinions(userOpinionsData);
-          
-          if (userData.avatar_config) {
-            try {
-              const config = JSON.parse(userData.avatar_config);
-              const updatedConfig = {
-                skinColor: config.skinColor || "#FDBCB4",
-                hairColor: config.hairColor || "#8B4513",
-                hairStyle: config.hairStyle || "short",
-                mustacheStyle: config.mustacheStyle || (config.mustache ? "classic" : "none"),
-                mustacheColor: config.mustacheColor || "#2C1810",
-                beardStyle: config.beardStyle || "none",
-                beardColor: config.beardColor || "#2C1810",
-                noseStyle: config.noseStyle || "normal",
-                suitColor: config.suitColor || "#2C3E50",
-                tieColor: config.tieColor || "#E74C3C"
-              };
-              setAvatarConfig(updatedConfig);
-            } catch (error) {
-              console.error("Errore nel parsing della configurazione avatar:", error);
-            }
-          }
-          
-          // === CANCELLATO ===
-          // await fetchRepresentativeNames(userData);
-          // await fetchCandidateNames(userData);
-          
-          // --- LASCIATO IDENTICO ---
-          await fetchGovernoIdeale();
-        } else {
-          setError("Utente non trovato o non esistente.");
-          setUserInfo(null);
-        }
-      } catch (error) {
-        console.error("Errore:", error);
-        setError("Errore nel caricamento dei dati del profilo");
-      } finally {
-        setIsLoadingInfo(false);
-      }
-    };
-
-    if (user) {
-      fetchUserInfo();
-    } else {
-      setIsLoadingInfo(false);
-    }
-  }, [user, opinionQuestions]);
+  // === CANCELLATO ===
+  // useEffect separato per fetchUserInfo
 
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
@@ -287,24 +265,29 @@ export default function Profilo({ userId }: { userId?: string }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 p-4">
       <div className="container mx-auto max-w-4xl space-y-4">
-        {/* --- Tutto questo blocco fino alla sezione opinioni è IDENTICO --- */}
+        {/* === RIFATTORIZZATO === */}
+        {/* Gestione stati di caricamento e errore unificata */}
         {isLoading || isLoadingInfo ? (
-            <div className="flex items-center justify-center min-h-[80vh]">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center min-h-[80vh]">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-lg text-gray-600">Caricamento profilo...</p>
             </div>
+          </div>
         ) : error ? (
-            <div className="flex items-center justify-center min-h-[80vh]">
-              <div className="text-center text-red-500 text-lg font-semibold">{error}</div>
+          <div className="flex items-center justify-center min-h-[80vh]">
+            <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-red-300">
+              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-bold mb-2 text-red-700">Errore nel caricamento</h2>
+              <p className="text-gray-700 mb-4">{error}</p>
+              <Button 
+                onClick={fetchAllProfileData}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Riprova
+              </Button>
             </div>
-        ) : userInfo && userInfo.status === 'pending' ? (
-            <div className="flex items-center justify-center min-h-[80vh]">
-              <div className="text-center max-w-md mx-auto p-8 bg-white rounded-lg shadow-md border border-yellow-300">
-                <Loader2 className="h-10 w-10 animate-spin text-yellow-500 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2 text-yellow-700">Profilo in fase di approvazione</h2>
-                <p className="text-gray-700 mb-2">Il tuo profilo è in fase di approvazione da parte di un amministratore.</p>
-                <p className="text-gray-500 text-sm">Riceverai una notifica appena il tuo account sarà attivo. Attendi la conferma prima di poter accedere alle funzionalità della piattaforma.</p>
-              </div>
-            </div>
+          </div>
         ) : userInfo && user ? (
           <>
             <Button 
@@ -328,7 +311,7 @@ export default function Profilo({ userId }: { userId?: string }) {
               <CardContent>
                 {isEditing ? (
                     <EditProfileForm 
-                      userData={{...userInfo, uid: user.uid}} 
+                      userData={{...userInfo, uid: user.id}} 
                       onProfileUpdated={async () => {
                         toast({
                           title: "Profilo aggiornato",
@@ -336,8 +319,7 @@ export default function Profilo({ userId }: { userId?: string }) {
                         });
                         setIsEditing(false);
                         // Ricarica i dati dopo la modifica
-                        const uidToFetch = userId || user?.uid;
-                        if(uidToFetch) fetchPageData(uidToFetch);
+                        await fetchAllProfileData();
                       }}
                       onCancel={() => setIsEditing(false)}
                     />
@@ -346,7 +328,7 @@ export default function Profilo({ userId }: { userId?: string }) {
                       <div>
                         <h3 className="text-lg font-medium mb-2">Informazioni personali</h3>
                         <div className="space-y-2">
-                                                     <p><strong>Nome:</strong> {userInfo.nome}</p>
+                          <p><strong>Nome:</strong> {userInfo.nome}</p>
                           <p><strong>Cognome:</strong> {userInfo.cognome}</p>
                           <p><strong>Data di nascita:</strong> {userInfo.data_nascita}</p>
                           <p><strong>Genere:</strong> {userInfo.genere}</p>
@@ -397,12 +379,14 @@ export default function Profilo({ userId }: { userId?: string }) {
                 {!isEditing && (
                   <>
                     {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
-                      <Button variant="outline" onClick={() => window.location.href = "/modifica-immagine"}>
-                        <Image className="mr-2 h-4 w-4" /> Modifica Immagine
+                      <Button variant="outline" onClick={() => window.location.href = `/modifica-immagine?uid=${user.id}`}>
+                        <Image className="mr-2 h-4 w-4" />
+                        Modifica Immagine
                       </Button>
                     )}
                     <Button onClick={() => setIsEditing(true)}>
-                      <Edit className="mr-2 h-4 w-4" /> Modifica Profilo
+                      <Edit className="mr-2 h-4 w-4" />
+                      Modifica Profilo
                     </Button>
                   </>
                 )}

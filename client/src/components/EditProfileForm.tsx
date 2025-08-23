@@ -11,7 +11,7 @@ import { ITALY_DATA } from "@/data/italyData";
 import { apiRequest } from "@/lib/queryClient";
 
 interface EditProfileFormProps {
-  userData: UserInfo & { email: string };
+  userData: UserInfo & { uid: string };
   onProfileUpdated: (updatedData: UserInfo) => void;
   onCancel: () => void;
   isAdmin?: boolean;
@@ -35,7 +35,7 @@ function normalizeDate(dateStr?: string): string {
 export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin = false }: EditProfileFormProps) {
   const { toast } = useToast();
   // Inizializza formData normalizzando la data di nascita
-  const [formData, setFormData] = useState<UserInfo & { email: string }>({
+  const [formData, setFormData] = useState<UserInfo & { uid: string }>({
     ...userData,
     data_nascita: normalizeDate(userData.data_nascita),
   });
@@ -55,7 +55,7 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
   const [selectedProvinciaCandidatura, setSelectedProvinciaCandidatura] = useState(userData.provincia_candidatura || "");
 
   // Funzione generica per aggiornare il formData
-  const handleChange = (field: keyof (UserInfo & { email: string }), value: string) => {
+  const handleChange = (field: keyof (UserInfo & { uid: string }), value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
