@@ -8,7 +8,7 @@ import { Loader2, ArrowLeft, Crown, Vote, Trophy, Plus, X, ThumbsUp } from "luci
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -31,10 +31,7 @@ export default function CapodiStato() {
   const [nomeInput, setNomeInput] = useState("");
   const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showClassifica, setShowClassifica] = useState(false);
-  const [showAdDialog, setShowAdDialog] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
-  const [videoTimer, setVideoTimer] = useState(60);
+  const [showAllClassifica, setShowAllClassifica] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // 1. Caricamento dati con React Query (come Grazia)
@@ -45,11 +42,15 @@ export default function CapodiStato() {
       if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
       return response.json();
     },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-      setSelectedVoti(fetchedData.mieiVoti || []);
-    }
+    enabled: !!user
   });
+
+  // Effect per aggiornare selectedVoti quando i dati arrivano
+  useEffect(() => {
+    if (data?.mieiVoti) {
+      setSelectedVoti(data.mieiVoti);
+    }
+  }, [data]);
 
   // 2. Mutazione per salvare i voti (come Grazia)
   const saveVotiMutation = useMutation({
@@ -96,19 +97,8 @@ export default function CapodiStato() {
       .slice(0, 5);
   };
   
-  // Logica per Pubblicità e Classifica (invariata)
-  const handleShowClassifica = () => setShowAdDialog(true);
-  const handleApproveAd = () => {
-    setShowAdDialog(false);
-    setShowVideo(true);
-    setVideoTimer(60);
-    const interval = setInterval(() => {
-      setVideoTimer(prev => {
-        if (prev <= 1) { clearInterval(interval); setShowVideo(false); setShowClassifica(true); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-  };
+  // Logica per espandere la classifica
+  const handleShowClassifica = () => setShowAllClassifica(!showAllClassifica);
 
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -194,16 +184,136 @@ export default function CapodiStato() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
-                <CardDescription>I candidati che hanno ricevuto più voti</CardDescription>
+                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Candidati</span></CardTitle>
+                <CardDescription>I candidati che hanno ricevuto più voti ({data?.classifica?.length || 0} totali)</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center">
-                  <Button onClick={handleShowClassifica} variant="outline" className="mb-4">
-                    <Trophy className="h-4 w-4 mr-2" />
-                    Visualizza Classifica
-                  </Button>
-                </div>
+                {data?.classifica && data.classifica.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Primi 3 candidati sempre visibili */}
+                    <div className="space-y-3">
+                      {data.classifica.slice(0, 3).map((item, index) => (
+                        <div 
+                          key={item.nome} 
+                          className="group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-gray-800 text-lg group-hover:text-yellow-800 transition-colors duration-300">{item.nome}</h4>
+                              <p className="text-sm text-gray-600 flex items-center">
+                                <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                                {item.voti} voti
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => toggleSelezione(item.nome)}
+                            disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
+                            className={`transition-all duration-300 ${
+                              selectedVoti.includes(item.nome) 
+                                ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
+                                : "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
+                            }`}
+                          >
+                            {selectedVoti.includes(item.nome) ? (
+                              <>
+                                <ThumbsUp className="h-4 w-4 mr-2" />
+                                Selezionato
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Seleziona
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Candidati rimanenti (espandibili) */}
+                    {data.classifica.length > 3 && (
+                      <div className="space-y-3">
+                        {/* Pulsante per espandere/comprimere */}
+                        <div className="text-center">
+                          <Button 
+                            onClick={handleShowClassifica} 
+                            variant="outline" 
+                            size="lg"
+                            className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
+                          >
+                            <Trophy className="h-5 w-5 mr-2 text-blue-600" />
+                            {showAllClassifica 
+                              ? `Nascondi (${data.classifica.length - 3} candidati)` 
+                              : `Mostra Altro (${data.classifica.length - 3} candidati rimanenti)`
+                            }
+                          </Button>
+                        </div>
+                        
+                        {/* Candidati rimanenti (animati) */}
+                        {showAllClassifica && (
+                          <div className="space-y-3 transition-all duration-500 ease-out">
+                            {data.classifica.slice(3).map((item, index) => (
+                              <div 
+                                key={item.nome} 
+                                className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                              >
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
+                                    {index + 4}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-gray-800 text-lg group-hover:text-indigo-800 transition-colors duration-300">{item.nome}</h4>
+                                    <p className="text-sm text-gray-600 flex items-center">
+                                      <Trophy className="h-4 w-4 mr-2 text-blue-500" />
+                                      {item.voti} voti
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleSelezione(item.nome)}
+                                  disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
+                                  className={`transition-all duration-300 ${
+                                    selectedVoti.includes(item.nome) 
+                                      ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
+                                      : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
+                                  }`}
+                                >
+                                  {selectedVoti.includes(item.nome) ? (
+                                    <>
+                                      <ThumbsUp className="h-4 w-4 mr-2" />
+                                      Selezionato
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Seleziona
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                      <Trophy className="h-10 w-10 text-gray-400" />
+                    </div>
+                    <p className="text-lg font-medium text-gray-600">Nessuna classifica disponibile al momento</p>
+                    <p className="text-sm text-gray-500 mt-2">Riprova più tardi</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
             
