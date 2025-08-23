@@ -809,7 +809,7 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
-    // Query per ottenere le domande delle opinioni
+    // Query per ottenere le domande delle opinioni dalla tabella opinioni
     const opinionQuery = `
       SELECT DISTINCT o.grado_opinione, o.text
       FROM opinioni o
@@ -824,9 +824,9 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
       text: `${row.grado_opinione}: ${row.text}`
     }));
     
-    // Query per ottenere le risposte dell'utente
+    // Query per ottenere le risposte dell'utente dalla tabella users
     const userQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia
+      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia
       FROM users
       WHERE id = $1
     `;
