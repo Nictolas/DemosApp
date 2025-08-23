@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Opinione {
   id: string;
   text: string;
-  grado_opinione: string;
+  categoria: string;
 }
 
 interface OpinioneProposta {

@@ -811,17 +811,17 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
     
     // Query per ottenere le domande delle opinioni dalla tabella opinioni
     const opinionQuery = `
-      SELECT DISTINCT o.grado_opinione, o.text
-      FROM opinioni o
-      ORDER BY o.grado_opinione, o.text
+              SELECT DISTINCT o.grado_opinione, o.text
+        FROM opinioni o
+        ORDER BY o.grado_opinione, o.text
     `;
     
     const opinionResult = await pool.query(opinionQuery);
     
     // Formatta le domande per il frontend
     const questions = opinionResult.rows.map(row => ({
-      id: `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`,
-      text: `${row.grado_opinione}: ${row.text}`
+              id: `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`,
+        text: `${row.grado_opinione}: ${row.text}`
     }));
     
     // Query per ottenere le risposte dell'utente dalla tabella users
@@ -855,9 +855,9 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
 app.get('/api/opinioni', verifyToken, async (req, res) => {
   try {
     const query = `
-      SELECT o.*, o.grado_opinione as categoria_nome
-      FROM opinioni o
-      ORDER BY o.grado_opinione, o.text
+              SELECT o.*, o.grado_opinione as categoria_nome
+        FROM opinioni o
+        ORDER BY o.grado_opinione, o.text
     `;
     
     const result = await pool.query(query);
@@ -902,6 +902,9 @@ app.get('/api/opinioni-proposte', verifyToken, async (req, res) => {
 app.get('/api/opinioni-list', verifyToken, async (req, res) => {
   try {
     const { grado } = req.query;
+    const userId = req.userId;
+    
+    // Query per ottenere le opinioni dalla tabella opinioni usando il campo grado_opinione
     const query = `
       SELECT o.*, o.grado_opinione as categoria_nome
       FROM opinioni o
@@ -911,9 +914,60 @@ app.get('/api/opinioni-list', verifyToken, async (req, res) => {
     
     const result = await pool.query(query, [grado]);
     
+    // Query per ottenere le risposte dell'utente dalla tabella users
+    const userQuery = `
+      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+             carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
+      FROM users
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    const userAnswers = userResult.rows[0] || {};
+    
+    // Mappa le opinioni con le risposte dell'utente
+    const opinioniWithAnswers = result.rows.map(opinione => {
+      // Cerca la risposta corrispondente nelle colonne opinioni dell'utente
+      const opinioneKey = opinione.text?.toLowerCase().replace(/\s+/g, '_');
+      let userAnswer = null;
+      
+      // Mappa le opinioni specifiche
+      if (opinioneKey?.includes('energia_nucleare')) {
+        userAnswer = userAnswers.energia_nucleare;
+      } else if (opinioneKey?.includes('sperimentazione_animale')) {
+        userAnswer = userAnswers.sperimentazione_animale;
+      } else if (opinioneKey?.includes('legalizzazione_canapa')) {
+        userAnswer = userAnswers.legalizzazione_canapa;
+      } else if (opinioneKey?.includes('caccia')) {
+        userAnswer = userAnswers.caccia;
+      } else if (opinioneKey?.includes('eutanasia')) {
+        userAnswer = userAnswers.eutanasia;
+      } else if (opinioneKey?.includes('carne_coltivata')) {
+        userAnswer = userAnswers.carne_coltivata;
+      } else if (opinioneKey?.includes('cittadina_animale')) {
+        userAnswer = userAnswers.cittadina_animale;
+      } else if (opinioneKey?.includes('nato')) {
+        userAnswer = userAnswers.nato;
+      } else if (opinioneKey?.includes('matrimonio_gay')) {
+        userAnswer = userAnswers.matrimonio_gay;
+      } else if (opinioneKey?.includes('salario_minimo')) {
+        userAnswer = userAnswers.salario_minimo;
+      } else if (opinioneKey?.includes('case_chiuse')) {
+        userAnswer = userAnswers.case_chiuse;
+      } else if (opinioneKey?.includes('omobitransfobia') || opinioneKey?.includes('omotransfobia')) {
+        userAnswer = userAnswers.omobitransfobia;
+      }
+      
+      return {
+        ...opinione,
+        userAnswer: userAnswer || 'Non espresso'
+      };
+    });
+    
     res.json({
       success: true,
-      opinioni: result.rows
+      opinioni: opinioniWithAnswers,
+      userAnswers: userAnswers
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare opinioni per grado:', error);
@@ -1079,7 +1133,7 @@ app.post('/api/opinioni', verifyToken, validateInput(['text', 'grado_opinione', 
     const { text, grado_opinione, categoria_id } = req.body;
     
     const query = `
-      INSERT INTO opinioni (testo, grado, categoria_id, created_at)
+      INSERT INTO opinioni (text, grado_opinione, categoria_id, created_at)
       VALUES ($1, $2, $3, NOW())
       RETURNING *
     `;
