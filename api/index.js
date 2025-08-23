@@ -2159,71 +2159,53 @@ app.post('/api/candidati', verifyToken, validateInput(['user_id', 'grado', 'cate
 });
 
 // ===== ENDPOINTS PER CATEGORIE =====
-
-// GET /api/categorie-opinioni - Ottieni categorie opinioni
-app.get('/api/categorie-opinioni', verifyToken, async (req, res) => {
-  try {
-    const query = `
-      SELECT * FROM categorie_opinioni 
-      ORDER BY nome
-    `;
-    
-    const result = await pool.query(query);
-    
-    res.json({
-      success: true,
-      categorie: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare categorie opinioni:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare categorie opinioni'
-    });
-  }
-});
-
-// GET /api/categorie-rappresentanti - Ottieni categorie rappresentanti
-app.get('/api/categorie-rappresentanti', verifyToken, async (req, res) => {
-  try {
-    const query = `
-      SELECT * FROM categorie_rappresentanti 
-      ORDER BY nome
-    `;
-    
-    const result = await pool.query(query);
-    
-    res.json({
-      success: true,
-      categorie: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare categorie rappresentanti:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare categorie rappresentanti'
-    });
-  }
-});
+// Rimossi endpoint per categorie_opinioni e categorie_rappresentanti (tabelle non esistenti)
 
 // ===== ENDPOINTS PER SONDAGGI =====
 
-// GET /api/sondaggi/stats - Statistiche sondaggi
+// GET /api/sondaggi/stats - Statistiche sondaggi aggregate dalle opinioni
 app.get('/api/sondaggi/stats', limiter, async (req, res) => {
   try {
-    const query = `
+    // Genera statistiche aggregate dalle opinioni degli utenti
+    const statsQuery = `
       SELECT 
-        COUNT(*) as totale_sondaggi,
-        COUNT(CASE WHEN stato = 'attivo' THEN 1 END) as sondaggi_attivi,
-        COUNT(CASE WHEN stato = 'chiuso' THEN 1 END) as sondaggi_chiusi
-      FROM sondaggi
+        o.grado_opinione,
+        o.text,
+        COUNT(*) as totale_voti,
+        COUNT(CASE WHEN o.voto = 'favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN o.voto = 'contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN o.voto = 'astenuto' THEN 1 END) as astenuto
+      FROM opinioni o
+      GROUP BY o.grado_opinione, o.text
+      ORDER BY o.grado_opinione, o.text
     `;
     
-    const result = await pool.query(query);
+    const result = await pool.query(statsQuery);
+    
+    // Formatta i dati per la frontend
+    const stats = {};
+    const questions = [];
+    
+    result.rows.forEach(row => {
+      const questionId = `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`;
+      stats[questionId] = {
+        favorevole: parseInt(row.favorevole) || 0,
+        contrario: parseInt(row.contrario) || 0,
+        astenuto: parseInt(row.astenuto) || 0
+      };
+      
+      questions.push({
+        id: questionId,
+        text: `${row.grado_opinione}: ${row.text}`
+      });
+    });
     
     res.json({
       success: true,
-      stats: result.rows[0]
+      data: {
+        stats,
+        questions
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche sondaggi:', error);
@@ -2234,19 +2216,50 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
   }
 });
 
-// GET /api/sondaggi - Ottieni tutti i sondaggi
+// GET /api/sondaggi - Ottieni tutti i sondaggi (opinioni aggregate)
 app.get('/api/sondaggi', verifyToken, async (req, res) => {
   try {
+    // Restituisce le opinioni aggregate come "sondaggi"
     const query = `
-      SELECT * FROM sondaggi 
-      ORDER BY created_at DESC
+      SELECT 
+        o.grado_opinione,
+        o.text,
+        COUNT(*) as totale_voti,
+        COUNT(CASE WHEN o.voto = 'favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN o.voto = 'contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN o.voto = 'astenuto' THEN 1 END) as astenuto
+      FROM opinioni o
+      GROUP BY o.grado_opinione, o.text
+      ORDER BY o.grado_opinione, o.text
+      LIMIT 10
     `;
     
     const result = await pool.query(query);
     
+    // Formatta i dati per la frontend
+    const stats = {};
+    const questions = [];
+    
+    result.rows.forEach(row => {
+      const questionId = `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`;
+      stats[questionId] = {
+        favorevole: parseInt(row.favorevole) || 0,
+        contrario: parseInt(row.contrario) || 0,
+        astenuto: parseInt(row.astenuto) || 0
+      };
+      
+      questions.push({
+        id: questionId,
+        text: `${row.grado_opinione}: ${row.text}`
+      });
+    });
+    
     res.json({
       success: true,
-      sondaggi: result.rows
+      data: {
+        stats,
+        questions
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare sondaggi:', error);
@@ -2257,31 +2270,7 @@ app.get('/api/sondaggi', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/sondaggi - Crea nuovo sondaggio
-app.post('/api/sondaggi', verifyToken, validateInput(['titolo', 'descrizione', 'domande', 'scadenza']), async (req, res) => {
-  try {
-    const { titolo, descrizione, domande, scadenza } = req.body;
-    
-    const query = `
-      INSERT INTO sondaggi (titolo, descrizione, domande, scadenza, stato, created_at)
-      VALUES ($1, $2, $3, $4, 'attivo', NOW())
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [titolo, descrizione, JSON.stringify(domande), scadenza]);
-    
-    res.json({
-      success: true,
-      sondaggio: result.rows[0]
-    });
-  } catch (error) {
-    console.error('❌ Errore nella creazione sondaggio:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella creazione sondaggio'
-    });
-  }
-});
+// Rimuovo POST /api/sondaggi perché non esiste più la tabella sondaggi
 
 // ===== ENDPOINTS PER NOTIFICHE =====
 
