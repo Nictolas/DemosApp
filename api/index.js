@@ -1927,9 +1927,9 @@ app.get('/api/governo/voti', verifyToken, async (req, res) => {
     
     const query = `
       SELECT v.*, m.nome as ministero_nome
-      FROM voti_governo v
-      JOIN ministeri m ON v.ministero_id = m.id
-      WHERE v.user_id = $1
+      FROM voti_ministri v
+      JOIN ministeri m ON v.categoria = m.categoria
+      WHERE v.userid = $1
       ORDER BY m.nome
     `;
     
@@ -1955,14 +1955,14 @@ app.post('/api/governo/vota', verifyToken, validateInput(['voti']), async (req, 
     const { voti } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
-    // Elimina i voti esistenti
-    await pool.query('DELETE FROM voti_governo WHERE user_id = $1', [userId]);
+    // Elimina i voti esistenti per questo utente
+    await pool.query('DELETE FROM voti_ministri WHERE userid = $1', [userId]);
     
     // Inserisci i nuovi voti
-    for (const [ministeroId, candidato] of Object.entries(voti)) {
+    for (const [categoria, candidato] of Object.entries(voti)) {
       await pool.query(
-        'INSERT INTO voti_governo (user_id, ministero_id, candidato, created_at) VALUES ($1, $2, $3, NOW())',
-        [userId, ministeroId, candidato]
+        'INSERT INTO voti_ministri (userid, nome_ministro, nome_display, categoria, timestamp) VALUES ($1, $2, $2, $3, NOW())',
+        [userId, candidato, categoria]
       );
     }
     
