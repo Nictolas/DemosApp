@@ -18,7 +18,7 @@ const resolveApiUrl = (input: string): string => {
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
       return 'https://demos-c7k0.onrender.com/api';
     }
-    return 'http://localhost:3001/api';
+         return 'http://localhost:3001/api';
   })();
   
   if (input.startsWith('/api/')) return `${baseUrl}${input.substring(4)}`;
