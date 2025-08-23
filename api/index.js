@@ -1305,17 +1305,50 @@ app.post('/api/grazia/richiesta/:id/:action', verifyToken, async (req, res) => {
 // GET /api/amnistia - Ottieni leggi per amnistia
 app.get('/api/amnistia', limiter, async (req, res) => {
   try {
-    const query = `
-      SELECT * FROM leggi_amnistia 
-      ORDER BY created_at DESC
+    // 1. Ottieni tutti i voti per amnistia
+    const votiQuery = `
+      SELECT * FROM voti_amnistia 
+      ORDER BY timestamp DESC
     `;
+    const votiResult = await pool.query(votiQuery);
     
-    const result = await pool.query(query);
+    // 2. Genera classifica basata sui voti
+    const classificaQuery = `
+      SELECT legge as nome, COUNT(*) as voti
+      FROM voti_amnistia 
+      GROUP BY legge 
+      ORDER BY voti DESC
+    `;
+    const classificaResult = await pool.query(classificaQuery);
+    
+    // 3. Ottieni leggi uniche per l'input
+    const leggiUniche = [...new Set(votiResult.rows.map(v => v.legge))];
+    
+    // 4. Se l'utente è autenticato, ottieni i suoi voti
+    let mieiVoti = [];
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.userId;
+        
+        const userVotiQuery = `
+          SELECT legge FROM voti_amnistia 
+          WHERE userId = $1
+        `;
+        const userVotiResult = await pool.query(userVotiQuery, [userId]);
+        mieiVoti = userVotiResult.rows.map(v => v.legge);
+      } catch (authError) {
+        // Se il token non è valido, continua senza autenticazione
+        console.log('⚠️ Token non valido per amnistia, continuando senza autenticazione');
+      }
+    }
     
     res.json({
       success: true,
-      leggi: result.rows,
-      mieiVoti: ['user1'], // Placeholder
+      leggi: leggiUniche.map(legge => ({ id: legge, nome: legge })),
+      classifica: classificaResult.rows,
+      mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
@@ -1334,7 +1367,7 @@ app.post('/api/amnistia/vota', verifyToken, validateInput(['legge']), async (req
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     await pool.query(
-      'INSERT INTO voti_amnistia (user_id, legge, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (user_id, legge) DO UPDATE SET created_at = NOW()',
+      'INSERT INTO voti_amnistia (userId, legge, timestamp) VALUES ($1, $2, NOW()) ON CONFLICT (userId, legge) DO UPDATE SET timestamp = NOW()',
       [userId, legge]
     );
     
@@ -1344,6 +1377,34 @@ app.post('/api/amnistia/vota', verifyToken, validateInput(['legge']), async (req
     res.status(500).json({
       success: false,
       error: 'Errore nel salvare voto amnistia'
+    });
+  }
+});
+
+// DELETE /api/amnistia/vota - Rimuovi voto per amnistia
+app.delete('/api/amnistia/vota', verifyToken, validateInput(['legge']), async (req, res) => {
+  try {
+    const { legge } = req.body;
+    const userId = req.userId;
+    
+    const result = await pool.query(
+      'DELETE FROM voti_amnistia WHERE userId = $1 AND legge = $2',
+      [userId, legge]
+    );
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Voto non trovato'
+      });
+    }
+    
+    res.json({ success: true, message: 'Voto amnistia rimosso' });
+  } catch (error) {
+    console.error('❌ Errore nel rimuovere voto amnistia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel rimuovere voto amnistia'
     });
   }
 });
@@ -1455,19 +1516,50 @@ app.post('/api/ice/:id/:action', verifyToken, async (req, res) => {
 // GET /api/iniziative-popolari - Ottieni iniziative popolari
 app.get('/api/iniziative-popolari', limiter, async (req, res) => {
   try {
-    const query = `
-      SELECT i.*, u.nome, u.cognome
-      FROM iniziative_popolari i
-      JOIN users u ON i.utente_id = u.id
-      ORDER BY i.created_at DESC
+    // 1. Ottieni tutti i voti per iniziative popolari
+    const votiQuery = `
+      SELECT * FROM voti_iniziative_popolari 
+      ORDER BY timestamp DESC
     `;
+    const votiResult = await pool.query(votiQuery);
     
-    const result = await pool.query(query);
+    // 2. Genera classifica basata sui voti
+    const classificaQuery = `
+      SELECT iniziativa_id as nome, COUNT(*) as voti
+      FROM voti_iniziative_popolari 
+      GROUP BY iniziativa_id 
+      ORDER BY voti DESC
+    `;
+    const classificaResult = await pool.query(classificaQuery);
+    
+    // 3. Ottieni iniziative uniche per l'input
+    const iniziativeUniche = [...new Set(votiResult.rows.map(v => v.iniziativa_id))];
+    
+    // 4. Se l'utente è autenticato, ottieni i suoi voti
+    let mieiVoti = [];
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.userId;
+        
+        const userVotiQuery = `
+          SELECT iniziativa_id FROM voti_iniziative_popolari 
+          WHERE userid = $1
+        `;
+        const userVotiResult = await pool.query(userVotiQuery, [userId]);
+        mieiVoti = userVotiResult.rows.map(v => v.iniziativa_id);
+      } catch (authError) {
+        // Se il token non è valido, continua senza autenticazione
+        console.log('⚠️ Token non valido per iniziative popolari, continuando senza autenticazione');
+      }
+    }
     
     res.json({
       success: true,
-      iniziative: result.rows,
-      mieiVoti: ['user1'], // Placeholder
+      iniziative: iniziativeUniche.map(iniziativa => ({ id: iniziativa, nome: iniziativa })),
+      classifica: classificaResult.rows,
+      mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
@@ -1531,6 +1623,33 @@ app.post('/api/iniziative-popolari', verifyToken, validateInput(['titolo', 'desc
   }
 });
 
+// POST /api/iniziative-popolari/vota - Salva voti iniziative popolari
+app.post('/api/iniziative-popolari/vota', verifyToken, validateInput(['voti']), async (req, res) => {
+  try {
+    const { voti } = req.body;
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    
+    // Elimina i voti esistenti
+    await pool.query('DELETE FROM voti_iniziative_popolari WHERE userid = $1', [userId]);
+    
+    // Inserisci i nuovi voti
+    for (const iniziativaId of voti) {
+      await pool.query(
+        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp) VALUES ($1, $2, NOW()) ON CONFLICT (userid, iniziativa_id) DO UPDATE SET timestamp = NOW()',
+        [userId, iniziativaId]
+      );
+    }
+    
+    res.json({ success: true, message: 'Voti iniziative popolari salvati' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare voti iniziative popolari:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare voti iniziative popolari'
+    });
+  }
+});
+
 // POST /api/iniziative-popolari/:id/:action - Gestisci iniziativa popolare
 app.post('/api/iniziative-popolari/:id/:action', verifyToken, async (req, res) => {
   try {
@@ -1548,6 +1667,40 @@ app.post('/api/iniziative-popolari/:id/:action', verifyToken, async (req, res) =
     res.status(500).json({
       success: false,
       error: 'Errore nella gestione iniziativa popolare'
+    });
+  }
+});
+
+// DELETE /api/iniziative-popolari/:id - Elimina iniziativa popolare
+app.delete('/api/iniziative-popolari/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID iniziativa richiesto'
+      });
+    }
+    
+    const result = await pool.query('DELETE FROM iniziative_popolari WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Iniziativa popolare non trovata'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Iniziativa popolare eliminata'
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione iniziativa popolare'
     });
   }
 });
