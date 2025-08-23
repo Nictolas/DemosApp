@@ -21,20 +21,48 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:3000', 
-    'http://127.0.0.1:3000', 
-    'https://www.demos.community',
-    'https://demos.community',
-    'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'  // Aggiunto dominio Vercel
-  ],
+  origin: function (origin, callback) {
+    // Permetti richieste senza origin (es. Postman, curl)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000', 
+      'https://www.demos.community',
+      'https://demos.community',
+      'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('🚫 CORS blocked origin:', origin);
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Gestione richieste preflight OPTIONS
 app.options('*', cors());
+
+// Middleware per gestire CORS preflight
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 app.use(express.json());
 
@@ -152,6 +180,7 @@ const validateInput = (requiredFields) => {
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
+    console.log('🔍 DEBUG /api/utenti/me - userId:', userId);
     
     // Recupera dati utente dal database
     const userQuery = `
@@ -160,9 +189,12 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
       WHERE id = $1
     `;
     
+    console.log('🔍 DEBUG /api/utenti/me - Eseguendo query con userId:', userId);
     const userResult = await pool.query(userQuery, [userId]);
+    console.log('🔍 DEBUG /api/utenti/me - Query result:', userResult.rows);
     
     if (userResult.rows.length === 0) {
+      console.log('❌ DEBUG /api/utenti/me - Utente non trovato per userId:', userId);
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
@@ -170,6 +202,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     }
     
     const user = userResult.rows[0];
+    console.log('✅ DEBUG /api/utenti/me - Utente trovato:', user);
     
     res.json({
       success: true,
@@ -185,6 +218,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare dati utente:', error);
+    console.error('❌ Stack trace completo:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare dati utente'
@@ -2754,6 +2788,27 @@ app.get('/api/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       database: 'disconnected',
       error: error.message
+    });
+  }
+});
+
+// GET /api/test-db - Test connessione database
+app.get('/api/test-db', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG /api/test-db - Testando connessione database...');
+    const result = await pool.query('SELECT NOW() as current_time, version() as db_version');
+    console.log('✅ DEBUG /api/test-db - Database connesso:', result.rows[0]);
+    res.json({
+      success: true,
+      message: 'Database connesso correttamente',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ DEBUG /api/test-db - Errore database:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore connessione database',
+      details: error.message
     });
   }
 });
