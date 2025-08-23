@@ -8,96 +8,88 @@ import { Loader2, ArrowLeft, FileText, Trophy, Plus, X, ThumbsUp } from "lucide-
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-// === AGGIUNTO ===
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Classifica { legge: string; voti: number; }
+interface AmnistiaData {
+  classifica: Classifica[];
+  mieiVoti: string[];
+}
 
 export default function Amnistia() {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const [userVoti, setUserVoti] = useState<string[]>([]);
-  const [classifica, setClassifica] = useState<Classifica[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [isVoting, setIsVoting] = useState(false);
+  const queryClient = useQueryClient();
+
   const [leggeInput, setLeggeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [deletingVote, setDeletingVote] = useState<string | null>(null);
+  const [showAllClassifica, setShowAllClassifica] = useState(false);
 
-  // === INIZIO MODIFICHE PRINCIPALI ===
-  const fetchData = async () => {
-    if (!user) return;
-    setLoadingData(true);
-    try {
-      // 1. Usiamo un singolo endpoint API per recuperare sia la classifica che i voti dell'utente
+  // 1. Caricamento dati con React Query
+  const { data, isLoading: isLoadingData } = useQuery<AmnistiaData>({
+    queryKey: ['amnistiaData'],
+    queryFn: async () => {
       const response = await apiRequest("GET", "/api/amnistia");
       if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
+      return response.json();
+    },
+    enabled: !!user
+  });
 
-      const { classifica, mieiVoti } = await response.json();
-
-      setClassifica(classifica);
-      setUserVoti(mieiVoti);
-    } catch (error) {
-        toast({ title: "Errore", description: "Impossibile caricare i dati dei voti.", variant: "destructive" });
-    } finally {
-        setLoadingData(false);
+  // 2. Mutazione per aggiungere voto
+  const addVoteMutation = useMutation({
+    mutationFn: (legge: string) => apiRequest("POST", "/api/amnistia/vota", { legge }),
+    onSuccess: () => {
+      toast({ title: "Voto registrato", description: "Il tuo voto è stato registrato con successo." });
+      queryClient.invalidateQueries({ queryKey: ['amnistiaData'] });
+      setLeggeInput("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Errore", description: error.message || "Impossibile registrare il voto.", variant: "destructive" });
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [user]);
+  // 3. Mutazione per rimuovere voto
+  const removeVoteMutation = useMutation({
+    mutationFn: (legge: string) => apiRequest("DELETE", "/api/amnistia/vota", { legge }),
+    onSuccess: () => {
+      toast({ title: "Voto rimosso", description: "Il tuo voto è stato rimosso con successo." });
+      queryClient.invalidateQueries({ queryKey: ['amnistiaData'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Errore", description: error.message || "Impossibile rimuovere il voto.", variant: "destructive" });
+    }
+  });
 
-  const handleVote = async (e: React.FormEvent) => {
+  // Logica locale per gestire i voti
+  const handleAddVote = (e: React.FormEvent) => {
     e.preventDefault();
-    const leggeDaVotare = leggeInput.trim();
-    if (!leggeDaVotare) return;
-    if (userVoti.includes(leggeDaVotare)) {
-      toast({ title: "Voto già registrato", description: `Hai già votato per l'amnistia di: ${leggeDaVotare}` });
+    const leggePulita = leggeInput.trim();
+    if (!leggePulita) return;
+    if (data?.mieiVoti.includes(leggePulita)) {
+      toast({ title: "Voto già registrato", description: `Hai già votato per l'amnistia di: ${leggePulita}` });
       return;
     }
-    setIsVoting(true);
-    try {
-      // 2. Invia il nuovo voto al backend tramite API
-      const response = await apiRequest("POST", "/api/amnistia/vota", { legge: leggeDaVotare });
-      if (!response.ok) throw new Error("Errore durante la registrazione del voto.");
-
-      toast({ title: "Voto registrato", description: `Hai votato per l'amnistia di: ${leggeDaVotare}` });
-      setLeggeInput("");
-      await fetchData(); // Ricarica tutti i dati aggiornati dal server
-    } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
-    } finally {
-      setIsVoting(false);
-    }
+    addVoteMutation.mutate(leggePulita);
   };
 
-  const removeVote = async (leggeDaRimuovere: string) => {
-    if (deletingVote) return;
-    if (!window.confirm(`Sei sicuro di voler rimuovere il voto per l'amnistia di "${leggeDaRimuovere}"?`)) return;
-    setDeletingVote(leggeDaRimuovere);
-    try {
-      // 3. Rimuovi il voto tramite API
-      const response = await apiRequest("DELETE", "/api/amnistia/vota", { legge: leggeDaRimuovere });
-      if (!response.ok) throw new Error("Errore durante la rimozione del voto.");
-
-      toast({ title: "Voto rimosso", description: `Hai rimosso il voto per l'amnistia di: ${leggeDaRimuovere}` });
-      await fetchData(); // Ricarica tutti i dati aggiornati dal server
-    } catch (error) {
-      toast({ title: "Errore", description: "Errore di connessione", variant: "destructive" });
-    } finally {
-      setDeletingVote(null);
-    }
+  const handleRemoveVote = (legge: string) => {
+    if (!window.confirm(`Sei sicuro di voler rimuovere il voto per l'amnistia di "${legge}"?`)) return;
+    removeVoteMutation.mutate(legge);
   };
-  // === FINE MODIFICHE PRINCIPALI ===
-  
+
   const getSuggestions = () => {
     if (!leggeInput.trim() || !showSuggestions) return [];
-    return classifica
+    return (data?.classifica || [])
       .filter(item => item.legge.toLowerCase().includes(leggeInput.toLowerCase()) && item.legge.toLowerCase() !== leggeInput.toLowerCase())
       .slice(0, 5);
   };
+
+  // Logica per espandere la classifica
+  const handleShowClassifica = () => setShowAllClassifica(!showAllClassifica);
 
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -120,7 +112,7 @@ export default function Amnistia() {
           </CardHeader>
         </Card>
 
-        {loadingData ? (
+        {isLoadingData ? (
           <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : (
           <div className="space-y-6">
@@ -130,7 +122,7 @@ export default function Amnistia() {
                 <CardDescription>Inserisci la legge per cui vuoi chiedere l'amnistia.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleVote} className="space-y-4">
+                <form onSubmit={handleAddVote} className="space-y-4">
                   <div className="flex space-x-2">
                     <div className="flex-1 relative">
                       <Input
@@ -156,25 +148,25 @@ export default function Amnistia() {
                         </div>
                       )}
                     </div>
-                    <Button type="submit" disabled={isVoting || !leggeInput.trim()}>
-                      {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                    <Button type="submit" disabled={addVoteMutation.isPending || !leggeInput.trim()}>
+                      {addVoteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                       Vota Amnistia
                     </Button>
                   </div>
                 </form>
 
-                {userVoti.length > 0 && (
+                {data?.mieiVoti && data.mieiVoti.length > 0 && (
                   <div className="mt-4">
                     <h4 className="text-sm font-semibold mb-2">Le tue richieste di amnistia:</h4>
                     <div className="flex flex-wrap gap-2">
-                      {userVoti.map((voto, index) => (
+                      {data.mieiVoti.map((voto, index) => (
                         <Badge 
                           key={index} 
                           variant="default"
                           className="cursor-pointer hover:bg-destructive/90 transition-colors flex items-center gap-2"
-                          onClick={() => removeVote(voto)}
+                          onClick={() => handleRemoveVote(voto)}
                         >
-                          {deletingVote === voto ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+                          {removeVoteMutation.isPending && removeVoteMutation.variables === voto ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
                           {voto}
                         </Badge>
                       ))}
@@ -187,27 +179,109 @@ export default function Amnistia() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
-                <CardDescription>Le leggi che hanno ricevuto più richieste di amnistia</CardDescription>
+                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Leggi</span></CardTitle>
+                <CardDescription>Le leggi che hanno ricevuto più richieste di amnistia ({data?.classifica?.length || 0} totali)</CardDescription>
               </CardHeader>
               <CardContent>
-                {classifica.length > 0 ? (
-                  <div className="space-y-3">
-                    {classifica.map((item, index) => (
-                      <div key={item.legge} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Button size="sm" variant="outline" onClick={() => setLeggeInput(item.legge)} disabled={isVoting} className="h-8 w-8 p-0"><ThumbsUp className="h-3 w-3" /></Button>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-100 text-yellow-700' : index === 1 ? 'bg-gray-100 text-gray-700' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>#{index + 1}</div>
-                          <span className="font-medium">{item.legge}</span>
+                {data?.classifica && data.classifica.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Primi 3 leggi sempre visibili */}
+                    <div className="space-y-3">
+                      {data.classifica.slice(0, 3).map((item, index) => (
+                        <div 
+                          key={item.legge} 
+                          className="group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-gray-800 text-lg group-hover:text-yellow-800 transition-colors duration-300">{item.legge}</h4>
+                              <p className="text-sm text-gray-600 flex items-center">
+                                <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                                {item.voti} voti
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setLeggeInput(item.legge)}
+                            disabled={addVoteMutation.isPending}
+                            className="hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700 transition-all duration-300"
+                          >
+                            <ThumbsUp className="h-4 w-4 mr-2" />
+                            Vota
+                          </Button>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline">{item.voti} voti</Badge>
+                      ))}
+                    </div>
+                    
+                    {/* Leggi rimanenti (espandibili) */}
+                    {data.classifica.length > 3 && (
+                      <div className="space-y-3">
+                        {/* Pulsante per espandere/comprimere */}
+                        <div className="text-center">
+                          <Button 
+                            onClick={handleShowClassifica} 
+                            variant="outline" 
+                            size="lg"
+                            className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
+                          >
+                            <Trophy className="h-5 w-5 mr-2 text-blue-600" />
+                            {showAllClassifica 
+                              ? `Nascondi (${data.classifica.length - 3} leggi)` 
+                              : `Mostra Altro (${data.classifica.length - 3} leggi rimanenti)`
+                            }
+                          </Button>
                         </div>
+                        
+                        {/* Leggi rimanenti (animati) */}
+                        {showAllClassifica && (
+                          <div className="space-y-3 transition-all duration-500 ease-out">
+                            {data.classifica.slice(3).map((item, index) => (
+                              <div 
+                                key={item.legge} 
+                                className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                              >
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
+                                    {index + 4}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-gray-800 text-lg group-hover:text-indigo-800 transition-colors duration-300">{item.legge}</h4>
+                                    <p className="text-sm text-gray-600 flex items-center">
+                                      <Trophy className="h-4 w-4 mr-2 text-blue-500" />
+                                      {item.voti} voti
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setLeggeInput(item.legge)}
+                                  disabled={addVoteMutation.isPending}
+                                  className="hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all duration-300"
+                                >
+                                  <ThumbsUp className="h-4 w-4 mr-2" />
+                                  Vota
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
                 ) : (
-                  <p className="text-center text-muted-foreground py-8">Nessuna richiesta ancora registrata.</p>
+                  <div className="text-center py-12 text-gray-500">
+                    <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                      <Trophy className="h-10 w-10 text-gray-400" />
+                    </div>
+                    <p className="text-lg font-medium text-gray-600">Nessuna classifica disponibile al momento</p>
+                    <p className="text-sm text-gray-500 mt-2">Riprova più tardi</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
