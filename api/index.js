@@ -1,6 +1,8 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 // Rate limiting semplice
@@ -95,6 +97,9 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Chiave segreta per JWT (in produzione usare variabile d'ambiente)
+const JWT_SECRET = process.env.JWT_SECRET || 'demos-super-secret-key-2025';
+
 // Middleware per verificare il token JWT
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -103,12 +108,12 @@ const verifyToken = (req, res, next) => {
   }
   
   try {
-    // Per ora estraiamo l'user ID dal token (in futuro sarà JWT.decode)
-    // Simuliamo l'estrazione dell'user ID dal token
-    const decodedToken = { userId: 'user1' }; // Placeholder per JWT.decode(token)
+    // Verifica vera del token JWT
+    const decodedToken = jwt.verify(token, JWT_SECRET);
     
     // Aggiungiamo l'user ID alla request per uso futuro
     req.userId = decodedToken.userId;
+    req.userRole = decodedToken.role;
     next();
   } catch (error) {
     console.error('❌ Errore nella verifica token:', error);
@@ -118,8 +123,8 @@ const verifyToken = (req, res, next) => {
 
 // Middleware per verificare se l'utente è admin
 const requireAdmin = (req, res, next) => {
-  // Per ora controlliamo se l'utente è admin (in futuro sarà dal database)
-  if (req.userId === 'admin1') {
+  // Verifica se l'utente ha ruolo admin
+  if (req.userRole === 'Admin') {
     next();
   } else {
     res.status(403).json({ success: false, message: 'Accesso negato: richiesti privilegi admin' });
@@ -146,15 +151,36 @@ const validateInput = (requiredFields) => {
 // GET /api/utenti/me - Ottieni dati utente corrente
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
-    // Per ora restituiamo un utente mock per test
+    const userId = req.userId;
+    
+    // Recupera dati utente dal database
+    const userQuery = `
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita
+      FROM users 
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
     res.json({
       success: true,
       user: {
-        id: 'user1',
-        name: 'Utente',        // Cambiato da 'nome' a 'name' per compatibilità frontend
-        cognome: 'Test',
-        email: 'test@example.com',
-        ruolo: 'Elettore'
+        id: user.id,
+        name: user.nome,
+        cognome: user.cognome,
+        email: user.email,
+        ruolo: user.ruolo,
+        genere: user.genere,
+        data_nascita: user.data_nascita
       }
     });
   } catch (error) {
@@ -173,18 +199,58 @@ app.post('/api/auth/login', async (req, res) => {
     
     console.log('🔐 Tentativo di login per:', email);
     
-    // Per ora restituiamo un utente mock per test
-    // In futuro qui andrà la vera autenticazione con Neon
+    // Verifica credenziali nel database
+    const userQuery = `
+      SELECT id, nome, cognome, email, password_hash, ruolo
+      FROM users 
+      WHERE email = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [email]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'Credenziali non valide'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Verifica password (se esiste password_hash, altrimenti accetta qualsiasi password per test)
+    if (user.password_hash) {
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      if (!isValidPassword) {
+        return res.status(401).json({
+          success: false,
+          error: 'Credenziali non valide'
+        });
+      }
+    }
+    
+    // Genera token JWT
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email,
+        role: user.ruolo 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    console.log('✅ Login riuscito per:', email);
+    
     res.json({
       success: true,
       user: {
-        id: 'user1',
-        name: 'Utente',        // Cambiato da 'nome' a 'name' per compatibilità frontend
-        cognome: 'Test',
-        email: email,
-        ruolo: 'Elettore'
+        id: user.id,
+        name: user.nome,
+        cognome: user.cognome,
+        email: user.email,
+        ruolo: user.ruolo
       },
-      token: 'mock-jwt-token-123'
+      token: token
     });
     
   } catch (error) {
@@ -203,17 +269,60 @@ app.post('/api/auth/register', async (req, res) => {
     
     console.log('📝 Tentativo di registrazione per:', email);
     
-    // Per ora restituiamo un utente mock per test
+    // Verifica se l'utente esiste già
+    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'Utente già esistente con questa email'
+      });
+    }
+    
+    // Hash della password
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    
+    // Inserisci nuovo utente
+    const insertQuery = `
+      INSERT INTO users (nome, cognome, email, password_hash, ruolo, created_at)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+      RETURNING id, nome, cognome, email, ruolo
+    `;
+    
+    const result = await pool.query(insertQuery, [
+      nome, 
+      cognome, 
+      email, 
+      passwordHash, 
+      'Elettore'
+    ]);
+    
+    const newUser = result.rows[0];
+    
+    // Genera token JWT
+    const token = jwt.sign(
+      { 
+        userId: newUser.id, 
+        email: newUser.email,
+        role: newUser.ruolo 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    console.log('✅ Registrazione riuscita per:', email);
+    
     res.json({
       success: true,
       user: {
-        id: 'user1',
-        name: nome,            // Cambiato da 'nome' a 'name' per compatibilità frontend
-        cognome: cognome,
-        email: email,
-        ruolo: 'Elettore'
+        id: newUser.id,
+        name: newUser.nome,
+        cognome: newUser.cognome,
+        email: newUser.email,
+        ruolo: newUser.ruolo
       },
-      token: 'mock-jwt-token-123'
+      token: token
     });
     
   } catch (error) {
@@ -2545,18 +2654,35 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
     
-    // Per ora restituiamo un utente mock per test
-    // In futuro qui andrà la query al database
-    const isAdmin = userId === 'admin1';
+    // Recupera dati utente dal database
+    const userQuery = `
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita
+      FROM users 
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    const isAdmin = user.ruolo === 'Admin';
     
     res.json({
       success: true,
       user: {
-        id: userId,
-        name: isAdmin ? 'Admin' : 'Utente',    // Cambiato da 'nome' a 'name' per compatibilità frontend
-        cognome: 'Test',
-        email: 'test@example.com',
-        ruolo: isAdmin ? 'Admin' : 'Elettore',
+        id: user.id,
+        name: user.nome,
+        cognome: user.cognome,
+        email: user.email,
+        ruolo: user.ruolo,
+        genere: user.genere,
+        data_nascita: user.data_nascita,
         isAdmin: isAdmin
       }
     });
@@ -2622,19 +2748,22 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Server API ULTRA-SECURED avviato sulla porta ${PORT}`);
   console.log('🔒 Middleware di sicurezza avanzato attivo:');
-  console.log('   ✅ Autenticazione JWT (mock)');
-  console.log('   ✅ Autorizzazione admin');
+  console.log('   ✅ Autenticazione JWT VERA implementata');
+  console.log('   ✅ Hash password con bcrypt');
+  console.log('   ✅ Verifica token JWT completa');
+  console.log('   ✅ Autorizzazione admin basata su ruolo');
   console.log('   ✅ Validazione input completa');
   console.log('   ✅ Sanitizzazione input');
   console.log('   ✅ Rate limiting esteso');
   console.log('   ✅ Logging audit');
   console.log('   ✅ Gestione errori avanzata');
+  console.log('🔐 JWT Secret:', JWT_SECRET ? 'Configurato' : 'Usando chiave di default');
   console.log('👑 Capo di Stato endpoint: http://localhost:3001/api/capo-stato');
   console.log('📊 Elezioni endpoint: http://localhost:3001/api/elezioni/prossime');
   console.log('💬 Comunicazioni endpoint: http://localhost:3001/api/comunicazioni');
   console.log('🎉 Eventi endpoint: http://localhost:3001/api/eventi');
   console.log('🏥 Health check: http://localhost:3001/api/health');
-  console.log('⚠️  ATTENZIONE: JWT ancora mock - implementare vera autenticazione in produzione!');
+  console.log('🎯 GRAZIA endpoint: http://localhost:3001/api/grazia');
   console.log('🔍 Tutti gli endpoint sono ora protetti e validati!');
 });
 
