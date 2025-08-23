@@ -23,7 +23,8 @@ app.use(cors({
     'http://localhost:3000', 
     'http://127.0.0.1:3000', 
     'https://www.demos.community',
-    'https://demos.community'
+    'https://demos.community',
+    'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'  // Aggiunto dominio Vercel
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
