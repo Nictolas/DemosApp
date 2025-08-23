@@ -8,7 +8,7 @@ import { Loader2, ArrowLeft, Scale, Trophy, Plus, X, ThumbsUp } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -31,10 +31,7 @@ export default function Grazia() {
   const [nomeInput, setNomeInput] = useState("");
   const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showClassifica, setShowClassifica] = useState(false);
-  const [showAdDialog, setShowAdDialog] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
-  const [videoTimer, setVideoTimer] = useState(60);
+  const [showAllClassifica, setShowAllClassifica] = useState(false);
 
   // 1. Caricamento dati con React Query
   const { data, isLoading: isLoadingData, error } = useQuery<GraziaData>({
@@ -102,19 +99,8 @@ export default function Grazia() {
     setSelectedVoti(prev => prev.includes(nome) ? prev.filter(n => n !== nome) : [...prev, nome]);
   };
   
-  // Logica per Pubblicità e Classifica (invariata)
-  const handleShowClassifica = () => setShowAdDialog(true);
-  const handleApproveAd = () => {
-    setShowAdDialog(false);
-    setShowVideo(true);
-    setVideoTimer(60);
-    const interval = setInterval(() => {
-      setVideoTimer(prev => {
-        if (prev <= 1) { clearInterval(interval); setShowVideo(false); setShowClassifica(true); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-  };
+  // Logica per espandere la classifica
+  const handleShowClassifica = () => setShowAllClassifica(!showAllClassifica);
 
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -178,8 +164,8 @@ export default function Grazia() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
-                <CardDescription>I carcerati con più richieste di grazia</CardDescription>
+                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Carcerati</span></CardTitle>
+                <CardDescription>I carcerati con più richieste di grazia ({data?.classifica?.length || 0} totali)</CardDescription>
               </CardHeader>
               <CardContent>
                 {data?.classifica && data.classifica.length > 0 ? (
@@ -187,14 +173,20 @@ export default function Grazia() {
                     {/* Primi 3 carcerati sempre visibili */}
                     <div className="space-y-3">
                       {data.classifica.slice(0, 3).map((item, index) => (
-                        <div key={item.nome} className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200">
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center justify-center w-8 h-8 bg-yellow-500 text-white rounded-full font-bold text-sm">
+                        <div 
+                          key={item.nome} 
+                          className="group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
                               {index + 1}
                             </div>
                             <div>
-                              <h4 className="font-semibold text-gray-800">{item.nome}</h4>
-                              <p className="text-sm text-gray-600">{item.richieste} richieste</p>
+                              <h4 className="font-bold text-gray-800 text-lg group-hover:text-yellow-800 transition-colors duration-300">{item.nome}</h4>
+                              <p className="text-sm text-gray-600 flex items-center">
+                                <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                                {item.richieste} richieste
+                              </p>
                             </div>
                           </div>
                           <Button
@@ -202,7 +194,11 @@ export default function Grazia() {
                             size="sm"
                             onClick={() => toggleSelezioneClassifica(item.nome)}
                             disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
-                            className={selectedVoti.includes(item.nome) ? "bg-green-100 border-green-500 text-green-700" : ""}
+                            className={`transition-all duration-300 ${
+                              selectedVoti.includes(item.nome) 
+                                ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
+                                : "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
+                            }`}
                           >
                             {selectedVoti.includes(item.nome) ? (
                               <>
@@ -220,25 +216,82 @@ export default function Grazia() {
                       ))}
                     </div>
                     
-                    {/* Pulsante "Mostra altro" per i rimanenti 7 */}
+                    {/* Carcerati rimanenti (espandibili) */}
                     {data.classifica.length > 3 && (
-                      <div className="text-center">
-                        <Button 
-                          onClick={() => setShowClassifica(true)} 
-                          variant="outline" 
-                          size="lg"
-                          className="w-full"
-                        >
-                          <Trophy className="h-5 w-5 mr-2" />
-                          Mostra Altro ({data.classifica.length - 3} carcerati rimanenti)
-                        </Button>
+                      <div className="space-y-3">
+                        {/* Pulsante per espandere/comprimere */}
+                        <div className="text-center">
+                          <Button 
+                            onClick={handleShowClassifica} 
+                            variant="outline" 
+                            size="lg"
+                            className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 transform hover:scale-[1.02] shadow-md"
+                          >
+                            <Trophy className="h-5 w-5 mr-2 text-blue-600" />
+                            {showAllClassifica 
+                              ? `Nascondi (${data.classifica.length - 3} carcerati)` 
+                              : `Mostra Altro (${data.classifica.length - 3} carcerati rimanenti)`
+                            }
+                          </Button>
+                        </div>
+                        
+                        {/* Carcerati rimanenti (animati) */}
+                        {showAllClassifica && (
+                          <div className="space-y-3 transition-all duration-500 ease-out">
+                            {data.classifica.slice(3).map((item, index) => (
+                              <div 
+                                key={item.nome} 
+                                className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                              >
+                                <div className="flex items-center space-x-4">
+                                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
+                                    {index + 4}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-bold text-gray-800 text-lg group-hover:text-indigo-800 transition-colors duration-300">{item.nome}</h4>
+                                    <p className="text-sm text-gray-600 flex items-center">
+                                      <Trophy className="h-4 w-4 mr-2 text-blue-500" />
+                                      {item.richieste} richieste
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleSelezioneClassifica(item.nome)}
+                                  disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
+                                  className={`transition-all duration-300 ${
+                                    selectedVoti.includes(item.nome) 
+                                      ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
+                                      : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
+                                  }`}
+                                >
+                                  {selectedVoti.includes(item.nome) ? (
+                                    <>
+                                      <ThumbsUp className="h-4 w-4 mr-2" />
+                                      Selezionato
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Seleziona
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Nessuna classifica disponibile al momento</p>
+                  <div className="text-center py-12 text-gray-500">
+                    <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+                      <Trophy className="h-10 w-10 text-gray-400" />
+                    </div>
+                    <p className="text-lg font-medium text-gray-600">Nessuna classifica disponibile al momento</p>
+                    <p className="text-sm text-gray-500 mt-2">Riprova più tardi</p>
                   </div>
                 )}
               </CardContent>
@@ -263,82 +316,6 @@ export default function Grazia() {
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>Annulla</Button>
             <Button onClick={() => saveVotiMutation.mutate(selectedVoti)} disabled={saveVotiMutation.isPending}>Conferma</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Pubblicità */}
-      <Dialog open={showAdDialog} onOpenChange={setShowAdDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Pubblicità</DialogTitle>
-            <DialogDescription>Per vedere la classifica completa, guarda questo breve video pubblicitario.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdDialog(false)}>Annulla</Button>
-            <Button onClick={handleApproveAd}>Inizia Video</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Video */}
-      <Dialog open={showVideo} onOpenChange={setShowVideo}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Video Pubblicitario</DialogTitle>
-            <DialogDescription>Rimangono {videoTimer} secondi...</DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <div className="w-32 h-24 bg-gray-200 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-2xl font-bold text-gray-600">{videoTimer}s</span>
-              </div>
-              <p className="text-sm text-gray-600">Video in riproduzione...</p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog Classifica Completa */}
-      <Dialog open={showClassifica} onOpenChange={setShowClassifica}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Classifica Completa Top 10 Grazia</DialogTitle>
-            <DialogDescription>Ecco tutti i 10 carcerati con le loro richieste di grazia</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {data?.classifica?.map((item, index) => (
-              <div key={item.nome} className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200">
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-yellow-500 text-white rounded-full font-bold text-sm">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-800">{item.nome}</h4>
-                    <p className="text-sm text-gray-600">{item.richieste} richieste</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleSelezioneClassifica(item.nome)}
-                  disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
-                  className={selectedVoti.includes(item.nome) ? "bg-green-100 border-green-500 text-green-700" : ""}
-                >
-                  {selectedVoti.includes(item.nome) ? (
-                    <>
-                      <ThumbsUp className="h-4 w-4 mr-2" />
-                      Selezionato
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Seleziona
-                    </>
-                  )}
-                </Button>
-              </div>
-            ))}
-          </div>
         </DialogContent>
       </Dialog>
     </div>
