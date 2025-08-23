@@ -66,7 +66,7 @@ export default function Profilo({ userId }: { userId?: string }) {
         throw new Error(userResult.message || 'Errore nel caricamento dati utente');
       }
       
-      const userData = userResult.data || userResult;
+      const userData = userResult.user || userResult.data || userResult;
       console.log('🔍 DEBUG Profilo - Dati utente estratti:', userData);
       
       setUserInfo(userData as UserInfo);
@@ -80,10 +80,12 @@ export default function Profilo({ userId }: { userId?: string }) {
       baseOpinions.forEach(opinion => {
         if (userData[opinion]) {
           userOpinionsData[opinion] = userData[opinion];
+          console.log(`🔍 DEBUG Profilo - Opinione ${opinion}: ${userData[opinion]}`);
         }
       });
       
       setUserOpinions(userOpinionsData);
+      console.log('🔍 DEBUG Profilo - Opinion base caricate:', userOpinionsData);
       
       // 3. Carica domande opinioni
       console.log('🔍 DEBUG Profilo - Caricando domande opinioni...');
@@ -91,11 +93,13 @@ export default function Profilo({ userId }: { userId?: string }) {
         const opinionsResponse = await apiRequest("GET", "/opinioni/profile");
         if (opinionsResponse.ok) {
           const opinionsResult = await opinionsResponse.json();
+          console.log('🔍 DEBUG Profilo - Risposta opinioni:', opinionsResult);
           if (opinionsResult.success && opinionsResult.data) {
             setOpinionQuestions(Array.isArray(opinionsResult.data.questions) ? opinionsResult.data.questions : []);
             // Aggiorna anche le opinioni dell'utente
             if (opinionsResult.data.userAnswers) {
               setUserOpinions(prev => ({ ...prev, ...opinionsResult.data.userAnswers }));
+              console.log('🔍 DEBUG Profilo - Opinion dinamiche caricate:', opinionsResult.data.userAnswers);
             }
           }
         }
@@ -290,6 +294,7 @@ export default function Profilo({ userId }: { userId?: string }) {
           </div>
         ) : userInfo && user ? (
           <>
+            {console.log('🔍 DEBUG Profilo - Rendering con userInfo:', userInfo)}
             <Button 
               variant="ghost" 
               className="mb-4 flex items-center"
@@ -394,7 +399,7 @@ export default function Profilo({ userId }: { userId?: string }) {
             </Card>
 
             {/* --- SEZIONE OPINIONI LASCIATA IDENTICA --- */}
-            {userInfo && userOpinions && opinionQuestions.length > 0 && (
+            {userInfo && userOpinions && Object.keys(userOpinions).length > 0 && (
               <Card className="animate-in-delay">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Le Tue Opinioni Politiche</CardTitle>
