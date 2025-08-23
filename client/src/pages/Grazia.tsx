@@ -37,18 +37,32 @@ export default function Grazia() {
   const [videoTimer, setVideoTimer] = useState(60);
 
   // 1. Caricamento dati con React Query
-  const { data, isLoading: isLoadingData } = useQuery<GraziaData>({
+  const { data, isLoading: isLoadingData, error } = useQuery<GraziaData>({
     queryKey: ['graziaData'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/grazia");
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
-      return response.json();
+      console.log('🔍 DEBUG: Chiamata /api/grazia avviata');
+      const response = await apiRequest("GET", "/grazia");
+      console.log('🔍 DEBUG: Risposta ricevuta:', response.status);
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Errore API /grazia:', errorData);
+        throw new Error(`Errore ${response.status}: ${errorData}`);
+      }
+      const result = await response.json();
+      console.log('✅ Dati grazia ricevuti:', result);
+      return result;
     },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-      setSelectedVoti(fetchedData.mieiVoti || []);
-    }
+    enabled: !!user && !!localStorage.getItem('auth_token'),
+    retry: 1,
+    refetchOnWindowFocus: false
   });
+
+  // Effect per aggiornare selectedVoti quando i dati arrivano
+  useEffect(() => {
+    if (data?.mieiVoti) {
+      setSelectedVoti(data.mieiVoti);
+    }
+  }, [data]);
 
   // 2. Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
@@ -129,6 +143,11 @@ export default function Grazia() {
 
         {isLoadingData ? (
           <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : error ? (
+          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
+            <b>Errore nel caricamento dei dati:</b><br />
+            {error.message}
+          </div>
         ) : (
           <div className="space-y-6">
             <Card>
