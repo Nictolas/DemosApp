@@ -24,7 +24,7 @@ export const API_CONFIG = {
     CHANGE_PASSWORD: '/auth/change-password'
   }
 } as const;
-5
+
 // Helper per costruire URL completi
 export const getApiUrl = (endpoint: string) => {
   console.log('getApiUrl called with endpoint:', endpoint);
@@ -33,7 +33,17 @@ export const getApiUrl = (endpoint: string) => {
   const baseUrl = resolveBaseUrl();
   console.log('baseUrl resolved to:', baseUrl);
   
-  const url = `${baseUrl}${endpoint}`;
+  // Correggi il problema del double /api
+  let cleanEndpoint = endpoint;
+  if (endpoint.startsWith('/api/')) {
+    cleanEndpoint = endpoint.substring(4); // Rimuovi /api/ iniziale
+  } else if (endpoint.startsWith('/')) {
+    cleanEndpoint = endpoint; // Mantieni / iniziale
+  } else {
+    cleanEndpoint = `/${endpoint}`; // Aggiungi / iniziale se mancante
+  }
+  
+  const url = `${baseUrl}${cleanEndpoint}`;
   console.log('Final API URL:', url);
   return url;
 };

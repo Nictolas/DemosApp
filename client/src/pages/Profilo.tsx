@@ -75,7 +75,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const res = await apiRequest("GET", "/api/opinioni/profile");
+        const res = await apiRequest("GET", "/opinioni/profile");
         if (!res.ok) throw new Error();
         const result = await res.json();
         if (result.success && result.data) {
@@ -103,7 +103,7 @@ export default function Profilo({ userId }: { userId?: string }) {
     if (!user) return;
     
     try {
-      const response = await apiRequest("GET", `/api/governo/voti`);
+      const response = await apiRequest("GET", `/governo/voti`);
       
       if (response.ok) {
         const result = await response.json();
@@ -128,7 +128,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
-        const response = await apiRequest("GET", `/api/utenti/me`);
+        const response = await apiRequest("GET", `/utenti/me`);
         if (response.ok) {
                   const result = await response.json();
         console.log('🔍 DEBUG Profilo - API response:', result);
