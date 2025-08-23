@@ -7,9 +7,20 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://www.demos.community'],
-  credentials: true
+  origin: [
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000', 
+    'https://www.demos.community',
+    'https://demos.community'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Gestione richieste preflight OPTIONS
+app.options('*', cors());
+
 app.use(express.json());
 
 // Configurazione database
