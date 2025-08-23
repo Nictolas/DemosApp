@@ -45,6 +45,7 @@ export default function Governo() {
 
   const [selectedVoti, setSelectedVoti] = useState<{ [categoria: string]: string }>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<{ [categoria: string]: boolean }>({});
 
   // 1. Caricamento dati con React Query
   const { data, isLoading: isLoadingData } = useQuery<VotiData>({
@@ -54,12 +55,15 @@ export default function Governo() {
         if (!response.ok) throw new Error("Errore nel caricamento dei dati del governo.");
         return response.json();
     },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-        // Inizializza lo stato locale dei voti selezionati con i dati caricati
-        setSelectedVoti(fetchedData.mieiVoti || {});
-    }
+    enabled: !!user
   });
+
+  // Effect per aggiornare selectedVoti quando i dati arrivano
+  useEffect(() => {
+    if (data?.mieiVoti) {
+      setSelectedVoti(data.mieiVoti);
+    }
+  }, [data]);
 
   // 2. Mutazione per salvare tutti i voti in blocco
   const saveVotiMutation = useMutation({
@@ -95,6 +99,14 @@ export default function Governo() {
         return;
     }
     setShowConfirmDialog(true);
+  };
+
+  // Logica per espandere/comprimere le categorie
+  const toggleCategoryExpansion = (categoria: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoria]: !prev[categoria]
+    }));
   };
   
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -143,15 +155,59 @@ export default function Governo() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <h4 className="text-sm font-semibold flex items-center"><Trophy className="h-4 w-4 mr-1 text-yellow-500" />Top 3</h4>
+                                <h4 className="text-sm font-semibold flex items-center"><Trophy className="h-4 w-4 mr-1 text-yellow-500" />Classifica Candidati</h4>
                                 {data?.classifiche[ministero.categoria]?.length > 0 ? (
-                                    <div className="space-y-1">
-                                    {data.classifiche[ministero.categoria].slice(0, 3).map((candidato, index) => (
-                                        <div key={candidato.nome} className="flex items-center justify-between text-sm">
-                                            <div className="flex items-center space-x-2"><span className="font-bold text-yellow-600">#{index + 1}</span><span>{candidato.nome}</span></div>
-                                            <Badge variant="outline">{candidato.voti} voti</Badge>
+                                    <div className="space-y-2">
+                                        {/* Primi 3 candidati sempre visibili */}
+                                        <div className="space-y-1">
+                                            {data?.classifiche[ministero.categoria]?.slice(0, 3).map((candidato, index) => (
+                                                <div key={candidato.nome} className="flex items-center justify-between p-2 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300">
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full text-xs font-bold">
+                                                            {index + 1}
+                                                        </div>
+                                                        <span className="font-medium text-sm">{candidato.nome}</span>
+                                                    </div>
+                                                    <Badge variant="outline" className="text-xs">{candidato.voti} voti</Badge>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                        
+                                        {/* Candidati rimanenti (espandibili) */}
+                                        {data?.classifiche[ministero.categoria] && data.classifiche[ministero.categoria].length > 3 && (
+                                            <div className="space-y-2">
+                                                {/* Pulsante per espandere/comprimere */}
+                                                <Button 
+                                                    onClick={() => toggleCategoryExpansion(ministero.categoria)} 
+                                                    variant="outline" 
+                                                    size="sm"
+                                                    className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 transition-all duration-300 text-xs"
+                                                >
+                                                    <Trophy className="h-3 w-3 mr-1 text-blue-600" />
+                                                    {expandedCategories[ministero.categoria] && data?.classifiche[ministero.categoria]
+                                                        ? `Nascondi (${data.classifiche[ministero.categoria].length - 3} candidati)` 
+                                                        : `Mostra Altro (${data.classifiche[ministero.categoria].length - 3} candidati rimanenti)`
+                                                    }
+                                                </Button>
+                                                
+                                                {/* Candidati rimanenti (animati) */}
+                                                {expandedCategories[ministero.categoria] && data?.classifiche[ministero.categoria] && (
+                                                    <div className="space-y-1 transition-all duration-500 ease-out">
+                                                        {data.classifiche[ministero.categoria].slice(3).map((candidato, index) => (
+                                                            <div key={candidato.nome} className="flex items-center justify-between p-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full text-xs font-bold">
+                                                                        {index + 4}
+                                                                    </div>
+                                                                    <span className="font-medium text-sm">{candidato.nome}</span>
+                                                                </div>
+                                                                <Badge variant="outline" className="text-xs">{candidato.voti} voti</Badge>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ) : <p className="text-xs text-muted-foreground">Nessun voto ancora registrato.</p>}
                             </div>
