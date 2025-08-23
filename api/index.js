@@ -1076,45 +1076,22 @@ app.post('/api/grazia', verifyToken, validateInput(['nome_carcerato', 'motivo'])
 // GET /api/grazia - Ottieni richieste di grazia
 app.get('/api/grazia', limiter, async (req, res) => {
   try {
-    // Prima verifichiamo se la tabella esiste
-    try {
-      await pool.query('SELECT 1 FROM richieste_grazia LIMIT 1');
-    } catch (tableError) {
-      console.log('⚠️ Tabella richieste_grazia non esiste, creando struttura di base...');
-      
-      // Creiamo la tabella se non esiste
-      const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS richieste_grazia (
-          id SERIAL PRIMARY KEY,
-          utente_id VARCHAR(255) NOT NULL,
-          nome_carcerato VARCHAR(255) NOT NULL,
-          motivo TEXT,
-          stato VARCHAR(50) DEFAULT 'in_attesa',
-          created_at TIMESTAMP DEFAULT NOW(),
-          updated_at TIMESTAMP DEFAULT NOW()
-        )
-      `;
-      
-      await pool.query(createTableQuery);
-      console.log('✅ Tabella richieste_grazia creata con successo');
-    }
-    
-    // Ora recuperiamo le richieste
+    // Recuperiamo le richieste dalla tabella voti_grazia esistente
     const query = `
-      SELECT g.*, u.nome, u.cognome
-      FROM richieste_grazia g
-      JOIN users u ON g.utente_id = u.id
-      ORDER BY g.created_at DESC
+      SELECT v.*, u.nome, u.cognome
+      FROM voti_grazia v
+      JOIN users u ON v.userid = u.id
+      ORDER BY v.created_at DESC
       LIMIT 10
     `;
     
     const result = await pool.query(query);
     
-    // Creiamo una classifica Top 10 basata sul numero di richieste per carcerato
+    // Creiamo una classifica Top 10 basata sul numero di voti per carcerato
     const classificaQuery = `
-      SELECT nome_carcerato, COUNT(*) as richieste
-      FROM richieste_grazia
-      GROUP BY nome_carcerato
+      SELECT nome, COUNT(*) as richieste
+      FROM voti_grazia
+      GROUP BY nome
       ORDER BY richieste DESC
       LIMIT 10
     `;
@@ -1142,10 +1119,10 @@ app.get('/api/grazia', limiter, async (req, res) => {
 app.get('/api/grazia/richieste', verifyToken, async (req, res) => {
   try {
     const query = `
-      SELECT g.*, u.nome, u.cognome
-      FROM richieste_grazia g
-      JOIN users u ON g.utente_id = u.id
-      ORDER BY g.created_at DESC
+      SELECT v.*, u.nome, u.cognome
+      FROM voti_grazia v
+      JOIN users u ON v.userid = u.id
+      ORDER BY v.created_at DESC
     `;
     
     const result = await pool.query(query);
@@ -1196,9 +1173,9 @@ app.post('/api/grazia/richiesta/:id/:action', verifyToken, async (req, res) => {
     const { id, action } = req.params;
     
     if (action === 'approve') {
-      await pool.query('UPDATE richieste_grazia SET stato = $1 WHERE id = $2', ['approvata', id]);
+      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['approvata', id]);
     } else if (action === 'reject') {
-      await pool.query('UPDATE richieste_grazia SET stato = $1 WHERE id = $2', ['rifiutata', id]);
+      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['rifiutata', id]);
     }
     
     res.json({ success: true, message: `Richiesta ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
