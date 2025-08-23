@@ -826,7 +826,8 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
     
     // Query per ottenere le risposte dell'utente dalla tabella users
     const userQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia
+      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+             carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
       FROM users
       WHERE id = $1
     `;
