@@ -9,95 +9,64 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
-// === AGGIUNTO ===
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 interface Classifica { nome: string; voti: number; }
+interface CapoStatoData {
+  classifica: Classifica[];
+  mieiVoti: string[];
+  blocco: {
+    isBlocked: boolean;
+    unlockDate?: string;
+  };
+}
 
 export default function CapodiStato() {
   const authReady = useAuthReady();
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const [userVoti, setUserVoti] = useState<string[]>([]);
-  const [classifica, setClassifica] = useState<Classifica[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [isVoting, setIsVoting] = useState(false);
+  const queryClient = useQueryClient();
+
   const [nomeInput, setNomeInput] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [deletingVote, setDeletingVote] = useState<string | null>(null);
   const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [unlockDate, setUnlockDate] = useState<Date | null>(null);
   const [showClassifica, setShowClassifica] = useState(false);
   const [showAdDialog, setShowAdDialog] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const [videoTimer, setVideoTimer] = useState(60);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // === INIZIO MODIFICHE PRINCIPALI ===
-  const fetchData = async () => {
-    if (!user) return;
-    setLoadingData(true);
-    try {
+  // 1. Caricamento dati con React Query (come Grazia)
+  const { data, isLoading: isLoadingData } = useQuery<CapoStatoData>({
+    queryKey: ['capoStatoData'],
+    queryFn: async () => {
       const response = await apiRequest("GET", "/api/capo-stato");
       if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
-
-      const { classifica, mieiVoti, blocco } = await response.json();
-      
-      setClassifica(classifica);
-      setUserVoti(mieiVoti);
-      setSelectedVoti(mieiVoti);
-
-      // Gestione blocco settimanale dal backend
-      if (blocco.isBlocked) {
-        setIsBlocked(true);
-        setUnlockDate(new Date(blocco.unlockDate));
-      } else {
-        setIsBlocked(false);
-        setUnlockDate(null);
-      }
-    } catch (error) {
-      toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
-    } finally {
-      setLoadingData(false);
+      return response.json();
+    },
+    enabled: !!user,
+    onSuccess: (fetchedData) => {
+      setSelectedVoti(fetchedData.mieiVoti || []);
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [user]);
-
-  const handleConfermaSalva = async () => {
-    setIsVoting(true);
-    setShowConfirmDialog(false);
-    try {
-      // Il backend calcolerà le differenze basandosi sui voti inviati
-      const response = await apiRequest("POST", "/api/capo-stato/vota", { voti: selectedVoti });
-      if (!response.ok) throw new Error("Errore durante il salvataggio.");
-
+  // 2. Mutazione per salvare i voti (come Grazia)
+  const saveVotiMutation = useMutation({
+    mutationFn: (voti: string[]) => apiRequest("POST", "/api/capo-stato/vota", { voti }),
+    onSuccess: () => {
       toast({ title: "Preferenze salvate", description: "I tuoi voti sono stati aggiornati." });
-      await fetchData(); // Ricarica tutti i dati aggiornati
-    } catch (error) {
-      toast({ title: "Errore", description: "Errore durante il salvataggio.", variant: "destructive" });
-    } finally {
-      setIsVoting(false);
+      queryClient.invalidateQueries({ queryKey: ['capoStatoData'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Errore", description: error.message || "Impossibile salvare i voti.", variant: "destructive" });
+    },
+    onSettled: () => {
+      setShowConfirmDialog(false);
     }
-  };
-  // === FINE MODIFICHE PRINCIPALI ===
+  });
 
-  // Il resto della logica del componente rimane quasi invariata
-  const getSuggestions = () => {
-    if (!nomeInput.trim() || !showSuggestions) return [];
-    return classifica
-      .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
-      .slice(0, 5);
-  };
-
-  const toggleSelezione = (nome: string) => {
-    if (isVoting || isBlocked) return;
-    setSelectedVoti(prev => prev.includes(nome) ? prev.filter(n => n !== nome) : [...prev, nome]);
-  };
-
+  // Logica locale per aggiungere/rimuovere voti dalla selezione temporanea
   const handleAddNomeLocal = (e: React.FormEvent) => {
     e.preventDefault();
     const nomePulito = nomeInput.trim();
@@ -111,24 +80,31 @@ export default function CapodiStato() {
   };
 
   const handleRemoveLocal = (nome: string) => {
-    if (isVoting || isBlocked) return;
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
     setSelectedVoti(prev => prev.filter(n => n !== nome));
   };
   
-  const handleShowClassifica = () => setShowAdDialog(true);
+  const toggleSelezione = (nome: string) => {
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    setSelectedVoti(prev => prev.includes(nome) ? prev.filter(n => n !== nome) : [...prev, nome]);
+  };
 
+  const getSuggestions = () => {
+    if (!nomeInput.trim() || !showSuggestions) return [];
+    return (data?.classifica || [])
+      .filter(item => item.nome.toLowerCase().includes(nomeInput.toLowerCase()) && item.nome.toLowerCase() !== nomeInput.toLowerCase())
+      .slice(0, 5);
+  };
+  
+  // Logica per Pubblicità e Classifica (invariata)
+  const handleShowClassifica = () => setShowAdDialog(true);
   const handleApproveAd = () => {
     setShowAdDialog(false);
     setShowVideo(true);
     setVideoTimer(60);
     const interval = setInterval(() => {
       setVideoTimer(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          setShowVideo(false);
-          setShowClassifica(true);
-          return 0;
-        }
+        if (prev <= 1) { clearInterval(interval); setShowVideo(false); setShowClassifica(true); return 0; }
         return prev - 1;
       });
     }, 1000);
@@ -137,7 +113,9 @@ export default function CapodiStato() {
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
-  // Il codice JSX per la visualizzazione rimane IDENTICO
+  const unlockDate = data?.blocco.unlockDate ? new Date(data.blocco.unlockDate).toLocaleString('it-IT') : null;
+  const votiCambiati = JSON.stringify(selectedVoti.sort()) !== JSON.stringify(data?.mieiVoti.sort() || []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-4xl">
@@ -155,7 +133,14 @@ export default function CapodiStato() {
             </CardHeader>
         </Card>
 
-        {loadingData ? (
+        {data?.blocco.isBlocked && (
+          <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded">
+            <b>Hai già modificato i voti questa settimana.</b><br />
+            Potrai modificarli di nuovo dal: {unlockDate || "-"}
+          </div>
+        )}
+
+        {isLoadingData ? (
           <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : (
           <div className="space-y-6">
@@ -175,7 +160,7 @@ export default function CapodiStato() {
                                 onFocus={() => setShowSuggestions(true)}
                                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                 className="w-full"
-                                disabled={isBlocked}
+                                disabled={data?.blocco.isBlocked}
                             />
                             {showSuggestions && getSuggestions().length > 0 && (
                                 <div className="absolute top-full left-0 right-0 z-10 bg-white border border-gray-200 rounded-md shadow-lg mt-1">
@@ -187,7 +172,7 @@ export default function CapodiStato() {
                                 </div>
                             )}
                         </div>
-                        <Button type="submit" disabled={isVoting || !nomeInput.trim() || isBlocked}><Plus className="h-4 w-4 mr-2" />Aggiungi</Button>
+                        <Button type="submit" disabled={saveVotiMutation.isPending || !nomeInput.trim() || data?.blocco.isBlocked}><Plus className="h-4 w-4 mr-2" />Aggiungi</Button>
                     </div>
                 </form>
 
@@ -207,26 +192,24 @@ export default function CapodiStato() {
               </CardContent>
             </Card>
 
-            {isBlocked && (
-              <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded">
-                <b>Hai già modificato i voti questa settimana.</b><br />
-                Potrai modificarli di nuovo dal: {unlockDate ? unlockDate.toLocaleString('it-IT') : "-"}
-              </div>
-            )}
-
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Top 10</span></CardTitle>
                 <CardDescription>I candidati che hanno ricevuto più voti</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* ... Il resto del JSX rimane identico ... */}
+                <div className="text-center">
+                  <Button onClick={handleShowClassifica} variant="outline" className="mb-4">
+                    <Trophy className="h-4 w-4 mr-2" />
+                    Visualizza Classifica
+                  </Button>
+                </div>
               </CardContent>
             </Card>
             
             <div className="flex justify-end mt-4">
-                <Button onClick={() => setShowConfirmDialog(true)} disabled={isVoting || JSON.stringify(selectedVoti.sort()) === JSON.stringify(userVoti.sort()) || isBlocked}>
-                    {isVoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                <Button onClick={() => setShowConfirmDialog(true)} disabled={saveVotiMutation.isPending || !votiCambiati || data?.blocco.isBlocked}>
+                    {saveVotiMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                     Salva le mie preferenze
                 </Button>
             </div>
@@ -244,7 +227,7 @@ export default function CapodiStato() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>Annulla</Button>
-            <Button onClick={handleConfermaSalva} disabled={isVoting}>Conferma</Button>
+            <Button onClick={() => saveVotiMutation.mutate(selectedVoti)} disabled={saveVotiMutation.isPending}>Conferma</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
