@@ -28,46 +28,6 @@ const options = [
   { value: "Contrario", color: "bg-red-600 text-white" }
 ];
 
-// Mappatura degli ID delle opinioni ai loro argomenti
-const getOpinionTopic = (id: string, questionText: string): string => {
-  // Mappatura per le opinioni base
-  const baseOpinionsMap: Record<string, string> = {
-    'energia_nucleare': 'Energia Nucleare',
-    'sperimentazione_animale': 'Sperimentazione Animale',
-    'legalizzazione_canapa': 'Legalizzazione Canapa',
-    'caccia': 'Caccia',
-    'cittadina_animale': 'Cittadinanza Animale',
-    'eutanasia': 'Eutanasia',
-    'case_chiuse': 'Case Chiuse',
-    'salario_minimo': 'Salario Minimo',
-    'matrimonio_gay': 'Matrimonio Gay',
-    'nato': 'NATO',
-    'omobitransfobia': 'Legge contro l\'omobitransfobia'
-  };
-  
-  // Se è un'opinione base, usa la mappatura
-  if (baseOpinionsMap[id]) {
-    return baseOpinionsMap[id];
-  }
-  
-  // Per le opinioni dinamiche, estrai l'argomento dalla domanda
-  if (questionText) {
-    // Rimuovi "Sei favorevole a" o "Sei favorevole alla" dall'inizio
-    let topic = questionText.replace(/^Sei favorevole (a|alla) /i, '');
-    
-    // Rimuovi il punto interrogativo alla fine
-    topic = topic.replace(/\?$/, '');
-    
-    // Capitalizza la prima lettera
-    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
-    
-    return topic;
-  }
-  
-  // Fallback: usa l'ID
-  return id;
-};
-
 export default function OpinioniComunali() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
@@ -75,8 +35,8 @@ export default function OpinioniComunali() {
   const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
-  // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[]}>({
+  // Caricamento domande e risposte utente con React Query
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, opinioni: Question[], userAnswers: Record<string, string>}>({
     queryKey: ['opinioniQuestions'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Comunale");
@@ -86,39 +46,30 @@ export default function OpinioniComunali() {
     enabled: !!user
   });
 
-  // 2. Caricamento risposte utente con React Query
-  const { data: userAnswersData, isLoading: isLoadingUserAnswers } = useQuery<{success: boolean, data: Record<string, string>}>({
-    queryKey: ['userOpinions'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni/user-answers");
-      if (!response.ok) throw new Error("Errore nel caricamento delle risposte.");
-      return response.json();
-    },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-      // Inizializza lo stato locale con le risposte dell'utente
-      setOpinions(fetchedData.data || {});
-    }
-  });
-
   // Combina i dati
-  const isLoading = isLoadingQuestions || isLoadingUserAnswers;
-  const questions = questionsData?.data || [];
-  const userAnswers = userAnswersData?.data || {};
+  const isLoading = isLoadingQuestions;
+  const questions = questionsData?.opinioni || [];
+  const userAnswers = questionsData?.userAnswers || {};
 
   // Sincronizza le opinioni quando userAnswers è disponibile
   useEffect(() => {
-    if (userAnswers && Object.keys(userAnswers).length > 0) {
-      setOpinions(userAnswers);
+    if (questions && userAnswers && Object.keys(userAnswers).length > 0) {
+      const initialOpinions: Record<string, string> = {};
+      questions.forEach(question => {
+        if (userAnswers[question.id]) {
+          initialOpinions[question.id] = userAnswers[question.id];
+        }
+      });
+      setOpinions(initialOpinions);
     }
-  }, [userAnswers]);
+  }, [questions, userAnswers]);
 
-  // 2. Mutazione per salvare le opinioni
+  // Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni comunali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['userOpinions'] });
+      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions'] });
       setTimeout(() => setLocation("/menu"), 1500);
     },
     onError: (error: any) => {
@@ -177,7 +128,7 @@ export default function OpinioniComunali() {
               <>
                 {questions.map((question) => (
                   <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-center">{getOpinionTopic(question.id, question.text)}</h3>
+                    <h3 className="text-lg font-semibold text-center">{question.text}</h3>
                     <div className="flex justify-center">
                       <div className="flex w-full max-w-md">
                         {options.map((option, idx) => (
