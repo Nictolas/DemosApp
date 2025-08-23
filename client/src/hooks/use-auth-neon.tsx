@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(['user'], data);
       toast({ 
         title: "Login effettuato!", 
-        description: `Benvenuto ${data.name || data.nome || data.email}`,
+        description: `Benvenuto ${data.nome || data.email}`,
         variant: "default"
       });
     },
@@ -201,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(['user'], data);
       toast({ 
         title: "Registrazione completata!", 
-        description: `Benvenuto ${data.name || data.nome || data.email}`,
+        description: `Benvenuto ${data.nome || data.email}`,
         variant: "default"
       });
     },

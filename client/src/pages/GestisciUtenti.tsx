@@ -138,7 +138,7 @@ const renderColumnValue = (value: any, columnName: string, user?: User) => {
         href={`/menu/profilo/${user.id}?from=utenti`} 
         className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
       >
-        {user.name} {user.cognome}
+                        {user.nome} {user.cognome}
       </Link>
     );
   }

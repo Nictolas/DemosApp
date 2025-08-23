@@ -159,7 +159,7 @@ const DatabaseTest: React.FC = () => {
               <div className="max-h-40 overflow-y-auto">
                 {users.slice(0, 5).map((user: any) => (
                   <div key={user.id} className="text-sm p-2 border rounded">
-                    {user.name} {user.cognome} ({user.email})
+                    {user.nome} {user.cognome} ({user.email})
                   </div>
                 ))}
                 {users.length > 5 && (
