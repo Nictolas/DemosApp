@@ -936,15 +936,106 @@ app.get('/api/opinioni-list', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/opinioni/user-answers - Ottieni risposte utente
+// GET /api/opinioni/user-answers - Ottieni risposte opinioni dell'utente
 app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
   try {
-    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    const userId = req.userId;
     
+    // Usa SOLO la tabella users - le risposte sono nelle colonne opinioni
     const query = `
-      SELECT * FROM risposte_opinioni 
-      WHERE user_id = $1
-      ORDER BY created_at DESC
+      SELECT 
+        'energia_nucleare' as opinione_id,
+        energia_nucleare as risposta
+      FROM users 
+      WHERE id = $1 AND energia_nucleare IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'sperimentazione_animale' as opinione_id,
+        sperimentazione_animale as risposta
+      FROM users 
+      WHERE id = $1 AND sperimentazione_animale IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'legalizzazione_canapa' as opinione_id,
+        legalizzazione_canapa as risposta
+      FROM users 
+      WHERE id = $1 AND legalizzazione_canapa IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'caccia' as opinione_id,
+        caccia as risposta
+      FROM users 
+      WHERE id = $1 AND caccia IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'carne_coltivata' as opinione_id,
+        carne_coltivata as risposta
+      FROM users 
+      WHERE id = $1 AND carne_coltivata IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'cittadina_animale' as opinione_id,
+        cittadina_animale as risposta
+      FROM users 
+      WHERE id = $1 AND cittadina_animale IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'nato' as opinione_id,
+        nato as risposta
+      FROM users 
+      WHERE id = $1 AND nato IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'matrimonio_gay' as opinione_id,
+        matrimonio_gay as risposta
+      FROM users 
+      WHERE id = $1 AND matrimonio_gay IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'salario_minimo' as opinione_id,
+        salario_minimo as risposta
+      FROM users 
+      WHERE id = $1 AND salario_minimo IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'case_chiuse' as opinione_id,
+        case_chiuse as risposta
+      FROM users 
+      WHERE id = $1 AND case_chiuse IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'eutanasia' as opinione_id,
+        eutanasia as risposta
+      FROM users 
+      WHERE id = $1 AND eutanasia IS NOT NULL
+      
+      UNION ALL
+      
+      SELECT 
+        'omobitransfobia' as opinione_id,
+        omobitransfobia as risposta
+      FROM users 
+      WHERE id = $1 AND omobitransfobia IS NOT NULL
     `;
     
     const result = await pool.query(query, [userId]);
@@ -967,17 +1058,19 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
   try {
     const { opinionId } = req.params;
     
+    // Usa SOLO la tabella users - aggrega le risposte dalle colonne opinioni
     const query = `
       SELECT 
         COUNT(*) as totale_risposte,
-        COUNT(CASE WHEN risposta = 'Sì' THEN 1 END) as si,
-        COUNT(CASE WHEN risposta = 'No' THEN 1 END) as no,
-        COUNT(CASE WHEN risposta = 'Non so' THEN 1 END) as non_so
-      FROM risposte_opinioni 
-      WHERE opinione_id = $1
+        COUNT(CASE WHEN ${opinionId} = 'Sì' THEN 1 END) as si,
+        COUNT(CASE WHEN ${opinionId} = 'No' THEN 1 END) as no,
+        COUNT(CASE WHEN ${opinionId} = 'Non so' THEN 1 END) as non_so,
+        COUNT(CASE WHEN ${opinionId} IS NULL THEN 1 END) as non_risposto
+      FROM users 
+      WHERE ${opinionId} IS NOT NULL
     `;
     
-    const result = await pool.query(query, [opinionId]);
+    const result = await pool.query(query);
     
     res.json({
       success: true,
@@ -1022,15 +1115,25 @@ app.post('/api/opinioni', verifyToken, validateInput(['text', 'grado_opinione', 
 app.post('/api/opinioni/salva', verifyToken, validateInput(['opinions']), async (req, res) => {
   try {
     const { opinions } = req.body;
-    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    const userId = req.userId;
     
-    // Salva ogni risposta
+    // Usa SOLO la tabella users - aggiorna le colonne opinioni
+    const updateFields = [];
+    const updateValues = [userId];
+    let paramCount = 1;
+    
     for (const [opinionId, risposta] of Object.entries(opinions)) {
-      await pool.query(
-        'INSERT INTO risposte_opinioni (user_id, opinione_id, risposta, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (user_id, opinione_id) DO UPDATE SET risposta = $3',
-        [userId, opinionId, risposta]
-      );
+      updateFields.push(`${opinionId} = $${++paramCount}`);
+      updateValues.push(risposta);
     }
+    
+    const query = `
+      UPDATE users 
+      SET ${updateFields.join(', ')}
+      WHERE id = $1
+    `;
+    
+    await pool.query(query, updateValues);
     
     res.json({
       success: true,
@@ -1119,15 +1222,26 @@ app.delete('/api/opinioni/:id', verifyToken, requireAdmin, async (req, res) => {
 // GET /api/rappresentanti - Ottieni rappresentanti dell'utente
 app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   try {
-    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    const userId = req.userId;
     
+    // Usa SOLO la tabella users - SEMPRE così
     const query = `
-      SELECT r.*, u.nome, u.cognome, c.nome as categoria_nome
-      FROM rappresentanti r
-      JOIN users u ON r.rappresentante_id = u.id
-      JOIN categorie_rappresentanti c ON r.categoria_id = c.id
-      WHERE r.utente_id = $1
-      ORDER BY c.nome
+      SELECT 
+        id as rappresentante_id,
+        nome,
+        cognome,
+        email,
+        ruolo,
+        status,
+        regione,
+        provincia,
+        comune,
+        'disponibile' as stato
+      FROM users
+      WHERE id != $1 
+        AND ruolo = 'User'
+        AND status = 'active'
+      ORDER BY cognome, nome
     `;
     
     const result = await pool.query(query, [userId]);
