@@ -1,7 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { API_CONFIG } from "@/lib/api-config";
-// Firebase rimosso - ora usiamo JWT da localStorage
-// import { auth } from "@/lib/firebase-stub";
+import { getApiUrl } from "@/lib/api-config";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -10,22 +8,6 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const resolveApiUrl = (input: string): string => {
-  if (/^https?:\/\//i.test(input)) return input;
-  
-  // Usa la stessa logica di getApiUrl
-  const baseUrl = (() => {
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-      return 'https://demos-c7k0.onrender.com/api';
-    }
-         return 'http://localhost:3001/api';
-  })();
-  
-  if (input.startsWith('/api/')) return `${baseUrl}${input.substring(4)}`;
-  if (input.startsWith('/')) return `${baseUrl}${input}`;
-  return `${baseUrl}/${input}`;
-};
-
 export const apiRequest = async (method: string, url: string, body?: any) => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -33,11 +15,17 @@ export const apiRequest = async (method: string, url: string, body?: any) => {
   
   // Usa token JWT dal localStorage invece di Firebase
   const token = localStorage.getItem('auth_token');
+  console.log('🔍 DEBUG apiRequest - Token presente:', !!token);
+  console.log('🔍 DEBUG apiRequest - Token value:', token ? token.substring(0, 20) + '...' : 'NULL');
+  
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
   
-  const finalUrl = resolveApiUrl(url);
+  const finalUrl = getApiUrl(url);
+  console.log('🔍 DEBUG apiRequest - Final URL:', finalUrl);
+  console.log('🔍 DEBUG apiRequest - Headers:', headers);
+  
   return fetch(finalUrl, {
     method,
     headers,
@@ -57,11 +45,15 @@ export const getQueryFn: <T>(options: {
     
     // Usa token JWT dal localStorage invece di Firebase
     const token = localStorage.getItem('auth_token');
+    console.log('🔍 DEBUG getQueryFn - Token presente:', !!token);
+    
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const finalUrl = resolveApiUrl(queryKey[0] as string);
+    const finalUrl = getApiUrl(queryKey[0] as string);
+    console.log('🔍 DEBUG getQueryFn - Final URL:', finalUrl);
+    
     const res = await fetch(finalUrl, {
       headers,
     });
