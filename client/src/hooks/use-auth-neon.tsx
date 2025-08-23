@@ -64,7 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ['user'],
     queryFn: async () => {
-      if (!token) return null;
+      if (!token) {
+        console.log('🔍 DEBUG useAuth - Nessun token disponibile');
+        return null;
+      }
+      
+      console.log('🔍 DEBUG useAuth - Token disponibile, chiamando API');
+      console.log('🔍 DEBUG useAuth - Token value:', token.substring(0, 20) + '...');
       
       const response = await fetch(getApiUrl(API_CONFIG.AUTH.ME), {
         headers: {
@@ -73,7 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       });
 
+      console.log('🔍 DEBUG useAuth - Response status:', response.status);
+      console.log('🔍 DEBUG useAuth - Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (response.status === 401) {
+        console.log('🔍 DEBUG useAuth - Token non valido, rimuovendo');
         // Token non valido, rimuovilo
         localStorage.removeItem('auth_token');
         setToken(null);
@@ -81,10 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.log('🔍 DEBUG useAuth - Response non ok:', errorText);
         throw new Error('Errore nel caricamento utente');
       }
 
       const result = await response.json();
+      console.log('🔍 DEBUG useAuth - Response result:', result);
       return result.success ? result.user : null;
     },
     enabled: !!token,
