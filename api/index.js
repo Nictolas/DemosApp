@@ -150,7 +150,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
       success: true,
       user: {
         id: 'user1',
-        nome: 'Utente',
+        name: 'Utente',        // Cambiato da 'nome' a 'name' per compatibilità frontend
         cognome: 'Test',
         email: 'test@example.com',
         ruolo: 'Elettore'
@@ -178,7 +178,7 @@ app.post('/api/auth/login', async (req, res) => {
       success: true,
       user: {
         id: 'user1',
-        nome: 'Utente',
+        name: 'Utente',        // Cambiato da 'nome' a 'name' per compatibilità frontend
         cognome: 'Test',
         email: email,
         ruolo: 'Elettore'
@@ -207,7 +207,7 @@ app.post('/api/auth/register', async (req, res) => {
       success: true,
       user: {
         id: 'user1',
-        nome: nome,
+        name: nome,            // Cambiato da 'nome' a 'name' per compatibilità frontend
         cognome: cognome,
         email: email,
         ruolo: 'Elettore'
@@ -2455,7 +2455,7 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
       success: true,
       user: {
         id: userId,
-        nome: isAdmin ? 'Admin' : 'Utente',
+        name: isAdmin ? 'Admin' : 'Utente',    // Cambiato da 'nome' a 'name' per compatibilità frontend
         cognome: 'Test',
         email: 'test@example.com',
         ruolo: isAdmin ? 'Admin' : 'Elettore',
