@@ -346,7 +346,7 @@ export default function Profilo({ userId }: { userId?: string }) {
                       <div>
                         <h3 className="text-lg font-medium mb-2">Informazioni personali</h3>
                         <div className="space-y-2">
-                          <p><strong>Nome:</strong> {userInfo.name}</p>
+                                                     <p><strong>Nome:</strong> {userInfo.nome}</p>
                           <p><strong>Cognome:</strong> {userInfo.cognome}</p>
                           <p><strong>Data di nascita:</strong> {userInfo.data_nascita}</p>
                           <p><strong>Genere:</strong> {userInfo.genere}</p>

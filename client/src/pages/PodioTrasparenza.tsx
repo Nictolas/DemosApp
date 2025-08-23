@@ -137,7 +137,7 @@ export default function PodioTrasparenza() {
                           
                           <div>
                             <h3 className="text-lg font-semibold">
-                              {user.name} {user.cognome}
+                              {user.nome} {user.cognome}
                             </h3>
                             <div className="flex items-center space-x-2 mt-1">
                               <Badge variant="outline" className="text-xs">
