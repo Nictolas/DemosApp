@@ -1073,19 +1073,73 @@ app.post('/api/grazia', verifyToken, validateInput(['nome_carcerato', 'motivo'])
   }
 });
 
+// GET /api/grazia/debug - Debug struttura tabelle
+app.get('/api/grazia/debug', limiter, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Endpoint debug struttura tabelle');
+    
+    // Verifica struttura voti_grazia
+    const votiStructure = await pool.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'voti_grazia'
+      ORDER BY ordinal_position
+    `);
+    
+    // Verifica struttura users
+    const usersStructure = await pool.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'users'
+      ORDER BY ordinal_position
+    `);
+    
+    // Conta record
+    const votiCount = await pool.query('SELECT COUNT(*) FROM voti_grazia');
+    const usersCount = await pool.query('SELECT COUNT(*) FROM users');
+    
+    // Record di esempio
+    const votiSample = await pool.query('SELECT * FROM voti_grazia LIMIT 3');
+    const usersSample = await pool.query('SELECT id, nome, cognome FROM users LIMIT 3');
+    
+    res.json({
+      success: true,
+      voti_grazia: {
+        structure: votiStructure.rows,
+        count: votiCount.rows[0].count,
+        sample: votiSample.rows
+      },
+      users: {
+        structure: usersStructure.rows,
+        count: usersCount.rows[0].count,
+        sample: usersSample.rows
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel debug:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel debug',
+      details: error.message
+    });
+  }
+});
+
 // GET /api/grazia - Ottieni richieste di grazia
 app.get('/api/grazia', limiter, async (req, res) => {
   try {
-    // Recuperiamo le richieste dalla tabella voti_grazia esistente
+    console.log('🔍 DEBUG: Chiamata endpoint /api/grazia');
+    
+    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
     const query = `
-      SELECT v.*, u.nome, u.cognome
-      FROM voti_grazia v
-      JOIN users u ON v.userid = u.id
-      ORDER BY v.created_at DESC
+      SELECT *
+      FROM voti_grazia
+      ORDER BY created_at DESC
       LIMIT 10
     `;
     
     const result = await pool.query(query);
+    console.log(`✅ Recuperati ${result.rows.length} record da voti_grazia`);
     
     // Creiamo una classifica Top 10 basata sul numero di voti per carcerato
     const classificaQuery = `
@@ -1097,6 +1151,7 @@ app.get('/api/grazia', limiter, async (req, res) => {
     `;
     
     const classificaResult = await pool.query(classificaQuery);
+    console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
     
     res.json({
       success: true,
@@ -1118,11 +1173,11 @@ app.get('/api/grazia', limiter, async (req, res) => {
 // GET /api/grazia/richieste - Ottieni richieste per gestione
 app.get('/api/grazia/richieste', verifyToken, async (req, res) => {
   try {
+    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
     const query = `
-      SELECT v.*, u.nome, u.cognome
-      FROM voti_grazia v
-      JOIN users u ON v.userid = u.id
-      ORDER BY v.created_at DESC
+      SELECT *
+      FROM voti_grazia
+      ORDER BY created_at DESC
     `;
     
     const result = await pool.query(query);
