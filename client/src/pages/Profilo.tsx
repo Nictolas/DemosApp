@@ -70,6 +70,7 @@ export default function Profilo({ userId }: { userId?: string }) {
       console.log('🔍 DEBUG Profilo - Dati utente estratti:', userData);
       
       setUserInfo(userData as UserInfo);
+      console.log('🔍 DEBUG Profilo - userInfo impostato:', userData);
       
       // 2. Carica opinioni utente
       console.log('🔍 DEBUG Profilo - Caricando opinioni utente...');
@@ -295,6 +296,9 @@ export default function Profilo({ userId }: { userId?: string }) {
         ) : userInfo && user ? (
           <>
             {console.log('🔍 DEBUG Profilo - Rendering con userInfo:', userInfo)}
+            {console.log('🔍 DEBUG Profilo - userInfo.nome:', userInfo.nome)}
+            {console.log('🔍 DEBUG Profilo - userInfo.cittadinanza:', userInfo.cittadinanza)}
+            {console.log('🔍 DEBUG Profilo - userInfo.paese_residenza:', userInfo.paese_residenza)}
             <Button 
               variant="ghost" 
               className="mb-4 flex items-center"
