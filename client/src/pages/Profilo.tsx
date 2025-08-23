@@ -106,7 +106,18 @@ export default function Profilo({ userId }: { userId?: string }) {
       const response = await apiRequest("GET", `/api/governo/voti`);
       
       if (response.ok) {
-        const votiGoverno = await response.json();
+        const result = await response.json();
+        // Estrai i voti dalla struttura della risposta
+        const voti = result.voti || [];
+        const votiGoverno: Record<string, string> = {};
+        
+        // Converti i voti in un oggetto categoria -> candidato
+        voti.forEach((voto: any) => {
+          if (voto.categoria && voto.nome_ministro) {
+            votiGoverno[voto.categoria] = voto.nome_ministro;
+          }
+        });
+        
         setGovernoIdeale(votiGoverno);
       }
     } catch (error) {

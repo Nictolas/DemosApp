@@ -786,17 +786,39 @@ app.get('/api/eventi', limiter, async (req, res) => {
 // GET /api/opinioni/profile - Ottieni opinioni per profilo utente
 app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
   try {
-    const query = `
-      SELECT o.*, o.grado_opinione as categoria_nome
+    const userId = req.userId;
+    
+    // Query per ottenere le domande delle opinioni
+    const opinionQuery = `
+      SELECT DISTINCT o.grado_opinione, o.text
       FROM opinioni o
       ORDER BY o.grado_opinione, o.text
     `;
     
-    const result = await pool.query(query);
+    const opinionResult = await pool.query(opinionQuery);
+    
+    // Formatta le domande per il frontend
+    const questions = opinionResult.rows.map(row => ({
+      id: `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`,
+      text: `${row.grado_opinione}: ${row.text}`
+    }));
+    
+    // Query per ottenere le risposte dell'utente
+    const userQuery = `
+      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia
+      FROM users
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    const userAnswers = userResult.rows[0] || {};
     
     res.json({
       success: true,
-      opinioni: result.rows
+      data: {
+        questions: questions,
+        userAnswers: userAnswers
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare opinioni:', error);
