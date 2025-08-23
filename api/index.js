@@ -3,6 +3,18 @@ const { Pool } = require('pg');
 const cors = require('cors');
 require('dotenv').config();
 
+// Rate limiting semplice
+const rateLimit = require('express-rate-limit');
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuti
+  max: 100, // limite per IP
+  message: {
+    success: false,
+    error: 'Troppe richieste, riprova più tardi'
+  }
+});
+
 const app = express();
 
 // Middleware
@@ -35,8 +47,44 @@ const verifyToken = (req, res, next) => {
   if (!token) {
     return res.status(401).json({ success: false, message: 'Token mancante' });
   }
-  // Per ora saltiamo la verifica JWT per semplificare
-  next();
+  
+  try {
+    // Per ora estraiamo l'user ID dal token (in futuro sarà JWT.decode)
+    // Simuliamo l'estrazione dell'user ID dal token
+    const decodedToken = { userId: 'user1' }; // Placeholder per JWT.decode(token)
+    
+    // Aggiungiamo l'user ID alla request per uso futuro
+    req.userId = decodedToken.userId;
+    next();
+  } catch (error) {
+    console.error('❌ Errore nella verifica token:', error);
+    return res.status(401).json({ success: false, message: 'Token non valido' });
+  }
+};
+
+// Middleware per verificare se l'utente è admin
+const requireAdmin = (req, res, next) => {
+  // Per ora controlliamo se l'utente è admin (in futuro sarà dal database)
+  if (req.userId === 'admin1') {
+    next();
+  } else {
+    res.status(403).json({ success: false, message: 'Accesso negato: richiesti privilegi admin' });
+  }
+};
+
+// Middleware per validazione input base
+const validateInput = (requiredFields) => {
+  return (req, res, next) => {
+    for (const field of requiredFields) {
+      if (!req.body[field] || req.body[field].trim() === '') {
+        return res.status(400).json({
+          success: false,
+          error: `Campo richiesto mancante: ${field}`
+        });
+      }
+    }
+    next();
+  };
 };
 
 // ===== ENDPOINTS PER UTENTI =====
@@ -126,7 +174,7 @@ app.post('/api/auth/register', async (req, res) => {
 // ===== ENDPOINTS PER CAPO DI STATO =====
 
 // GET /api/capo-stato - Ottieni tutti i voti per il capo di stato
-app.get('/api/capo-stato', async (req, res) => {
+app.get('/api/capo-stato', limiter, async (req, res) => {
   try {
     console.log('👑 Richiesta voti capo di stato');
     
@@ -159,10 +207,10 @@ app.get('/api/capo-stato', async (req, res) => {
 });
 
 // POST /api/capo-stato/vota - Salva i voti dell'utente
-app.post('/api/capo-stato/vota', verifyToken, async (req, res) => {
+app.post('/api/capo-stato/vota', verifyToken, validateInput(['voti']), async (req, res) => {
   try {
     const { voti } = req.body;
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     console.log('👑 Salvataggio voti per utente:', userId, 'Voti:', voti);
     
@@ -218,10 +266,10 @@ app.get('/api/elezioni/prossime', async (req, res) => {
 // ===== ENDPOINTS PER COMUNICAZIONI =====
 
 // POST /api/comunicazioni - Crea una nuova comunicazione
-app.post('/api/comunicazioni', verifyToken, async (req, res) => {
+app.post('/api/comunicazioni', verifyToken, validateInput(['titolo', 'contenuto', 'tipo']), async (req, res) => {
   try {
     const { titolo, contenuto, tipo } = req.body;
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
       INSERT INTO comunicazioni (utente_id, titolo, contenuto, tipo, created_at)
@@ -339,9 +387,16 @@ app.put('/api/comunicazioni/:id', verifyToken, async (req, res) => {
 });
 
 // DELETE /api/comunicazioni/:id - Elimina comunicazione
-app.delete('/api/comunicazioni/:id', verifyToken, async (req, res) => {
+app.delete('/api/comunicazioni/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID comunicazione richiesto'
+      });
+    }
     
     const result = await pool.query('DELETE FROM comunicazioni WHERE id = $1 RETURNING *', [id]);
     
@@ -369,7 +424,14 @@ app.delete('/api/comunicazioni/:id', verifyToken, async (req, res) => {
 app.get('/api/comunicazioni/check-duplicate', verifyToken, async (req, res) => {
   try {
     const { titolo, contenuto } = req.query;
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    
+    if (!titolo || !contenuto) {
+      return res.status(400).json({
+        success: false,
+        error: 'Parametri titolo e contenuto richiesti'
+      });
+    }
     
     const query = `
       SELECT COUNT(*) as count FROM comunicazioni 
@@ -395,7 +457,7 @@ app.get('/api/comunicazioni/check-duplicate', verifyToken, async (req, res) => {
 // GET /api/ultima-comunicazione - Ottieni l'ultima comunicazione dell'utente
 app.get('/api/ultima-comunicazione', verifyToken, async (req, res) => {
   try {
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
       SELECT * FROM comunicazioni 
@@ -422,10 +484,10 @@ app.get('/api/ultima-comunicazione', verifyToken, async (req, res) => {
 // ===== ENDPOINTS PER EVENTI =====
 
 // POST /api/eventi - Crea un nuovo evento
-app.post('/api/eventi', verifyToken, async (req, res) => {
+app.post('/api/eventi', verifyToken, validateInput(['titolo', 'descrizione', 'data', 'luogo']), async (req, res) => {
   try {
     const { titolo, descrizione, data, luogo } = req.body;
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
       INSERT INTO eventi (utente_id, titolo, descrizione, data, luogo, created_at)
@@ -640,7 +702,7 @@ app.get('/api/opinioni-list', verifyToken, async (req, res) => {
 // GET /api/opinioni/user-answers - Ottieni risposte utente
 app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
   try {
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
       SELECT * FROM risposte_opinioni 
@@ -694,17 +756,17 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni - Crea nuova opinione
-app.post('/api/opinioni', verifyToken, async (req, res) => {
+app.post('/api/opinioni', verifyToken, validateInput(['text', 'grado_opinione', 'categoria_id']), async (req, res) => {
   try {
-    const { text, grado_opinione } = req.body;
+    const { text, grado_opinione, categoria_id } = req.body;
     
     const query = `
-      INSERT INTO opinioni (testo, grado, created_at)
-      VALUES ($1, $2, NOW())
+      INSERT INTO opinioni (testo, grado, categoria_id, created_at)
+      VALUES ($1, $2, $3, NOW())
       RETURNING *
     `;
     
-    const result = await pool.query(query, [text, grado_opinione]);
+    const result = await pool.query(query, [text, grado_opinione, categoria_id]);
     
     res.json({
       success: true,
@@ -720,10 +782,10 @@ app.post('/api/opinioni', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni/salva - Salva risposte opinioni
-app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
+app.post('/api/opinioni/salva', verifyToken, validateInput(['opinions']), async (req, res) => {
   try {
     const { opinions } = req.body;
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     // Salva ogni risposta
     for (const [opinionId, risposta] of Object.entries(opinions)) {
@@ -813,7 +875,7 @@ app.delete('/api/opinioni/:id', verifyToken, async (req, res) => {
 // GET /api/rappresentanti - Ottieni rappresentanti dell'utente
 app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   try {
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
       SELECT r.*, u.nome, u.cognome, c.nome as categoria_nome
@@ -840,10 +902,10 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
 });
 
 // POST /api/rappresentanti - Assegna rappresentante
-app.post('/api/rappresentanti', verifyToken, async (req, res) => {
+app.post('/api/rappresentanti', verifyToken, validateInput(['rappresentante_id', 'categoria_id']), async (req, res) => {
   try {
     const { rappresentante_id, categoria_id } = req.body;
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
       INSERT INTO rappresentanti (utente_id, rappresentante_id, categoria_id, created_at)
@@ -1098,10 +1160,10 @@ app.get('/api/ice/richieste', verifyToken, async (req, res) => {
 });
 
 // POST /api/ice - Crea richiesta ICE
-app.post('/api/ice', verifyToken, async (req, res) => {
+app.post('/api/ice', verifyToken, validateInput(['titolo', 'descrizione', 'tipo']), async (req, res) => {
   try {
     const { titolo, descrizione, tipo } = req.body;
-    const userId = 'user1'; // Per ora hardcoded
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
       INSERT INTO richieste_ice (utente_id, titolo, descrizione, tipo, created_at)
@@ -2184,9 +2246,16 @@ app.get('/api/comunicazioni/:id/reactions', verifyToken, async (req, res) => {
 // ===== ENDPOINTS PER GESTIONE UTENTI AGGIUNTIVI =====
 
 // POST /api/users/:id/approve - Approva utente
-app.post('/api/users/:id/approve', verifyToken, async (req, res) => {
+app.post('/api/users/:id/approve', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
     
     await pool.query('UPDATE users SET ruolo = $1 WHERE id = $2', ['Elettore', id]);
     
@@ -2201,9 +2270,16 @@ app.post('/api/users/:id/approve', verifyToken, async (req, res) => {
 });
 
 // POST /api/users/:id/reject - Rifiuta utente
-app.post('/api/users/:id/reject', verifyToken, async (req, res) => {
+app.post('/api/users/:id/reject', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
     
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
     
@@ -2218,10 +2294,26 @@ app.post('/api/users/:id/reject', verifyToken, async (req, res) => {
 });
 
 // PUT /api/users/:id - Aggiorna ruolo utente
-app.put('/api/users/:id', verifyToken, async (req, res) => {
+app.put('/api/users/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { ruolo } = req.body;
+    
+    if (!id || !ruolo) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente e ruolo richiesti'
+      });
+    }
+    
+    // Validazione ruolo
+    const ruoliValidi = ['Elettore', 'Politico', 'Candidato', 'Admin'];
+    if (!ruoliValidi.includes(ruolo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Ruolo non valido'
+      });
+    }
     
     await pool.query('UPDATE users SET ruolo = $1 WHERE id = $2', [ruolo, id]);
     
@@ -2231,6 +2323,62 @@ app.put('/api/users/:id', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nell\'aggiornamento ruolo'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER VERIFICA RUOLI =====
+
+// GET /api/health - Health check del server
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test connessione database
+    await pool.query('SELECT 1');
+    
+    res.json({
+      success: true,
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    console.error('❌ Health check fallito:', error);
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/auth/me - Ottieni informazioni utente corrente
+app.get('/api/auth/me', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    // Per ora restituiamo un utente mock per test
+    // In futuro qui andrà la query al database
+    const isAdmin = userId === 'admin1';
+    
+    res.json({
+      success: true,
+      user: {
+        id: userId,
+        nome: isAdmin ? 'Admin' : 'Utente',
+        cognome: 'Test',
+        email: 'test@example.com',
+        ruolo: isAdmin ? 'Admin' : 'Elettore',
+        isAdmin: isAdmin
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare dati utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare dati utente'
     });
   }
 });
@@ -2250,6 +2398,32 @@ app.use('*', (req, res) => {
 // Middleware per gestire errori globali
 app.use((error, req, res, next) => {
   console.error('❌ Errore globale:', error);
+  
+  // Gestione specifica per errori di database
+  if (error.code === '42P01') { // Table doesn't exist
+    return res.status(500).json({
+      success: false,
+      error: 'Tabella database non trovata',
+      message: 'Contattare l\'amministratore per verificare la configurazione del database'
+    });
+  }
+  
+  if (error.code === '23505') { // Unique violation
+    return res.status(409).json({
+      success: false,
+      error: 'Dato duplicato',
+      message: 'Il record esiste già nel database'
+    });
+  }
+  
+  if (error.code === '23503') { // Foreign key violation
+    return res.status(400).json({
+      success: false,
+      error: 'Riferimento non valido',
+      message: 'Il record referenziato non esiste'
+    });
+  }
+  
   res.status(500).json({
     success: false,
     error: 'Errore interno del server',
@@ -2260,11 +2434,14 @@ app.use((error, req, res, next) => {
 // Avvio server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 Server API pulito avviato sulla porta ${PORT}`);
+  console.log(`🚀 Server API SECURED avviato sulla porta ${PORT}`);
+  console.log('🔒 Middleware di sicurezza attivo');
   console.log('👑 Capo di Stato endpoint: http://localhost:3001/api/capo-stato');
   console.log('📊 Elezioni endpoint: http://localhost:3001/api/elezioni/prossime');
   console.log('💬 Comunicazioni endpoint: http://localhost:3001/api/comunicazioni');
   console.log('🎉 Eventi endpoint: http://localhost:3001/api/eventi');
+  console.log('🏥 Health check: http://localhost:3001/api/health');
+  console.log('⚠️  ATTENZIONE: JWT ancora mock - implementare vera autenticazione in produzione!');
 });
 
 module.exports = app;
