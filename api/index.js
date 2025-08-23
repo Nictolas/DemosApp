@@ -1046,29 +1046,94 @@ app.delete('/api/rappresentanti/:id', verifyToken, requireAdmin, async (req, res
 
 // ===== ENDPOINTS PER GRAZIA =====
 
+// POST /api/grazia - Crea richiesta di grazia
+app.post('/api/grazia', verifyToken, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
+  try {
+    const { nome_carcerato, motivo } = req.body;
+    const userId = req.userId;
+    
+    const query = `
+      INSERT INTO richieste_grazia (utente_id, nome_carcerato, motivo, stato, created_at)
+      VALUES ($1, $2, $3, 'in_attesa', NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, nome_carcerato, motivo]);
+    
+    res.json({
+      success: true,
+      richiesta: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione richiesta grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione richiesta grazia'
+    });
+  }
+});
+
 // GET /api/grazia - Ottieni richieste di grazia
 app.get('/api/grazia', limiter, async (req, res) => {
   try {
+    // Prima verifichiamo se la tabella esiste
+    try {
+      await pool.query('SELECT 1 FROM richieste_grazia LIMIT 1');
+    } catch (tableError) {
+      console.log('⚠️ Tabella richieste_grazia non esiste, creando struttura di base...');
+      
+      // Creiamo la tabella se non esiste
+      const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS richieste_grazia (
+          id SERIAL PRIMARY KEY,
+          utente_id VARCHAR(255) NOT NULL,
+          nome_carcerato VARCHAR(255) NOT NULL,
+          motivo TEXT,
+          stato VARCHAR(50) DEFAULT 'in_attesa',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `;
+      
+      await pool.query(createTableQuery);
+      console.log('✅ Tabella richieste_grazia creata con successo');
+    }
+    
+    // Ora recuperiamo le richieste
     const query = `
       SELECT g.*, u.nome, u.cognome
       FROM richieste_grazia g
       JOIN users u ON g.utente_id = u.id
       ORDER BY g.created_at DESC
+      LIMIT 10
     `;
     
     const result = await pool.query(query);
     
+    // Creiamo una classifica Top 10 basata sul numero di richieste per carcerato
+    const classificaQuery = `
+      SELECT nome_carcerato, COUNT(*) as richieste
+      FROM richieste_grazia
+      GROUP BY nome_carcerato
+      ORDER BY richieste DESC
+      LIMIT 10
+    `;
+    
+    const classificaResult = await pool.query(classificaQuery);
+    
     res.json({
       success: true,
-      classifica: result.rows,
-      mieiVoti: ['user1'], // Placeholder
+      classifica: classificaResult.rows,
+      richieste: result.rows,
+      mieiVoti: [], // Per ora vuoto
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare richieste grazia:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare richieste grazia'
+      error: 'Errore nel recuperare richieste grazia',
+      details: error.message
     });
   }
 });
