@@ -36,6 +36,38 @@ app.options('*', cors());
 
 app.use(express.json());
 
+// Middleware per sanitizzazione input base
+const sanitizeInput = (req, res, next) => {
+  // Sanitizza i parametri delle query
+  if (req.params) {
+    for (const [key, value] of Object.entries(req.params)) {
+      if (typeof value === 'string') {
+        req.params[key] = value.replace(/[<>'"]/g, '');
+      }
+    }
+  }
+  
+  // Sanitizza il body
+  if (req.body) {
+    for (const [key, value] of Object.entries(req.body)) {
+      if (typeof value === 'string') {
+        req.body[key] = value.replace(/[<>'"]/g, '');
+      }
+    }
+  }
+  
+  // Sanitizza le query string
+  if (req.query) {
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === 'string') {
+        req.query[key] = value.replace(/[<>'"]/g, '');
+      }
+    }
+  }
+  
+  next();
+};
+
 // Applica sanitizzazione input a tutti gli endpoint
 app.use(sanitizeInput);
 
@@ -107,38 +139,6 @@ const validateInput = (requiredFields) => {
     }
     next();
   };
-};
-
-// Middleware per sanitizzazione input base
-const sanitizeInput = (req, res, next) => {
-  // Sanitizza i parametri delle query
-  if (req.params) {
-    for (const [key, value] of Object.entries(req.params)) {
-      if (typeof value === 'string') {
-        req.params[key] = value.replace(/[<>'"]/g, '');
-      }
-    }
-  }
-  
-  // Sanitizza il body
-  if (req.body) {
-    for (const [key, value] of Object.entries(req.body)) {
-      if (typeof value === 'string') {
-        req.body[key] = value.replace(/[<>'"]/g, '');
-      }
-    }
-  }
-  
-  // Sanitizza le query string
-  if (req.query) {
-    for (const [key, value] of Object.entries(req.query)) {
-      if (typeof value === 'string') {
-        req.query[key] = value.replace(/[<>'"]/g, '');
-      }
-    }
-  }
-  
-  next();
 };
 
 // ===== ENDPOINTS PER UTENTI =====
