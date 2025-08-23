@@ -195,13 +195,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('auth_token', userToken);
       setToken(userToken);
 
-      return result.data;
+      return result.user;
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['user'], data);
       toast({ 
         title: "Registrazione completata!", 
-        description: `Benvenuto ${data.name || data.email}`,
+        description: `Benvenuto ${data.name || data.nome || data.email}`,
         variant: "default"
       });
     },
