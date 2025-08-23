@@ -244,6 +244,127 @@ app.post('/api/comunicazioni', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/comunicazioni - Ottieni tutte le comunicazioni
+app.get('/api/comunicazioni', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT c.*, u.nome, u.cognome
+      FROM comunicazioni c
+      JOIN users u ON c.utente_id = u.id
+      ORDER BY c.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      comunicazioni: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare comunicazioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare comunicazioni'
+    });
+  }
+});
+
+// GET /api/comunicazioni/:id - Ottieni comunicazione specifica
+app.get('/api/comunicazioni/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = `
+      SELECT c.*, u.nome, u.cognome
+      FROM comunicazioni c
+      JOIN users u ON c.utente_id = u.id
+      WHERE c.id = $1
+    `;
+    
+    const result = await pool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Comunicazione non trovata'
+      });
+    }
+    
+    res.json({
+      success: true,
+      comunicazione: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare comunicazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare comunicazione'
+    });
+  }
+});
+
+// PUT /api/comunicazioni/:id - Aggiorna comunicazione
+app.put('/api/comunicazioni/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titolo, contenuto, tipo } = req.body;
+    
+    const query = `
+      UPDATE comunicazioni 
+      SET titolo = $1, contenuto = $2, tipo = $3, updated_at = NOW()
+      WHERE id = $4
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [titolo, contenuto, tipo, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Comunicazione non trovata'
+      });
+    }
+    
+    res.json({
+      success: true,
+      comunicazione: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento comunicazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento comunicazione'
+    });
+  }
+});
+
+// DELETE /api/comunicazioni/:id - Elimina comunicazione
+app.delete('/api/comunicazioni/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM comunicazioni WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Comunicazione non trovata'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Comunicazione eliminata'
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione comunicazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione comunicazione'
+    });
+  }
+});
+
 // GET /api/comunicazioni/check-duplicate - Verifica duplicati
 app.get('/api/comunicazioni/check-duplicate', verifyToken, async (req, res) => {
   try {
@@ -323,6 +444,68 @@ app.post('/api/eventi', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nella creazione evento'
+    });
+  }
+});
+
+// PUT /api/eventi/:id - Aggiorna evento
+app.put('/api/eventi/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titolo, descrizione, data, luogo } = req.body;
+    
+    const query = `
+      UPDATE eventi 
+      SET titolo = $1, descrizione = $2, data = $3, luogo = $4, updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [titolo, descrizione, data, luogo, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Evento non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      evento: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento evento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento evento'
+    });
+  }
+});
+
+// DELETE /api/eventi/:id - Elimina evento
+app.delete('/api/eventi/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM eventi WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Evento non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Evento eliminato'
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione evento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione evento'
     });
   }
 });
@@ -563,6 +746,68 @@ app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
   }
 });
 
+// PUT /api/opinioni/:id - Aggiorna opinione
+app.put('/api/opinioni/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { testo, grado } = req.body;
+    
+    const query = `
+      UPDATE opinioni 
+      SET testo = $1, grado = $2, updated_at = NOW()
+      WHERE id = $3
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [testo, grado, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    res.json({
+      success: true,
+      opinione: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento opinione'
+    });
+  }
+});
+
+// DELETE /api/opinioni/:id - Elimina opinione
+app.delete('/api/opinioni/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM opinioni WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Opinione eliminata'
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione opinione'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER RAPPRESENTANTI =====
 
 // GET /api/rappresentanti - Ottieni rappresentanti dell'utente
@@ -590,6 +835,60 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare rappresentanti'
+    });
+  }
+});
+
+// POST /api/rappresentanti - Assegna rappresentante
+app.post('/api/rappresentanti', verifyToken, async (req, res) => {
+  try {
+    const { rappresentante_id, categoria_id } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      INSERT INTO rappresentanti (utente_id, rappresentante_id, categoria_id, created_at)
+      VALUES ($1, $2, $3, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, rappresentante_id, categoria_id]);
+    
+    res.json({
+      success: true,
+      rappresentante: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'assegnazione rappresentante:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'assegnazione rappresentante'
+    });
+  }
+});
+
+// DELETE /api/rappresentanti/:id - Rimuovi rappresentante
+app.delete('/api/rappresentanti/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM rappresentanti WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Rappresentante non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Rappresentante rimosso'
+    });
+  } catch (error) {
+    console.error('❌ Errore nella rimozione rappresentante:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella rimozione rappresentante'
     });
   }
 });
@@ -1378,6 +1677,80 @@ app.get('/api/candidati', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/candidati - Crea candidato
+app.post('/api/candidati', verifyToken, async (req, res) => {
+  try {
+    const { user_id, grado, categoria } = req.body;
+    
+    const query = `
+      INSERT INTO candidati (user_id, grado, categoria, created_at)
+      VALUES ($1, $2, $3, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [user_id, grado, categoria]);
+    
+    res.json({
+      success: true,
+      candidato: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione candidato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione candidato'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER CATEGORIE =====
+
+// GET /api/categorie-opinioni - Ottieni categorie opinioni
+app.get('/api/categorie-opinioni', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM categorie_opinioni 
+      ORDER BY nome
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      categorie: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare categorie opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare categorie opinioni'
+    });
+  }
+});
+
+// GET /api/categorie-rappresentanti - Ottieni categorie rappresentanti
+app.get('/api/categorie-rappresentanti', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM categorie_rappresentanti 
+      ORDER BY nome
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      categorie: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare categorie rappresentanti:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare categorie rappresentanti'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER SONDAGGI =====
 
 // GET /api/sondaggi/stats - Statistiche sondaggi
@@ -1402,6 +1775,55 @@ app.get('/api/sondaggi/stats', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche sondaggi'
+    });
+  }
+});
+
+// GET /api/sondaggi - Ottieni tutti i sondaggi
+app.get('/api/sondaggi', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM sondaggi 
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      sondaggi: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi'
+    });
+  }
+});
+
+// POST /api/sondaggi - Crea nuovo sondaggio
+app.post('/api/sondaggi', verifyToken, async (req, res) => {
+  try {
+    const { titolo, descrizione, domande, scadenza } = req.body;
+    
+    const query = `
+      INSERT INTO sondaggi (titolo, descrizione, domande, scadenza, stato, created_at)
+      VALUES ($1, $2, $3, $4, 'attivo', NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [titolo, descrizione, JSON.stringify(domande), scadenza]);
+    
+    res.json({
+      success: true,
+      sondaggio: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione sondaggio:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione sondaggio'
     });
   }
 });
@@ -1455,6 +1877,49 @@ app.post('/api/notifiche/preferenze', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel salvare preferenze notifiche'
+    });
+  }
+});
+
+// POST /api/notifiche - Crea notifica
+app.post('/api/notifiche', verifyToken, async (req, res) => {
+  try {
+    const { user_id, titolo, messaggio, tipo } = req.body;
+    
+    const query = `
+      INSERT INTO notifiche (user_id, titolo, messaggio, tipo, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [user_id, titolo, messaggio, tipo]);
+    
+    res.json({
+      success: true,
+      notifica: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione notifica:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione notifica'
+    });
+  }
+});
+
+// PUT /api/notifiche/:id/read - Segna notifica come letta
+app.put('/api/notifiche/:id/read', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await pool.query('UPDATE notifiche SET letta = true WHERE id = $1', [id]);
+    
+    res.json({ success: true, message: 'Notifica segnata come letta' });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento notifica:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento notifica'
     });
   }
 });
@@ -1519,6 +1984,60 @@ app.get('/api/sostenitori', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/sostenitori - Aggiungi sostenitore
+app.post('/api/sostenitori', verifyToken, async (req, res) => {
+  try {
+    const { sostenitore_id } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      INSERT INTO sostenitori (utente_id, sostenitore_id, created_at)
+      VALUES ($1, $2, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, sostenitore_id]);
+    
+    res.json({
+      success: true,
+      sostenitore: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiunta sostenitore:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiunta sostenitore'
+    });
+  }
+});
+
+// DELETE /api/sostenitori/:id - Rimuovi sostenitore
+app.delete('/api/sostenitori/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const result = await pool.query('DELETE FROM sostenitori WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Sostenitore non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Sostenitore rimosso'
+    });
+  } catch (error) {
+    console.error('❌ Errore nella rimozione sostenitore:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella rimozione sostenitore'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER PROGRAMMA =====
 
 // GET /api/programma - Ottieni programma
@@ -1570,54 +2089,172 @@ app.post('/api/programma', verifyToken, async (req, res) => {
   }
 });
 
-// ===== ENDPOINTS PER COMUNICAZIONI AGGIUNTIVI =====
-
-// GET /api/comunicazioni/ultima - Ultima comunicazione
-app.get('/api/comunicazioni/ultima', verifyToken, async (req, res) => {
+// PUT /api/programma/:id - Aggiorna punto programma
+app.put('/api/programma/:id', verifyToken, async (req, res) => {
   try {
+    const { id } = req.params;
+    const { titolo, descrizione, priorita } = req.body;
+    
     const query = `
-      SELECT c.*, u.nome, u.cognome
-      FROM comunicazioni c
-      JOIN users u ON c.utente_id = u.id
-      ORDER BY c.created_at DESC
-      LIMIT 1
+      UPDATE programma 
+      SET titolo = $1, descrizione = $2, priorita = $3, updated_at = NOW()
+      WHERE id = $4
+      RETURNING *
     `;
     
-    const result = await pool.query(query);
+    const result = await pool.query(query, [titolo, descrizione, priorita, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Punto programma non trovato'
+      });
+    }
     
     res.json({
       success: true,
-      comunicazione: result.rows[0] || null
+      punto: result.rows[0]
     });
   } catch (error) {
-    console.error('❌ Errore nel recuperare ultima comunicazione:', error);
+    console.error('❌ Errore nell\'aggiornamento punto programma:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare ultima comunicazione'
+      error: 'Errore nell\'aggiornamento punto programma'
     });
   }
 });
 
-// POST /api/comunicazioni/:id/react - Reazione a comunicazione
-app.post('/api/comunicazioni/:id/react', verifyToken, async (req, res) => {
+// DELETE /api/programma/:id - Elimina punto programma
+app.delete('/api/programma/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { reaction } = req.body;
-    const userId = 'user1'; // Per ora hardcoded
     
-    await pool.query(
-      'INSERT INTO reazioni_comunicazioni (user_id, comunicazione_id, reazione, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (user_id, comunicazione_id) DO UPDATE SET reazione = $3',
-      [userId, id, reaction]
-    );
+    const result = await pool.query('DELETE FROM programma WHERE id = $1 RETURNING *', [id]);
     
-    res.json({ success: true, message: 'Reazione salvata' });
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Punto programma non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Punto programma eliminato'
+    });
   } catch (error) {
-    console.error('❌ Errore nel salvare reazione:', error);
+    console.error('❌ Errore nell\'eliminazione punto programma:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel salvare reazione'
+      error: 'Errore nell\'eliminazione punto programma'
     });
   }
+});
+
+// ===== ENDPOINTS PER REAZIONI COMUNICAZIONI =====
+
+// GET /api/comunicazioni/:id/reactions - Ottieni reazioni comunicazione
+app.get('/api/comunicazioni/:id/reactions', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = `
+      SELECT r.*, u.nome, u.cognome
+      FROM reazioni_comunicazioni r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.comunicazione_id = $1
+      ORDER BY r.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [id]);
+    
+    res.json({
+      success: true,
+      reazioni: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare reazioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare reazioni'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER GESTIONE UTENTI AGGIUNTIVI =====
+
+// POST /api/users/:id/approve - Approva utente
+app.post('/api/users/:id/approve', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await pool.query('UPDATE users SET ruolo = $1 WHERE id = $2', ['Elettore', id]);
+    
+    res.json({ success: true, message: 'Utente approvato' });
+  } catch (error) {
+    console.error('❌ Errore nell\'approvazione utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'approvazione utente'
+    });
+  }
+});
+
+// POST /api/users/:id/reject - Rifiuta utente
+app.post('/api/users/:id/reject', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    
+    res.json({ success: true, message: 'Utente rifiutato e rimosso' });
+  } catch (error) {
+    console.error('❌ Errore nel rifiuto utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel rifiuto utente'
+    });
+  }
+});
+
+// PUT /api/users/:id - Aggiorna ruolo utente
+app.put('/api/users/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ruolo } = req.body;
+    
+    await pool.query('UPDATE users SET ruolo = $1 WHERE id = $2', [ruolo, id]);
+    
+    res.json({ success: true, message: 'Ruolo utente aggiornato' });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento ruolo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento ruolo'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER GESTIONE ERRORI =====
+
+// Middleware per gestire errori 404
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint non trovato',
+    path: req.originalUrl,
+    method: req.method
+  });
+});
+
+// Middleware per gestire errori globali
+app.use((error, req, res, next) => {
+  console.error('❌ Errore globale:', error);
+  res.status(500).json({
+    success: false,
+    error: 'Errore interno del server',
+    message: process.env.NODE_ENV === 'development' ? error.message : 'Errore interno'
+  });
 });
 
 // Avvio server
