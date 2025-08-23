@@ -787,10 +787,9 @@ app.get('/api/eventi', limiter, async (req, res) => {
 app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
   try {
     const query = `
-      SELECT o.*, c.nome as categoria_nome
+      SELECT o.*, o.grado_opinione as categoria_nome
       FROM opinioni o
-      JOIN categorie_opinioni c ON o.categoria_id = c.id
-      ORDER BY c.nome, o.grado DESC
+      ORDER BY o.grado_opinione, o.text
     `;
     
     const result = await pool.query(query);
@@ -812,10 +811,9 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
 app.get('/api/opinioni', verifyToken, async (req, res) => {
   try {
     const query = `
-      SELECT o.*, c.nome as categoria_nome
+      SELECT o.*, o.grado_opinione as categoria_nome
       FROM opinioni o
-      JOIN categorie_opinioni c ON o.categoria_id = c.id
-      ORDER BY c.nome, o.grado DESC
+      ORDER BY o.grado_opinione, o.text
     `;
     
     const result = await pool.query(query);
@@ -861,11 +859,10 @@ app.get('/api/opinioni-list', verifyToken, async (req, res) => {
   try {
     const { grado } = req.query;
     const query = `
-      SELECT o.*, c.nome as categoria_nome
+      SELECT o.*, o.grado_opinione as categoria_nome
       FROM opinioni o
-      JOIN categorie_opinioni c ON o.categoria_id = c.id
-      WHERE o.grado = $1
-      ORDER BY c.nome
+      WHERE o.grado_opinione = $1
+      ORDER BY o.text
     `;
     
     const result = await pool.query(query, [grado]);
@@ -2005,7 +2002,7 @@ app.post('/api/ministeri', verifyToken, validateInput(['nome', 'descrizione']), 
     const { nome, descrizione } = req.body;
     
     const query = `
-      INSERT INTO ministeri (nome, descrizione, created_at)
+      INSERT INTO ministeri (nome, descrizione, data_creazione)
       VALUES ($1, $2, NOW())
       RETURNING *
     `;
