@@ -28,45 +28,7 @@ const options = [
   { value: "Contrario", color: "bg-red-600 text-white" }
 ];
 
-// Mappatura degli ID delle opinioni ai loro argomenti
-const getOpinionTopic = (id: string, questionText: string): string => {
-  // Mappatura per le opinioni base
-  const baseOpinionsMap: Record<string, string> = {
-    'energia_nucleare': 'Energia Nucleare',
-    'sperimentazione_animale': 'Sperimentazione Animale',
-    'legalizzazione_canapa': 'Legalizzazione Canapa',
-    'caccia': 'Caccia',
-    'cittadina_animale': 'Cittadinanza Animale',
-    'eutanasia': 'Eutanasia',
-    'case_chiuse': 'Case Chiuse',
-    'salario_minimo': 'Salario Minimo',
-    'matrimonio_gay': 'Matrimonio Gay',
-    'nato': 'NATO',
-    'omobitransfobia': 'Legge contro l\'omobitransfobia'
-  };
-  
-  // Se è un'opinione base, usa la mappatura
-  if (baseOpinionsMap[id]) {
-    return baseOpinionsMap[id];
-  }
-  
-  // Per le opinioni dinamiche, estrai l'argomento dalla domanda
-  if (questionText) {
-    // Rimuovi "Sei favorevole a" o "Sei favorevole alla" dall'inizio
-    let topic = questionText.replace(/^Sei favorevole (a|alla) /i, '');
-    
-    // Rimuovi il punto interrogativo alla fine
-    topic = topic.replace(/\?$/, '');
-    
-    // Capitalizza la prima lettera
-    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
-    
-    return topic;
-  }
-  
-  // Fallback: usa l'ID
-  return id;
-};
+
 
 export default function OpinioniNazionali() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -76,7 +38,7 @@ export default function OpinioniNazionali() {
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
   // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[]}>({
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, opinioni: Question[], userAnswers: Record<string, string>}>({
     queryKey: ['opinioniQuestions'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Nazionale");
@@ -86,39 +48,31 @@ export default function OpinioniNazionali() {
     enabled: !!user
   });
 
-  // 2. Caricamento risposte utente con React Query
-  const { data: userAnswersData, isLoading: isLoadingUserAnswers } = useQuery<{success: boolean, data: Record<string, string>}>({
-    queryKey: ['userOpinions'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni/user-answers");
-      if (!response.ok) throw new Error("Errore nel caricamento delle risposte.");
-      return response.json();
-    },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-      // Inizializza lo stato locale con le risposte dell'utente
-      setOpinions(fetchedData.data || {});
-    }
-  });
-
   // Combina i dati
-  const isLoading = isLoadingQuestions || isLoadingUserAnswers;
-  const questions = questionsData?.data || [];
-  const userAnswers = userAnswersData?.data || {};
+  const isLoading = isLoadingQuestions;
+  const questions = questionsData?.opinioni || [];
+  const userAnswers = questionsData?.userAnswers || {};
 
-  // Sincronizza le opinioni quando userAnswers è disponibile
+  // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
-    if (userAnswers && Object.keys(userAnswers).length > 0) {
-      setOpinions(userAnswers);
+    if (questions && questions.length > 0) {
+      // Mappa le risposte dell'utente usando userAnswer da ogni opinione
+      const mappedOpinions: Record<string, string> = {};
+      questions.forEach(question => {
+        if (question.userAnswer && question.userAnswer !== 'Non espresso') {
+          mappedOpinions[question.id] = question.userAnswer;
+        }
+      });
+      setOpinions(mappedOpinions);
     }
-  }, [userAnswers]);
+  }, [questions]);
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni nazionali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['userOpinions'] });
+      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions'] });
       setTimeout(() => setLocation("/menu"), 1500);
     },
     onError: (error: any) => {
@@ -135,10 +89,14 @@ export default function OpinioniNazionali() {
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
     
-    // Filtra solo le opinioni che hanno un valore (non null/undefined)
-    const opinionsToSave = Object.fromEntries(
-      Object.entries(opinions).filter(([key, value]) => value !== null && value !== undefined)
-    );
+    // Mappa le opinioni usando l'ID corretto per l'API
+    const opinionsToSave: Record<string, string> = {};
+    questions.forEach(question => {
+      if (opinions[question.id] && opinions[question.id] !== 'Non espresso') {
+        // Usa l'ID dell'opinione come chiave per l'API
+        opinionsToSave[question.id] = opinions[question.id];
+      }
+    });
     
     console.log('  opinionsToSave:', opinionsToSave);
     console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
@@ -177,13 +135,13 @@ export default function OpinioniNazionali() {
               <>
                 {questions.map((question) => (
                   <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-center">{getOpinionTopic(question.id, question.text)}</h3>
+                    <h3 className="text-lg font-semibold text-center">{question.text}</h3>
                     <div className="flex justify-center">
                       <div className="flex w-full max-w-md">
                         {options.map((option, idx) => (
                           <button
                             key={option.value} type="button"
-                            className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${opinions[question.id] === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-100 z-0'}`}
+                            className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${opinions[question.id] === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-10 z-0'}`}
                             onClick={() => handleOpinionChange(question.id, option.value)}
                             disabled={blocco?.isBlocked}
                           >
