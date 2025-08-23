@@ -182,47 +182,34 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     const userId = req.userId;
     console.log('🔍 DEBUG /api/utenti/me - userId:', userId);
     
-    // Recupera dati utente dal database
-    const userQuery = `
-      SELECT id, nome, cognome, email, ruolo, genere, data_nascita
-      FROM users 
+    console.log('🔍 DEBUG /api/utenti/me - Eseguendo query con userId:', userId);
+    
+    // Seleziona TUTTI i campi della tabella users
+    const query = `
+      SELECT * FROM users 
       WHERE id = $1
     `;
     
-    console.log('🔍 DEBUG /api/utenti/me - Eseguendo query con userId:', userId);
-    const userResult = await pool.query(userQuery, [userId]);
-    console.log('🔍 DEBUG /api/utenti/me - Query result:', userResult.rows);
+    const result = await pool.query(query, [userId]);
+    console.log('🔍 DEBUG /api/utenti/me - Query result:', result.rows);
     
-    if (userResult.rows.length === 0) {
-      console.log('❌ DEBUG /api/utenti/me - Utente non trovato per userId:', userId);
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato'
-      });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Utente non trovato' });
     }
     
-    const user = userResult.rows[0];
+    const user = result.rows[0];
+    
+    // Formatta la data di nascita per rimuovere l'ora
+    if (user.data_nascita) {
+      user.data_nascita = new Date(user.data_nascita).toISOString().split('T')[0];
+    }
+    
     console.log('✅ DEBUG /api/utenti/me - Utente trovato:', user);
     
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        name: user.nome,
-        cognome: user.cognome,
-        email: user.email,
-        ruolo: user.ruolo,
-        genere: user.genere,
-        data_nascita: user.data_nascita
-      }
-    });
+    res.json({ success: true, user });
   } catch (error) {
     console.error('❌ Errore nel recuperare dati utente:', error);
-    console.error('❌ Stack trace completo:', error.stack);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare dati utente'
-    });
+    res.status(500).json({ success: false, message: 'Errore interno del server' });
   }
 });
 
