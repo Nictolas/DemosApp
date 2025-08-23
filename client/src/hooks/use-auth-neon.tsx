@@ -12,8 +12,11 @@ import { getApiUrl, API_CONFIG } from "@/lib/api-config";
 interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string;  // Campo opzionale per compatibilità con API
+  nome?: string;  // Campo italiano per compatibilità con API
+  cognome?: string; // Campo italiano per compatibilità con API
   role?: string;
+  ruolo?: string; // Campo italiano per compatibilità con API
 }
 
 interface LoginCredentials {
@@ -24,7 +27,9 @@ interface LoginCredentials {
 interface RegisterData {
   email: string;
   password: string;
-  name: string;
+  name?: string;  // Campo opzionale per compatibilità
+  nome?: string;  // Campo italiano per compatibilità
+  cognome?: string; // Campo italiano per compatibilità
 }
 
 type AuthContextType = {
@@ -80,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const result = await response.json();
-      return result.success ? result.data : null;
+      return result.success ? result.user : null;
     },
     enabled: !!token,
     retry: false,
@@ -113,13 +118,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('auth_token', userToken);
       setToken(userToken);
 
-      return result.data;
+      return result.user; // ✅ Restituisce result.user invece di result.data
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['user'], data);
       toast({ 
         title: "Login effettuato!", 
-        description: `Benvenuto ${data.name || data.email}`,
+        description: `Benvenuto ${data.name || data.nome || data.email}`,
         variant: "default"
       });
     },
