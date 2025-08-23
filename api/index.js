@@ -64,6 +64,65 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/auth/login - Login utente
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    console.log('🔐 Tentativo di login per:', email);
+    
+    // Per ora restituiamo un utente mock per test
+    // In futuro qui andrà la vera autenticazione con Neon
+    res.json({
+      success: true,
+      user: {
+        id: 'user1',
+        nome: 'Utente',
+        cognome: 'Test',
+        email: email,
+        ruolo: 'Elettore'
+      },
+      token: 'mock-jwt-token-123'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel login:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel login'
+    });
+  }
+});
+
+// POST /api/auth/register - Registrazione utente
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, nome, cognome } = req.body;
+    
+    console.log('📝 Tentativo di registrazione per:', email);
+    
+    // Per ora restituiamo un utente mock per test
+    res.json({
+      success: true,
+      user: {
+        id: 'user1',
+        nome: nome,
+        cognome: cognome,
+        email: email,
+        ruolo: 'Elettore'
+      },
+      token: 'mock-jwt-token-123'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella registrazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella registrazione'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER CAPO DI STATO =====
 
 // GET /api/capo-stato - Ottieni tutti i voti per il capo di stato
@@ -320,6 +379,190 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/opinioni - Ottieni tutte le opinioni (per gestione)
+app.get('/api/opinioni', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT o.*, c.nome as categoria_nome
+      FROM opinioni o
+      JOIN categorie_opinioni c ON o.categoria_id = c.id
+      ORDER BY c.nome, o.grado DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      opinioni: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare opinioni'
+    });
+  }
+});
+
+// GET /api/opinioni-proposte - Ottieni opinioni proposte
+app.get('/api/opinioni-proposte', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM opinioni_proposte 
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      opinioni: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni proposte:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare opinioni proposte'
+    });
+  }
+});
+
+// GET /api/opinioni-list - Ottieni opinioni per grado
+app.get('/api/opinioni-list', verifyToken, async (req, res) => {
+  try {
+    const { grado } = req.query;
+    const query = `
+      SELECT o.*, c.nome as categoria_nome
+      FROM opinioni o
+      JOIN categorie_opinioni c ON o.categoria_id = c.id
+      WHERE o.grado = $1
+      ORDER BY c.nome
+    `;
+    
+    const result = await pool.query(query, [grado]);
+    
+    res.json({
+      success: true,
+      opinioni: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni per grado:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare opinioni per grado'
+    });
+  }
+});
+
+// GET /api/opinioni/user-answers - Ottieni risposte utente
+app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
+  try {
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      SELECT * FROM risposte_opinioni 
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    res.json({
+      success: true,
+      risposte: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare risposte utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare risposte utente'
+    });
+  }
+});
+
+// GET /api/opinioni/stats/:opinionId - Statistiche opinione
+app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
+  try {
+    const { opinionId } = req.params;
+    
+    const query = `
+      SELECT 
+        COUNT(*) as totale_risposte,
+        COUNT(CASE WHEN risposta = 'Sì' THEN 1 END) as si,
+        COUNT(CASE WHEN risposta = 'No' THEN 1 END) as no,
+        COUNT(CASE WHEN risposta = 'Non so' THEN 1 END) as non_so
+      FROM risposte_opinioni 
+      WHERE opinione_id = $1
+    `;
+    
+    const result = await pool.query(query, [opinionId]);
+    
+    res.json({
+      success: true,
+      stats: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche opinione'
+    });
+  }
+});
+
+// POST /api/opinioni - Crea nuova opinione
+app.post('/api/opinioni', verifyToken, async (req, res) => {
+  try {
+    const { text, grado_opinione } = req.body;
+    
+    const query = `
+      INSERT INTO opinioni (testo, grado, created_at)
+      VALUES ($1, $2, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [text, grado_opinione]);
+    
+    res.json({
+      success: true,
+      opinione: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione opinione'
+    });
+  }
+});
+
+// POST /api/opinioni/salva - Salva risposte opinioni
+app.post('/api/opinioni/salva', verifyToken, async (req, res) => {
+  try {
+    const { opinions } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    // Salva ogni risposta
+    for (const [opinionId, risposta] of Object.entries(opinions)) {
+      await pool.query(
+        'INSERT INTO risposte_opinioni (user_id, opinione_id, risposta, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (user_id, opinione_id) DO UPDATE SET risposta = $3',
+        [userId, opinionId, risposta]
+      );
+    }
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo'
+    });
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare opinioni'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER RAPPRESENTANTI =====
 
 // GET /api/rappresentanti - Ottieni rappresentanti dell'utente
@@ -351,6 +594,360 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   }
 });
 
+// ===== ENDPOINTS PER GRAZIA =====
+
+// GET /api/grazia - Ottieni richieste di grazia
+app.get('/api/grazia', async (req, res) => {
+  try {
+    const query = `
+      SELECT g.*, u.nome, u.cognome
+      FROM richieste_grazia g
+      JOIN users u ON g.utente_id = u.id
+      ORDER BY g.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      classifica: result.rows,
+      mieiVoti: ['user1'], // Placeholder
+      blocco: { isBlocked: false, unlockDate: null }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste grazia'
+    });
+  }
+});
+
+// GET /api/grazia/richieste - Ottieni richieste per gestione
+app.get('/api/grazia/richieste', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT g.*, u.nome, u.cognome
+      FROM richieste_grazia g
+      JOIN users u ON g.utente_id = u.id
+      ORDER BY g.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      richieste: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste grazia'
+    });
+  }
+});
+
+// POST /api/grazia/vota - Salva voti grazia
+app.post('/api/grazia/vota', verifyToken, async (req, res) => {
+  try {
+    const { voti } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    // Elimina i voti esistenti
+    await pool.query('DELETE FROM voti_grazia WHERE user_id = $1', [userId]);
+    
+    // Inserisci i nuovi voti
+    for (const nome of voti) {
+      await pool.query(
+        'INSERT INTO voti_grazia (user_id, nome, created_at) VALUES ($1, $2, NOW())',
+        [userId, nome]
+      );
+    }
+    
+    res.json({ success: true, message: 'Voti grazia salvati' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare voti grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare voti grazia'
+    });
+  }
+});
+
+// POST /api/grazia/richiesta/:id/:action - Gestisci richiesta grazia
+app.post('/api/grazia/richiesta/:id/:action', verifyToken, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    
+    if (action === 'approve') {
+      await pool.query('UPDATE richieste_grazia SET stato = $1 WHERE id = $2', ['approvata', id]);
+    } else if (action === 'reject') {
+      await pool.query('UPDATE richieste_grazia SET stato = $1 WHERE id = $2', ['rifiutata', id]);
+    }
+    
+    res.json({ success: true, message: `Richiesta ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
+  } catch (error) {
+    console.error('❌ Errore nella gestione richiesta grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella gestione richiesta grazia'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER AMNISTIA =====
+
+// GET /api/amnistia - Ottieni leggi per amnistia
+app.get('/api/amnistia', async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM leggi_amnistia 
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      leggi: result.rows,
+      mieiVoti: ['user1'], // Placeholder
+      blocco: { isBlocked: false, unlockDate: null }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare leggi amnistia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare leggi amnistia'
+    });
+  }
+});
+
+// POST /api/amnistia/vota - Vota per amnistia
+app.post('/api/amnistia/vota', verifyToken, async (req, res) => {
+  try {
+    const { legge } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    await pool.query(
+      'INSERT INTO voti_amnistia (user_id, legge, created_at) VALUES ($1, $2, NOW()) ON CONFLICT (user_id, legge) DO UPDATE SET created_at = NOW()',
+      [userId, legge]
+    );
+    
+    res.json({ success: true, message: 'Voto amnistia salvato' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare voto amnistia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare voto amnistia'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER ICE =====
+
+// GET /api/ice - Ottieni richieste ICE
+app.get('/api/ice', async (req, res) => {
+  try {
+    const query = `
+      SELECT i.*, u.nome, u.cognome
+      FROM richieste_ice i
+      JOIN users u ON i.utente_id = u.id
+      ORDER BY i.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      richieste: result.rows,
+      mieiVoti: ['user1'], // Placeholder
+      blocco: { isBlocked: false, unlockDate: null }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste ICE:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste ICE'
+    });
+  }
+});
+
+// GET /api/ice/richieste - Ottieni richieste per gestione
+app.get('/api/ice/richieste', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT i.*, u.nome, u.cognome
+      FROM richieste_ice i
+      JOIN users u ON i.utente_id = u.id
+      ORDER BY i.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      richieste: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste ICE:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste ICE'
+    });
+  }
+});
+
+// POST /api/ice - Crea richiesta ICE
+app.post('/api/ice', verifyToken, async (req, res) => {
+  try {
+    const { titolo, descrizione, tipo } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      INSERT INTO richieste_ice (utente_id, titolo, descrizione, tipo, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, titolo, descrizione, tipo]);
+    
+    res.json({
+      success: true,
+      richiesta: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione richiesta ICE:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione richiesta ICE'
+    });
+  }
+});
+
+// POST /api/ice/:id/:action - Gestisci richiesta ICE
+app.post('/api/ice/:id/:action', verifyToken, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    
+    if (action === 'approve') {
+      await pool.query('UPDATE richieste_ice SET stato = $1 WHERE id = $2', ['approvata', id]);
+    } else if (action === 'reject') {
+      await pool.query('UPDATE richieste_ice SET stato = $1 WHERE id = $2', ['rifiutata', id]);
+    }
+    
+    res.json({ success: true, message: `Richiesta ICE ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
+  } catch (error) {
+    console.error('❌ Errore nella gestione richiesta ICE:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella gestione richiesta ICE'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER INIZIATIVE POPOLARI =====
+
+// GET /api/iniziative-popolari - Ottieni iniziative popolari
+app.get('/api/iniziative-popolari', async (req, res) => {
+  try {
+    const query = `
+      SELECT i.*, u.nome, u.cognome
+      FROM iniziative_popolari i
+      JOIN users u ON i.utente_id = u.id
+      ORDER BY i.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      iniziative: result.rows,
+      mieiVoti: ['user1'], // Placeholder
+      blocco: { isBlocked: false, unlockDate: null }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare iniziative popolari:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare iniziative popolari'
+    });
+  }
+});
+
+// GET /api/iniziative-popolari/richieste - Ottieni richieste per gestione
+app.get('/api/iniziative-popolari/richieste', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT i.*, u.nome, u.cognome
+      FROM iniziative_popolari i
+      JOIN users u ON i.utente_id = u.id
+      ORDER BY i.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      richieste: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste iniziative popolari:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste iniziative popolari'
+    });
+  }
+});
+
+// POST /api/iniziative-popolari - Crea iniziativa popolare
+app.post('/api/iniziative-popolari', verifyToken, async (req, res) => {
+  try {
+    const { titolo, descrizione, obiettivi } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      INSERT INTO iniziative_popolari (utente_id, titolo, descrizione, obiettivi, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, titolo, descrizione, obiettivi]);
+    
+    res.json({
+      success: true,
+      iniziativa: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione iniziativa popolare'
+    });
+  }
+});
+
+// POST /api/iniziative-popolari/:id/:action - Gestisci iniziativa popolare
+app.post('/api/iniziative-popolari/:id/:action', verifyToken, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    
+    if (action === 'approve') {
+      await pool.query('UPDATE iniziative_popolari SET stato = $1 WHERE id = $2', ['approvata', id]);
+    } else if (action === 'reject') {
+      await pool.query('UPDATE iniziative_popolari SET stato = $1 WHERE id = $2', ['rifiutata', id]);
+    }
+    
+    res.json({ success: true, message: `Iniziativa popolare ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
+  } catch (error) {
+    console.error('❌ Errore nella gestione iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella gestione iniziativa popolare'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER GESTIONE UTENTI =====
 
 // GET /api/users - Ottieni tutti gli utenti
@@ -374,6 +971,651 @@ app.get('/api/users', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare utenti'
+    });
+  }
+});
+
+// GET /api/utenti - Ottieni utenti per gestione
+app.get('/api/utenti', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
+             grado_opinioni, fonti_opinioni, avatar_config
+      FROM users 
+      WHERE ruolo != 'pending'
+      ORDER BY nome, cognome
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      users: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare utenti:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare utenti'
+    });
+  }
+});
+
+// GET /api/utenti/pending - Ottieni utenti in attesa
+app.get('/api/utenti/pending', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita
+      FROM users 
+      WHERE ruolo = 'pending'
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      users: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare utenti in attesa:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare utenti in attesa'
+    });
+  }
+});
+
+// GET /api/users/:id/public - Ottieni dati pubblici utente
+app.get('/api/users/:id/public', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = `
+      SELECT id, nome, cognome, ruolo, genere, data_nascita
+      FROM users 
+      WHERE id = $1
+    `;
+    
+    const result = await pool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare dati pubblici utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare dati pubblici utente'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER REFERENDUM ABROGATIVI =====
+
+// GET /api/referendum-abrogativi - Ottieni referendum abrogativi
+app.get('/api/referendum-abrogativi', async (req, res) => {
+  try {
+    const query = `
+      SELECT r.*, u.nome, u.cognome
+      FROM referendum_abrogativi r
+      JOIN users u ON r.utente_id = u.id
+      ORDER BY r.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      referendum: result.rows,
+      mieiVoti: ['user1'], // Placeholder
+      blocco: { isBlocked: false, unlockDate: null }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare referendum abrogativi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare referendum abrogativi'
+    });
+  }
+});
+
+// GET /api/referendum-abrogativi/richieste - Ottieni richieste per gestione
+app.get('/api/referendum-abrogativi/richieste', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT r.*, u.nome, u.cognome
+      FROM referendum_abrogativi r
+      JOIN users u ON r.utente_id = u.id
+      ORDER BY r.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      richieste: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste referendum:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste referendum'
+    });
+  }
+});
+
+// POST /api/referendum-abrogativi - Crea referendum abrogativo
+app.post('/api/referendum-abrogativi', verifyToken, async (req, res) => {
+  try {
+    const { titolo, descrizione, legge } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      INSERT INTO referendum_abrogativi (utente_id, titolo, descrizione, legge, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, titolo, descrizione, legge]);
+    
+    res.json({
+      success: true,
+      referendum: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione referendum:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione referendum'
+    });
+  }
+});
+
+// POST /api/referendum-abrogativi/:id/:action - Gestisci referendum
+app.post('/api/referendum-abrogativi/:id/:action', verifyToken, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    
+    if (action === 'approve') {
+      await pool.query('UPDATE referendum_abrogativi SET stato = $1 WHERE id = $2', ['approvato', id]);
+    } else if (action === 'reject') {
+      await pool.query('UPDATE referendum_abrogativi SET stato = $1 WHERE id = $2', ['rifiutato', id]);
+    }
+    
+    res.json({ success: true, message: `Referendum ${action === 'approve' ? 'approvato' : 'rifiutato'}` });
+  } catch (error) {
+    console.error('❌ Errore nella gestione referendum:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella gestione referendum'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER GOVERNO =====
+
+// GET /api/governo/voti - Ottieni voti governo
+app.get('/api/governo/voti', verifyToken, async (req, res) => {
+  try {
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      SELECT v.*, m.nome as ministero_nome
+      FROM voti_governo v
+      JOIN ministeri m ON v.ministero_id = m.id
+      WHERE v.user_id = $1
+      ORDER BY m.nome
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    res.json({
+      success: true,
+      voti: result.rows,
+      blocco: { isBlocked: false, unlockDate: null }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare voti governo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare voti governo'
+    });
+  }
+});
+
+// POST /api/governo/vota - Salva voti governo
+app.post('/api/governo/vota', verifyToken, async (req, res) => {
+  try {
+    const { voti } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    // Elimina i voti esistenti
+    await pool.query('DELETE FROM voti_governo WHERE user_id = $1', [userId]);
+    
+    // Inserisci i nuovi voti
+    for (const [ministeroId, candidato] of Object.entries(voti)) {
+      await pool.query(
+        'INSERT INTO voti_governo (user_id, ministero_id, candidato, created_at) VALUES ($1, $2, $3, NOW())',
+        [userId, ministeroId, candidato]
+      );
+    }
+    
+    res.json({ success: true, message: 'Voti governo salvati' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare voti governo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare voti governo'
+    });
+  }
+});
+
+// GET /api/ministeri - Ottieni ministeri
+app.get('/api/ministeri', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM ministeri 
+      ORDER BY nome
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      ministeri: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare ministeri:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare ministeri'
+    });
+  }
+});
+
+// POST /api/ministeri - Crea nuovo ministero
+app.post('/api/ministeri', verifyToken, async (req, res) => {
+  try {
+    const { nome, descrizione } = req.body;
+    
+    const query = `
+      INSERT INTO ministeri (nome, descrizione, created_at)
+      VALUES ($1, $2, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [nome, descrizione]);
+    
+    res.json({
+      success: true,
+      ministero: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione ministero:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione ministero'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER ELEZIONI =====
+
+// GET /api/elezioni - Ottieni tutte le elezioni (per gestione)
+app.get('/api/elezioni', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM elezioni 
+      ORDER BY data DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      elezioni: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare elezioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare elezioni'
+    });
+  }
+});
+
+// GET /api/elezioni-utente - Ottieni elezioni per utente
+app.get('/api/elezioni-utente', verifyToken, async (req, res) => {
+  try {
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      SELECT e.*, 
+             CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END as ha_votato
+      FROM elezioni e
+      LEFT JOIN voti_elezioni v ON e.id = v.elezione_id AND v.user_id = $1
+      WHERE e.data > NOW()
+      ORDER BY e.data ASC
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    res.json({
+      success: true,
+      elezioni: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare elezioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare elezioni utente'
+    });
+  }
+});
+
+// POST /api/elezioni - Crea nuova elezione
+app.post('/api/elezioni', verifyToken, async (req, res) => {
+  try {
+    const { titolo, descrizione, data, tipo, candidati } = req.body;
+    
+    const query = `
+      INSERT INTO elezioni (titolo, descrizione, data, tipo, candidati, created_at)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [titolo, descrizione, data, tipo, JSON.stringify(candidati)]);
+    
+    res.json({
+      success: true,
+      elezione: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione elezione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione elezione'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER CANDIDATI =====
+
+// GET /api/candidati - Ottieni candidati per grado e categoria
+app.get('/api/candidati', verifyToken, async (req, res) => {
+  try {
+    const { grado, categoria } = req.query;
+    
+    const query = `
+      SELECT c.*, u.nome, u.cognome
+      FROM candidati c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.grado = $1 AND c.categoria = $2
+      ORDER BY u.nome, u.cognome
+    `;
+    
+    const result = await pool.query(query, [grado, categoria]);
+    
+    res.json({
+      success: true,
+      candidati: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare candidati:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare candidati'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER SONDAGGI =====
+
+// GET /api/sondaggi/stats - Statistiche sondaggi
+app.get('/api/sondaggi/stats', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        COUNT(*) as totale_sondaggi,
+        COUNT(CASE WHEN stato = 'attivo' THEN 1 END) as sondaggi_attivi,
+        COUNT(CASE WHEN stato = 'chiuso' THEN 1 END) as sondaggi_chiusi
+      FROM sondaggi
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      stats: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche sondaggi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche sondaggi'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER NOTIFICHE =====
+
+// GET /api/notifiche - Ottieni notifiche utente
+app.get('/api/notifiche', verifyToken, async (req, res) => {
+  try {
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      SELECT * FROM notifiche 
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 50
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    res.json({
+      success: true,
+      notifiche: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare notifiche:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare notifiche'
+    });
+  }
+});
+
+// POST /api/notifiche/preferenze - Salva preferenze notifiche
+app.post('/api/notifiche/preferenze', verifyToken, async (req, res) => {
+  try {
+    const { preferenze } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    // Salva preferenze
+    for (const [tipo, attivo] of Object.entries(preferenze)) {
+      await pool.query(
+        'INSERT INTO preferenze_notifiche (user_id, tipo, attivo, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (user_id, tipo) DO UPDATE SET attivo = $3',
+        [userId, tipo, attivo]
+      );
+    }
+    
+    res.json({ success: true, message: 'Preferenze notifiche salvate' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare preferenze notifiche:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare preferenze notifiche'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER STATISTICHE =====
+
+// GET /api/statistiche/utenti - Statistiche utenti
+app.get('/api/statistiche/utenti', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        COUNT(*) as totale_utenti,
+        COUNT(CASE WHEN ruolo = 'Elettore' THEN 1 END) as elettori,
+        COUNT(CASE WHEN ruolo = 'Politico' THEN 1 END) as politici,
+        COUNT(CASE WHEN ruolo = 'Candidato' THEN 1 END) as candidati,
+        COUNT(CASE WHEN ruolo = 'Admin' THEN 1 END) as admin
+      FROM users
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      stats: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche utenti:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche utenti'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER SOSTENITORI =====
+
+// GET /api/sostenitori - Ottieni sostenitori
+app.get('/api/sostenitori', verifyToken, async (req, res) => {
+  try {
+    const userId = 'user1'; // Per ora hardcoded
+    
+    const query = `
+      SELECT s.*, u.nome, u.cognome
+      FROM sostenitori s
+      JOIN users u ON s.sostenitore_id = u.id
+      WHERE s.utente_id = $1
+      ORDER BY s.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    res.json({
+      success: true,
+      sostenitori: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sostenitori:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sostenitori'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER PROGRAMMA =====
+
+// GET /api/programma - Ottieni programma
+app.get('/api/programma', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM programma 
+      ORDER BY priorita DESC, created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      programma: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare programma:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare programma'
+    });
+  }
+});
+
+// POST /api/programma - Crea nuovo punto programma
+app.post('/api/programma', verifyToken, async (req, res) => {
+  try {
+    const { titolo, descrizione, priorita } = req.body;
+    
+    const query = `
+      INSERT INTO programma (titolo, descrizione, priorita, created_at)
+      VALUES ($1, $2, $3, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [titolo, descrizione, priorita]);
+    
+    res.json({
+      success: true,
+      punto: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione punto programma:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione punto programma'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER COMUNICAZIONI AGGIUNTIVI =====
+
+// GET /api/comunicazioni/ultima - Ultima comunicazione
+app.get('/api/comunicazioni/ultima', verifyToken, async (req, res) => {
+  try {
+    const query = `
+      SELECT c.*, u.nome, u.cognome
+      FROM comunicazioni c
+      JOIN users u ON c.utente_id = u.id
+      ORDER BY c.created_at DESC
+      LIMIT 1
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      comunicazione: result.rows[0] || null
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare ultima comunicazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare ultima comunicazione'
+    });
+  }
+});
+
+// POST /api/comunicazioni/:id/react - Reazione a comunicazione
+app.post('/api/comunicazioni/:id/react', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reaction } = req.body;
+    const userId = 'user1'; // Per ora hardcoded
+    
+    await pool.query(
+      'INSERT INTO reazioni_comunicazioni (user_id, comunicazione_id, reazione, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (user_id, comunicazione_id) DO UPDATE SET reazione = $3',
+      [userId, id, reaction]
+    );
+    
+    res.json({ success: true, message: 'Reazione salvata' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare reazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare reazione'
     });
   }
 });
