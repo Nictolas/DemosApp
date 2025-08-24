@@ -1777,7 +1777,7 @@ app.get('/api/ice', limiter, async (req, res) => {
     const query = `
       SELECT *
       FROM ice
-      WHERE status = 'attiva' OR status = 'in_attesa'
+      WHERE quorum = 'ok' OR quorum = 'pending'
       ORDER BY data_creazione DESC
     `;
     
@@ -1855,12 +1855,12 @@ app.post('/api/ice', verifyToken, validateInput(['titolo', 'descrizione', 'tipo'
     const iceId = `ice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const query = `
-      INSERT INTO ice (id, titolo, descrizione, categoria, status, data_creazione)
-      VALUES ($1, $2, $3, $4, 'in_attesa', NOW())
+      INSERT INTO ice (id, nome, descrizione, quorum, data_creazione)
+      VALUES ($1, $2, $3, 'pending', NOW())
       RETURNING *
     `;
     
-    const result = await pool.query(query, [iceId, titolo, descrizione, tipo]);
+    const result = await pool.query(query, [iceId, titolo, descrizione]);
     
     res.json({
       success: true,
@@ -1881,9 +1881,9 @@ app.post('/api/ice/:id/:action', verifyToken, async (req, res) => {
     const { id, action } = req.params;
     
     if (action === 'approve') {
-      await pool.query('UPDATE ice SET status = $1 WHERE id = $2', ['attiva', id]);
+      await pool.query('UPDATE ice SET quorum = $1 WHERE id = $2', ['ok', id]);
     } else if (action === 'reject') {
-      await pool.query('UPDATE ice SET status = $1 WHERE id = $2', ['rifiutata', id]);
+      await pool.query('UPDATE ice SET quorum = $1 WHERE id = $2', ['no', id]);
     }
     
     res.json({ success: true, message: `Richiesta ICE ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
@@ -1920,6 +1920,12 @@ app.post('/api/ice/vota', verifyToken, validateInput(['ice_id', 'voto']), async 
         [voteId, userId, ice_id, voto]
       );
     }
+    
+    // Aggiorna il contatore voti nella tabella ice
+    await pool.query(
+      'UPDATE ice SET votiIces = (SELECT COUNT(*) FROM voti_ice WHERE ice_id = $1) WHERE id = $1',
+      [ice_id]
+    );
     
     res.json({ success: true, message: 'Voto ICE salvato con successo' });
   } catch (error) {
