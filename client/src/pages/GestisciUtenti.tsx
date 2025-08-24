@@ -187,8 +187,8 @@ export default function GestisciUtenti() {
   });
 
   // Estrai i dati con fallback sicuro e logging per debug
-  const utenti = responseData?.utenti?.data || responseData?.utenti || [];
-  const pendingUsers = responseData?.pendingUsers || [];
+  const utenti = responseData?.utenti?.users || responseData?.utenti || [];
+  const pendingUsers = responseData?.pendingUsers?.users || responseData?.pendingUsers || [];
   
   // Debug logging
   console.log('🔍 DEBUG GestisciUtenti:', {
