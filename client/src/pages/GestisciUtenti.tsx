@@ -47,6 +47,17 @@ const getDisplayColumns = (users: any[]) => {
   // Aggiungi colonna "Nome Completo" all'inizio
   const columnsWithFullName = ['nome_completo', ...displayColumns];
   
+  // FORZA la presenza delle colonne di candidatura ed elezione anche se non sono nei dati
+  const forcedColumns = [
+    'candidato_attivo', 'status_candidatura', 'grado_candidatura',
+    'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura',
+    'data_candidatura', 'note_candidatura',
+    'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione'
+  ];
+  
+  // Aggiungi le colonne forzate se non sono già presenti
+  const allRequiredColumns = [...new Set([...columnsWithFullName, ...forcedColumns])];
+  
   // Ordina le colonne in modo logico con priorità per candidatura ed elezione
   const priorityColumns = [
     'nome_completo', 'email', 'ruolo', 'status',
@@ -59,8 +70,8 @@ const getDisplayColumns = (users: any[]) => {
   ];
   
   const sortedColumns = [
-    ...priorityColumns.filter(col => columnsWithFullName.includes(col)),
-    ...columnsWithFullName.filter(col => !priorityColumns.includes(col))
+    ...priorityColumns.filter(col => allRequiredColumns.includes(col)),
+    ...allRequiredColumns.filter(col => !priorityColumns.includes(col))
   ];
   
   return sortedColumns;
@@ -98,7 +109,13 @@ const getGenderColor = (genere: string) => {
 
 // Funzione per formattare il valore di una colonna
 const formatColumnValue = (value: any, columnName: string, user?: User) => {
-  if (value === null || value === undefined) return '-';
+  if (value === null || value === undefined) {
+    // Per le colonne di candidatura ed elezione, mostra "Non impostato" invece di "-"
+    if (columnName.includes('candidatura') || columnName.includes('elezione') || columnName === 'candidato_attivo') {
+      return 'Non impostato';
+    }
+    return '-';
+  }
   
   // Formatta date
   if (columnName.includes('_at') || columnName.includes('data_')) {
@@ -141,45 +158,77 @@ const renderColumnValue = (value: any, columnName: string, user?: User) => {
   }
   
   // Gestione speciale per le colonne di candidatura
-  if (columnName === 'candidato_attivo' && value !== null && value !== undefined) {
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
-        value ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'
-      }`}>
-        {value ? 'Sì' : 'No'}
-      </span>
-    );
+  if (columnName === 'candidato_attivo') {
+    if (value !== null && value !== undefined) {
+      return (
+        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
+          value ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'
+        }`}>
+          {value ? 'Sì' : 'No'}
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+          Non impostato
+        </span>
+      );
+    }
   }
   
-  if (columnName === 'status_candidatura' && value) {
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
-        value === 'attiva' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-        value === 'in_attesa' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-        value === 'approvata' ? 'bg-green-100 text-green-800 border-green-200' :
-        value === 'rifiutata' ? 'bg-red-100 text-red-800 border-red-200' :
-        'bg-gray-100 text-gray-800 border-gray-200'
-      }`}>
-        {value}
-      </span>
-    );
+  if (columnName === 'status_candidatura') {
+    if (value) {
+      return (
+        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
+          value === 'attiva' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+          value === 'in_attesa' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+          value === 'approvata' ? 'bg-green-100 text-green-800 border-green-200' :
+          value === 'rifiutata' ? 'bg-red-100 text-red-800 border-red-200' :
+          'bg-gray-100 text-gray-800 border-gray-200'
+        }`}>
+          {value}
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+          Non impostato
+        </span>
+      );
+    }
   }
   
   // Gestione speciale per le colonne di elezione
-  if (columnName === 'grado_elezione' && value) {
-    return (
-      <span className="px-2 py-1 text-xs font-medium rounded-full border bg-purple-100 text-purple-800 border-purple-200">
-        {value}
-      </span>
-    );
+  if (columnName === 'grado_elezione') {
+    if (value) {
+      return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-purple-100 text-purple-800 border-purple-200">
+          {value}
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+          Non impostato
+        </span>
+      );
+    }
   }
   
-  if (columnName === 'grado_candidatura' && value) {
-    return (
-      <span className="px-2 py-1 text-xs font-medium rounded-full border bg-indigo-100 text-indigo-800 border-indigo-200">
-        {value}
-      </span>
-    );
+  if (columnName === 'grado_candidatura') {
+    if (value) {
+      return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-indigo-100 text-indigo-800 border-indigo-200">
+          {value}
+        </span>
+      );
+    } else {
+      return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+          Non impostato
+        </span>
+      );
+    }
   }
   
   // Gestione speciale per la colonna "Nome Completo" o "name"
