@@ -24,9 +24,16 @@ const iceSchema = z.object({
 });
 type ICEFormData = z.infer<typeof iceSchema>;
 
-interface ICE extends ICEFormData {
+interface ICE {
   id: string;
-  quorum: 'ok' | 'pending' | 'no';
+  nome: string;
+  descrizione: string;
+  quorum: string;
+  sitoWeb?: string;
+  dataInizio?: string;
+  dataFine?: string;
+  data_creazione: string;
+  votiIces?: number;
 }
 
 export default function ICE() {
@@ -41,7 +48,7 @@ export default function ICE() {
   const editForm = useForm<ICEFormData>({ resolver: zodResolver(iceSchema) });
 
   // 1. Caricamento dati con React Query
-  const { data: listaICE = [], isLoading, isError } = useQuery<ICE[]>({
+  const { data: iceData, isLoading, isError } = useQuery<{success: boolean, richieste: ICE[], mieiVoti: string[], blocco: any}>({
     queryKey: ['iceList'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/ice");
@@ -50,6 +57,10 @@ export default function ICE() {
     },
     enabled: !!user,
   });
+
+  // Estrai la lista ICE dai dati ricevuti
+  const listaICE = iceData?.richieste || [];
+  const mieiVoti = iceData?.mieiVoti || [];
 
   // Funzione helper per ricaricare i dati
   const invalidateAndRefetch = () => queryClient.invalidateQueries({ queryKey: ['iceList'] });
@@ -85,14 +96,7 @@ export default function ICE() {
     onError: (e: any) => toast({ title: "Errore", description: e.message || "Impossibile cancellare l'ICE.", variant: "destructive" }),
   });
   
-  const quorumMutation = useMutation({
-      mutationFn: ({ id, quorum }: { id: string, quorum: 'ok' | 'pending' | 'no' }) => apiRequest("PATCH", `/api/ice/${id}/quorum`, { quorum }),
-      onSuccess: () => {
-          toast({ title: "Quorum aggiornato" });
-          invalidateAndRefetch();
-      },
-      onError: (e: any) => toast({ title: "Errore", description: e.message || "Impossibile aggiornare il quorum.", variant: "destructive" }),
-  });
+
 
 
   const openEditDialog = (ice: ICE) => {
@@ -100,14 +104,10 @@ export default function ICE() {
     editForm.reset(ice);
   };
   
-  if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>;
   if (!user) return <Redirect to="/auth" />;
 
-  const quorumOptions = [
-    { value: 'ok', label: 'Raggiunto', icon: <Check className="text-green-600 inline" /> },
-    { value: 'pending', label: 'In attesa', icon: <Hourglass className="text-yellow-500 inline" /> },
-    { value: 'no', label: 'Non raggiunto', icon: <XIcon className="text-red-600 inline" /> },
-  ];
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 to-blue-100" style={{ paddingBottom: '80px' }}>
@@ -131,41 +131,54 @@ export default function ICE() {
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit((data) => addMutation.mutate(data))} className="space-y-4">
                     {/* ... form fields ... */}
-                    <Button type="submit" className="w-full" disabled={addMutation.isPending}>{addMutation.isPending ? "Invio..." : "Proponi ICE"}</Button>
+                    <Button type="submit" className="w-full" disabled={addMutation.isPending}>{addMutation.isPending ? "Invio in corso..." : "Proponi ICE"}</Button>
                   </form>
                 </Form>
               </CardContent></Card>
             )}
 
             <Card>
-              <CardHeader><CardTitle>Ultime ICE Proposte</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Iniziative dei Cittadini Europei (ICE)</CardTitle></CardHeader>
               <CardContent>
-                {isLoading ? <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
-                : isError ? <div className="text-center text-red-500 p-4">Errore nel caricamento delle ICE.</div>
+                {isLoading ? <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /><span className="ml-2">Caricamento ICE...</span></div>
+                : isError ? <div className="text-center text-red-500 p-4">Errore nel caricamento delle ICE. Riprova più tardi.</div>
                 : (
                   <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Periodo</TableHead><TableHead>Quorum</TableHead>{user.ruolo === 'Admin' && <TableHead className="text-right">Azioni</TableHead>}</TableRow></TableHeader>
+                                         <Table>
+                       <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Descrizione</TableHead><TableHead>Quorum</TableHead><TableHead>Periodo</TableHead><TableHead>Voti</TableHead>{user.ruolo === 'Admin' && <TableHead className="text-right">Azioni</TableHead>}</TableRow></TableHeader>
                       <TableBody>
                         {listaICE.map((ice) => (
                           <TableRow key={ice.id}>
-                            <TableCell className="font-medium">
-                              {ice.sitoWeb ? <a href={ice.sitoWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">{ice.nome} <ExternalLink className="h-4 w-4" /></a> : ice.nome}
-                            </TableCell>
-                            <TableCell>{new Date(ice.dataInizio).toLocaleDateString('it-IT')} - {new Date(ice.dataFine).toLocaleDateString('it-IT')}</TableCell>
-                            <TableCell>
-                                {user.ruolo === 'Admin' ? (
-                                    <select className="border rounded px-2 py-1 bg-white" value={ice.quorum} disabled={quorumMutation.isPending} onChange={e => quorumMutation.mutate({id: ice.id, quorum: e.target.value as any})}>
-                                        {quorumOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                    </select>
-                                ) : (
-                                    <span className="flex items-center gap-1">{quorumOptions.find(opt => opt.value === ice.quorum)?.icon} {quorumOptions.find(opt => opt.value === ice.quorum)?.label}</span>
-                                )}
-                            </TableCell>
+                                                         <TableCell className="font-medium">
+                               {ice.sitoWeb ? <a href={ice.sitoWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">{ice.nome} <ExternalLink className="h-4 w-4" /></a> : ice.nome}
+                             </TableCell>
+                             <TableCell className="max-w-xs truncate" title={ice.descrizione}>
+                               {ice.descrizione?.substring(0, 100)}...
+                             </TableCell>
+                             <TableCell>
+                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                 ice.quorum === 'ok' ? 'bg-green-100 text-green-800' :
+                                 ice.quorum === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                 'bg-red-100 text-red-800'
+                               }`}>
+                                 {ice.quorum === 'ok' ? 'Raggiunto' : 
+                                  ice.quorum === 'pending' ? 'In attesa' : 
+                                  ice.quorum}
+                               </span>
+                             </TableCell>
+                             <TableCell>
+                               {ice.dataInizio && ice.dataFine ? 
+                                 `${new Date(ice.dataInizio).toLocaleDateString('it-IT')} - ${new Date(ice.dataFine).toLocaleDateString('it-IT')}` :
+                                 'N/A'
+                               }
+                             </TableCell>
+                             <TableCell>
+                               {ice.votiIces || 0}
+                             </TableCell>
                             {user.ruolo === 'Admin' && (
                               <TableCell className="text-right">
-                                <Button size="sm" variant="outline" className="mr-2" onClick={() => openEditDialog(ice)}><Pencil className="h-4 w-4" /></Button>
-                                <Button size="sm" variant="destructive" disabled={deleteMutation.isPending && deleteMutation.variables === ice.id} onClick={() => deleteMutation.mutate(ice.id)}>
+                                <Button size="sm" variant="outline" className="mr-2" onClick={() => openEditDialog(ice)} title="Modifica ICE"><Pencil className="h-4 w-4" /></Button>
+                                <Button size="sm" variant="destructive" disabled={deleteMutation.isPending && deleteMutation.variables === ice.id} onClick={() => deleteMutation.mutate(ice.id)} title="Elimina ICE">
                                     {deleteMutation.isPending && deleteMutation.variables === ice.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                 </Button>
                               </TableCell>
@@ -174,6 +187,11 @@ export default function ICE() {
                         ))}
                       </TableBody>
                     </Table>
+                    {listaICE.length === 0 && (
+                      <div className="text-center text-gray-500 py-8">
+                        Nessuna ICE disponibile al momento.
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -190,7 +208,7 @@ export default function ICE() {
               {/* ... form fields for editing ... */}
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setEditICE(null)}>Annulla</Button>
-                <Button type="submit" disabled={editMutation.isPending}>{editMutation.isPending ? "Salvataggio..." : "Salva Modifiche"}</Button>
+                <Button type="submit" disabled={editMutation.isPending}>{editMutation.isPending ? "Salvataggio in corso..." : "Salva Modifiche"}</Button>
               </DialogFooter>
             </form>
           </Form>
