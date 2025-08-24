@@ -511,25 +511,25 @@ export default function AuthPage() {
                   {/* Sezione dati personali */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium border-b pb-2">Dati personali</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={registerForm.control}
-                        name="codice_fiscale"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="required-field">Codice Fiscale</FormLabel>
-                            <FormControl>
-                              <CodiceFiscaleInput
-                                value={field.value}
-                                onChange={field.onChange}
-                                required={true}
-                                placeholder="Inserisci il codice fiscale"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <FormField
+                         control={registerForm.control}
+                         name="codice_fiscale"
+                         render={({ field }) => (
+                           <FormItem className="md:col-span-2">
+                             <FormLabel className="required-field">Codice Fiscale</FormLabel>
+                             <FormControl>
+                               <CodiceFiscaleInput
+                                 value={field.value}
+                                 onChange={field.onChange}
+                                 required={true}
+                                 placeholder="Inserisci il codice fiscale"
+                               />
+                             </FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
                       <FormField
                         control={registerForm.control}
                         name="nome"
@@ -755,33 +755,271 @@ export default function AuthPage() {
                     </div>
                   </div>
                   
-                  {/* Ruolo */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium border-b pb-2">Ruolo</h3>
-                    <FormField
-                      control={registerForm.control}
-                      name="ruolo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="required-field">Ruolo</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="bg-white">
-                                <SelectValue placeholder="Seleziona ruolo" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Elettore">Elettore</SelectItem>
-                              <SelectItem value="Candidato">Candidato</SelectItem>
-                              <SelectItem value="Politico">Politico</SelectItem>
-                              <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                                     {/* Ruolo */}
+                   <div className="space-y-4">
+                     <h3 className="text-lg font-medium border-b pb-2">Ruolo</h3>
+                     <FormField
+                       control={registerForm.control}
+                       name="ruolo"
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel className="required-field">Ruolo</FormLabel>
+                           <Select onValueChange={field.onChange} value={field.value}>
+                             <FormControl>
+                               <SelectTrigger className="bg-white">
+                                 <SelectValue placeholder="Seleziona ruolo" />
+                               </SelectTrigger>
+                             </FormControl>
+                             <SelectContent>
+                               <SelectItem value="Elettore">Elettore</SelectItem>
+                               <SelectItem value="Candidato">Candidato</SelectItem>
+                               <SelectItem value="Politico">Politico</SelectItem>
+                               <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
+                             </SelectContent>
+                           </Select>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+                   </div>
+
+                   {/* Sezione Elezione - visibile solo per "Politico" e "Candidato Politico" */}
+                   {(registerForm.watch("ruolo") === "Politico" || registerForm.watch("ruolo") === "Candidato Politico") && (
+                     <div className="space-y-4">
+                       <h3 className="text-lg font-medium border-b pb-2">Dati di Elezione</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={registerForm.control}
+                           name="paese_elezione"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Paese di Elezione</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona paese" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   <SelectItem value="Italia">Italia</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="regione_elezione"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Regione di Elezione</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value} disabled={regioniElezione.length === 0}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona regione" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {regioniElezione.map((regione) => (
+                                     <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="provincia_elezione"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Provincia di Elezione</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value} disabled={provinceElezione.length === 0}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona provincia" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {provinceElezione.map((provincia) => (
+                                     <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="comune_elezione"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Comune di Elezione</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value} disabled={comuniElezione.length === 0}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona comune" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {comuniElezione.map((comune) => (
+                                     <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="grado_elezione"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Grado di Elezione</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona grado" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   <SelectItem value="Comunale">Comunale</SelectItem>
+                                   <SelectItem value="Provinciale">Provinciale</SelectItem>
+                                   <SelectItem value="Regionale">Regionale</SelectItem>
+                                   <SelectItem value="Nazionale">Nazionale</SelectItem>
+                                   <SelectItem value="Europeo">Europeo</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Sezione Candidatura - visibile solo per "Candidato" e "Candidato Politico" */}
+                   {(registerForm.watch("ruolo") === "Candidato" || registerForm.watch("ruolo") === "Candidato Politico") && (
+                     <div className="space-y-4">
+                       <h3 className="text-lg font-medium border-b pb-2">Dati di Candidatura</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField
+                           control={registerForm.control}
+                           name="paese_candidatura"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Paese di Candidatura</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona paese" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   <SelectItem value="Italia">Italia</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="regione_candidatura"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Regione di Candidatura</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value} disabled={regioniCandidatura.length === 0}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona regione" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {regioniCandidatura.map((regione) => (
+                                     <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="provincia_candidatura"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Provincia di Candidatura</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value} disabled={provinceCandidatura.length === 0}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona provincia" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {provinceCandidatura.map((provincia) => (
+                                     <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="comune_candidatura"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Comune di Candidatura</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value} disabled={comuniCandidatura.length === 0}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona comune" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   {comuniCandidatura.map((comune) => (
+                                     <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                         <FormField
+                           control={registerForm.control}
+                           name="grado_candidatura"
+                           render={({ field }) => (
+                             <FormItem>
+                               <FormLabel>Grado di Candidatura</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value}>
+                                 <FormControl>
+                                   <SelectTrigger className="bg-white">
+                                     <SelectValue placeholder="Seleziona grado" />
+                                   </SelectTrigger>
+                                 </FormControl>
+                                 <SelectContent>
+                                   <SelectItem value="Comunale">Comunale</SelectItem>
+                                   <SelectItem value="Provinciale">Provinciale</SelectItem>
+                                   <SelectItem value="Regionale">Regionale</SelectItem>
+                                   <SelectItem value="Nazionale">Nazionale</SelectItem>
+                                   <SelectItem value="Europeo">Europeo</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                               <FormMessage />
+                             </FormItem>
+                           )}
+                         />
+                       </div>
+                     </div>
+                   )}
                   
                   <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
                     {registerMutation.isPending ? (
