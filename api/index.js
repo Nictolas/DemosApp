@@ -3,6 +3,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 // Rate limiting semplice
@@ -355,6 +356,75 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Configurazione email per reset password
+const createTransporter = () => {
+  // Se siamo in produzione, usa le credenziali reali
+  if (process.env.NODE_ENV === 'production') {
+    return nodemailer.createTransporter({
+      service: 'gmail', // o altro servizio
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+  }
+  
+  // In sviluppo, usa un servizio di test
+  return nodemailer.createTransporter({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.ETHEREAL_USER || 'test@ethereal.email',
+      pass: process.env.ETHEREAL_PASS || 'test123'
+    }
+  });
+};
+
+// Funzione per inviare email di reset password
+const sendResetPasswordEmail = async (email, resetToken, userName) => {
+  try {
+    const transporter = createTransporter();
+    
+    // Crea il link di reset
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/reset-password-confirm?token=${resetToken}`;
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || 'noreply@demos.community',
+      to: email,
+      subject: 'Reset Password - DEMOS Community',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Reset Password Richiesto</h2>
+          <p>Ciao ${userName},</p>
+          <p>Hai richiesto il reset della password per il tuo account DEMOS Community.</p>
+          <p>Per procedere con il reset, clicca sul link qui sotto:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" 
+               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Reset Password
+            </a>
+          </div>
+          <p>Se non hai richiesto tu questo reset, ignora questa email.</p>
+          <p>Il link è valido per 1 ora.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">
+            DEMOS Community<br>
+            <a href="https://www.demos.community">www.demos.community</a>
+          </p>
+        </div>
+      `
+    };
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Email di reset inviata:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ Errore nell\'invio email:', error);
+    return false;
+  }
+};
+
 // POST /api/auth/forgot-password - Richiesta reset password
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
@@ -395,22 +465,32 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       { expiresIn: '1h' }
     );
     
-    // Salva il token nel database (opzionale, per invalidazione)
+    // Salva il token nel database
     await pool.query(
       'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
       [resetToken, user.id]
     );
     
-    // In produzione, qui invieresti una email con il link di reset
-    // Per ora, restituiamo il token (solo per sviluppo)
-    console.log('✅ Token reset generato per:', email);
+    // Invia email di reset
+    const emailSent = await sendResetPasswordEmail(
+      email, 
+      resetToken, 
+      user.nome || 'Utente'
+    );
     
-    res.json({
-      success: true,
-      message: 'Link di reset inviato alla tua email',
-      // Rimuovi questo in produzione
-      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
-    });
+    if (emailSent) {
+      console.log('✅ Email di reset inviata con successo per:', email);
+      res.json({
+        success: true,
+        message: 'Link di reset inviato alla tua email. Controlla la casella di posta.'
+      });
+    } else {
+      console.log('❌ Fallimento invio email per:', email);
+      res.status(500).json({
+        success: false,
+        error: 'Errore nell\'invio dell\'email. Riprova più tardi.'
+      });
+    }
     
   } catch (error) {
     console.error('❌ Errore nella richiesta reset password:', error);
