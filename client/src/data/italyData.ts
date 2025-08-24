@@ -1020,17 +1020,53 @@ export const ITALY_DATA = {
           {
             "nome": "Prato",
             "comuni": [
-              "Prato",
+              "Cantagallo",
+              "Carmignano",
               "Montemurlo",
-              "Carmignano"
+              "Poggio a Caiano",
+              "Prato",
+              "Vaiano",
+              "Vernio"
             ]
           },
           {
             "nome": "Siena",
             "comuni": [
-              "Siena",
+              "Abbadia San Salvatore",
+              "Asciano",
+              "Buonconvento",
+              "Casole d'Elsa",
+              "Castellina in Chianti",
+              "Castelnuovo Berardenga",
+              "Castiglione d'Orcia",
+              "Cetona",
+              "Chianciano Terme",
+              "Chiusdino",
+              "Chiusi",
+              "Colle di Val d'Elsa",
+              "Gaiole in Chianti",
+              "Montalcino",
+              "Montepulciano",
+              "Monteriggioni",
+              "Monteroni d'Arbia",
+              "Monticiano",
+              "Murlo",
+              "Piancastagnaio",
+              "Pienza",
               "Poggibonsi",
-              "Colle di Val d'Elsa"
+              "Radda in Chianti",
+              "Radicofani",
+              "Radicondoli",
+              "Rapolano Terme",
+              "San Casciano dei Bagni",
+              "San Gimignano",
+              "San Quirico d'Orcia",
+              "Sarteano",
+              "Siena",
+              "Sinalunga",
+              "Sovicille",
+              "Torrita di Siena",
+              "Trequanda"
             ]
           }
         ]
