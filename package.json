@@ -1,5 +1,10 @@
 {
   "type": "module",
+  "scripts": {
+    "check-users-structure": "node check-users-table-structure.cjs",
+    "add-candidature-columns": "node add-candidature-elezioni-columns.cjs",
+    "migrate-candidature": "node migrate-candidature-elezioni.cjs"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
     "cors": "^2.8.5",
