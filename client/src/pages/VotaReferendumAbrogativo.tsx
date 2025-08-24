@@ -12,8 +12,11 @@ import { apiRequest } from "@/lib/queryClient";
 interface Referendum {
   id: string;
   nome: string;
-  sitoWeb?: string;
-  quorum: string;
+  data_inizio?: string;
+  data_fine?: string;
+  status?: string;
+  quorum?: string;
+  firestore_id_backup?: string;
 }
 
 interface Classifica {
@@ -37,14 +40,24 @@ export default function VotaReferendumAbrogativo() {
   const [showAllClassifica, setShowAllClassifica] = useState(false);
 
   // 1. Caricamento dati con React Query
-  const { data, isLoading: isLoadingData } = useQuery<ReferendumAbrogativiData>({
+  const { data, isLoading: isLoadingData, error } = useQuery<ReferendumAbrogativiData>({
     queryKey: ['referendumAbrogativiData'],
     queryFn: async () => {
+      console.log('🔍 DEBUG: Chiamata /api/referendum-abrogativi avviata');
       const response = await apiRequest("GET", "/api/referendum-abrogativi");
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati.");
-      return response.json();
+      console.log('🔍 DEBUG: Risposta ricevuta:', response.status);
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Errore API /referendum-abrogativi:', errorData);
+        throw new Error(`Errore ${response.status}: ${errorData}`);
+      }
+      const result = await response.json();
+      console.log('✅ Dati referendum abrogativi ricevuti:', result);
+      return result;
     },
-    enabled: !!user
+    enabled: !!user && !!localStorage.getItem('auth_token'),
+    retry: 1,
+    refetchOnWindowFocus: false
   });
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
@@ -54,41 +67,41 @@ export default function VotaReferendumAbrogativo() {
     }
   }, [data]);
 
-  // 2. Mutazione per aggiungere voto
-  const addVoteMutation = useMutation({
-    mutationFn: (referendumId: string) => apiRequest("POST", "/api/referendum-abrogativi/vota", { referendumId }),
+  // 2. Mutazione per salvare i voti
+  const saveVotiMutation = useMutation({
+    mutationFn: (voti: string[]) => apiRequest("POST", "/api/referendum-abrogativi/vota", { voti }),
     onSuccess: () => {
-      toast({ title: "Voto registrato", description: "Il tuo voto è stato registrato con successo." });
+      toast({ title: "Preferenze salvate", description: "Le tue preferenze per i referendum abrogativi sono state aggiornate." });
       queryClient.invalidateQueries({ queryKey: ['referendumAbrogativiData'] });
     },
     onError: (error: any) => {
-      toast({ title: "Errore", description: error.message || "Impossibile registrare il voto.", variant: "destructive" });
-    }
-  });
-
-  // 3. Mutazione per rimuovere voto
-  const removeVoteMutation = useMutation({
-    mutationFn: (referendumId: string) => apiRequest("DELETE", "/api/referendum-abrogativi/vota", { referendumId }),
-    onSuccess: () => {
-      toast({ title: "Voto rimosso", description: "Hai rimosso il tuo voto." });
-      queryClient.invalidateQueries({ queryKey: ['referendumAbrogativiData'] });
-    },
-    onError: (error: any) => {
-      toast({ title: "Errore", description: error.message || "Impossibile rimuovere il voto.", variant: "destructive" });
+      toast({ title: "Errore", description: error.message || "Impossibile salvare le preferenze.", variant: "destructive" });
     }
   });
 
   // Logica locale per gestire i voti
-  const handleVote = (referendumId: string) => {
-    if (selectedVoti.includes(referendumId)) {
-      removeVoteMutation.mutate(referendumId);
-    } else {
-      addVoteMutation.mutate(referendumId);
+  const toggleSelezione = (referendumId: string) => {
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    setSelectedVoti(prev => 
+      prev.includes(referendumId) 
+        ? prev.filter(id => id !== referendumId)
+        : [...prev, referendumId]
+    );
+  };
+
+  const toggleSelezioneClassifica = (nome: string) => {
+    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    const referendum = data?.referendum.find(r => r.nome === nome);
+    if (referendum) {
+      toggleSelezione(referendum.id);
     }
   };
 
   // Logica per espandere la classifica
   const handleShowClassifica = () => setShowAllClassifica(!showAllClassifica);
+
+  // Calcola se i voti sono cambiati
+  const votiCambiati = JSON.stringify(selectedVoti.sort()) !== JSON.stringify(data?.mieiVoti.sort() || []);
 
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -106,75 +119,100 @@ export default function VotaReferendumAbrogativo() {
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-red-500 to-red-700 rounded-full"><Trophy className="h-12 w-12 text-white" /></div></div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">Referendum Abrogativi</CardTitle>
-            <CardDescription className="text-lg">Vota i referendum abrogativi che hanno raggiunto il quorum</CardDescription>
+            <CardDescription className="text-lg">Seleziona i referendum abrogativi che preferisci</CardDescription>
           </CardHeader>
         </Card>
 
         {isLoadingData ? (
           <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        ) : error ? (
+          <div className="p-4 bg-red-100 border-l-4 border-red-500 text-red-800 rounded">
+            <b>Errore nel caricamento dei dati:</b><br />
+            {error.message}
+          </div>
         ) : (
           <div className="space-y-6">
+            {/* Le tue preferenze */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2"><ThumbsUp className="h-5 w-5" /><span>Le tue preferenze per i referendum abrogativi</span></CardTitle>
+                <CardDescription>Seleziona i referendum che preferisci.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedVoti.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold mb-2">I tuoi referendum selezionati:</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedVoti.map((id) => {
+                        const referendum = data?.referendum.find(r => r.id === id);
+                        return referendum ? (
+                          <span key={id} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                            <X className="h-3 w-3 mr-1 cursor-pointer" onClick={() => toggleSelezione(id)} />
+                            {referendum.nome}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Tabella dei referendum */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2"><ThumbsUp className="h-5 w-5" /><span>Referendum Disponibili</span></CardTitle>
-                <CardDescription>Seleziona i referendum per cui vuoi votare</CardDescription>
+                <CardDescription>Seleziona i referendum che preferisci</CardDescription>
               </CardHeader>
               <CardContent>
-                {data?.referendum && data.referendum.length > 0 ? (
-                  <div className="space-y-3">
-                    {data.referendum.map((ref) => {
-                      const haVotato = selectedVoti.includes(ref.id);
-                      return (
-                        <div key={ref.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-all duration-300">
-                          <div className="flex-1">
-                            {ref.sitoWeb ? (
-                              <a
-                                href={ref.sitoWeb}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-700 underline hover:text-blue-900 cursor-pointer font-medium"
-                              >
-                                {ref.nome}
-                              </a>
-                            ) : (
-                              <span className="font-medium">{ref.nome}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <span className="text-sm text-gray-600">
-                              {data.classifica.find(c => c.nome === ref.nome)?.voti || 0} voti
-                            </span>
-                            <Button
-                              variant={haVotato ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => handleVote(ref.id)}
-                              disabled={addVoteMutation.isPending || removeVoteMutation.isPending}
-                              className={haVotato ? "bg-green-600 hover:bg-green-700" : ""}
-                            >
-                              {haVotato ? (
-                                <>
-                                  <X className="h-4 w-4 mr-2" />
-                                  Rimuovi
-                                </>
-                              ) : (
-                                <>
-                                  <ThumbsUp className="h-4 w-4 mr-2" />
-                                  Vota
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                                    {data?.referendum && data.referendum.length > 0 ? (
+                      <div className="space-y-3">
+                        {data.referendum.map((ref) => {
+                          const haVotato = selectedVoti.includes(ref.id);
+                          return (
+                            <div key={ref.id} className="flex items-center justify-between p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-all duration-300">
+                              <div className="flex-1">
+                                <span className="font-medium">{ref.nome}</span>
+                                {ref.data_inizio && ref.data_fine && (
+                                  <div className="text-sm text-gray-500 mt-1">
+                                    {new Date(ref.data_inizio).toLocaleDateString('it-IT')} - {new Date(ref.data_fine).toLocaleDateString('it-IT')}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-sm text-gray-600">
+                                  {data.classifica.find(c => c.nome === ref.nome)?.voti || 0} voti
+                                </span>
+                                <Button
+                                  variant={haVotato ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => toggleSelezione(ref.id)}
+                                  disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
+                                  className={haVotato ? "bg-green-600 hover:bg-green-700" : ""}
+                                >
+                                  {haVotato ? (
+                                    <>
+                                      <X className="h-4 w-4 mr-2" />
+                                      Selezionato
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThumbsUp className="h-4 w-4 mr-2" />
+                                      Seleziona
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">
                     <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
                       <Trophy className="h-10 w-10 text-gray-400" />
                     </div>
-                    <p className="text-lg font-medium text-gray-600">Nessun referendum disponibile al momento</p>
+                    <p className="text-lg font-medium text-gray-600">Nessun referendum abrogativo disponibile al momento</p>
                     <p className="text-sm text-gray-500 mt-2">Riprova più tardi</p>
                   </div>
                 )}
@@ -184,7 +222,7 @@ export default function VotaReferendumAbrogativo() {
             {/* Classifica */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Referendum</span></CardTitle>
+                <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Referendum Abrogativi</span></CardTitle>
                 <CardDescription>I referendum che hanno ricevuto più voti ({data?.classifica?.length || 0} totali)</CardDescription>
               </CardHeader>
               <CardContent>
@@ -212,15 +250,25 @@ export default function VotaReferendumAbrogativo() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              const referendum = data.referendum.find(r => r.nome === item.nome);
-                              if (referendum) handleVote(referendum.id);
-                            }}
-                            disabled={addVoteMutation.isPending || removeVoteMutation.isPending}
-                            className="hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700 transition-all duration-300"
+                            onClick={() => toggleSelezioneClassifica(item.nome)}
+                            disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
+                            className={`transition-all duration-300 ${
+                              data.referendum.find(r => r.nome === item.nome) && selectedVoti.includes(data.referendum.find(r => r.nome === item.nome)!.id)
+                                ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
+                                : "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
+                            }`}
                           >
-                            <ThumbsUp className="h-4 w-4 mr-2" />
-                            {data.referendum.find(r => r.nome === item.nome) && selectedVoti.includes(data.referendum.find(r => r.nome === item.nome)!.id) ? "Selezionato" : "Seleziona"}
+                            {data.referendum.find(r => r.nome === item.nome) && selectedVoti.includes(data.referendum.find(r => r.nome === item.nome)!.id) ? (
+                              <>
+                                <ThumbsUp className="h-4 w-4 mr-2" />
+                                Selezionato
+                              </>
+                            ) : (
+                              <>
+                                <ThumbsUp className="h-4 w-4 mr-2" />
+                                Seleziona
+                              </>
+                            )}
                           </Button>
                         </div>
                       ))}
@@ -239,8 +287,8 @@ export default function VotaReferendumAbrogativo() {
                           >
                             <Trophy className="h-5 w-5 mr-2 text-blue-600" />
                             {showAllClassifica 
-                              ? `Nascondi (${data.classifica.length - 3} referendum)` 
-                              : `Mostra Altro (${data.classifica.length - 3} referendum rimanenti)`
+                              ? `Nascondi (${data.classifica.length - 3} referendum abrogativi)` 
+                              : `Mostra Altro (${data.classifica.length - 3} referendum abrogativi rimanenti)`
                             }
                           </Button>
                         </div>
@@ -268,15 +316,25 @@ export default function VotaReferendumAbrogativo() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => {
-                                    const referendum = data.referendum.find(r => r.nome === item.nome);
-                                    if (referendum) handleVote(referendum.id);
-                                  }}
-                                  disabled={addVoteMutation.isPending || removeVoteMutation.isPending}
-                                  className="hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-all duration-300"
+                                  onClick={() => toggleSelezioneClassifica(item.nome)}
+                                  disabled={saveVotiMutation.isPending || data?.blocco.isBlocked}
+                                  className={`transition-all duration-300 ${
+                                    data.referendum.find(r => r.nome === item.nome) && selectedVoti.includes(data.referendum.find(r => r.nome === item.nome)!.id)
+                                      ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
+                                      : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
+                                  }`}
                                 >
-                                  <ThumbsUp className="h-4 w-4 mr-2" />
-                                  {data.referendum.find(r => r.nome === item.nome) && selectedVoti.includes(data.referendum.find(r => r.nome === item.nome)!.id) ? "Selezionato" : "Seleziona"}
+                                  {data.referendum.find(r => r.nome === item.nome) && selectedVoti.includes(data.referendum.find(r => r.nome === item.nome)!.id) ? (
+                                    <>
+                                      <ThumbsUp className="h-4 w-4 mr-2" />
+                                      Selezionato
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ThumbsUp className="h-4 w-4 mr-2" />
+                                      Seleziona
+                                    </>
+                                  )}
                                 </Button>
                               </div>
                             ))}
@@ -290,12 +348,19 @@ export default function VotaReferendumAbrogativo() {
                     <div className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
                       <Trophy className="h-10 w-10 text-gray-400" />
                     </div>
-                    <p className="text-lg font-medium text-gray-600">Nessuna classifica disponibile al momento</p>
+                    <p className="text-lg font-medium text-gray-600">Nessuna classifica referendum disponibile al momento</p>
                     <p className="text-sm text-gray-500 mt-2">Riprova più tardi</p>
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            <div className="flex justify-end mt-4">
+              <Button onClick={() => saveVotiMutation.mutate(selectedVoti)} disabled={saveVotiMutation.isPending || !votiCambiati || data?.blocco.isBlocked}>
+                {saveVotiMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                Salva le mie Preferenze
+              </Button>
+            </div>
           </div>
         )}
       </div>

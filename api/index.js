@@ -2031,19 +2031,54 @@ app.get('/api/users/:id/public', verifyToken, async (req, res) => {
 // GET /api/referendum-abrogativi - Ottieni referendum abrogativi
 app.get('/api/referendum-abrogativi', limiter, async (req, res) => {
   try {
-    const query = `
-      SELECT r.*, u.nome, u.cognome
+    // 1. Ottieni referendum abrogativi accettati con JOIN per i nomi
+    const referendumQuery = `
+      SELECT DISTINCT r.id, r.nome, r.data_inizio, r.data_fine, r.status, r.quorum, r.firestore_id_backup
       FROM referendum_abrogativi r
-      JOIN users u ON r.utente_id = u.id
-      ORDER BY r.created_at DESC
+      WHERE r.status = 'accepted' OR r.status = 'pending'
+      ORDER BY r.nome
     `;
-    
-    const result = await pool.query(query);
-    
+    const referendumResult = await pool.query(referendumQuery);
+
+    // 2. Genera classifica basata sui voti con nomi reali
+    const classificaQuery = `
+      SELECT r.nome, COUNT(*) as voti
+      FROM voti_referendum_abrogativi v
+      INNER JOIN referendum_abrogativi r ON v.referendum_id = r.firestore_id_backup
+      GROUP BY r.id, r.nome
+      ORDER BY voti DESC
+    `;
+    const classificaResult = await pool.query(classificaQuery);
+
+    // 3. Se l'utente è autenticato, ottieni i suoi voti
+    let mieiVoti = [];
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+
+        const userVotiQuery = `
+          SELECT v.referendum_id
+          FROM voti_referendum_abrogativi v
+          WHERE v.userid = $1
+        `;
+        const userVotiResult = await pool.query(userVotiQuery, [userId]);
+        mieiVoti = userVotiResult.rows.map(v => v.referendum_id);
+      } catch (authError) {
+        // Se il token non è valido, continua senza autenticazione
+        console.log('⚠️ Token non valido per referendum abrogativi:', authError.message);
+      }
+    }
+
     res.json({
       success: true,
-      referendum: result.rows,
-      mieiVoti: ['user1'], // Placeholder
+      referendum: referendumResult.rows.map(row => ({
+        ...row,
+        id: row.firestore_id_backup || row.id // Assicurati che firestore_id_backup sia disponibile
+      })),
+      classifica: classificaResult.rows,
+      mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
@@ -2124,6 +2159,55 @@ app.post('/api/referendum-abrogativi/:id/:action', verifyToken, async (req, res)
     res.status(500).json({
       success: false,
       error: 'Errore nella gestione referendum'
+    });
+  }
+});
+
+// POST /api/referendum-abrogativi/vota - Salva preferenze referendum abrogativo
+app.post('/api/referendum-abrogativi/vota', verifyToken, async (req, res) => {
+  try {
+    const { voti } = req.body;
+    const userId = req.userId;
+
+    // Elimina i voti esistenti
+    await pool.query('DELETE FROM voti_referendum_abrogativi WHERE userid = $1', [userId]);
+
+    // Inserisci i nuovi voti
+    for (const referendumId of voti) {
+      await pool.query(
+        'INSERT INTO voti_referendum_abrogativi (userid, referendum_id) VALUES ($1, $2) ON CONFLICT (userid, referendum_id) DO NOTHING',
+        [userId, referendumId]
+      );
+    }
+
+    res.json({ success: true, message: 'Preferenze salvate con successo' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare preferenze referendum:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare le preferenze'
+    });
+  }
+});
+
+// DELETE /api/referendum-abrogativi/vota - Rimuovi voto referendum abrogativo
+app.delete('/api/referendum-abrogativi/vota', verifyToken, async (req, res) => {
+  try {
+    const { referendumId } = req.body;
+    const userId = req.userId;
+
+    // Rimuovi il voto
+    await pool.query(
+      'DELETE FROM voti_referendum_abrogativi WHERE userid = $1 AND referendum_id = $2',
+      [userId, referendumId]
+    );
+
+    res.json({ success: true, message: 'Voto rimosso con successo' });
+  } catch (error) {
+    console.error('❌ Errore nel rimuovere voto referendum:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel rimuovere il voto'
     });
   }
 });
