@@ -5566,7 +5566,7 @@ export const ITALY_DATA = {
               "Villata",
               "Vocca"
             ]
-          }
+          },
           {
             "nome": "Asti",
             "comuni": [
