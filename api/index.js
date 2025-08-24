@@ -536,7 +536,7 @@ app.post('/api/auth/login', async (req, res) => {
     
     // Verifica credenziali nel database
     const userQuery = `
-      SELECT id, nome, cognome, email, password_hash, ruolo
+      SELECT id, nome, cognome, email, password_hash, ruolo, status
       FROM users 
       WHERE email = $1
     `;
@@ -551,6 +551,15 @@ app.post('/api/auth/login', async (req, res) => {
     }
     
     const user = userResult.rows[0];
+    
+    // Verifica che l'utente abbia confermato l'email
+    if (user.status === 'pending') {
+      return res.status(401).json({
+        success: false,
+        error: 'Devi confermare la tua email prima di accedere. Controlla la tua casella di posta.',
+        requiresVerification: true
+      });
+    }
     
     // Verifica password (se esiste password_hash, altrimenti accetta qualsiasi password per test)
     if (user.password_hash) {
@@ -583,7 +592,8 @@ app.post('/api/auth/login', async (req, res) => {
         name: user.nome,
         cognome: user.cognome,
         email: user.email,
-        ruolo: user.ruolo
+        ruolo: user.ruolo,
+        status: user.status
       },
       token: token
     });
@@ -593,6 +603,182 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel login'
+    });
+  }
+});
+
+// POST /api/auth/verify-email - Conferma email
+app.post('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token di verifica richiesto'
+      });
+    }
+    
+    console.log('🔍 Tentativo verifica email con token');
+    
+    // Verifica il token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+      
+      // Verifica che sia un token di verifica email
+      if (decoded.type !== 'email_verification') {
+        return res.status(400).json({
+          success: false,
+          error: 'Token non valido per verifica email'
+        });
+      }
+    } catch (jwtError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido o scaduto'
+      });
+    }
+    
+    // Trova l'utente con questo token di verifica
+    const userQuery = `
+      SELECT id, email, status 
+      FROM users 
+      WHERE email = $1 AND email_verification_token = $2
+    `;
+    
+    const userResult = await pool.query(userQuery, [decoded.email, token]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato o token non valido'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Verifica che l'utente non sia già verificato
+    if (user.status === 'active') {
+      return res.status(400).json({
+        success: false,
+        error: 'Email già verificata'
+      });
+    }
+    
+    // Aggiorna lo status dell'utente e rimuovi il token
+    await pool.query(
+      'UPDATE users SET status = $1, email_verification_token = NULL, updated_at = NOW() WHERE id = $2',
+      ['active', user.id]
+    );
+    
+    console.log('✅ Email verificata per utente:', user.id);
+    
+    // Genera token JWT per il login automatico
+    const loginToken = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email,
+        role: 'Elettore' // Ruolo di default per utenti verificati
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Email verificata con successo! Ora puoi accedere al tuo account.',
+      user: {
+        id: user.id,
+        email: user.email,
+        status: 'active',
+        ruolo: 'Elettore'
+      },
+      token: loginToken
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella verifica email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella verifica email'
+    });
+  }
+});
+
+// POST /api/auth/resend-verification - Reinvia email di verifica
+app.post('/api/auth/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email richiesta'
+      });
+    }
+    
+    console.log('📧 Richiesta reinvio email di verifica per:', email);
+    
+    // Verifica se l'utente esiste e ha status pending
+    const userQuery = `
+      SELECT id, nome, cognome, email, status 
+      FROM users 
+      WHERE email = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [email]);
+    
+    if (userResult.rows.length === 0) {
+      // Per sicurezza, non rivelare se l'email esiste o meno
+      return res.json({
+        success: true,
+        message: 'Se l\'email esiste e non è ancora verificata, riceverai un nuovo link di verifica'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Se l'utente è già verificato, non fare nulla
+    if (user.status === 'active') {
+      return res.json({
+        success: true,
+        message: 'Il tuo account è già verificato. Puoi procedere con il login.'
+      });
+    }
+    
+    // Genera un nuovo token di verifica
+    const verificationToken = jwt.sign(
+      { 
+        email: user.email,
+        type: 'email_verification'
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    // Aggiorna il token nel database
+    await pool.query(
+      'UPDATE users SET email_verification_token = $1, updated_at = NOW() WHERE id = $2',
+      [verificationToken, user.id]
+    );
+    
+    // Invia nuova email di verifica
+    const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${verificationToken}`;
+    await sendVerificationEmail(email, verificationToken, verificationUrl);
+    
+    console.log('✅ Nuova email di verifica inviata per:', email);
+    
+    res.json({
+      success: true,
+      message: 'Nuovo link di verifica inviato alla tua email'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel reinvio email di verifica:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel reinvio email di verifica'
     });
   }
 });
@@ -630,11 +816,21 @@ app.post('/api/auth/register', async (req, res) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
-    // Inserisci nuovo utente
+    // Genera token di verifica email (valido per 24 ore)
+    const verificationToken = jwt.sign(
+      { 
+        email: email,
+        type: 'email_verification'
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    // Inserisci nuovo utente con status "pending"
     const insertQuery = `
-      INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
-      RETURNING id, nome, cognome, email, ruolo, codice_fiscale
+      INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, status, email_verification_token, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING id, nome, cognome, email, ruolo, codice_fiscale, status
     `;
     
     const result = await pool.query(insertQuery, [
@@ -643,36 +839,46 @@ app.post('/api/auth/register', async (req, res) => {
       email, 
       passwordHash, 
       'Elettore',
-      codice_fiscale ? codice_fiscale.toUpperCase() : null
+      codice_fiscale ? codice_fiscale.toUpperCase() : null,
+      'pending',
+      verificationToken
     ]);
     
     const newUser = result.rows[0];
     
-    // Genera token JWT
-    const token = jwt.sign(
-      { 
-        userId: newUser.id, 
-        email: newUser.email,
-        role: newUser.ruolo 
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    
-    console.log('✅ Registrazione riuscita per:', email);
-    
-    res.json({
-      success: true,
-      user: {
-        id: newUser.id,
-        name: newUser.nome,
-        cognome: newUser.cognome,
-        email: newUser.email,
-        ruolo: newUser.ruolo,
-        codice_fiscale: newUser.codice_fiscale
-      },
-      token: token
-    });
+    // Invia email di verifica
+    try {
+      const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${verificationToken}`;
+      await sendVerificationEmail(email, verificationToken, verificationUrl);
+      
+      console.log('✅ Email di verifica inviata per:', email);
+      
+      res.json({
+        success: true,
+        message: 'Registrazione completata! Controlla la tua email per confermare l\'account.',
+        user: {
+          id: newUser.id,
+          name: newUser.nome,
+          cognome: newUser.cognome,
+          email: newUser.email,
+          ruolo: newUser.ruolo,
+          codice_fiscale: newUser.codice_fiscale,
+          status: newUser.status
+        },
+        requiresVerification: true
+      });
+      
+    } catch (emailError) {
+      console.error('❌ Errore nell\'invio email di verifica:', emailError);
+      
+      // Se l'email non può essere inviata, elimina l'utente e restituisci errore
+      await pool.query('DELETE FROM users WHERE id = $1', [newUser.id]);
+      
+      res.status(500).json({
+        success: false,
+        error: 'Errore nell\'invio email di verifica. Riprova più tardi.'
+      });
+    }
     
   } catch (error) {
     console.error('❌ Errore nella registrazione:', error);
@@ -802,6 +1008,127 @@ const sendResetPasswordEmail = async (email, resetToken, resetUrl) => {
     
   } catch (error) {
     console.error('❌ Errore nell\'invio email con Resend:', error);
+    throw error;
+  }
+};
+
+// Funzione per inviare email di verifica
+const sendVerificationEmail = async (email, verificationToken, verificationUrl) => {
+  try {
+    console.log('📧 Tentativo invio email di verifica con Resend per:', email);
+    
+    // Verifica che Resend sia disponibile
+    if (typeof resend === 'undefined') {
+      throw new Error('Resend non è disponibile');
+    }
+    
+    if (typeof resend.emails?.send !== 'function') {
+      throw new Error('resend.emails.send non è una funzione');
+    }
+    
+    // Per test, invia sempre al tuo email se non è il tuo
+    const testEmail = email === 'nicolasmicheletti90@gmail.com' ? email : 'nicolasmicheletti90@gmail.com';
+    
+    const emailData = {
+      from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
+      to: testEmail,
+      subject: 'Conferma la tua email - Demos Community',
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Conferma Email - Demos Community</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <!-- Header con gradiente -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Demos Community</h1>
+              <p style="color: #e2e8f0; margin: 10px 0 0 0; font-size: 18px;">Benvenuto nella comunità!</p>
+            </div>
+            
+            <!-- Contenuto principale -->
+            <div style="padding: 40px 30px;">
+              <h2 style="color: #1a202c; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Ciao!</h2>
+              
+              <p style="color: #4a5568; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
+                Grazie per esserti registrato su Demos Community! Per completare la registrazione, devi confermare la tua email.
+              </p>
+              
+              <p style="color: #4a5568; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">
+                Clicca sul pulsante qui sotto per confermare il tuo account:
+              </p>
+              
+              <!-- Pulsante principale -->
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${verificationUrl}" 
+                   style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                          color: white; 
+                          padding: 16px 32px; 
+                          text-decoration: none; 
+                          border-radius: 8px; 
+                          display: inline-block;
+                          font-weight: 600;
+                          font-size: 16px;
+                          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                          transition: all 0.3s ease;">
+                  Conferma Email
+                </a>
+              </div>
+              
+              <p style="color: #718096; margin: 30px 0 20px 0; font-size: 14px; line-height: 1.5;">
+                Oppure copia e incolla questo link nel browser:
+              </p>
+              
+              <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
+                <p style="color: #4a5568; margin: 0; font-size: 14px; word-break: break-all; font-family: monospace;">
+                  ${verificationUrl}
+                </p>
+              </div>
+              
+              <div style="margin: 30px 0; padding: 20px; background-color: #f0f9ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                <p style="color: #1e40af; margin: 0; font-size: 14px; line-height: 1.5;">
+                  🎉 <strong>Benvenuto!</strong> Una volta confermata l'email, potrai accedere a tutte le funzionalità di Demos Community.
+                </p>
+              </div>
+              
+              <div style="margin: 30px 0; padding: 20px; background-color: #fef5e7; border-radius: 8px; border-left: 4px solid #ed8936;">
+                <p style="color: #744210; margin: 0; font-size: 14px; line-height: 1.5;">
+                  ⏰ <strong>Attenzione:</strong> Questo link scadrà tra 24 ore per motivi di sicurezza.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #718096; margin: 0 0 10px 0; font-size: 14px;">
+                <strong>DEMOS Community</strong>
+              </p>
+              <p style="color: #a0aec0; margin: 0; font-size: 12px;">
+                Piattaforma di democrazia partecipativa
+              </p>
+              <p style="color: #a0aec0; margin: 15px 0 0 0; font-size: 11px;">
+                Questa email è stata inviata automaticamente, non rispondere.
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+    
+    console.log('📤 Invio email di verifica con Resend...');
+    const result = await resend.emails.send(emailData);
+    
+    console.log('✅ Email di verifica inviata con successo tramite Resend');
+    console.log('📧 Result:', result);
+    
+    return { success: true, result };
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'invio email di verifica con Resend:', error);
     throw error;
   }
 };
