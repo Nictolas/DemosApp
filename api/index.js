@@ -1721,26 +1721,27 @@ app.post('/api/ice/:id/:action', verifyToken, async (req, res) => {
 // GET /api/iniziative-popolari - Ottieni iniziative popolari
 app.get('/api/iniziative-popolari', limiter, async (req, res) => {
   try {
-    // 1. Ottieni tutti i voti per iniziative popolari
-    const votiQuery = `
-      SELECT * FROM voti_iniziative_popolari 
-      ORDER BY timestamp DESC
+    // 1. Ottieni iniziative popolari con JOIN per i nomi
+    const iniziativeQuery = `
+      SELECT DISTINCT i.id, i.nome, i.sito_web as "sitoWeb", i.quorum, i.firestoreid
+      FROM iniziative_popolari i
+      INNER JOIN voti_iniziative_popolari v ON i.firestoreid = v.iniziativa_id
+      WHERE i.status = 'accepted' OR i.status = 'pending'
+      ORDER BY i.nome
     `;
-    const votiResult = await pool.query(votiQuery);
+    const iniziativeResult = await pool.query(iniziativeQuery);
     
-    // 2. Genera classifica basata sui voti
+    // 2. Genera classifica basata sui voti con nomi reali
     const classificaQuery = `
-      SELECT iniziativa_id as nome, COUNT(*) as voti
-      FROM voti_iniziative_popolari 
-      GROUP BY iniziativa_id 
+      SELECT i.nome, COUNT(*) as voti
+      FROM voti_iniziative_popolari v
+      INNER JOIN iniziative_popolari i ON v.iniziativa_id = i.firestoreid
+      GROUP BY i.id, i.nome
       ORDER BY voti DESC
     `;
     const classificaResult = await pool.query(classificaQuery);
     
-    // 3. Ottieni iniziative uniche per l'input
-    const iniziativeUniche = [...new Set(votiResult.rows.map(v => v.iniziativa_id))];
-    
-    // 4. Se l'utente è autenticato, ottieni i suoi voti
+    // 3. Se l'utente è autenticato, ottieni i suoi voti
     let mieiVoti = [];
     if (req.headers.authorization) {
       try {
@@ -1749,8 +1750,9 @@ app.get('/api/iniziative-popolari', limiter, async (req, res) => {
         const userId = decoded.userId;
         
         const userVotiQuery = `
-          SELECT iniziativa_id FROM voti_iniziative_popolari 
-          WHERE userid = $1
+          SELECT v.iniziativa_id
+          FROM voti_iniziative_popolari v
+          WHERE v.userid = $1
         `;
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.iniziativa_id);
@@ -1762,7 +1764,10 @@ app.get('/api/iniziative-popolari', limiter, async (req, res) => {
     
     res.json({
       success: true,
-      iniziative: iniziativeUniche.map(iniziativa => ({ id: iniziativa, nome: iniziativa })),
+      iniziative: iniziativeResult.rows.map(row => ({
+        ...row,
+        firestoreid: row.firestoreid || row.id // Assicurati che firestoreid sia disponibile
+      })),
       classifica: classificaResult.rows,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
@@ -1840,7 +1845,7 @@ app.post('/api/iniziative-popolari/vota', verifyToken, validateInput(['voti']), 
     // Inserisci i nuovi voti
     for (const iniziativaId of voti) {
       await pool.query(
-        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp) VALUES ($1, $2, NOW()) ON CONFLICT (userid, iniziativa_id) DO UPDATE SET timestamp = NOW()',
+        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id) VALUES ($1, $2) ON CONFLICT (userid, iniziativa_id) DO NOTHING',
         [userId, iniziativaId]
       );
     }
