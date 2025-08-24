@@ -2479,8 +2479,7 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/utenti - Richiesta ricevuta da utente:', req.userId, 'con ruolo:', req.userRole);
     
     const query = `
-      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
-             grado_opinioni, fonti_opinioni, avatar_config
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, created_at
       FROM users 
       WHERE ruolo != 'pending'
       ORDER BY nome, cognome
