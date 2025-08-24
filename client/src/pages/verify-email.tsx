@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, useRoute } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, XCircle, Mail, AlertCircle } from 'lucide-react';
 
 const VerifyEmail = () => {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const [location] = useLocation();
+  const [, setLocation] = useLocation();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading');
   const [message, setMessage] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const token = searchParams.get('token');
+  // Estrai il token dall'URL
+  const urlParams = new URLSearchParams(location.split('?')[1]);
+  const token = urlParams.get('token');
 
   useEffect(() => {
     if (!token) {
@@ -46,7 +48,7 @@ const VerifyEmail = () => {
         
         // Salva il token di login se fornito
         if (data.token) {
-          localStorage.setItem('token', data.token);
+          localStorage.setItem('auth_token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
         }
       } else {
@@ -69,15 +71,15 @@ const VerifyEmail = () => {
 
   const handleResendVerification = async () => {
     // Per ora reindirizza alla pagina di login dove potrà richiedere il reinvio
-    navigate('/auth');
+    setLocation('/auth');
   };
 
   const handleGoToLogin = () => {
-    navigate('/auth');
+    setLocation('/auth');
   };
 
   const handleGoToHome = () => {
-    navigate('/');
+    setLocation('/');
   };
 
   const renderContent = () => {
