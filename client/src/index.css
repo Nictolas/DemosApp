@@ -305,7 +305,8 @@ body {
 }
 
 /* Forza l'orientamento verticale - SOLUZIONE CORRETTA */
-@media screen and (orientation: landscape) {
+/* Applica solo su dispositivi mobili, NON su desktop */
+@media screen and (max-width: 768px) and (orientation: landscape) {
   html, body, #root {
     /* Mantiene l'app sempre verticale anche quando il dispositivo è orizzontale */
     width: 100vh !important;
@@ -314,7 +315,7 @@ body {
     position: fixed;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) rotate(-90deg);
+    transform: translate(-50%, -50%) rotate(90deg);
     transform-origin: center center;
     /* Mantiene le proporzioni verticali */
     max-width: 100vh;
@@ -323,9 +324,9 @@ body {
     overflow: hidden;
   }
   
-  /* Assicura che tutto il contenuto rimanga verticale */
+  /* Assicura che tutto il contenuto rimanga verticale e leggibile */
   #root > * {
-    transform: rotate(90deg);
+    transform: rotate(-90deg);
     transform-origin: center center;
     width: 100%;
     height: 100%;
@@ -333,7 +334,8 @@ body {
 }
 
 /* Ripristina l'orientamento normale quando il dispositivo è in verticale */
-@media screen and (orientation: portrait) {
+/* Applica solo su dispositivi mobili */
+@media screen and (max-width: 768px) and (orientation: portrait) {
   html, body, #root {
     /* Ripristina le dimensioni e posizioni normali */
     width: 100vw !important;
@@ -357,30 +359,11 @@ body {
 
 /* Stili specifici per dispositivi mobili */
 @media screen and (max-width: 768px) {
-  html, body, #root {
-    /* Previene la rotazione automatica su mobile */
-    -webkit-transform: none !important;
-    -moz-transform: none !important;
-    -ms-transform: none !important;
-    transform: none !important;
-  }
-  
   /* Forza l'orientamento verticale su mobile */
   body {
     min-height: 100vh;
     height: 100vh;
     width: 100vw;
     overflow-x: hidden;
-  }
-  
-  /* Ottimizzazioni specifiche per mobile in orizzontale */
-  @media screen and (orientation: landscape) {
-    body {
-      /* Assicura che l'app rimanga sempre verticale su mobile */
-      -webkit-transform: none !important;
-      -moz-transform: none !important;
-      -ms-transform: none !important;
-      transform: none !important;
-    }
   }
 }
