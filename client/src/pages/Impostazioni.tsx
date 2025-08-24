@@ -326,7 +326,7 @@ export default function Impostazioni() {
 
       {/* Dialog di conferma logout */}
       <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white border border-gray-200 shadow-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Vuoi uscire?</AlertDialogTitle>
             <AlertDialogDescription>
