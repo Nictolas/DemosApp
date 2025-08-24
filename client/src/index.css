@@ -304,107 +304,44 @@ body {
   transform: translateX(0);
 }
 
-/* Forza l'orientamento verticale - SOLUZIONE CORRETTA */
-/* Applica solo su dispositivi mobili, NON su desktop */
+/* Messaggio elegante per ruotare il dispositivo su mobile */
 @media screen and (max-width: 768px) and (orientation: landscape) {
-  html, body, #root {
-    /* Mantiene l'app sempre verticale anche quando il dispositivo è orizzontale */
-    width: 100vh !important;
-    height: 100vw !important;
-    /* Centra l'app verticale nello schermo orizzontale */
+  /* Sfondo nero che copre tutto lo schermo */
+  body::before {
+    content: "";
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: center center;
-    /* Mantiene le proporzioni verticali */
-    max-width: 100vh;
-    max-height: 100vw;
-    /* Previene scroll indesiderati */
-    overflow: hidden;
-    /* Assicura che l'app sia sempre sopra tutto */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #000000;
     z-index: 10000;
   }
   
-  /* Assicura che tutto il contenuto rimanga verticale e leggibile */
-  #root > * {
-    transform: rotate(-90deg);
-    transform-origin: center center;
-    width: 100%;
-    height: 100%;
+  /* Messaggio centrale per ruotare il dispositivo */
+  body::after {
+    content: "Ruota il dispositivo in verticale per una migliore esperienza";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.95);
+    color: #000000;
+    padding: 1.5rem 2rem;
+    border-radius: 1rem;
+    z-index: 10001;
+    font-size: 1.2rem;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    max-width: 90vw;
+    line-height: 1.4;
   }
   
-  /* Nascondi la navbar in orizzontale per evitare problemi di posizionamento */
-  nav {
-    display: none !important;
-  }
-}
-
-/* Ripristina l'orientamento normale quando il dispositivo è in verticale */
-/* Applica solo su dispositivi mobili */
-@media screen and (max-width: 768px) and (orientation: portrait) {
-  html, body, #root {
-    /* Ripristina le dimensioni e posizioni normali */
-    width: 100vw !important;
-    height: 100vh !important;
-    position: static !important;
-    top: auto !important;
-    left: auto !important;
-    transform: none !important;
-    max-width: none !important;
-    max-height: none !important;
-    overflow: visible !important;
-    z-index: auto !important;
-  }
-  
-  /* Ripristina il contenuto normale */
-  #root > * {
-    transform: none !important;
-    width: auto;
-    height: auto;
-  }
-  
-  /* Mostra di nuovo la navbar in verticale */
-  nav, header, footer {
-    display: block !important;
-  }
-}
-
-/* Stili specifici per dispositivi mobili */
-@media screen and (max-width: 768px) {
-  /* Forza l'orientamento verticale su mobile */
-  body {
-    min-height: 100vh;
-    height: 100vh;
-    width: 100vw;
-    overflow-x: hidden;
-  }
-  
-  /* Forza l'orientamento verticale su mobile in orizzontale - APPROCCIO ALTERNATIVO */
-  @media screen and (orientation: landscape) {
-    html, body, #root {
-      /* Forza l'app a rimanere sempre verticale */
-      transform: rotate(90deg) !important;
-      transform-origin: center center !important;
-      width: 100vh !important;
-      height: 100vw !important;
-      position: fixed !important;
-      top: 50% !important;
-      left: 50% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow: hidden !important;
-      z-index: 10000 !important;
-    }
-    
-    /* Nascondi la navbar in orizzontale */
-    nav {
-      display: none !important;
-    }
-    
-    /* Nascondi anche altri elementi che potrebbero causare problemi */
-    header, footer {
-      display: none !important;
-    }
+  /* Nascondi il contenuto principale in orizzontale */
+  #root {
+    opacity: 0.1;
+    pointer-events: none;
   }
 }
