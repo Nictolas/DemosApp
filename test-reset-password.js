@@ -28,8 +28,9 @@ async function testResetPassword() {
     console.log('Status:', resetResponse.status);
     console.log('Response:', resetData);
     
-    if (resetResponse.ok && resetData.token) {
-      console.log('✅ Reset token generato:', resetData.token);
+    if (resetResponse.ok && (resetData.token || resetData.resetToken)) {
+      const token = resetData.token || resetData.resetToken;
+      console.log('✅ Reset token generato:', token);
       
       // 2. Test reset password con token
       console.log('\n🔐 2. Test reset password con token...');
@@ -41,7 +42,7 @@ async function testResetPassword() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          token: resetData.token,
+          token: token,
           newPassword 
         }),
       });
