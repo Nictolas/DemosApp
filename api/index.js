@@ -1514,10 +1514,10 @@ app.post('/api/grazia/richiesta/:id/:action', verifyToken, async (req, res) => {
 // GET /api/amnistia - Ottieni leggi per amnistia
 app.get('/api/amnistia', limiter, async (req, res) => {
   try {
-    // 1. Ottieni tutti i voti per amnistia
+    // 1. Ottieni tutti i voti per amnistia (senza timestamp)
     const votiQuery = `
-      SELECT * FROM voti_amnistia 
-      ORDER BY timestamp DESC
+      SELECT id, userid, firestore_userid, legge FROM voti_amnistia 
+      ORDER BY id DESC
     `;
     const votiResult = await pool.query(votiQuery);
     
@@ -1530,10 +1530,7 @@ app.get('/api/amnistia', limiter, async (req, res) => {
     `;
     const classificaResult = await pool.query(classificaQuery);
     
-    // 3. Ottieni leggi uniche per l'input
-    const leggiUniche = [...new Set(votiResult.rows.map(v => v.legge))];
-    
-    // 4. Se l'utente è autenticato, ottieni i suoi voti
+    // 3. Se l'utente è autenticato, ottieni i suoi voti
     let mieiVoti = [];
     if (req.headers.authorization) {
       try {
@@ -1543,7 +1540,7 @@ app.get('/api/amnistia', limiter, async (req, res) => {
         
         const userVotiQuery = `
           SELECT legge FROM voti_amnistia 
-          WHERE userId = $1
+          WHERE userid = $1
         `;
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.legge);
@@ -1575,7 +1572,7 @@ app.post('/api/amnistia/vota', verifyToken, validateInput(['legge']), async (req
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     await pool.query(
-      'INSERT INTO voti_amnistia (userId, legge, timestamp) VALUES ($1, $2, NOW()) ON CONFLICT (userId, legge) DO UPDATE SET timestamp = NOW()',
+      'INSERT INTO voti_amnistia (userid, legge) VALUES ($1, $2) ON CONFLICT (userid, legge) DO NOTHING',
       [userId, legge]
     );
     
@@ -1596,7 +1593,7 @@ app.delete('/api/amnistia/vota', verifyToken, validateInput(['legge']), async (r
     const userId = req.userId;
     
     const result = await pool.query(
-      'DELETE FROM voti_amnistia WHERE userId = $1 AND legge = $2',
+      'DELETE FROM voti_amnistia WHERE userid = $1 AND legge = $2',
       [userId, legge]
     );
     
