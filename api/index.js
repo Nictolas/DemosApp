@@ -293,7 +293,7 @@ app.get('/api/test-nodemailer', (req, res) => {
       available: typeof nodemailer !== 'undefined',
       type: typeof nodemailer,
       methods: nodemailer ? Object.keys(nodemailer) : [],
-      createTransporter: typeof nodemailer?.createTransporter,
+      createTransport: typeof nodemailer?.createTransport,
       version: nodemailer?.version || 'N/A'
     };
     
@@ -507,7 +507,7 @@ const createTransporter = () => {
     // Se siamo in produzione, usa le credenziali reali
     if (process.env.NODE_ENV === 'production') {
       console.log('📧 Configurazione email per PRODUZIONE');
-      return nodemailer.createTransporter({
+      return nodemailer.createTransport({
         service: 'gmail', // o altro servizio
         auth: {
           user: process.env.EMAIL_USER,
@@ -518,7 +518,7 @@ const createTransporter = () => {
     
     // In sviluppo, usa un servizio di test
     console.log('📧 Configurazione email per SVILUPPO (Ethereal)');
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       secure: false,
@@ -544,8 +544,8 @@ const sendResetPasswordEmail = async (email, resetToken, userName) => {
       throw new Error('Nodemailer non è disponibile');
     }
     
-    if (typeof nodemailer.createTransporter !== 'function') {
-      throw new Error('nodemailer.createTransporter non è una funzione');
+    if (typeof nodemailer.createTransport !== 'function') {
+      throw new Error('nodemailer.createTransport non è una funzione');
     }
     
     console.log('✅ Nodemailer disponibile, creazione transporter...');
