@@ -2006,6 +2006,223 @@ app.get('/api/utenti/pending', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/users/:id - Ottieni dati utente per ID o email
+app.get('/api/users/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Determina se l'ID è un numero (ID) o una stringa (email)
+    const isNumeric = !isNaN(id) && !isNaN(parseFloat(id));
+    
+    let query, params;
+    if (isNumeric) {
+      // Cerca per ID numerico
+      query = `
+        SELECT id, nome, cognome, email, ruolo, role, genere, data_nascita, eta, sesso, 
+               regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
+               created_at, updated_at
+        FROM users 
+        WHERE id = $1
+      `;
+      params = [id];
+    } else {
+      // Cerca per email
+      query = `
+        SELECT id, nome, cognome, email, ruolo, role, genere, data_nascita, eta, sesso, 
+               regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
+               created_at, updated_at
+        FROM users 
+        WHERE email = $1
+      `;
+      params = [id];
+    }
+    
+    const result = await pool.query(query, params);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare dati utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare dati utente'
+    });
+  }
+});
+
+// POST /api/users/:id/avatar - Aggiorna avatar utente
+app.post('/api/users/:id/avatar', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { avatar_config } = req.body;
+    
+    // Verifica che l'utente stia modificando il proprio profilo
+    if (req.userId !== parseInt(id)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non puoi modificare il profilo di un altro utente'
+      });
+    }
+    
+    const query = `
+      UPDATE users 
+      SET avatar_config = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, avatar_config
+    `;
+    
+    const result = await pool.query(query, [avatar_config, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento avatar:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento avatar'
+    });
+  }
+});
+
+// PUT /api/users/:id/seleziona-candidato - Seleziona candidato
+app.put('/api/users/:id/seleziona-candidato', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { candidato_id } = req.body;
+    
+    // Verifica che l'utente stia modificando il proprio profilo
+    if (req.userId !== parseInt(id)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non puoi modificare il profilo di un altro utente'
+      });
+    }
+    
+    const query = `
+      UPDATE users 
+      SET candidato_selezionato = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, candidato_selezionato
+    `;
+    
+    const result = await pool.query(query, [candidato_id, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella selezione candidato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella selezione candidato'
+    });
+  }
+});
+
+// PUT /api/users/:id/seleziona-rappresentante - Seleziona rappresentante
+app.put('/api/users/:id/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rappresentante_id } = req.body;
+    
+    // Verifica che l'utente stia modificando il proprio profilo
+    if (req.userId !== parseInt(id)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non puoi modificare il profilo di un altro utente'
+      });
+    }
+    
+    const query = `
+      UPDATE users 
+      SET rappresentante_selezionato = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, rappresentante_selezionato
+    `;
+    
+    const result = await pool.query(query, [rappresentante_id, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella selezione rappresentante:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella selezione rappresentante'
+    });
+  }
+});
+
+// GET /api/users/:id/profile - Ottieni profilo completo utente
+app.get('/api/users/:id/profile', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const query = `
+      SELECT id, nome, cognome, email, ruolo, role, genere, data_nascita, eta, sesso, 
+             regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
+             candidato_selezionato, rappresentante_selezionato, created_at, updated_at
+      FROM users 
+      WHERE id = $1
+    `;
+    
+    const result = await pool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare profilo utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare profilo utente'
+    });
+  }
+});
+
 // GET /api/users/:id/public - Ottieni dati pubblici utente
 app.get('/api/users/:id/public', verifyToken, async (req, res) => {
   try {
@@ -2715,19 +2932,95 @@ app.get('/api/sostenitori', verifyToken, async (req, res) => {
   try {
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
-    const query = `
-      SELECT s.*, u.nome, u.cognome
+    // Prima verifichiamo se l'utente esiste e ha i permessi
+    const userQuery = `
+      SELECT ruolo, role FROM users WHERE id = $1
+    `;
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userRole = userResult.rows[0].ruolo || userResult.rows[0].role;
+    const isAuthorized = ["Politico", "Candidato", "Candidato Politico", "Admin"].includes(userRole);
+    
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non hai i permessi per accedere a questa risorsa'
+      });
+    }
+    
+    // Ottieni i sostenitori
+    const sostenitoriQuery = `
+      SELECT s.*, u.nome, u.cognome, u.email, u.eta, u.sesso
       FROM sostenitori s
-      JOIN utenti u ON s.sostenitore_id = u.id
+      JOIN users u ON s.sostenitore_id = u.id
       WHERE s.utente_id = $1
       ORDER BY s.created_at DESC
     `;
     
-    const result = await pool.query(query, [userId]);
+    const sostenitoriResult = await pool.query(sostenitoriQuery, [userId]);
+    const sostenitori = sostenitoriResult.rows;
+    
+    // Calcola le statistiche
+    const stats = {
+      totalSupporters: sostenitori.length,
+      genderDistribution: { Maschio: 0, Femmina: 0, Altro: 0 },
+      locationDistribution: {},
+      averageAge: 0,
+      ageDistribution: {}
+    };
+    
+    let totalAge = 0;
+    let validAgeCount = 0;
+    
+    sostenitori.forEach(s => {
+      // Distribuzione per genere
+      if (s.sesso) {
+        if (stats.genderDistribution.hasOwnProperty(s.sesso)) {
+          stats.genderDistribution[s.sesso]++;
+        } else {
+          stats.genderDistribution.Altro++;
+        }
+      }
+      
+      // Distribuzione per età
+      if (s.eta && s.eta > 0) {
+        totalAge += s.eta;
+        validAgeCount++;
+        
+        const ageGroup = s.eta < 25 ? '18-24' : 
+                        s.eta < 35 ? '25-34' : 
+                        s.eta < 45 ? '35-44' : 
+                        s.eta < 55 ? '45-54' : 
+                        s.eta < 65 ? '55-64' : '65+';
+        
+        stats.ageDistribution[ageGroup] = (stats.ageDistribution[ageGroup] || 0) + 1;
+      }
+    });
+    
+    if (validAgeCount > 0) {
+      stats.averageAge = totalAge / validAgeCount;
+    }
+    
+    // Formatta i sostenitori per il frontend
+    const supporters = sostenitori.map(s => ({
+      uid: s.sostenitore_id,
+      nome: s.nome || 'N/A',
+      cognome: s.cognome || 'N/A',
+      email: s.email || 'N/A',
+      supporterRoles: ['Sostenitore'] // Ruolo base per ora
+    }));
     
     res.json({
       success: true,
-      sostenitori: result.rows
+      stats,
+      supporters
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare sostenitori:', error);
@@ -2743,6 +3036,32 @@ app.post('/api/sostenitori', verifyToken, validateInput(['sostenitore_id']), asy
   try {
     const { sostenitore_id } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    
+    // Verifica che l'utente da aggiungere come sostenitore esista
+    const userCheckQuery = `
+      SELECT id FROM users WHERE id = $1
+    `;
+    const userCheckResult = await pool.query(userCheckQuery, [sostenitore_id]);
+    
+    if (userCheckResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente da aggiungere come sostenitore non trovato'
+      });
+    }
+    
+    // Verifica che non sia già un sostenitore
+    const existingQuery = `
+      SELECT id FROM sostenitori WHERE utente_id = $1 AND sostenitore_id = $2
+    `;
+    const existingResult = await pool.query(existingQuery, [userId, sostenitore_id]);
+    
+    if (existingResult.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Questo utente è già un tuo sostenitore'
+      });
+    }
     
     const query = `
       INSERT INTO sostenitori (utente_id, sostenitore_id, created_at)
