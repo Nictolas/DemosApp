@@ -252,25 +252,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "default"
       });
     },
-    onSuccess: (data) => {
-      // Gestisci il caso di registrazione con verifica email richiesta
-      if ((data as any).requiresVerification) {
-        toast({ 
-          title: "Registrazione completata!", 
-          description: "Controlla la tua email per confermare l'account",
-          variant: "default"
-        });
-        return;
-      }
-      
-      // Solo se la registrazione è completamente completata (email verificata)
-      queryClient.setQueryData(['user'], data);
-      toast({ 
-        title: "Registrazione completata!", 
-        description: `Benvenuto ${data.nome || data.email}`,
-        variant: "default"
-      });
-    },
   });
 
   const isAuthenticated = !!user && !!token;
