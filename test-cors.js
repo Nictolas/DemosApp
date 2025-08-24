@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * TEST CONFIGURAZIONE CORS
- * Testa la configurazione CORS dell'API per verificare che funzioni correttamente
+ * TEST CONFIGURAZIONE CORS E NODEMAILER
+ * Testa la configurazione CORS dell'API e verifica Nodemailer
  */
 
 const API_BASE = process.env.API_BASE || 'https://demos-c7k0.onrender.com';
 
-async function testCORS() {
-  console.log('🧪 TEST CONFIGURAZIONE CORS');
-  console.log('================================');
+async function testCORSAndNodemailer() {
+  console.log('🧪 TEST CONFIGURAZIONE CORS E NODEMAILER');
+  console.log('==========================================');
   console.log(`API Base: ${API_BASE}`);
   
   try {
@@ -60,8 +60,37 @@ async function testCORS() {
       console.log('❌ POST test fallito');
     }
     
-    // 3. Test endpoint forgot-password
-    console.log('\n📡 3. Test endpoint POST /api/auth/forgot-password...');
+    // 3. Test Nodemailer
+    console.log('\n📡 3. Test Nodemailer /api/test-nodemailer...');
+    const nodemailerResponse = await fetch(`${API_BASE}/api/test-nodemailer`, {
+      method: 'GET',
+      headers: {
+        'Origin': 'https://www.demos.community',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('Status:', nodemailerResponse.status);
+    
+    if (nodemailerResponse.ok) {
+      const nodemailerData = await nodemailerResponse.json();
+      console.log('✅ Nodemailer test riuscito:', nodemailerData.message);
+      console.log('📧 Status Nodemailer:', nodemailerData.nodemailer);
+      console.log('🌍 Environment:', nodemailerData.environment);
+      
+      if (!nodemailerData.nodemailer.available) {
+        console.log('⚠️ ATTENZIONE: Nodemailer non è disponibile!');
+      } else if (typeof nodemailerData.nodemailer.createTransporter !== 'function') {
+        console.log('⚠️ ATTENZIONE: createTransporter non è una funzione!');
+      } else {
+        console.log('✅ Nodemailer è configurato correttamente');
+      }
+    } else {
+      console.log('❌ Nodemailer test fallito');
+    }
+    
+    // 4. Test endpoint forgot-password
+    console.log('\n📡 4. Test endpoint POST /api/auth/forgot-password...');
     const forgotResponse = await fetch(`${API_BASE}/api/auth/forgot-password`, {
       method: 'POST',
       headers: {
@@ -79,6 +108,11 @@ async function testCORS() {
     if (forgotResponse.ok) {
       const forgotData = await forgotResponse.json();
       console.log('✅ Forgot password test riuscito:', forgotData.message);
+      
+      if (forgotData.resetToken) {
+        console.log('🔑 Token ricevuto (modalità fallback):', forgotData.resetToken.substring(0, 20) + '...');
+        console.log('🔗 Reset URL:', forgotData.resetUrl);
+      }
     } else {
       const forgotData = await forgotResponse.json();
       console.log('❌ Forgot password test fallito:', forgotData.error);
@@ -105,4 +139,4 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-testCORS();
+testCORSAndNodemailer();
