@@ -184,9 +184,9 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
     
     console.log('🔍 DEBUG /api/utenti/me - Eseguendo query con userId:', userId);
     
-    // Seleziona TUTTI i campi della tabella utenti
+    // Seleziona TUTTI i campi della tabella users
     const query = `
-      SELECT * FROM utenti 
+      SELECT * FROM users 
       WHERE id = $1
     `;
     
@@ -204,7 +204,7 @@ app.get('/api/utenti/me', verifyToken, async (req, res) => {
       user.data_nascita = new Date(user.data_nascita).toISOString().split('T')[0];
     }
     
-    console.log('✅ DEBUG /api/utenti/me - Utente trovato:', user);
+    console.log('✅ DEBUG /api/utenti/me - Utente trovato nella tabella users:', user);
     
     res.json({ success: true, user });
   } catch (error) {
@@ -223,7 +223,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Verifica credenziali nel database
     const userQuery = `
       SELECT id, nome, cognome, email, password_hash, ruolo
-      FROM utenti 
+      FROM users 
       WHERE email = $1
     `;
     
@@ -291,7 +291,7 @@ app.post('/api/auth/register', async (req, res) => {
     console.log('📝 Tentativo di registrazione per:', email);
     
     // Verifica se l'utente esiste già
-    const existingUser = await pool.query('SELECT id FROM utenti WHERE email = $1', [email]);
+    const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     
     if (existingUser.rows.length > 0) {
       return res.status(409).json({
@@ -841,7 +841,7 @@ app.get('/api/opinioni/profile', verifyToken, async (req, res) => {
     const userQuery = `
       SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
              carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
-      FROM utenti
+      FROM users
       WHERE id = $1
     `;
     
@@ -931,7 +931,7 @@ app.get('/api/opinioni-list', verifyToken, async (req, res) => {
     const userQuery = `
       SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
              carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
-      FROM utenti
+      FROM users
       WHERE id = $1
     `;
     
@@ -1001,7 +1001,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'energia_nucleare' as opinione_id,
         energia_nucleare as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND energia_nucleare IS NOT NULL
       
       UNION ALL
@@ -1009,7 +1009,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'sperimentazione_animale' as opinione_id,
         sperimentazione_animale as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND sperimentazione_animale IS NOT NULL
       
       UNION ALL
@@ -1017,7 +1017,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'legalizzazione_canapa' as opinione_id,
         legalizzazione_canapa as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND legalizzazione_canapa IS NOT NULL
       
       UNION ALL
@@ -1025,7 +1025,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'caccia' as opinione_id,
         caccia as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND caccia IS NOT NULL
       
       UNION ALL
@@ -1033,7 +1033,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'carne_coltivata' as opinione_id,
         carne_coltivata as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND carne_coltivata IS NOT NULL
       
       UNION ALL
@@ -1041,7 +1041,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'cittadina_animale' as opinione_id,
         cittadina_animale as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND cittadina_animale IS NOT NULL
       
       UNION ALL
@@ -1049,7 +1049,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'nato' as opinione_id,
         nato as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND nato IS NOT NULL
       
       UNION ALL
@@ -1057,7 +1057,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'matrimonio_gay' as opinione_id,
         matrimonio_gay as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND matrimonio_gay IS NOT NULL
       
       UNION ALL
@@ -1065,7 +1065,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'salario_minimo' as opinione_id,
         salario_minimo as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND salario_minimo IS NOT NULL
       
       UNION ALL
@@ -1073,7 +1073,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'case_chiuse' as opinione_id,
         case_chiuse as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND case_chiuse IS NOT NULL
       
       UNION ALL
@@ -1081,7 +1081,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'eutanasia' as opinione_id,
         eutanasia as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND eutanasia IS NOT NULL
       
       UNION ALL
@@ -1089,7 +1089,7 @@ app.get('/api/opinioni/user-answers', verifyToken, async (req, res) => {
       SELECT 
         'omobitransfobia' as opinione_id,
         omobitransfobia as risposta
-      FROM utenti 
+      FROM users 
       WHERE id = $1 AND omobitransfobia IS NOT NULL
     `;
     
@@ -1121,7 +1121,7 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
         COUNT(CASE WHEN ${opinionId} = 'No' THEN 1 END) as no,
         COUNT(CASE WHEN ${opinionId} = 'Non so' THEN 1 END) as non_so,
         COUNT(CASE WHEN ${opinionId} IS NULL THEN 1 END) as non_risposto
-      FROM utenti 
+      FROM users 
       WHERE ${opinionId} IS NOT NULL
     `;
     
@@ -1292,7 +1292,7 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
         provincia,
         comune,
         'disponibile' as stato
-      FROM utenti
+      FROM users
       WHERE id != $1 
         AND ruolo = 'User'
         AND status = 'active'
@@ -1936,7 +1936,7 @@ app.get('/api/users', verifyToken, async (req, res) => {
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
              grado_opinioni, fonti_opinioni, avatar_config
-      FROM utenti 
+      FROM users 
       ORDER BY nome, cognome
     `;
     
@@ -1961,7 +1961,7 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
              grado_opinioni, fonti_opinioni, avatar_config
-      FROM utenti 
+      FROM users 
       WHERE ruolo != 'pending'
       ORDER BY nome, cognome
     `;
@@ -1986,7 +1986,7 @@ app.get('/api/utenti/pending', verifyToken, async (req, res) => {
   try {
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita
-      FROM utenti 
+      FROM users 
       WHERE ruolo = 'pending'
       ORDER BY created_at DESC
     `;
@@ -2013,7 +2013,7 @@ app.get('/api/users/:id/public', verifyToken, async (req, res) => {
     
     const query = `
       SELECT id, nome, cognome, ruolo, genere, data_nascita
-      FROM utenti 
+      FROM users 
       WHERE id = $1
     `;
     
@@ -2690,7 +2690,7 @@ app.get('/api/statistiche/utenti', verifyToken, async (req, res) => {
         COUNT(CASE WHEN ruolo = 'Politico' THEN 1 END) as politici,
         COUNT(CASE WHEN ruolo = 'Candidato' THEN 1 END) as candidati,
         COUNT(CASE WHEN ruolo = 'Admin' THEN 1 END) as admin
-      FROM utenti
+      FROM users
     `;
     
     const result = await pool.query(query);
@@ -2973,7 +2973,7 @@ app.post('/api/users/:id/reject', verifyToken, requireAdmin, async (req, res) =>
       });
     }
     
-    await pool.query('DELETE FROM utenti WHERE id = $1', [id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
     
     res.json({ success: true, message: 'Utente rifiutato e rimosso' });
   } catch (error) {
@@ -3075,7 +3075,7 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
     // Recupera dati utente dal database
     const userQuery = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita
-      FROM utenti 
+      FROM users 
       WHERE id = $1
     `;
     
