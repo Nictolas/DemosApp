@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { ITALY_DATA } from "@/data/italyData";
+import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 import './auth-page.css';
 
 const loginSchema = z.object({
@@ -23,6 +24,7 @@ const registerSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
   password: z.string().min(6, "La password deve contenere almeno 6 caratteri"),
   confirmPassword: z.string(),
+  codice_fiscale: z.string().min(16, "Il codice fiscale deve essere di 16 caratteri").max(16, "Il codice fiscale deve essere di 16 caratteri"),
   nome: z.string().min(1, "Il nome è obbligatorio"),
   cognome: z.string().min(1, "Il cognome è obbligatorio"),
   data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
@@ -73,6 +75,7 @@ export default function AuthPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      codice_fiscale: "",
       nome: "",
       cognome: "",
       data_nascita: "",
@@ -277,6 +280,7 @@ export default function AuthPage() {
     const registerData = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
+      codice_fiscale: data.codice_fiscale.toUpperCase(),
       nome: data.nome,
       cognome: data.cognome,
       ruolo: data.ruolo,
@@ -510,6 +514,24 @@ export default function AuthPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={registerForm.control}
+                        name="codice_fiscale"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="required-field">Codice Fiscale</FormLabel>
+                            <FormControl>
+                              <CodiceFiscaleInput
+                                value={field.value}
+                                onChange={field.onChange}
+                                required={true}
+                                placeholder="Inserisci il codice fiscale"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={registerForm.control}
                         name="nome"
                         render={({ field }) => (
                           <FormItem>
@@ -603,7 +625,7 @@ export default function AuthPage() {
                             <FormLabel className="required-field">Genere</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-white">
                                   <SelectValue placeholder="Seleziona genere" />
                                 </SelectTrigger>
                               </FormControl>
@@ -625,7 +647,7 @@ export default function AuthPage() {
                             <FormLabel className="required-field">Cittadinanza</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-white">
                                   <SelectValue placeholder="Seleziona cittadinanza" />
                                 </SelectTrigger>
                               </FormControl>
@@ -652,7 +674,7 @@ export default function AuthPage() {
                             <FormLabel className="required-field">Paese</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-white">
                                   <SelectValue placeholder="Seleziona paese" />
                                 </SelectTrigger>
                               </FormControl>
@@ -672,7 +694,7 @@ export default function AuthPage() {
                             <FormLabel className="required-field">Regione</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value} disabled={regioniResidenza.length === 0}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-white">
                                   <SelectValue placeholder="Seleziona regione" />
                                 </SelectTrigger>
                               </FormControl>
@@ -694,7 +716,7 @@ export default function AuthPage() {
                             <FormLabel className="required-field">Provincia</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value} disabled={provinceResidenza.length === 0}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-white">
                                   <SelectValue placeholder="Seleziona provincia" />
                                 </SelectTrigger>
                               </FormControl>
@@ -716,7 +738,7 @@ export default function AuthPage() {
                             <FormLabel className="required-field">Comune</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value} disabled={comuniResidenza.length === 0}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-white">
                                   <SelectValue placeholder="Seleziona comune" />
                                 </SelectTrigger>
                               </FormControl>
@@ -744,7 +766,7 @@ export default function AuthPage() {
                           <FormLabel className="required-field">Ruolo</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className="bg-white">
                                 <SelectValue placeholder="Seleziona ruolo" />
                               </SelectTrigger>
                             </FormControl>
