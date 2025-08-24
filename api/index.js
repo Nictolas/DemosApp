@@ -177,7 +177,8 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/api/health',
       testCors: '/api/test-cors',
-              testResend: '/api/test-resend',
+      testResend: '/api/test-resend',
+      testResendEmail: '/api/test-resend-email',
       forgotPassword: '/api/auth/forgot-password'
     }
   });
@@ -379,7 +380,7 @@ app.get('/api/test-resend', (req, res) => {
       environment: {
         NODE_ENV: process.env.NODE_ENV,
         RESEND_API_KEY: process.env.RESEND_API_KEY ? 'Configurato' : 'Non configurato',
-        EMAIL_FROM: process.env.EMAIL_FROM || 'onboarding@resend.dev'
+        EMAIL_FROM: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>'
       }
     });
   } catch (error) {
@@ -387,6 +388,60 @@ app.get('/api/test-resend', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel test Resend',
+      details: error.message
+    });
+  }
+});
+
+// POST /api/test-resend-email - Test endpoint per inviare email di test
+app.post('/api/test-resend-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email richiesta per il test'
+      });
+    }
+    
+    console.log('🧪 Test invio email a:', email);
+    
+    // Genera un token di test
+    const testToken = jwt.sign(
+      { 
+        userId: 'test',
+        email: email,
+        type: 'password_reset'
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    
+    const testUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/reset-password-confirm?token=${testToken}`;
+    
+    // Invia email di test
+    const emailResult = await sendResetPasswordEmail(email, testToken, testUrl);
+    
+    if (emailResult.success) {
+      res.json({
+        success: true,
+        message: 'Email di test inviata con successo',
+        email: email,
+        testUrl: testUrl
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Errore nell\'invio email di test'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Errore nel test invio email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel test invio email',
       details: error.message
     });
   }
@@ -645,31 +700,92 @@ const sendResetPasswordEmail = async (email, resetToken, resetUrl) => {
     }
     
     const emailData = {
-      from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+      from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
       to: email,
-      subject: 'Reset Password - DEMOS',
+      subject: 'Reset Password - Demos Community',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Reset Password - DEMOS</h2>
-          <p>Ciao!</p>
-          <p>Hai richiesto il reset della password per il tuo account DEMOS.</p>
-          <p>Per procedere, clicca sul link qui sotto:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 6px; display: inline-block;">
-              Reset Password
-            </a>
+        <!DOCTYPE html>
+        <html lang="it">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Reset Password - Demos Community</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <!-- Header con gradiente -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Demos Community</h1>
+              <p style="color: #e2e8f0; margin: 10px 0 0 0; font-size: 18px;">Reset della tua password</p>
+            </div>
+            
+            <!-- Contenuto principale -->
+            <div style="padding: 40px 30px;">
+              <h2 style="color: #1a202c; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Ciao!</h2>
+              
+              <p style="color: #4a5568; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">
+                Hai richiesto il reset della tua password per Demos Community.
+              </p>
+              
+              <p style="color: #4a5568; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">
+                Per procedere, clicca sul pulsante qui sotto:
+              </p>
+              
+              <!-- Pulsante principale -->
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetUrl}" 
+                   style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                          color: white; 
+                          padding: 16px 32px; 
+                          text-decoration: none; 
+                          border-radius: 8px; 
+                          display: inline-block;
+                          font-weight: 600;
+                          font-size: 16px;
+                          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+                          transition: all 0.3s ease;">
+                  Reset Password
+                </a>
+              </div>
+              
+              <p style="color: #718096; margin: 30px 0 20px 0; font-size: 14px; line-height: 1.5;">
+                Oppure copia e incolla questo link nel browser:
+              </p>
+              
+              <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #667eea;">
+                <p style="color: #4a5568; margin: 0; font-size: 14px; word-break: break-all; font-family: monospace;">
+                  ${resetUrl}
+                </p>
+              </div>
+              
+              <div style="margin: 30px 0; padding: 20px; background-color: #fef5e7; border-radius: 8px; border-left: 4px solid #ed8936;">
+                <p style="color: #744210; margin: 0; font-size: 14px; line-height: 1.5;">
+                  ⏰ <strong>Attenzione:</strong> Questo link scadrà tra 1 ora per motivi di sicurezza.
+                </p>
+              </div>
+              
+              <div style="margin: 30px 0; padding: 20px; background-color: #fed7d7; border-radius: 8px; border-left: 4px solid #e53e3e;">
+                <p style="color: #742a2a; margin: 0; font-size: 14px; line-height: 1.5;">
+                  🔒 <strong>Sicurezza:</strong> Se non hai richiesto tu questo reset, puoi ignorare questa email.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #718096; margin: 0 0 10px 0; font-size: 14px;">
+                <strong>DEMOS Community</strong>
+              </p>
+              <p style="color: #a0aec0; margin: 0; font-size: 12px;">
+                Piattaforma di democrazia partecipativa
+              </p>
+              <p style="color: #a0aec0; margin: 15px 0 0 0; font-size: 11px;">
+                Questa email è stata inviata automaticamente, non rispondere.
+              </p>
+            </div>
           </div>
-          <p>Oppure copia e incolla questo link nel browser:</p>
-          <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
-          <p>Questo link scadrà tra 1 ora.</p>
-          <p>Se non hai richiesto tu questo reset, ignora questa email.</p>
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 14px;">
-            DEMOS - Piattaforma di democrazia partecipativa
-          </p>
-        </div>
+        </body>
+        </html>
       `
     };
     
@@ -700,10 +816,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
     
     console.log('🔐 Richiesta reset password per:', email);
+    console.log('🔍 DEBUG - Verificando esistenza utente nel database...');
     
     // Verifica se l'utente esiste
     const userQuery = 'SELECT id, nome, cognome FROM users WHERE email = $1';
     const userResult = await pool.query(userQuery, [email]);
+    
+    console.log('🔍 DEBUG - Query result:', userResult.rows);
     
     if (userResult.rows.length === 0) {
       // Per sicurezza, non rivelare se l'email esiste o meno
@@ -715,6 +834,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
     
     const user = userResult.rows[0];
+    console.log('✅ DEBUG - Utente trovato:', { id: user.id, nome: user.nome, cognome: user.cognome });
     
     // Genera token di reset (valido per 1 ora)
     const resetToken = jwt.sign(
@@ -727,16 +847,25 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       { expiresIn: '1h' }
     );
     
+    console.log('🔑 DEBUG - Token generato per utente:', user.id);
+    
     // Salva il token nel database
-    await pool.query(
-      'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
-      [resetToken, user.id]
-    );
+    try {
+      await pool.query(
+        'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
+        [resetToken, user.id]
+      );
+      console.log('💾 DEBUG - Token salvato nel database per utente:', user.id);
+    } catch (dbError) {
+      console.error('❌ DEBUG - Errore nel salvare token nel database:', dbError);
+      throw dbError;
+    }
     
     // Invia email di reset con Resend
     try {
       const resetUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/reset-password-confirm?token=${resetToken}`;
-      console.log('🔗 Reset URL generato:', resetUrl);
+      console.log('🔗 DEBUG - Reset URL generato:', resetUrl);
+      console.log('📧 DEBUG - Tentativo invio email tramite Resend...');
       
       const emailResult = await sendResetPasswordEmail(email, resetToken, resetUrl);
       
@@ -755,6 +884,12 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       }
     } catch (emailError) {
       console.error('❌ Errore critico nell\'invio email con Resend:', emailError);
+      console.error('❌ DEBUG - Dettagli errore email:', {
+        message: emailError.message,
+        stack: emailError.stack,
+        email: email,
+        userId: user.id
+      });
       
       // Fallback: restituisci il token per sviluppo/test
       if (process.env.NODE_ENV === 'development' || !process.env.RESEND_API_KEY) {
@@ -768,13 +903,15 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       } else {
         res.status(500).json({
           success: false,
-          error: 'Errore nell\'invio dell\'email. Riprova più tardi.'
+          error: 'Errore nell\'invio dell\'email. Riprova più tardi.',
+          debug: process.env.NODE_ENV === 'development' ? emailError.message : undefined
         });
       }
     }
     
   } catch (error) {
     console.error('❌ Errore nella richiesta reset password:', error);
+    console.error('❌ DEBUG - Stack completo errore:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Errore nella richiesta reset password'
