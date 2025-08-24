@@ -6,6 +6,7 @@ Il sistema di reset password non funzionava perché:
 1. ❌ **Endpoint non trovato**: La richiesta veniva fatta con metodo GET invece di POST
 2. ❌ **Email non inviate**: Il backend generava solo token ma non inviava email reali
 3. ❌ **Colonne database mancanti**: Le colonne `reset_token` e `reset_token_expires` non esistevano
+4. ❌ **Errore CORS**: Le richieste dal frontend venivano bloccate dalla policy CORS
 
 ## Soluzioni Implementate
 
@@ -22,6 +23,12 @@ Il sistema di reset password non funzionava perché:
 ### 3. ✅ **Database Schema**
 - Colonne `reset_token` (TEXT) e `reset_token_expires` (TIMESTAMP)
 - Script automatico per aggiungere colonne mancanti
+
+### 4. ✅ **Configurazione CORS Corretta**
+- Middleware CORS migliorato per produzione
+- Gestione corretta delle richieste preflight OPTIONS
+- Supporto per tutti i domini autorizzati
+- Logging dettagliato per debug CORS
 
 ## Configurazione
 
@@ -67,15 +74,48 @@ node check-reset-password-columns.js
 
 ## Test
 
-### 1. **Test Endpoint**
+### 1. **Test CORS (Prima di tutto)**
+```bash
+node test-cors.js
+```
+
+### 2. **Test Endpoint**
 ```bash
 node test-email-reset.js
 ```
 
-### 2. **Test Frontend**
+### 3. **Test Frontend**
 1. Vai a `/reset-password`
 2. Inserisci email valida
 3. Verifica ricezione email
+
+## Risoluzione Problemi CORS
+
+### 🔍 **Diagnosi CORS**
+Se vedi errori come:
+```
+Access to fetch at '...' has been blocked by CORS policy
+Response to preflight request doesn't pass access control check
+```
+
+### ✅ **Soluzioni CORS Implementate**
+1. **Middleware CORS migliorato** con logging dettagliato
+2. **Gestione preflight OPTIONS** corretta
+3. **Header CORS** impostati per ogni richiesta
+4. **Domini autorizzati** configurati correttamente
+
+### 🧪 **Test CORS**
+```bash
+# Test completo configurazione CORS
+node test-cors.js
+
+# Verifica endpoint specifici
+curl -X OPTIONS https://demos-c7k0.onrender.com/api/test-cors \
+  -H "Origin: https://www.demos.community" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type" \
+  -v
+```
 
 ## Flusso Completo
 
@@ -113,6 +153,12 @@ Body: { "token": "...", "newPassword": "..." }
 ### ❌ **"Endpoint non trovato"**
 - Verifica metodo POST (non GET)
 - Controlla routing in `api/index.js`
+- **Verifica configurazione CORS**
+
+### ❌ **"Errore CORS"**
+- Esegui `node test-cors.js`
+- Verifica log backend per richieste OPTIONS
+- Controlla domini autorizzati
 
 ### ❌ **"Email non inviata"**
 - Verifica credenziali email
@@ -135,12 +181,14 @@ Body: { "token": "...", "newPassword": "..." }
 - Password hashate con bcrypt
 - Non rivelare esistenza email
 - Token univoci per sessione
+- Configurazione CORS sicura
 
 ### 🔒 **Raccomandazioni**
 - Usa HTTPS in produzione
 - Rate limiting per endpoint
 - Logging audit per tentativi
 - Monitoraggio email inviate
+- Verifica regolare configurazione CORS
 
 ## Monitoraggio
 
@@ -149,20 +197,25 @@ Body: { "token": "...", "newPassword": "..." }
 - Token generati
 - Reset password completati
 - Errori di invio email
+- **Richieste CORS bloccate**
 
 ### 📝 **Log da Monitorare**
 ```
 ✅ Email di reset inviata con successo per: user@example.com
 ❌ Fallimento invio email per: user@example.com
 🔐 Richiesta reset password per: user@example.com
+🌐 CORS check - Origin: https://www.demos.community
+✅ CORS allowed origin: https://www.demos.community
+🔄 OPTIONS preflight request from: https://www.demos.community
 ```
 
 ## Prossimi Passi
 
-1. **Test completo** del sistema
-2. **Configurazione email** per produzione
-3. **Monitoraggio** e alerting
-4. **Documentazione utente** per reset password
+1. **Test CORS** completo del sistema
+2. **Test completo** del reset password
+3. **Configurazione email** per produzione
+4. **Monitoraggio** e alerting
+5. **Documentazione utente** per reset password
 
 ---
 
