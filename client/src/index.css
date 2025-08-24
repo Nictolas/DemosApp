@@ -303,3 +303,38 @@ body {
   opacity: 1;
   transform: translateX(0);
 }
+
+/* Forza l'orientamento verticale su dispositivi mobili */
+@media screen and (orientation: landscape) {
+  html, body, #root {
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+}
+
+/* Stili specifici per dispositivi mobili in orientamento orizzontale */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+  body {
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+  
+  #root {
+    width: 100vh;
+    height: 100vw;
+    transform: rotate(-90deg);
+    transform-origin: left top;
+  }
+}
