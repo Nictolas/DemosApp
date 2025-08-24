@@ -1,8 +1,9 @@
+require('dotenv').config();
 const { Pool } = require('pg');
 
 // Configurazione Neon PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/database'
+  connectionString: process.env.DATABASE_URL
 });
 
 async function addCandidatureElezioniColumns() {
