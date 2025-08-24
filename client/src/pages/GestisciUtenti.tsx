@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Users, UserCheck, UserX, Shield } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Users, UserCheck, UserX, Shield, RefreshCw } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -248,6 +248,7 @@ export default function GestisciUtenti() {
   const [sortField, setSortField] = useState<keyof User>('nome_completo');
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const usersPerPage = 20;
 
   const { data: responseData, isLoading: isLoadingUsers, isError } = useQuery({
@@ -264,7 +265,51 @@ export default function GestisciUtenti() {
     },
     // Uso user.ruolo che è il campo restituito dall'API
     enabled: !!user && user.ruolo === 'Admin',
+    // Configurazione per aggiornamento automatico
+    refetchOnWindowFocus: true,        // Ricarica quando la finestra riprende il focus
+    refetchOnMount: true,              // Ricarica ogni volta che il componente viene montato
+    refetchOnReconnect: true,          // Ricarica quando la connessione torna online
+    staleTime: 0,                      // I dati sono sempre considerati "stale" e vengono ricaricati
+    gcTime: 5 * 60 * 1000,            // Mantieni i dati in cache per 5 minuti
+    refetchInterval: 30 * 1000,        // Ricarica automaticamente ogni 30 secondi
+    refetchIntervalInBackground: false // Non ricaricare in background (solo quando visibile)
   });
+
+  // Hook per forzare il refresh quando la pagina diventa visibile
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user?.ruolo === 'Admin') {
+        console.log('🔄 Pagina diventata visibile, forzando refresh dati...');
+        queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+        setLastUpdateTime(new Date());
+      }
+    };
+
+    const handleFocus = () => {
+      if (user?.ruolo === 'Admin') {
+        console.log('🔄 Finestra riprende focus, forzando refresh dati...');
+        queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+        setLastUpdateTime(new Date());
+      }
+    };
+
+    // Aggiungi event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [queryClient, user?.ruolo]);
+
+  // Aggiorna il timestamp quando i dati cambiano
+  useEffect(() => {
+    if (responseData) {
+      setLastUpdateTime(new Date());
+    }
+  }, [responseData]);
 
   // Estrai i dati con fallback sicuro e logging per debug
   const utenti = responseData?.utenti?.users || responseData?.utenti || [];
@@ -626,6 +671,9 @@ export default function GestisciUtenti() {
                   <div className="ml-4 text-sm text-gray-500">
                     {filteredAndSortedUsers.length} utenti trovati
                   </div>
+                  <div className="ml-4 text-xs text-gray-400">
+                    Ultimo aggiornamento: {lastUpdateTime.toLocaleTimeString('it-IT')}
+                  </div>
                 </div>
                 
                                  {/* Filtri rapidi per candidati */}
@@ -662,6 +710,25 @@ export default function GestisciUtenti() {
                    >
                      Elezioni Nazionali
                    </Button>
+                   
+                   {/* Pulsante di refresh manuale */}
+                   <div className="ml-auto">
+                     <Button 
+                       variant="outline"
+                       size="sm"
+                       onClick={() => {
+                         console.log('🔄 Refresh manuale richiesto...');
+                         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+                         setLastUpdateTime(new Date());
+                         toast({ title: 'Aggiornamento', description: 'Dati utenti in aggiornamento...' });
+                       }}
+                       disabled={isLoadingUsers}
+                       className="text-xs"
+                     >
+                       <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingUsers ? 'animate-spin' : ''}`} />
+                       Aggiorna Dati
+                     </Button>
+                   </div>
                  </div>
 
                 {/* TABELLA tradizionale invece delle card */}
