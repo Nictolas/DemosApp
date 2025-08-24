@@ -194,18 +194,26 @@ const JWT_SECRET = process.env.JWT_SECRET || 'demos-super-secret-key-2025';
 
 // Middleware per verificare il token JWT
 const verifyToken = (req, res, next) => {
+  console.log('🔍 DEBUG verifyToken - Headers:', req.headers);
+  console.log('🔍 DEBUG verifyToken - Authorization header:', req.headers.authorization);
+  
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
+    console.log('❌ DEBUG verifyToken - Token mancante');
     return res.status(401).json({ success: false, message: 'Token mancante' });
   }
+  
+  console.log('🔍 DEBUG verifyToken - Token ricevuto:', token.substring(0, 20) + '...');
   
   try {
     // Verifica vera del token JWT
     const decodedToken = jwt.verify(token, JWT_SECRET);
+    console.log('🔍 DEBUG verifyToken - Token decodificato:', decodedToken);
     
     // Aggiungiamo l'user ID alla request per uso futuro
     req.userId = decodedToken.userId;
     req.userRole = decodedToken.role;
+    console.log('🔍 DEBUG verifyToken - User ID e ruolo impostati:', req.userId, req.userRole);
     next();
   } catch (error) {
     console.error('❌ Errore nella verifica token:', error);
@@ -215,10 +223,15 @@ const verifyToken = (req, res, next) => {
 
 // Middleware per verificare se l'utente è admin
 const requireAdmin = (req, res, next) => {
+  console.log('🔍 DEBUG requireAdmin - Verificando ruolo utente:', req.userRole);
+  console.log('🔍 DEBUG requireAdmin - Richiesto ruolo Admin');
+  
   // Verifica se l'utente ha ruolo admin
   if (req.userRole === 'Admin') {
+    console.log('✅ DEBUG requireAdmin - Accesso admin consentito');
     next();
   } else {
+    console.log('❌ DEBUG requireAdmin - Accesso admin negato per ruolo:', req.userRole);
     res.status(403).json({ success: false, message: 'Accesso negato: richiesti privilegi admin' });
   }
 };
@@ -250,6 +263,65 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+
+
+// GET /api/test-auth - Test endpoint per verificare l'autenticazione
+app.get('/api/test-auth', verifyToken, (req, res) => {
+  console.log('🧪 Test auth endpoint chiamato');
+  console.log('🔍 DEBUG test-auth - User ID:', req.userId, 'Role:', req.userRole);
+  
+  res.json({
+    success: true,
+    message: 'Authentication successful',
+    userId: req.userId,
+    userRole: req.userRole,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// GET /api/test-users-table - Test endpoint per verificare la struttura della tabella users
+app.get('/api/test-users-table', async (req, res) => {
+  try {
+    console.log('🧪 Test users table endpoint chiamato');
+    
+    // Test struttura tabella
+    const tableInfo = await pool.query(`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+      ORDER BY ordinal_position
+    `);
+    
+    console.log('✅ DEBUG /api/test-users-table - Struttura tabella:', tableInfo.rows);
+    
+    // Test conteggio utenti
+    const userCount = await pool.query('SELECT COUNT(*) as count FROM users');
+    
+    // Test primo utente (se esistente)
+    let firstUser = null;
+    if (userCount.rows[0].count > 0) {
+      const firstUserResult = await pool.query('SELECT * FROM users LIMIT 1');
+      firstUser = firstUserResult.rows[0];
+    }
+    
+    res.json({
+      success: true,
+      message: 'Test users table completato',
+      tableStructure: tableInfo.rows,
+      userCount: userCount.rows[0].count,
+      firstUser: firstUser,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ DEBUG /api/test-users-table - Errore:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel test della tabella users',
+      details: error.message
+    });
+  }
 });
 
 // GET /api/test-cors - Test endpoint per verificare CORS
@@ -2375,6 +2447,8 @@ app.delete('/api/iniziative-popolari/:id', verifyToken, requireAdmin, async (req
 // GET /api/users - Ottieni tutti gli utenti
 app.get('/api/users', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG /api/users - Richiesta ricevuta da utente:', req.userId, 'con ruolo:', req.userRole);
+    
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
              grado_opinioni, fonti_opinioni, avatar_config
@@ -2382,7 +2456,9 @@ app.get('/api/users', verifyToken, async (req, res) => {
       ORDER BY nome, cognome
     `;
     
+    console.log('🔍 DEBUG /api/users - Eseguendo query:', query);
     const result = await pool.query(query);
+    console.log('🔍 DEBUG /api/users - Query result:', result.rows.length, 'utenti trovati');
     
     res.json({
       success: true,
@@ -2400,6 +2476,8 @@ app.get('/api/users', verifyToken, async (req, res) => {
 // GET /api/utenti - Ottieni utenti per gestione
 app.get('/api/utenti', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG /api/utenti - Richiesta ricevuta da utente:', req.userId, 'con ruolo:', req.userRole);
+    
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
              grado_opinioni, fonti_opinioni, avatar_config
@@ -2408,7 +2486,9 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
       ORDER BY nome, cognome
     `;
     
+    console.log('🔍 DEBUG /api/utenti - Eseguendo query:', query);
     const result = await pool.query(query);
+    console.log('🔍 DEBUG /api/utenti - Query result:', result.rows.length, 'utenti trovati');
     
     res.json({
       success: true,
@@ -2426,6 +2506,8 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
 // GET /api/utenti/pending - Ottieni utenti in attesa
 app.get('/api/utenti/pending', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG /api/utenti/pending - Richiesta ricevuta da utente:', req.userId, 'con ruolo:', req.userRole);
+    
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita
       FROM users 
@@ -2433,7 +2515,9 @@ app.get('/api/utenti/pending', verifyToken, async (req, res) => {
       ORDER BY created_at DESC
     `;
     
+    console.log('🔍 DEBUG /api/utenti/pending - Eseguendo query:', query);
     const result = await pool.query(query);
+    console.log('🔍 DEBUG /api/utenti/pending - Query result:', result.rows.length, 'utenti in attesa trovati');
     
     res.json({
       success: true,
@@ -3809,13 +3893,37 @@ app.get('/api/health', async (req, res) => {
 app.get('/api/test-db', async (req, res) => {
   try {
     console.log('🔍 DEBUG /api/test-db - Testando connessione database...');
+    
+    // Test connessione base
     const result = await pool.query('SELECT NOW() as current_time, version() as db_version');
     console.log('✅ DEBUG /api/test-db - Database connesso:', result.rows[0]);
-    res.json({
-      success: true,
-      message: 'Database connesso correttamente',
-      data: result.rows[0]
-    });
+    
+    // Test conteggio utenti
+    try {
+      const userCountResult = await pool.query('SELECT COUNT(*) as user_count FROM users');
+      const userCount = userCountResult.rows[0].user_count;
+      console.log('✅ DEBUG /api/test-db - Conteggio utenti:', userCount);
+      
+      res.json({
+        success: true,
+        message: 'Database connesso correttamente',
+        data: {
+          ...result.rows[0],
+          userCount: userCount
+        }
+      });
+    } catch (userError) {
+      console.log('⚠️ DEBUG /api/test-db - Errore nel conteggio utenti:', userError.message);
+      res.json({
+        success: true,
+        message: 'Database connesso correttamente',
+        data: {
+          ...result.rows[0],
+          userCount: 'Errore nel conteggio utenti',
+          userError: userError.message
+        }
+      });
+    }
   } catch (error) {
     console.error('❌ DEBUG /api/test-db - Errore database:', error);
     res.status(500).json({
