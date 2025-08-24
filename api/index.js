@@ -450,18 +450,21 @@ app.get('/api/elezioni/prossime', limiter, async (req, res) => {
 // ===== ENDPOINTS PER COMUNICAZIONI =====
 
 // POST /api/comunicazioni - Crea una nuova comunicazione
-app.post('/api/comunicazioni', verifyToken, validateInput(['titolo', 'contenuto', 'tipo']), async (req, res) => {
+app.post('/api/comunicazioni', verifyToken, validateInput(['titolo', 'voto_dato', 'vincitore']), async (req, res) => {
   try {
-    const { titolo, contenuto, tipo } = req.body;
+    const { titolo, voto_dato, vincitore, commento, zona, isDuplicate } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
-      INSERT INTO comunicazioni (utente_id, titolo, contenuto, tipo, created_at)
-      VALUES ($1, $2, $3, $4, NOW())
+      INSERT INTO comunicazioni (id, id_utente, titolo, voto_dato, vincitore, commento, zona, data_creazione)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       RETURNING *
     `;
     
-    const result = await pool.query(query, [userId, titolo, contenuto, tipo]);
+    // Genera un ID univoco
+    const comunicazioneId = `com_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const result = await pool.query(query, [comunicazioneId, userId, titolo, voto_dato, vincitore, commento, zona]);
     
     res.json({
       success: true,
@@ -482,8 +485,8 @@ app.get('/api/comunicazioni', verifyToken, async (req, res) => {
     const query = `
       SELECT c.*, u.nome, u.cognome
       FROM comunicazioni c
-      JOIN users u ON c.utente_id = u.id
-      ORDER BY c.created_at DESC
+      JOIN utenti u ON c.id_utente = u.id
+      ORDER BY c.data_creazione DESC
     `;
     
     const result = await pool.query(query);
@@ -506,7 +509,7 @@ app.get('/api/comunicazioni/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    if (!id || isNaN(parseInt(id))) {
+    if (!id) {
       return res.status(400).json({
         success: false,
         error: 'ID comunicazione non valido'
@@ -516,7 +519,7 @@ app.get('/api/comunicazioni/:id', verifyToken, async (req, res) => {
     const query = `
       SELECT c.*, u.nome, u.cognome
       FROM comunicazioni c
-      JOIN users u ON c.utente_id = u.id
+      JOIN utenti u ON c.id_utente = u.id
       WHERE c.id = $1
     `;
     
@@ -537,7 +540,7 @@ app.get('/api/comunicazioni/:id', verifyToken, async (req, res) => {
     console.error('❌ Errore nel recuperare comunicazione:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare comunicazione'
+      error: 'Errore nel recuperare comunicazioni'
     });
   }
 });
@@ -614,28 +617,38 @@ app.delete('/api/comunicazioni/:id', verifyToken, requireAdmin, async (req, res)
 // GET /api/comunicazioni/check-duplicate - Verifica duplicati
 app.get('/api/comunicazioni/check-duplicate', verifyToken, async (req, res) => {
   try {
-    const { titolo, contenuto } = req.query;
+    const { titolo, zona } = req.query;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
-    if (!titolo || !contenuto) {
+    if (!titolo || !zona) {
       return res.status(400).json({
         success: false,
-        error: 'Parametri titolo e contenuto richiesti'
+        error: 'Parametri titolo e zona richiesti'
       });
     }
     
     const query = `
-      SELECT COUNT(*) as count FROM comunicazioni 
-      WHERE utente_id = $1 AND titolo = $2 AND contenuto = $3
+      SELECT * FROM comunicazioni 
+      WHERE id_utente = $1 AND titolo = $2 AND zona = $3
+      ORDER BY data_creazione DESC 
+      LIMIT 1
     `;
     
-    const result = await pool.query(query, [userId, titolo, contenuto]);
-    const isDuplicate = parseInt(result.rows[0].count) > 0;
+    const result = await pool.query(query, [userId, titolo, zona]);
     
-    res.json({
-      success: true,
-      isDuplicate
-    });
+    if (result.rows.length > 0) {
+      res.json({
+        success: true,
+        exists: true,
+        comunicazione: result.rows[0]
+      });
+    } else {
+      res.json({
+        success: true,
+        exists: false,
+        comunicazione: null
+      });
+    }
   } catch (error) {
     console.error('❌ Errore nel controllo duplicati:', error);
     res.status(500).json({
@@ -652,8 +665,8 @@ app.get('/api/ultima-comunicazione', verifyToken, async (req, res) => {
     
     const query = `
       SELECT * FROM comunicazioni 
-      WHERE utente_id = $1 
-      ORDER BY created_at DESC 
+      WHERE id_utente = $1 
+      ORDER BY data_creazione DESC 
       LIMIT 1
     `;
     

@@ -227,19 +227,71 @@ export default function Comunica() {
     );
   }
 
-  // Check if user has the right role
+  // Check if user has the right role for advanced features
   const userRole = (userData as any)?.ruolo;
-  if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico" && userRole !== "Admin")) {
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
+  
+  // Mostra messaggio informativo per utenti senza accesso avanzato
+  if (!hasAdvancedAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8">
-          <Alert variant="destructive">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4" style={{ paddingBottom: '80px' }}>
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/menu")}
+              className="flex items-center gap-2"
+            >
+              Torna al Menu
+            </Button>
+          </div>
+
+          {/* Titolo */}
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+                Strumenti
+              </CardTitle>
+              <CardDescription>
+                Strumenti di base disponibili per tutti gli utenti
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          {/* Messaggio informativo */}
+          <Alert>
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Accesso negato</AlertTitle>
+            <AlertTitle>Accesso limitato</AlertTitle>
             <AlertDescription>
-              Questa sezione è accessibile solo ai Politici, ai Candidati Politici e agli Admin. Il tuo ruolo attuale: {userRole || 'Non definito'}
+              Alcuni strumenti sono disponibili solo per Politici, Candidati Politici e Admin. 
+              Il tuo ruolo attuale: {userRole || 'Non definito'}. 
+              Per accedere a tutte le funzionalità, contatta un amministratore.
             </AlertDescription>
           </Alert>
+
+          {/* Pulsanti base disponibili per tutti */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Sondaggi - disponibile per tutti */}
+            <button
+              type="button"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation('/sondaggi')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <MessageSquare className="h-8 w-8 text-yellow-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Sondaggi</div>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     );
