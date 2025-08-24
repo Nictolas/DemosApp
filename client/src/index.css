@@ -304,37 +304,76 @@ body {
   transform: translateX(0);
 }
 
-/* Forza l'orientamento verticale su dispositivi mobili */
+/* Forza l'orientamento verticale - SOLUZIONE CORRETTA */
 @media screen and (orientation: landscape) {
   html, body, #root {
-    transform: rotate(-90deg);
-    transform-origin: left top;
-    width: 100vh;
-    height: 100vw;
-    overflow-x: hidden;
-    overflow-y: auto;
-    position: absolute;
-    top: 100%;
-    left: 0;
+    /* Forza le dimensioni verticali anche in orizzontale */
+    width: 100vw;
+    height: 100vh;
+    /* Centra il contenuto */
+    margin: 0 auto;
+    /* Previene la rotazione automatica del browser */
+    transform: none !important;
+    /* Forza il contenuto a rimanere centrato */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Mostra un messaggio per ruotare il dispositivo */
+  body::before {
+    content: "Ruota il dispositivo in verticale per una migliore esperienza";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    z-index: 9999;
+    font-size: 1.1rem;
+    text-align: center;
+    white-space: nowrap;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Nascondi il contenuto principale in orizzontale */
+  #root > * {
+    opacity: 0.3;
+    pointer-events: none;
   }
 }
 
-/* Stili specifici per dispositivi mobili in orientamento orizzontale */
-@media screen and (max-width: 768px) and (orientation: landscape) {
-  body {
-    transform: rotate(-90deg);
-    transform-origin: left top;
-    width: 100vh;
-    height: 100vw;
-    position: absolute;
-    top: 100%;
-    left: 0;
+/* Nascondi il messaggio quando il dispositivo è in verticale */
+@media screen and (orientation: portrait) {
+  body::before {
+    display: none;
   }
   
-  #root {
-    width: 100vh;
-    height: 100vw;
-    transform: rotate(-90deg);
-    transform-origin: left top;
+  /* Ripristina il contenuto in verticale */
+  #root > * {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Stili specifici per dispositivi mobili */
+@media screen and (max-width: 768px) {
+  html, body, #root {
+    /* Previene la rotazione automatica su mobile */
+    -webkit-transform: none !important;
+    -moz-transform: none !important;
+    -ms-transform: none !important;
+    transform: none !important;
+  }
+  
+  /* Forza l'orientamento verticale su mobile */
+  body {
+    min-height: 100vh;
+    height: 100vh;
+    width: 100vw;
+    overflow-x: hidden;
   }
 }
