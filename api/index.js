@@ -394,6 +394,47 @@ app.get('/api/test-resend', (req, res) => {
 
 // ===== ENDPOINTS PER UTENTI =====
 
+// GET /api/auth/check-codice-fiscale - Verifica se un codice fiscale è già registrato
+app.get('/api/auth/check-codice-fiscale', async (req, res) => {
+  try {
+    const { codice_fiscale } = req.query;
+    
+    if (!codice_fiscale) {
+      return res.status(400).json({
+        success: false,
+        error: 'Codice fiscale richiesto'
+      });
+    }
+    
+    // Verifica se il codice fiscale esiste già
+    const existingUser = await pool.query(
+      'SELECT id, email FROM users WHERE codice_fiscale = $1',
+      [codice_fiscale.toUpperCase()]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.json({
+        success: true,
+        exists: true,
+        message: 'Codice fiscale già registrato nel sistema'
+      });
+    }
+    
+    res.json({
+      success: true,
+      exists: false,
+      message: 'Codice fiscale disponibile'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella verifica codice fiscale:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella verifica codice fiscale'
+    });
+  }
+});
+
 // GET /api/utenti/me - Ottieni dati utente corrente
 app.get('/api/utenti/me', verifyToken, async (req, res) => {
   try {
@@ -504,7 +545,7 @@ app.post('/api/auth/login', async (req, res) => {
 // POST /api/auth/register - Registrazione utente
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, password, nome, cognome } = req.body;
+    const { email, password, nome, cognome, codice_fiscale } = req.body;
     
     console.log('📝 Tentativo di registrazione per:', email);
     
@@ -518,15 +559,27 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
     
+    // Verifica se il codice fiscale è già registrato
+    if (codice_fiscale) {
+      const existingCodiceFiscale = await pool.query('SELECT id FROM users WHERE codice_fiscale = $1', [codice_fiscale.toUpperCase()]);
+      
+      if (existingCodiceFiscale.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error: 'Codice fiscale già registrato nel sistema'
+        });
+      }
+    }
+    
     // Hash della password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
     
     // Inserisci nuovo utente
     const insertQuery = `
-      INSERT INTO users (nome, cognome, email, password_hash, ruolo, created_at)
-      VALUES ($1, $2, $3, $4, $5, NOW())
-      RETURNING id, nome, cognome, email, ruolo
+      INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      RETURNING id, nome, cognome, email, ruolo, codice_fiscale
     `;
     
     const result = await pool.query(insertQuery, [
@@ -534,7 +587,8 @@ app.post('/api/auth/register', async (req, res) => {
       cognome, 
       email, 
       passwordHash, 
-      'Elettore'
+      'Elettore',
+      codice_fiscale ? codice_fiscale.toUpperCase() : null
     ]);
     
     const newUser = result.rows[0];
@@ -559,7 +613,8 @@ app.post('/api/auth/register', async (req, res) => {
         name: newUser.nome,
         cognome: newUser.cognome,
         email: newUser.email,
-        ruolo: newUser.ruolo
+        ruolo: newUser.ruolo,
+        codice_fiscale: newUser.codice_fiscale
       },
       token: token
     });

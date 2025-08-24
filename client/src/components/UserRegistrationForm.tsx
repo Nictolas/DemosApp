@@ -12,12 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ITALY_DATA } from "@/data/italyData";
-import { apiRequest } from "@/lib/queryClient"; 
+import { apiRequest } from "@/lib/queryClient";
+import CodiceFiscaleInput from "./CodiceFiscaleInput"; 
 
 // Form schema with validation
 const formSchema = z.object({
   nome: z.string().min(1, "Il nome è obbligatorio"),
   cognome: z.string().min(1, "Il cognome è obbligatorio"),
+  codice_fiscale: z.string().min(16, "Il codice fiscale deve essere di 16 caratteri").max(16, "Il codice fiscale deve essere di 16 caratteri"),
+  email: z.string().email("Email non valida").min(1, "L'email è obbligatoria"),
   data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
   genere: z.string().min(1, "Il genere è obbligatorio"),
   cittadinanza: z.string().min(1, "La cittadinanza è obbligatoria"),
@@ -58,6 +61,8 @@ export default function UserRegistrationForm() {
     defaultValues: {
       nome: "",
       cognome: "",
+      codice_fiscale: "",
+      email: "",
       data_nascita: "",
       genere: "",
       cittadinanza: "",
@@ -130,7 +135,7 @@ export default function UserRegistrationForm() {
   }, [birthDay, birthMonth, birthYear]);
   
 const { mutate, isPending } = useMutation({
-  mutationFn: (formData: FormValues) => apiRequest('POST', '/api/register', formData),
+  mutationFn: (formData: FormValues) => apiRequest('POST', '/api/auth/register', formData),
   onSuccess: () => {
     toast({
       title: "Registrazione Inviata",
@@ -344,7 +349,19 @@ const { mutate, isPending } = useMutation({
   
   // Form submission handler
   const onSubmit = (values: FormValues) => {
-    mutate(values);
+    // Prepara i dati per l'invio
+    const formData = {
+      ...values,
+      // Assicurati che il codice fiscale sia in maiuscolo
+      codice_fiscale: values.codice_fiscale ? values.codice_fiscale.toUpperCase() : undefined,
+      // Assicurati che l'email sia presente
+      email: values.email,
+      // Assicurati che la password sia presente
+      password: values.password
+    };
+    
+    console.log('Dati form da inviare:', formData);
+    mutate(formData);
   };
   
 function onInvalid(errors: any) {
@@ -387,6 +404,45 @@ function onInvalid(errors: any) {
                   <FormLabel className="required-field">Cognome</FormLabel>
                   <FormControl>
                     <Input placeholder="Inserisci il cognome" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Codice Fiscale Field */}
+            <FormField
+              control={form.control}
+              name="codice_fiscale"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Codice Fiscale</FormLabel>
+                  <FormControl>
+                    <CodiceFiscaleInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      required={true}
+                      placeholder="Inserisci il codice fiscale"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Email Field */}
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="required-field">Email</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="email" 
+                      placeholder="Inserisci la tua email" 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
