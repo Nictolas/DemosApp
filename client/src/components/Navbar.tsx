@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Users, Vote, Settings } from "lucide-react";
+import { Home, MessageSquare, Users, Vote, Settings, Bell } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Navbar() {
@@ -15,6 +15,10 @@ export default function Navbar() {
       <Link href="/rappresentanti" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors" style={{marginTop: 0}}>
         <Users className="h-7 w-7 mb-0" />
         <span className="text-xs hidden md:block">Rappresentanti</span>
+      </Link>
+      <Link href="/notifiche" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors" style={{marginTop: 0}}>
+        <Bell className="h-7 w-7 mb-0" />
+        <span className="text-xs hidden md:block">Notifiche</span>
       </Link>
       <Link href="/vota" className="flex flex-col items-center justify-center text-gray-600 hover:text-primary transition-colors" style={{marginTop: 0}}>
         <Vote className="h-7 w-7 mb-0" />
