@@ -146,7 +146,7 @@ export default function Rappresentanti() {
           touch-action: none !important;
         }
       `}</style>
-      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '80px' }}>
+      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
         <div className="container mx-auto px-4 py-8 overflow-hidden max-w-full h-full">
 
 
@@ -198,7 +198,7 @@ export default function Rappresentanti() {
               })()}
               
               {/* Altre card */}
-              <div className="grid grid-cols-2 gap-2 pb-2">
+              <div className="grid grid-cols-2 gap-2 pb-8">
                 {categorie.slice(1).map((categoria) => {
                   const colorMap = { green: "#bbf7d0", purple: "#ede9fe", orange: "#fef9c3", teal: "#a7f3d0" };
                   const color = colorMap[categoria.color as keyof typeof colorMap];
