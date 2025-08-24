@@ -67,18 +67,6 @@ export default function Comunica() {
     },
   });
 
-  // Get complete user data including role
-  const { data: userData } = useQuery({
-    queryKey: ["/api/utenti/me", user?.email],
-    queryFn: async () => {
-      if (!user?.email) return null;
-      const response = await apiRequest("GET", `/api/utenti/me`);
-      if (!response.ok) throw new Error('Failed to fetch user data');
-      return response.json();
-    },
-    enabled: !!user?.email,
-  });
-
   // Get user's last communication
   const { data: ultimaComunicazione } = useQuery({
     queryKey: ["/api/ultima-comunicazione"],
@@ -95,9 +83,9 @@ export default function Comunica() {
 
   // Generate zona based on user's election data
   const generateZona = () => {
-    if (!userData) return "";
+    if (!user) return "";
     
-    const { grado_elezione, comune_elezione, provincia_elezione, regione_elezione, paese_elezione } = userData as any;
+    const { grado_elezione, comune_elezione, provincia_elezione, regione_elezione, paese_elezione } = user as any;
     
     if (grado_elezione === "Comunale" && comune_elezione) {
       return `Comune di ${comune_elezione}`;
@@ -211,8 +199,8 @@ export default function Comunica() {
     submitEvento.mutate(data);
   };
 
-  // Show loading while userData is being fetched
-  if (!userData) {
+  // Show loading while user data is being fetched
+  if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-8">
@@ -227,9 +215,17 @@ export default function Comunica() {
     );
   }
 
-    // Check if user has the right role for advanced features
-  const userRole = (userData as any)?.ruolo;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
+  // Check if user has the right role for advanced features
+  // Use the user object from useAuth() which should contain the ruolo field
+  const userRole = user?.ruolo || user?.role;
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+
+  // Debug logging
+  console.log('🔍 DEBUG Comunica - user object:', user);
+  console.log('🔍 DEBUG Comunica - user.ruolo:', user?.ruolo);
+  console.log('🔍 DEBUG Comunica - user.role:', user?.role);
+  console.log('🔍 DEBUG Comunica - userRole:', userRole);
+  console.log('🔍 DEBUG Comunica - hasAdvancedAccess:', hasAdvancedAccess);
 
   // Blocca completamente l'accesso per utenti "Elettore"
   if (!hasAdvancedAccess) {
@@ -254,7 +250,7 @@ export default function Comunica() {
                 Accesso Negato
               </CardTitle>
               <CardDescription>
-                Questa pagina è riservata a Politici, Candidati Politici e Admin
+                Questa pagina è riservata a Politici, Candidati, Candidati Politici e Admin
               </CardDescription>
             </CardHeader>
           </Card>
@@ -345,7 +341,7 @@ export default function Comunica() {
             </div>
           </button>
           {/* Programma (solo Admin/Candidato) */}
-          {userData?.ruolo === 'Admin' || userData?.ruolo === 'Candidato' || userData?.ruolo === 'Candidato Politico' ? (
+          {user?.ruolo === 'Admin' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' ? (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -366,7 +362,7 @@ export default function Comunica() {
             </button>
           ) : null}
           {/* Sostenitori (solo Politico/Candidato/Admin) */}
-          {(userData?.ruolo === 'Politico' || userData?.ruolo === 'Candidato' || userData?.ruolo === 'Candidato Politico' || userData?.ruolo === 'Admin') && (
+          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
