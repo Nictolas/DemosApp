@@ -1523,7 +1523,7 @@ app.get('/api/amnistia', limiter, async (req, res) => {
     
     // 2. Genera classifica basata sui voti
     const classificaQuery = `
-      SELECT legge as nome, COUNT(*) as voti
+      SELECT legge, COUNT(*) as voti
       FROM voti_amnistia 
       GROUP BY legge 
       ORDER BY voti DESC
@@ -1555,7 +1555,6 @@ app.get('/api/amnistia', limiter, async (req, res) => {
     
     res.json({
       success: true,
-      leggi: leggiUniche.map(legge => ({ id: legge, nome: legge })),
       classifica: classificaResult.rows,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
