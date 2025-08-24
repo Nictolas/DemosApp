@@ -14,6 +14,10 @@ export default function Menu() {
   
   // Determina se l'utente è admin direttamente dai dati dell'utente
   const isAdmin = user?.role === 'Admin' || user?.ruolo === 'Admin';
+  
+  // Determina se l'utente ha accesso agli strumenti avanzati
+  const userRole = user?.role || user?.ruolo;
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
 
   // Funzione per navigare con effetto "ripristino pulsante"
   const navigateWithButtonReset = (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
@@ -63,78 +67,82 @@ export default function Menu() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2 p-4 flex-1">
               {/* Altri pulsanti menu con nuova estetica */}
-                             <button
-                 type="button"
-                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
-                 onMouseDown={(e) => {
-                   e.currentTarget.classList.add('scale-95', 'shadow-md');
-                 }}
-                 onMouseUp={(e) => {
-                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
-                   setTimeout(() => setLocation("/elezioni"), 100);
-                 }}
-                 onMouseLeave={(e) => {
-                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
-                 }}
-                 onTouchStart={(e) => {
-                   e.preventDefault(); // Previene il comportamento predefinito
-                   e.currentTarget.classList.add('scale-95', 'shadow-md');
-                 }}
-                 onTouchEnd={(e) => {
-                   e.preventDefault(); // Previene il comportamento predefinito
-                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
-                   setTimeout(() => setLocation("/elezioni"), 100);
-                 }}
-                 onContextMenu={e => e.preventDefault()}
-               >
+              <button
+                type="button"
+                className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                onMouseDown={(e) => {
+                  e.currentTarget.classList.add('scale-95', 'shadow-md');
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                  setTimeout(() => setLocation("/elezioni"), 100);
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                }}
+                onTouchStart={(e) => {
+                  e.preventDefault(); // Previene il comportamento predefinito
+                  e.currentTarget.classList.add('scale-95', 'shadow-md');
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault(); // Previene il comportamento predefinito
+                  e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                  setTimeout(() => setLocation("/elezioni"), 100);
+                }}
+                onContextMenu={e => e.preventDefault()}
+              >
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                   <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                                     <span className="relative flex items-center justify-center w-12 h-12 mb-2">
-                     <BarChart2 className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                     <BarChart2 className="h-6 w-6 text-yellow-600 relative z-10" />
-                   </span>
+                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                    <BarChart2 className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                    <BarChart2 className="h-6 w-6 text-yellow-600 relative z-10" />
+                  </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Elezioni</div>
                 </div>
               </button>
-                                                           <button
-                 type="button"
-                 className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
-                 onMouseDown={(e) => {
-                   e.currentTarget.classList.add('scale-95', 'shadow-md');
-                 }}
-                 onMouseUp={(e) => {
-                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
-                   setTimeout(() => setLocation("/strumenti"), 100);
-                 }}
-                 onMouseLeave={(e) => {
-                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
-                 }}
-                 onTouchStart={(e) => {
-                   e.preventDefault(); // Previene il comportamento predefinito
-                   e.currentTarget.classList.add('scale-95', 'shadow-md');
-                 }}
-                 onTouchEnd={(e) => {
-                   e.preventDefault(); // Previene il comportamento predefinito
-                   e.currentTarget.classList.remove('scale-95', 'shadow-md');
-                   setTimeout(() => setLocation("/strumenti"), 100);
-                 }}
-                 onContextMenu={e => e.preventDefault()}
-               >
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                  <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
-                  <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-                </svg>
-                <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
-                    <Megaphone className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <Megaphone className="h-6 w-6 text-purple-600 relative z-10" />
-                  </span>
-                  <div className="text-gray-700 font-semibold text-lg select-none">Strumenti</div>
-                </div>
-              </button>
+
+              {/* Pulsante Strumenti - visibile solo per utenti con accesso avanzato */}
+              {hasAdvancedAccess && (
+                <button
+                  type="button"
+                  className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                  onMouseDown={(e) => {
+                    e.currentTarget.classList.add('scale-95', 'shadow-md');
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                    setTimeout(() => setLocation("/strumenti"), 100);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault(); // Previene il comportamento predefinito
+                    e.currentTarget.classList.add('scale-95', 'shadow-md');
+                  }}
+                  onTouchEnd={(e) => {
+                    e.preventDefault(); // Previene il comportamento predefinito
+                    e.currentTarget.classList.remove('scale-95', 'shadow-md');
+                    setTimeout(() => setLocation("/strumenti"), 100);
+                  }}
+                  onContextMenu={e => e.preventDefault()}
+                >
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polygon points="100,0 0,0 0,35 100,20" fill="#ede9fe" />
+                    <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+                  </svg>
+                  <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                    <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                      <Megaphone className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                      <Megaphone className="h-6 w-6 text-purple-600 relative z-10" />
+                    </span>
+                    <div className="text-gray-700 font-semibold text-lg select-none">Strumenti</div>
+                  </div>
+                </button>
+              )}
 
               <button
                  type="button"

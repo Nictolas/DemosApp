@@ -227,11 +227,11 @@ export default function Comunica() {
     );
   }
 
-  // Check if user has the right role for advanced features
+    // Check if user has the right role for advanced features
   const userRole = (userData as any)?.ruolo;
   const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
-  
-  // Mostra messaggio informativo per utenti senza accesso avanzato
+
+  // Blocca completamente l'accesso per utenti "Elettore"
   if (!hasAdvancedAccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4" style={{ paddingBottom: '80px' }}>
@@ -251,47 +251,24 @@ export default function Comunica() {
           <Card>
             <CardHeader className="text-center">
               <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-                Strumenti
+                Accesso Negato
               </CardTitle>
               <CardDescription>
-                Strumenti di base disponibili per tutti gli utenti
+                Questa pagina è riservata a Politici, Candidati Politici e Admin
               </CardDescription>
             </CardHeader>
           </Card>
 
-          {/* Messaggio informativo */}
+          {/* Messaggio di accesso negato */}
           <Alert>
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Accesso limitato</AlertTitle>
+            <AlertTitle>Accesso negato</AlertTitle>
             <AlertDescription>
-              Alcuni strumenti sono disponibili solo per Politici, Candidati Politici e Admin. 
-              Il tuo ruolo attuale: {userRole || 'Non definito'}. 
-              Per accedere a tutte le funzionalità, contatta un amministratore.
+              La pagina "Strumenti" è disponibile solo per utenti con ruoli avanzati.
+              Il tuo ruolo attuale: {userRole || 'Non definito'}.
+              Per accedere a questa pagina, contatta un amministratore per aggiornare il tuo ruolo.
             </AlertDescription>
           </Alert>
-
-          {/* Pulsanti base disponibili per tutti */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Sondaggi - disponibile per tutti */}
-            <button
-              type="button"
-              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-              onClick={() => setLocation('/sondaggi')}
-              onContextMenu={e => e.preventDefault()}
-            >
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
-                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-              </svg>
-              <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                  <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                  <MessageSquare className="h-8 w-8 text-yellow-600 relative z-10" />
-                </span>
-                <div className="text-gray-700 font-semibold text-lg select-none">Sondaggi</div>
-              </div>
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -329,7 +306,7 @@ export default function Comunica() {
 
         {/* Pulsanti Navigazione - Nuova estetica */}
         <div className="grid grid-cols-2 gap-6">
-          {/* Votazione */}
+          {/* Votazione (solo per ruoli avanzati) */}
           <button
             type="button"
             className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -348,7 +325,7 @@ export default function Comunica() {
               <div className="text-gray-700 font-semibold text-lg select-none">Votazione</div>
             </div>
           </button>
-          {/* Evento */}
+          {/* Evento (solo per ruoli avanzati) */}
           <button
             type="button"
             className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -409,7 +386,7 @@ export default function Comunica() {
               </div>
             </button>
           )}
-          {/* Riscontro */}
+          {/* Riscontro (solo per ruoli avanzati) */}
           <button
             type="button"
             className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -428,7 +405,7 @@ export default function Comunica() {
               <div className="text-gray-700 font-semibold text-lg select-none">Riscontro</div>
             </div>
           </button>
-          {/* Sondaggi */}
+          {/* Sondaggi (solo per ruoli avanzati) */}
           <button
             type="button"
             className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
