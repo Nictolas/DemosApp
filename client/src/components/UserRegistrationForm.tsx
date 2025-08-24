@@ -474,22 +474,23 @@ function onInvalid(errors: any) {
                           itemHeight={36}
                           wheelMode="natural"
                         >
-                        <Picker.Column name="day">
-                          {days.map((d) => (
-                            <Picker.Item key={d} value={d}>{d}</Picker.Item>
-                          ))}
-                        </Picker.Column>
-                        <Picker.Column name="month">
-                          {months.map((m) => (
-                            <Picker.Item key={m.value} value={m.value}>{m.label}</Picker.Item>
-                          ))}
-                        </Picker.Column>
-                        <Picker.Column name="year">
-                          {years.map((y) => (
-                            <Picker.Item key={y} value={y}>{y}</Picker.Item>
-                          ))}
-                        </Picker.Column>
-                      </Picker>
+                          <Picker.Column name="day">
+                            {days.map((d) => (
+                              <Picker.Item key={d} value={d}>{d}</Picker.Item>
+                            ))}
+                          </Picker.Column>
+                          <Picker.Column name="month">
+                            {months.map((m) => (
+                              <Picker.Item key={m.value} value={m.value}>{m.label}</Picker.Item>
+                            ))}
+                          </Picker.Column>
+                          <Picker.Column name="year">
+                            {years.map((y) => (
+                              <Picker.Item key={y} value={y}>{y}</Picker.Item>
+                            ))}
+                          </Picker.Column>
+                        </Picker>
+                      </div>
                     </div>
                   </div>
                   <FormMessage />
