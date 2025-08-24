@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Users, UserCheck, UserX, Shield, Mail, Calendar } from "lucide-react";
+import { Loader2, ArrowLeft, Search, Trash2, AlertCircle, Edit, Users, UserCheck, UserX, Shield, Mail, Calendar, Award, Vote } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -47,8 +47,17 @@ const getDisplayColumns = (users: any[]) => {
   // Aggiungi colonna "Nome Completo" all'inizio
   const columnsWithFullName = ['nome_completo', ...displayColumns];
   
-  // Ordina le colonne in modo logico
-  const priorityColumns = ['nome_completo', 'email', 'ruolo', 'status'];
+  // Ordina le colonne in modo logico con priorità per candidatura ed elezione
+  const priorityColumns = [
+    'nome_completo', 'email', 'ruolo', 'status',
+    // Colonne candidatura (priorità alta)
+    'candidato_attivo', 'status_candidatura', 'grado_candidatura',
+    'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura',
+    'data_candidatura', 'note_candidatura',
+    // Colonne elezione (priorità alta)
+    'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione'
+  ];
+  
   const sortedColumns = [
     ...priorityColumns.filter(col => columnsWithFullName.includes(col)),
     ...columnsWithFullName.filter(col => !priorityColumns.includes(col))
@@ -126,6 +135,48 @@ const renderColumnValue = (value: any, columnName: string, user?: User) => {
   if (columnName === 'genere' && value) {
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getGenderColor(value)}`}>
+        {value}
+      </span>
+    );
+  }
+  
+  // Gestione speciale per le colonne di candidatura
+  if (columnName === 'candidato_attivo' && value !== null && value !== undefined) {
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
+        value ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'
+      }`}>
+        {value ? 'Sì' : 'No'}
+      </span>
+    );
+  }
+  
+  if (columnName === 'status_candidatura' && value) {
+    return (
+      <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
+        value === 'attiva' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+        value === 'in_attesa' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+        value === 'approvata' ? 'bg-green-100 text-green-800 border-green-200' :
+        value === 'rifiutata' ? 'bg-red-100 text-red-800 border-red-200' :
+        'bg-gray-100 text-gray-800 border-gray-200'
+      }`}>
+        {value}
+      </span>
+    );
+  }
+  
+  // Gestione speciale per le colonne di elezione
+  if (columnName === 'grado_elezione' && value) {
+    return (
+      <span className="px-2 py-1 text-xs font-medium rounded-full border bg-purple-100 text-purple-800 border-purple-200">
+        {value}
+      </span>
+    );
+  }
+  
+  if (columnName === 'grado_candidatura' && value) {
+    return (
+      <span className="px-2 py-1 text-xs font-medium rounded-full border bg-indigo-100 text-indigo-800 border-indigo-200">
         {value}
       </span>
     );
@@ -237,7 +288,21 @@ export default function GestisciUtenti() {
     
     return utenti
              .filter(u => {
-         // Ricerca su tutte le colonne di testo
+         // Gestione filtri rapidi
+         if (searchTerm === 'candidato:attivo') {
+           return u.candidato_attivo === true;
+         }
+         if (searchTerm === 'elezione:comune') {
+           return u.grado_elezione === 'comune' || u.grado_candidatura === 'comune';
+         }
+         if (searchTerm === 'elezione:regionale') {
+           return u.grado_elezione === 'regionale' || u.grado_candidatura === 'regionale';
+         }
+         if (searchTerm === 'elezione:nazionale') {
+           return u.grado_elezione === 'nazionale' || u.grado_candidatura === 'nazionale';
+         }
+         
+         // Ricerca normale su tutte le colonne di testo
          const searchLower = searchTerm.toLowerCase();
          
          // Ricerca speciale per nome completo
@@ -332,7 +397,7 @@ export default function GestisciUtenti() {
         ) : (
           <>
             {/* Dashboard statistiche - righe larghe tutto lo schermo */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
@@ -384,6 +449,20 @@ export default function GestisciUtenti() {
                     <div>
                       <p className="text-sm font-medium text-purple-600">Admin</p>
                       <p className="text-2xl font-bold text-purple-900">{utenti.filter(u => u.ruolo === 'Admin').length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-indigo-500 rounded-lg">
+                      <UserCheck className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-indigo-600">Candidati Attivi</p>
+                      <p className="text-2xl font-bold text-indigo-900">{utenti.filter(u => u.candidato_attivo === true).length}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -480,6 +559,68 @@ export default function GestisciUtenti() {
                </CardContent>
              </Card>
 
+             {/* Sezione candidati attivi */}
+             <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 shadow-lg mb-8">
+               <CardHeader className="pb-4">
+                 <CardTitle className="flex items-center text-2xl text-indigo-800">
+                   <Award className="h-6 w-6 mr-3 text-indigo-600" />
+                   Candidati Attivi
+                 </CardTitle>
+                 <CardDescription className="text-indigo-600">
+                   Visualizza tutti i candidati attivi per le diverse elezioni
+                 </CardDescription>
+               </CardHeader>
+               <CardContent>
+                 {utenti.filter(u => u.candidato_attivo === true).length > 0 ? (
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                     {utenti.filter(u => u.candidato_attivo === true).map((candidato: any) => (
+                       <div key={candidato.id} className="bg-white p-4 rounded-lg border border-indigo-200 hover:shadow-md transition-shadow">
+                         <div className="flex items-center justify-between mb-2">
+                           <h4 className="font-semibold text-indigo-900">
+                             {candidato.nome} {candidato.cognome}
+                           </h4>
+                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                             candidato.status_candidatura === 'attiva' ? 'bg-green-100 text-green-800' :
+                             candidato.status_candidatura === 'in_attesa' ? 'bg-yellow-100 text-yellow-800' :
+                             'bg-gray-100 text-gray-800'
+                           }`}>
+                             {candidato.status_candidatura || 'N/A'}
+                           </span>
+                         </div>
+                         <div className="space-y-1 text-sm text-gray-600">
+                           <p><strong>Grado:</strong> {candidato.grado_candidatura || 'N/A'}</p>
+                           <p><strong>Zona:</strong> {candidato.comune_candidatura || candidato.provincia_candidatura || candidato.regione_candidatura || 'N/A'}</p>
+                           <p><strong>Data:</strong> {candidato.data_candidatura ? new Date(candidato.data_candidatura).toLocaleDateString('it-IT') : 'N/A'}</p>
+                         </div>
+                         <div className="mt-3 flex space-x-2">
+                           <Button 
+                             variant="outline" 
+                             size="sm" 
+                             onClick={() => { setSelectedUser(candidato); setShowEditDialog(true); }}
+                             className="text-xs"
+                           >
+                             <Edit className="h-3 w-3 mr-1" />
+                             Modifica
+                           </Button>
+                           <Link href={`/menu/profilo/${candidato.id}?from=utenti`}>
+                             <Button variant="outline" size="sm" className="text-xs">
+                               👁️ Profilo
+                             </Button>
+                           </Link>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="text-center py-8">
+                     <Award className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                     <h3 className="text-lg font-medium text-gray-900 mb-2">Nessun candidato attivo</h3>
+                     <p className="text-gray-500">Non ci sono candidati attivi al momento</p>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
+
              {/* Sezione utenti attivi con TABELLA tradizionale */}
              <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg">
                <CardHeader className="pb-4">
@@ -496,16 +637,52 @@ export default function GestisciUtenti() {
                 <div className="flex items-center mb-6">
                   <div className="relative flex-1 max-w-2xl">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                         <Input 
-                       placeholder="🔍 Cerca utenti per nome completo, email o ruolo..." 
-                       className="pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-blue-500 rounded-lg transition-colors" 
-                       value={searchTerm} 
-                       onChange={(e) => setSearchTerm(e.target.value)} 
-                     />
+                    <Input 
+                      placeholder="🔍 Cerca utenti per nome completo, email, ruolo, candidatura o elezione..." 
+                      className="pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-blue-500 rounded-lg transition-colors" 
+                      value={searchTerm} 
+                      onChange={(e) => setSearchTerm(e.target.value)} 
+                    />
                   </div>
                   <div className="ml-4 text-sm text-gray-500">
                     {filteredAndSortedUsers.length} utenti trovati
                   </div>
+                </div>
+                
+                {/* Filtri rapidi per candidati */}
+                <div className="flex items-center space-x-3 mb-4">
+                  <Button 
+                    variant={searchTerm === 'candidato:attivo' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchTerm(searchTerm === 'candidato:attivo' ? '' : 'candidato:attivo')}
+                    className="text-xs"
+                  >
+                    🎯 Candidati Attivi
+                  </Button>
+                  <Button 
+                    variant={searchTerm === 'elezione:comune' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchTerm(searchTerm === 'elezione:comune' ? '' : 'elezione:comune')}
+                    className="text-xs"
+                  >
+                    🏛️ Elezioni Comunali
+                  </Button>
+                  <Button 
+                    variant={searchTerm === 'elezione:regionale' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchTerm(searchTerm === 'elezione:regionale' ? '' : 'elezione:regionale')}
+                    className="text-xs"
+                  >
+                    🏛️ Elezioni Regionali
+                  </Button>
+                  <Button 
+                    variant={searchTerm === 'elezione:nazionale' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSearchTerm(searchTerm === 'elezione:nazionale' ? '' : 'elezione:nazionale')}
+                    className="text-xs"
+                  >
+                    🏛️ Elezioni Nazionali
+                  </Button>
                 </div>
 
                 {/* TABELLA tradizionale invece delle card */}
@@ -547,18 +724,23 @@ export default function GestisciUtenti() {
                                     column === 'social_links' ? 'Social' :
                                     column === 'preferenze_notifiche' ? 'Notifiche' :
                                     column === 'notifiche_preferenze' ? 'Notifiche' :
-                                    column === 'paese_candidatura' ? 'Paese Candidatura' :
-                                    column === 'regione_candidatura' ? 'Regione Candidatura' :
-                                    column === 'provincia_candidatura' ? 'Provincia Candidatura' :
-                                    column === 'comune_candidatura' ? 'Comune Candidatura' :
-                                    column === 'candidato_attivo' ? 'Candidato Attivo' :
-                                    column === 'data_candidatura' ? 'Data Candidatura' :
-                                    column === 'status_candidatura' ? 'Status Candidatura' :
-                                    column === 'note_candidatura' ? 'Note Candidatura' :
-                                    column === 'comune_elezione' ? 'Comune Elezione' :
-                                    column === 'grado_elezione' ? 'Grado Elezione' :
-                                    column === 'paese_elezione' ? 'Paese Elezione' :
-                                    column === 'grado_candidatura' ? 'Grado Candidatura' :
+                                    // Colonne candidatura
+                                    column === 'candidato_attivo' ? '🎯 Candidato Attivo' :
+                                    column === 'status_candidatura' ? '📋 Status Candidatura' :
+                                    column === 'grado_candidatura' ? '🏆 Grado Candidatura' :
+                                    column === 'paese_candidatura' ? '🌍 Paese Candidatura' :
+                                    column === 'regione_candidatura' ? '🗺️ Regione Candidatura' :
+                                    column === 'provincia_candidatura' ? '📍 Provincia Candidatura' :
+                                    column === 'comune_candidatura' ? '🏘️ Comune Candidatura' :
+                                    column === 'data_candidatura' ? '📅 Data Candidatura' :
+                                    column === 'note_candidatura' ? '📝 Note Candidatura' :
+                                    // Colonne elezione
+                                    column === 'grado_elezione' ? '🗳️ Grado Elezione' :
+                                    column === 'paese_elezione' ? '🌍 Paese Elezione' :
+                                    column === 'regione_elezione' ? '🗺️ Regione Elezione' :
+                                    column === 'provincia_elezione' ? '📍 Provincia Elezione' :
+                                    column === 'comune_elezione' ? '🏘️ Comune Elezione' :
+                                    // Altre colonne
                                     column === 'approved_at' ? 'Data Approvazione' :
                                     column === 'ultimo_accesso' ? 'Ultimo Accesso' :
                                     column === 'data_registrazione' ? 'Data Registrazione' :
