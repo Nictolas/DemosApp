@@ -255,6 +255,43 @@ app.post('/api/test-cors', (req, res) => {
   });
 });
 
+// GET /api/test-nodemailer - Test endpoint per verificare Nodemailer
+app.get('/api/test-nodemailer', (req, res) => {
+  console.log('🧪 Test Nodemailer endpoint chiamato');
+  
+  try {
+    // Verifica disponibilità Nodemailer
+    const nodemailerStatus = {
+      available: typeof nodemailer !== 'undefined',
+      type: typeof nodemailer,
+      methods: nodemailer ? Object.keys(nodemailer) : [],
+      createTransporter: typeof nodemailer?.createTransporter,
+      version: nodemailer?.version || 'N/A'
+    };
+    
+    console.log('📧 Status Nodemailer:', nodemailerStatus);
+    
+    res.json({
+      success: true,
+      message: 'Test Nodemailer completato',
+      timestamp: new Date().toISOString(),
+      nodemailer: nodemailerStatus,
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        EMAIL_USER: process.env.EMAIL_USER ? 'Configurato' : 'Non configurato',
+        EMAIL_FROM: process.env.EMAIL_FROM || 'Non configurato'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel test Nodemailer:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel test Nodemailer',
+      details: error.message
+    });
+  }
+});
+
 // ===== ENDPOINTS PER UTENTI =====
 
 // GET /api/utenti/me - Ottieni dati utente corrente
@@ -438,36 +475,57 @@ app.post('/api/auth/register', async (req, res) => {
 
 // Configurazione email per reset password
 const createTransporter = () => {
-  // Se siamo in produzione, usa le credenziali reali
-  if (process.env.NODE_ENV === 'production') {
+  try {
+    // Se siamo in produzione, usa le credenziali reali
+    if (process.env.NODE_ENV === 'production') {
+      console.log('📧 Configurazione email per PRODUZIONE');
+      return nodemailer.createTransporter({
+        service: 'gmail', // o altro servizio
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD
+        }
+      });
+    }
+    
+    // In sviluppo, usa un servizio di test
+    console.log('📧 Configurazione email per SVILUPPO (Ethereal)');
     return nodemailer.createTransporter({
-      service: 'gmail', // o altro servizio
+      host: 'smtp.ethereal.email',
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
+        user: process.env.ETHEREAL_USER || 'test@ethereal.email',
+        pass: process.env.ETHEREAL_PASS || 'test123'
       }
     });
+  } catch (error) {
+    console.error('❌ Errore nella creazione transporter email:', error);
+    throw error;
   }
-  
-  // In sviluppo, usa un servizio di test
-  return nodemailer.createTransporter({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.ETHEREAL_USER || 'test@ethereal.email',
-      pass: process.env.ETHEREAL_PASS || 'test123'
-    }
-  });
 };
 
 // Funzione per inviare email di reset password
 const sendResetPasswordEmail = async (email, resetToken, userName) => {
   try {
+    console.log('📧 Tentativo invio email per:', email);
+    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+    
+    // Verifica che nodemailer sia disponibile
+    if (typeof nodemailer === 'undefined') {
+      throw new Error('Nodemailer non è disponibile');
+    }
+    
+    if (typeof nodemailer.createTransporter !== 'function') {
+      throw new Error('nodemailer.createTransporter non è una funzione');
+    }
+    
+    console.log('✅ Nodemailer disponibile, creazione transporter...');
     const transporter = createTransporter();
     
     // Crea il link di reset
     const resetUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/reset-password-confirm?token=${resetToken}`;
+    console.log('🔗 Reset URL generato:', resetUrl);
     
     const mailOptions = {
       from: process.env.EMAIL_FROM || 'noreply@demos.community',
@@ -496,11 +554,15 @@ const sendResetPasswordEmail = async (email, resetToken, userName) => {
       `
     };
     
+    console.log('📤 Invio email...');
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email di reset inviata:', info.messageId);
+    console.log('✅ Email di reset inviata con successo:', info.messageId);
     return true;
   } catch (error) {
     console.error('❌ Errore nell\'invio email:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Nodemailer type:', typeof nodemailer);
+    console.error('❌ Nodemailer methods:', Object.keys(nodemailer || {}));
     return false;
   }
 };
@@ -552,24 +614,44 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     );
     
     // Invia email di reset
-    const emailSent = await sendResetPasswordEmail(
-      email, 
-      resetToken, 
-      user.nome || 'Utente'
-    );
-    
-    if (emailSent) {
-      console.log('✅ Email di reset inviata con successo per:', email);
-      res.json({
-        success: true,
-        message: 'Link di reset inviato alla tua email. Controlla la casella di posta.'
-      });
-    } else {
-      console.log('❌ Fallimento invio email per:', email);
-      res.status(500).json({
-        success: false,
-        error: 'Errore nell\'invio dell\'email. Riprova più tardi.'
-      });
+    try {
+      const emailSent = await sendResetPasswordEmail(
+        email, 
+        resetToken, 
+        user.nome || 'Utente'
+      );
+      
+      if (emailSent) {
+        console.log('✅ Email di reset inviata con successo per:', email);
+        res.json({
+          success: true,
+          message: 'Link di reset inviato alla tua email. Controlla la casella di posta.'
+        });
+      } else {
+        console.log('❌ Fallimento invio email per:', email);
+        res.status(500).json({
+          success: false,
+          error: 'Errore nell\'invio dell\'email. Riprova più tardi.'
+        });
+      }
+    } catch (emailError) {
+      console.error('❌ Errore critico nell\'invio email:', emailError);
+      
+      // Fallback: restituisci il token per sviluppo/test
+      if (process.env.NODE_ENV === 'development' || !process.env.EMAIL_USER) {
+        console.log('⚠️ Modalità fallback: restituzione token per sviluppo');
+        res.json({
+          success: true,
+          message: 'Link di reset generato (modalità sviluppo). Usa il token per testare.',
+          resetToken: resetToken,
+          resetUrl: `${process.env.FRONTEND_URL || 'https://www.demos.community'}/reset-password-confirm?token=${resetToken}`
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Errore nell\'invio dell\'email. Riprova più tardi.'
+        });
+      }
     }
     
   } catch (error) {
