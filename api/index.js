@@ -355,6 +355,145 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// POST /api/auth/forgot-password - Richiesta reset password
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email richiesta'
+      });
+    }
+    
+    console.log('🔐 Richiesta reset password per:', email);
+    
+    // Verifica se l'utente esiste
+    const userQuery = 'SELECT id, nome, cognome FROM users WHERE email = $1';
+    const userResult = await pool.query(userQuery, [email]);
+    
+    if (userResult.rows.length === 0) {
+      // Per sicurezza, non rivelare se l'email esiste o meno
+      console.log('⚠️ Tentativo reset password per email non esistente:', email);
+      return res.json({
+        success: true,
+        message: 'Se l\'email esiste, riceverai un link per il reset della password'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Genera token di reset (valido per 1 ora)
+    const resetToken = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email,
+        type: 'password_reset'
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    
+    // Salva il token nel database (opzionale, per invalidazione)
+    await pool.query(
+      'UPDATE users SET reset_token = $1, reset_token_expires = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
+      [resetToken, user.id]
+    );
+    
+    // In produzione, qui invieresti una email con il link di reset
+    // Per ora, restituiamo il token (solo per sviluppo)
+    console.log('✅ Token reset generato per:', email);
+    
+    res.json({
+      success: true,
+      message: 'Link di reset inviato alla tua email',
+      // Rimuovi questo in produzione
+      resetToken: process.env.NODE_ENV === 'development' ? resetToken : undefined
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella richiesta reset password:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella richiesta reset password'
+    });
+  }
+});
+
+// POST /api/auth/reset-password - Reset password con token
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token e nuova password richiesti'
+      });
+    }
+    
+    console.log('🔐 Tentativo reset password con token');
+    
+    // Verifica il token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+      
+      // Verifica che sia un token di reset password
+      if (decoded.type !== 'password_reset') {
+        return res.status(400).json({
+          success: false,
+          error: 'Token non valido per reset password'
+        });
+      }
+    } catch (jwtError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token non valido o scaduto'
+      });
+    }
+    
+    // Verifica che l'utente esista ancora
+    const userQuery = 'SELECT id FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [decoded.userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    // Il token JWT ha già la scadenza incorporata, non serve verificare il database
+    // La verifica jwt.verify() sopra gestisce già la scadenza
+    
+    // Hash della nuova password
+    const saltRounds = 10;
+    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+    
+    // Aggiorna la password
+    await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2',
+      [newPasswordHash, decoded.userId]
+    );
+    
+    console.log('✅ Password aggiornata per utente:', decoded.userId);
+    
+    res.json({
+      success: true,
+      message: 'Password aggiornata con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel reset password:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel reset password'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER CAPO DI STATO =====
 
 // GET /api/capo-stato - Ottieni tutti i voti per il capo di stato
@@ -2807,8 +2946,8 @@ app.get('/api/notifiche', verifyToken, async (req, res) => {
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     const query = `
-      SELECT * FROM notifiche 
-      WHERE user_id = $1
+      SELECT * FROM notifiche_utente 
+      WHERE utente_id = $1
       ORDER BY created_at DESC
       LIMIT 50
     `;
@@ -2834,13 +2973,11 @@ app.post('/api/notifiche/preferenze', verifyToken, validateInput(['preferenze'])
     const { preferenze } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
-    // Salva preferenze
-    for (const [tipo, attivo] of Object.entries(preferenze)) {
-      await pool.query(
-        'INSERT INTO preferenze_notifiche (user_id, tipo, attivo, created_at) VALUES ($1, $2, $3, NOW()) ON CONFLICT (user_id, tipo) DO UPDATE SET attivo = $3',
-        [userId, tipo, attivo]
-      );
-    }
+    // Aggiorna le preferenze nella tabella users
+    await pool.query(
+      'UPDATE users SET preferenze_notifiche = $1, updated_at = NOW() WHERE id = $2',
+      [JSON.stringify(preferenze), userId]
+    );
     
     res.json({ success: true, message: 'Preferenze notifiche salvate' });
   } catch (error) {
@@ -2858,8 +2995,8 @@ app.post('/api/notifiche', verifyToken, validateInput(['user_id', 'titolo', 'mes
     const { user_id, titolo, messaggio, tipo } = req.body;
     
     const query = `
-      INSERT INTO notifiche (user_id, titolo, messaggio, tipo, created_at)
-      VALUES ($1, $2, $3, $4, NOW())
+      INSERT INTO notifiche_utente (id, utente_id, titolo, messaggio, tipo, created_at)
+      VALUES (gen_random_uuid()::text, $1, $2, $3, $4, NOW())
       RETURNING *
     `;
     
@@ -2883,7 +3020,7 @@ app.put('/api/notifiche/:id/read', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    await pool.query('UPDATE notifiche SET letta = true WHERE id = $1', [id]);
+    await pool.query('UPDATE notifiche_utente SET status = \'letta\', data_lettura = NOW() WHERE id = $1', [id]);
     
     res.json({ success: true, message: 'Notifica segnata come letta' });
   } catch (error) {
