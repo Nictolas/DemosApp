@@ -458,21 +458,22 @@ function onInvalid(errors: any) {
                   <FormLabel className="required-field">Data di Nascita</FormLabel>
                   <div className="max-w-full flex flex-col items-center">
                     <div className="w-full flex justify-center">
-                      <Picker
-                        value={{
-                          day: birthDay || days[0],
-                          month: birthMonth || months[0].value,
-                          year: birthYear || years[0],
-                        }}
-                        onChange={(val: { day: string; month: string; year: string }) => {
-                          setBirthDay(val.day);
-                          setBirthMonth(val.month);
-                          setBirthYear(val.year);
-                        }}
-                        height={120}
-                        itemHeight={36}
-                        wheelMode="natural"
-                      >
+                      <div className="bg-white rounded-md border border-gray-200 p-2">
+                        <Picker
+                          value={{
+                            day: birthDay || days[0],
+                            month: birthMonth || months[0].value,
+                            year: birthYear || years[0],
+                          }}
+                          onChange={(val: { day: string; month: string; year: string }) => {
+                            setBirthDay(val.day);
+                            setBirthMonth(val.month);
+                            setBirthYear(val.year);
+                          }}
+                          height={120}
+                          itemHeight={36}
+                          wheelMode="natural"
+                        >
                         <Picker.Column name="day">
                           {days.map((d) => (
                             <Picker.Item key={d} value={d}>{d}</Picker.Item>
