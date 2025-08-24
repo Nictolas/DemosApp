@@ -17,7 +17,7 @@ async function testAllEndpoints() {
     { path: '/api/health', method: 'GET', description: 'Health check' },
     { path: '/api/test-cors', method: 'GET', description: 'Test CORS GET' },
     { path: '/api/test-cors', method: 'POST', description: 'Test CORS POST', body: { test: 'data' } },
-    { path: '/api/test-nodemailer', method: 'GET', description: 'Test Nodemailer' },
+    { path: '/api/test-resend', method: 'GET', description: 'Test Resend' },
     { path: '/api/auth/forgot-password', method: 'POST', description: 'Forgot password', body: { email: 'test@example.com' } }
   ];
   
@@ -48,10 +48,14 @@ async function testAllEndpoints() {
           const data = await response.json();
           console.log(`   ✅ Success: ${data.message || data.success}`);
           
-          if (endpoint.path === '/api/auth/forgot-password' && data.resetToken) {
-            console.log(`   🔑 Token ricevuto: ${data.resetToken.substring(0, 20)}...`);
-            console.log(`   🔗 Reset URL: ${data.resetUrl}`);
-          }
+                     if (endpoint.path === '/api/auth/forgot-password' && data.resetToken) {
+             console.log(`   🔑 Token ricevuto: ${data.resetToken.substring(0, 20)}...`);
+             console.log(`   🔗 Reset URL: ${data.resetUrl}`);
+           }
+           
+           if (endpoint.path === '/api/test-resend') {
+             console.log(`   📧 Resend configurato: ${data.resend?.available ? 'Sì' : 'No'}`);
+           }
         } catch (parseError) {
           console.log(`   ⚠️ Response non JSON: ${response.statusText}`);
         }
