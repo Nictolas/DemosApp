@@ -15,15 +15,15 @@ import { ITALY_DATA } from "@/data/italyData";
 import { apiRequest } from "@/lib/queryClient";
 import CodiceFiscaleInput from "./CodiceFiscaleInput"; 
 
-// Form schema with validation
-const formSchema = z.object({
-  nome: z.string().min(1, "Il nome è obbligatorio"),
-  cognome: z.string().min(1, "Il cognome è obbligatorio"),
-  codice_fiscale: z.string().min(16, "Il codice fiscale deve essere di 16 caratteri").max(16, "Il codice fiscale deve essere di 16 caratteri"),
-  email: z.string().email("Email non valida").min(1, "L'email è obbligatoria"),
-  data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
-  genere: z.string().min(1, "Il genere è obbligatorio"),
-  cittadinanza: z.string().min(1, "La cittadinanza è obbligatoria"),
+ // Form schema with validation
+ const formSchema = z.object({
+   nome: z.string().min(1, "Il nome è obbligatorio"),
+   cognome: z.string().min(1, "Il cognome è obbligatorio"),
+   codice_fiscale: z.string().min(16, "Il codice fiscale deve essere di 16 caratteri").max(16, "Il codice fiscale deve essere di 16 caratteri").min(1, "Il codice fiscale è obbligatorio"),
+   email: z.string().email("Email non valida").min(1, "L'email è obbligatoria"),
+   data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
+   genere: z.string().min(1, "Il genere è obbligatorio"),
+   cittadinanza: z.string().min(1, "La cittadinanza è obbligatoria"),
   
   paese_residenza: z.string().min(1, "Il paese di residenza è obbligatorio"),
   regione_residenza: z.string().min(1, "La regione di residenza è obbligatoria"),
@@ -347,22 +347,22 @@ const { mutate, isPending } = useMutation({
     form.setValue("comune_candidatura", "");
   }, [form.watch("provincia_candidatura")]);
   
-  // Form submission handler
-  const onSubmit = (values: FormValues) => {
-    // Prepara i dati per l'invio
-    const formData = {
-      ...values,
-      // Assicurati che il codice fiscale sia in maiuscolo
-      codice_fiscale: values.codice_fiscale ? values.codice_fiscale.toUpperCase() : undefined,
-      // Assicurati che l'email sia presente
-      email: values.email,
-      // Assicurati che la password sia presente
-      password: values.password
-    };
-    
-    console.log('Dati form da inviare:', formData);
-    mutate(formData);
-  };
+     // Form submission handler
+   const onSubmit = (values: FormValues) => {
+     // Prepara i dati per l'invio
+     const formData = {
+       ...values,
+       // Assicurati che il codice fiscale sia in maiuscolo
+       codice_fiscale: values.codice_fiscale.toUpperCase(),
+       // Assicurati che l'email sia presente
+       email: values.email,
+       // Assicurati che la password sia presente
+       password: values.password
+     };
+     
+     console.log('Dati form da inviare:', formData);
+     mutate(formData);
+   };
   
 function onInvalid(errors: any) {
   console.error("Errori di validazione del form:", errors);
@@ -505,7 +505,7 @@ function onInvalid(errors: any) {
                   <FormLabel className="required-field">Genere</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona genere" />
                       </SelectTrigger>
                     </FormControl>
@@ -529,7 +529,7 @@ function onInvalid(errors: any) {
                   <FormLabel className="required-field">Cittadinanza</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona cittadinanza" />
                       </SelectTrigger>
                     </FormControl>
@@ -650,7 +650,7 @@ function onInvalid(errors: any) {
                   <FormLabel className="required-field">Paese di Residenza</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona paese" />
                       </SelectTrigger>
                     </FormControl>
@@ -676,7 +676,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("paese_residenza") || regioniResidenza.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("paese_residenza") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("paese_residenza") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima il paese" />
                       </SelectTrigger>
                     </FormControl>
@@ -706,7 +706,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("regione_residenza") || provinceResidenza.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("regione_residenza") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("regione_residenza") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima la regione" />
                       </SelectTrigger>
                     </FormControl>
@@ -736,7 +736,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("provincia_residenza") || comuniResidenza.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("provincia_residenza") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("provincia_residenza") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima la provincia" />
                       </SelectTrigger>
                     </FormControl>
@@ -768,7 +768,7 @@ function onInvalid(errors: any) {
                   <FormLabel>Paese di Elezione</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona paese" />
                       </SelectTrigger>
                     </FormControl>
@@ -794,7 +794,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("paese_elezione") || regioniElezione.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("paese_elezione") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("paese_elezione") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima il paese" />
                       </SelectTrigger>
                     </FormControl>
@@ -824,7 +824,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("regione_elezione") || provinceElezione.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("regione_elezione") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("regione_elezione") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima la regione" />
                       </SelectTrigger>
                     </FormControl>
@@ -854,7 +854,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("provincia_elezione") || comuniElezione.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("provincia_elezione") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("provincia_elezione") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima la provincia" />
                       </SelectTrigger>
                     </FormControl>
@@ -886,7 +886,7 @@ function onInvalid(errors: any) {
                   <FormLabel>Paese di Candidatura</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona paese" />
                       </SelectTrigger>
                     </FormControl>
@@ -912,7 +912,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("paese_candidatura") || regioniCandidatura.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("paese_candidatura") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("paese_candidatura") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima il paese" />
                       </SelectTrigger>
                     </FormControl>
@@ -942,7 +942,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("regione_candidatura") || provinceCandidatura.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("regione_candidatura") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("regione_candidatura") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima la regione" />
                       </SelectTrigger>
                     </FormControl>
@@ -972,7 +972,7 @@ function onInvalid(errors: any) {
                     disabled={!form.watch("provincia_candidatura") || comuniCandidatura.length === 0}
                   >
                     <FormControl>
-                      <SelectTrigger className={!form.watch("provincia_candidatura") ? "bg-gray-100" : ""}>
+                      <SelectTrigger className={`bg-white ${!form.watch("provincia_candidatura") ? "opacity-50" : ""}`}>
                         <SelectValue placeholder="Seleziona prima la provincia" />
                       </SelectTrigger>
                     </FormControl>
@@ -1004,7 +1004,7 @@ function onInvalid(errors: any) {
                   <FormLabel className="required-field">Ruolo</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona ruolo" />
                       </SelectTrigger>
                     </FormControl>
@@ -1029,7 +1029,7 @@ function onInvalid(errors: any) {
                   <FormLabel>Grado Elezione</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona grado" />
                       </SelectTrigger>
                     </FormControl>
@@ -1054,7 +1054,7 @@ function onInvalid(errors: any) {
                   <FormLabel>Grado Candidatura</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona grado" />
                       </SelectTrigger>
                     </FormControl>
