@@ -3,6 +3,7 @@
   "scripts": {
     "check-users-structure": "node check-users-table-structure.cjs",
     "add-candidature-columns": "node add-candidature-elezioni-columns.cjs",
+    "add-updated-at": "node add-updated-at-column.cjs",
     "migrate-candidature": "node migrate-candidature-elezioni.cjs"
   },
   "dependencies": {

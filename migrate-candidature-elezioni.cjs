@@ -1,10 +1,11 @@
+require('dotenv').config();
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 const fs = require('fs');
 
 // Configurazione Neon PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/database'
+  connectionString: process.env.DATABASE_URL
 });
 
 // Configurazione Firestore
