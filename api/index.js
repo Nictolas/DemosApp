@@ -20,10 +20,10 @@ const limiter = rateLimit({
 
 const app = express();
 
-// Middleware
+// Middleware CORS migliorato per produzione
 app.use(cors({
   origin: function (origin, callback) {
-    // Permetti richieste senza origin (es. Postman, curl)
+    // Permetti richieste senza origin (es. Postman, curl, server-to-server)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
@@ -34,7 +34,11 @@ app.use(cors({
       'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
     ];
     
+    // Log per debug
+    console.log('🌐 CORS check - Origin:', origin);
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS allowed origin:', origin);
       callback(null, true);
     } else {
       console.log('🚫 CORS blocked origin:', origin);
@@ -42,27 +46,70 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
   preflightContinue: false,
-  optionsSuccessStatus: 204
+  optionsSuccessStatus: 204,
+  maxAge: 86400 // Cache preflight per 24 ore
 }));
 
-// Gestione richieste preflight OPTIONS
-app.options('*', cors());
-
-// Middleware per gestire CORS preflight
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
+// Gestione richieste preflight OPTIONS - Migliorata
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  console.log('🔄 OPTIONS preflight request from:', origin);
   
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
+  // Verifica se l'origin è permesso
+  const allowedOrigins = [
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000', 
+    'https://www.demos.community',
+    'https://demos.community',
+    'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    console.log('✅ OPTIONS preflight allowed for:', origin);
   } else {
-    next();
+    console.log('🚫 OPTIONS preflight blocked for:', origin);
   }
+  
+  res.sendStatus(200);
+});
+
+// Middleware per gestire CORS preflight - Migliorato
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Log per debug
+  if (req.method === 'OPTIONS') {
+    console.log('🔄 OPTIONS request handled by middleware');
+  }
+  
+  // Imposta sempre gli header CORS per le richieste effettive
+  if (origin) {
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000', 
+      'https://www.demos.community',
+      'https://demos.community',
+      'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Max-Age', '86400');
+    }
+  }
+  
+  next();
 });
 
 app.use(express.json());
@@ -174,6 +221,39 @@ const validateInput = (requiredFields) => {
     next();
   };
 };
+
+// ===== ENDPOINTS DI TEST =====
+
+// GET /api/test-cors - Test endpoint per verificare CORS
+app.get('/api/test-cors', (req, res) => {
+  console.log('🧪 Test CORS endpoint chiamato');
+  console.log('🌐 Origin header:', req.headers.origin);
+  console.log('🔍 User-Agent:', req.headers['user-agent']);
+  
+  res.json({
+    success: true,
+    message: 'CORS test endpoint funzionante',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    method: req.method
+  });
+});
+
+// POST /api/test-cors - Test endpoint POST per verificare CORS
+app.post('/api/test-cors', (req, res) => {
+  console.log('🧪 Test CORS POST endpoint chiamato');
+  console.log('🌐 Origin header:', req.headers.origin);
+  console.log('📦 Body:', req.body);
+  
+  res.json({
+    success: true,
+    message: 'CORS POST test endpoint funzionante',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    method: req.method,
+    body: req.body
+  });
+});
 
 // ===== ENDPOINTS PER UTENTI =====
 
