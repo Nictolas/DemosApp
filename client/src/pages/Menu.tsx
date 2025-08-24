@@ -122,10 +122,10 @@ export default function Menu() {
                   <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                 </svg>
                 <div className="relative z-10 flex flex-col items-center justify-center h-full">
-                  <span className="relative flex items-center justify-center w-12 h-12 mb-2">
-                    <Vote className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                    <Vote className="h-6 w-6 text-yellow-600 relative z-10" />
-                  </span>
+                                     <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+                     <BarChart2 className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                     <BarChart2 className="h-6 w-6 text-yellow-600 relative z-10" />
+                   </span>
                   <div className="text-gray-700 font-semibold text-lg select-none">Elezioni</div>
                 </div>
               </button>
