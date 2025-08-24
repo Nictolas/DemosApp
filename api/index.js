@@ -167,6 +167,22 @@ const auditLog = (req, res, next) => {
 
 app.use(auditLog);
 
+// Endpoint root per verificare che l'API sia attiva
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'DEMOS Community API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      testCors: '/api/test-cors',
+      testNodemailer: '/api/test-nodemailer',
+      forgotPassword: '/api/auth/forgot-password'
+    }
+  });
+});
+
 // Configurazione database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -223,6 +239,18 @@ const validateInput = (requiredFields) => {
 };
 
 // ===== ENDPOINTS DI TEST =====
+
+// GET /api/health - Health check endpoint
+app.get('/api/health', (req, res) => {
+  console.log('🏥 Health check endpoint chiamato');
+  res.json({
+    success: true,
+    message: 'API funzionante',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // GET /api/test-cors - Test endpoint per verificare CORS
 app.get('/api/test-cors', (req, res) => {
