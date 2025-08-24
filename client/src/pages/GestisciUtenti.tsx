@@ -182,8 +182,8 @@ export default function GestisciUtenti() {
       const pendingUsersData = await pendingUsersResponse.json();
       return { utenti: allUsersData, pendingUsers: pendingUsersData };
     },
-    // Correggo la condizione - uso user.role che è 'Admin'
-    enabled: !!user && user.role === 'Admin',
+    // Uso user.ruolo che è il campo restituito dall'API
+    enabled: !!user && user.ruolo === 'Admin',
   });
 
   // Estrai i dati con fallback sicuro e logging per debug
