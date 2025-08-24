@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * TEST CONFIGURAZIONE CORS E NODEMAILER
- * Testa la configurazione CORS dell'API e verifica Nodemailer
+ * TEST CONFIGURAZIONE CORS E RESEND
+ * Testa la configurazione CORS dell'API e verifica Resend
  */
 
 const API_BASE = process.env.API_BASE || 'https://demos-c7k0.onrender.com';
 
-async function testCORSAndNodemailer() {
-  console.log('🧪 TEST CONFIGURAZIONE CORS E NODEMAILER');
-  console.log('==========================================');
+async function testCORSAndResend() {
+  console.log('🧪 TEST CONFIGURAZIONE CORS E RESEND');
+  console.log('=====================================');
   console.log(`API Base: ${API_BASE}`);
   
   try {
@@ -60,9 +60,9 @@ async function testCORSAndNodemailer() {
       console.log('❌ POST test fallito');
     }
     
-    // 3. Test Nodemailer
-    console.log('\n📡 3. Test Nodemailer /api/test-nodemailer...');
-    const nodemailerResponse = await fetch(`${API_BASE}/api/test-nodemailer`, {
+    // 3. Test Resend
+    console.log('\n📡 3. Test Resend /api/test-resend...');
+    const resendResponse = await fetch(`${API_BASE}/api/test-resend`, {
       method: 'GET',
       headers: {
         'Origin': 'https://www.demos.community',
@@ -70,23 +70,23 @@ async function testCORSAndNodemailer() {
       }
     });
     
-    console.log('Status:', nodemailerResponse.status);
+    console.log('Status:', resendResponse.status);
     
-    if (nodemailerResponse.ok) {
-      const nodemailerData = await nodemailerResponse.json();
-      console.log('✅ Nodemailer test riuscito:', nodemailerData.message);
-      console.log('📧 Status Nodemailer:', nodemailerData.nodemailer);
-      console.log('🌍 Environment:', nodemailerData.environment);
+    if (resendResponse.ok) {
+      const resendData = await resendResponse.json();
+      console.log('✅ Resend test riuscito:', resendData.message);
+      console.log('📧 Status Resend:', resendData.resend);
+      console.log('🌍 Environment:', resendData.environment);
       
-      if (!nodemailerData.nodemailer.available) {
-        console.log('⚠️ ATTENZIONE: Nodemailer non è disponibile!');
-      } else if (typeof nodemailerData.nodemailer.createTransporter !== 'function') {
-        console.log('⚠️ ATTENZIONE: createTransporter non è una funzione!');
+      if (!resendData.resend.available) {
+        console.log('⚠️ ATTENZIONE: Resend non è disponibile!');
+      } else if (typeof resendData.resend.emails?.send !== 'function') {
+        console.log('⚠️ ATTENZIONE: resend.emails.send non è una funzione!');
       } else {
-        console.log('✅ Nodemailer è configurato correttamente');
+        console.log('✅ Resend è configurato correttamente');
       }
     } else {
-      console.log('❌ Nodemailer test fallito');
+      console.log('❌ Resend test fallito');
     }
     
     // 4. Test endpoint forgot-password
@@ -139,4 +139,4 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-testCORSAndNodemailer();
+testCORSAndResend();

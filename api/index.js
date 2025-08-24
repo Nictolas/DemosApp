@@ -3,7 +3,7 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 require('dotenv').config();
 
 // Rate limiting semplice
@@ -177,7 +177,7 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/api/health',
       testCors: '/api/test-cors',
-      testNodemailer: '/api/test-nodemailer',
+              testResend: '/api/test-resend',
       forgotPassword: '/api/auth/forgot-password'
     }
   });
@@ -283,38 +283,38 @@ app.post('/api/test-cors', (req, res) => {
   });
 });
 
-// GET /api/test-nodemailer - Test endpoint per verificare Nodemailer
-app.get('/api/test-nodemailer', (req, res) => {
-  console.log('🧪 Test Nodemailer endpoint chiamato');
+// GET /api/test-resend - Test endpoint per verificare Resend
+app.get('/api/test-resend', (req, res) => {
+  console.log('🧪 Test Resend endpoint chiamato');
   
   try {
-    // Verifica disponibilità Nodemailer
-    const nodemailerStatus = {
-      available: typeof nodemailer !== 'undefined',
-      type: typeof nodemailer,
-      methods: nodemailer ? Object.keys(nodemailer) : [],
-      createTransport: typeof nodemailer?.createTransport,
-      version: nodemailer?.version || 'N/A'
+    // Verifica disponibilità Resend
+    const resendStatus = {
+      available: typeof resend !== 'undefined',
+      type: typeof resend,
+      methods: resend ? Object.keys(resend) : [],
+      emailsSend: typeof resend?.emails?.send,
+      version: resend?.version || 'N/A'
     };
     
-    console.log('📧 Status Nodemailer:', nodemailerStatus);
+    console.log('📧 Status Resend:', resendStatus);
     
     res.json({
       success: true,
-      message: 'Test Nodemailer completato',
+      message: 'Test Resend completato',
       timestamp: new Date().toISOString(),
-      nodemailer: nodemailerStatus,
+      resend: resendStatus,
       environment: {
         NODE_ENV: process.env.NODE_ENV,
-        EMAIL_USER: process.env.EMAIL_USER ? 'Configurato' : 'Non configurato',
-        EMAIL_FROM: process.env.EMAIL_FROM || 'Non configurato'
+        RESEND_API_KEY: process.env.RESEND_API_KEY ? 'Configurato' : 'Non configurato',
+        EMAIL_FROM: process.env.EMAIL_FROM || 'onboarding@resend.dev'
       }
     });
   } catch (error) {
-    console.error('❌ Errore nel test Nodemailer:', error);
+    console.error('❌ Errore nel test Resend:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel test Nodemailer',
+      error: 'Errore nel test Resend',
       details: error.message
     });
   }
@@ -501,97 +501,62 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// Configurazione email per reset password
-const createTransporter = () => {
-  try {
-    // Se siamo in produzione, usa le credenziali reali
-    if (process.env.NODE_ENV === 'production') {
-      console.log('📧 Configurazione email per PRODUZIONE');
-      return nodemailer.createTransport({
-        service: 'gmail', // o altro servizio
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD
-        }
-      });
-    }
-    
-    // In sviluppo, usa un servizio di test
-    console.log('📧 Configurazione email per SVILUPPO (Ethereal)');
-    return nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.ETHEREAL_USER || 'test@ethereal.email',
-        pass: process.env.ETHEREAL_PASS || 'test123'
-      }
-    });
-  } catch (error) {
-    console.error('❌ Errore nella creazione transporter email:', error);
-    throw error;
-  }
-};
+// Configurazione Resend per reset password
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Funzione per inviare email di reset password
-const sendResetPasswordEmail = async (email, resetToken, userName) => {
+const sendResetPasswordEmail = async (email, resetToken, resetUrl) => {
   try {
-    console.log('📧 Tentativo invio email per:', email);
-    console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+    console.log('📧 Tentativo invio email con Resend per:', email);
     
-    // Verifica che nodemailer sia disponibile
-    if (typeof nodemailer === 'undefined') {
-      throw new Error('Nodemailer non è disponibile');
+    // Verifica che Resend sia disponibile
+    if (typeof resend === 'undefined') {
+      throw new Error('Resend non è disponibile');
     }
     
-    if (typeof nodemailer.createTransport !== 'function') {
-      throw new Error('nodemailer.createTransport non è una funzione');
+    if (typeof resend.emails?.send !== 'function') {
+      throw new Error('resend.emails.send non è una funzione');
     }
     
-    console.log('✅ Nodemailer disponibile, creazione transporter...');
-    const transporter = createTransporter();
-    
-    // Crea il link di reset
-    const resetUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/reset-password-confirm?token=${resetToken}`;
-    console.log('🔗 Reset URL generato:', resetUrl);
-    
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || 'noreply@demos.community',
+    const emailData = {
+      from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
       to: email,
-      subject: 'Reset Password - DEMOS Community',
+      subject: 'Reset Password - DEMOS',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Reset Password Richiesto</h2>
-          <p>Ciao ${userName},</p>
-          <p>Hai richiesto il reset della password per il tuo account DEMOS Community.</p>
-          <p>Per procedere con il reset, clicca sul link qui sotto:</p>
+          <h2 style="color: #2563eb;">Reset Password - DEMOS</h2>
+          <p>Ciao!</p>
+          <p>Hai richiesto il reset della password per il tuo account DEMOS.</p>
+          <p>Per procedere, clicca sul link qui sotto:</p>
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetUrl}" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+               style="background-color: #2563eb; color: white; padding: 12px 24px; 
+                      text-decoration: none; border-radius: 6px; display: inline-block;">
               Reset Password
             </a>
           </div>
+          <p>Oppure copia e incolla questo link nel browser:</p>
+          <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
+          <p>Questo link scadrà tra 1 ora.</p>
           <p>Se non hai richiesto tu questo reset, ignora questa email.</p>
-          <p>Il link è valido per 1 ora.</p>
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 14px;">
-            DEMOS Community<br>
-            <a href="https://www.demos.community">www.demos.community</a>
+            DEMOS - Piattaforma di democrazia partecipativa
           </p>
         </div>
       `
     };
     
-    console.log('📤 Invio email...');
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email di reset inviata con successo:', info.messageId);
-    return true;
+    console.log('📤 Invio email con Resend...');
+    const result = await resend.emails.send(emailData);
+    
+    console.log('✅ Email inviata con successo tramite Resend');
+    console.log('📧 Result:', result);
+    
+    return { success: true, result };
+    
   } catch (error) {
-    console.error('❌ Errore nell\'invio email:', error);
-    console.error('❌ Stack trace:', error.stack);
-    console.error('❌ Nodemailer type:', typeof nodemailer);
-    console.error('❌ Nodemailer methods:', Object.keys(nodemailer || {}));
-    return false;
+    console.error('❌ Errore nell\'invio email con Resend:', error);
+    throw error;
   }
 };
 
@@ -641,16 +606,15 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       [resetToken, user.id]
     );
     
-    // Invia email di reset
+    // Invia email di reset con Resend
     try {
-      const emailSent = await sendResetPasswordEmail(
-        email, 
-        resetToken, 
-        user.nome || 'Utente'
-      );
+      const resetUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/reset-password-confirm?token=${resetToken}`;
+      console.log('🔗 Reset URL generato:', resetUrl);
       
-      if (emailSent) {
-        console.log('✅ Email di reset inviata con successo per:', email);
+      const emailResult = await sendResetPasswordEmail(email, resetToken, resetUrl);
+      
+      if (emailResult.success) {
+        console.log('✅ Email di reset inviata con successo tramite Resend per:', email);
         res.json({
           success: true,
           message: 'Link di reset inviato alla tua email. Controlla la casella di posta.'
@@ -663,10 +627,10 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         });
       }
     } catch (emailError) {
-      console.error('❌ Errore critico nell\'invio email:', emailError);
+      console.error('❌ Errore critico nell\'invio email con Resend:', emailError);
       
       // Fallback: restituisci il token per sviluppo/test
-      if (process.env.NODE_ENV === 'development' || !process.env.EMAIL_USER) {
+      if (process.env.NODE_ENV === 'development' || !process.env.RESEND_API_KEY) {
         console.log('⚠️ Modalità fallback: restituzione token per sviluppo');
         res.json({
           success: true,
