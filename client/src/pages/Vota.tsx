@@ -25,14 +25,7 @@ export default function Vota() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => window.location.href = "/menu"}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Torna al Menu
-          </Button>
+          {/* Header vuoto - pulsante "Torna al Menu" rimosso */}
         </div>
 
         {/* Titolo */}
