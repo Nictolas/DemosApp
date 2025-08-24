@@ -5,12 +5,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Loader2, Settings, Shield, User, Bell, Lock, FileText, LogOut, Home, MessageSquare, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { getApiUrl } from "@/lib/api-config";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Impostazioni() {
   const { user, isLoading, logoutMutation } = useAuth();
+  const [, setLocation] = useLocation();
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -48,6 +60,8 @@ export default function Impostazioni() {
     setIsLoggingOut(true);
     try {
       await logoutMutation.mutateAsync();
+      // Reindirizza alla home page dopo il logout
+      setLocation("/");
     } catch (error) {
       console.error('Errore logout:', error);
       toast({
@@ -290,7 +304,7 @@ export default function Impostazioni() {
               <Button 
                 variant="destructive" 
                 className="w-full"
-                onClick={handleLogout}
+                onClick={() => setShowLogoutDialog(true)}
                 disabled={isLoggingOut}
               >
                 {isLoggingOut ? (
@@ -309,6 +323,27 @@ export default function Impostazioni() {
           </Card>
         </div>
       </div>
+
+      {/* Dialog di conferma logout */}
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vuoi uscire?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler effettuare il logout? Dovrai effettuare nuovamente l'accesso per utilizzare l'applicazione.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleLogout}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Conferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
