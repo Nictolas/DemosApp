@@ -53,7 +53,7 @@ export default function Menu() {
           <Card className="w-full max-w-4xl mx-auto flex-1 flex flex-col">
             <CardHeader className="text-center flex-shrink-0 pt-6 pb-4">
               <img 
-                src="https://demos.it/icona.png" 
+                src="/icona.png" 
                 alt="Logo Demos" 
                 className={`w-20 h-20 mx-auto mb-3 ${isAdmin ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
                 onClick={isAdmin ? () => setLocation("/gestisci") : undefined}
