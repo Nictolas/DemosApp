@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth-neon";
+import { useToast } from "@/hooks/use-toast";
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +56,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  const { user, isLoading, loginMutation, registerMutation } = useAuth();
+  const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail } = useAuth();
+  const { toast } = useToast();
 
   // Stato per mostrare/nascondere la password nel login
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -389,7 +391,34 @@ export default function AuthPage() {
                     )}
                   </Button>
                   {loginMutation.error && (
-                    loginMutation.error.message.includes("auth/invalid-credential") ? (
+                    (loginMutation.error as any).requiresVerification ? (
+                      <div className="flex flex-col items-center mt-2">
+                        <span className="text-red-600 text-sm mb-2">Devi confermare la tua email prima di accedere.</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-fit"
+                          onClick={async () => {
+                            try {
+                              await resendVerificationEmail((loginMutation.error as any).email);
+                              toast({ 
+                                title: "Email inviata!", 
+                                description: "Nuovo link di verifica inviato alla tua email",
+                                variant: "default"
+                              });
+                            } catch (error) {
+                              toast({ 
+                                title: "Errore", 
+                                description: "Impossibile inviare l'email di verifica. Riprova più tardi.",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
+                        >
+                          Reinvia email di verifica
+                        </Button>
+                      </div>
+                    ) : loginMutation.error.message.includes("auth/invalid-credential") ? (
                       <div className="flex flex-col items-center mt-2">
                         <span className="text-red-600 text-sm mb-2">Credenziali non valide.</span>
                         <Button
@@ -1033,6 +1062,34 @@ export default function AuthPage() {
                   </Button>
                   {registerMutation.error && (
                     <div className="text-red-600 text-sm mt-2">{registerMutation.error.message || "Errore di registrazione"}</div>
+                  )}
+                  {registerMutation.data && (registerMutation.data as any).requiresVerification && (
+                    <div className="flex flex-col items-center mt-2">
+                      <span className="text-green-600 text-sm mb-2">Registrazione completata! Controlla la tua email per confermare l'account.</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-fit"
+                        onClick={async () => {
+                          try {
+                            await resendVerificationEmail(registerForm.getValues().email);
+                            toast({ 
+                              title: "Email inviata!", 
+                              description: "Nuovo link di verifica inviato alla tua email",
+                              variant: "default"
+                            });
+                          } catch (error) {
+                            toast({ 
+                              title: "Errore", 
+                              description: "Impossibile inviare l'email di verifica. Riprova più tardi.",
+                              variant: "destructive"
+                              });
+                          }
+                        }}
+                      >
+                        Reinvia email di verifica
+                      </Button>
+                    </div>
                   )}
                 </form>
               </Form>

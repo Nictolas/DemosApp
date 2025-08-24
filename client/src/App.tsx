@@ -69,6 +69,7 @@ import Sondaggi from "@/pages/Sondaggi";
 import StatisticheOpinione from "@/pages/StatisticheOpinione";
 import ResetPasswordPage from "@/pages/reset-password";
 import ResetPasswordConfirmPage from "@/pages/reset-password-confirm";
+import VerifyEmail from "@/pages/verify-email";
 import Informazioni from "@/pages/Informazioni";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 // FCM rimosso - sostituito con sistema nativo
@@ -546,6 +547,13 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <ResetPasswordConfirmPage />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/verify-email">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <VerifyEmail />
           </PageTransition>
         )}
       </Route>

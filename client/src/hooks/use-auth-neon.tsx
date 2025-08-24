@@ -39,6 +39,7 @@ type AuthContextType = {
   loginMutation: UseMutationResult<User, Error, LoginCredentials>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<User, Error, RegisterData>;
+  resendVerificationEmail: (email: string) => Promise<any>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -115,12 +116,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(credentials),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login fallito');
-      }
-
       const result = await response.json();
+      
+      if (!response.ok) {
+        // Gestisci il caso speciale di email non verificata
+        if (result.requiresVerification) {
+          const verificationError = new Error(result.error || 'Email non verificata');
+          (verificationError as any).requiresVerification = true;
+          (verificationError as any).email = credentials.email;
+          throw verificationError;
+        }
+        
+        throw new Error(result.error || 'Login fallito');
+      }
       
       if (!result.success) {
         throw new Error(result.error || 'Login fallito');
@@ -192,32 +200,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(userData),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Registrazione fallita');
-      }
-
       const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Registrazione fallita');
+      }
       
       if (!result.success) {
         throw new Error(result.error || 'Registrazione fallita');
       }
 
-      // Salva il token
+      // Se la registrazione richiede verifica email, restituisci i dati ma non salvare il token
+      if (result.requiresVerification) {
+        return {
+          ...result.user,
+          requiresVerification: true
+        };
+      }
+
+      // Salva il token solo se la registrazione è completamente completata
       const userToken = result.token || 'mock_token_' + Date.now();
       localStorage.setItem('auth_token', userToken);
       setToken(userToken);
 
       return result.user;
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['user'], data);
-      toast({ 
-        title: "Registrazione completata!", 
-        description: `Benvenuto ${data.nome || data.email}`,
-        variant: "default"
-      });
-    },
+
     onError: (error) => {
       toast({ 
         title: "Registrazione fallita", 
@@ -225,9 +233,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         variant: "destructive" 
       });
     },
+    onSuccess: (data) => {
+      // Gestisci il caso di registrazione con verifica email richiesta
+      if ((data as any).requiresVerification) {
+        toast({ 
+          title: "Registrazione completata!", 
+          description: "Controlla la tua email per confermare l'account",
+          variant: "default"
+        });
+        return;
+      }
+      
+      // Solo se la registrazione è completamente completata (email verificata)
+      queryClient.setQueryData(['user'], data);
+      toast({ 
+        title: "Registrazione completata!", 
+        description: `Benvenuto ${data.nome || data.email}`,
+        variant: "default"
+      });
+    },
+    onSuccess: (data) => {
+      // Gestisci il caso di registrazione con verifica email richiesta
+      if ((data as any).requiresVerification) {
+        toast({ 
+          title: "Registrazione completata!", 
+          description: "Controlla la tua email per confermare l'account",
+          variant: "default"
+        });
+        return;
+      }
+      
+      // Solo se la registrazione è completamente completata (email verificata)
+      queryClient.setQueryData(['user'], data);
+      toast({ 
+        title: "Registrazione completata!", 
+        description: `Benvenuto ${data.nome || data.email}`,
+        variant: "default"
+      });
+    },
   });
 
   const isAuthenticated = !!user && !!token;
+
+  // Funzione per reinviare email di verifica
+  const resendVerificationEmail = async (email: string) => {
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.AUTH.RESEND_VERIFICATION), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Errore nel reinvio email');
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Errore nel reinvio email');
+      }
+
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
 
   return (
     <AuthContext.Provider 
@@ -238,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        resendVerificationEmail,
       }}
     >
       {children}

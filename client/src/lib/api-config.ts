@@ -21,7 +21,8 @@ export const API_CONFIG = {
     ME: '/auth/me',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
-    CHANGE_PASSWORD: '/auth/change-password'
+    CHANGE_PASSWORD: '/auth/change-password',
+    RESEND_VERIFICATION: '/auth/resend-verification'
   }
 } as const;
 
