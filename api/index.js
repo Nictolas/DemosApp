@@ -3773,15 +3773,59 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
       
       console.log(`🔍 DEBUG /api/sondaggi/stats - Elaborando opinione: ${questionId} - ${questionText}`);
       
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      let columnName;
+      switch (questionId) {
+        case 'energia_nucleare':
+          columnName = 'energia_nucleare';
+          break;
+        case 'sperimentazione_animale':
+          columnName = 'sperimentazione_animale';
+          break;
+        case 'legalizzazione_canapa':
+          columnName = 'legalizzazione_canapa';
+          break;
+        case 'caccia':
+          columnName = 'caccia';
+          break;
+        case 'eutanasia':
+          columnName = 'eutanasia';
+          break;
+        case 'carne_coltivata':
+          columnName = 'carne_coltivata';
+          break;
+        case 'cittadina_animale':
+          columnName = 'cittadina_animale';
+          break;
+        case 'nato':
+          columnName = 'nato';
+          break;
+        case 'matrimonio_gay':
+          columnName = 'matrimonio_gay';
+          break;
+        case 'salario_minimo':
+          columnName = 'salario_minimo';
+          break;
+        case 'case_chiuse':
+          columnName = 'case_chiuse';
+          break;
+        case 'omobitransfobia':
+          columnName = 'omobitransfobia';
+          break;
+        default:
+          console.log(`⚠️ DEBUG: ID opinione non mappato: ${questionId}`);
+          continue; // Salta questa opinione se non è mappata
+      }
+      
       // Query per contare le risposte per questa opinione
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_voti,
-          COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
-          COUNT(CASE WHEN ${questionId} = 'Astenuto' THEN 1 END) as astenuto
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
         FROM users 
-        WHERE ${questionId} IS NOT NULL
+        WHERE ${columnName} IS NOT NULL
       `;
       
       try {
@@ -3848,15 +3892,59 @@ app.get('/api/sondaggi', verifyToken, async (req, res) => {
       const questionId = opinione.id;
       const questionText = opinione.text;
       
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      let columnName;
+      switch (questionId) {
+        case 'energia_nucleare':
+          columnName = 'energia_nucleare';
+          break;
+        case 'sperimentazione_animale':
+          columnName = 'sperimentazione_animale';
+          break;
+        case 'legalizzazione_canapa':
+          columnName = 'legalizzazione_canapa';
+          break;
+        case 'caccia':
+          columnName = 'caccia';
+          break;
+        case 'eutanasia':
+          columnName = 'eutanasia';
+          break;
+        case 'carne_coltivata':
+          columnName = 'carne_coltivata';
+          break;
+        case 'cittadina_animale':
+          columnName = 'cittadina_animale';
+          break;
+        case 'nato':
+          columnName = 'nato';
+          break;
+        case 'matrimonio_gay':
+          columnName = 'matrimonio_gay';
+          break;
+        case 'salario_minimo':
+          columnName = 'salario_minimo';
+          break;
+        case 'case_chiuse':
+          columnName = 'case_chiuse';
+          break;
+        case 'omobitransfobia':
+          columnName = 'omobitransfobia';
+          break;
+        default:
+          console.log(`⚠️ DEBUG: ID opinione non mappato: ${questionId}`);
+          continue; // Salta questa opinione se non è mappata
+      }
+      
       // Query per contare le risposte per questa opinione
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_voti,
-          COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
-          COUNT(CASE WHEN ${questionId} = 'Astenuto' THEN 1 END) as astenuto
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
         FROM users 
-        WHERE ${questionId} IS NOT NULL
+        WHERE ${columnName} IS NOT NULL
       `;
       
       try {
