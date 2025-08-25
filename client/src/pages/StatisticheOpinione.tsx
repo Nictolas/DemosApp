@@ -3,19 +3,17 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, BarChart as BarChartIcon, MapPin, Users, TrendingUp } from "lucide-react";
+import { Loader2, ArrowLeft, BarChart as BarChartIcon, Users, TrendingUp } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, Legend, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
-const COLORS = ['#00C49F', '#FF8042', '#FFBB28']; // Favorevole, Contrario, Astenuto
+const COLORS = ['#10B981', '#EF4444', '#FCD34D', '#6B7280']; // Favorevole, Contrario, Indeciso, Astenuto
 
-// Mappa delle regioni italiane
+// Mappa delle regioni italiane (come in Sondaggi.tsx)
 const REGIONI = [
-  'Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna',
-  'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche',
-  'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana',
-  'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'
+  'Lombardia', 'Lazio', 'Toscana', 'Veneto', 'Piemonte', 
+  'Sicilia', 'Puglia', 'Campania', 'Emilia-Romagna', 'Liguria'
 ];
 
 export default function StatisticheOpinione() {
@@ -26,13 +24,38 @@ export default function StatisticheOpinione() {
   const pathParts = window.location.pathname.split('/');
   const opinionId = pathParts[pathParts.length - 1];
 
+  // Query per statistiche generali
   const { data, isLoading, isError } = useQuery({
     queryKey: ['opinioneStats', opinionId],
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}`);
       if (!response.ok) throw new Error("Errore nel caricamento delle statistiche.");
       const result = await response.json();
-      return result.data; // Estrai i dati dalla risposta
+      return result.data;
+    },
+    enabled: !!user && !!opinionId,
+  });
+
+  // Query per statistiche per genere
+  const { data: genereData } = useQuery({
+    queryKey: ['opinioneStatsGenere', opinionId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/genere`);
+      if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!user && !!opinionId,
+  });
+
+  // Query per statistiche per età
+  const { data: etaData } = useQuery({
+    queryKey: ['opinioneStatsEta', opinionId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/eta`);
+      if (!response.ok) throw new Error("Errore nel caricamento statistiche età.");
+      const result = await response.json();
+      return result.data;
     },
     enabled: !!user && !!opinionId,
   });
@@ -47,41 +70,66 @@ export default function StatisticheOpinione() {
 
   const stats = data?.stats || {};
   const questionText = data?.questionText || 'Opinione';
+  const totaleUtenti = data?.totaleUtenti || 0;
+
+  // Calcola il totale voti correttamente (solo chi ha risposto)
+  const totalVotes = (stats.favorevole || 0) + (stats.contrario || 0) + (stats.indeciso || 0);
 
   const pieData = [
     { name: 'Favorevole', value: stats.favorevole || 0 },
     { name: 'Contrario', value: stats.contrario || 0 },
+    { name: 'Indeciso', value: stats.indeciso || 0 },
     { name: 'Astenuto', value: stats.astenuto || 0 },
   ];
 
   const barData = [
     { name: 'Favorevole', value: stats.favorevole || 0 },
     { name: 'Contrario', value: stats.contrario || 0 },
+    { name: 'Indeciso', value: stats.indeciso || 0 },
     { name: 'Astenuto', value: stats.astenuto || 0 },
   ];
 
-  const totalVotes = (stats.favorevole || 0) + (stats.contrario || 0) + (stats.astenuto || 0);
+  // Prepara dati per genere
+  const genereBarData = genereData?.map(item => ({
+    name: item.genere,
+    Favorevole: item.favorevole || 0,
+    Contrario: item.contrario || 0,
+    Indeciso: item.indeciso || 0,
+    Astenuto: item.astenuto || 0,
+  })) || [];
+
+  // Prepara dati per età
+  const etaBarData = etaData?.map(item => ({
+    name: item.fascia_eta,
+    Favorevole: item.favorevole || 0,
+    Contrario: item.contrario || 0,
+    Indeciso: item.indeciso || 0,
+    Astenuto: item.astenuto || 0,
+  })) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 select-none">
-      <div className="container mx-auto max-w-6xl">
-        <Link href="/sondaggi">
-          <Button variant="ghost" className="mb-4 flex items-center">
-            <ArrowLeft className="mr-2 h-4 w-4" />Torna ai Sondaggi
-          </Button>
-        </Link>
-        
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-3xl flex items-center">
-              <BarChartIcon className="mr-3 h-8 w-8" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="container mx-auto max-w-7xl p-6">
+        {/* Header con navigazione */}
+        <div className="mb-8">
+          <Link href="/sondaggi">
+            <Button variant="ghost" className="mb-4 flex items-center text-gray-600 hover:text-gray-800 hover:bg-white/50">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Torna ai Sondaggi
+            </Button>
+          </Link>
+          
+          {/* Titolo principale */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center">
+              <BarChartIcon className="mr-3 h-10 w-10 text-blue-600" />
               {questionText}
-            </CardTitle>
-            <CardDescription>
+            </h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Statistiche dettagliate e analisi regionali
-            </CardDescription>
-          </CardHeader>
-        </Card>
+            </p>
+          </div>
+        </div>
 
         {isLoading && (
           <div className="flex items-center justify-center min-h-[50vh]">
@@ -96,60 +144,103 @@ export default function StatisticheOpinione() {
         )}
 
         {data && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Statistiche generali */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Totale Voti</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalVotes}</div>
-                  <p className="text-xs text-muted-foreground">Risposte totali</p>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-green-100">
+                      <TrendingUp className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Totale Voti</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalVotes}</p>
+                      <p className="text-xs text-muted-foreground">Risposte totali</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Favorevoli</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{stats.favorevole || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {totalVotes > 0 ? Math.round(((stats.favorevole || 0) / totalVotes) * 100) : 0}%
-                  </p>
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-purple-100">
+                      <Users className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Totale Utenti</p>
+                      <p className="text-2xl font-bold text-gray-900">{totaleUtenti}</p>
+                      <p className="text-xs text-muted-foreground">Utenti registrati</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Contrari</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">{stats.contrario || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {totalVotes > 0 ? Math.round(((stats.contrario || 0) / totalVotes) * 100) : 0}%
-                  </p>
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-blue-100">
+                      <BarChartIcon className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Favorevoli</p>
+                      <p className="text-2xl font-bold text-green-600">{stats.favorevole || 0}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {totalVotes > 0 ? Math.round(((stats.favorevole || 0) / totalVotes) * 100) : 0}%
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">Astenuti</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">{stats.astenuto || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {totalVotes > 0 ? Math.round(((stats.astenuto || 0) / totalVotes) * 100) : 0}%
-                  </p>
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-red-100">
+                      <BarChartIcon className="h-6 w-6 text-red-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Contrari</p>
+                      <p className="text-2xl font-bold text-red-600">{stats.contrario || 0}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {totalVotes > 0 ? Math.round(((stats.contrario || 0) / totalVotes) * 100) : 0}%
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Grafici */}
+            {/* Pulsanti per statistiche regionali (come in Sondaggi.tsx) */}
+            <Card className="bg-white shadow-lg">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {REGIONI.map((regione) => (
+                    <Button
+                      key={regione}
+                      variant="outline"
+                      className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                      onClick={() => setLocation(`/statistiche-opinione/${opinionId}/regione/${regione.toLowerCase().replace(/\s+/g, '-')}`)}
+                    >
+                      {regione}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="default"
+                    className="w-full h-16 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => setLocation(`/statistiche-opinione/${opinionId}/tutte-regioni`)}
+                  >
+                    Italia
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Grafici principali */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Grafico a torta */}
-              <Card>
+              <Card className="bg-white shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-xl">Distribuzione Voti</CardTitle>
                 </CardHeader>
@@ -177,7 +268,7 @@ export default function StatisticheOpinione() {
               </Card>
 
               {/* Grafico a barre */}
-              <Card>
+              <Card className="bg-white shadow-lg">
                 <CardHeader>
                   <CardTitle className="text-xl">Confronto Numerico</CardTitle>
                 </CardHeader>
@@ -195,45 +286,52 @@ export default function StatisticheOpinione() {
               </Card>
             </div>
 
-            {/* Pulsanti regionali */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl flex items-center">
-                  <MapPin className="mr-2 h-5 w-5" />
-                  Analisi Regionali
-                </CardTitle>
-                <CardDescription>
-                  Clicca su una regione per vedere le statistiche specifiche
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {REGIONI.map((regione) => (
-                    <Button
-                      key={regione}
-                      variant="outline"
-                      className="h-auto p-3 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                      onClick={() => setLocation(`/statistiche-opinione/${opinionId}/regione/${regione.toLowerCase().replace(/\s+/g, '-')}`)}
-                    >
-                      <MapPin className="h-4 w-4 mb-1 text-blue-600" />
-                      <span className="text-xs text-center">{regione}</span>
-                    </Button>
-                  ))}
-                </div>
-                
-                <div className="mt-6 text-center">
-                  <Button
-                    variant="default"
-                    size="lg"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={() => setLocation(`/statistiche-opinione/${opinionId}/tutte-regioni`)}
-                  >
-                    <TrendingUp className="mr-2 h-5 w-5" />
-                    Panoramica Tutte le Regioni
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Grafici per genere ed età */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Grafico per genere */}
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={genereBarData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
+                      <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
+                      <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
+                      <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Grafico per età */}
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">Distribuzione per Età</CardTitle>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={etaBarData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
+                      <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
+                      <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
+                      <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
       </div>
