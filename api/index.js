@@ -3746,6 +3746,8 @@ app.post('/api/candidati', verifyToken, validateInput(['user_id', 'grado', 'cate
 // GET /api/sondaggi/stats - Statistiche sondaggi aggregate dalle opinioni
 app.get('/api/sondaggi/stats', limiter, async (req, res) => {
   try {
+    console.log('🔍 DEBUG /api/sondaggi/stats - Inizio elaborazione');
+    
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
       SELECT id, text, created_at
@@ -3753,8 +3755,10 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
       ORDER BY created_at DESC
     `;
     
+    console.log('🔍 DEBUG /api/sondaggi/stats - Eseguendo query opinioni:', questionsQuery);
     const questionsResult = await pool.query(questionsQuery);
     const opinioni = questionsResult.rows;
+    console.log('🔍 DEBUG /api/sondaggi/stats - Opinioni trovate:', opinioni.length);
     
     // 2. Poi genera statistiche aggregate dalle risposte degli utenti
     const stats = {};
@@ -3763,6 +3767,8 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
     for (const opinione of opinioni) {
       const questionId = opinione.id;
       const questionText = opinione.text;
+      
+      console.log(`🔍 DEBUG /api/sondaggi/stats - Elaborando opinione: ${questionId} - ${questionText}`);
       
       // Query per contare le risposte per questa opinione
       const statsQuery = `
@@ -3776,6 +3782,7 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
       `;
       
       try {
+        console.log(`🔍 DEBUG /api/sondaggi/stats - Eseguendo query stats per ${questionId}:`, statsQuery);
         const statsResult = await pool.query(statsQuery);
         const row = statsResult.rows[0];
         
@@ -3789,12 +3796,16 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
           id: questionId,
           text: questionText
         });
+        
+        console.log(`✅ DEBUG /api/sondaggi/stats - Statistiche per ${questionId}:`, stats[questionId]);
       } catch (statsError) {
         console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId}:`, statsError.message);
         // Se la colonna non esiste, salta questa opinione
         continue;
       }
     }
+    
+    console.log('🔍 DEBUG /api/sondaggi/stats - Risultato finale:', { stats, questions });
     
     res.json({
       success: true,
