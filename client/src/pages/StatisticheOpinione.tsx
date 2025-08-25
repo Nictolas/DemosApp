@@ -138,22 +138,7 @@ export default function StatisticheOpinione() {
         {data && (
           <div className="space-y-8">
             {/* Statistiche generali */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="p-3 rounded-full bg-green-100">
-                      <TrendingUp className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Totale Voti</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalVotes}</p>
-                      <p className="text-xs text-muted-foreground">Risposte totali</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center">
