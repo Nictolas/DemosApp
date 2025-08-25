@@ -87,13 +87,32 @@ export default function StatisticheOpinione() {
 
 
   // Prepara dati per genere (bar chart orizzontale)
-  const genereBarData = genereData?.map(item => ({
-    name: item.genere,
-    Favorevole: parseInt(item.favorevole) || 0,
-    Contrario: parseInt(item.contrario) || 0,
-    Indeciso: parseInt(item.indeciso) || 0,
-    Astenuto: parseInt(item.astenuto) || 0,
-  })) || [];
+  const genereBarData = [
+    {
+      name: 'Favorevole',
+      uomo: parseInt(genereData?.find(item => item.genere === 'uomo')?.favorevole) || 0,
+      donna: parseInt(genereData?.find(item => item.genere === 'donna')?.favorevole) || 0,
+      altro: parseInt(genereData?.find(item => item.genere === 'altro')?.favorevole) || 0,
+    },
+    {
+      name: 'Indeciso',
+      uomo: parseInt(genereData?.find(item => item.genere === 'uomo')?.indeciso) || 0,
+      donna: parseInt(genereData?.find(item => item.genere === 'donna')?.indeciso) || 0,
+      altro: parseInt(genereData?.find(item => item.genere === 'altro')?.indeciso) || 0,
+    },
+    {
+      name: 'Contrario',
+      uomo: parseInt(genereData?.find(item => item.genere === 'uomo')?.contrario) || 0,
+      donna: parseInt(genereData?.find(item => item.genere === 'donna')?.contrario) || 0,
+      altro: parseInt(genereData?.find(item => item.genere === 'altro')?.contrario) || 0,
+    },
+    {
+      name: 'Astenuto',
+      uomo: parseInt(genereData?.find(item => item.genere === 'uomo')?.astenuto) || 0,
+      donna: parseInt(genereData?.find(item => item.genere === 'donna')?.astenuto) || 0,
+      altro: parseInt(genereData?.find(item => item.genere === 'altro')?.astenuto) || 0,
+    },
+  ];
 
 
 
@@ -101,8 +120,8 @@ export default function StatisticheOpinione() {
   const etaBarData = etaData?.map(item => ({
     name: item.fascia_eta,
     Favorevole: parseInt(item.favorevole) || 0,
-    Contrario: parseInt(item.contrario) || 0,
     Indeciso: parseInt(item.indeciso) || 0,
+    Contrario: parseInt(item.contrario) || 0,
     Astenuto: parseInt(item.astenuto) || 0,
   })) || [];
 
@@ -270,11 +289,9 @@ export default function StatisticheOpinione() {
                          <XAxis type="number" allowDecimals={false} />
                          <YAxis dataKey="name" type="category" />
                          <Tooltip />
-                         <Legend />
-                         <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
-                         <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
-                         <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
-                         <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
+                         <Bar dataKey="uomo" fill="#3B82F6" />
+                         <Bar dataKey="donna" fill="#EC4899" />
+                         <Bar dataKey="altro" fill="#FCD34D" />
                        </BarChart>
                      </ResponsiveContainer>
                    ) : (
@@ -298,11 +315,10 @@ export default function StatisticheOpinione() {
                          <XAxis type="number" allowDecimals={false} />
                          <YAxis dataKey="name" type="category" />
                          <Tooltip />
-                         <Legend />
-                         <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
-                         <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
-                         <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
-                         <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
+                         <Bar dataKey="Favorevole" fill="#10B981" />
+                         <Bar dataKey="Indeciso" fill="#FCD34D" />
+                         <Bar dataKey="Contrario" fill="#EF4444" />
+                         <Bar dataKey="Astenuto" fill="#6B7280" />
                        </BarChart>
                      </ResponsiveContainer>
                    ) : (
