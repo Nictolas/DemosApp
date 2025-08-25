@@ -6,6 +6,7 @@ import { Loader2, ArrowLeft, BarChart as BarChartIcon, TrendingUp, Users, MapPin
 import { PieChart, Pie, Cell, Tooltip, Legend, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { ITALY_DATA } from "@/data/italyData";
 
 type OpinionData = { favorevole: number; contrario: number; indeciso: number; astenuto: number; };
 type OpinionStats = Record<string, OpinionData>;
@@ -131,6 +132,25 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
   // === FINE MODIFICHE LOGICA GRAFICI ===
 
   const barChartData = prepareBarData();
+
+  // Funzione per ottenere le province di una regione
+  const getProvinceForRegion = (regionName: string) => {
+    const region = ITALY_DATA.Italia.regioni.find(r => 
+      r.nome.toLowerCase() === regionName.toLowerCase()
+    );
+    return region?.province || [];
+  };
+
+  // Funzione per ottenere i comuni di una provincia
+  const getComuniForProvincia = (regionName: string, provinciaName: string) => {
+    const region = ITALY_DATA.Italia.regioni.find(r => 
+      r.nome.toLowerCase() === regionName.toLowerCase()
+    );
+    const provincia = region?.province.find(p => 
+      p.nome.toLowerCase() === provinciaName.toLowerCase()
+    );
+    return provincia?.comuni || [];
+  };
 
   // Genera il titolo e breadcrumb in base al filtro
   const getPageTitle = () => {
@@ -284,6 +304,56 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
                   </CardContent>
                 </Card>
               </div>
+            )}
+
+            {/* Pulsanti per statistiche provinciali - solo se siamo in una pagina filtrata per regione */}
+            {filterPath && filter?.type === 'regione' && (
+              <Card className="bg-white shadow-lg">
+                <CardContent className="p-6">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Statistiche Provinciali</h3>
+                    <p className="text-sm text-gray-600">Visualizza le statistiche dei sondaggi divise per provincia</p>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {getProvinceForRegion(filter.value || '').map((provincia) => (
+                      <Link key={provincia.nome} href={`/sondaggi/${filterPath}/${provincia.nome.toLowerCase().replace(/\s+/g, '-')}`}>
+                        <Button 
+                          variant="outline" 
+                          className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                        >
+                          <MapPin className="mr-2 h-4 w-4 text-blue-600" />
+                          {provincia.nome}
+                        </Button>
+                      </Link>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Pulsanti per statistiche comunali - solo se siamo in una pagina filtrata per provincia */}
+            {filterPath && filter?.type === 'provincia' && (
+              <Card className="bg-white shadow-lg">
+                <CardContent className="p-6">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Statistiche Comunali</h3>
+                    <p className="text-sm text-gray-600">Visualizza le statistiche dei sondaggi divise per comune</p>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {getComuniForProvincia(filter.regione || '', filter.provincia || '').map((comune) => (
+                      <Link key={comune} href={`/sondaggi/${filterPath}/${comune.toLowerCase().replace(/\s+/g, '-')}`}>
+                        <Button 
+                          variant="outline" 
+                          className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                        >
+                          <MapPin className="mr-2 h-4 w-4 text-blue-600" />
+                          {comune}
+                        </Button>
+                      </Link>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Grafico a barre principale */}
