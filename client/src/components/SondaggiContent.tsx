@@ -62,8 +62,28 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
       return result.data;
     },
   });
+
+  // Query per statistiche del genere
+  const { data: genereData } = useQuery({
+    queryKey: ['sondaggiGenere', filterPath],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/sondaggi/genere");
+      if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
+      const result = await response.json();
+      return result.data;
+    },
+  });
   
   const { stats, questions = [], utentiUnici = 0, filter } = data || {};
+
+  // Prepara dati per il grafico a torta del genere
+  const generePieData = genereData ? [
+    { name: 'Uomo', value: parseInt(genereData.uomo) || 0 },
+    { name: 'Donna', value: parseInt(genereData.donna) || 0 },
+    { name: 'Altro', value: parseInt(genereData.altro) || 0 },
+  ].filter(item => item.value > 0) : [];
+
+  const GENERE_COLORS = ['#3B82F6', '#EC4899', '#FCD34D']; // Blu, Rosa, Giallo
   
   // Debug logging
   console.log('🔍 DEBUG: Data received:', { stats, questions, filter });
@@ -477,6 +497,35 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
                   );
                 })}
             </div>
+
+            {/* Grafico a torta del genere */}
+            {generePieData.length > 0 && (
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={generePieData} 
+                        dataKey="value" 
+                        nameKey="name" 
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={120} 
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {generePieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={GENERE_COLORS[index % GENERE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
