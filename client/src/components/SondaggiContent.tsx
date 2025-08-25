@@ -72,17 +72,22 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
       if (filterPath) {
         const pathParts = filterPath.split('/');
         if (pathParts.length === 1) {
+          // Es: "toscana" -> /api/sondaggi/genere/toscana
           endpoint = `/api/sondaggi/genere/${pathParts[0]}`;
         } else if (pathParts.length === 2) {
+          // Es: "toscana/firenze" -> /api/sondaggi/genere/toscana/firenze
           endpoint = `/api/sondaggi/genere/${pathParts[0]}/${pathParts[1]}`;
         } else if (pathParts.length === 3) {
+          // Es: "toscana/firenze/firenze" -> /api/sondaggi/genere/toscana/firenze/firenze
           endpoint = `/api/sondaggi/genere/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
         }
       }
       
+      console.log('🔍 DEBUG SondaggiContent - Endpoint genere:', endpoint);
       const response = await apiRequest("GET", endpoint);
       if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
       const result = await response.json();
+      console.log('🔍 DEBUG SondaggiContent - Dati genere ricevuti:', result.data);
       return result.data;
     },
   });

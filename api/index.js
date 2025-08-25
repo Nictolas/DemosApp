@@ -2173,6 +2173,99 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/opinioni/stats/:opinionId/regione/:regione - Statistiche opinione filtrate per regione
+app.get('/api/opinioni/stats/:opinionId/regione/:regione', verifyToken, async (req, res) => {
+  try {
+    const { opinionId, regione } = req.params;
+    
+    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+    let columnName;
+    switch (opinionId) {
+      case 'energia_nucleare':
+        columnName = 'energia_nucleare';
+        break;
+      case 'sperimentazione_animale':
+        columnName = 'sperimentazione_animale';
+        break;
+      case 'legalizzazione_canapa':
+        columnName = 'legalizzazione_canapa';
+        break;
+      case 'caccia':
+        columnName = 'caccia';
+        break;
+      case 'eutanasia':
+        columnName = 'eutanasia';
+        break;
+      case 'carne_coltivata':
+        columnName = 'carne_coltivata';
+        break;
+      case 'cittadina_animale':
+        columnName = 'cittadina_animale';
+        break;
+      case 'nato':
+        columnName = 'nato';
+        break;
+      case 'matrimonio_gay':
+        columnName = 'matrimonio_gay';
+        break;
+      case 'salario_minimo':
+        columnName = 'salario_minimo';
+        break;
+      case 'case_chiuse':
+        columnName = 'case_chiuse';
+        break;
+      case 'omobitransfobia':
+        columnName = 'omobitransfobia';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Opinione non riconosciuta'
+        });
+    }
+
+    // Normalizza il nome della regione
+    const normalizedRegione = regione.charAt(0).toUpperCase() + regione.slice(1).toLowerCase();
+
+    // Recupera il testo dell'opinione dalla tabella opinioni
+    const questionQuery = `
+      SELECT text FROM opinioni WHERE id = $1
+    `;
+    const questionResult = await pool.query(questionQuery, [opinionId]);
+    const questionText = questionResult.rows[0]?.text || opinionId;
+
+    // Usa SOLO la tabella utenti - aggrega le risposte dalle colonne opinioni filtrate per regione
+    const query = `
+      SELECT 
+        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto,
+        COUNT(DISTINCT id) as totale_utenti
+      FROM users 
+      WHERE regione_residenza = $1
+      AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
+    `;
+    
+    const result = await pool.query(query, [normalizedRegione]);
+    
+    res.json({
+      success: true,
+      data: {
+        stats: result.rows[0],
+        questionText: questionText,
+        totaleUtenti: result.rows[0].totale_utenti
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche opinione per regione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche opinione per regione'
+    });
+  }
+});
+
 // GET /api/opinioni/stats/:opinionId/genere - Statistiche opinione per genere
 app.get('/api/opinioni/stats/:opinionId/genere', verifyToken, async (req, res) => {
   try {
@@ -2354,6 +2447,94 @@ app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche età:', error);
     res.status(500).json({ success: false, error: 'Errore nel recuperare statistiche età' });
+  }
+});
+
+// GET /api/opinioni/stats/:opinionId/eta/regione/:regione - Statistiche opinione per età filtrate per regione
+app.get('/api/opinioni/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, res) => {
+  try {
+    const { opinionId, regione } = req.params;
+    
+    let columnName;
+    switch (opinionId) {
+      case 'energia_nucleare': columnName = 'energia_nucleare'; break;
+      case 'sperimentazione_animale': columnName = 'sperimentazione_animale'; break;
+      case 'legalizzazione_canapa': columnName = 'legalizzazione_canapa'; break;
+      case 'caccia': columnName = 'caccia'; break;
+      case 'eutanasia': columnName = 'eutanasia'; break;
+      case 'carne_coltivata': columnName = 'carne_coltivata'; break;
+      case 'cittadina_animale': columnName = 'cittadina_animale'; break;
+      case 'nato': columnName = 'nato'; break;
+      case 'matrimonio_gay': columnName = 'matrimonio_gay'; break;
+      case 'salario_minimo': columnName = 'salario_minimo'; break;
+      case 'case_chiuse': columnName = 'case_chiuse'; break;
+      case 'omobitransfobia': columnName = 'omobitransfobia'; break;
+      default:
+        return res.status(400).json({ success: false, error: 'Opinione non riconosciuta' });
+    }
+
+    // Normalizza il nome della regione
+    const normalizedRegione = regione.charAt(0).toUpperCase() + regione.slice(1).toLowerCase();
+
+    const query = `
+      SELECT 
+        CASE 
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Sotto i 18'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 24 THEN '18-24'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 25 AND 34 THEN '25-34'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 35 AND 44 THEN '35-44'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 45 AND 54 THEN '45-54'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 55 AND 64 THEN '55-64'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 65 AND 74 THEN '65-74'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 75 AND 84 THEN '75-84'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) >= 85 THEN '85 e oltre'
+          ELSE 'Non specificata'
+        END as fascia_eta,
+        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+      FROM users 
+      WHERE data_nascita IS NOT NULL 
+      AND regione_residenza = $1
+      AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
+      GROUP BY 
+        CASE 
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Sotto i 18'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 24 THEN '18-24'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 25 AND 34 THEN '25-34'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 35 AND 44 THEN '35-44'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 45 AND 54 THEN '45-54'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 55 AND 64 THEN '55-64'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 65 AND 74 THEN '65-74'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 75 AND 84 THEN '75-84'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) >= 85 THEN '85 e oltre'
+          ELSE 'Non specificata'
+        END
+      ORDER BY 
+        CASE 
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Sotto i 18'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 24 THEN '18-24'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 25 AND 34 THEN '25-34'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 35 AND 44 THEN '35-44'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 45 AND 54 THEN '45-54'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 55 AND 64 THEN '55-64'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 65 AND 74 THEN '65-74'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 75 AND 84 THEN '75-84'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) >= 85 THEN '85 e oltre'
+          ELSE 'Non specificata'
+        END
+    `;
+    
+    const result = await pool.query(query, [normalizedRegione]);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche età per regione:', error);
+    res.status(500).json({ success: false, error: 'Errore nel recuperare statistiche età per regione' });
   }
 });
 
