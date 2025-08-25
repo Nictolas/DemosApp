@@ -2248,15 +2248,15 @@ app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
     const query = `
       SELECT 
         CASE 
-          WHEN eta < 18 THEN 'Sotto i 18'
-          WHEN eta BETWEEN 18 AND 24 THEN '18-24'
-          WHEN eta BETWEEN 25 AND 34 THEN '25-34'
-          WHEN eta BETWEEN 35 AND 44 THEN '35-44'
-          WHEN eta BETWEEN 45 AND 54 THEN '45-54'
-          WHEN eta BETWEEN 55 AND 64 THEN '55-64'
-          WHEN eta BETWEEN 65 AND 74 THEN '65-74'
-          WHEN eta BETWEEN 75 AND 84 THEN '75-84'
-          WHEN eta >= 85 THEN '85 e oltre'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Sotto i 18'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 24 THEN '18-24'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 25 AND 34 THEN '25-34'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 35 AND 44 THEN '35-44'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 45 AND 54 THEN '45-54'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 55 AND 64 THEN '55-64'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 65 AND 74 THEN '65-74'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 75 AND 84 THEN '75-84'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) >= 85 THEN '85 e oltre'
           ELSE 'Non specificata'
         END as fascia_eta,
         COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
@@ -2264,7 +2264,7 @@ app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
         COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
         COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
       FROM users 
-      WHERE eta IS NOT NULL AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
+      WHERE data_nascita IS NOT NULL AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
       GROUP BY fascia_eta
       ORDER BY 
         CASE fascia_eta
