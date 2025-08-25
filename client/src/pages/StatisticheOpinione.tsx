@@ -22,15 +22,38 @@ export default function StatisticheOpinione() {
   
   // Estrai l'ID dell'opinione dall'URL
   const pathParts = window.location.pathname.split('/');
-  const opinionId = pathParts[pathParts.length - 1];
+  let opinionId = pathParts[pathParts.length - 1];
+  
+  // Se siamo in una pagina regionale, l'opinionId è prima di "regione"
+  if (pathParts.includes('regione')) {
+    const regioneIndex = pathParts.indexOf('regione');
+    opinionId = pathParts[regioneIndex - 1];
+  }
+  
+  console.log('🔍 DEBUG StatisticheOpinione - OpinionId estratto:', opinionId);
 
   // Query per statistiche generali
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['opinioneStats', opinionId],
+    queryKey: ['opinioneStats', opinionId, window.location.pathname],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}`);
+      // Controlla se siamo in una pagina regionale
+      const pathParts = window.location.pathname.split('/');
+      let endpoint = `/api/opinioni/stats/${opinionId}`;
+      
+      // Se l'URL contiene "regione", usa l'endpoint filtrato
+      if (pathParts.includes('regione') && pathParts.length > 3) {
+        const regioneIndex = pathParts.indexOf('regione');
+        const regione = pathParts[regioneIndex + 1];
+        endpoint = `/api/opinioni/stats/${opinionId}/regione/${regione}`;
+        console.log('🔍 DEBUG StatisticheOpinione - Endpoint stats regionale:', endpoint);
+      } else {
+        console.log('🔍 DEBUG StatisticheOpinione - Endpoint stats nazionale:', endpoint);
+      }
+      
+      const response = await apiRequest("GET", endpoint);
       if (!response.ok) throw new Error("Errore nel caricamento delle statistiche.");
       const result = await response.json();
+      console.log('🔍 DEBUG StatisticheOpinione - Dati stats ricevuti:', result.data);
       return result.data;
     },
     enabled: !!user && !!opinionId,
@@ -49,6 +72,9 @@ export default function StatisticheOpinione() {
         const regioneIndex = pathParts.indexOf('regione');
         const regione = pathParts[regioneIndex + 1];
         endpoint = `/api/opinioni/stats/${opinionId}/genere/${regione}`;
+        console.log('🔍 DEBUG StatisticheOpinione - Endpoint genere regionale:', endpoint);
+      } else {
+        console.log('🔍 DEBUG StatisticheOpinione - Endpoint genere nazionale:', endpoint);
       }
       
       const response = await apiRequest("GET", endpoint, null, {
@@ -57,6 +83,7 @@ export default function StatisticheOpinione() {
       });
       if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
       const result = await response.json();
+      console.log('🔍 DEBUG StatisticheOpinione - Dati genere ricevuti:', result.data);
       return result.data;
     },
     enabled: !!user && !!opinionId,
@@ -66,14 +93,29 @@ export default function StatisticheOpinione() {
 
   // Query per statistiche per età
   const { data: etaData } = useQuery({
-    queryKey: ['opinioneStatsEta', opinionId],
+    queryKey: ['opinioneStatsEta', opinionId, window.location.pathname],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/eta`, null, {
+      // Controlla se siamo in una pagina regionale
+      const pathParts = window.location.pathname.split('/');
+      let endpoint = `/api/opinioni/stats/${opinionId}/eta`;
+      
+      // Se l'URL contiene "regione", usa l'endpoint filtrato
+      if (pathParts.includes('regione') && pathParts.length > 3) {
+        const regioneIndex = pathParts.indexOf('regione');
+        const regione = pathParts[regioneIndex + 1];
+        endpoint = `/api/opinioni/stats/${opinionId}/eta/regione/${regione}`;
+        console.log('🔍 DEBUG StatisticheOpinione - Endpoint età regionale:', endpoint);
+      } else {
+        console.log('🔍 DEBUG StatisticheOpinione - Endpoint età nazionale:', endpoint);
+      }
+      
+      const response = await apiRequest("GET", endpoint, null, {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache'
       });
       if (!response.ok) throw new Error("Errore nel caricamento statistiche età.");
       const result = await response.json();
+      console.log('🔍 DEBUG StatisticheOpinione - Dati età ricevuti:', result.data);
       return result.data;
     },
     enabled: !!user && !!opinionId,
