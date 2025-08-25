@@ -4597,6 +4597,24 @@ app.get('/api/test-db', async (req, res) => {
 
 // GET /api/auth/me - Ottieni informazioni utente corrente
 app.get('/api/auth/me', verifyToken, async (req, res) => {
+  // Imposta esplicitamente gli header CORS
+  const origin = req.headers.origin;
+  if (origin) {
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000', 
+      'https://www.demos.community',
+      'https://demos.community',
+      'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
+    ];
+    if (allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+    }
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
   try {
     const userId = req.userId;
     
