@@ -134,7 +134,7 @@ export default function Sondaggi() {
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center">
               <BarChartIcon className="mr-3 h-10 w-10 text-blue-600" />
-              Sondaggi Aggregati
+              Sondaggi
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Statistiche aggregate delle opinioni degli utenti per analizzare le tendenze della comunità
