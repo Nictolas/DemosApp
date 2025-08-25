@@ -102,7 +102,9 @@ export default function Sondaggi() {
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
   // Controllo più flessibile per l'accesso ai sondaggi
-  if (user.role !== 'Admin' && user.role !== 'admin' && !user.hasAdvancedAccess) return <Redirect to="/menu" />;
+  const userRole = user.role || user.ruolo;
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  if (!hasAdvancedAccess) return <Redirect to="/menu" />;
 
   const barChartData = prepareBarData();
 
