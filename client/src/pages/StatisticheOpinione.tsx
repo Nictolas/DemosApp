@@ -39,7 +39,11 @@ export default function StatisticheOpinione() {
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <div>Non autorizzato</div>;
-  if (user.role !== 'Admin') return <div>Non autorizzato</div>;
+  
+  // Controllo più flessibile per l'accesso alle statistiche
+  const userRole = user.role || user.ruolo;
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  if (!hasAdvancedAccess) return <div>Non autorizzato</div>;
 
   const stats = data?.stats || {};
   const questionText = data?.questionText || 'Opinione';
