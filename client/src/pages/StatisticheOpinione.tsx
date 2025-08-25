@@ -98,6 +98,9 @@ export default function StatisticheOpinione() {
 
 
 
+  // Debug: log dei dati ricevuti per genere
+  console.log('🔍 DEBUG - genereData ricevuto:', genereData);
+
   // Prepara dati per genere (bar chart orizzontale)
   const genereBarData = [
     {
@@ -125,6 +128,8 @@ export default function StatisticheOpinione() {
       altro: parseInt(genereData?.find(item => item.genere === 'altro')?.astenuto) || 0,
     },
   ];
+
+  console.log('🔍 DEBUG - genereBarData preparato:', genereBarData);
 
 
 
