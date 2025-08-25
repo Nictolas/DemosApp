@@ -2089,23 +2089,79 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
   try {
     const { opinionId } = req.params;
     
+    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+    let columnName;
+    switch (opinionId) {
+      case 'energia_nucleare':
+        columnName = 'energia_nucleare';
+        break;
+      case 'sperimentazione_animale':
+        columnName = 'sperimentazione_animale';
+        break;
+      case 'legalizzazione_canapa':
+        columnName = 'legalizzazione_canapa';
+        break;
+      case 'caccia':
+        columnName = 'caccia';
+        break;
+      case 'eutanasia':
+        columnName = 'eutanasia';
+        break;
+      case 'carne_coltivata':
+        columnName = 'carne_coltivata';
+        break;
+      case 'cittadina_animale':
+        columnName = 'cittadina_animale';
+        break;
+      case 'nato':
+        columnName = 'nato';
+        break;
+      case 'matrimonio_gay':
+        columnName = 'matrimonio_gay';
+        break;
+      case 'salario_minimo':
+        columnName = 'salario_minimo';
+        break;
+      case 'case_chiuse':
+        columnName = 'case_chiuse';
+        break;
+      case 'omobitransfobia':
+        columnName = 'omobitransfobia';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Opinione non riconosciuta'
+        });
+    }
+
+    // Recupera il testo dell'opinione dalla tabella opinioni
+    const questionQuery = `
+      SELECT text FROM opinioni WHERE id = $1
+    `;
+    const questionResult = await pool.query(questionQuery, [opinionId]);
+    const questionText = questionResult.rows[0]?.text || opinionId;
+
     // Usa SOLO la tabella utenti - aggrega le risposte dalle colonne opinioni
     const query = `
       SELECT 
         COUNT(*) as totale_risposte,
-        COUNT(CASE WHEN ${opinionId} = 'Sì' THEN 1 END) as si,
-        COUNT(CASE WHEN ${opinionId} = 'No' THEN 1 END) as no,
-        COUNT(CASE WHEN ${opinionId} = 'Non so' THEN 1 END) as non_so,
-        COUNT(CASE WHEN ${opinionId} IS NULL THEN 1 END) as non_risposto
+        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
       FROM users 
-      WHERE ${opinionId} IS NOT NULL
+      WHERE ${columnName} IS NOT NULL
     `;
     
     const result = await pool.query(query);
     
     res.json({
       success: true,
-      stats: result.rows[0]
+      data: {
+        stats: result.rows[0],
+        questionText: questionText
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche opinione:', error);
