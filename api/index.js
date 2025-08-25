@@ -3748,7 +3748,7 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
   try {
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
-      SELECT id, text, source, created_at
+      SELECT id, text, created_at
       FROM opinioni 
       ORDER BY created_at DESC
     `;
@@ -3817,7 +3817,7 @@ app.get('/api/sondaggi', verifyToken, async (req, res) => {
   try {
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
-      SELECT id, text, source, created_at
+      SELECT id, text, created_at
       FROM opinioni 
       ORDER BY created_at DESC
       LIMIT 10
