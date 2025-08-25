@@ -2145,13 +2145,14 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
     // Usa SOLO la tabella utenti - aggrega le risposte dalle colonne opinioni
     const query = `
       SELECT 
-        COUNT(*) as totale_risposte,
+        COUNT(CASE WHEN ${columnName} IS NOT NULL THEN 1 END) as totale_risposte,
         COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
         COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
         COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto,
+        COUNT(DISTINCT id) as totale_utenti
       FROM users 
-      WHERE ${columnName} IS NOT NULL
+      WHERE ${columnName} IS NOT NULL OR ${columnName} IS NULL
     `;
     
     const result = await pool.query(query);
@@ -2160,7 +2161,8 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
       success: true,
       data: {
         stats: result.rows[0],
-        questionText: questionText
+        questionText: questionText,
+        totaleUtenti: result.rows[0].totale_utenti
       }
     });
   } catch (error) {
@@ -2169,6 +2171,119 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
       success: false,
       error: 'Errore nel recuperare statistiche opinione'
     });
+  }
+});
+
+// GET /api/opinioni/stats/:opinionId/genere - Statistiche opinione per genere
+app.get('/api/opinioni/stats/:opinionId/genere', verifyToken, async (req, res) => {
+  try {
+    const { opinionId } = req.params;
+    
+    let columnName;
+    switch (opinionId) {
+      case 'energia_nucleare': columnName = 'energia_nucleare'; break;
+      case 'sperimentazione_animale': columnName = 'sperimentazione_animale'; break;
+      case 'legalizzazione_canapa': columnName = 'legalizzazione_canapa'; break;
+      case 'caccia': columnName = 'caccia'; break;
+      case 'eutanasia': columnName = 'eutanasia'; break;
+      case 'carne_coltivata': columnName = 'carne_coltivata'; break;
+      case 'cittadina_animale': columnName = 'cittadina_animale'; break;
+      case 'nato': columnName = 'nato'; break;
+      case 'matrimonio_gay': columnName = 'matrimonio_gay'; break;
+      case 'salario_minimo': columnName = 'salario_minimo'; break;
+      case 'case_chiuse': columnName = 'case_chiuse'; break;
+      case 'omobitransfobia': columnName = 'omobitransfobia'; break;
+      default:
+        return res.status(400).json({ success: false, error: 'Opinione non riconosciuta' });
+    }
+
+    const query = `
+      SELECT 
+        genere,
+        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+      FROM users 
+      WHERE genere IS NOT NULL AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
+      GROUP BY genere
+      ORDER BY genere
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere:', error);
+    res.status(500).json({ success: false, error: 'Errore nel recuperare statistiche genere' });
+  }
+});
+
+// GET /api/opinioni/stats/:opinionId/eta - Statistiche opinione per età
+app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
+  try {
+    const { opinionId } = req.params;
+    
+    let columnName;
+    switch (opinionId) {
+      case 'energia_nucleare': columnName = 'energia_nucleare'; break;
+      case 'sperimentazione_animale': columnName = 'sperimentazione_animale'; break;
+      case 'legalizzazione_canapa': columnName = 'legalizzazione_canapa'; break;
+      case 'caccia': columnName = 'caccia'; break;
+      case 'eutanasia': columnName = 'eutanasia'; break;
+      case 'carne_coltivata': columnName = 'carne_coltivata'; break;
+      case 'cittadina_animale': columnName = 'cittadina_animale'; break;
+      case 'nato': columnName = 'nato'; break;
+      case 'matrimonio_gay': columnName = 'matrimonio_gay'; break;
+      case 'salario_minimo': columnName = 'salario_minimo'; break;
+      case 'case_chiuse': columnName = 'case_chiuse'; break;
+      case 'omobitransfobia': columnName = 'omobitransfobia'; break;
+      default:
+        return res.status(400).json({ success: false, error: 'Opinione non riconosciuta' });
+    }
+
+    const query = `
+      SELECT 
+        CASE 
+          WHEN eta < 25 THEN '18-24'
+          WHEN eta BETWEEN 25 AND 34 THEN '25-34'
+          WHEN eta BETWEEN 35 AND 44 THEN '35-44'
+          WHEN eta BETWEEN 45 AND 54 THEN '45-54'
+          WHEN eta BETWEEN 55 AND 64 THEN '55-64'
+          WHEN eta >= 65 THEN '65+'
+          ELSE 'Non specificata'
+        END as fascia_eta,
+        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+      FROM users 
+      WHERE eta IS NOT NULL AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
+      GROUP BY fascia_eta
+      ORDER BY 
+        CASE fascia_eta
+          WHEN '18-24' THEN 1
+          WHEN '25-34' THEN 2
+          WHEN '35-44' THEN 3
+          WHEN '45-54' THEN 4
+          WHEN '55-64' THEN 5
+          WHEN '65+' THEN 6
+          ELSE 7
+        END
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche età:', error);
+    res.status(500).json({ success: false, error: 'Errore nel recuperare statistiche età' });
   }
 });
 
