@@ -70,6 +70,23 @@ export default function StatisticheOpinione() {
     cacheTime: 0,
   });
 
+  // Query per statistiche del genere per questa opinione
+  const { data: genereData } = useQuery({
+    queryKey: ['opinioneStatsGenere', opinionId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/genere`, null, {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      });
+      if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!user && !!opinionId,
+    staleTime: 0,
+    cacheTime: 0,
+  });
+
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <div>Non autorizzato</div>;
   
@@ -130,6 +147,15 @@ export default function StatisticheOpinione() {
   ];
 
   console.log('🔍 DEBUG - genereBarData preparato:', genereBarData);
+
+  // Prepara dati per il grafico a torta del genere (distribuzione generale)
+  const generePieData = genereData ? [
+    { name: 'Uomo', value: parseInt(genereData?.find(item => item.genere === 'uomo')?.favorevole || 0) + parseInt(genereData?.find(item => item.genere === 'uomo')?.contrario || 0) + parseInt(genereData?.find(item => item.genere === 'uomo')?.indeciso || 0) + parseInt(genereData?.find(item => item.genere === 'uomo')?.astenuto || 0) },
+    { name: 'Donna', value: parseInt(genereData?.find(item => item.genere === 'donna')?.favorevole || 0) + parseInt(genereData?.find(item => item.genere === 'donna')?.contrario || 0) + parseInt(genereData?.find(item => item.genere === 'donna')?.indeciso || 0) + parseInt(genereData?.find(item => item.genere === 'donna')?.astenuto || 0) },
+    { name: 'Altro', value: parseInt(genereData?.find(item => item.genere === 'altro')?.favorevole || 0) + parseInt(genereData?.find(item => item.genere === 'altro')?.contrario || 0) + parseInt(genereData?.find(item => item.genere === 'altro')?.indeciso || 0) + parseInt(genereData?.find(item => item.genere === 'altro')?.astenuto || 0) },
+  ].filter(item => item.value > 0) : [];
+
+  const GENERE_COLORS = ['#3B82F6', '#EC4899', '#FCD34D']; // Blu, Rosa, Giallo
 
 
 
@@ -349,6 +375,35 @@ export default function StatisticheOpinione() {
                  </CardContent>
                </Card>
              </div>
+
+            {/* Grafico a torta del genere */}
+            {generePieData.length > 0 && (
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={generePieData} 
+                        dataKey="value" 
+                        nameKey="name" 
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={120} 
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {generePieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={GENERE_COLORS[index % GENERE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>
