@@ -2265,19 +2265,31 @@ app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
         COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
       FROM users 
       WHERE data_nascita IS NOT NULL AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
-      GROUP BY fascia_eta
+      GROUP BY 
+        CASE 
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Sotto i 18'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 24 THEN '18-24'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 25 AND 34 THEN '25-34'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 35 AND 44 THEN '35-44'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 45 AND 54 THEN '45-54'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 55 AND 64 THEN '55-64'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 65 AND 74 THEN '65-74'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 75 AND 84 THEN '75-84'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) >= 85 THEN '85 e oltre'
+          ELSE 'Non specificata'
+        END
       ORDER BY 
-        CASE fascia_eta
-          WHEN 'Sotto i 18' THEN 1
-          WHEN '18-24' THEN 2
-          WHEN '25-34' THEN 3
-          WHEN '35-44' THEN 4
-          WHEN '45-54' THEN 5
-          WHEN '55-64' THEN 6
-          WHEN '65-74' THEN 7
-          WHEN '75-84' THEN 8
-          WHEN '85 e oltre' THEN 9
-          ELSE 10
+        CASE 
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Sotto i 18'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 24 THEN '18-24'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 25 AND 34 THEN '25-34'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 35 AND 44 THEN '35-44'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 45 AND 54 THEN '45-54'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 55 AND 64 THEN '55-64'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 65 AND 74 THEN '65-74'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 75 AND 84 THEN '75-84'
+          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) >= 85 THEN '85 e oltre'
+          ELSE 'Non specificata'
         END
     `;
     
