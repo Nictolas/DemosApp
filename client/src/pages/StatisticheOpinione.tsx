@@ -72,6 +72,11 @@ export default function StatisticheOpinione() {
   const questionText = data?.questionText || 'Opinione';
   const totaleUtenti = data?.totaleUtenti || 0;
 
+  // Debug: log dei dati ricevuti
+  console.log('DEBUG - stats:', stats);
+  console.log('DEBUG - genereData:', genereData);
+  console.log('DEBUG - etaData:', etaData);
+
   // Calcola il totale voti correttamente (solo chi ha risposto)
   const totalVotes = (stats.favorevole || 0) + (stats.contrario || 0) + (stats.indeciso || 0);
 
@@ -82,6 +87,8 @@ export default function StatisticheOpinione() {
     { name: 'Astenuto', value: stats.astenuto || 0 },
   ];
 
+  console.log('DEBUG - pieData:', pieData);
+
   // Prepara dati per genere (pie chart)
   const generePieData = genereData?.flatMap(item => [
     { name: `${item.genere} - Favorevole`, value: item.favorevole || 0, category: item.genere },
@@ -89,6 +96,8 @@ export default function StatisticheOpinione() {
     { name: `${item.genere} - Indeciso`, value: item.indeciso || 0, category: item.genere },
     { name: `${item.genere} - Astenuto`, value: item.astenuto || 0, category: item.genere },
   ]).filter(item => item.value > 0) || [];
+
+  console.log('DEBUG - generePieData:', generePieData);
 
   // Prepara dati per età (bar chart)
   const etaBarData = etaData?.map(item => ({
