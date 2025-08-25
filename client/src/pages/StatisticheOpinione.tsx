@@ -72,10 +72,7 @@ export default function StatisticheOpinione() {
   const questionText = data?.questionText || 'Opinione';
   const totaleUtenti = data?.totaleUtenti || 0;
 
-  // Debug: log dei dati ricevuti
-  console.log('DEBUG - stats:', stats);
-  console.log('DEBUG - genereData:', genereData);
-  console.log('DEBUG - etaData:', etaData);
+
 
   // Calcola il totale voti correttamente (solo chi ha risposto)
   const totalVotes = (stats.favorevole || 0) + (stats.contrario || 0) + (stats.indeciso || 0);
@@ -87,19 +84,20 @@ export default function StatisticheOpinione() {
     { name: 'Astenuto', value: stats.astenuto || 0 },
   ];
 
-  console.log('DEBUG - pieData:', pieData);
 
-  // Prepara dati per genere (pie chart)
-  const generePieData = genereData?.flatMap(item => [
-    { name: `${item.genere} - Favorevole`, value: item.favorevole || 0, category: item.genere },
-    { name: `${item.genere} - Contrario`, value: item.contrario || 0, category: item.genere },
-    { name: `${item.genere} - Indeciso`, value: item.indeciso || 0, category: item.genere },
-    { name: `${item.genere} - Astenuto`, value: item.astenuto || 0, category: item.genere },
-  ]).filter(item => item.value > 0) || [];
 
-  console.log('DEBUG - generePieData:', generePieData);
+  // Prepara dati per genere (bar chart orizzontale)
+  const genereBarData = genereData?.map(item => ({
+    name: item.genere,
+    Favorevole: item.favorevole || 0,
+    Contrario: item.contrario || 0,
+    Indeciso: item.indeciso || 0,
+    Astenuto: item.astenuto || 0,
+  })) || [];
 
-  // Prepara dati per età (bar chart)
+
+
+  // Prepara dati per età (bar chart orizzontale)
   const etaBarData = etaData?.map(item => ({
     name: item.fascia_eta,
     Favorevole: item.favorevole || 0,
@@ -108,8 +106,8 @@ export default function StatisticheOpinione() {
     Astenuto: item.astenuto || 0,
   })) || [];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
+     return (
+     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-7xl p-6">
         {/* Header con navigazione */}
         <div className="mb-8">
@@ -223,97 +221,97 @@ export default function StatisticheOpinione() {
               </CardContent>
             </Card>
 
-            {/* Grafico principale */}
-            <Card className="bg-white shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-xl">Distribuzione Voti</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                {pieData.some(item => item.value > 0) ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie 
-                        data={pieData} 
-                        dataKey="value" 
-                        nameKey="name" 
-                        cx="50%" 
-                        cy="50%" 
-                        outerRadius={120} 
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    Nessun dato disponibile
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                         {/* Grafico principale - TORTA */}
+             <Card className="bg-white shadow-lg">
+               <CardHeader>
+                 <CardTitle className="text-xl">Distribuzione Voti</CardTitle>
+               </CardHeader>
+               <CardContent className="h-80">
+                 {pieData.some(item => item.value > 0) ? (
+                   <ResponsiveContainer width="100%" height="100%">
+                     <PieChart>
+                       <Pie 
+                         data={pieData} 
+                         dataKey="value" 
+                         nameKey="name" 
+                         cx="50%" 
+                         cy="50%" 
+                         outerRadius={120} 
+                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                       >
+                         {pieData.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                         ))}
+                       </Pie>
+                       <Tooltip />
+                       <Legend />
+                     </PieChart>
+                   </ResponsiveContainer>
+                 ) : (
+                   <div className="flex items-center justify-center h-full text-gray-500">
+                     Nessun dato disponibile
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
 
             {/* Grafici per genere ed età */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Grafico per genere */}
-              <Card className="bg-white shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
-                </CardHeader>
-                <CardContent className="h-80">
-                  {generePieData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie 
-                          data={generePieData} 
-                          dataKey="value" 
-                          nameKey="name" 
-                          cx="50%" 
-                          cy="50%" 
-                          outerRadius={100} 
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {generePieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      Nessun dato disponibile
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                             {/* Grafico per genere - BARRE ORIZZONTALI */}
+               <Card className="bg-white shadow-lg">
+                 <CardHeader>
+                   <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
+                 </CardHeader>
+                 <CardContent className="h-80">
+                   {genereBarData.length > 0 ? (
+                     <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={genereBarData} layout="horizontal">
+                         <CartesianGrid strokeDasharray="3 3" />
+                         <XAxis type="number" allowDecimals={false} />
+                         <YAxis dataKey="name" type="category" />
+                         <Tooltip />
+                         <Legend />
+                         <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
+                         <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
+                         <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
+                         <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
+                       </BarChart>
+                     </ResponsiveContainer>
+                   ) : (
+                     <div className="flex items-center justify-center h-full text-gray-500">
+                       Nessun dato disponibile
+                     </div>
+                   )}
+                 </CardContent>
+               </Card>
 
-              {/* Grafico per età */}
-              <Card className="bg-white shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-xl">Distribuzione per Età</CardTitle>
-                </CardHeader>
-                <CardContent className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={etaBarData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
-                      <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
-                      <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
-                      <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+                             {/* Grafico per età - BARRE ORIZZONTALI */}
+               <Card className="bg-white shadow-lg">
+                 <CardHeader>
+                   <CardTitle className="text-xl">Distribuzione per Età</CardTitle>
+                 </CardHeader>
+                 <CardContent className="h-80">
+                   {etaBarData.length > 0 ? (
+                     <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={etaBarData} layout="horizontal">
+                         <CartesianGrid strokeDasharray="3 3" />
+                         <XAxis type="number" allowDecimals={false} />
+                         <YAxis dataKey="name" type="category" />
+                         <Tooltip />
+                         <Legend />
+                         <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
+                         <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
+                         <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
+                         <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
+                       </BarChart>
+                     </ResponsiveContainer>
+                   ) : (
+                     <div className="flex items-center justify-center h-full text-gray-500">
+                       Nessun dato disponibile
+                     </div>
+                   )}
+                 </CardContent>
+               </Card>
             </div>
           </div>
         )}
