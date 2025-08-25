@@ -75,13 +75,13 @@ export default function StatisticheOpinione() {
 
 
   // Calcola il totale voti correttamente (solo chi ha risposto)
-  const totalVotes = (stats.favorevole || 0) + (stats.contrario || 0) + (stats.indeciso || 0);
+  const totalVotes = (parseInt(stats.favorevole) || 0) + (parseInt(stats.contrario) || 0) + (parseInt(stats.indeciso) || 0);
 
   const pieData = [
-    { name: 'Favorevole', value: stats.favorevole || 0 },
-    { name: 'Contrario', value: stats.contrario || 0 },
-    { name: 'Indeciso', value: stats.indeciso || 0 },
-    { name: 'Astenuto', value: stats.astenuto || 0 },
+    { name: 'Favorevole', value: parseInt(stats.favorevole) || 0 },
+    { name: 'Contrario', value: parseInt(stats.contrario) || 0 },
+    { name: 'Indeciso', value: parseInt(stats.indeciso) || 0 },
+    { name: 'Astenuto', value: parseInt(stats.astenuto) || 0 },
   ];
 
 
@@ -89,10 +89,10 @@ export default function StatisticheOpinione() {
   // Prepara dati per genere (bar chart orizzontale)
   const genereBarData = genereData?.map(item => ({
     name: item.genere,
-    Favorevole: item.favorevole || 0,
-    Contrario: item.contrario || 0,
-    Indeciso: item.indeciso || 0,
-    Astenuto: item.astenuto || 0,
+    Favorevole: parseInt(item.favorevole) || 0,
+    Contrario: parseInt(item.contrario) || 0,
+    Indeciso: parseInt(item.indeciso) || 0,
+    Astenuto: parseInt(item.astenuto) || 0,
   })) || [];
 
 
@@ -100,10 +100,10 @@ export default function StatisticheOpinione() {
   // Prepara dati per età (bar chart orizzontale)
   const etaBarData = etaData?.map(item => ({
     name: item.fascia_eta,
-    Favorevole: item.favorevole || 0,
-    Contrario: item.contrario || 0,
-    Indeciso: item.indeciso || 0,
-    Astenuto: item.astenuto || 0,
+    Favorevole: parseInt(item.favorevole) || 0,
+    Contrario: parseInt(item.contrario) || 0,
+    Indeciso: parseInt(item.indeciso) || 0,
+    Astenuto: parseInt(item.astenuto) || 0,
   })) || [];
 
      return (
@@ -169,9 +169,9 @@ export default function StatisticheOpinione() {
                     </div>
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">Favorevoli</p>
-                      <p className="text-2xl font-bold text-green-600">{stats.favorevole || 0}</p>
+                                             <p className="text-2xl font-bold text-green-600">{parseInt(stats.favorevole) || 0}</p>
                       <p className="text-xs text-muted-foreground">
-                        {totalVotes > 0 ? Math.round(((stats.favorevole || 0) / totalVotes) * 100) : 0}%
+                                                 {totalVotes > 0 ? Math.round(((parseInt(stats.favorevole) || 0) / totalVotes) * 100) : 0}%
                       </p>
                     </div>
                   </div>
@@ -186,9 +186,9 @@ export default function StatisticheOpinione() {
                     </div>
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-600">Contrari</p>
-                      <p className="text-2xl font-bold text-red-600">{stats.contrario || 0}</p>
+                                             <p className="text-2xl font-bold text-red-600">{parseInt(stats.contrario) || 0}</p>
                       <p className="text-xs text-muted-foreground">
-                        {totalVotes > 0 ? Math.round(((stats.contrario || 0) / totalVotes) * 100) : 0}%
+                                                 {totalVotes > 0 ? Math.round(((parseInt(stats.contrario) || 0) / totalVotes) * 100) : 0}%
                       </p>
                     </div>
                   </div>
