@@ -2221,6 +2221,59 @@ app.get('/api/opinioni/stats/:opinionId/genere', verifyToken, async (req, res) =
   }
 });
 
+// GET /api/opinioni/stats/:opinionId/genere/:regione - Statistiche opinione per genere filtrate per regione
+app.get('/api/opinioni/stats/:opinionId/genere/:regione', verifyToken, async (req, res) => {
+  try {
+    const { opinionId, regione } = req.params;
+    
+    let columnName;
+    switch (opinionId) {
+      case 'energia_nucleare': columnName = 'energia_nucleare'; break;
+      case 'sperimentazione_animale': columnName = 'sperimentazione_animale'; break;
+      case 'legalizzazione_canapa': columnName = 'legalizzazione_canapa'; break;
+      case 'caccia': columnName = 'caccia'; break;
+      case 'eutanasia': columnName = 'eutanasia'; break;
+      case 'carne_coltivata': columnName = 'carne_coltivata'; break;
+      case 'cittadina_animale': columnName = 'cittadina_animale'; break;
+      case 'nato': columnName = 'nato'; break;
+      case 'matrimonio_gay': columnName = 'matrimonio_gay'; break;
+      case 'salario_minimo': columnName = 'salario_minimo'; break;
+      case 'case_chiuse': columnName = 'case_chiuse'; break;
+      case 'omobitransfobia': columnName = 'omobitransfobia'; break;
+      default:
+        return res.status(400).json({ success: false, error: 'Opinione non riconosciuta' });
+    }
+
+    // Normalizza il nome della regione
+    const normalizedRegione = regione.charAt(0).toUpperCase() + regione.slice(1).toLowerCase();
+
+    const query = `
+              SELECT 
+          genere,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+        FROM users 
+        WHERE genere IS NOT NULL 
+        AND regione_residenza = $1
+        AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
+        GROUP BY genere
+        ORDER BY genere
+    `;
+    
+    const result = await pool.query(query, [normalizedRegione]);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per regione:', error);
+    res.status(500).json({ success: false, error: 'Errore nel recuperare statistiche genere per regione' });
+  }
+});
+
 // GET /api/opinioni/stats/:opinionId/eta - Statistiche opinione per età
 app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
   try {
@@ -4082,7 +4135,7 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
   }
 });
 
-// GET /api/sondaggi/genere - Statistiche del genere degli utenti
+// GET /api/sondaggi/genere - Statistiche del genere degli utenti (tutti)
 app.get('/api/sondaggi/genere', limiter, async (req, res) => {
   try {
     console.log('🔍 DEBUG /api/sondaggi/genere - Inizio elaborazione');
@@ -4110,6 +4163,123 @@ app.get('/api/sondaggi/genere', limiter, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare statistiche genere'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione - Statistiche del genere filtrate per regione
+app.get('/api/sondaggi/genere/:regione', limiter, async (req, res) => {
+  try {
+    const { regione } = req.params;
+    console.log('🔍 DEBUG /api/sondaggi/genere/:regione - Regione:', regione);
+    
+    // Normalizza il nome della regione
+    const normalizedRegione = regione.charAt(0).toUpperCase() + regione.slice(1).toLowerCase();
+    
+    const query = `
+      SELECT 
+        COUNT(CASE WHEN genere = 'uomo' THEN 1 END) as uomo,
+        COUNT(CASE WHEN genere = 'donna' THEN 1 END) as donna,
+        COUNT(CASE WHEN genere = 'altro' THEN 1 END) as altro
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+    `;
+    
+    const result = await pool.query(query, [normalizedRegione]);
+    const genereStats = result.rows[0];
+    
+    console.log('🔍 DEBUG /api/sondaggi/genere/:regione - Risultato:', genereStats);
+    
+    res.json({
+      success: true,
+      data: genereStats
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per regione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per regione'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione/:provincia - Statistiche del genere filtrate per provincia
+app.get('/api/sondaggi/genere/:regione/:provincia', limiter, async (req, res) => {
+  try {
+    const { regione, provincia } = req.params;
+    console.log('🔍 DEBUG /api/sondaggi/genere/:regione/:provincia - Regione:', regione, 'Provincia:', provincia);
+    
+    // Normalizza i nomi
+    const normalizedRegione = regione.charAt(0).toUpperCase() + regione.slice(1).toLowerCase();
+    const normalizedProvincia = provincia.charAt(0).toUpperCase() + provincia.slice(1).toLowerCase();
+    
+    const query = `
+      SELECT 
+        COUNT(CASE WHEN genere = 'uomo' THEN 1 END) as uomo,
+        COUNT(CASE WHEN genere = 'donna' THEN 1 END) as donna,
+        COUNT(CASE WHEN genere = 'altro' THEN 1 END) as altro
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      AND provincia_residenza = $2
+    `;
+    
+    const result = await pool.query(query, [normalizedRegione, normalizedProvincia]);
+    const genereStats = result.rows[0];
+    
+    console.log('🔍 DEBUG /api/sondaggi/genere/:regione/:provincia - Risultato:', genereStats);
+    
+    res.json({
+      success: true,
+      data: genereStats
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per provincia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per provincia'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione/:provincia/:comune - Statistiche del genere filtrate per comune
+app.get('/api/sondaggi/genere/:regione/:provincia/:comune', limiter, async (req, res) => {
+  try {
+    const { regione, provincia, comune } = req.params;
+    console.log('🔍 DEBUG /api/sondaggi/genere/:regione/:provincia/:comune - Regione:', regione, 'Provincia:', provincia, 'Comune:', comune);
+    
+    // Normalizza i nomi
+    const normalizedRegione = regione.charAt(0).toUpperCase() + regione.slice(1).toLowerCase();
+    const normalizedProvincia = provincia.charAt(0).toUpperCase() + provincia.slice(1).toLowerCase();
+    const normalizedComune = comune.charAt(0).toUpperCase() + comune.slice(1).toLowerCase();
+    
+    const query = `
+      SELECT 
+        COUNT(CASE WHEN genere = 'uomo' THEN 1 END) as uomo,
+        COUNT(CASE WHEN genere = 'donna' THEN 1 END) as donna,
+        COUNT(CASE WHEN genere = 'altro' THEN 1 END) as altro
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione_residenza = $1
+      AND provincia_residenza = $2
+      AND comune_residenza = $3
+    `;
+    
+    const result = await pool.query(query, [normalizedRegione, normalizedProvincia, normalizedComune]);
+    const genereStats = result.rows[0];
+    
+    console.log('🔍 DEBUG /api/sondaggi/genere/:regione/:provincia/:comune - Risultato:', genereStats);
+    
+    res.json({
+      success: true,
+      data: genereStats
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per comune:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per comune'
     });
   }
 });
