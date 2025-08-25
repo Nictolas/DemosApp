@@ -3,3 +3,8 @@
 [33mda7e36b[m 4
 [33m96a42cb[m 3
 [33mf08eeb1[m 2
+[33m5efacf9[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix sondaggi endpoint: map opinion IDs to correct user table columns
+[33m3cc442e[m Fix sondaggi endpoint: remove created_at column and add trust proxy config
+[33m91bb755[m 1
+[33mba6b969[m 6
+[33m48203a3[m 5
