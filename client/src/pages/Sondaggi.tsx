@@ -3,7 +3,7 @@ import { Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, BarChart as BarChartIcon, TrendingUp, Users } from "lucide-react";
+import { Loader2, ArrowLeft, BarChart as BarChartIcon, TrendingUp, Users, MapPin } from "lucide-react";
 // === INIZIO MODIFICHE ===
 import { PieChart, Pie, Cell, Tooltip, Legend, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 // === FINE MODIFICHE ===
@@ -200,18 +200,92 @@ export default function Sondaggi() {
               </Card>
             </div>
 
-            {/* Grafico a barre principale */}
-            {barChartData && barChartData.length > 0 && (
-              <Card className="bg-white shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="text-2xl text-gray-800 flex items-center">
-                    <BarChartIcon className="mr-2 h-6 w-6 text-blue-600" />
-                    Distribuzione Complessiva delle Opinioni
-                  </CardTitle>
-                  <CardDescription className="text-gray-600">
-                    Panoramica generale di tutte le opinioni espresse dagli utenti
-                  </CardDescription>
-                </CardHeader>
+            {/* Pulsanti per statistiche regionali */}
+            <Card className="bg-white shadow-lg">
+              <CardHeader className="border-b border-gray-100">
+                <CardTitle className="text-xl text-gray-800 flex items-center">
+                  <MapPin className="mr-2 h-5 w-5 text-blue-600" />
+                  Statistiche Regionali
+                </CardTitle>
+                <CardDescription className="text-gray-600">
+                  Visualizza le statistiche dei sondaggi divise per regione
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {['Lombardia', 'Lazio', 'Toscana', 'Veneto', 'Piemonte', 'Sicilia', 'Puglia', 'Campania', 'Emilia-Romagna', 'Liguria'].map((regione) => (
+                    <Link key={regione} href={`/sondaggi/${regione.toLowerCase().replace(/\s+/g, '-')}`}>
+                      <Button 
+                        variant="outline" 
+                        className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                      >
+                        <MapPin className="mr-2 h-4 w-4 text-blue-600" />
+                        {regione}
+                      </Button>
+                    </Link>
+                  ))}
+                  <Link href="/sondaggi/italia">
+                    <Button 
+                      variant="default" 
+                      className="w-full h-16 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      Italia
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+
+                         {/* Pulsanti per statistiche regionali */}
+             <Card className="bg-white shadow-lg">
+               <CardHeader className="border-b border-gray-100">
+                 <CardTitle className="text-xl text-gray-800 flex items-center">
+                   <MapPin className="mr-2 h-5 w-5 text-blue-600" />
+                   Statistiche Regionali
+                 </CardTitle>
+                 <CardDescription className="text-gray-600">
+                   Visualizza le statistiche dei sondaggi divise per regione
+                 </CardDescription>
+               </CardHeader>
+               <CardContent className="p-6">
+                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                   {['Lombardia', 'Lazio', 'Toscana', 'Veneto', 'Piemonte', 'Sicilia', 'Puglia', 'Campania', 'Emilia-Romagna', 'Liguria'].map((regione) => (
+                     <Link key={regione} href={`/sondaggi/${regione.toLowerCase().replace(/\s+/g, '-')}`}>
+                       <Button 
+                         variant="outline" 
+                         className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                       >
+                         <MapPin className="mr-2 h-4 w-4 text-blue-600" />
+                         {regione}
+                       </Button>
+                     </Link>
+                   ))}
+                   <Link href="/sondaggi/italia">
+                     <Button 
+                       variant="default" 
+                       className="w-full h-16 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                     >
+                       <MapPin className="mr-2 h-4 w-4" />
+                       Italia
+                     </Button>
+                   </Link>
+                 </div>
+               </CardContent>
+             </Card>
+
+             {/* Grafico a barre principale */}
+             {barChartData && barChartData.length > 0 && (
+               <Card className="bg-white shadow-lg">
+                 <CardHeader className="border-b border-gray-100">
+                   <CardTitle className="text-2xl text-gray-800 flex items-center">
+                     <BarChartIcon className="mr-2 h-6 w-6 text-blue-600" />
+                     Distribuzione Complessiva delle Opinioni
+                   </CardTitle>
+                   <CardDescription className="text-gray-600">
+                     Panoramica generale di tutte le opinioni espresse dagli utenti
+                   </CardDescription>
+                 </CardHeader>
                 <CardContent className="p-6">
                   <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
