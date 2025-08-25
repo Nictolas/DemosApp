@@ -12,8 +12,10 @@ const COLORS = ['#10B981', '#EF4444', '#FCD34D', '#6B7280']; // Favorevole, Cont
 
 // Mappa delle regioni italiane (come in Sondaggi.tsx)
 const REGIONI = [
-  'Lombardia', 'Lazio', 'Toscana', 'Veneto', 'Piemonte', 
-  'Sicilia', 'Puglia', 'Campania', 'Emilia-Romagna', 'Liguria'
+  'Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 
+  'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 
+  'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 
+  'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'
 ];
 
 export default function StatisticheOpinione() {

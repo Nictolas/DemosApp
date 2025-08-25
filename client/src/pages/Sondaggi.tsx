@@ -173,7 +173,7 @@ export default function Sondaggi() {
             <Card className="bg-white shadow-lg">
               <CardContent className="p-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {['Lombardia', 'Lazio', 'Toscana', 'Veneto', 'Piemonte', 'Sicilia', 'Puglia', 'Campania', 'Emilia-Romagna', 'Liguria'].map((regione) => (
+                  {['Abruzzo', 'Basilicata', 'Calabria', 'Campania', 'Emilia-Romagna', 'Friuli-Venezia Giulia', 'Lazio', 'Liguria', 'Lombardia', 'Marche', 'Molise', 'Piemonte', 'Puglia', 'Sardegna', 'Sicilia', 'Toscana', 'Trentino-Alto Adige', 'Umbria', 'Valle d\'Aosta', 'Veneto'].map((regione) => (
                     <Link key={regione} href={`/sondaggi/${regione.toLowerCase().replace(/\s+/g, '-')}`}>
                       <Button 
                         variant="outline" 
