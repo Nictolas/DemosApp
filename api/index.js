@@ -2198,16 +2198,16 @@ app.get('/api/opinioni/stats/:opinionId/genere', verifyToken, async (req, res) =
     }
 
     const query = `
-      SELECT 
-        genere,
-        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-        COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
-      FROM users 
-      WHERE genere IS NOT NULL AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
-      GROUP BY genere
-      ORDER BY genere
+              SELECT 
+          genere,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+        FROM users 
+        WHERE genere IS NOT NULL AND (${columnName} IS NOT NULL OR ${columnName} IS NULL)
+        GROUP BY genere
+        ORDER BY genere
     `;
     
     const result = await pool.query(query);
