@@ -14,6 +14,7 @@ interface Question { id: string; text: string; }
 interface SondaggiData {
     stats: OpinionStats;
     questions: Question[];
+    utentiUnici?: number;
     filter?: {
         type: 'regione' | 'provincia' | 'comune';
         value?: string;
@@ -62,7 +63,7 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
     },
   });
   
-  const { stats, questions = [], filter } = data || {};
+  const { stats, questions = [], utentiUnici = 0, filter } = data || {};
   
   // Debug logging
   console.log('🔍 DEBUG: Data received:', { stats, questions, filter });
@@ -310,15 +311,12 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
                        <div className="p-3 rounded-full bg-purple-100">
                          <Users className="h-6 w-6 text-purple-600" />
                        </div>
-                       <div className="ml-4">
-                         <p className="text-sm font-medium text-gray-600">Utenti Totali</p>
-                         <p className="text-2xl font-bold text-gray-900">
-                           {Object.values(stats).reduce((total, stat) => {
-                             const questionTotal = stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto;
-                             return total + questionTotal;
-                           }, 0)}
-                         </p>
-                       </div>
+                                               <div className="ml-4">
+                          <p className="text-sm font-medium text-gray-600">Utenti Totali</p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {utentiUnici}
+                          </p>
+                        </div>
                      </div>
                    </CardContent>
                  </Card>
