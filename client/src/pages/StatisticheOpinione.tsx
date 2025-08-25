@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, BarChart as BarChartIcon, Users, TrendingUp } from "lucide-react";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -90,13 +90,14 @@ export default function StatisticheOpinione() {
     { name: `${item.genere} - Astenuto`, value: item.astenuto || 0, category: item.genere },
   ]).filter(item => item.value > 0) || [];
 
-  // Prepara dati per età (pie chart)
-  const etaPieData = etaData?.flatMap(item => [
-    { name: `${item.fascia_eta} - Favorevole`, value: item.favorevole || 0, category: item.fascia_eta },
-    { name: `${item.fascia_eta} - Contrario`, value: item.contrario || 0, category: item.fascia_eta },
-    { name: `${item.fascia_eta} - Indeciso`, value: item.indeciso || 0, category: item.fascia_eta },
-    { name: `${item.fascia_eta} - Astenuto`, value: item.astenuto || 0, category: item.fascia_eta },
-  ]).filter(item => item.value > 0) || [];
+  // Prepara dati per età (bar chart)
+  const etaBarData = etaData?.map(item => ({
+    name: item.fascia_eta,
+    Favorevole: item.favorevole || 0,
+    Contrario: item.contrario || 0,
+    Indeciso: item.indeciso || 0,
+    Astenuto: item.astenuto || 0,
+  })) || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
@@ -293,23 +294,17 @@ export default function StatisticheOpinione() {
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie 
-                        data={etaPieData} 
-                        dataKey="value" 
-                        nameKey="name" 
-                        cx="50%" 
-                        cy="50%" 
-                        outerRadius={100} 
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {etaPieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
+                    <BarChart data={etaBarData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                    </PieChart>
+                      <Bar dataKey="Favorevole" stackId="a" fill="#10B981" />
+                      <Bar dataKey="Contrario" stackId="a" fill="#EF4444" />
+                      <Bar dataKey="Indeciso" stackId="a" fill="#FCD34D" />
+                      <Bar dataKey="Astenuto" stackId="a" fill="#6B7280" />
+                    </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
