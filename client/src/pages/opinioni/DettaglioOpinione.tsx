@@ -72,7 +72,7 @@ export default function DettaglioOpinione({ opinionField, regionName, provinceNa
   if (!user) return <Redirect to="/auth" />;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-50 p-4 page-with-navbar">
       <div className="container mx-auto max-w-5xl">
         <Link href={regionName ? `/sondaggi/${opinionField}` : "/sondaggi"}><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna Indietro</Button></Link>
         

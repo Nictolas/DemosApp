@@ -228,7 +228,7 @@ export default function Limiti() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
         <Card className="mb-6">
           <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">

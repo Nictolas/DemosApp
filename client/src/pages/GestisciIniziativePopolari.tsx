@@ -60,7 +60,7 @@ export default function GestisciIniziativePopolari() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
         <Link href="/gestisci">
           <Button variant="ghost" className="mb-4 flex items-center">

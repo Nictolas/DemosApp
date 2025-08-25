@@ -146,7 +146,7 @@ export default function RegistrazioneCandidatura() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-16">
         <div className="flex justify-center">
           <div className="w-full max-w-md">

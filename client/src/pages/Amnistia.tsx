@@ -96,7 +96,7 @@ export default function Amnistia() {
 
   // Il resto del codice JSX per la visualizzazione rimane IDENTICO
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
         <Link href="/menu">
           <Button variant="ghost" className="mb-4 flex items-center">

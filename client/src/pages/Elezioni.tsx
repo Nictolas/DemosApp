@@ -152,7 +152,7 @@ export default function Elezioni() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden" style={{ paddingBottom: '80px' }}>
+      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
         <div className="container mx-auto px-4 py-8">
           <Link href="/menu">
             <Button variant="ghost" className="mb-4 flex items-center">
