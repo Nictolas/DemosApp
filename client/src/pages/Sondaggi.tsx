@@ -4,11 +4,9 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, BarChart as BarChartIcon, TrendingUp, Users, MapPin } from "lucide-react";
-// === INIZIO MODIFICHE ===
-import { PieChart, Pie, Cell, Tooltip, Legend, Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-// === FINE MODIFICHE ===
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import SondaggiContent from "@/components/SondaggiContent";
 
 type OpinionData = { favorevole: number; contrario: number; indeciso: number; astenuto: number; };
 type OpinionStats = Record<string, OpinionData>;
@@ -35,88 +33,20 @@ export default function Sondaggi() {
       const response = await apiRequest("GET", "/api/sondaggi/stats");
       if (!response.ok) throw new Error("Errore nel caricamento delle statistiche.");
       const result = await response.json();
-      return result.data; // Estrai i dati dalla risposta
+      return result.data;
     },
     enabled: !!user,
   });
   
   const { stats, questions = [] } = data || {};
-  
-  // Debug logging
-  console.log('🔍 DEBUG: Data received:', { stats, questions });
-  console.log('🔍 DEBUG: Stats keys:', stats ? Object.keys(stats) : 'No stats');
-  console.log('🔍 DEBUG: Questions count:', questions.length);
-  
-  // === INIZIO MODIFICHE LOGICA GRAFICI ===
-  const preparePieData = (questionKey: string) => {
-    if (!stats) return [];
-    const questionStats = stats[questionKey];
-    
-    // Controllo di sicurezza: se non ci sono statistiche per questa domanda, ritorna array vuoto
-    if (!questionStats) {
-      console.log('⚠️ DEBUG: No stats for question:', questionKey);
-      return [];
-    }
-    
-    // Controllo che tutti i valori siano numeri validi e maggiori o uguali a 0
-    const favorevole = Math.max(0, Number(questionStats.favorevole) || 0);
-    const contrario = Math.max(0, Number(questionStats.contrario) || 0);
-    const indeciso = Math.max(0, Number(questionStats.indeciso) || 0);
-    const astenuto = Math.max(0, Number(questionStats.astenuto) || 0);
-    
-    // Controllo che almeno un valore sia maggiore di 0
-    if (favorevole === 0 && contrario === 0 && indeciso === 0 && astenuto === 0) {
-      console.log('⚠️ DEBUG: All values are 0 for question:', questionKey);
-      return [];
-    }
-    
-    const data = [];
-    if (favorevole > 0) data.push({ name: 'Favorevole', value: favorevole, color: COLORS.favorevole });
-    if (contrario > 0) data.push({ name: 'Contrario', value: contrario, color: COLORS.contrario });
-    if (indeciso > 0) data.push({ name: 'Indeciso', value: indeciso, color: COLORS.indeciso });
-    if (astenuto > 0) data.push({ name: 'Astenuto', value: astenuto, color: COLORS.astenuto });
-    
-    return data;
-  };
-
-  const prepareBarData = () => {
-    if (!stats || questions.length === 0) return [];
-    
-    const filteredQuestions = questions.filter(q => q.text && q.text.trim() !== '');
-    console.log('🔍 DEBUG: Filtered questions for bar chart:', filteredQuestions);
-    
-    const barData = filteredQuestions.map(q => {
-      // Controllo che le statistiche esistano e siano valide
-      const questionStats = stats[q.id];
-      if (!questionStats) {
-        console.log('⚠️ DEBUG: No stats for question:', q.id);
-        return null;
-      }
-      
-      const data = {
-        name: q.text,
-        Favorevole: Math.max(0, Number(questionStats.favorevole) || 0),
-        Contrario: Math.max(0, Number(questionStats.contrario) || 0),
-        Indeciso: Math.max(0, Number(questionStats.indeciso) || 0),
-        Astenuto: Math.max(0, Number(questionStats.astenuto) || 0),
-      };
-      console.log('🔍 DEBUG: Bar data for question', q.id, ':', data);
-      return data;
-    }).filter(Boolean) as Array<{ name: string; Favorevole: number; Contrario: number; Indeciso: number; Astenuto: number; }>;
-    
-    console.log('🔍 DEBUG: Final bar data:', barData);
-    return barData;
-  };
-  // === FINE MODIFICHE LOGICA GRAFICI ===
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
+  
   // Controllo più flessibile per l'accesso ai sondaggi
   const userRole = user.role || user.ruolo;
   const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
   if (!hasAdvancedAccess) return <Redirect to="/menu" />;
-
-  const barChartData = prepareBarData();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -228,121 +158,8 @@ export default function Sondaggi() {
               </CardContent>
             </Card>
 
-             {/* Grafico a barre principale */}
-             {barChartData && barChartData.length > 0 && (
-               <Card className="bg-white shadow-lg">
-                 <CardHeader className="border-b border-gray-100">
-                   <CardTitle className="text-2xl text-gray-800 flex items-center">
-                     <BarChartIcon className="mr-2 h-6 w-6 text-blue-600" />
-                     Distribuzione Complessiva delle Opinioni
-                   </CardTitle>
-                   <CardDescription className="text-gray-600">
-                     Panoramica generale di tutte le opinioni espresse dagli utenti
-                   </CardDescription>
-                 </CardHeader>
-                <CardContent className="p-6">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis 
-                        dataKey="name" 
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                      />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'white', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                        }}
-                      />
-                      <Legend />
-                      <Bar dataKey="Favorevole" fill={COLORS.favorevole} name="Favorevole" />
-                      <Bar dataKey="Contrario" fill={COLORS.contrario} name="Contrario" />
-                      <Bar dataKey="Indeciso" fill={COLORS.indeciso} name="Indeciso" />
-                      <Bar dataKey="Astenuto" fill={COLORS.astenuto} name="Astenuto" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Grafici a torta per singole domande */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {questions
-                .filter(q => q.text && q.text.trim() !== '')
-                .map(q => {
-                  console.log('🔍 DEBUG: Rendering pie chart for question:', q.id, 'with text:', q.text);
-                  const pieData = preparePieData(q.id);
-                  console.log('🔍 DEBUG: Pie data for question', q.id, ':', pieData);
-                  
-                  if (pieData.length === 0) {
-                    console.log('⚠️ DEBUG: Skipping pie chart for question', q.id, '- no data');
-                    return null;
-                  }
-                  
-                  return (
-                    <Card key={q.id} className="bg-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                      <CardHeader 
-                        className="cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100"
-                        onClick={() => window.location.href = `/statistiche-opinione/${q.id}`}
-                      >
-                        <CardTitle className="text-lg text-gray-800 hover:text-blue-600 transition-colors">
-                          {q.text}
-                        </CardTitle>
-
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="h-64">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie 
-                                data={pieData} 
-                                dataKey="value" 
-                                nameKey="name" 
-                                cx="50%" 
-                                cy="50%" 
-                                outerRadius={80} 
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                labelLine={false}
-                              >
-                                {pieData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                              </Pie>
-                              <Tooltip 
-                                contentStyle={{ 
-                                  backgroundColor: 'white', 
-                                  border: '1px solid #e5e7eb',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                }}
-                              />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                        
-                        {/* Legenda colori */}
-                        <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                          {pieData.map((entry, index) => (
-                            <div key={index} className="flex items-center">
-                              <div 
-                                className="w-3 h-3 rounded-full mr-2" 
-                                style={{ backgroundColor: entry.color }}
-                              />
-                              <span className="text-gray-700">{entry.name}: {entry.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-            </div>
+            {/* Contenuto dei sondaggi nazionali */}
+            <SondaggiContent />
           </div>
         )}
       </div>

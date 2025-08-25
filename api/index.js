@@ -3990,6 +3990,387 @@ app.get('/api/sondaggi', verifyToken, async (req, res) => {
 
 // Rimuovo POST /api/sondaggi perché non esiste più la tabella sondaggi
 
+// GET /api/sondaggi/stats/:regione - Statistiche sondaggi filtrate per regione
+app.get('/api/sondaggi/stats/:regione', limiter, async (req, res) => {
+  try {
+    const { regione } = req.params;
+    console.log(`🔍 DEBUG /api/sondaggi/stats/${regione} - Inizio elaborazione`);
+    
+    // Normalizza il nome della regione
+    const normalizedRegione = regione.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni 
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti filtrate per regione
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      let columnName;
+      switch (questionId) {
+        case 'energia_nucleare':
+          columnName = 'energia_nucleare';
+          break;
+        case 'sperimentazione_animale':
+          columnName = 'sperimentazione_animale';
+          break;
+        case 'legalizzazione_canapa':
+          columnName = 'legalizzazione_canapa';
+          break;
+        case 'caccia':
+          columnName = 'caccia';
+          break;
+        case 'eutanasia':
+          columnName = 'eutanasia';
+          break;
+        case 'carne_coltivata':
+          columnName = 'carne_coltivata';
+          break;
+        case 'cittadina_animale':
+          columnName = 'cittadina_animale';
+          break;
+        case 'nato':
+          columnName = 'nato';
+          break;
+        case 'matrimonio_gay':
+          columnName = 'matrimonio_gay';
+          break;
+        case 'salario_minimo':
+          columnName = 'salario_minimo';
+          break;
+        case 'case_chiuse':
+          columnName = 'case_chiuse';
+          break;
+        case 'omobitransfobia':
+          columnName = 'omobitransfobia';
+          break;
+        default:
+          continue;
+      }
+      
+      // Query per contare le risposte per questa opinione filtrate per regione
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${columnName} IS NOT NULL
+        AND regione_residenza = $1
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [normalizedRegione]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId}:`, statsError.message);
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'regione',
+          value: normalizedRegione
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi per regione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi per regione'
+    });
+  }
+});
+
+// GET /api/sondaggi/stats/:regione/:provincia - Statistiche sondaggi filtrate per provincia
+app.get('/api/sondaggi/stats/:regione/:provincia', limiter, async (req, res) => {
+  try {
+    const { regione, provincia } = req.params;
+    console.log(`🔍 DEBUG /api/sondaggi/stats/${regione}/${provincia} - Inizio elaborazione`);
+    
+    // Normalizza i nomi
+    const normalizedRegione = regione.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const normalizedProvincia = provincia.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni 
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti filtrate per provincia
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      let columnName;
+      switch (questionId) {
+        case 'energia_nucleare':
+          columnName = 'energia_nucleare';
+          break;
+        case 'sperimentazione_animale':
+          columnName = 'sperimentazione_animale';
+          break;
+        case 'legalizzazione_canapa':
+          columnName = 'legalizzazione_canapa';
+          break;
+        case 'caccia':
+          columnName = 'caccia';
+          break;
+        case 'eutanasia':
+          columnName = 'eutanasia';
+          break;
+        case 'carne_coltivata':
+          columnName = 'carne_coltivata';
+          break;
+        case 'cittadina_animale':
+          columnName = 'cittadina_animale';
+          break;
+        case 'nato':
+          columnName = 'nato';
+          break;
+        case 'matrimonio_gay':
+          columnName = 'matrimonio_gay';
+          break;
+        case 'salario_minimo':
+          columnName = 'salario_minimo';
+          break;
+        case 'case_chiuse':
+          columnName = 'case_chiuse';
+          break;
+        case 'omobitransfobia':
+          columnName = 'omobitransfobia';
+          break;
+        default:
+          continue;
+      }
+      
+      // Query per contare le risposte per questa opinione filtrate per provincia
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${columnName} IS NOT NULL
+        AND regione_residenza = $1
+        AND provincia_residenza = $2
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [normalizedRegione, normalizedProvincia]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId}:`, statsError.message);
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'provincia',
+          regione: normalizedRegione,
+          provincia: normalizedProvincia
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi per provincia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi per provincia'
+    });
+  }
+});
+
+// GET /api/sondaggi/stats/:regione/:provincia/:comune - Statistiche sondaggi filtrate per comune
+app.get('/api/sondaggi/stats/:regione/:provincia/:comune', limiter, async (req, res) => {
+  try {
+    const { regione, provincia, comune } = req.params;
+    console.log(`🔍 DEBUG /api/sondaggi/stats/${regione}/${provincia}/${comune} - Inizio elaborazione`);
+    
+    // Normalizza i nomi
+    const normalizedRegione = regione.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const normalizedProvincia = provincia.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const normalizedComune = comune.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni 
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti filtrate per comune
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      let columnName;
+      switch (questionId) {
+        case 'energia_nucleare':
+          columnName = 'energia_nucleare';
+          break;
+        case 'sperimentazione_animale':
+          columnName = 'sperimentazione_animale';
+          break;
+        case 'legalizzazione_canapa':
+          columnName = 'legalizzazione_canapa';
+          break;
+        case 'caccia':
+          columnName = 'caccia';
+          break;
+        case 'eutanasia':
+          columnName = 'eutanasia';
+          break;
+        case 'carne_coltivata':
+          columnName = 'carne_coltivata';
+          break;
+        case 'cittadina_animale':
+          columnName = 'cittadina_animale';
+          break;
+        case 'nato':
+          columnName = 'nato';
+          break;
+        case 'matrimonio_gay':
+          columnName = 'matrimonio_gay';
+          break;
+        case 'salario_minimo':
+          columnName = 'salario_minimo';
+          break;
+        case 'case_chiuse':
+          columnName = 'case_chiuse';
+          break;
+        case 'omobitransfobia':
+          columnName = 'omobitransfobia';
+          break;
+        default:
+          continue;
+      }
+      
+      // Query per contare le risposte per questa opinione filtrate per comune
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} IS NULL THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${columnName} IS NOT NULL
+        AND regione_residenza = $1
+        AND provincia_residenza = $2
+        AND comune_residenza = $3
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [normalizedRegione, normalizedProvincia, normalizedComune]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId}:`, statsError.message);
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'comune',
+          regione: normalizedRegione,
+          provincia: normalizedProvincia,
+          comune: normalizedComune
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi per comune:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi per comune'
+    });
+  }
+});
+
 // ===== ENDPOINTS PER NOTIFICHE =====
 
 // GET /api/notifiche - Ottieni notifiche utente
