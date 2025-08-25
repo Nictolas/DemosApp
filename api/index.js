@@ -2145,7 +2145,6 @@ app.get('/api/opinioni/stats/:opinionId', verifyToken, async (req, res) => {
     // Usa SOLO la tabella utenti - aggrega le risposte dalle colonne opinioni
     const query = `
       SELECT 
-        COUNT(CASE WHEN ${columnName} IS NOT NULL THEN 1 END) as totale_risposte,
         COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
         COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
         COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
