@@ -269,51 +269,66 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
         {/* Contenuto principale */}
         {stats && (
           <div className="space-y-8">
-            {/* Statistiche generali - solo se c'è un filtro */}
-            {filterPath && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-green-100">
-                        <TrendingUp className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Domande Totali</p>
-                        <p className="text-2xl font-bold text-gray-900">{questions.length}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-full bg-blue-100">
-                        <Users className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Voti Totali</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {Object.values(stats).reduce((total, stat) => 
-                            total + (stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto), 0
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                         {/* Statistiche generali - solo se c'è un filtro */}
+             {filterPath && (
+               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                 <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                   <CardContent className="p-6">
+                     <div className="flex items-center">
+                       <div className="p-3 rounded-full bg-green-100">
+                         <TrendingUp className="h-6 w-6 text-green-600" />
+                       </div>
+                       <div className="ml-4">
+                         <p className="text-sm font-medium text-gray-600">Domande Totali</p>
+                         <p className="text-2xl font-bold text-gray-900">{questions.length}</p>
+                       </div>
+                     </div>
+                   </CardContent>
+                 </Card>
+                 
+                 <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                   <CardContent className="p-6">
+                     <div className="flex items-center">
+                       <div className="p-3 rounded-full bg-blue-100">
+                         <Users className="h-6 w-6 text-blue-600" />
+                       </div>
+                       <div className="ml-4">
+                         <p className="text-sm font-medium text-gray-600">Voti Totali</p>
+                         <p className="text-2xl font-bold text-gray-900">
+                           {Object.values(stats).reduce((total, stat) => 
+                             total + (stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto), 0
+                           )}
+                         </p>
+                       </div>
+                     </div>
+                   </CardContent>
+                 </Card>
+
+                 <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                   <CardContent className="p-6">
+                     <div className="flex items-center">
+                       <div className="p-3 rounded-full bg-purple-100">
+                         <Users className="h-6 w-6 text-purple-600" />
+                       </div>
+                       <div className="ml-4">
+                         <p className="text-sm font-medium text-gray-600">Utenti Totali</p>
+                         <p className="text-2xl font-bold text-gray-900">
+                           {Object.values(stats).reduce((total, stat) => {
+                             const questionTotal = stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto;
+                             return total + questionTotal;
+                           }, 0)}
+                         </p>
+                       </div>
+                     </div>
+                   </CardContent>
+                 </Card>
+               </div>
+             )}
 
             {/* Pulsanti per statistiche provinciali - solo se siamo in una pagina filtrata per regione */}
             {filterPath && filter?.type === 'regione' && (
               <Card className="bg-white shadow-lg">
                 <CardContent className="p-6">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Statistiche Provinciali</h3>
-                    <p className="text-sm text-gray-600">Visualizza le statistiche dei sondaggi divise per provincia</p>
-                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {getProvinceForRegion(filter.value || '').map((provincia) => (
                       <Link key={provincia.nome} href={`/sondaggi/${filterPath}/${provincia.nome.toLowerCase().replace(/\s+/g, '-')}`}>
@@ -321,7 +336,6 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
                           variant="outline" 
                           className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
                         >
-                          <MapPin className="mr-2 h-4 w-4 text-blue-600" />
                           {provincia.nome}
                         </Button>
                       </Link>
@@ -335,10 +349,6 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
             {filterPath && filter?.type === 'provincia' && (
               <Card className="bg-white shadow-lg">
                 <CardContent className="p-6">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Statistiche Comunali</h3>
-                    <p className="text-sm text-gray-600">Visualizza le statistiche dei sondaggi divise per comune</p>
-                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {getComuniForProvincia(filter.regione || '', filter.provincia || '').map((comune) => (
                       <Link key={comune} href={`/sondaggi/${filterPath}/${comune.toLowerCase().replace(/\s+/g, '-')}`}>
@@ -346,7 +356,6 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
                           variant="outline" 
                           className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
                         >
-                          <MapPin className="mr-2 h-4 w-4 text-blue-600" />
                           {comune}
                         </Button>
                       </Link>

@@ -128,6 +128,25 @@ export default function Sondaggi() {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="p-3 rounded-full bg-purple-100">
+                      <Users className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Utenti Totali</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {Object.values(stats).reduce((total, stat) => {
+                          const questionTotal = stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto;
+                          return total + questionTotal;
+                        }, 0)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Pulsanti per statistiche regionali */}
@@ -140,7 +159,6 @@ export default function Sondaggi() {
                         variant="outline" 
                         className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
                       >
-                        <MapPin className="mr-2 h-4 w-4 text-blue-600" />
                         {regione}
                       </Button>
                     </Link>
@@ -150,7 +168,6 @@ export default function Sondaggi() {
                       variant="default" 
                       className="w-full h-16 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      <MapPin className="mr-2 h-4 w-4" />
                       Italia
                     </Button>
                   </Link>
