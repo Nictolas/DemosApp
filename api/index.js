@@ -2742,7 +2742,7 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
         rappresentante_europeo,
         rappresentante_camera,
         rappresentante_senato,
-        rappresentante_regione,
+        rappresentante_regionale,
         rappresentante_comune
       FROM users
       WHERE id = $1
@@ -2751,11 +2751,20 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
     const userResult = await pool.query(userQuery, [userId]);
     const utente = userResult.rows[0] || {};
     
+    // Mappa i nomi delle colonne per mantenere compatibilità con il frontend
+    const utenteMapped = {
+      rappresentante_europeo: utente.rappresentante_europeo,
+      rappresentante_camera: utente.rappresentante_camera,
+      rappresentante_senato: utente.rappresentante_senato,
+      rappresentante_regione: utente.rappresentante_regionale, // Mappa il nome corretto
+      rappresentante_comune: utente.rappresentante_comune
+    };
+    
     res.json({
       success: true,
       data: {
         candidati: candidati,
-        utente: utente
+        utente: utenteMapped
       }
     });
     
