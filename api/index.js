@@ -3746,39 +3746,55 @@ app.post('/api/candidati', verifyToken, validateInput(['user_id', 'grado', 'cate
 // GET /api/sondaggi/stats - Statistiche sondaggi aggregate dalle opinioni
 app.get('/api/sondaggi/stats', limiter, async (req, res) => {
   try {
-    // Genera statistiche aggregate dalle opinioni degli utenti
-    const statsQuery = `
-      SELECT 
-        o.grado_opinione,
-        o.text,
-        COUNT(*) as totale_voti,
-        COUNT(CASE WHEN o.voto = 'favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN o.voto = 'contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN o.voto = 'astenuto' THEN 1 END) as astenuto
-      FROM opinioni o
-      GROUP BY o.grado_opinione, o.text
-      ORDER BY o.grado_opinione, o.text
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text, source, created_at
+      FROM opinioni 
+      ORDER BY created_at DESC
     `;
     
-    const result = await pool.query(statsQuery);
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
     
-    // Formatta i dati per la frontend
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti
     const stats = {};
     const questions = [];
     
-    result.rows.forEach(row => {
-      const questionId = `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`;
-      stats[questionId] = {
-        favorevole: parseInt(row.favorevole) || 0,
-        contrario: parseInt(row.contrario) || 0,
-        astenuto: parseInt(row.astenuto) || 0
-      };
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
       
-      questions.push({
-        id: questionId,
-        text: `${row.grado_opinione}: ${row.text}`
-      });
-    });
+      // Query per contare le risposte per questa opinione
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${questionId} = 'Astenuto' THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${questionId} IS NOT NULL
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId}:`, statsError.message);
+        // Se la colonna non esiste, salta questa opinione
+        continue;
+      }
+    }
     
     res.json({
       success: true,
@@ -3799,40 +3815,56 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
 // GET /api/sondaggi - Ottieni tutti i sondaggi (opinioni aggregate)
 app.get('/api/sondaggi', verifyToken, async (req, res) => {
   try {
-    // Restituisce le opinioni aggregate come "sondaggi"
-    const query = `
-      SELECT 
-        o.grado_opinione,
-        o.text,
-        COUNT(*) as totale_voti,
-        COUNT(CASE WHEN o.voto = 'favorevole' THEN 1 END) as favorevole,
-        COUNT(CASE WHEN o.voto = 'contrario' THEN 1 END) as contrario,
-        COUNT(CASE WHEN o.voto = 'astenuto' THEN 1 END) as astenuto
-      FROM opinioni o
-      GROUP BY o.grado_opinione, o.text
-      ORDER BY o.grado_opinione, o.text
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text, source, created_at
+      FROM opinioni 
+      ORDER BY created_at DESC
       LIMIT 10
     `;
     
-    const result = await pool.query(query);
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
     
-    // Formatta i dati per la frontend
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti
     const stats = {};
     const questions = [];
     
-    result.rows.forEach(row => {
-      const questionId = `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`;
-      stats[questionId] = {
-        favorevole: parseInt(row.favorevole) || 0,
-        contrario: parseInt(row.contrario) || 0,
-        astenuto: parseInt(row.astenuto) || 0
-      };
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
       
-      questions.push({
-        id: questionId,
-        text: `${row.grado_opinione}: ${row.text}`
-      });
-    });
+      // Query per contare le risposte per questa opinione
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN ${questionId} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${questionId} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${questionId} = 'Astenuto' THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${questionId} IS NOT NULL
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId}:`, statsError.message);
+        // Se la colonna non esiste, salta questa opinione
+        continue;
+      }
+    }
     
     res.json({
       success: true,
