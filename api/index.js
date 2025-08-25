@@ -3755,7 +3755,7 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
     const questionsQuery = `
       SELECT id, text
       FROM opinioni 
-      ORDER BY id
+      ORDER BY text
     `;
     
     console.log('🔍 DEBUG /api/sondaggi/stats - Eseguendo query opinioni:', questionsQuery);
@@ -3877,7 +3877,7 @@ app.get('/api/sondaggi', verifyToken, async (req, res) => {
     const questionsQuery = `
       SELECT id, text
       FROM opinioni 
-      ORDER BY id
+      ORDER BY text
       LIMIT 10
     `;
     
