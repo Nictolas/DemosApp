@@ -3854,13 +3854,35 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
       }
     }
     
-    console.log('🔍 DEBUG /api/sondaggi/stats - Risultato finale:', { stats, questions });
+    // Calcola il numero di utenti unici che hanno partecipato
+    const uniqueUsersQuery = `
+      SELECT COUNT(DISTINCT id) as utenti_unici
+      FROM users 
+      WHERE energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL 
+         OR caccia IS NOT NULL 
+         OR eutanasia IS NOT NULL 
+         OR carne_coltivata IS NOT NULL 
+         OR cittadina_animale IS NOT NULL 
+         OR nato IS NOT NULL 
+         OR matrimonio_gay IS NOT NULL 
+         OR salario_minimo IS NOT NULL 
+         OR case_chiuse IS NOT NULL 
+         OR omobitransfobia IS NOT NULL
+    `;
+    
+    const uniqueUsersResult = await pool.query(uniqueUsersQuery);
+    const utentiUnici = parseInt(uniqueUsersResult.rows[0].utenti_unici) || 0;
+    
+    console.log('🔍 DEBUG /api/sondaggi/stats - Risultato finale:', { stats, questions, utentiUnici });
     
     res.json({
       success: true,
       data: {
         stats,
-        questions
+        questions,
+        utentiUnici
       }
     });
   } catch (error) {
@@ -4094,11 +4116,34 @@ app.get('/api/sondaggi/stats/:regione', limiter, async (req, res) => {
       }
     }
     
+    // Calcola il numero di utenti unici che hanno partecipato in questa regione
+    const uniqueUsersQuery = `
+      SELECT COUNT(DISTINCT id) as utenti_unici
+      FROM users 
+      WHERE regione_residenza = $1
+        AND (energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL 
+         OR caccia IS NOT NULL 
+         OR eutanasia IS NOT NULL 
+         OR carne_coltivata IS NOT NULL 
+         OR cittadina_animale IS NOT NULL 
+         OR nato IS NOT NULL 
+         OR matrimonio_gay IS NOT NULL 
+         OR salario_minimo IS NOT NULL 
+         OR case_chiuse IS NOT NULL 
+         OR omobitransfobia IS NOT NULL)
+    `;
+    
+    const uniqueUsersResult = await pool.query(uniqueUsersQuery, [normalizedRegione]);
+    const utentiUnici = parseInt(uniqueUsersResult.rows[0].utenti_unici) || 0;
+    
     res.json({
       success: true,
       data: {
         stats,
         questions,
+        utentiUnici,
         filter: {
           type: 'regione',
           value: normalizedRegione
@@ -4220,11 +4265,35 @@ app.get('/api/sondaggi/stats/:regione/:provincia', limiter, async (req, res) => 
       }
     }
     
+    // Calcola il numero di utenti unici che hanno partecipato in questa provincia
+    const uniqueUsersQuery = `
+      SELECT COUNT(DISTINCT id) as utenti_unici
+      FROM users 
+      WHERE regione_residenza = $1
+        AND provincia_residenza = $2
+        AND (energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL 
+         OR caccia IS NOT NULL 
+         OR eutanasia IS NOT NULL 
+         OR carne_coltivata IS NOT NULL 
+         OR cittadina_animale IS NOT NULL 
+         OR nato IS NOT NULL 
+         OR matrimonio_gay IS NOT NULL 
+         OR salario_minimo IS NOT NULL 
+         OR case_chiuse IS NOT NULL 
+         OR omobitransfobia IS NOT NULL)
+    `;
+    
+    const uniqueUsersResult = await pool.query(uniqueUsersQuery, [normalizedRegione, normalizedProvincia]);
+    const utentiUnici = parseInt(uniqueUsersResult.rows[0].utenti_unici) || 0;
+    
     res.json({
       success: true,
       data: {
         stats,
         questions,
+        utentiUnici,
         filter: {
           type: 'provincia',
           regione: normalizedRegione,
@@ -4349,11 +4418,36 @@ app.get('/api/sondaggi/stats/:regione/:provincia/:comune', limiter, async (req, 
       }
     }
     
+    // Calcola il numero di utenti unici che hanno partecipato in questo comune
+    const uniqueUsersQuery = `
+      SELECT COUNT(DISTINCT id) as utenti_unici
+      FROM users 
+      WHERE regione_residenza = $1
+        AND provincia_residenza = $2
+        AND comune_residenza = $3
+        AND (energia_nucleare IS NOT NULL 
+         OR sperimentazione_animale IS NOT NULL 
+         OR legalizzazione_canapa IS NOT NULL 
+         OR caccia IS NOT NULL 
+         OR eutanasia IS NOT NULL 
+         OR carne_coltivata IS NOT NULL 
+         OR cittadina_animale IS NOT NULL 
+         OR nato IS NOT NULL 
+         OR matrimonio_gay IS NOT NULL 
+         OR salario_minimo IS NOT NULL 
+         OR case_chiuse IS NOT NULL 
+         OR omobitransfobia IS NOT NULL)
+    `;
+    
+    const uniqueUsersResult = await pool.query(uniqueUsersQuery, [normalizedRegione, normalizedProvincia, normalizedComune]);
+    const utentiUnici = parseInt(uniqueUsersResult.rows[0].utenti_unici) || 0;
+    
     res.json({
       success: true,
       data: {
         stats,
         questions,
+        utentiUnici,
         filter: {
           type: 'comune',
           regione: normalizedRegione,
