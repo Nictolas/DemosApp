@@ -66,6 +66,9 @@ import DebugAuth from "@/pages/debug-auth";
 import Riscontro from "@/pages/Riscontro";
 
 import Sondaggi from "@/pages/Sondaggi";
+import SondaggiRegione from "@/pages/SondaggiRegione";
+import SondaggiProvincia from "@/pages/SondaggiProvincia";
+import SondaggiComune from "@/pages/SondaggiComune";
 import StatisticheOpinione from "@/pages/StatisticheOpinione";
 import ResetPasswordPage from "@/pages/reset-password";
 import ResetPasswordConfirmPage from "@/pages/reset-password-confirm";
@@ -301,6 +304,36 @@ function Router() {
         {(params) => (
           <PageTransition location={location} type="fade-up">
             <ProtectedRoute path="/sondaggi" component={Sondaggi} />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/sondaggi/:regione/:provincia/:comune">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute 
+              path="/sondaggi/:regione/:provincia/:comune" 
+              component={() => <SondaggiComune regione={params.regione} provincia={params.provincia} comune={params.comune} />} 
+            />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/sondaggi/:regione/:provincia">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute 
+              path="/sondaggi/:regione/:provincia" 
+              component={() => <SondaggiProvincia regione={params.regione} provincia={params.provincia} />} 
+            />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/sondaggi/:regione">
+        {(params) => (
+          <PageTransition location={location} type="fade-up">
+            <ProtectedRoute 
+              path="/sondaggi/:regione" 
+              component={() => <SondaggiRegione regione={params.regione} />} 
+            />
           </PageTransition>
         )}
       </Route>
