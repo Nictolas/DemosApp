@@ -2736,6 +2736,49 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
     
+    // Assicurati che ogni candidato abbia un avatar_config valido
+    candidati = candidati.map(candidato => {
+      let avatarConfig = candidato.avatar_config;
+      
+      // Se non c'è avatar_config o è vuoto, genera uno di default
+      if (!avatarConfig || avatarConfig === '{}' || avatarConfig === 'null') {
+        // Genera un avatar_config di default basato sul nome per varietà
+        const defaultConfig = {
+          skinColor: "#FDBCB4",
+          hairColor: "#8B4513", 
+          hairStyle: "short",
+          mustacheStyle: "none",
+          mustacheColor: "#2C1810",
+          beardStyle: "none",
+          beardColor: "#2C1810",
+          noseStyle: "normal",
+          suitColor: "#2C3E50",
+          tieColor: "#E74C3C"
+        };
+        
+        // Varia i colori in base al nome per diversità
+        const nameHash = candidato.nome ? candidato.nome.charCodeAt(0) : 0;
+        const colors = [
+          { suit: "#2C3E50", tie: "#E74C3C" }, // Blu scuro + rosso
+          { suit: "#8B4513", tie: "#3498DB" }, // Marrone + blu
+          { suit: "#2E7D32", tie: "#F1C40F" }, // Verde + giallo
+          { suit: "#5D6D7E", tie: "#9B59B6" }, // Grigio + viola
+          { suit: "#1A237E", tie: "#FF5722" }  // Blu navy + arancione
+        ];
+        
+        const colorIndex = nameHash % colors.length;
+        defaultConfig.suitColor = colors[colorIndex].suit;
+        defaultConfig.tieColor = colors[colorIndex].tie;
+        
+        avatarConfig = JSON.stringify(defaultConfig);
+      }
+      
+      return {
+        ...candidato,
+        avatar_config: avatarConfig
+      };
+    });
+    
     // Ottieni i dati dell'utente corrente per il rappresentante selezionato
     const userQuery = `
       SELECT 
