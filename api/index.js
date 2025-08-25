@@ -4082,6 +4082,38 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
   }
 });
 
+// GET /api/sondaggi/genere - Statistiche del genere degli utenti
+app.get('/api/sondaggi/genere', limiter, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG /api/sondaggi/genere - Inizio elaborazione');
+    
+    const query = `
+      SELECT 
+        COUNT(CASE WHEN genere = 'uomo' THEN 1 END) as uomo,
+        COUNT(CASE WHEN genere = 'donna' THEN 1 END) as donna,
+        COUNT(CASE WHEN genere = 'altro' THEN 1 END) as altro
+      FROM users 
+      WHERE genere IS NOT NULL
+    `;
+    
+    const result = await pool.query(query);
+    const genereStats = result.rows[0];
+    
+    console.log('🔍 DEBUG /api/sondaggi/genere - Risultato:', genereStats);
+    
+    res.json({
+      success: true,
+      data: genereStats
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere'
+    });
+  }
+});
+
 // GET /api/sondaggi - Ottieni tutti i sondaggi (opinioni aggregate)
 app.get('/api/sondaggi', verifyToken, async (req, res) => {
   try {

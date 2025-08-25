@@ -7,6 +7,7 @@ import { Loader2, ArrowLeft, BarChart as BarChartIcon, TrendingUp, Users, MapPin
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import SondaggiContent from "@/components/SondaggiContent";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 type OpinionData = { favorevole: number; contrario: number; indeciso: number; astenuto: number; };
 type OpinionStats = Record<string, OpinionData>;
@@ -38,8 +39,29 @@ export default function Sondaggi() {
     },
     enabled: !!user,
   });
+
+  // Query per statistiche del genere
+  const { data: genereData } = useQuery({
+    queryKey: ['sondaggiGenere'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/sondaggi/genere");
+      if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!user,
+  });
   
   const { stats, questions = [], utentiUnici = 0 } = data || {};
+
+  // Prepara dati per il grafico a torta del genere
+  const generePieData = genereData ? [
+    { name: 'Uomo', value: parseInt(genereData.uomo) || 0 },
+    { name: 'Donna', value: parseInt(genereData.donna) || 0 },
+    { name: 'Altro', value: parseInt(genereData.altro) || 0 },
+  ].filter(item => item.value > 0) : [];
+
+  const GENERE_COLORS = ['#3B82F6', '#EC4899', '#FCD34D']; // Blu, Rosa, Giallo
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -146,6 +168,35 @@ export default function Sondaggi() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Grafico a torta del genere */}
+            {generePieData.length > 0 && (
+              <Card className="bg-white shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">Distribuzione per Genere</CardTitle>
+                </CardHeader>
+                <CardContent className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={generePieData} 
+                        dataKey="value" 
+                        nameKey="name" 
+                        cx="50%" 
+                        cy="50%" 
+                        outerRadius={120} 
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {generePieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={GENERE_COLORS[index % GENERE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Pulsanti per statistiche regionali */}
             <Card className="bg-white shadow-lg">
