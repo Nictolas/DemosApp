@@ -20,6 +20,9 @@ const limiter = rateLimit({
 
 const app = express();
 
+// Configurazione trust proxy per Render
+app.set('trust proxy', 1);
+
 // Middleware CORS migliorato per produzione
 app.use(cors({
   origin: function (origin, callback) {
