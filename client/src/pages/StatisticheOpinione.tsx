@@ -70,23 +70,6 @@ export default function StatisticheOpinione() {
     cacheTime: 0,
   });
 
-  // Query per statistiche del genere per questa opinione
-  const { data: genereData } = useQuery({
-    queryKey: ['opinioneStatsGenere', opinionId],
-    queryFn: async () => {
-      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/genere`, null, {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      });
-      if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
-      const result = await response.json();
-      return result.data;
-    },
-    enabled: !!user && !!opinionId,
-    staleTime: 0,
-    cacheTime: 0,
-  });
-
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <div>Non autorizzato</div>;
   
