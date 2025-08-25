@@ -36,11 +36,22 @@ export default function StatisticheOpinione() {
     enabled: !!user && !!opinionId,
   });
 
-  // Query per statistiche per genere
+  // Query per statistiche per genere (filtrate in base al contesto)
   const { data: genereData } = useQuery({
-    queryKey: ['opinioneStatsGenere', opinionId],
+    queryKey: ['opinioneStatsGenere', opinionId, window.location.pathname],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/genere`, null, {
+      // Controlla se siamo in una pagina regionale
+      const pathParts = window.location.pathname.split('/');
+      let endpoint = `/api/opinioni/stats/${opinionId}/genere`;
+      
+      // Se l'URL contiene "regione", usa l'endpoint filtrato
+      if (pathParts.includes('regione') && pathParts.length > 3) {
+        const regioneIndex = pathParts.indexOf('regione');
+        const regione = pathParts[regioneIndex + 1];
+        endpoint = `/api/opinioni/stats/${opinionId}/genere/${regione}`;
+      }
+      
+      const response = await apiRequest("GET", endpoint, null, {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache'
       });

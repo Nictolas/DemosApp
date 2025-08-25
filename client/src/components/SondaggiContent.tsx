@@ -63,11 +63,24 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
     },
   });
 
-  // Query per statistiche del genere
+  // Query per statistiche del genere (filtrate in base al contesto)
   const { data: genereData } = useQuery({
     queryKey: ['sondaggiGenere', filterPath],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/sondaggi/genere");
+      let endpoint = "/api/sondaggi/genere";
+      
+      if (filterPath) {
+        const pathParts = filterPath.split('/');
+        if (pathParts.length === 1) {
+          endpoint = `/api/sondaggi/genere/${pathParts[0]}`;
+        } else if (pathParts.length === 2) {
+          endpoint = `/api/sondaggi/genere/${pathParts[0]}/${pathParts[1]}`;
+        } else if (pathParts.length === 3) {
+          endpoint = `/api/sondaggi/genere/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
+        }
+      }
+      
+      const response = await apiRequest("GET", endpoint);
       if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
       const result = await response.json();
       return result.data;
