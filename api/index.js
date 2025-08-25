@@ -2248,12 +2248,15 @@ app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
     const query = `
       SELECT 
         CASE 
-          WHEN eta < 25 THEN '18-24'
+          WHEN eta < 18 THEN 'Sotto i 18'
+          WHEN eta BETWEEN 18 AND 24 THEN '18-24'
           WHEN eta BETWEEN 25 AND 34 THEN '25-34'
           WHEN eta BETWEEN 35 AND 44 THEN '35-44'
           WHEN eta BETWEEN 45 AND 54 THEN '45-54'
           WHEN eta BETWEEN 55 AND 64 THEN '55-64'
-          WHEN eta >= 65 THEN '65+'
+          WHEN eta BETWEEN 65 AND 74 THEN '65-74'
+          WHEN eta BETWEEN 75 AND 84 THEN '75-84'
+          WHEN eta >= 85 THEN '85 e oltre'
           ELSE 'Non specificata'
         END as fascia_eta,
         COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
@@ -2265,13 +2268,16 @@ app.get('/api/opinioni/stats/:opinionId/eta', verifyToken, async (req, res) => {
       GROUP BY fascia_eta
       ORDER BY 
         CASE fascia_eta
-          WHEN '18-24' THEN 1
-          WHEN '25-34' THEN 2
-          WHEN '35-44' THEN 3
-          WHEN '45-54' THEN 4
-          WHEN '55-64' THEN 5
-          WHEN '65+' THEN 6
-          ELSE 7
+          WHEN 'Sotto i 18' THEN 1
+          WHEN '18-24' THEN 2
+          WHEN '25-34' THEN 3
+          WHEN '35-44' THEN 4
+          WHEN '45-54' THEN 5
+          WHEN '55-64' THEN 6
+          WHEN '65-74' THEN 7
+          WHEN '75-84' THEN 8
+          WHEN '85 e oltre' THEN 9
+          ELSE 10
         END
     `;
     
