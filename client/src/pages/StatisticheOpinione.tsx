@@ -40,24 +40,34 @@ export default function StatisticheOpinione() {
   const { data: genereData } = useQuery({
     queryKey: ['opinioneStatsGenere', opinionId],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/genere`);
+      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/genere`, null, {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      });
       if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
       const result = await response.json();
       return result.data;
     },
     enabled: !!user && !!opinionId,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   // Query per statistiche per età
   const { data: etaData } = useQuery({
     queryKey: ['opinioneStatsEta', opinionId],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/eta`);
+      const response = await apiRequest("GET", `/api/opinioni/stats/${opinionId}/eta`, null, {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      });
       if (!response.ok) throw new Error("Errore nel caricamento statistiche età.");
       const result = await response.json();
       return result.data;
     },
     enabled: !!user && !!opinionId,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
@@ -72,10 +82,7 @@ export default function StatisticheOpinione() {
   const questionText = data?.questionText || 'Opinione';
   const totaleUtenti = data?.totaleUtenti || 0;
 
-  // Debug: log dei dati ricevuti
-  console.log('DEBUG - stats:', stats);
-  console.log('DEBUG - genereData:', genereData);
-  console.log('DEBUG - etaData:', etaData);
+
 
 
 
@@ -89,7 +96,7 @@ export default function StatisticheOpinione() {
     { name: 'Astenuto', value: parseInt(stats.astenuto) || 0 },
   ];
 
-  console.log('DEBUG - pieData:', pieData);
+
 
   // Prepara dati per genere (bar chart orizzontale)
   const genereBarData = [
@@ -119,7 +126,7 @@ export default function StatisticheOpinione() {
     },
   ];
 
-  console.log('DEBUG - genereBarData:', genereBarData);
+
 
   // Prepara dati per età (bar chart orizzontale)
   const etaBarData = etaData?.map(item => ({
@@ -130,7 +137,7 @@ export default function StatisticheOpinione() {
     Astenuto: parseInt(item.astenuto) || 0,
   })) || [];
 
-  console.log('DEBUG - etaBarData:', etaBarData);
+
 
      return (
      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
@@ -269,8 +276,7 @@ export default function StatisticheOpinione() {
                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                          ))}
                        </Pie>
-                       <Tooltip />
-                       <Legend />
+                                               <Tooltip />
                      </PieChart>
                    </ResponsiveContainer>
                  ) : (

@@ -8,7 +8,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export const apiRequest = async (method: string, url: string, body?: any) => {
+export const apiRequest = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -20,6 +20,11 @@ export const apiRequest = async (method: string, url: string, body?: any) => {
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  // Aggiungi headers personalizzati se forniti
+  if (customHeaders) {
+    headers = { ...headers, ...customHeaders };
   }
   
   const finalUrl = getApiUrl(url);
