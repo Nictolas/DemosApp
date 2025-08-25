@@ -22,7 +22,7 @@ interface SondaggiData {
 const COLORS = {
   favorevole: '#10B981', // Verde
   contrario: '#EF4444',  // Rosso
-  indeciso: '#F59E0B',   // Giallo
+  indeciso: '#FCD34D',   // Giallo (corretto)
   astenuto: '#6B7280'    // Grigio
 };
 
@@ -188,7 +188,7 @@ export default function Sondaggi() {
                       <Users className="h-6 w-6 text-blue-600" />
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Partecipanti</p>
+                      <p className="text-sm font-medium text-gray-600">Voti Totali</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {Object.values(stats).reduce((total, stat) => 
                           total + (stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto), 0
@@ -202,15 +202,6 @@ export default function Sondaggi() {
 
             {/* Pulsanti per statistiche regionali */}
             <Card className="bg-white shadow-lg">
-              <CardHeader className="border-b border-gray-100">
-                <CardTitle className="text-xl text-gray-800 flex items-center">
-                  <MapPin className="mr-2 h-5 w-5 text-blue-600" />
-                  Statistiche Regionali
-                </CardTitle>
-                <CardDescription className="text-gray-600">
-                  Visualizza le statistiche dei sondaggi divise per regione
-                </CardDescription>
-              </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {['Lombardia', 'Lazio', 'Toscana', 'Veneto', 'Piemonte', 'Sicilia', 'Puglia', 'Campania', 'Emilia-Romagna', 'Liguria'].map((regione) => (
@@ -236,43 +227,6 @@ export default function Sondaggi() {
                 </div>
               </CardContent>
             </Card>
-
-                         {/* Pulsanti per statistiche regionali */}
-             <Card className="bg-white shadow-lg">
-               <CardHeader className="border-b border-gray-100">
-                 <CardTitle className="text-xl text-gray-800 flex items-center">
-                   <MapPin className="mr-2 h-5 w-5 text-blue-600" />
-                   Statistiche Regionali
-                 </CardTitle>
-                 <CardDescription className="text-gray-600">
-                   Visualizza le statistiche dei sondaggi divise per regione
-                 </CardDescription>
-               </CardHeader>
-               <CardContent className="p-6">
-                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                   {['Lombardia', 'Lazio', 'Toscana', 'Veneto', 'Piemonte', 'Sicilia', 'Puglia', 'Campania', 'Emilia-Romagna', 'Liguria'].map((regione) => (
-                     <Link key={regione} href={`/sondaggi/${regione.toLowerCase().replace(/\s+/g, '-')}`}>
-                       <Button 
-                         variant="outline" 
-                         className="w-full h-16 text-sm font-medium hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                       >
-                         <MapPin className="mr-2 h-4 w-4 text-blue-600" />
-                         {regione}
-                       </Button>
-                     </Link>
-                   ))}
-                   <Link href="/sondaggi/italia">
-                     <Button 
-                       variant="default" 
-                       className="w-full h-16 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
-                     >
-                       <MapPin className="mr-2 h-4 w-4" />
-                       Italia
-                     </Button>
-                   </Link>
-                 </div>
-               </CardContent>
-             </Card>
 
              {/* Grafico a barre principale */}
              {barChartData && barChartData.length > 0 && (
@@ -340,9 +294,7 @@ export default function Sondaggi() {
                         <CardTitle className="text-lg text-gray-800 hover:text-blue-600 transition-colors">
                           {q.text}
                         </CardTitle>
-                        <CardDescription className="text-gray-500">
-                          Clicca per vedere i dettagli
-                        </CardDescription>
+
                       </CardHeader>
                       <CardContent className="p-6">
                         <div className="h-64">
