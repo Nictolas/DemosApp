@@ -292,7 +292,7 @@ export default function ReclamaProfilo() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 page-with-navbar">
       <div className="container mx-auto p-4 max-w-6xl">
         
         {/* Header */}

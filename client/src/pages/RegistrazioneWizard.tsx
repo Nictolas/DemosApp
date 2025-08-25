@@ -449,7 +449,7 @@ export default function RegistrazioneWizard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center page-with-navbar">
       <div className="w-full max-w-2xl">
         <Card className="shadow-xl border-t-4 border-t-blue-600">
           <CardHeader>

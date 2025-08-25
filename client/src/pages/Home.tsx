@@ -11,7 +11,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen" style={{ paddingBottom: '80px' }}>
+    <div className="min-h-screen page-with-navbar">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="overflow-hidden">
           <CardContent className="px-4 py-5 sm:p-6">

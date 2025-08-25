@@ -230,7 +230,7 @@ export default function Comunica() {
   // Blocca completamente l'accesso per utenti "Elettore"
   if (!hasAdvancedAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4" style={{ paddingBottom: '80px' }}>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -273,7 +273,7 @@ export default function Comunica() {
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4" style={{ paddingBottom: '80px' }}>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Pulsante Riscontro */}
         {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}

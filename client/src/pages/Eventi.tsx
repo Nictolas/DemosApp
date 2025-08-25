@@ -36,7 +36,7 @@ export default function Eventi() {
   }
 
     return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 select-none" style={{ paddingBottom: '80px' }}>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 select-none page-with-navbar">
       <div className="container mx-auto px-4 py-8 space-y-8">
         
         {/* Sezione Prossime Elezioni */}

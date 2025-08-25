@@ -112,7 +112,7 @@ export default function OpinioniComunali() {
   const unlockDate = null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-teal-50 to-white" style={{ paddingBottom: '80px' }}>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-teal-50 to-white page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         <Card className="w-full max-w-4xl mx-auto">
           <CardHeader className="text-center">

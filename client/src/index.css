@@ -389,3 +389,13 @@ body {
     }
   }
 }
+
+/* Padding per le pagine con navbar fissa in basso */
+.page-with-navbar {
+  padding-bottom: 6rem !important; /* 96px per h-24 della navbar */
+}
+
+/* Assicura che il contenuto non finisca dietro la navbar */
+.min-h-screen {
+  min-height: calc(100vh - 6rem) !important;
+}

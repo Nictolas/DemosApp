@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white p-4 page-with-navbar">
       <div className="max-w-xl w-full text-center">
         <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
         <div className="text-lg text-gray-700 space-y-6 mb-8">

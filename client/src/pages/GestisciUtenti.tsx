@@ -464,7 +464,7 @@ export default function GestisciUtenti() {
   }
   
      return (
-     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 select-none">
+     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4 select-none page-with-navbar">
        <div className="w-full px-6">
         {/* Header moderno con gradiente */}
         <div className="text-center mb-8">

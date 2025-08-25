@@ -120,7 +120,7 @@ export default function Notifiche() {
 
   // Il resto del JSX è stato adattato per usare i dati da `data`
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 page-with-navbar">
         {/* ... JSX per la visualizzazione ... */}
     </div>
   );

@@ -61,7 +61,7 @@ export default function GestisciReferendumAbrogativi() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-100 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
         <Button variant="ghost" className="mb-4 flex items-center" onClick={() => setLocation("/gestisci")}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Torna a Gestisci
