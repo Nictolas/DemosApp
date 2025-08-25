@@ -2672,6 +2672,102 @@ app.delete('/api/opinioni/:id', verifyToken, requireAdmin, async (req, res) => {
 
 // ===== ENDPOINTS PER RAPPRESENTANTI =====
 
+// GET /api/rappresentanti/disponibili - Ottieni rappresentanti disponibili per grado e categoria
+app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
+  try {
+    const { grado, categoria } = req.query;
+    const userId = req.userId;
+    
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
+    
+    // Query per ottenere utenti con ruolo "Politico" o "Candidato Politico" dalla tabella users
+    // Filtra per grado_elezione in base al parametro grado ricevuto
+    let gradoFilter = '';
+    let queryParams = [userId];
+    
+    if (grado) {
+      // Mappa i gradi dal frontend ai valori del database
+      const gradoMapping = {
+        'Europeo': 'Europeo',
+        'Camera': 'Camera',
+        'Senato': 'Senato', 
+        'Regionale': 'Regionale',
+        'Comunale': 'Comunale'
+      };
+      
+      const mappedGrado = gradoMapping[grado] || grado;
+      gradoFilter = `AND grado_elezione = $2`;
+      queryParams.push(mappedGrado);
+    }
+    
+    const query = `
+      SELECT 
+        id,
+        nome,
+        cognome,
+        email,
+        ruolo,
+        status,
+        regione,
+        provincia,
+        comune,
+        avatar_config,
+        grado_candidatura,
+        regione_candidatura,
+        provincia_candidatura,
+        comune_candidatura,
+        grado_elezione,
+        regione_elezione,
+        provincia_elezione,
+        comune_elezione
+      FROM users
+      WHERE id != $1 
+        AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico')
+        AND status = 'active'
+        ${gradoFilter}
+      ORDER BY cognome, nome
+    `;
+    
+    const result = await pool.query(query, queryParams);
+    
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
+    
+    // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
+    let candidati = result.rows;
+    
+    // Ottieni i dati dell'utente corrente per il rappresentante selezionato
+    const userQuery = `
+      SELECT 
+        rappresentante_europeo,
+        rappresentante_camera,
+        rappresentante_senato,
+        rappresentante_regione,
+        rappresentante_comune
+      FROM users
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    const utente = userResult.rows[0] || {};
+    
+    res.json({
+      success: true,
+      data: {
+        candidati: candidati,
+        utente: utente
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare rappresentanti disponibili:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare rappresentanti disponibili'
+    });
+  }
+});
+
 // GET /api/rappresentanti - Ottieni rappresentanti dell'utente
 app.get('/api/rappresentanti', verifyToken, async (req, res) => {
   try {
