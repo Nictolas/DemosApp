@@ -308,8 +308,6 @@ export default function StatisticheOpinione() {
                    )}
                  </CardContent>
                </Card>
-
-               </Card>
              </div>
 
              {/* Grafico per età */}
