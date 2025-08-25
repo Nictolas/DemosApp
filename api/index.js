@@ -3823,6 +3823,7 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
           COUNT(*) as totale_voti,
           COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
           COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
           COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
         FROM users 
         WHERE ${columnName} IS NOT NULL
@@ -3836,6 +3837,7 @@ app.get('/api/sondaggi/stats', limiter, async (req, res) => {
         stats[questionId] = {
           favorevole: parseInt(row.favorevole) || 0,
           contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
           astenuto: parseInt(row.astenuto) || 0
         };
         
@@ -3942,6 +3944,7 @@ app.get('/api/sondaggi', verifyToken, async (req, res) => {
           COUNT(*) as totale_voti,
           COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
           COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
           COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
         FROM users 
         WHERE ${columnName} IS NOT NULL
@@ -3954,6 +3957,7 @@ app.get('/api/sondaggi', verifyToken, async (req, res) => {
         stats[questionId] = {
           favorevole: parseInt(row.favorevole) || 0,
           contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
           astenuto: parseInt(row.astenuto) || 0
         };
         
