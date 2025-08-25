@@ -3732,7 +3732,9 @@ app.put('/api/users/:id/seleziona-candidato', verifyToken, async (req, res) => {
 app.put('/api/users/:id/seleziona-rappresentante', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { rappresentante_id } = req.body;
+    const { rappresentanteId, campo } = req.body;
+    
+    console.log('🔍 DEBUG /api/users/:id/seleziona-rappresentante - Richiesta:', { id, rappresentanteId, campo });
     
     // Verifica che l'utente stia modificando il proprio profilo
     if (req.userId !== parseInt(id)) {
@@ -3742,14 +3744,24 @@ app.put('/api/users/:id/seleziona-rappresentante', verifyToken, async (req, res)
       });
     }
     
+    // Verifica che il campo sia valido
+    const campiValidi = ['rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune'];
+    if (!campo || !campiValidi.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo rappresentante non valido'
+      });
+    }
+    
+    // Query dinamica per aggiornare il campo specifico
     const query = `
       UPDATE users 
-      SET rappresentante_selezionato = $1, updated_at = NOW()
+      SET ${campo} = $1, updated_at = NOW()
       WHERE id = $2
-      RETURNING id, rappresentante_selezionato
+      RETURNING id, ${campo}
     `;
     
-    const result = await pool.query(query, [rappresentante_id, id]);
+    const result = await pool.query(query, [rappresentanteId, id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -3757,6 +3769,8 @@ app.put('/api/users/:id/seleziona-rappresentante', verifyToken, async (req, res)
         error: 'Utente non trovato'
       });
     }
+    
+    console.log('✅ DEBUG /api/users/:id/seleziona-rappresentante - Aggiornamento completato:', result.rows[0]);
     
     res.json({
       success: true,
