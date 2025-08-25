@@ -72,6 +72,11 @@ export default function StatisticheOpinione() {
   const questionText = data?.questionText || 'Opinione';
   const totaleUtenti = data?.totaleUtenti || 0;
 
+  // Debug: log dei dati ricevuti
+  console.log('DEBUG - stats:', stats);
+  console.log('DEBUG - genereData:', genereData);
+  console.log('DEBUG - etaData:', etaData);
+
 
 
   // Calcola il totale voti correttamente (solo chi ha risposto)
@@ -84,7 +89,7 @@ export default function StatisticheOpinione() {
     { name: 'Astenuto', value: parseInt(stats.astenuto) || 0 },
   ];
 
-
+  console.log('DEBUG - pieData:', pieData);
 
   // Prepara dati per genere (bar chart orizzontale)
   const genereBarData = [
@@ -114,7 +119,7 @@ export default function StatisticheOpinione() {
     },
   ];
 
-
+  console.log('DEBUG - genereBarData:', genereBarData);
 
   // Prepara dati per età (bar chart orizzontale)
   const etaBarData = etaData?.map(item => ({
@@ -124,6 +129,8 @@ export default function StatisticheOpinione() {
     Contrario: parseInt(item.contrario) || 0,
     Astenuto: parseInt(item.astenuto) || 0,
   })) || [];
+
+  console.log('DEBUG - etaBarData:', etaBarData);
 
      return (
      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
@@ -274,8 +281,8 @@ export default function StatisticheOpinione() {
                </CardContent>
              </Card>
 
-            {/* Grafici per genere ed età */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                         {/* Grafico per genere */}
+             <div className="grid grid-cols-1 gap-6">
                              {/* Grafico per genere - BARRE ORIZZONTALI */}
                <Card className="bg-white shadow-lg">
                  <CardHeader>
@@ -302,7 +309,11 @@ export default function StatisticheOpinione() {
                  </CardContent>
                </Card>
 
-                             {/* Grafico per età - BARRE ORIZZONTALI */}
+               </Card>
+             </div>
+
+             {/* Grafico per età */}
+             <div className="grid grid-cols-1 gap-6">
                <Card className="bg-white shadow-lg">
                  <CardHeader>
                    <CardTitle className="text-xl">Distribuzione per Età</CardTitle>
@@ -328,7 +339,7 @@ export default function StatisticheOpinione() {
                    )}
                  </CardContent>
                </Card>
-            </div>
+             </div>
           </div>
         )}
       </div>
