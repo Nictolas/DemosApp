@@ -191,38 +191,40 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="container mx-auto max-w-7xl p-6">
-        {/* Header con navigazione */}
-        <div className="mb-8">
-          <Link href="/sondaggi">
-            <Button variant="ghost" className="mb-4 flex items-center text-gray-600 hover:text-gray-800 hover:bg-white/50">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Torna ai Sondaggi
-            </Button>
-          </Link>
-          
-          {/* Breadcrumb */}
-          {getBreadcrumb()}
-          
-          {/* Titolo principale */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center">
-              <BarChartIcon className="mr-3 h-10 w-10 text-blue-600" />
-              {getPageTitle()}
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Statistiche aggregate delle opinioni degli utenti per analizzare le tendenze della comunità
-              {filter && (
-                <span className="block text-sm text-blue-600 mt-1">
-                  Filtrato per: {filter.type === 'regione' ? filter.value : 
-                                filter.type === 'provincia' ? `${filter.provincia} (${filter.regione})` :
-                                `${filter.comune} (${filter.provincia}, ${filter.regione})`}
-                </span>
-              )}
-            </p>
+    <div className={filterPath ? "min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50" : ""}>
+      <div className={filterPath ? "container mx-auto max-w-7xl p-6" : ""}>
+        {/* Header con navigazione - solo se c'è un filtro */}
+        {filterPath && (
+          <div className="mb-8">
+            <Link href="/sondaggi">
+              <Button variant="ghost" className="mb-4 flex items-center text-gray-600 hover:text-gray-800 hover:bg-white/50">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Torna ai Sondaggi
+              </Button>
+            </Link>
+            
+            {/* Breadcrumb */}
+            {getBreadcrumb()}
+            
+            {/* Titolo principale */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center">
+                <BarChartIcon className="mr-3 h-10 w-10 text-blue-600" />
+                {getPageTitle()}
+              </h1>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Statistiche aggregate delle opinioni degli utenti per analizzare le tendenze della comunità
+                {filter && (
+                  <span className="block text-sm text-blue-600 mt-1">
+                    Filtrato per: {filter.type === 'regione' ? filter.value : 
+                                  filter.type === 'provincia' ? `${filter.provincia} (${filter.regione})` :
+                                  `${filter.comune} (${filter.provincia}, ${filter.regione})`}
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Loading e Error States */}
         {isLoading && (
@@ -247,40 +249,42 @@ export default function SondaggiContent({ filterPath }: SondaggiContentProps) {
         {/* Contenuto principale */}
         {stats && (
           <div className="space-y-8">
-            {/* Statistiche generali */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="p-3 rounded-full bg-green-100">
-                      <TrendingUp className="h-6 w-6 text-green-600" />
+            {/* Statistiche generali - solo se c'è un filtro */}
+            {filterPath && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-green-100">
+                        <TrendingUp className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Domande Totali</p>
+                        <p className="text-2xl font-bold text-gray-900">{questions.length}</p>
+                      </div>
                     </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Domande Totali</p>
-                      <p className="text-2xl font-bold text-gray-900">{questions.length}</p>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-full bg-blue-100">
+                        <Users className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Voti Totali</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {Object.values(stats).reduce((total, stat) => 
+                            total + (stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto), 0
+                          )}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card className="bg-white shadow-lg hover:shadow-xl transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="p-3 rounded-full bg-blue-100">
-                      <Users className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-600">Voti Totali</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {Object.values(stats).reduce((total, stat) => 
-                          total + (stat.favorevole + stat.contrario + stat.indeciso + stat.astenuto), 0
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Grafico a barre principale */}
             {barChartData && barChartData.length > 0 && (
