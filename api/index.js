@@ -3636,21 +3636,11 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Determina se l'ID è un numero (ID) o una stringa (email)
-    const isNumeric = !isNaN(id) && !isNaN(parseFloat(id));
+    // Determina se l'ID è un email o un ID (UUID)
+    const isEmail = id.includes('@');
     
     let query, params;
-    if (isNumeric) {
-      // Cerca per ID numerico
-      query = `
-        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
-               regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
-               created_at, updated_at
-        FROM users 
-        WHERE id = $1
-      `;
-      params = [id];
-    } else {
+    if (isEmail) {
       // Cerca per email
       query = `
         SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
@@ -3658,6 +3648,16 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
                created_at, updated_at
         FROM users 
         WHERE email = $1
+      `;
+      params = [id];
+    } else {
+      // Cerca per ID (UUID)
+      query = `
+        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
+               regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
+               created_at, updated_at
+        FROM users 
+        WHERE id = $1
       `;
       params = [id];
     }
@@ -3691,7 +3691,7 @@ app.post('/api/users/:id/avatar', verifyToken, async (req, res) => {
     const { avatar_config } = req.body;
     
     // Verifica che l'utente stia modificando il proprio profilo
-    if (req.userId !== parseInt(id)) {
+    if (req.userId !== id) {
       return res.status(403).json({
         success: false,
         error: 'Non puoi modificare il profilo di un altro utente'
@@ -3734,7 +3734,7 @@ app.put('/api/users/:id/seleziona-candidato', verifyToken, async (req, res) => {
     const { candidato_id } = req.body;
     
     // Verifica che l'utente stia modificando il proprio profilo
-    if (req.userId !== parseInt(id)) {
+    if (req.userId !== id) {
       return res.status(403).json({
         success: false,
         error: 'Non puoi modificare il profilo di un altro utente'
@@ -3779,7 +3779,7 @@ app.put('/api/users/:id/seleziona-rappresentante', verifyToken, async (req, res)
     console.log('🔍 DEBUG /api/users/:id/seleziona-rappresentante - Richiesta:', { id, rappresentanteId, campo });
     
     // Verifica che l'utente stia modificando il proprio profilo
-    if (req.userId !== parseInt(id)) {
+    if (req.userId !== id) {
       return res.status(403).json({
         success: false,
         error: 'Non puoi modificare il profilo di un altro utente'
