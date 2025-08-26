@@ -387,12 +387,12 @@ export default function Profilo({ userId }: { userId?: string }) {
               <CardFooter className="flex justify-end gap-2">
                 {!isEditing && (
                   <>
-                    {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico' || userInfo.ruolo === 'Admin') && (
-                      <Button variant="outline" onClick={() => window.location.href = `/modifica-immagine?uid=${user.id}`}>
-                        <Image className="mr-2 h-4 w-4" />
-                        Modifica Immagine
-                      </Button>
-                    )}
+                                         {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico' || userInfo.ruolo === 'Admin') && (
+                       <Button variant="outline" onClick={() => window.location.href = `/modifica-immagine?uid=${user.uid}`}>
+                         <Image className="mr-2 h-4 w-4" />
+                         Modifica Immagine
+                       </Button>
+                     )}
                     <Button onClick={() => setIsEditing(true)}>
                       <Edit className="mr-2 h-4 w-4" />
                       Modifica Profilo
