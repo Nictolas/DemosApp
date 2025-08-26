@@ -81,11 +81,11 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 px-4 lg:px-0">
-      {/* Anteprima Avatar - FISSA IN ALTO */}
-      <div className="lg:sticky lg:top-6 lg:self-start flex flex-col items-center space-y-4 order-1 lg:order-1">
+    <div className="flex flex-col gap-6 px-4 lg:px-0">
+      {/* Anteprima Avatar - IN ALTO */}
+      <div className="flex flex-col items-center space-y-4">
         <h3 className="text-lg font-semibold">Anteprima Avatar</h3>
-        <div className="p-6 bg-gray-50 rounded-lg">
+        <div className="p-6 bg-gray-50 rounded-full">
           <CustomAvatar 
             config={config} 
             size={200} 
@@ -94,8 +94,8 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
         </div>
       </div>
 
-      {/* Personalizzazione Avatar - SCROLLABILE CON SCHEDE */}
-      <div className="flex-1 space-y-6 order-2 lg:order-2">
+      {/* Personalizzazione Avatar - SOTTO CON SCHEDE */}
+      <div className="space-y-6">
         <h3 className="text-lg font-semibold">Personalizzazione Avatar</h3>
         
         <Tabs defaultValue="aspetto" className="w-full">
