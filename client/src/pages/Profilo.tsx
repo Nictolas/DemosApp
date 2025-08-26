@@ -267,6 +267,10 @@ export default function Profilo({ userId }: { userId?: string }) {
     return { favorevoli, indecisi, contrari };
   };
 
+  const handleModificaImmagine = () => {
+    setLocation(`/modifica-immagine?uid=${user.id}`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 to-blue-400 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl space-y-4">
@@ -388,7 +392,7 @@ export default function Profilo({ userId }: { userId?: string }) {
                 {!isEditing && (
                   <>
                                          {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico' || userInfo.ruolo === 'Admin') && (
-                       <Button variant="outline" onClick={() => window.location.href = `/modifica-immagine?uid=${user.id}`}>
+                       <Button variant="outline" onClick={handleModificaImmagine}>
                          <Image className="mr-2 h-4 w-4" />
                          Modifica Immagine
                        </Button>

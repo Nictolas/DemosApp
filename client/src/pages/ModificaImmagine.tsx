@@ -42,10 +42,10 @@ export default function ModificaImmagine() {
 
   // 1. Caricamento dati con React Query
   const { data: userInfo, isLoading: isLoadingInfo } = useQuery<UserInfo>({
-    queryKey: ['userInfo', user?.uid],
+    queryKey: ['userInfo', user?.id],
     queryFn: async () => {
-        if (!user?.uid) throw new Error("User not authenticated");
-        const response = await apiRequest("GET", `/api/users/${user.uid}`);
+        if (!user?.id) throw new Error("User not authenticated");
+        const response = await apiRequest("GET", `/api/users/${user.id}`);
         if (!response.ok) throw new Error("Errore nel caricamento dei dati del profilo");
         return response.json();
     },
@@ -55,8 +55,8 @@ export default function ModificaImmagine() {
   // 2. Mutazione per salvare l'avatar
   const saveAvatarMutation = useMutation({
     mutationFn: async (config: AvatarConfig) => {
-        if (!user?.uid) throw new Error("User not authenticated");
-        const response = await apiRequest("POST", `/api/users/${user.uid}/avatar`, {
+        if (!user?.id) throw new Error("User not authenticated");
+        const response = await apiRequest("POST", `/api/users/${user.id}/avatar`, {
             avatar_config: JSON.stringify(config),
         });
         if (!response.ok) throw new Error("Errore nel salvataggio dell'avatar");
