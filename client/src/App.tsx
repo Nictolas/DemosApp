@@ -169,7 +169,7 @@ function Router() {
         )}
       </Route>
       <Route path="/modifica-immagine">
-        {(params) => (
+        {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
             <ProtectedRoute path="/modifica-immagine" component={ModificaImmagine} />
           </PageTransition>
