@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { CustomAvatar } from "@/components/CustomAvatar";
 
 interface AvatarConfig {
@@ -121,23 +121,96 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
             <div>
               <Label>Stile Capelli</Label>
-              <Select
-                value={config.hairStyle}
-                onValueChange={(value) => setConfig({ ...config, hairStyle: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bald">Calvo</SelectItem>
-                  <SelectItem value="short">Corti</SelectItem>
-                  <SelectItem value="long">Lunghi</SelectItem>
-                  <SelectItem value="curly">Ricci</SelectItem>
-                  <SelectItem value="messy">Spettinati</SelectItem>
-                  <SelectItem value="wavy">Ondulati</SelectItem>
-                  <SelectItem value="buzz">Rasati</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.hairStyle === "bald" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, hairStyle: "bald" })}
+                  title="Calvo"
+                >
+                  <div className="w-12 h-8 flex items-center justify-center text-gray-500 text-xs">
+                    Calvo
+                  </div>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.hairStyle === "short" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, hairStyle: "short" })}
+                  title="Corti"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.hairStyle === "long" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, hairStyle: "long" })}
+                  title="Lunghi"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 32 Q32 40 24 32 Q16 40 8 32 Z" fill="#8B4513"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.hairStyle === "curly" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, hairStyle: "curly" })}
+                  title="Ricci"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
+                    <circle cx="12" cy="12" r="2" fill="#8B4513"/>
+                    <circle cx="24" cy="12" r="2" fill="#8B4513"/>
+                    <circle cx="36" cy="12" r="2" fill="#8B4513"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.hairStyle === "messy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, hairStyle: "messy" })}
+                  title="Spettinati"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
+                    <path d="M6 6 L10 10 M34 6 L38 10 M20 4 L24 8" stroke="#8B4513" strokeWidth="2"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.hairStyle === "wavy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, hairStyle: "wavy" })}
+                  title="Ondulati"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
+                    <path d="M8 12 Q16 8 24 12 Q32 8 40 12" stroke="#8B4513" strokeWidth="2" fill="none"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.hairStyle === "buzz" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, hairStyle: "buzz" })}
+                  title="Rasati"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <rect x="8" y="8" width="32" height="8" fill="#8B4513"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div>
@@ -159,20 +232,57 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
             <div>
               <Label>Stile Baffi</Label>
-              <Select
-                value={config.mustacheStyle}
-                onValueChange={(value) => setConfig({ ...config, mustacheStyle: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nessuno</SelectItem>
-                  <SelectItem value="classic">Classici</SelectItem>
-                  <SelectItem value="thick">Spessi</SelectItem>
-                  <SelectItem value="handlebar">A Manubrio</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.mustacheStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, mustacheStyle: "none" })}
+                  title="Nessuno"
+                >
+                  <div className="w-12 h-8 flex items-center justify-center text-gray-500 text-xs">
+                    Nessuno
+                  </div>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.mustacheStyle === "classic" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, mustacheStyle: "classic" })}
+                  title="Classici"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 16 Q16 8 24 16 Q32 8 40 16 L40 20 Q32 28 24 20 Q16 28 8 20 Z" fill="#8B4513"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.mustacheStyle === "thick" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, mustacheStyle: "thick" })}
+                  title="Spessi"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M6 18 Q16 6 24 18 Q32 6 42 18 L42 22 Q32 34 24 22 Q16 34 6 22 Z" fill="#8B4513"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.mustacheStyle === "handlebar" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, mustacheStyle: "handlebar" })}
+                  title="A Manubrio"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 16 Q16 6 24 16 Q32 6 40 16 L40 20 Q32 30 24 20 Q16 30 8 20 Z" fill="#8B4513"/>
+                    <circle cx="6" cy="18" r="2" fill="#8B4513"/>
+                    <circle cx="42" cy="18" r="2" fill="#8B4513"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {config.mustacheStyle !== "none" && (
@@ -196,20 +306,59 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
             <div>
               <Label>Stile Barba</Label>
-              <Select
-                value={config.beardStyle}
-                onValueChange={(value) => setConfig({ ...config, beardStyle: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nessuna</SelectItem>
-                  <SelectItem value="goatee">Pizzetto</SelectItem>
-                  <SelectItem value="full">Piena</SelectItem>
-                  <SelectItem value="stubble">Barba Incolta</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.beardStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, beardStyle: "none" })}
+                  title="Nessuna"
+                >
+                  <div className="w-12 h-8 flex items-center justify-center text-gray-500 text-xs">
+                    Nessuna
+                  </div>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.beardStyle === "goatee" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, beardStyle: "goatee" })}
+                  title="Pizzetto"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M20 8 Q24 16 28 8 L28 24 Q24 32 20 24 Z" fill="#8B4513"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.beardStyle === "full" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, beardStyle: "full" })}
+                  title="Piena"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 24 Q32 32 24 24 Q16 32 8 24 Z" fill="#8B4513"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.beardStyle === "stubble" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, beardStyle: "stubble" })}
+                  title="Barba Incolta"
+                >
+                  <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
+                    <circle cx="12" cy="12" r="1.5" fill="#8B4513"/>
+                    <circle cx="24" cy="8" r="1.5" fill="#8B4513"/>
+                    <circle cx="36" cy="12" r="1.5" fill="#8B4513"/>
+                    <circle cx="16" cy="20" r="1.5" fill="#8B4513"/>
+                    <circle cx="32" cy="20" r="1.5" fill="#8B4513"/>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {config.beardStyle !== "none" && (
@@ -233,21 +382,67 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
             <div>
               <Label>Stile Naso</Label>
-              <Select
-                value={config.noseStyle}
-                onValueChange={(value) => setConfig({ ...config, noseStyle: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="normal">Normale</SelectItem>
-                  <SelectItem value="small">Piccolo</SelectItem>
-                  <SelectItem value="large">Grande</SelectItem>
-                  <SelectItem value="pointed">Appuntito</SelectItem>
-                  <SelectItem value="button">A Bottone</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-5 gap-2 mt-2">
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.noseStyle === "normal" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, noseStyle: "normal" })}
+                  title="Normale"
+                >
+                  <svg className="w-10 h-8" viewBox="0 0 40 32" fill="currentColor">
+                    <path d="M20 8 Q24 16 20 24 Q16 16 20 8" fill="#FDBCB4"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.noseStyle === "small" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, noseStyle: "small" })}
+                  title="Piccolo"
+                >
+                  <svg className="w-10 h-8" viewBox="0 0 40 32" fill="currentColor">
+                    <path d="M20 10 Q22 16 20 22 Q18 16 20 10" fill="#FDBCB4"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.noseStyle === "large" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, noseStyle: "large" })}
+                  title="Grande"
+                >
+                  <svg className="w-10 h-8" viewBox="0 0 40 32" fill="currentColor">
+                    <path d="M20 6 Q26 16 20 26 Q14 16 20 6" fill="#FDBCB4"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.noseStyle === "pointed" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, noseStyle: "pointed" })}
+                  title="Appuntito"
+                >
+                  <svg className="w-10 h-8" viewBox="0 0 40 32" fill="currentColor">
+                    <path d="M20 8 L24 20 L20 24 L16 20 Z" fill="#FDBCB4"/>
+                  </svg>
+                </button>
+                
+                <button
+                  className={`p-2 rounded-lg border-2 ${
+                    config.noseStyle === "button" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                  }`}
+                  onClick={() => setConfig({ ...config, noseStyle: "button" })}
+                  title="A Bottone"
+                >
+                  <svg className="w-10 h-8" viewBox="0 0 40 32" fill="currentColor">
+                    <circle cx="20" cy="16" r="4" fill="#FDBCB4"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>
