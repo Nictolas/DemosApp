@@ -45,9 +45,10 @@ export default function ModificaImmagine() {
     queryKey: ['userInfo', user?.id],
     queryFn: async () => {
         if (!user?.id) throw new Error("User not authenticated");
-        const response = await apiRequest("GET", `/api/users/${user.id}`);
+        const response = await apiRequest("GET", `/api/users/me`);
         if (!response.ok) throw new Error("Errore nel caricamento dei dati del profilo");
-        return response.json();
+        const result = await response.json();
+        return result.user || result;
     },
     enabled: !!user,
   });
@@ -56,7 +57,7 @@ export default function ModificaImmagine() {
   const saveAvatarMutation = useMutation({
     mutationFn: async (config: AvatarConfig) => {
         if (!user?.id) throw new Error("User not authenticated");
-        const response = await apiRequest("POST", `/api/users/${user.id}/avatar`, {
+        const response = await apiRequest("POST", `/api/users/me/avatar`, {
             avatar_config: JSON.stringify(config),
         });
         if (!response.ok) throw new Error("Errore nel salvataggio dell'avatar");
