@@ -220,8 +220,8 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
               </CardHeader>
               <CardContent className="space-y-4">
                                                    <div>
-                    <Label>Stile Capelli</Label>
-                    <div className="grid grid-cols-6 gap-0.5 mt-2">
+                   <Label>Stile Capelli</Label>
+                   <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-0.5 mt-2">
                                            <button
                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
                           config.hairStyle === "bald" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
