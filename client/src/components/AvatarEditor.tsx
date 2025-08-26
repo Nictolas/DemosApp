@@ -132,13 +132,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 <div>
                   <Label>Stile Naso</Label>
                   <div className="grid grid-cols-5 gap-2 mt-2">
-                    <button
-                      className={`p-2 rounded-lg border-2 ${
-                        config.noseStyle === "normal" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                      }`}
-                      onClick={() => setConfig({ ...config, noseStyle: "normal" })}
-                      title="Normale"
-                    >
+                                         <button
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.noseStyle === "normal" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
+                       onClick={() => setConfig({ ...config, noseStyle: "normal" })}
+                       title="Normale"
+                     >
                                              <svg className="w-10 h-8" viewBox="0 0 300 300" fill="currentColor">
                          {/* NASO NORMALE IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
                          <g transform="translate(150, 180) scale(0.08,-0.08)" fill="#FDBCB4">
@@ -147,13 +147,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </svg>
                     </button>
                     
-                    <button
-                      className={`p-2 rounded-lg border-2 ${
-                        config.noseStyle === "small" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                      }`}
-                      onClick={() => setConfig({ ...config, noseStyle: "small" })}
-                      title="Piccolo"
-                    >
+                                         <button
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.noseStyle === "small" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
+                       onClick={() => setConfig({ ...config, noseStyle: "small" })}
+                       title="Piccolo"
+                     >
                                              <svg className="w-10 h-8" viewBox="0 0 300 300" fill="currentColor">
                          {/* NASO PICCOLO IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
                          <g transform="translate(150, 180) scale(0.06,-0.06)" fill="#FDBCB4">
@@ -162,13 +162,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </svg>
                     </button>
                     
-                    <button
-                      className={`p-2 rounded-lg border-2 ${
-                        config.noseStyle === "large" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                      }`}
-                      onClick={() => setConfig({ ...config, noseStyle: "large" })}
-                      title="Grande"
-                    >
+                                         <button
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.noseStyle === "large" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
+                       onClick={() => setConfig({ ...config, noseStyle: "large" })}
+                       title="Grande"
+                     >
                                              <svg className="w-10 h-8" viewBox="0 0 300 300" fill="currentColor">
                          {/* NASO GRANDE IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
                          <g transform="translate(150, 180) scale(0.1,-0.1)" fill="#FDBCB4">
@@ -177,13 +177,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </svg>
                     </button>
                     
-                    <button
-                      className={`p-2 rounded-lg border-2 ${
-                        config.noseStyle === "pointed" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                      }`}
-                      onClick={() => setConfig({ ...config, noseStyle: "pointed" })}
-                      title="Appuntito"
-                    >
+                                         <button
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.noseStyle === "pointed" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
+                       onClick={() => setConfig({ ...config, noseStyle: "pointed" })}
+                       title="Appuntito"
+                     >
                                              <svg className="w-10 h-8" viewBox="0 0 300 300" fill="currentColor">
                          {/* NASO APPUNTITO IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
                          <g transform="translate(150, 180) scale(0.08,-0.08)" fill="#FDBCB4">
@@ -192,13 +192,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </svg>
                     </button>
                     
-                    <button
-                      className={`p-2 rounded-lg border-2 ${
-                        config.noseStyle === "button" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                      }`}
-                      onClick={() => setConfig({ ...config, noseStyle: "button" })}
-                      title="A Bottone"
-                    >
+                                         <button
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.noseStyle === "button" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
+                       onClick={() => setConfig({ ...config, noseStyle: "button" })}
+                       title="A Bottone"
+                     >
                                              <svg className="w-10 h-8" viewBox="0 0 300 300" fill="currentColor">
                          {/* NASO A BOTTONE IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
                          <g transform="translate(150, 180) scale(0.08,-0.08)" fill="#FDBCB4">
@@ -222,22 +222,22 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                                                    <div>
                     <Label>Stile Capelli</Label>
                     <div className="grid grid-cols-6 gap-0.5 mt-2">
-                     <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.hairStyle === "bald" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
-                       onClick={() => setConfig({ ...config, hairStyle: "bald" })}
-                       title="Calvo"
-                     >
-                       <div className="text-gray-500 text-xs">
-                         Calvo
-                       </div>
-                     </button>
+                                           <button
+                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.hairStyle === "bald" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        onClick={() => setConfig({ ...config, hairStyle: "bald" })}
+                        title="Calvo"
+                      >
+                        <div className="text-gray-500 text-2xl font-bold">
+                          ✕
+                        </div>
+                      </button>
                     
                                                                                    <button
-                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                          config.hairStyle === "short" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                        }`}
+                                                 className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.hairStyle === "short" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                         }`}
                         onClick={() => setConfig({ ...config, hairStyle: "short" })}
                         title="Corti"
                       >
@@ -281,9 +281,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       </button>
                     
                                                                                                                                                                        <button
-                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                           config.hairStyle === "long" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                         }`}
+                                                   className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                            config.hairStyle === "long" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                          }`}
                          onClick={() => setConfig({ ...config, hairStyle: "long" })}
                          title="Lunghi"
                        >
@@ -301,9 +301,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </button>
                     
                                                                                                                                                                        <button
-                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                           config.hairStyle === "curly" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                         }`}
+                                                   className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                            config.hairStyle === "curly" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                          }`}
                          onClick={() => setConfig({ ...config, hairStyle: "curly" })}
                          title="Ricci"
                        >
@@ -377,9 +377,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </button>
                     
                                                                                                                                                                        <button
-                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                           config.hairStyle === "messy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                         }`}
+                                                   className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                            config.hairStyle === "messy" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                          }`}
                          onClick={() => setConfig({ ...config, hairStyle: "messy" })}
                          title="Spettinati"
                        >
@@ -410,9 +410,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </button>
                     
                                                                                                                                                                        <button
-                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                           config.hairStyle === "wavy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                         }`}
+                                                   className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                            config.hairStyle === "wavy" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                          }`}
                          onClick={() => setConfig({ ...config, hairStyle: "wavy" })}
                          title="Ondulati"
                        >
@@ -441,9 +441,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </button>
                     
                                          <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.hairStyle === "buzz" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.hairStyle === "buzz" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
                        onClick={() => setConfig({ ...config, hairStyle: "buzz" })}
                        title="Rasati"
                      >
@@ -506,9 +506,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                    <Label>Stile Baffi</Label>
                    <div className="grid grid-cols-4 gap-0.5 mt-2">
                                                                <button
-                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                          config.mustacheStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                        }`}
+                                                 className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.mustacheStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                         }`}
                         onClick={() => setConfig({ ...config, mustacheStyle: "none" })}
                         title="Nessuno"
                       >
@@ -518,9 +518,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       </button>
                     
                                          <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.mustacheStyle === "classic" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.mustacheStyle === "classic" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
                        onClick={() => setConfig({ ...config, mustacheStyle: "classic" })}
                        title="Classici"
                      >
@@ -603,9 +603,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                      </button>
                     
                                                                                    <button
-                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                          config.mustacheStyle === "thick" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                        }`}
+                                                 className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.mustacheStyle === "thick" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                         }`}
                         onClick={() => setConfig({ ...config, mustacheStyle: "thick" })}
                         title="Spessi"
                       >
@@ -649,9 +649,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       </button>
                     
                                                                                    <button
-                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                          config.mustacheStyle === "handlebar" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                        }`}
+                                                 className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.mustacheStyle === "handlebar" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                         }`}
                         onClick={() => setConfig({ ...config, mustacheStyle: "handlebar" })}
                         title="A Manubrio"
                       >
@@ -713,9 +713,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                    <Label>Stile Barba</Label>
                    <div className="grid grid-cols-4 gap-0.5 mt-2">
                                          <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.beardStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.beardStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
                        onClick={() => setConfig({ ...config, beardStyle: "none" })}
                        title="Nessuna"
                      >
@@ -725,9 +725,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                      </button>
                     
                                          <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.beardStyle === "goatee" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.beardStyle === "goatee" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
                        onClick={() => setConfig({ ...config, beardStyle: "goatee" })}
                        title="Pizzetto"
                      >
@@ -745,9 +745,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                      </button>
                     
                                          <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.beardStyle === "full" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.beardStyle === "full" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
                        onClick={() => setConfig({ ...config, beardStyle: "full" })}
                        title="Piena"
                      >
@@ -765,9 +765,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                      </button>
                     
                                          <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.beardStyle === "stubble" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
+                                               className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.beardStyle === "stubble" ? "border-blue-500 bg-blue-50" : "border-gray-300/50 hover:border-gray-400"
+                        }`}
                        onClick={() => setConfig({ ...config, beardStyle: "stubble" })}
                        title="Barba Incolta"
                      >
