@@ -54,7 +54,7 @@ export default function Profilo({ userId }: { userId?: string }) {
       
       // 1. Carica dati utente
       console.log('🔍 DEBUG Profilo - Caricando dati utente...');
-      const userResponse = await apiRequest("GET", "/utenti/me");
+      const userResponse = await apiRequest("GET", "/api/users/me");
       if (!userResponse.ok) {
         throw new Error(`Errore nel caricamento dati utente: ${userResponse.status}`);
       }
@@ -91,7 +91,7 @@ export default function Profilo({ userId }: { userId?: string }) {
       // 3. Carica domande opinioni
       console.log('🔍 DEBUG Profilo - Caricando domande opinioni...');
       try {
-        const opinionsResponse = await apiRequest("GET", "/opinioni/profile");
+        const opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
         if (opinionsResponse.ok) {
           const opinionsResult = await opinionsResponse.json();
           console.log('🔍 DEBUG Profilo - Risposta opinioni:', opinionsResult);
@@ -112,7 +112,7 @@ export default function Profilo({ userId }: { userId?: string }) {
       // 4. Carica governo ideale
       console.log('🔍 DEBUG Profilo - Caricando governo ideale...');
       try {
-        const governoResponse = await apiRequest("GET", "/governo/voti");
+        const governoResponse = await apiRequest("GET", "/api/governo/voti");
         if (governoResponse.ok) {
           const governoResult = await governoResponse.json();
           if (governoResult.success && governoResult.voti) {
