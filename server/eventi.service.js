@@ -1,8 +1,12 @@
-import FirebaseService from './firebase-service.js';
-import { db } from '../api/firebase-config.js';
-import { collection, query, orderBy, getDocs, addDoc } from 'firebase/firestore';
+import { Pool } from 'pg';
 
-class EventiService extends FirebaseService {
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+class EventiService {
   /**
    * Salva un nuovo evento nel database, aggiungendo informazioni sull'organizzatore.
    * @param eventoData Dati dell'evento dal body della richiesta (es. dove, quando).

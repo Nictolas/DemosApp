@@ -1,10 +1,12 @@
-import { db } from '../api/firebase-config.js'; 
-import { adminDb } from '../api/firebase-config.js';
+import { Pool } from 'pg';
 
-import FirebaseService from './firebase-service.js';
-import { collection, query, where, getDocs, doc, addDoc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-class NotificaService extends FirebaseService {
+class NotificaService {
   /**
    * Invia notifiche a tutti gli utenti che hanno scelto un rappresentante specifico.
    */
@@ -19,11 +21,6 @@ class NotificaService extends FirebaseService {
     comunicazioneId
   ) {
     try {
-      if (!db) {
-        console.error("Firebase Firestore non è configurato per inviare notifiche.");
-        return;
-      }
-
       const rappresentanteIdFirebase = this.emailToId(rappresentanteEmail);
       const usersSnapshot = await getDocs(collection(db, 'utenti'));
       const notificationPromises = [];

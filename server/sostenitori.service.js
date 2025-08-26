@@ -1,5 +1,10 @@
-import { db } from '../api/firebase-config.js';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { Pool } from 'pg';
+
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
 class SostenitoriService {
   /**

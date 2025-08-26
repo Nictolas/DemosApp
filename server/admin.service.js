@@ -1,9 +1,12 @@
-import FirebaseService from './firebase-service.js';
-import { db, adminDb } from '../api/firebase-config.js';
+import { Pool } from 'pg';
 
-import { collection, query, where, getDocs, doc, updateDoc, addDoc, deleteDoc, getDoc } from 'firebase/firestore';
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-class AdminService extends FirebaseService {
+class AdminService {
 
   // =========================================================
   // METODI GESTIONE UTENTI (Approvazione/Rifiuto/Eliminazione)
@@ -15,7 +18,7 @@ class AdminService extends FirebaseService {
    */
   static async deleteUserByEmail(email) {
     try {
-      if (!db) return { success: false, error: "Database non configurato" };
+      if (!pool) return { success: false, error: "Database non configurato" };
 
       const uid = email;
       const userDocRef = doc(db, 'utenti', uid);

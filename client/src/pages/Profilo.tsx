@@ -4,7 +4,7 @@ import { Redirect, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
-import { auth } from "@/lib/firebase-stub";
+
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -388,7 +388,7 @@ export default function Profilo({ userId }: { userId?: string }) {
                 {!isEditing && (
                   <>
                                          {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico' || userInfo.ruolo === 'Admin') && (
-                       <Button variant="outline" onClick={() => window.location.href = `/modifica-immagine?uid=${user.uid}`}>
+                       <Button variant="outline" onClick={() => window.location.href = `/modifica-immagine?uid=${user.id}`}>
                          <Image className="mr-2 h-4 w-4" />
                          Modifica Immagine
                        </Button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth-neon";
+import { ExternalLink } from "lucide-react";
 
 const LIMITS_MOCK = [
   {
@@ -233,7 +234,7 @@ export default function Limiti() {
         <Card className="mb-6">
           <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
             <div>
-              <CardTitle className="text-2xl font-bold">Monitoraggio Limiti Firebase</CardTitle>
+              <CardTitle className="text-2xl font-bold">Monitoraggio Limiti Neon Database</CardTitle>
               <CardDescription>Controlla in tempo reale il superamento dei limiti del piano gratuito</CardDescription>
             </div>
             <Button onClick={handleRefresh} variant="outline" disabled={loading}>{loading ? "Aggiornamento..." : "Aggiorna dati"}</Button>
@@ -268,20 +269,21 @@ export default function Limiti() {
         </Card>
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Limiti del piano Spark (Firebase)</CardTitle>
+            <CardTitle>Limiti del piano Neon (PostgreSQL)</CardTitle>
             <CardDescription>
-              Qui puoi consultare i principali limiti del piano gratuito di Firebase. Per vedere l'utilizzo reale e aggiornato delle risorse, clicca il pulsante qui sotto:
+              Qui puoi consultare i principali limiti del piano gratuito di Neon. Per vedere l'utilizzo reale e aggiornato delle risorse, clicca il pulsante qui sotto:
             </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <a
-              href="https://console.firebase.google.com/u/0/project/demos-finale/usage/details"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-4 py-2 mb-6 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-            >
-              Vai alla pagina dei limiti e consumi su Firebase
-            </a>
+            <Button asChild className="w-full">
+              <a
+                href="https://console.neon.tech/app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Vai alla pagina dei limiti e consumi su Neon
+              </a>
+            </Button>
             <ul>
               {limiti.map((l) => (
                 <li key={l.nome} className="mb-3 flex justify-between border-b pb-1">
@@ -291,7 +293,7 @@ export default function Limiti() {
               ))}
             </ul>
             <div className="mt-8 text-sm text-gray-600">
-              <b>Nota:</b> L'utilizzo reale delle risorse è visibile solo dalla console Firebase.<br />
+              <b>Nota:</b> L'utilizzo reale delle risorse è visibile solo dalla console Neon.<br />
               Se superi i limiti, alcune funzionalità dell'app potrebbero essere temporaneamente bloccate.
             </div>
           </CardContent>
