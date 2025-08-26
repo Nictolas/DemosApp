@@ -3646,7 +3646,7 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
     if (isNumeric) {
       // Cerca per ID numerico
       query = `
-        SELECT id, nome, cognome, email, ruolo, role, genere, data_nascita, eta, sesso, 
+        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, eta, sesso, 
                regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
                created_at, updated_at
         FROM users 
@@ -3656,7 +3656,7 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
     } else {
       // Cerca per email
       query = `
-        SELECT id, nome, cognome, email, ruolo, role, genere, data_nascita, eta, sesso, 
+        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, eta, sesso, 
                regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
                created_at, updated_at
         FROM users 
@@ -3836,7 +3836,7 @@ app.get('/api/users/:id/profile', verifyToken, async (req, res) => {
     const { id } = req.params;
     
     const query = `
-      SELECT id, nome, cognome, email, ruolo, role, genere, data_nascita, eta, sesso, 
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, eta, sesso, 
              regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
              candidato_selezionato, rappresentante_selezionato, created_at, updated_at
       FROM users 
@@ -5333,7 +5333,7 @@ app.get('/api/sostenitori', verifyToken, async (req, res) => {
     
     // Prima verifichiamo se l'utente esiste e ha i permessi
     const userQuery = `
-      SELECT ruolo, role FROM users WHERE id = $1
+      SELECT ruolo FROM users WHERE id = $1
     `;
     const userResult = await pool.query(userQuery, [userId]);
     
@@ -5344,7 +5344,7 @@ app.get('/api/sostenitori', verifyToken, async (req, res) => {
       });
     }
     
-    const userRole = userResult.rows[0].ruolo || userResult.rows[0].role;
+    const userRole = userResult.rows[0].ruolo;
     const isAuthorized = ["Politico", "Candidato", "Candidato Politico", "Admin"].includes(userRole);
     
     if (!isAuthorized) {
