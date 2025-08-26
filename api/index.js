@@ -3589,6 +3589,65 @@ app.get('/api/users/me', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/users/me/avatar - Aggiorna avatar utente autenticato
+app.post('/api/users/me/avatar', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG /api/users/me/avatar - Richiesta ricevuta da utente:', req.userId, 'con ruolo:', req.userRole);
+    
+    const { avatar_config } = req.body;
+    
+    if (!avatar_config) {
+      return res.status(400).json({
+        success: false,
+        error: 'Configurazione avatar richiesta'
+      });
+    }
+    
+    // Verifica che l'utente abbia i permessi per modificare l'avatar
+    const hasPermission = req.userRole === 'Politico' || req.userRole === 'Candidato' || req.userRole === 'Candidato Politico' || req.userRole === 'Admin';
+    
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non hai i permessi per modificare l\'avatar'
+      });
+    }
+    
+    const query = `
+      UPDATE users 
+      SET avatar_config = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, nome, cognome, avatar_config
+    `;
+    
+    console.log('🔍 DEBUG /api/users/me/avatar - Eseguendo update per utente:', req.userId);
+    const result = await pool.query(query, [avatar_config, req.userId]);
+    
+    if (result.rows.length === 0) {
+      console.log('❌ DEBUG /api/users/me/avatar - Utente non trovato:', req.userId);
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ DEBUG /api/users/me/avatar - Avatar aggiornato per utente:', updatedUser.nome, updatedUser.cognome);
+    
+    res.json({
+      success: true,
+      message: 'Avatar aggiornato con successo',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento avatar:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento avatar'
+    });
+  }
+});
+
 // GET /api/users - Ottieni tutti gli utenti
 app.get('/api/users', verifyToken, async (req, res) => {
   try {
