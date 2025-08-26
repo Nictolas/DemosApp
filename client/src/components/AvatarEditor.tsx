@@ -227,7 +227,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Corti"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
+                        {/* Capelli corti realistici */}
+                        <path d="M8 8 Q16 4 24 8 Q32 4 40 8 L40 12 Q32 16 24 12 Q16 16 8 12 Z" fill="#8B4513"/>
+                        <path d="M10 10 Q16 6 24 10 Q32 6 38 10 L38 14 Q32 18 24 14 Q16 18 10 14 Z" fill="#8B4513"/>
                       </svg>
                     </button>
                     
@@ -239,7 +241,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Lunghi"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 32 Q32 40 24 32 Q16 40 8 32 Z" fill="#8B4513"/>
+                        {/* Capelli lunghi realistici */}
+                        <path d="M8 8 Q16 2 24 8 Q32 2 40 8 L40 32 Q32 38 24 32 Q16 38 8 32 Z" fill="#8B4513"/>
+                        <path d="M10 10 Q16 4 24 10 Q32 4 38 10 L38 30 Q32 36 24 30 Q16 36 10 30 Z" fill="#8B4513"/>
                       </svg>
                     </button>
                     
@@ -251,10 +255,15 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Ricci"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
-                        <circle cx="12" cy="12" r="2" fill="#8B4513"/>
-                        <circle cx="24" cy="12" r="2" fill="#8B4513"/>
-                        <circle cx="36" cy="12" r="2" fill="#8B4513"/>
+                        {/* Capelli ricci realistici */}
+                        <path d="M8 8 Q16 2 24 8 Q32 2 40 8 L40 16 Q32 22 24 16 Q16 22 8 16 Z" fill="#8B4513"/>
+                        <path d="M10 10 Q16 4 24 10 Q32 4 38 10 L38 18 Q32 24 24 18 Q16 24 10 18 Z" fill="#8B4513"/>
+                        {/* Riccioli aggiuntivi */}
+                        <circle cx="12" cy="12" r="1.5" fill="#8B4513"/>
+                        <circle cx="24" cy="12" r="1.5" fill="#8B4513"/>
+                        <circle cx="36" cy="12" r="1.5" fill="#8B4513"/>
+                        <circle cx="18" cy="14" r="1" fill="#8B4513"/>
+                        <circle cx="30" cy="14" r="1" fill="#8B4513"/>
                       </svg>
                     </button>
                     
@@ -266,8 +275,11 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Spettinati"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
-                        <path d="M6 6 L10 10 M34 6 L38 10 M20 4 L24 8" stroke="#8B4513" strokeWidth="2"/>
+                        {/* Capelli spettinati realistici */}
+                        <path d="M8 8 Q16 2 24 8 Q32 2 40 8 L40 16 Q32 22 24 16 Q16 22 8 16 Z" fill="#8B4513"/>
+                        <path d="M10 10 Q16 4 24 10 Q32 4 38 10 L38 18 Q32 24 24 18 Q16 24 10 18 Z" fill="#8B4513"/>
+                        {/* Ciocche spettinate */}
+                        <path d="M6 6 L10 10 M34 6 L38 10 M20 4 L24 8 M16 6 L20 10 M28 6 L32 10" stroke="#8B4513" strokeWidth="1.5" fill="none"/>
                       </svg>
                     </button>
                     
@@ -279,8 +291,12 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Ondulati"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 16 Q32 24 24 16 Q16 24 8 16 Z" fill="#8B4513"/>
+                        {/* Capelli ondulati realistici */}
+                        <path d="M8 8 Q16 2 24 8 Q32 2 40 8 L40 16 Q32 22 24 16 Q16 22 8 16 Z" fill="#8B4513"/>
+                        <path d="M10 10 Q16 4 24 10 Q32 4 38 10 L38 18 Q32 24 24 18 Q16 24 10 18 Z" fill="#8B4513"/>
+                        {/* Onde realistiche */}
                         <path d="M8 12 Q16 8 24 12 Q32 8 40 12" stroke="#8B4513" strokeWidth="2" fill="none"/>
+                        <path d="M8 14 Q16 10 24 14 Q32 10 40 14" stroke="#8B4513" strokeWidth="1.5" fill="none"/>
                       </svg>
                     </button>
                     
@@ -292,7 +308,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Rasati"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <rect x="8" y="8" width="32" height="8" fill="#8B4513"/>
+                        {/* Capelli rasati realistici */}
+                        <rect x="8" y="8" width="32" height="6" fill="#8B4513"/>
+                        <rect x="10" y="10" width="28" height="4" fill="#8B4513"/>
+                        {/* Punti per effetto realistico */}
+                        <circle cx="12" cy="12" r="0.5" fill="#8B4513"/>
+                        <circle cx="24" cy="12" r="0.5" fill="#8B4513"/>
+                        <circle cx="36" cy="12" r="0.5" fill="#8B4513"/>
                       </svg>
                     </button>
                   </div>
@@ -338,7 +360,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Classici"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 16 Q16 8 24 16 Q32 8 40 16 L40 20 Q32 28 24 20 Q16 28 8 20 Z" fill="#8B4513"/>
+                        {/* Baffi classici realistici */}
+                        <path d="M8 16 Q16 10 24 16 Q32 10 40 16 L40 18 Q32 24 24 18 Q16 24 8 18 Z" fill="#8B4513"/>
+                        <path d="M10 17 Q16 11 24 17 Q32 11 38 17 L38 19 Q32 25 24 19 Q16 25 10 19 Z" fill="#8B4513"/>
                       </svg>
                     </button>
                     
@@ -350,7 +374,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Spessi"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M6 18 Q16 6 24 18 Q32 6 42 18 L42 22 Q32 34 24 22 Q16 34 6 22 Z" fill="#8B4513"/>
+                        {/* Baffi spessi realistici */}
+                        <path d="M6 18 Q16 8 24 18 Q32 8 42 18 L42 20 Q32 30 24 20 Q16 30 6 20 Z" fill="#8B4513"/>
+                        <path d="M8 19 Q16 9 24 19 Q32 9 40 19 L40 21 Q32 31 24 21 Q16 31 8 21 Z" fill="#8B4513"/>
                       </svg>
                     </button>
                     
@@ -362,9 +388,14 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="A Manubrio"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 16 Q16 6 24 16 Q32 6 40 16 L40 20 Q32 30 24 20 Q16 30 8 20 Z" fill="#8B4513"/>
+                        {/* Baffi a manubrio realistici */}
+                        <path d="M8 16 Q16 8 24 16 Q32 8 40 16 L40 20 Q32 28 24 20 Q16 28 8 20 Z" fill="#8B4513"/>
+                        <path d="M10 17 Q16 9 24 17 Q32 9 38 17 L38 21 Q32 29 24 21 Q16 29 10 21 Z" fill="#8B4513"/>
+                        {/* Estremità arricciate */}
                         <circle cx="6" cy="18" r="2" fill="#8B4513"/>
                         <circle cx="42" cy="18" r="2" fill="#8B4513"/>
+                        <circle cx="5" cy="19" r="1.5" fill="#8B4513"/>
+                        <circle cx="43" cy="19" r="1.5" fill="#8B4513"/>
                       </svg>
                     </button>
                   </div>
@@ -412,7 +443,12 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Pizzetto"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M20 8 Q24 16 28 8 L28 24 Q24 32 20 24 Z" fill="#8B4513"/>
+                        {/* Pizzetto realistico */}
+                        <path d="M20 8 Q24 18 28 8 L28 22 Q24 30 20 22 Z" fill="#8B4513"/>
+                        <path d="M22 10 Q24 20 26 10 L26 20 Q24 28 22 20 Z" fill="#8B4513"/>
+                        {/* Dettagli realistici */}
+                        <circle cx="22" cy="12" r="0.8" fill="#8B4513"/>
+                        <circle cx="26" cy="12" r="0.8" fill="#8B4513"/>
                       </svg>
                     </button>
                     
@@ -424,7 +460,13 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Piena"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <path d="M8 8 Q16 0 24 8 Q32 0 40 8 L40 24 Q32 32 24 24 Q16 32 8 24 Z" fill="#8B4513"/>
+                        {/* Barba piena realistica */}
+                        <path d="M8 8 Q16 2 24 8 Q32 2 40 8 L40 22 Q32 28 24 22 Q16 28 8 22 Z" fill="#8B4513"/>
+                        <path d="M10 10 Q16 4 24 10 Q32 4 38 10 L38 20 Q32 26 24 20 Q16 26 10 20 Z" fill="#8B4513"/>
+                        {/* Dettagli realistici */}
+                        <circle cx="16" cy="12" r="1" fill="#8B4513"/>
+                        <circle cx="24" cy="12" r="1" fill="#8B4513"/>
+                        <circle cx="32" cy="12" r="1" fill="#8B4513"/>
                       </svg>
                     </button>
                     
@@ -436,11 +478,14 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       title="Barba Incolta"
                     >
                       <svg className="w-12 h-8" viewBox="0 0 48 32" fill="currentColor">
-                        <circle cx="12" cy="12" r="1.5" fill="#8B4513"/>
-                        <circle cx="24" cy="8" r="1.5" fill="#8B4513"/>
-                        <circle cx="36" cy="12" r="1.5" fill="#8B4513"/>
-                        <circle cx="16" cy="20" r="1.5" fill="#8B4513"/>
-                        <circle cx="32" cy="20" r="1.5" fill="#8B4513"/>
+                        {/* Barba incolta realistica */}
+                        <circle cx="12" cy="10" r="1.2" fill="#8B4513"/>
+                        <circle cx="24" cy="8" r="1.2" fill="#8B4513"/>
+                        <circle cx="36" cy="10" r="1.2" fill="#8B4513"/>
+                        <circle cx="16" cy="18" r="1" fill="#8B4513"/>
+                        <circle cx="32" cy="18" r="1" fill="#8B4513"/>
+                        <circle cx="20" cy="16" r="0.8" fill="#8B4513"/>
+                        <circle cx="28" cy="16" r="0.8" fill="#8B4513"/>
                       </svg>
                     </button>
                   </div>
