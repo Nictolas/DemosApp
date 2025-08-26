@@ -241,43 +241,41 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                         onClick={() => setConfig({ ...config, hairStyle: "short" })}
                         title="Corti"
                       >
-                        <svg className="w-12 h-12" viewBox="0 0 48 48" fill="currentColor">
-                           {/* CAPELLI CORTI IDENTICI ALL'AVATAR - PATH MATEMATICAMENTE SCALATO */}
-                           <g fill="#8B4513" stroke="black" strokeWidth="1">
-                             <path d="
-                               M72 158 
-                               c-12 -2 -21 -7 -25 -13 
-                               -2 -3 -2 -3 -5 -5 
-                               -7 0 -16 -4 -21 -10 
-                               -3 -3 -6 -9 -7 -14 
-                               -2 -5 -2 -26 0 -35 
-                               1 -7 3 -12 5 -12 
-                               1 0 2 -1 3 -2 
-                               2 -2 3 -2 4 -2 
-                               1 1 1 1 2 4 
-                               1 5 3 11 4 12 
-                               1 1 3 2 4 3 
-                               5 2 10 8 13 15 
-                               2 3 3 6 3 6 
-                               0 0 2 -1 5 -2 
-                               7 -4 15 -7 22 -8 
-                               8 -2 11 -2 21 -2 
-                               9 0 16 2 17 4 
-                               1 2 2 2 4 2 
-                               6 0 11 -3 13 -9 
-                               2 -3 3 -11 4 -19 
-                               0 -5 0 -5 2 -6 
-                               1 -1 2 0 3 2 
-                               1 1 2 3 3 3 
-                               0 0 1 -1 2 -3 
-                               2 -5 4 -15 3 -28 
-                               0 -12 -2 -17 -6 -26 
-                               -3 -5 -4 -7 -9 -12 
-                               -8 -8 -16 -12 -28 -15 
-                               -11 -3 -27 -4 -36 -2
-                             " />
-                           </g>
-                         </svg>
+                                                 <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                            {/* CAPELLI CORTI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
+                            <g transform="translate(150, 180) scale(0.08,-0.08)" fill="#8B4513" stroke="black" strokeWidth="80">
+                              <path d="M72 158 
+                                c-12 -2 -21 -7 -25 -13 
+                                -2 -3 -2 -3 -5 -5 
+                                -7 0 -16 -4 -21 -10 
+                                -3 -3 -6 -9 -7 -14 
+                                -2 -5 -2 -26 0 -35 
+                                1 -7 3 -12 5 -12 
+                                1 0 2 -1 3 -2 
+                                2 -2 3 -2 4 -2 
+                                1 1 1 1 2 4 
+                                1 5 3 11 4 12 
+                                1 1 3 2 4 3 
+                                5 2 10 8 13 15 
+                                2 3 3 6 3 6 
+                                0 0 2 -1 5 -2 
+                                7 -4 15 -7 22 -8 
+                                8 -2 11 -2 21 -2 
+                                9 0 16 2 17 4 
+                                1 2 2 2 4 2 
+                                6 0 11 -3 13 -9 
+                                2 -3 3 -11 4 -19 
+                                0 -5 0 -5 2 -6 
+                                1 -1 2 0 3 2 
+                                1 1 2 3 3 3 
+                                0 0 1 -1 2 -3 
+                                2 -5 4 -15 3 -28 
+                                0 -12 -2 -17 -6 -26 
+                                -3 -5 -4 -7 -9 -12 
+                                -8 -8 -16 -12 -28 -15 
+                                -11 -3 -27 -4 -36 -2" />
+                            </g>
+                          </svg>
                       </button>
                     
                                                                                                                                                                        <button
@@ -657,7 +655,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                       >
                                                                                                 <svg className="w-12 h-12" viewBox="0 0 500 500" fill="currentColor">
                              {/* BAFFI A MANUBRIO IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
-                              <g transform="translate(260, 515) scale(0.07,-0.07)" fill="#8B4513">
+                                                             <g transform="translate(250, 500) scale(0.07,-0.07)" fill="#8B4513">
                               <path
                                 d="
                                   M1260 2051
