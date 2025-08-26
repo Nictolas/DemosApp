@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase-stub";
+
+
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 

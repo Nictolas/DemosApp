@@ -1,11 +1,13 @@
 // Import della classe base e delle configurazioni con l'estensione .js
-import FirebaseService from './firebase-service.js';
-import { db } from '../api/firebase-config.js';
-// Import necessari da 'firebase/firestore'
-import { collection, query, where, getDocs, updateDoc, addDoc, limit, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
-import session from 'express-session';
+import { Pool } from 'pg';
 
-class VotoService extends FirebaseService {
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+class VotoService {
 
   // =========================================================
   // METODI PER IL GOVERNO IDEALE
@@ -14,7 +16,7 @@ class VotoService extends FirebaseService {
   static async voteMinistro(userId, categoria, nomeMinistro) {
       try {
           console.log('voteMinistro chiamato con:', { userId, categoria, nomeMinistro });
-          if (!db) return { success: false, error: "Database non configurato" };
+          if (!pool) return { success: false, error: "Database non configurato" };
           let nomeRaw = (nomeMinistro || '').trim();
           if (!nomeRaw) return { success: false, error: "Nome non valido" };
           let nomeKey = nomeRaw.toLowerCase();
@@ -38,7 +40,7 @@ class VotoService extends FirebaseService {
 
   static async getUserVotiMinistri(userId) {
     try {
-        if (!db) return {};
+        if (!pool) return {};
         const q = query(collection(db, 'voti_ministri'), where('userId', '==', userId));
         const snapshot = await getDocs(q);
         const voti = {};
@@ -54,7 +56,7 @@ class VotoService extends FirebaseService {
 
   static async getClassificaMinistro(categoria) {
       try {
-          if (!db) return [];
+          if (!pool) return [];
           const q = query(collection(db, 'voti_ministri'), where('categoria', '==', categoria));
           const snapshot = await getDocs(q);
           const counts = {};
@@ -123,7 +125,7 @@ class VotoService extends FirebaseService {
 
   static async getListaIniziativePopolari() {
     try {
-        if (!db) return [];
+        if (!pool) return [];
         const q = query(collection(db, 'iniziative_popolari'), where('status', '==', 'accepted'), limit(10));
         const snapshot = await getDocs(q);
         const iniziative = await Promise.all(snapshot.docs.map(async doc => {
@@ -141,7 +143,7 @@ class VotoService extends FirebaseService {
 
   static async getPendingIniziativePopolari() {
     try {
-      if (!db) return [];
+      if (!pool) return [];
       const q = query(collection(db, 'iniziative_popolari'), where('status', '==', 'pending'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -152,7 +154,7 @@ class VotoService extends FirebaseService {
 
   static async acceptIniziativaPopolare(requestId) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const requestRef = doc(db, 'iniziative_popolari', requestId);
       const requestSnap = await getDoc(requestRef);
       if (!requestSnap.exists()) return { success: false, error: 'Richiesta non trovata' };
@@ -165,7 +167,7 @@ class VotoService extends FirebaseService {
 
   static async rejectIniziativaPopolare(requestId) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const requestRef = doc(db, 'iniziative_popolari', requestId);
       await updateDoc(requestRef, { status: 'rejected', rejectedAt: new Date().toISOString() });
       return { success: true };
@@ -176,7 +178,7 @@ class VotoService extends FirebaseService {
 
   static async updateQuorumIniziativa(id, quorum) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const ref = doc(db, 'iniziative_popolari', id);
       await updateDoc(ref, { quorum });
       return { success: true };
@@ -193,7 +195,7 @@ class VotoService extends FirebaseService {
 
   static async getPendingReferendumAbrogativi() {
     try {
-      if (!db) return [];
+      if (!pool) return [];
       const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'pending'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -204,7 +206,7 @@ class VotoService extends FirebaseService {
 
   static async acceptReferendumAbrogativo(requestId) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const requestRef = doc(db, 'referendum_abrogativi', requestId);
       const requestSnap = await getDoc(requestRef);
       if (!requestSnap.exists()) return { success: false, error: 'Richiesta non trovata' };
@@ -217,7 +219,7 @@ class VotoService extends FirebaseService {
 
   static async rejectReferendumAbrogativo(requestId) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const requestRef = doc(db, 'referendum_abrogativi', requestId);
       await updateDoc(requestRef, { status: 'rejected', rejectedAt: new Date().toISOString() });
       return { success: true };
@@ -228,7 +230,7 @@ class VotoService extends FirebaseService {
 
   static async updateQuorumReferendum(id, quorum) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const ref = doc(db, 'referendum_abrogativi', id);
       await updateDoc(ref, { quorum });
       return { success: true };
@@ -245,7 +247,7 @@ class VotoService extends FirebaseService {
   // === Metodi generici per votazioni ===
   static async _registerUserVote(collectionName, userId, value, valueKey = 'nome') {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       // Permetti più voti per utente: uno per ogni candidato
       const q = query(collection(db, collectionName), where('userId', '==', userId), where(valueKey, '==', value));
       const snapshot = await getDocs(q);
@@ -265,7 +267,7 @@ class VotoService extends FirebaseService {
 
   static async _getUserVotes(collectionName, userId, valueKey = 'nome') {
     try {
-      if (!db) return [];
+      if (!pool) return [];
       const q = query(collection(db, collectionName), where('userId', '==', userId));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => doc.data()[valueKey]);
@@ -276,7 +278,7 @@ class VotoService extends FirebaseService {
 
   static async _removeUserVote(collectionName, userId, value, valueKey = 'nome') {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const q = query(collection(db, collectionName), where('userId', '==', userId), where(valueKey, '==', value));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
@@ -290,7 +292,7 @@ class VotoService extends FirebaseService {
 
   static async _getLeaderboard(collectionName, valueKey = 'nome') {
     try {
-      if (!db) return [];
+      if (!pool) return [];
       const q = query(collection(db, collectionName));
       const snapshot = await getDocs(q);
       const counts = {};
@@ -316,7 +318,7 @@ class VotoService extends FirebaseService {
   // ================= GESTIONE RICHIESTE GRAZIA ===================
   static async proposeGraziaRequest(userId, nome, urlProva) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       // Salva la richiesta solo se non esiste già una identica pendente
       const q = query(collection(db, 'grazia_requests'), where('nome', '==', nome), where('status', '==', 'pending'));
       const snapshot = await getDocs(q);
@@ -338,7 +340,7 @@ class VotoService extends FirebaseService {
 
   static async getPendingGraziaRequests() {
     try {
-      if (!db) return [];
+      if (!pool) return [];
       const q = query(collection(db, 'grazia_requests'), where('status', '==', 'pending'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -349,7 +351,7 @@ class VotoService extends FirebaseService {
 
   static async acceptGraziaRequest(requestId) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const requestRef = doc(db, 'grazia_requests', requestId);
       const requestSnap = await getDoc(requestRef);
       if (!requestSnap.exists()) return { success: false, error: 'Richiesta non trovata' };
@@ -366,7 +368,7 @@ class VotoService extends FirebaseService {
 
   static async rejectGraziaRequest(requestId) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const requestRef = doc(db, 'grazia_requests', requestId);
       await updateDoc(requestRef, { status: 'rejected', rejectedAt: new Date().toISOString() });
       return { success: true };
@@ -377,7 +379,7 @@ class VotoService extends FirebaseService {
 
   static async getClassificaReferendum() {
     try {
-      if (!db) return [];
+      if (!pool) return [];
       const q = query(collection(db, 'referendum_abrogativi'), where('status', '==', 'accepted'), orderBy('dataInizio', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -388,7 +390,7 @@ class VotoService extends FirebaseService {
 
   static async deleteAllVotesForCandidate(collectionName, nome, categoria) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       // Cancella tutti i documenti con nomeMinistro normalizzato e categoria corrispondente
       const q = query(
         collection(db, collectionName),
@@ -399,7 +401,7 @@ class VotoService extends FirebaseService {
       if (snapshot.empty) return { success: false, error: 'Nessun voto trovato per questo candidato' };
       const batchDeletes = [];
       snapshot.forEach(docSnap => {
-        batchDeletes.push(deleteDoc(docSnap.ref));
+        deleteDoc(docSnap.ref);
       });
       await Promise.all(batchDeletes);
       return { success: true };
@@ -410,9 +412,9 @@ class VotoService extends FirebaseService {
 
   static async deleteIniziativaPopolare(id) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const ref = doc(db, 'iniziative_popolari', id);
-      await deleteDoc(ref);
+      deleteDoc(ref);
       return { success: true };
     } catch (error) {
       return this.handleError(error, `deleteIniziativaPopolare(${id})`);
@@ -421,9 +423,9 @@ class VotoService extends FirebaseService {
 
   static async deleteReferendumAbrogativo(id) {
     try {
-      if (!db) return { success: false, error: 'Database non configurato' };
+      if (!pool) return { success: false, error: 'Database non configurato' };
       const ref = doc(db, 'referendum_abrogativi', id);
-      await deleteDoc(ref);
+      deleteDoc(ref);
       return { success: true };
     } catch (error) {
       return this.handleError(error, `deleteReferendumAbrogativo(${id})`);
@@ -437,7 +439,7 @@ class VotoService extends FirebaseService {
   static async getListaReferendumAbrogativi() {
     try {
       console.log("INIZIO getListaReferendumAbrogativi");
-      if (!db) {
+      if (!pool) {
         console.log("DB non configurato");
         return [];
       }
@@ -475,7 +477,7 @@ class VotoService extends FirebaseService {
 
   // Restituisce la lista degli userId che hanno votato una specifica iniziativa popolare
   static async getVotersIniziativaPopolare(iniziativaId) {
-    if (!db) return [];
+    if (!pool) return [];
     const q = query(collection(db, 'voti_iniziative_popolari'), where('iniziativaId', '==', iniziativaId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data().userId);
@@ -483,7 +485,7 @@ class VotoService extends FirebaseService {
 
   // Restituisce la lista degli userId che hanno votato un referendum abrogativo
   static async getVotersReferendumAbrogativo(referendumId) {
-    if (!db) return [];
+    if (!pool) return [];
     const q = query(collection(db, 'voti_referendum_abrogativi'), where('referendumId', '==', referendumId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data().userId);

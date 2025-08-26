@@ -1,9 +1,12 @@
-import FirebaseService from './firebase-service.js';
-import { db } from '../api/firebase-config.js';
+import { Pool } from 'pg';
 
-import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, orderBy, getDoc, query } from 'firebase/firestore';
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-class ElezioneService extends FirebaseService {
+class ElezioneService {
 
   /**
    * Crea una nuova elezione dopo aver validato i dati.

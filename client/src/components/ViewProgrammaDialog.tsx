@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, AlertCircle } from "lucide-react";
 import { CustomAvatar } from "@/components/CustomAvatar";
-import { db } from "@/lib/firebase-stub";
-import { doc, getDoc } from "firebase/firestore";
+
+
 import { Button } from "@/components/ui/button";
 
 interface ViewProgrammaDialogProps {

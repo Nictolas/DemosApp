@@ -1,6 +1,12 @@
 // Import della classe base e delle configurazioni con .js
-import FirebaseService from './firebase-service.js';
-import { db } from '../api/firebase-config.js';
+import { Pool } from 'pg';
+
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
 // Import dei servizi con cui questo deve interagire
 import NotificaService from './notifica.service.js';
 import UserService from './user.service.js';

@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/use-auth-neon';
 import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Loader2, ArrowLeft, Edit, User, Image } from "lucide-react";
 import { UserInfo } from "@/types/user";
-import { db, auth } from "@/lib/firebase-stub";
+// Firebase rimosso - migrazione completata a Neon + Auth.js
+// import { db, auth } from "@/lib/firebase-stub";
+// import { doc, getDoc } from "firebase/firestore";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useToast } from "@/hooks/use-toast";
-import { doc, getDoc } from "firebase/firestore";
+// import { doc, getDoc } from "firebase/firestore";
 
 export default function Profilo() {
   const { user, isLoading } = useAuth();
@@ -67,14 +69,14 @@ export default function Profilo() {
     for (const [key, uid] of Object.entries(representatives)) {
       if (uid && typeof uid === 'string') {
         try {
-          const rappresentanteDocRef = doc(db, "utenti", uid);
-          const rappresentanteDoc = await getDoc(rappresentanteDocRef);
-          if (rappresentanteDoc.exists()) {
-            const userData = rappresentanteDoc.data();
-            names[key] = `${userData.nome} ${userData.cognome}`;
-          } else {
+          // const rappresentanteDocRef = doc(db, "utenti", uid);
+          // const rappresentanteDoc = await getDoc(rappresentanteDocRef);
+          // if (rappresentanteDoc.exists()) {
+          //   const userData = rappresentanteDoc.data();
+          //   names[key] = `${userData.nome} ${userData.cognome}`;
+          // } else {
             names[key] = uid;
-          }
+          // }
         } catch (error) {
           console.error(`Errore nel recupero dati per ${uid}:`, error);
           names[key] = uid;

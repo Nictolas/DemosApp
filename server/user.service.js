@@ -1,9 +1,13 @@
 // Importa ANCHE l'adminDb e i tipi necessari
-import { adminDb } from '../api/firebase-config.js';
-import { pool } from './database-config.js';
-import FirebaseService from './firebase-service.js';
+import { Pool } from 'pg';
 
-class UserService extends FirebaseService {
+// Configurazione database Neon
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+class UserService {
 
   static async saveUserData(userData) {
     try {
@@ -65,7 +69,7 @@ class UserService extends FirebaseService {
    * @param identifier L'identificatore univoco dell'utente.
    */
   static async getUserById(identifier) {
-    if (!db || !identifier) return null;
+    if (!pool || !identifier) return null;
 
     // 1. Prova a ottenere il documento tramite ID diretto (il più veloce).
     let userDocRef = doc(db, 'utenti', identifier);

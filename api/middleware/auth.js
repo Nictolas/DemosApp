@@ -1,5 +1,5 @@
 // File: api/middleware/auth.js
-const { adminAuth } = require('../firebase-config.cjs');
+const jwt = require('jsonwebtoken');
 
 const authenticateUser = async (req, res) => {
   try {
@@ -8,11 +8,11 @@ const authenticateUser = async (req, res) => {
       return null;
     }
 
-    const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const token = authHeader.split('Bearer ')[1];
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    req.user = decodedToken;
-    return decodedToken;
+    req.user = decoded;
+    return decoded;
   } catch (error) {
     console.error('Errore autenticazione:', error);
     return null;

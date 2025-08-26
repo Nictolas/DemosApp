@@ -7,8 +7,8 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { db } from "@/lib/firebase-stub";
-import { collection, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+
+
 
 // Le domande ora sono dinamiche
 const options = [
@@ -44,8 +44,13 @@ export function EditOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const snapshot = await getDocs(collection(db, "opinioni"));
-        setQuestions(snapshot.docs.map(d => ({ id: d.data().id, text: d.data().text })));
+        const response = await fetch('/api/opinioni/profile');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.questions) {
+            setQuestions(data.data.questions);
+          }
+        }
       } catch {
         toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
       } finally {

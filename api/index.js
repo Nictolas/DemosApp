@@ -893,7 +893,9 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // Configurazione Resend per reset password
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Inizializzazione Resend temporaneamente commentata durante migrazione
+// const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = null;
 
 const sendResetPasswordEmail = async (email, resetToken, resetUrl) => {
   try {
