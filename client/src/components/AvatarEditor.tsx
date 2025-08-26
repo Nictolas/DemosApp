@@ -219,9 +219,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 <CardTitle>Capelli e Barba</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                                 <div>
-                   <Label>Stile Capelli</Label>
-                   <div className="grid grid-cols-4 gap-0.5 mt-2">
+                                                   <div>
+                    <Label>Stile Capelli</Label>
+                    <div className="grid grid-cols-6 gap-0.5 mt-2">
                      <button
                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
                          config.hairStyle === "bald" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
@@ -234,221 +234,211 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        </div>
                      </button>
                     
-                                                              <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.hairStyle === "short" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
-                       onClick={() => setConfig({ ...config, hairStyle: "short" })}
-                       title="Corti"
-                     >
-                                               <svg className="w-12 h-12" viewBox="0 0 48 48" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="24" cy="24" r="20" fill="#FDBCB4"/>
-                          {/* CAPELLI CORTI IDENTICI ALL'AVATAR - PATH MATEMATICAMENTE SCALATO */}
-                          <g fill="#8B4513" stroke="black" strokeWidth="1">
-                            <path d="
-                              M72 158 
-                              c-12 -2 -21 -7 -25 -13 
-                              -2 -3 -2 -3 -5 -5 
-                              -7 0 -16 -4 -21 -10 
-                              -3 -3 -6 -9 -7 -14 
-                              -2 -5 -2 -26 0 -35 
-                              1 -7 3 -12 5 -12 
-                              1 0 2 -1 3 -2 
-                              2 -2 3 -2 4 -2 
-                              1 1 1 1 2 4 
-                              1 5 3 11 4 12 
-                              1 1 3 2 4 3 
-                              5 2 10 8 13 15 
-                              2 3 3 6 3 6 
-                              0 0 2 -1 5 -2 
-                              7 -4 15 -7 22 -8 
-                              8 -2 11 -2 21 -2 
-                              9 0 16 2 17 4 
-                              1 2 2 2 4 2 
-                              6 0 11 -3 13 -9 
-                              2 -3 3 -11 4 -19 
-                              0 -5 0 -5 2 -6 
-                              1 -1 2 0 3 2 
-                              1 1 2 3 3 3 
-                              0 0 1 -1 2 -3 
-                              2 -5 4 -15 3 -28 
-                              0 -12 -2 -17 -6 -26 
-                              -3 -5 -4 -7 -9 -12 
-                              -8 -8 -16 -12 -28 -15 
-                              -11 -3 -27 -4 -36 -2
-                            " />
-                          </g>
-                        </svg>
-                     </button>
+                                                                                   <button
+                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.hairStyle === "short" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        onClick={() => setConfig({ ...config, hairStyle: "short" })}
+                        title="Corti"
+                      >
+                        <svg className="w-12 h-12" viewBox="0 0 48 48" fill="currentColor">
+                           {/* CAPELLI CORTI IDENTICI ALL'AVATAR - PATH MATEMATICAMENTE SCALATO */}
+                           <g fill="#8B4513" stroke="black" strokeWidth="1">
+                             <path d="
+                               M72 158 
+                               c-12 -2 -21 -7 -25 -13 
+                               -2 -3 -2 -3 -5 -5 
+                               -7 0 -16 -4 -21 -10 
+                               -3 -3 -6 -9 -7 -14 
+                               -2 -5 -2 -26 0 -35 
+                               1 -7 3 -12 5 -12 
+                               1 0 2 -1 3 -2 
+                               2 -2 3 -2 4 -2 
+                               1 1 1 1 2 4 
+                               1 5 3 11 4 12 
+                               1 1 3 2 4 3 
+                               5 2 10 8 13 15 
+                               2 3 3 6 3 6 
+                               0 0 2 -1 5 -2 
+                               7 -4 15 -7 22 -8 
+                               8 -2 11 -2 21 -2 
+                               9 0 16 2 17 4 
+                               1 2 2 2 4 2 
+                               6 0 11 -3 13 -9 
+                               2 -3 3 -11 4 -19 
+                               0 -5 0 -5 2 -6 
+                               1 -1 2 0 3 2 
+                               1 1 2 3 3 3 
+                               0 0 1 -1 2 -3 
+                               2 -5 4 -15 3 -28 
+                               0 -12 -2 -17 -6 -26 
+                               -3 -5 -4 -7 -9 -12 
+                               -8 -8 -16 -12 -28 -15 
+                               -11 -3 -27 -4 -36 -2
+                             " />
+                           </g>
+                         </svg>
+                      </button>
                     
-                                         <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.hairStyle === "long" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
-                       onClick={() => setConfig({ ...config, hairStyle: "long" })}
-                       title="Lunghi"
-                     >
-                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* CAPELLI LUNGHI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
-                          <g
-                            transform="translate(10,285) scale(0.03,-0.03)"
-                            fill="#8B4513"
-                            stroke="black"
-                            strokeWidth="80"
-                          >
-                            <path d="M4175 8349 c-406 -54 -755 -201 -1090 -458 -88 -67 -288 -264 -362 -356 -252 -314 -427 -676 -569 -1176 -168 -595 -240 -1234 -238 -2124 0 -551 24 -896 100 -1465 96 -722 209 -1111 389 -1338 139 -176 335 -270 425 -204 25 19 26 19 60 -5 97 -68 269 -123 379 -122 81 0 128 16 154 51 l20 27 -46 183 c-40 157 -68 295 -91 438 -20 125 -52 476 -81 885 -17 240 -37 394 -61 477 -9 29 -58 166 -109 303 -110 294 -171 497 -219 736 -65 322 -96 627 -96 966 l0 191 69 105 c38 58 169 269 292 469 273 447 344 557 471 725 385 514 826 813 1198 813 74 0 110 -6 162 -24 95 -34 222 -106 340 -193 126 -92 382 -348 495 -493 218 -281 421 -637 648 -1135 l78 -170 -6 -290 c-7 -367 -32 -608 -98 -960 -57 -300 -119 -521 -267 -955 -67 -193 -87 -307 -162 -915 -61 -497 -107 -729 -192 -988 -39 -120 -41 -130 -27 -155 19 -35 67 -51 155 -51 102 -1 240 46 301 102 l22 20 30 -32 c24 -26 36 -31 73 -31 87 1 206 67 309 172 253 260 417 757 538 1628 68 487 93 866 94 1415 1 493 -20 818 -79 1200 -114 748 -313 1330 -595 1745 -357 524 -954 872 -1551 904 -51 3 -121 15 -170 30 -149 45 -243 58 -438 61 -102 2 -216 -1 -255 -6z" />
-                          </g>
-                        </svg>
-                     </button>
+                                                                                                                                                                       <button
+                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.hairStyle === "long" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                         }`}
+                         onClick={() => setConfig({ ...config, hairStyle: "long" })}
+                         title="Lunghi"
+                       >
+                         <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* CAPELLI LUNGHI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
+                           <g
+                             transform="translate(10,285) scale(0.03,-0.03)"
+                             fill="#8B4513"
+                             stroke="black"
+                             strokeWidth="80"
+                           >
+                             <path d="M4175 8349 c-406 -54 -755 -201 -1090 -458 -88 -67 -288 -264 -362 -356 -252 -314 -427 -676 -569 -1176 -168 -595 -240 -1234 -238 -2124 0 -551 24 -896 100 -1465 96 -722 209 -1111 389 -1338 139 -176 335 -270 425 -204 25 19 26 19 60 -5 97 -68 269 -123 379 -122 81 0 128 16 154 51 l20 27 -46 183 c-40 157 -68 295 -91 438 -20 125 -52 476 -81 885 -17 240 -37 394 -61 477 -9 29 -58 166 -109 303 -110 294 -171 497 -219 736 -65 322 -96 627 -96 966 l0 191 69 105 c38 58 169 269 292 469 273 447 344 557 471 725 385 514 826 813 1198 813 74 0 110 -6 162 -24 95 -34 222 -106 340 -193 126 -92 382 -348 495 -493 218 -281 421 -637 648 -1135 l78 -170 -6 -290 c-7 -367 -32 -608 -98 -960 -57 -300 -119 -521 -267 -955 -67 -193 -87 -307 -162 -915 -61 -497 -107 -729 -192 -988 -39 -120 -41 -130 -27 -155 19 -35 67 -51 155 -51 102 -1 240 46 301 102 l22 20 30 -32 c24 -26 36 -31 73 -31 87 1 206 67 309 172 253 260 417 757 538 1628 68 487 93 866 94 1415 1 493 -20 818 -79 1200 -114 748 -313 1330 -595 1745 -357 524 -954 872 -1551 904 -51 3 -121 15 -170 30 -149 45 -243 58 -438 61 -102 2 -216 -1 -255 -6z" />
+                           </g>
+                         </svg>
+                       </button>
                     
-                                         <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.hairStyle === "curly" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
-                       onClick={() => setConfig({ ...config, hairStyle: "curly" })}
-                       title="Ricci"
-                     >
-                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* CAPELLI RICCI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
-                          <g fill="#8B4513" stroke="black" strokeWidth="40" transform="translate(25,230) scale(0.06,-0.06)">
-                            <path d="M2054 3585 
-                              c-80 -17 -136 -46 -195 -102 l-49 -46 -58 26 
-                              c-83 38 -154 50 -245 44 
-                              -147 -10 -283 -101 -321 -214 
-                              -9 -26 -16 -57 -16 -70 
-                              0 -21 -4 -23 -48 -23 
-                              -154 0 -290 -98 -338 -242 
-                              -16 -50 -16 -160 1 -214 
-                              6 -19 1 -24 -32 -34 
-                              -87 -29 -148 -85 -190 -175 
-                              -67 -145 -26 -340 96 -459 
-                              l40 -39 -49 -54 
-                              c-65 -71 -95 -162 -88 -262 
-                              11 -143 86 -240 248 -317 
-                              52 -25 104 -50 114 -56 
-                              17 -9 18 -7 12 14 
-                              -51 175 -60 285 -28 347 
-                              9 19 22 36 28 38 
-                              6 2 21 -48 37 -125 
-                              30 -146 88 -330 109 -344 
-                              15 -10 97 -1 114 13 
-                              8 7 7 30 -3 87 
-                              -9 42 -16 131 -17 197 
-                              l-1 120 50 105 
-                              c50 105 50 105 51 212 
-                              1 102 2 108 31 145 
-                              16 21 39 55 52 75 
-                              17 29 30 39 59 43 
-                              20 4 59 13 85 21 
-                              44 14 52 13 115 -7 
-                              45 -14 105 -23 184 -26 
-                              104 -5 125 -3 205 20 
-                              48 14 126 35 171 46 
-                              91 23 199 73 275 128 
-                              l49 34 74 -36 
-                              c44 -22 105 -42 149 -50 
-                              124 -21 145 -53 154 -235 
-                              7 -132 11 -145 86 -280 
-                              39 -70 52 -184 37 -323 
-                              -7 -62 -19 -140 -27 -173 
-                              -16 -70 -10 -82 55 -94 
-                              49 -9 66 3 98 67 
-                              37 73 102 295 102 347 
-                              0 14 4 26 8 26 
-                              33 0 43 -163 17 -260 
-                              -8 -30 -15 -56 -15 -57 
-                              0 -4 76 11 80 16 
-                              3 3 27 16 53 29 
-                              211 99 280 384 137 564 
-                              -17 20 -30 40 -30 43 
-                              0 4 11 21 24 38 
-                              13 18 34 61 46 97 
-                              51 152 -6 326 -139 421 
-                              l-56 40 -1 77 
-                              c-1 151 -89 266 -228 297 
-                              l-50 11 -13 65 
-                              c-41 204 -198 338 -398 339 
-                              -44 0 -87 -9 -170 -34 
-                              -15 -5 -25 2 -42 27 
-                              -33 52 -131 113 -212 131 
-                              -82 19 -105 19 -187 1z" 
-                            />
-                          </g>
-                        </svg>
-                     </button>
+                                                                                                                                                                       <button
+                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.hairStyle === "curly" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                         }`}
+                         onClick={() => setConfig({ ...config, hairStyle: "curly" })}
+                         title="Ricci"
+                       >
+                         <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* CAPELLI RICCI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
+                           <g fill="#8B4513" stroke="black" strokeWidth="40" transform="translate(25,230) scale(0.06,-0.06)">
+                             <path d="M2054 3585 
+                               c-80 -17 -136 -46 -195 -102 l-49 -46 -58 26 
+                               c-83 38 -154 50 -245 44 
+                               -147 -10 -283 -101 -321 -214 
+                               -9 -26 -16 -57 -16 -70 
+                               0 -21 -4 -23 -48 -23 
+                               -154 0 -290 -98 -338 -242 
+                               -16 -50 -16 -160 1 -214 
+                               6 -19 1 -24 -32 -34 
+                               -87 -29 -148 -85 -190 -175 
+                               -67 -145 -26 -340 96 -459 
+                               l40 -39 -49 -54 
+                               c-65 -71 -95 -162 -88 -262 
+                               11 -143 86 -240 248 -317 
+                               52 -25 104 -50 114 -56 
+                               17 -9 18 -7 12 14 
+                               -51 175 -60 285 -28 347 
+                               9 19 22 36 28 38 
+                               6 2 21 -48 37 -125 
+                               30 -146 88 -330 109 -344 
+                               15 -10 97 -1 114 13 
+                               8 7 7 30 -3 87 
+                               -9 42 -16 131 -17 197 
+                               l-1 120 50 105 
+                               c50 105 50 105 51 212 
+                               1 102 2 108 31 145 
+                               16 21 39 55 52 75 
+                               17 29 30 39 59 43 
+                               20 4 59 13 85 21 
+                               44 14 52 13 115 -7 
+                               45 -14 105 -23 184 -26 
+                               104 -5 125 -3 205 20 
+                               48 14 126 35 171 46 
+                               91 23 199 73 275 128 
+                               l49 34 74 -36 
+                               c44 -22 105 -42 149 -50 
+                               124 -21 145 -53 154 -235 
+                               7 -132 11 -145 86 -280 
+                               39 -70 52 -184 37 -323 
+                               -7 -62 -19 -140 -27 -173 
+                               -16 -70 -10 -82 55 -94 
+                               49 -9 66 3 98 67 
+                               37 73 102 295 102 347 
+                               0 14 4 26 8 26 
+                               33 0 43 -163 17 -260 
+                               -8 -30 -15 -56 -15 -57 
+                               0 -4 76 11 80 16 
+                               3 3 27 16 53 29 
+                               211 99 280 384 137 564 
+                               -17 20 -30 40 -30 43 
+                               0 4 11 21 24 38 
+                               13 18 34 61 46 97 
+                               51 152 -6 326 -139 421 
+                               l-56 40 -1 77 
+                               c-1 151 -89 266 -228 297 
+                               l-50 11 -13 65 
+                               c-41 204 -198 338 -398 339 
+                               -44 0 -87 -9 -170 -34 
+                               -15 -5 -25 2 -42 27 
+                               -33 52 -131 113 -212 131 
+                               -82 19 -105 19 -187 1z" 
+                             />
+                           </g>
+                         </svg>
+                       </button>
                     
-                                         <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.hairStyle === "messy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
-                       onClick={() => setConfig({ ...config, hairStyle: "messy" })}
-                       title="Spettinati"
-                     >
-                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* CAPELLI SPETTINATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
-                          <g
-                            transform="translate(27,220) scale(0.035,-0.035)"
-                            fill="#8B4513"
-                            stroke="black"
-                            strokeWidth="90"
-                          >
-                            <path d="M2918 5295 c3 -5 23 -33 44 -61 21 -28 38 -53 38 -56 0 -3 -84 -8
-        -187 -11 -182 -7 -354 -29 -485 -62 -77 -21 -216 -68 -251 -87 l-29 -14 91
-        -45 c50 -24 90 -46 90 -49 0 -3 -26 -17 -57 -32 -135 -64 -271 -172 -376 -298
-        -162 -193 -267 -439 -301 -700 -14 -108 -8 -133 33 -148 l29 -10 7 -128 c13
-        -253 72 -601 119 -706 9 -21 17 -44 17 -52 0 -9 13 -22 30 -31 16 -8 37 -26
-        46 -40 9 -13 25 -27 36 -31 11 -3 37 -21 57 -39 38 -34 81 -53 81 -36 0 49 24
-        340 36 430 44 346 133 598 255 723 31 32 73 65 92 73 25 10 99 16 273 20 463
-        11 718 37 1019 104 72 16 131 28 133 26 1 -1 -30 -39 -69 -84 -39 -46 -68 -85
-        -65 -89 4 -3 63 0 132 7 167 16 324 61 474 134 83 41 88 42 185 42 94 0 105
-        -2 170 -34 75 -37 176 -126 227 -199 119 -172 196 -427 243 -797 6 -48 25
-        -290 25 -317 0 -28 28 -16 110 43 69 51 89 80 109 159 6 25 23 88 36 140 37
-        142 67 340 81 533 5 82 7 87 29 87 43 0 49 20 41 164 -10 214 -50 381 -131
-        551 -109 227 -283 351 -546 388 -82 12 -82 12 -95 49 -34 99 -136 217 -251
-        292 -134 87 -245 121 -505 155 -231 31 -1054 59 -1040 36z" />
-                          </g>
-                        </svg>
-                     </button>
+                                                                                                                                                                       <button
+                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.hairStyle === "messy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                         }`}
+                         onClick={() => setConfig({ ...config, hairStyle: "messy" })}
+                         title="Spettinati"
+                       >
+                         <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* CAPELLI SPETTINATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
+                           <g
+                             transform="translate(27,220) scale(0.035,-0.035)"
+                             fill="#8B4513"
+                             stroke="black"
+                             strokeWidth="90"
+                           >
+                             <path d="M2918 5295 c3 -5 23 -33 44 -61 21 -28 38 -53 38 -56 0 -3 -84 -8
+         -187 -11 -182 -7 -354 -29 -485 -62 -77 -21 -216 -68 -251 -87 l-29 -14 91
+         -45 c50 -24 90 -46 90 -49 0 -3 -26 -17 -57 -32 -135 -64 -271 -172 -376 -298
+         -162 -193 -267 -439 -301 -700 -14 -108 -8 -133 33 -148 l29 -10 7 -128 c13
+         -253 72 -601 119 -706 9 -21 17 -44 17 -52 0 -9 13 -22 30 -31 16 -8 37 -26
+         46 -40 9 -13 25 -27 36 -31 11 -3 37 -21 57 -39 38 -34 81 -53 81 -36 0 49 24
+         340 36 430 44 346 133 598 255 723 31 32 73 65 92 73 25 10 99 16 273 20 463
+         11 718 37 1019 104 72 16 131 28 133 26 1 -1 -30 -39 -69 -84 -39 -46 -68 -85
+         -65 -89 4 -3 63 0 132 7 167 16 324 61 474 134 83 41 88 42 185 42 94 0 105
+         -2 170 -34 75 -37 176 -126 227 -199 119 -172 196 -427 243 -797 6 -48 25
+         -290 25 -317 0 -28 28 -16 110 43 69 51 89 80 109 159 6 25 23 88 36 140 37
+         142 67 340 81 533 5 82 7 87 29 87 43 0 49 20 41 164 -10 214 -50 381 -131
+         551 -109 227 -283 351 -546 388 -82 12 -82 12 -95 49 -34 99 -136 217 -251
+         292 -134 87 -245 121 -505 155 -231 31 -1054 59 -1040 36z" />
+                           </g>
+                         </svg>
+                       </button>
                     
-                                         <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.hairStyle === "wavy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
-                       onClick={() => setConfig({ ...config, hairStyle: "wavy" })}
-                       title="Ondulati"
-                     >
-                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* CAPELLI ONDULATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
-                          <path
-                            d="M90 60 
-                               Q110 40 150 45 
-                               Q190 40 210 60 
-                               Q220 80 215 100 
-                               Q210 115 200 120 
-                               Q195 100 195 85 
-                               Q195 70 180 65 
-                               Q165 60 150 62 
-                               Q135 60 120 65 
-                               Q105 70 105 85 
-                               Q105 100 100 120 
-                               Q90 115 85 100 
-                               Q80 80 90 60 
-                               Z"
-                            fill="#8B4513"
-                            stroke="#000"
-                            strokeWidth="3"
-                          />
-                        </svg>
-                     </button>
+                                                                                                                                                                       <button
+                         className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                           config.hairStyle === "wavy" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                         }`}
+                         onClick={() => setConfig({ ...config, hairStyle: "wavy" })}
+                         title="Ondulati"
+                       >
+                         <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* CAPELLI ONDULATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
+                           <path
+                             d="M90 60 
+                                Q110 40 150 45 
+                                Q190 40 210 60 
+                                Q220 80 215 100 
+                                Q210 115 200 120 
+                                Q195 100 195 85 
+                                Q195 70 180 65 
+                                Q165 60 150 62 
+                                Q135 60 120 65 
+                                Q105 70 105 85 
+                                Q105 100 100 120 
+                                Q90 115 85 100 
+                                Q80 80 90 60 
+                                Z"
+                             fill="#8B4513"
+                             stroke="#000"
+                             strokeWidth="3"
+                           />
+                         </svg>
+                       </button>
                     
                                          <button
                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
@@ -515,19 +505,17 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                                  <div>
                    <Label>Stile Baffi</Label>
                    <div className="grid grid-cols-4 gap-0.5 mt-2">
-                                         <button
-                       className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
-                         config.mustacheStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-                       }`}
-                       onClick={() => setConfig({ ...config, mustacheStyle: "none" })}
-                       title="Nessuno"
-                     >
-                       <svg className="w-12 h-12" viewBox="0 0 48 48" fill="currentColor">
-                         {/* Testa */}
-                         <circle cx="24" cy="24" r="20" fill="#FDBCB4"/>
-                         {/* Nessun baffo - solo testa */}
-                       </svg>
-                     </button>
+                                                               <button
+                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
+                          config.mustacheStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+                        }`}
+                        onClick={() => setConfig({ ...config, mustacheStyle: "none" })}
+                        title="Nessuno"
+                      >
+                        <div className="text-gray-500 text-xs">
+                          Nessuno
+                        </div>
+                      </button>
                     
                                          <button
                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
@@ -536,11 +524,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        onClick={() => setConfig({ ...config, mustacheStyle: "classic" })}
                        title="Classici"
                      >
-                                                                       <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* BAFFI CLASSICI IDENTICI ALL'AVATAR - PATH ORIGINALE CON COORDINATE IDENTICHE */}
-                          <g transform="translate(111, 193) scale(0.025,-0.018)" fill="#8B4513">
+                                                                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* BAFFI CLASSICI IDENTICI ALL'AVATAR - PATH ORIGINALE CON COORDINATE IDENTICHE */}
+                           <g transform="translate(111, 193) scale(0.025,-0.018)" fill="#8B4513">
                             <path
                               d="M1410 2042 c0 -7 -12 -10 -30 -8 -16 2 -30 -1 -30 -5 0 -5 -14 -7
          -31 -4 -17 3 -28 2 -25 -3 2 -4 1 -14 -5 -22 -7 -12 -9 -9 -9 9 0 22 -1 23
@@ -623,11 +609,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                         onClick={() => setConfig({ ...config, mustacheStyle: "thick" })}
                         title="Spessi"
                       >
-                                                                        <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                           {/* Testa */}
-                           <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                           {/* BAFFI SPESSI IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
-                           <g transform="translate(105, 210) scale(0.04,-0.03)" fill="#8B4513">
+                                                                                                <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                            {/* BAFFI SPESSI IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
+                            <g transform="translate(105, 210) scale(0.04,-0.03)" fill="#8B4513">
                              <path
                                                                d="
                                   M930 1921 c-14 -4 -37 -6 -52 -5 -16 2 -28 -2 -28 -7 0 -6 -4 -8 -9
@@ -671,11 +655,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                         onClick={() => setConfig({ ...config, mustacheStyle: "handlebar" })}
                         title="A Manubrio"
                       >
-                                                <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                           {/* Testa */}
-                           <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                                                       {/* BAFFI A MANUBRIO IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
-                            <g transform="translate(260, 515) scale(0.07,-0.07)" fill="#8B4513">
+                                                                                                <svg className="w-12 h-12" viewBox="0 0 500 500" fill="currentColor">
+                             {/* BAFFI A MANUBRIO IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
+                              <g transform="translate(260, 515) scale(0.07,-0.07)" fill="#8B4513">
                               <path
                                 d="
                                   M1260 2051
@@ -737,11 +719,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        onClick={() => setConfig({ ...config, beardStyle: "none" })}
                        title="Nessuna"
                      >
-                       <svg className="w-12 h-12" viewBox="0 0 48 48" fill="currentColor">
-                         {/* Testa */}
-                         <circle cx="24" cy="24" r="20" fill="#FDBCB4"/>
-                         {/* Nessuna barba - solo testa */}
-                       </svg>
+                                               <div className="text-gray-500 text-xs">
+                          Nessuna
+                        </div>
                      </button>
                     
                                          <button
@@ -751,11 +731,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        onClick={() => setConfig({ ...config, beardStyle: "goatee" })}
                        title="Pizzetto"
                      >
-                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* PIZZETTO IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
-                          <g transform="translate(150, 220) scale(0.08,-0.08)" fill="#8B4513">
+                                                                       <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* PIZZETTO IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
+                           <g transform="translate(150, 220) scale(0.08,-0.08)" fill="#8B4513">
                             <ellipse
                               cx="150"
                               cy="150"
@@ -773,11 +751,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        onClick={() => setConfig({ ...config, beardStyle: "full" })}
                        title="Piena"
                      >
-                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* BARBA PIENA IDENTICA ALL'AVATAR - COORDINATE IDENTICHE */}
-                          <g transform="translate(150, 220) scale(0.08,-0.08)" fill="#8B4513">
+                                                                       <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* BARBA PIENA IDENTICA ALL'AVATAR - COORDINATE IDENTICHE */}
+                           <g transform="translate(150, 220) scale(0.08,-0.08)" fill="#8B4513">
                             <path
                               d="M120 200 Q150 240 180 200 Q180 240 150 280 Q120 240 120 200 Z"
                             />
@@ -795,11 +771,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                        onClick={() => setConfig({ ...config, beardStyle: "stubble" })}
                        title="Barba Incolta"
                      >
-                                               <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-                          {/* Testa */}
-                          <circle cx="150" cy="150" r="100" fill="#FDBCB4"/>
-                          {/* BARBA INCOLTA IDENTICA ALL'AVATAR - COORDINATE IDENTICHE */}
-                          <g transform="translate(150, 220) scale(0.08,-0.08)" fill="#8B4513" opacity="0.3">
+                                                                       <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+                           {/* BARBA INCOLTA IDENTICA ALL'AVATAR - COORDINATE IDENTICHE */}
+                           <g transform="translate(150, 220) scale(0.08,-0.08)" fill="#8B4513" opacity="0.3">
                             <ellipse
                               cx="150"
                               cy="200"
