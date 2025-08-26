@@ -80,9 +80,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Anteprima Avatar - A SINISTRA */}
-      <div className="flex flex-col items-center space-y-4 order-1 lg:order-1">
+    <div className="flex flex-col lg:flex-row gap-6 px-4 lg:px-0">
+      {/* Anteprima Avatar - FISSA IN ALTO */}
+      <div className="lg:sticky lg:top-6 lg:self-start flex flex-col items-center space-y-4 order-1 lg:order-1">
         <h3 className="text-lg font-semibold">Anteprima Avatar</h3>
         <div className="p-6 bg-gray-50 rounded-lg">
           <CustomAvatar 
@@ -93,8 +93,8 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
         </div>
       </div>
 
-      {/* Personalizzazione Avatar - A DESTRA */}
-      <div className="space-y-6 order-2 lg:order-2">
+      {/* Personalizzazione Avatar - SCROLLABILE */}
+      <div className="flex-1 space-y-6 order-2 lg:order-2">
         <h3 className="text-lg font-semibold">Personalizzazione Avatar</h3>
         
         <Card>
