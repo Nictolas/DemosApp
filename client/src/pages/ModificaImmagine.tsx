@@ -40,18 +40,32 @@ export default function ModificaImmagine() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
 
+  // === DEBUG LOGS ===
+  console.log('🔍 DEBUG ModificaImmagine - Componente montato');
+  console.log('🔍 DEBUG ModificaImmagine - user from useAuth:', user);
+  console.log('🔍 DEBUG ModificaImmagine - isAuthLoading:', isAuthLoading);
+  console.log('🔍 DEBUG ModificaImmagine - user?.id:', user?.id);
+
   // 1. Caricamento dati con React Query
   const { data: userInfo, isLoading: isLoadingInfo } = useQuery<UserInfo>({
     queryKey: ['userInfo', user?.id],
     queryFn: async () => {
+        console.log('🔍 DEBUG ModificaImmagine - queryFn eseguita');
         if (!user?.id) throw new Error("User not authenticated");
+        console.log('🔍 DEBUG ModificaImmagine - Chiamando /api/users/me');
         const response = await apiRequest("GET", `/api/users/me`);
+        console.log('🔍 DEBUG ModificaImmagine - Risposta API:', response.status, response.ok);
         if (!response.ok) throw new Error("Errore nel caricamento dei dati del profilo");
         const result = await response.json();
+        console.log('🔍 DEBUG ModificaImmagine - Dati ricevuti:', result);
         return result.user || result;
     },
     enabled: !!user,
   });
+
+  // === DEBUG LOGS ===
+  console.log('🔍 DEBUG ModificaImmagine - userInfo from useQuery:', userInfo);
+  console.log('🔍 DEBUG ModificaImmagine - isLoadingInfo:', isLoadingInfo);
 
   // 2. Mutazione per salvare l'avatar
   const saveAvatarMutation = useMutation({
@@ -82,7 +96,14 @@ export default function ModificaImmagine() {
 
   const hasPermission = userInfo?.ruolo === 'Politico' || userInfo?.ruolo === 'Candidato' || userInfo?.ruolo === 'Candidato Politico' || userInfo?.ruolo === 'Admin';
   
+  // === DEBUG LOGS ===
+  console.log('🔍 DEBUG ModificaImmagine - hasPermission:', hasPermission);
+  console.log('🔍 DEBUG ModificaImmagine - userInfo?.ruolo:', userInfo?.ruolo);
+  console.log('🔍 DEBUG ModificaImmagine - Condizione redirect:', !isLoadingInfo && !hasPermission);
+  
   if (!isLoadingInfo && !hasPermission) {
+      console.log('🔍 DEBUG ModificaImmagine - REDIRECT A /menu/profilo!');
+      console.log('🔍 DEBUG ModificaImmagine - Motivo: isLoadingInfo =', isLoadingInfo, 'hasPermission =', hasPermission);
       return <Redirect to="/menu/profilo" />;
   }
   
