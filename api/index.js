@@ -2710,9 +2710,6 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
         email,
         ruolo,
         status,
-        regione,
-        provincia,
-        comune,
         avatar_config,
         grado_candidatura,
         regione_candidatura,
@@ -3646,8 +3643,8 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
     if (isNumeric) {
       // Cerca per ID numerico
       query = `
-        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, eta, sesso, 
-               regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
+        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, sesso, 
+               regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
                created_at, updated_at
         FROM users 
         WHERE id = $1
@@ -3656,8 +3653,8 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
     } else {
       // Cerca per email
       query = `
-        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, eta, sesso, 
-               regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
+        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, sesso, 
+               regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
                created_at, updated_at
         FROM users 
         WHERE email = $1
@@ -3836,9 +3833,9 @@ app.get('/api/users/:id/profile', verifyToken, async (req, res) => {
     const { id } = req.params;
     
     const query = `
-      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, eta, sesso, 
-             regione, provincia, comune, indirizzo, telefono, avatar_config, premium,
-             candidato_selezionato, rappresentante_selezionato, created_at, updated_at
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, sesso, 
+             regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
+             created_at, updated_at
       FROM users 
       WHERE id = $1
     `;
