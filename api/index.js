@@ -3544,6 +3544,51 @@ app.delete('/api/iniziative-popolari/:id', verifyToken, requireAdmin, async (req
 
 // ===== ENDPOINTS PER GESTIONE UTENTI =====
 
+// GET /api/users/me - Ottieni dati utente autenticato
+app.get('/api/users/me', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG /api/users/me - Richiesta ricevuta da utente:', req.userId, 'con ruolo:', req.userRole);
+    
+    const query = `
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
+             regione_residenza, provincia_residenza, comune_residenza,
+             regione_elezione, provincia_elezione, comune_elezione,
+             regione_candidatura, provincia_candidatura, comune_candidatura,
+             paese_residenza, paese_elezione, paese_candidatura,
+             grado_elezione, grado_candidatura, cittadinanza,
+             energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+             avatar_config, premium, created_at, updated_at
+      FROM users 
+      WHERE id = $1
+    `;
+    
+    console.log('🔍 DEBUG /api/users/me - Eseguendo query per utente:', req.userId);
+    const result = await pool.query(query, [req.userId]);
+    
+    if (result.rows.length === 0) {
+      console.log('❌ DEBUG /api/users/me - Utente non trovato:', req.userId);
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const userData = result.rows[0];
+    console.log('✅ DEBUG /api/users/me - Dati utente recuperati:', userData.nome, userData.cognome);
+    
+    res.json({
+      success: true,
+      user: userData
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare dati utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare dati utente'
+    });
+  }
+});
+
 // GET /api/users - Ottieni tutti gli utenti
 app.get('/api/users', verifyToken, async (req, res) => {
   try {
