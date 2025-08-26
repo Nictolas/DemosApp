@@ -112,9 +112,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 <CardTitle>Aspetto Fisico</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label>Colore Pelle</Label>
-                  <div className="grid grid-cols-6 gap-2 mt-2">
+                                 <div>
+                   <Label>Colore Pelle</Label>
+                   <div className="grid grid-cols-6 gap-1 mt-2">
                     {skinColors.map((color) => (
                       <button
                         key={color.value}
@@ -221,7 +221,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
               <CardContent className="space-y-4">
                 <div>
                   <Label>Stile Capelli</Label>
-                                     <div className="grid grid-cols-4 gap-2 mt-2">
+                                     <div className="grid grid-cols-4 gap-1 mt-2">
                      <button
                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
                          config.hairStyle === "bald" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
@@ -495,9 +495,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   </div>
                 </div>
 
-                <div>
-                  <Label>Colore Capelli</Label>
-                  <div className="grid grid-cols-6 gap-2 mt-2">
+                                 <div>
+                   <Label>Colore Capelli</Label>
+                   <div className="grid grid-cols-6 gap-1 mt-2">
                     {hairColors.map((color) => (
                       <button
                         key={color.value}
@@ -512,9 +512,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   </div>
                 </div>
 
-                <div>
-                  <Label>Stile Baffi</Label>
-                  <div className="grid grid-cols-4 gap-2 mt-2">
+                                 <div>
+                   <Label>Stile Baffi</Label>
+                   <div className="grid grid-cols-4 gap-1 mt-2">
                                          <button
                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
                          config.mustacheStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
@@ -793,9 +793,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 </div>
 
                 {config.mustacheStyle !== "none" && (
-                  <div>
-                    <Label>Colore Baffi</Label>
-                    <div className="grid grid-cols-6 gap-2 mt-2">
+                                     <div>
+                     <Label>Colore Baffi</Label>
+                     <div className="grid grid-cols-6 gap-1 mt-2">
                       {hairColors.map((color) => (
                         <button
                           key={color.value}
@@ -811,9 +811,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   </div>
                 )}
 
-                <div>
-                  <Label>Stile Barba</Label>
-                  <div className="grid grid-cols-4 gap-2 mt-2">
+                                 <div>
+                   <Label>Stile Barba</Label>
+                   <div className="grid grid-cols-4 gap-1 mt-2">
                                          <button
                        className={`w-16 h-16 rounded-full border-2 flex items-center justify-center ${
                          config.beardStyle === "none" ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
@@ -896,10 +896,10 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   </div>
                 </div>
 
-                {config.beardStyle !== "none" && (
-                  <div>
-                    <Label>Colore Barba</Label>
-                    <div className="grid grid-cols-6 gap-2 mt-2">
+                                 {config.beardStyle !== "none" && (
+                   <div>
+                     <Label>Colore Barba</Label>
+                     <div className="grid grid-cols-6 gap-1 mt-2">
                       {hairColors.map((color) => (
                         <button
                           key={color.value}
@@ -925,9 +925,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 <CardTitle>Abbigliamento</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label>Colore Giacca</Label>
-                  <div className="grid grid-cols-6 gap-2 mt-2">
+                                 <div>
+                   <Label>Colore Giacca</Label>
+                   <div className="grid grid-cols-6 gap-1 mt-2">
                     {suitColors.map((color) => (
                       <button
                         key={color.value}
@@ -942,9 +942,9 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   </div>
                 </div>
 
-                <div>
-                  <Label>Colore Cravatta</Label>
-                  <div className="grid grid-cols-6 gap-2 mt-2">
+                                 <div>
+                   <Label>Colore Cravatta</Label>
+                   <div className="grid grid-cols-6 gap-1 mt-2">
                     {tieColors.map((color) => (
                       <button
                         key={color.value}
