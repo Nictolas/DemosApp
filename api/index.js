@@ -3643,7 +3643,7 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
     if (isNumeric) {
       // Cerca per ID numerico
       query = `
-        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, sesso, 
+        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
                regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
                created_at, updated_at
         FROM users 
@@ -3653,7 +3653,7 @@ app.get('/api/users/:id', verifyToken, async (req, res) => {
     } else {
       // Cerca per email
       query = `
-        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, sesso, 
+        SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
                regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
                created_at, updated_at
         FROM users 
@@ -3833,7 +3833,7 @@ app.get('/api/users/:id/profile', verifyToken, async (req, res) => {
     const { id } = req.params;
     
     const query = `
-      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, sesso, 
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
              regione_residenza, provincia_residenza, comune_residenza, avatar_config, premium,
              created_at, updated_at
       FROM users 
@@ -5353,7 +5353,7 @@ app.get('/api/sostenitori', verifyToken, async (req, res) => {
     
     // Ottieni i sostenitori
     const sostenitoriQuery = `
-      SELECT s.*, u.nome, u.cognome, u.email, u.eta, u.sesso
+      SELECT s.*, u.nome, u.cognome, u.email, u.genere
       FROM sostenitori s
       JOIN users u ON s.sostenitore_id = u.id
       WHERE s.utente_id = $1
@@ -5372,37 +5372,22 @@ app.get('/api/sostenitori', verifyToken, async (req, res) => {
       ageDistribution: {}
     };
     
-    let totalAge = 0;
-    let validAgeCount = 0;
-    
     sostenitori.forEach(s => {
       // Distribuzione per genere
-      if (s.sesso) {
-        if (stats.genderDistribution.hasOwnProperty(s.sesso)) {
-          stats.genderDistribution[s.sesso]++;
+      if (s.genere) {
+        if (stats.genderDistribution.hasOwnProperty(s.genere)) {
+          stats.genderDistribution[s.genere]++;
         } else {
           stats.genderDistribution.Altro++;
         }
       }
       
-      // Distribuzione per età
-      if (s.eta && s.eta > 0) {
-        totalAge += s.eta;
-        validAgeCount++;
-        
-        const ageGroup = s.eta < 25 ? '18-24' : 
-                        s.eta < 35 ? '25-34' : 
-                        s.eta < 45 ? '35-44' : 
-                        s.eta < 55 ? '45-54' : 
-                        s.eta < 65 ? '55-64' : '65+';
-        
-        stats.ageDistribution[ageGroup] = (stats.ageDistribution[ageGroup] || 0) + 1;
-      }
+      // L'età viene calcolata dinamicamente dal frontend, non è una colonna del database
+      // Rimuoviamo la logica di calcolo età da qui
     });
     
-    if (validAgeCount > 0) {
-      stats.averageAge = totalAge / validAgeCount;
-    }
+    // L'età media non può essere calcolata qui perché l'età non è una colonna del database
+    stats.averageAge = 0;
     
     // Formatta i sostenitori per il frontend
     const supporters = sostenitori.map(s => ({
