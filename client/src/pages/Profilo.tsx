@@ -308,7 +308,7 @@ export default function Profilo({ userId }: { userId?: string }) {
               {fromGestisciUtenti ? "Torna a Gestisci Utenti" : userId ? "Torna a Gestisci Grazia" : "Torna al Menu"}
             </Button>
             
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
                   Profilo Utente
@@ -387,7 +387,7 @@ export default function Profilo({ userId }: { userId?: string }) {
               <CardFooter className="flex justify-end gap-2">
                 {!isEditing && (
                   <>
-                    {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
+                    {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico' || userInfo.ruolo === 'Admin') && (
                       <Button variant="outline" onClick={() => window.location.href = `/modifica-immagine?uid=${user.id}`}>
                         <Image className="mr-2 h-4 w-4" />
                         Modifica Immagine
@@ -404,7 +404,7 @@ export default function Profilo({ userId }: { userId?: string }) {
 
             {/* --- SEZIONE OPINIONI LASCIATA IDENTICA --- */}
             {userInfo && userOpinions && Object.keys(userOpinions).length > 0 && (
-              <Card className="animate-in-delay">
+              <Card className="animate-in-delay bg-white">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Le Tue Opinioni Politiche</CardTitle>
                   <CardDescription>Visualizzazione delle tue posizioni sui temi principali</CardDescription>
@@ -454,7 +454,7 @@ export default function Profilo({ userId }: { userId?: string }) {
 
             {/* --- SEZIONE GOVERNO IDEALE LASCIATA IDENTICA --- */}
             {userInfo && Object.keys(governoIdeale).length > 0 && (
-              <Card className="animate-in-delay">
+              <Card className="animate-in-delay bg-white">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Il Tuo Governo Ideale</CardTitle>
                   <CardDescription>I ministri che hai selezionato per il tuo governo ideale</CardDescription>
@@ -482,12 +482,12 @@ export default function Profilo({ userId }: { userId?: string }) {
             {/* Aggiungiamo le chiamate ai nuovi componenti */}
             {userInfo && (
               <>
-                <Card>
+                <Card className="bg-white">
                   <CardContent className="pt-6">
                     <ProfileRepresentatives userInfo={userInfo} />
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-white">
                   <CardContent className="pt-6">
                     <ProfileCandidates userInfo={userInfo} />
                   </CardContent>

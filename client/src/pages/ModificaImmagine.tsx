@@ -79,7 +79,7 @@ export default function ModificaImmagine() {
     return <Redirect to="/auth" />;
   }
 
-  const hasPermission = userInfo?.ruolo === 'Politico' || userInfo?.ruolo === 'Candidato' || userInfo?.ruolo === 'Candidato Politico';
+  const hasPermission = userInfo?.ruolo === 'Politico' || userInfo?.ruolo === 'Candidato' || userInfo?.ruolo === 'Candidato Politico' || userInfo?.ruolo === 'Admin';
   
   if (!isLoadingInfo && !hasPermission) {
       return <Redirect to="/menu/profilo" />;
