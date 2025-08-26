@@ -268,7 +268,7 @@ export default function Profilo({ userId }: { userId?: string }) {
   };
 
   const handleModificaImmagine = () => {
-    setLocation(`/modifica-immagine?uid=${user.id}`);
+    setLocation('/modifica-immagine');
   };
 
   return (
