@@ -8,7 +8,7 @@ export function GoateeBeardStyle({ beardColor }: GoateeBeardStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* PIZZETTO IDENTICO ALL'AVATAR - COORDINATE IDENTICHE */}
-      <g transform="translate(0,0) scale(1,1)" fill={beardColor}>
+      <g transform="translate(0,0) scale(1.3,1.3)" fill={beardColor}>
         <ellipse
           cx="150"
           cy="190"
