@@ -54,11 +54,15 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     { name: "Olivastro", value: "#E0AC69" },
     { name: "Scuro", value: "#C68642" },
     { name: "Molto Scuro", value: "#8D5524" },
-    { name: "Ebano", value: "#5D4037" }
+    { name: "Ebano", value: "#5D4037" },
+    { name: "Albino", value: "#FFF8F0" },
+    { name: "Crema", value: "#F5DEB3" },
+    { name: "Miele", value: "#D2691E" },
+    { name: "Cioccolato", value: "#654321" },
+    { name: "Carbone", value: "#2F2F2F" }
   ];
 
   const hairColors = [
-    { name: "Biondo", value: "#F5F5DC" },
     { name: "Biondo Platino", value: "#FFF8DC" },
     { name: "Biondo Giallo", value: "#FFD700" },
     { name: "Castano", value: "#8B4513" },
