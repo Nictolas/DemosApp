@@ -8,7 +8,7 @@ export function AviatorGlassesStyle({}: AviatorGlassesStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* OCCHIALI AVIATOR IDENTICI ALL'AVATAR */}
-      <g transform="translate(80,100) scale(1.5,1.5)">
+      <g transform="translate(80,100) scale(2.0,2.0)">
         {/* Lente sinistra - forma aviator */}
         <path d="M13 13 Q25 3 37 13 Q37 37 25 47 Q13 37 13 13 Z" fill="none" stroke="#333" strokeWidth="2"/>
         {/* Lente destra - forma aviator */}
