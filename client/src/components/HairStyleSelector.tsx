@@ -111,7 +111,20 @@ export function HairStyleSelector({ hairStyle, hairColor, onHairStyleChange }: H
           <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
             {/* CAPELLI ONDULATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
             <g transform="translate(70,180) scale(0.25,-0.25)" fill={hairColor} stroke="black" strokeWidth="50">
-              <path d="M90 60 Q110 40 150 45 Q190 40 210 60 Q220 80 215 100 Q210 115 200 120 Q195 100 195 85 Q195 70 180 65 Q165 60 150 62 Q135 60 120 65 Q105 70 105 85 Q105 100 100 120 Q90 115 85 100 Q80 80 90 60 Z" />
+              <path d="M90 60 
+                 Q110 40 150 45 
+                 Q190 40 210 60 
+                 Q220 80 215 100 
+                 Q210 115 200 120 
+                 Q195 100 195 85 
+                 Q195 70 180 65 
+                 Q165 60 150 62 
+                 Q135 60 120 65 
+                 Q105 70 105 85 
+                 Q105 100 100 120 
+                 Q90 115 85 100 
+                 Q80 80 90 60 
+                 Z" />
             </g>
           </svg>
         </button>
@@ -150,9 +163,6 @@ export function HairStyleSelector({ hairStyle, hairColor, onHairStyleChange }: H
                   Q95 90 90 80 
                   Z
                 "
-                fill={hairColor}
-                stroke="black"
-                strokeWidth="3"
               />
 
               {/* Ciocca destra abbassata con punta più verso l'interno */}
@@ -164,9 +174,6 @@ export function HairStyleSelector({ hairStyle, hairColor, onHairStyleChange }: H
                   Q205 90 210 80 
                   Z
                 "
-                fill={hairColor}
-                stroke="black"
-                strokeWidth="3"
               />
             </g>
           </svg>
