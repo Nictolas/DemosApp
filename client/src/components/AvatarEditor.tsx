@@ -134,7 +134,8 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 />
 
                 <NoseStyleSelector
-                  noseStyle={config.noseStyle}
+                  selectedNoseStyle={config.noseStyle}
+                  skinColor={config.skinColor}
                   onNoseStyleChange={(style) => setConfig({ ...config, noseStyle: style })}
                 />
               </CardContent>
@@ -228,7 +229,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                 />
 
                 <GlassesStyleSelector
-                  glassesStyle={config.glassesStyle}
+                  selectedGlassesStyle={config.glassesStyle}
                   onGlassesStyleChange={(style) => setConfig({ ...config, glassesStyle: style })}
                 />
               </CardContent>
