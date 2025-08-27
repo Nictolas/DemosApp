@@ -598,7 +598,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         {renderBeard()}
         
         {/* Anello di mascheramento davanti all'avatar (colore sfondo pagina) */}
-        <circle cx="150" cy="150" r="150" fill="none" stroke="#f8fafc" strokeWidth="8" />
+        <circle cx="150" cy="150" r="150" fill="none" stroke="#f8fafc" strokeWidth="20" />
       </svg>
     </div>
   );
