@@ -496,8 +496,8 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         {/* Mascheramento circolare per nascondere gli angoli dell'avatar */}
         <defs>
           <mask id="circleMask">
-            <rect width="300" height="300" fill="white"/>
-            <circle cx="150" cy="150" r="150" fill="black"/>
+            <rect width="300" height="300" fill="black"/>
+            <circle cx="150" cy="150" r="150" fill="white"/>
           </mask>
         </defs>
         
