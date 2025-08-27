@@ -9,6 +9,7 @@ import { BeardStyleSelector } from "@/components/BeardStyleSelector";
 import { MustacheStyleSelector } from "@/components/MustacheStyleSelector";
 import { NoseStyleSelector } from "@/components/NoseStyleSelector";
 import { ColorSelector } from "@/components/ColorSelector";
+import { GlassesStyleSelector } from "@/components/GlassesStyleSelector";
 
 interface AvatarConfig {
   skinColor: string;
@@ -21,6 +22,7 @@ interface AvatarConfig {
   noseStyle: string;
   suitColor: string;
   tieColor: string;
+  glassesStyle: string;
 }
 
 interface AvatarEditorProps {
@@ -38,7 +40,8 @@ const defaultConfig: AvatarConfig = {
   beardColor: "#2C1810",
   noseStyle: "normal",
   suitColor: "#2C3E50",
-  tieColor: "#E74C3C"
+  tieColor: "#E74C3C",
+  glassesStyle: "none"
 };
 
 export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEditorProps) {
@@ -210,6 +213,11 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   onColorChange={(color) => setConfig({ ...config, tieColor: color })}
                   buttonSize="large"
                   gridCols={6}
+                />
+
+                <GlassesStyleSelector
+                  glassesStyle={config.glassesStyle}
+                  onGlassesStyleChange={(style) => setConfig({ ...config, glassesStyle: style })}
                 />
               </CardContent>
             </Card>
