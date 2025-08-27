@@ -8,7 +8,7 @@ export function StubbleBeardStyle({ beardColor }: StubbleBeardStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* BARBA INCOLTA IDENTICA ALL'AVATAR - COORDINATE IDENTICHE */}
-      <g transform="translate(0,0) scale(1.3,1.3)" fill={beardColor} opacity="0.3">
+      <g transform="translate(-20,-20) scale(1.3,1.3)" fill={beardColor} opacity="0.3">
         <ellipse
           cx="150"
           cy="180"
