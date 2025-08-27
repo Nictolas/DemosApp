@@ -8,7 +8,7 @@ export function BuzzHairStyle({ hairColor }: BuzzHairStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* CAPELLI RASATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
-      <g transform="translate(0,0) scale(1.3,1.3)" fill={hairColor} stroke="black" strokeWidth="3">
+      <g transform="translate(-15,0) scale(1.3,1.3)" fill={hairColor} stroke="black" strokeWidth="3">
         {/* Ciocca sinistra abbassata con punta più verso l'interno */}
         <path
           d="
