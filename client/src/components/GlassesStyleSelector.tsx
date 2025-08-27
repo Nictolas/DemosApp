@@ -1,6 +1,8 @@
 import React from "react";
 import { NoneGlassesStyle } from "./NoneGlassesStyle";
-import { RoundGlassesStyle, SquareGlassesStyle, AviatorGlassesStyle } from "./glasses/GlassesShapes";
+import { RoundGlassesStyle } from "./RoundGlassesStyle";
+import { SquareGlassesStyle } from "./SquareGlassesStyle";
+import { AviatorGlassesStyle } from "./AviatorGlassesStyle";
 
 interface GlassesStyleSelectorProps {
   selectedGlassesStyle: string;
@@ -11,9 +13,9 @@ interface GlassesStyleSelectorProps {
 export function GlassesStyleSelector({ selectedGlassesStyle, glassesColor, onGlassesStyleChange }: GlassesStyleSelectorProps) {
   const glassesStyles = [
     { id: "none", component: <NoneGlassesStyle /> },
-    { id: "round", component: <RoundGlassesStyle color={glassesColor} /> },
-    { id: "square", component: <SquareGlassesStyle color={glassesColor} /> },
-    { id: "aviator", component: <AviatorGlassesStyle color={glassesColor} /> },
+    { id: "round", component: <RoundGlassesStyle glassesColor={glassesColor} /> },
+    { id: "square", component: <SquareGlassesStyle glassesColor={glassesColor} /> },
+    { id: "aviator", component: <AviatorGlassesStyle glassesColor={glassesColor} /> },
   ];
 
   return (
