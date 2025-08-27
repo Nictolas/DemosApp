@@ -1,0 +1,85 @@
+# 🧠 MEMORIA PERSISTENTE DEL PROGETTO - NON DIMENTICARE MAI!
+
+## 🏗️ **ARCHITETTURA ATTUALE:**
+- **Render**: Backend/API (FUNZIONANTE)
+- **Vercel**: Frontend (PROBLEMATICO - non builda più)
+- **Database**: Neon (PostgreSQL)
+- **Auth**: Auth.js integrato con Neon
+
+## 🎯 **STRUTTURA PROGETTO:**
+- **Root**: Monorepo con `client/` (Vite) e `api/` (Express)
+- **Frontend**: React + Vite in `client/`
+- **Backend**: Express API in `api/`
+- **Build**: `npm run build` builda solo il client
+
+## 🚨 **PROBLEMI RISOLTI (NON RIPETERE!):**
+- ✅ **Database**: Migrato da Keliweb a Neon
+- ✅ **Auth**: Auth.js integrato con Neon
+- ✅ **Email**: Resend per invio email (NON Gmail SMTP)
+- ✅ **Backend**: Funziona su Render
+- ✅ **Build locale**: `npm run build` funziona al 100%
+
+## 🚫 **PROBLEMI ATTUALI:**
+- ❌ **Vercel**: Non builda più il frontend automaticamente
+- ❌ **Deploy automatico**: GitHub → Vercel non funziona
+- ❌ **Configurazione**: Override Vercel hanno "rotto" qualcosa
+
+## 🔧 **SOLUZIONI PROVATE (NON RIPETERE!):**
+- ❌ **vercel.json personalizzato**: Ignorato da Vercel
+- ❌ **Script build personalizzati**: Non funzionano
+- ❌ **Reset configurazioni**: Non ha risolto
+- ❌ **Override disabilitati**: Non ha funzionato
+
+## 📋 **REGOLE IMPORTANTI:**
+1. **NON creare tabelle** senza permesso utente
+2. **NON suggerire soluzioni già provate** (girare in tondo)
+3. **Usare sempre le tabelle designate**: users per Rappresentanti, tabelle specifiche per Profilo/Opinioni
+4. **NON implementare features** non richieste esplicitamente
+5. **Navbar deve essere fixed** su tutte le pagine
+6. **Accesso diretto a Firebase** invece di API custom
+
+## 🎯 **OBIETTIVO ATTUALE:**
+- **Riparare Vercel** per il frontend (backend già funziona su Render)
+- **Ripristinare deploy automatico** GitHub → Vercel
+- **Mantenere architettura** Render (backend) + Vercel (frontend)
+
+## 🔍 **ULTIMA CONFIGURAZIONE VERCEL:**
+```json
+{
+  "version": 2,
+  "buildCommand": "cd client && npm install && npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./client/",
+  "functions": {}
+}
+```
+
+## 📊 **STATO ATTUALE:**
+- **Backend**: ✅ Funziona su Render
+- **Frontend Build**: ✅ Funziona localmente
+- **Deploy Vercel**: ❌ Non funziona automatico
+- **GitHub**: ✅ Push funzionano
+- **Database**: ✅ Neon funziona
+- **Auth**: ✅ Auth.js funziona
+
+## 🚀 **PROSSIMI PASSI SUGGERITI:**
+1. **Testare configurazione Vercel attuale** con push
+2. **Se non funziona**: Considerare alternative per frontend
+3. **Mantenere Render** per backend (già funzionante)
+
+## 💡 **NOTE IMPORTANTI:**
+- L'utente preferisce che l'assistente capisca il problema e proponga soluzioni prima di chiedere azioni
+- L'utente preferisce che l'assistente dica subito se non può fare qualcosa invece di perdere tempo
+- Il progetto è funzionante in locale, il problema è solo il deploy automatico su Vercel
+
+---
+**Ultimo aggiornamento**: 27/08/2025 - Problema Vercel non builda frontend automaticamente
+**Prossimo controllo**: Test configurazione Vercel attuale con push
