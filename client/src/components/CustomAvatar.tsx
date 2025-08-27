@@ -265,6 +265,15 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
           />
         </g>
       );
+      case "pelo":
+      return (
+        <path
+          d="M100 80 Q150 50 200 80 Q200 50 150 40 Q100 50 100 80 Z"
+          fill={hairColor}
+          stroke="#000"
+          strokeWidth="3"
+        />
+      );
       default:
         return null;
     }
