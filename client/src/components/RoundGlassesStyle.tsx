@@ -8,7 +8,7 @@ export function RoundGlassesStyle({}: RoundGlassesStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* OCCHIALI ROTONDI IDENTICI ALL'AVATAR */}
-      <g transform="translate(80,100) scale(2.0,2.0)">
+      <g transform="translate(80,100) scale(2.5,2.5)">
         {/* Lente sinistra */}
         <circle cx="25" cy="25" r="12" fill="none" stroke="#333" strokeWidth="2"/>
         {/* Lente destra */}
