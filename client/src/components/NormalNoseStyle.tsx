@@ -7,8 +7,10 @@ interface NormalNoseStyleProps {
 export function NormalNoseStyle({ skinColor }: NormalNoseStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* NASO NORMALE IDENTICO ALL'AVATAR */}
-              <path d="M 145 135 Q 150 140 155 135" stroke="#000" strokeWidth="3" fill="none" transform="scale(2.2,2.2)" />
+      {/* NASO NORMALE VISIBILE NEL SELETTORE */}
+      <g transform="translate(150,150) scale(0.8,0.8)">
+        <path d="M 145 135 Q 150 140 155 135" stroke="#000" strokeWidth="8" fill="none" />
+      </g>
     </svg>
   );
 }
