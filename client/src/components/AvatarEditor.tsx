@@ -158,6 +158,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
                 <MustacheStyleSelector
                   mustacheStyle={config.mustacheStyle}
+                  mustacheColor={config.mustacheColor}
                   onMustacheStyleChange={(style) => setConfig({ ...config, mustacheStyle: style })}
                 />
 
