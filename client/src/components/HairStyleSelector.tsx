@@ -6,6 +6,7 @@ import { CurlyHairStyle } from "./CurlyHairStyle";
 import { WavyHairStyle } from "./WavyHairStyle";
 import { MessyHairStyle } from "./MessyHairStyle";
 import { BuzzHairStyle } from "./BuzzHairStyle";
+import { PeloHairStyle } from "./PeloHairStyle";
 
 interface HairStyleSelectorProps {
   selectedHairStyle: string;
@@ -22,6 +23,7 @@ export function HairStyleSelector({ selectedHairStyle, onHairStyleChange, hairCo
     { id: "wavy", component: <WavyHairStyle hairColor={hairColor} /> },
     { id: "messy", component: <MessyHairStyle hairColor={hairColor} /> },
     { id: "buzz", component: <BuzzHairStyle hairColor={hairColor} /> },
+    { id: "pelo", component: <PeloHairStyle hairColor={hairColor} /> },
   ];
 
   return (
@@ -43,7 +45,8 @@ export function HairStyleSelector({ selectedHairStyle, onHairStyleChange, hairCo
                    style.id === "curly" ? "Ricci" :
                    style.id === "wavy" ? "Ondulati" :
                    style.id === "messy" ? "Spettinati" :
-                   "Rasati"}
+                   style.id === "buzz" ? "Rasati" :
+                   "Pelo"}
           >
             {style.component}
           </button>
