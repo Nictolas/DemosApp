@@ -8,7 +8,7 @@ export function WavyHairStyle({ hairColor }: WavyHairStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* CAPELLI ONDULATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
-      <g transform="translate(70,180) scale(0.25,-0.25)" fill={hairColor} stroke="black" strokeWidth="50">
+      <g transform="translate(0,0) scale(1,1)" fill={hairColor} stroke="black" strokeWidth="3">
         <path d="M90 60 
            Q110 40 150 45 
            Q190 40 210 60 

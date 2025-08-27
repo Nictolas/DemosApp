@@ -8,7 +8,7 @@ export function ThickMustacheStyle({ mustacheColor }: ThickMustacheStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 400 300" fill="currentColor">
       {/* BAFFI SPESSI IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
-      <g transform="translate(10, 270) scale(0.18,-0.12)" fill={mustacheColor}>
+      <g transform="translate(5, 270) scale(0.18,-0.12)" fill={mustacheColor}>
         <path
           d="
             M930 1921 c-14 -4 -37 -6 -52 -5 -16 2 -28 -2 -28 -7 0 -6 -4 -8 -9
