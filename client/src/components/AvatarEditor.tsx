@@ -23,6 +23,7 @@ interface AvatarConfig {
   suitColor: string;
   tieColor: string;
   glassesStyle: string;
+  glassesColor: string;
 }
 
 interface AvatarEditorProps {
@@ -41,7 +42,8 @@ const defaultConfig: AvatarConfig = {
   noseStyle: "normal",
   suitColor: "#2C3E50",
   tieColor: "#E74C3C",
-  glassesStyle: "none"
+  glassesStyle: "none",
+  glassesColor: "#333333"
 };
 
 export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEditorProps) {
@@ -91,6 +93,15 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
     { name: "Giallo", value: "#F1C40F" },
     { name: "Viola", value: "#9B59B6" },
     { name: "Arancione", value: "#FF5722" }
+  ];
+
+  const glassesColors = [
+    { name: "Nero", value: "#333333" },
+    { name: "Marrone", value: "#8B4513" },
+    { name: "Blu Scuro", value: "#2C3E50" },
+    { name: "Verde Scuro", value: "#2E7D32" },
+    { name: "Rosso Scuro", value: "#8B0000" },
+    { name: "Grigio", value: "#5D6D7E" }
   ];
 
   return (
@@ -230,8 +241,20 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
                 <GlassesStyleSelector
                   selectedGlassesStyle={config.glassesStyle}
+                  glassesColor={config.glassesColor}
                   onGlassesStyleChange={(style) => setConfig({ ...config, glassesStyle: style })}
                 />
+
+                <div className="flex justify-center">
+                  <ColorSelector
+                    label="Colore Occhiali"
+                    colors={glassesColors}
+                    selectedColor={config.glassesColor}
+                    onColorChange={(color) => setConfig({ ...config, glassesColor: color })}
+                    buttonSize="large"
+                    gridCols={6}
+                  />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

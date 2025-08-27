@@ -32,6 +32,7 @@ interface AvatarConfig {
   suitColor: string;
   tieColor: string;
   glassesStyle: string;
+  glassesColor: string;
 }
 
 interface CustomAvatarProps {
@@ -52,7 +53,8 @@ const defaultConfig: AvatarConfig = {
   noseStyle: "normal",
   suitColor: "#2C3E50",
   tieColor: "#E74C3C",
-  glassesStyle: "none"
+  glassesStyle: "none",
+  glassesColor: "#333333"
 };
 
 export function CustomAvatar({ config, size = 100, className = "rounded-full", onClick }: CustomAvatarProps) {
@@ -473,50 +475,52 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
   };
 
   const renderGlasses = () => {
+    const glassesColor = avatarConfig.glassesColor;
+    
     switch (avatarConfig.glassesStyle) {
       case "round":
         return (
-          <g transform="translate(-50,-40) scale(1.3,1.3)">
+          <g transform="translate(-45,-40) scale(1.3,1.3)">
             {/* Lente sinistra */}
-            <circle cx="125" cy="125" r="12" fill="none" stroke="#333" strokeWidth="2"/>
+            <circle cx="125" cy="125" r="12" fill="none" stroke={glassesColor} strokeWidth="2"/>
             {/* Lente destra */}
-            <circle cx="175" cy="125" r="12" fill="none" stroke="#333" strokeWidth="2"/>
+            <circle cx="175" cy="125" r="12" fill="none" stroke={glassesColor} strokeWidth="2"/>
             {/* Ponte centrale */}
-            <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
+            <path d="M137 125 L163 125" stroke={glassesColor} strokeWidth="2"/>
             {/* Stanghette sinistra */}
-            <path d="M105 125 L112 125" stroke="#333" strokeWidth="2"/>
+            <path d="M105 125 L112 125" stroke={glassesColor} strokeWidth="2"/>
             {/* Stanghetta destra */}
-            <path d="M188 125 L195 125" stroke="#333" strokeWidth="2"/>
+            <path d="M188 125 L195 125" stroke={glassesColor} strokeWidth="2"/>
           </g>
         );
       case "square":
         return (
-          <g transform="translate(-50,-40) scale(1.3,1.3)">
+          <g transform="translate(-45,-40) scale(1.3,1.3)">
             {/* Lente sinistra */}
-            <rect x="113" y="113" width="24" height="24" fill="none" stroke="#333" strokeWidth="2"/>
+            <rect x="113" y="113" width="24" height="24" fill="none" stroke={glassesColor} strokeWidth="2"/>
             {/* Lente destra */}
-            <rect x="163" y="113" width="24" height="24" fill="none" stroke="#333" strokeWidth="2"/>
+            <rect x="163" y="113" width="24" height="24" fill="none" stroke={glassesColor} strokeWidth="2"/>
             {/* Ponte centrale */}
-            <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
+            <path d="M137 125 L163 125" stroke={glassesColor} strokeWidth="2"/>
             {/* Stanghette sinistra */}
-            <path d="M105 125 L112 125" stroke="#333" strokeWidth="2"/>
+            <path d="M105 125 L112 125" stroke={glassesColor} strokeWidth="2"/>
             {/* Stanghetta destra */}
-            <path d="M188 125 L195 125" stroke="#333" strokeWidth="2"/>
+            <path d="M188 125 L195 125" stroke={glassesColor} strokeWidth="2"/>
           </g>
         );
       case "aviator":
         return (
-          <g transform="translate(-50,-40) scale(1.3,1.3)">
-            {/* Lente sinistra - forma aviator con parte superiore piatta */}
-            <path d="M110 113 L140 113 Q140 137 125 147 Q110 137 110 113 Z" fill="none" stroke="#333" strokeWidth="2"/>
-            {/* Lente destra - forma aviator con parte superiore piatta */}
-            <path d="M160 113 L190 113 Q190 137 175 147 Q160 137 160 113 Z" fill="none" stroke="#333" strokeWidth="2"/>
+          <g transform="translate(-45,-40) scale(1.3,1.3)">
+            {/* Lente sinistra - forma aviator con parte superiore piatta e inferiore tondeggiante */}
+            <path d="M110 113 L140 113 Q140 137 125 147 Q110 137 110 113 Z" fill="none" stroke={glassesColor} strokeWidth="2"/>
+            {/* Lente destra - forma aviator con parte superiore piatta e inferiore tondeggiante */}
+            <path d="M160 113 L190 113 Q190 137 175 147 Q160 137 160 113 Z" fill="none" stroke={glassesColor} strokeWidth="2"/>
             {/* Ponte centrale */}
-            <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
+            <path d="M137 125 L163 125" stroke={glassesColor} strokeWidth="2"/>
             {/* Stanghette sinistra */}
-            <path d="M105 125 L112 125" stroke="#333" strokeWidth="2"/>
+            <path d="M105 125 L112 125" stroke={glassesColor} strokeWidth="2"/>
             {/* Stanghetta destra */}
-            <path d="M188 125 L195 125" stroke="#333" strokeWidth="2"/>
+            <path d="M188 125 L195 125" stroke={glassesColor} strokeWidth="2"/>
           </g>
         );
       default:
