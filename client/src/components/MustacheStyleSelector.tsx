@@ -116,9 +116,9 @@ m-1595 -667 c-11 -17 -11 -17 -6 0 3 10 6 24 7 30 0 9 2 9 5 0 3 -7 0 -20 -6
           onClick={() => onMustacheStyleChange("thick")}
           title="Spessi"
         >
-          <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
+          <svg className="w-12 h-12" viewBox="0 0 400 300" fill="currentColor">
             {/* BAFFI SPESSI IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
-            <g transform="translate(-50, 270) scale(0.15,-0.10)" fill={mustacheColor}>
+            <g transform="translate(-50, 270) scale(0.18,-0.12)" fill={mustacheColor}>
               <path
                 d="
                   M930 1921 c-14 -4 -37 -6 -52 -5 -16 2 -28 -2 -28 -7 0 -6 -4 -8 -9
