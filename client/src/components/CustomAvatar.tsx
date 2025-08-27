@@ -492,14 +492,16 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
       >
         {/* Mascheramento circolare per nascondere gli angoli dell'avatar */}
         <defs>
-          <mask id="circleMask">
-            <rect width="300" height="300" fill="black"/>
-            <circle cx="150" cy="150" r="145" fill="#38BDF8"/>
-          </mask>
+          <clipPath id="circleClip">
+            <circle cx="150" cy="150" r="145"/>
+          </clipPath>
         </defs>
         
-        {/* Applico la maschera circolare a tutto l'avatar */}
-        <g mask="url(#circleMask)">
+        {/* Cerchio azzurro di sfondo */}
+        <circle cx="150" cy="150" r="145" fill="#38BDF8"/>
+        
+        {/* Applico il clipping circolare a tutto l'avatar */}
+        <g clipPath="url(#circleClip)">
           {/* Orecchie (dietro) */}
           <ellipse cx="90" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} />
           <ellipse cx="210" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} />
