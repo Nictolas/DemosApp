@@ -3,10 +3,11 @@ import { Label } from "@/components/ui/label";
 
 interface MustacheStyleSelectorProps {
   mustacheStyle: string;
+  mustacheColor: string;
   onMustacheStyleChange: (style: string) => void;
 }
 
-export function MustacheStyleSelector({ mustacheStyle, onMustacheStyleChange }: MustacheStyleSelectorProps) {
+export function MustacheStyleSelector({ mustacheStyle, mustacheColor, onMustacheStyleChange }: MustacheStyleSelectorProps) {
   return (
     <div>
       <Label>Stile Baffi</Label>
@@ -32,7 +33,7 @@ export function MustacheStyleSelector({ mustacheStyle, onMustacheStyleChange }: 
         >
           <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
             {/* BAFFI CLASSICI IDENTICI ALL'AVATAR - PATH ORIGINALE CON COORDINATE IDENTICHE */}
-            <g transform="translate(111, 193) scale(0.025,-0.018)" fill="#8B4513">
+            <g transform="translate(111, 193) scale(0.025,-0.018)" fill={mustacheColor}>
               <path
                 d="M1410 2042 c0 -7 -12 -10 -30 -8 -16 2 -30 -1 -30 -5 0 -5 -14 -7
 -31 -4 -17 3 -28 2 -25 -3 2 -4 1 -14 -5 -22 -7 -12 -9 -9 -9 9 0 22 -1 23
@@ -117,7 +118,7 @@ m-1595 -667 c-11 -17 -11 -17 -6 0 3 10 6 24 7 30 0 9 2 9 5 0 3 -7 0 -20 -6
         >
           <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
             {/* BAFFI SPESSI IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
-            <g transform="translate(105, 210) scale(0.04,-0.03)" fill="#8B4513">
+            <g transform="translate(105, 210) scale(0.04,-0.03)" fill={mustacheColor}>
               <path
                 d="
                   M930 1921 c-14 -4 -37 -6 -52 -5 -16 2 -28 -2 -28 -7 0 -6 -4 -8 -9
@@ -162,8 +163,8 @@ m-1595 -667 c-11 -17 -11 -17 -6 0 3 10 6 24 7 30 0 9 2 9 5 0 3 -7 0 -20 -6
           title="A Manubrio"
         >
           <svg className="w-12 h-12" viewBox="0 0 500 500" fill="currentColor">
-            {/* BAFFI A MANUBRIO IDENTICI ALL'AVATAR - PATH ORIGINALE CORRETTO */}
-            <g transform="translate(250, 500) scale(0.07,-0.07)" fill="#8B4513">
+            {/* BAFFI A MANUBRIO IDENTICI ALL'AVATAR - CENTRATI più in alto a sinistra */}
+            <g transform="translate(200, 450) scale(0.07,-0.07)" fill={mustacheColor}>
               <path
                 d="
                   M1260 2051
