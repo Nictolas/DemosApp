@@ -491,7 +491,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         style={{ display: 'block' }}
       >
         {/* Anello di mascheramento davanti all'avatar (colore sfondo pagina) */}
-        <circle cx="150" cy="150" r="150" fill="none" stroke="#3B82F6" strokeWidth="3" />
+        <circle cx="150" cy="150" r="148" fill="none" stroke="#38BDF8" strokeWidth="7" />
         
         {/* Mascheramento circolare per nascondere gli angoli dell'avatar */}
         <defs>
