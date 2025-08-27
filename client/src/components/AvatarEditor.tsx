@@ -162,32 +162,28 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   onMustacheStyleChange={(style) => setConfig({ ...config, mustacheStyle: style })}
                 />
 
-                {config.mustacheStyle !== "none" && (
-                  <ColorSelector
-                    label="Colore Baffi"
-                    colors={hairColors}
-                    selectedColor={config.mustacheColor}
-                    onColorChange={(color) => setConfig({ ...config, mustacheColor: color })}
-                    buttonSize="small"
-                    gridCols={6}
-                  />
-                )}
+                <ColorSelector
+                  label="Colore Baffi"
+                  colors={hairColors}
+                  selectedColor={config.mustacheColor}
+                  onColorChange={(color) => setConfig({ ...config, mustacheColor: color })}
+                  buttonSize="small"
+                  gridCols={6}
+                />
 
                 <BeardStyleSelector
                   beardStyle={config.beardStyle}
                   onBeardStyleChange={(style) => setConfig({ ...config, beardStyle: style })}
                 />
 
-                {config.beardStyle !== "none" && (
-                  <ColorSelector
-                    label="Colore Barba"
-                    colors={hairColors}
-                    selectedColor={config.beardColor}
-                    onColorChange={(color) => setConfig({ ...config, beardColor: color })}
-                    buttonSize="small"
-                    gridCols={6}
-                  />
-                )}
+                <ColorSelector
+                  label="Colore Barba"
+                  colors={hairColors}
+                  selectedColor={config.beardColor}
+                  onColorChange={(color) => setConfig({ ...config, beardColor: color })}
+                  buttonSize="small"
+                  gridCols={6}
+                />
               </CardContent>
             </Card>
           </TabsContent>
