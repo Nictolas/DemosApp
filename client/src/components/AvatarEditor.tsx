@@ -91,7 +91,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
           <CustomAvatar 
             config={config} 
             size={200} 
-            className="border-4 border-gray-300"
+            className="rounded-full border-4 border-gray-300"
           />
         </div>
       </div>
