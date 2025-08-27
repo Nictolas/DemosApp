@@ -140,7 +140,7 @@ export function HairStyleSelector({ hairStyle, hairColor, onHairStyleChange }: H
         >
           <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
             {/* CAPELLI RASATI IDENTICI ALL'AVATAR - COORDINATE IDENTICHE */}
-            <g>
+            <g transform="translate(70,180) scale(0.20,-0.20)" fill={hairColor} stroke="black" strokeWidth="50">
               {/* Ciocca sinistra abbassata con punta più verso l'interno */}
               <path
                 d="
