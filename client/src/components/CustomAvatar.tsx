@@ -1,3 +1,5 @@
+import { renderGlassesShape } from "./glasses/GlassesShapes";
+
 function darkenColor(hexColor: string, amount: number = 20) {
   // Rimuove il # se presente
   let color = hexColor.replace("#", "");
@@ -482,55 +484,8 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
       return null;
     }
     
-    switch (avatarConfig.glassesStyle) {
-      case "round":
-        return (
-          <g>
-            {/* Lente sinistra - posizionata correttamente sopra l'occhio sinistro */}
-            <circle cx="125" cy="125" r="15" fill="none" stroke={glassesColor} strokeWidth="3"/>
-            {/* Lente destra - posizionata correttamente sopra l'occhio destro */}
-            <circle cx="175" cy="125" r="15" fill="none" stroke={glassesColor} strokeWidth="3"/>
-            {/* Ponte centrale - collega le due lenti */}
-            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
-            {/* Stanghetta sinistra - più lunga e visibile */}
-            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
-            {/* Stanghetta destra - più lunga e visibile */}
-            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
-          </g>
-        );
-      case "square":
-        return (
-          <g>
-            {/* Lente sinistra - rettangolo posizionato correttamente */}
-            <rect x="110" y="110" width="30" height="30" fill="none" stroke={glassesColor} strokeWidth="3"/>
-            {/* Lente destra - rettangolo posizionato correttamente */}
-            <rect x="160" y="110" width="30" height="30" fill="none" stroke={glassesColor} strokeWidth="3"/>
-            {/* Ponte centrale - collega le due lenti */}
-            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
-            {/* Stanghetta sinistra - più lunga e visibile */}
-            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
-            {/* Stanghetta destra - più lunga e visibile */}
-            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
-          </g>
-        );
-      case "aviator":
-        return (
-          <g>
-            {/* Lente sinistra - forma aviator completamente chiusa e più grande */}
-            <path d="M105 110 L140 110 Q140 140 122.5 150 Q105 140 L105 110 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
-            {/* Lente destra - forma aviator completamente chiusa e più grande */}
-            <path d="M160 110 L195 110 Q195 140 177.5 150 Q160 140 L160 110 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
-            {/* Ponte centrale - collega le due lenti */}
-            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
-            {/* Stanghetta sinistra - più lunga e visibile */}
-            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
-            {/* Stanghetta destra - più lunga e visibile */}
-            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
-          </g>
-        );
-      default:
-        return null;
-    }
+    // Usa la funzione unificata per renderizzare gli occhiali
+    return renderGlassesShape(avatarConfig.glassesStyle, glassesColor, 1);
   };
 
   const renderNose = () => {
