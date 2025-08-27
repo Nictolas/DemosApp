@@ -15,13 +15,13 @@ interface HairStyleSelectorProps {
 
 export function HairStyleSelector({ selectedHairStyle, onHairStyleChange, hairColor }: HairStyleSelectorProps) {
   const hairStyles = [
-    { id: "bald", label: "Calvo", component: <BaldHairStyle hairColor={hairColor} /> },
-    { id: "short", label: "Corti", component: <ShortHairStyle hairColor={hairColor} /> },
-    { id: "long", label: "Lunghi", component: <LongHairStyle hairColor={hairColor} /> },
-    { id: "curly", label: "Ricci", component: <CurlyHairStyle hairColor={hairColor} /> },
-    { id: "wavy", label: "Ondulati", component: <WavyHairStyle hairColor={hairColor} /> },
-    { id: "messy", label: "Spettinati", component: <MessyHairStyle hairColor={hairColor} /> },
-    { id: "buzz", label: "Rasati", component: <BuzzHairStyle hairColor={hairColor} /> },
+    { id: "bald", component: <BaldHairStyle hairColor={hairColor} /> },
+    { id: "short", component: <ShortHairStyle hairColor={hairColor} /> },
+    { id: "long", component: <LongHairStyle hairColor={hairColor} /> },
+    { id: "curly", component: <CurlyHairStyle hairColor={hairColor} /> },
+    { id: "wavy", component: <WavyHairStyle hairColor={hairColor} /> },
+    { id: "messy", component: <MessyHairStyle hairColor={hairColor} /> },
+    { id: "buzz", component: <BuzzHairStyle hairColor={hairColor} /> },
   ];
 
   return (
@@ -32,14 +32,20 @@ export function HairStyleSelector({ selectedHairStyle, onHairStyleChange, hairCo
           <button
             key={style.id}
             onClick={() => onHairStyleChange(style.id)}
-            className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+            className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
               selectedHairStyle === style.id
                 ? "border-blue-500 bg-blue-50 shadow-md"
-                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
+                : "border-gray-300 hover:border-gray-400"
             }`}
+            title={style.id === "bald" ? "Calvo" : 
+                   style.id === "short" ? "Corti" :
+                   style.id === "long" ? "Lunghi" :
+                   style.id === "curly" ? "Ricci" :
+                   style.id === "wavy" ? "Ondulati" :
+                   style.id === "messy" ? "Spettinati" :
+                   "Rasati"}
           >
             {style.component}
-            <div className="text-xs text-gray-600 mt-1 text-center">{style.label}</div>
           </button>
         ))}
       </div>
