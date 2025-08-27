@@ -143,6 +143,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
               <CardContent className="space-y-4">
                 <HairStyleSelector
                   hairStyle={config.hairStyle}
+                  hairColor={config.hairColor}
                   onHairStyleChange={(style) => setConfig({ ...config, hairStyle: style })}
                 />
 
