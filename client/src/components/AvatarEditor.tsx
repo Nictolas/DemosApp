@@ -109,7 +109,6 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
       {/* Personalizzazione Avatar - SOTTO CON SCHEDE */}
       <div className="space-y-6">
-        <h3 className="text-lg font-semibold">Personalizzazione Avatar</h3>
         
         <Tabs defaultValue="aspetto" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
