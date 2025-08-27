@@ -8,7 +8,7 @@ export function SmallNoseStyle({ skinColor }: SmallNoseStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* NASO PICCOLO IDENTICO ALL'AVATAR */}
-              <path d="M 148 135 Q 150 138 152 135" stroke="#000" strokeWidth="2" fill="none" />
+              <path d="M 148 135 Q 150 138 152 135" stroke="#000" strokeWidth="2" fill="none" transform="translate(0,0)" />
     </svg>
   );
 }
