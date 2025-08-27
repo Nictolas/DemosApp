@@ -476,7 +476,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
     switch (avatarConfig.glassesStyle) {
       case "round":
         return (
-          <g transform="translate(-40,-40) scale(1.3,1.3)">
+          <g transform="translate(-60,-40) scale(1.3,1.3)">
             {/* Lente sinistra */}
             <circle cx="125" cy="125" r="12" fill="none" stroke="#333" strokeWidth="2"/>
             {/* Lente destra */}
@@ -484,14 +484,14 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
             {/* Ponte centrale */}
             <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
             {/* Stanghette sinistra */}
-            <path d="M113 125 L120 125" stroke="#333" strokeWidth="2"/>
+            <path d="M105 125 L112 125" stroke="#333" strokeWidth="2"/>
             {/* Stanghetta destra */}
-            <path d="M180 125 L187 125" stroke="#333" strokeWidth="2"/>
+            <path d="M188 125 L195 125" stroke="#333" strokeWidth="2"/>
           </g>
         );
       case "square":
         return (
-          <g transform="translate(-40,-40) scale(1.3,1.3)">
+          <g transform="translate(-60,-40) scale(1.3,1.3)">
             {/* Lente sinistra */}
             <rect x="113" y="113" width="24" height="24" fill="none" stroke="#333" strokeWidth="2"/>
             {/* Lente destra */}
@@ -499,14 +499,14 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
             {/* Ponte centrale */}
             <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
             {/* Stanghette sinistra */}
-            <path d="M113 125 L120 125" stroke="#333" strokeWidth="2"/>
+            <path d="M105 125 L112 125" stroke="#333" strokeWidth="2"/>
             {/* Stanghetta destra */}
-            <path d="M180 125 L187 125" stroke="#333" strokeWidth="2"/>
+            <path d="M188 125 L195 125" stroke="#333" strokeWidth="2"/>
           </g>
         );
       case "aviator":
         return (
-          <g transform="translate(-40,-40) scale(1.3,1.3)">
+          <g transform="translate(-60,-40) scale(1.3,1.3)">
             {/* Lente sinistra - forma aviator */}
             <path d="M113 113 Q125 103 137 113 Q137 137 125 147 Q113 137 113 113 Z" fill="none" stroke="#333" strokeWidth="2"/>
             {/* Lente destra - forma aviator */}
@@ -514,9 +514,9 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
             {/* Ponte centrale */}
             <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
             {/* Stanghette sinistra */}
-            <path d="M113 125 L120 125" stroke="#333" strokeWidth="2"/>
+            <path d="M105 125 L112 125" stroke="#333" strokeWidth="2"/>
             {/* Stanghetta destra */}
-            <path d="M180 125 L187 125" stroke="#333" strokeWidth="2"/>
+            <path d="M188 125 L195 125" stroke="#333" strokeWidth="2"/>
           </g>
         );
       default:
