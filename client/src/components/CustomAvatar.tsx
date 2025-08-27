@@ -490,9 +490,6 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         xmlns="http://www.w3.org/2000/svg"
         style={{ display: 'block' }}
       >
-        {/* Sfondo */}
-        <rect width="300" height="300" fill="#F5F5F5" />
-        
         {/* Orecchie (dietro) */}
         <ellipse cx="90" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} />
         <ellipse cx="210" cy="130" rx="15" ry="22" fill={avatarConfig.skinColor} />
