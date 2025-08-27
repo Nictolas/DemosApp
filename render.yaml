@@ -1,0 +1,37 @@
+services:
+  # Backend API (già esistente)
+  - type: web
+    name: demos-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+    customDomains:
+      - name: api.demos.community
+
+  # Frontend (nuovo)
+  - type: web
+    name: demos-frontend
+    env: static
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+    customDomains:
+      - name: www.demos.community
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://api.demos.community/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
