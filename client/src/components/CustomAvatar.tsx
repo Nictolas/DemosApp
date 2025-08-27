@@ -31,6 +31,7 @@ interface AvatarConfig {
   noseStyle: string;
   suitColor: string;
   tieColor: string;
+  glassesStyle: string;
 }
 
 interface CustomAvatarProps {
@@ -50,7 +51,8 @@ const defaultConfig: AvatarConfig = {
   beardColor: "#2C1810",
   noseStyle: "normal",
   suitColor: "#2C3E50",
-  tieColor: "#E74C3C"
+  tieColor: "#E74C3C",
+  glassesStyle: "none"
 };
 
 export function CustomAvatar({ config, size = 100, className = "rounded-full", onClick }: CustomAvatarProps) {
@@ -461,6 +463,58 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
     }
   };
 
+  const renderGlasses = () => {
+    switch (avatarConfig.glassesStyle) {
+      case "round":
+        return (
+          <g>
+            {/* Lente sinistra */}
+            <circle cx="125" cy="125" r="12" fill="none" stroke="#333" strokeWidth="2"/>
+            {/* Lente destra */}
+            <circle cx="175" cy="125" r="12" fill="none" stroke="#333" strokeWidth="2"/>
+            {/* Ponte centrale */}
+            <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
+            {/* Stanghette sinistra */}
+            <path d="M113 125 L120 125" stroke="#333" strokeWidth="2"/>
+            {/* Stanghetta destra */}
+            <path d="M180 125 L187 125" stroke="#333" strokeWidth="2"/>
+          </g>
+        );
+      case "square":
+        return (
+          <g>
+            {/* Lente sinistra */}
+            <rect x="113" y="113" width="24" height="24" fill="none" stroke="#333" strokeWidth="2"/>
+            {/* Lente destra */}
+            <rect x="163" y="113" width="24" height="24" fill="none" stroke="#333" strokeWidth="2"/>
+            {/* Ponte centrale */}
+            <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
+            {/* Stanghette sinistra */}
+            <path d="M113 125 L120 125" stroke="#333" strokeWidth="2"/>
+            {/* Stanghetta destra */}
+            <path d="M180 125 L187 125" stroke="#333" strokeWidth="2"/>
+          </g>
+        );
+      case "aviator":
+        return (
+          <g>
+            {/* Lente sinistra - forma aviator */}
+            <path d="M113 113 Q125 103 137 113 Q137 137 125 147 Q113 137 113 113 Z" fill="none" stroke="#333" strokeWidth="2"/>
+            {/* Lente destra - forma aviator */}
+            <path d="M163 113 Q175 103 187 113 Q187 137 175 147 Q163 137 163 113 Z" fill="none" stroke="#333" strokeWidth="2"/>
+            {/* Ponte centrale */}
+            <path d="M137 125 L163 125" stroke="#333" strokeWidth="2"/>
+            {/* Stanghette sinistra */}
+            <path d="M113 125 L120 125" stroke="#333" strokeWidth="2"/>
+            {/* Stanghetta destra */}
+            <path d="M180 125 L187 125" stroke="#333" strokeWidth="2"/>
+          </g>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderNose = () => {
     switch (avatarConfig.noseStyle) {
       case "small":
@@ -608,6 +662,9 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
           
           {/* Barba */}
           {renderBeard()}
+
+          {/* Occhiali */}
+          {renderGlasses()}
         </g>
       </svg>
     </div>
