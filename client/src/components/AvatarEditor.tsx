@@ -173,6 +173,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
 
                 <BeardStyleSelector
                   beardStyle={config.beardStyle}
+                  beardColor={config.beardColor}
                   onBeardStyleChange={(style) => setConfig({ ...config, beardStyle: style })}
                 />
 
