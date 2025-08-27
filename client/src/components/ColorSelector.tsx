@@ -34,10 +34,25 @@ export function ColorSelector({
     }
   };
 
+  const getGridClasses = () => {
+    switch (gridCols) {
+      case 4:
+        return "grid-cols-4";
+      case 5:
+        return "grid-cols-5";
+      case 6:
+        return "grid-cols-6";
+      case 7:
+        return "grid-cols-7";
+      default:
+        return "grid-cols-6";
+    }
+  };
+
   return (
     <div>
       <Label>{label}</Label>
-      <div className={`grid grid-cols-${gridCols} gap-0.5 mt-2`}>
+      <div className={`grid ${getGridClasses()} gap-0.5 mt-2`}>
         {colors.map((color) => (
           <button
             key={color.value}
