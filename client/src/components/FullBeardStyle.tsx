@@ -8,7 +8,7 @@ export function FullBeardStyle({ beardColor }: FullBeardStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* BARBA PIENA IDENTICA ALL'AVATAR - COORDINATE IDENTICHE */}
-      <g transform="translate(-20,-20) scale(1.3,1.3)" fill={beardColor}>
+      <g transform="translate(-20,-20) scale(1.6,1.6)" fill={beardColor}>
         <path
           d="M100 170 Q150 200 200 170 Q200 200 150 210 Q100 200 100 170 Z"
           stroke="black"
