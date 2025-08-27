@@ -8,7 +8,7 @@ export function SquareGlassesStyle({}: SquareGlassesStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* OCCHIALI QUADRATI IDENTICI ALL'AVATAR */}
-      <g transform="translate(100,100) scale(1.5,1.5)">
+      <g transform="translate(80,100) scale(1.5,1.5)">
         {/* Lente sinistra */}
         <rect x="13" y="13" width="24" height="24" fill="none" stroke="#333" strokeWidth="2"/>
         {/* Lente destra */}
