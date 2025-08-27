@@ -476,7 +476,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
     switch (avatarConfig.glassesStyle) {
       case "round":
         return (
-          <g transform="scale(1.3,1.3)">
+          <g transform="translate(-20,-20) scale(1.3,1.3)">
             {/* Lente sinistra */}
             <circle cx="125" cy="125" r="12" fill="none" stroke="#333" strokeWidth="2"/>
             {/* Lente destra */}
@@ -491,7 +491,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         );
       case "square":
         return (
-          <g transform="scale(1.3,1.3)">
+          <g transform="translate(-20,-20) scale(1.3,1.3)">
             {/* Lente sinistra */}
             <rect x="113" y="113" width="24" height="24" fill="none" stroke="#333" strokeWidth="2"/>
             {/* Lente destra */}
@@ -506,7 +506,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         );
       case "aviator":
         return (
-          <g transform="scale(1.3,1.3)">
+          <g transform="translate(-20,-20) scale(1.3,1.3)">
             {/* Lente sinistra - forma aviator */}
             <path d="M113 113 Q125 103 137 113 Q137 137 125 147 Q113 137 113 113 Z" fill="none" stroke="#333" strokeWidth="2"/>
             {/* Lente destra - forma aviator */}
