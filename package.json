@@ -6,11 +6,12 @@
   "scripts": {
     "start": "node api/index.js",
     "dev": "nodemon api/index.js",
-    "build": "cd client && npm run build",
+    "build": "cd client && npm install && npm run build",
     "install-client": "cd client && npm install",
     "install-server": "npm install",
     "install-all": "npm run install-server && npm run install-client",
-    "deploy": "npm run install-all && npm run build"
+    "deploy": "npm run install-all && npm run build",
+    "vercel-build": "npm run install-all && npm run build"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
