@@ -485,47 +485,47 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
     switch (avatarConfig.glassesStyle) {
       case "round":
         return (
-          <g transform="translate(-45,-35) scale(1.3,1.3)">
-            {/* Lente sinistra */}
-            <circle cx="125" cy="125" r="12" fill="none" stroke={glassesColor} strokeWidth="2"/>
-            {/* Lente destra */}
-            <circle cx="175" cy="125" r="12" fill="none" stroke={glassesColor} strokeWidth="2"/>
-            {/* Ponte centrale */}
-            <path d="M137 125 L163 125" stroke={glassesColor} strokeWidth="2"/>
-            {/* Stanghette sinistra */}
-            <path d="M105 125 L112 125" stroke={glassesColor} strokeWidth="2"/>
-            {/* Stanghetta destra */}
-            <path d="M188 125 L195 125" stroke={glassesColor} strokeWidth="2"/>
+          <g>
+            {/* Lente sinistra - posizionata correttamente sopra l'occhio sinistro */}
+            <circle cx="125" cy="125" r="15" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Lente destra - posizionata correttamente sopra l'occhio destro */}
+            <circle cx="175" cy="125" r="15" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Ponte centrale - collega le due lenti */}
+            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
+            {/* Stanghetta sinistra - più lunga e visibile */}
+            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
+            {/* Stanghetta destra - più lunga e visibile */}
+            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
           </g>
         );
       case "square":
         return (
-          <g transform="translate(-45,-35) scale(1.3,1.3)">
-            {/* Lente sinistra */}
-            <rect x="113" y="113" width="24" height="24" fill="none" stroke={glassesColor} strokeWidth="2"/>
-            {/* Lente destra */}
-            <rect x="163" y="113" width="24" height="24" fill="none" stroke={glassesColor} strokeWidth="2"/>
-            {/* Ponte centrale */}
-            <path d="M137 125 L163 125" stroke={glassesColor} strokeWidth="2"/>
-            {/* Stanghette sinistra */}
-            <path d="M105 125 L112 125" stroke={glassesColor} strokeWidth="2"/>
-            {/* Stanghetta destra */}
-            <path d="M188 125 L195 125" stroke={glassesColor} strokeWidth="2"/>
+          <g>
+            {/* Lente sinistra - rettangolo posizionato correttamente */}
+            <rect x="110" y="110" width="30" height="30" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Lente destra - rettangolo posizionato correttamente */}
+            <rect x="160" y="110" width="30" height="30" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Ponte centrale - collega le due lenti */}
+            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
+            {/* Stanghetta sinistra - più lunga e visibile */}
+            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
+            {/* Stanghetta destra - più lunga e visibile */}
+            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
           </g>
         );
       case "aviator":
         return (
-          <g transform="translate(-45,-35) scale(1.3,1.3)">
-            {/* Lente sinistra - forma aviator completamente chiusa */}
-            <path d="M110 113 L140 113 Q140 137 125 147 Q110 137 L110 113 Z" fill="none" stroke={glassesColor} strokeWidth="2"/>
-            {/* Lente destra - forma aviator completamente chiusa */}
-            <path d="M160 113 L190 113 Q190 137 175 147 Q160 137 L160 113 Z" fill="none" stroke={glassesColor} strokeWidth="2"/>
-            {/* Ponte centrale */}
-            <path d="M137 125 L163 125" stroke={glassesColor} strokeWidth="2"/>
-            {/* Stanghette sinistra */}
-            <path d="M105 125 L112 125" stroke={glassesColor} strokeWidth="2"/>
-            {/* Stanghetta destra */}
-            <path d="M188 125 L195 125" stroke={glassesColor} strokeWidth="2"/>
+          <g>
+            {/* Lente sinistra - forma aviator completamente chiusa e più grande */}
+            <path d="M105 110 L140 110 Q140 140 122.5 150 Q105 140 L105 110 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Lente destra - forma aviator completamente chiusa e più grande */}
+            <path d="M160 110 L195 110 Q195 140 177.5 150 Q160 140 L160 110 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Ponte centrale - collega le due lenti */}
+            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
+            {/* Stanghetta sinistra - più lunga e visibile */}
+            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
+            {/* Stanghetta destra - più lunga e visibile */}
+            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
           </g>
         );
       default:
