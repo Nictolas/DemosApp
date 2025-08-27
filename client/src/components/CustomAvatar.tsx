@@ -497,7 +497,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         <defs>
           <mask id="circleMask">
             <rect width="300" height="300" fill="black"/>
-            <circle cx="150" cy="150" r="150" fill="white"/>
+            <circle cx="150" cy="150" r="148" fill="#38BDF8"/>
           </mask>
         </defs>
         
