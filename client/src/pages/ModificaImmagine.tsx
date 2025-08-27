@@ -130,12 +130,7 @@ export default function ModificaImmagine() {
             <ArrowLeft className="mr-2 h-4 w-4" />Torna al Profilo
           </Button>
           
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">Modifica il Tuo Avatar</CardTitle>
-              <CardDescription>Personalizza il tuo avatar per rappresentarti al meglio.</CardDescription>
-            </CardHeader>
-          </Card>
+
           
           <AvatarEditor 
             onSave={(config) => saveAvatarMutation.mutate(config)}
