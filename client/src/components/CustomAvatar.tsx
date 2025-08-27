@@ -479,6 +479,11 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
   const renderGlasses = () => {
     const glassesColor = avatarConfig.glassesColor;
     
+    // Se non c'è uno stile selezionato, non mostrare occhiali
+    if (!avatarConfig.glassesStyle || avatarConfig.glassesStyle === "none") {
+      return null;
+    }
+    
     switch (avatarConfig.glassesStyle) {
       case "round":
         return (
