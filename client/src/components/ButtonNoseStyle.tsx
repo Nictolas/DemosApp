@@ -7,8 +7,10 @@ interface ButtonNoseStyleProps {
 export function ButtonNoseStyle({ skinColor }: ButtonNoseStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* NASO A BOTTONE IDENTICO ALL'AVATAR */}
-              <circle cx="150" cy="135" r="3" fill={skinColor} stroke="#000" strokeWidth="2" transform="scale(2.2,2.2)" />
+      {/* NASO A BOTTONE VISIBILE NEL SELETTORE */}
+      <g transform="translate(150,150) scale(0.8,0.8)">
+        <circle cx="150" cy="135" r="8" fill={skinColor} stroke="#000" strokeWidth="4" />
+      </g>
     </svg>
   );
 }
