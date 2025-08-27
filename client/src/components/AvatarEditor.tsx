@@ -60,11 +60,15 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
   const hairColors = [
     { name: "Biondo", value: "#F5F5DC" },
     { name: "Biondo Platino", value: "#FFF8DC" },
+    { name: "Biondo Giallo", value: "#FFD700" },
     { name: "Castano", value: "#8B4513" },
+    { name: "Marrone Chiaro", value: "#CD853F" },
     { name: "Nero", value: "#2F2F2F" },
     { name: "Rosso", value: "#B22222" },
+    { name: "Arancione", value: "#FF8C00" },
     { name: "Grigio", value: "#A9A9A9" },
-    { name: "Bianco", value: "#F5F5F5" }
+    { name: "Bianco", value: "#F5F5F5" },
+    { name: "Bianco Totale", value: "#FFFFFF" }
   ];
 
   const suitColors = [
