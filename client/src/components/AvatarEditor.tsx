@@ -155,14 +155,14 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   onHairStyleChange={(style) => setConfig({ ...config, hairStyle: style })}
                 />
 
-                <ColorSelector
-                  label="Colore Capelli"
-                  colors={hairColors}
-                  selectedColor={config.hairColor}
-                  onColorChange={(color) => setConfig({ ...config, hairColor: color })}
-                  buttonSize="small"
-                  gridCols={6}
-                />
+                                 <ColorSelector
+                   label="Colore Capelli"
+                   colors={hairColors}
+                   selectedColor={config.hairColor}
+                   onColorChange={(color) => setConfig({ ...config, hairColor: color })}
+                   buttonSize="small"
+                   gridCols={5}
+                 />
 
                 <MustacheStyleSelector
                   mustacheStyle={config.mustacheStyle}
@@ -170,14 +170,14 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   onMustacheStyleChange={(style) => setConfig({ ...config, mustacheStyle: style })}
                 />
 
-                <ColorSelector
-                  label="Colore Baffi"
-                  colors={hairColors}
-                  selectedColor={config.mustacheColor}
-                  onColorChange={(color) => setConfig({ ...config, mustacheColor: color })}
-                  buttonSize="small"
-                  gridCols={6}
-                />
+                                 <ColorSelector
+                   label="Colore Baffi"
+                   colors={hairColors}
+                   selectedColor={config.mustacheColor}
+                   onColorChange={(color) => setConfig({ ...config, mustacheColor: color })}
+                   buttonSize="small"
+                   gridCols={5}
+                 />
 
                 <BeardStyleSelector
                   beardStyle={config.beardStyle}
@@ -185,14 +185,14 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   onBeardStyleChange={(style) => setConfig({ ...config, beardStyle: style })}
                 />
 
-                <ColorSelector
-                  label="Colore Barba"
-                  colors={hairColors}
-                  selectedColor={config.beardColor}
-                  onColorChange={(color) => setConfig({ ...config, beardColor: color })}
-                  buttonSize="small"
-                  gridCols={6}
-                />
+                                 <ColorSelector
+                   label="Colore Barba"
+                   colors={hairColors}
+                   selectedColor={config.beardColor}
+                   onColorChange={(color) => setConfig({ ...config, beardColor: color })}
+                   buttonSize="small"
+                   gridCols={5}
+                 />
               </CardContent>
             </Card>
           </TabsContent>
