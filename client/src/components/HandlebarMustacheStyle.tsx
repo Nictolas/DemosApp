@@ -8,7 +8,7 @@ export function HandlebarMustacheStyle({ mustacheColor }: HandlebarMustacheStyle
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
       {/* BAFFI A MANUBRIO IDENTICI ALL'AVATAR - CENTRATI più in alto a sinistra */}
-      <g transform="translate(-40, 350) scale(0.12,-0.12)" fill={mustacheColor}>
+      <g transform="translate(-50, 350) scale(0.12,-0.12)" fill={mustacheColor}>
         <path
           d="
             M1260 2051
