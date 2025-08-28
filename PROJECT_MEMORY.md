@@ -24,6 +24,7 @@
 - ✅ **DNS**: Aggiornati per puntare a Vercel
 - ✅ **Configurazione**: Vercel configurato per frontend
 - ✅ **Build Settings**: Root Directory = client, Build Command = npm run build
+- ✅ **Production Overrides**: Disabilitati (non più sovrascrivono)
 
 ## 🔧 **SOLUZIONI PROVATE (NON RIPETERE!):**
 - ❌ **vercel.json personalizzato**: Ignorato da Vercel
