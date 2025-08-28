@@ -9,15 +9,30 @@ interface GlassesStyleSelectorProps {
   selectedGlassesStyle: string;
   glassesColor: string;
   onGlassesStyleChange: (style: string) => void;
+  onGlassesColorChange?: (color: string) => void;
 }
 
-export function GlassesStyleSelector({ selectedGlassesStyle, glassesColor, onGlassesStyleChange }: GlassesStyleSelectorProps) {
+export function GlassesStyleSelector({ 
+  selectedGlassesStyle, 
+  glassesColor, 
+  onGlassesStyleChange,
+  onGlassesColorChange 
+}: GlassesStyleSelectorProps) {
   const glassesStyles = [
     { id: "none", component: <NoneGlassesStyle /> },
     { id: "round", component: <RoundGlassesStyle glassesColor={glassesColor} /> },
     { id: "square", component: <SquareGlassesStyle glassesColor={glassesColor} /> },
     { id: "aviator", component: <AviatorGlassesStyle glassesColor={glassesColor} /> },
   ];
+
+  const handleStyleChange = (style: string) => {
+    onGlassesStyleChange(style);
+    
+    // Se si seleziona uno stile diverso da "none", imposta automaticamente il colore di default "Nero"
+    if (style !== "none" && onGlassesColorChange) {
+      onGlassesColorChange("#333333");
+    }
+  };
 
   return (
     <div className="mb-6">
@@ -26,7 +41,7 @@ export function GlassesStyleSelector({ selectedGlassesStyle, glassesColor, onGla
         {glassesStyles.map((style) => (
           <button
             key={style.id}
-            onClick={() => onGlassesStyleChange(style.id)}
+            onClick={() => handleStyleChange(style.id)}
             className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
               selectedGlassesStyle === style.id
                 ? "border-blue-500 bg-blue-50 shadow-md"
