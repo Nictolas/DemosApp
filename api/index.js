@@ -34,7 +34,11 @@ app.use(cors({
       'http://127.0.0.1:3000', 
       'https://www.demos.community',
       'https://demos.community',
-      'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
+      'https://demos-frontend-r3so.onrender.com',
+      'https://demos-frontend.onrender.com',
+      'https://demos-app.vercel.app',
+      'https://demos-app-git-main-demos-projects.vercel.app',
+      'https://*.vercel.app'
     ];
     
     // Log per debug
@@ -67,7 +71,11 @@ app.options('*', (req, res) => {
     'http://127.0.0.1:3000', 
     'https://www.demos.community',
     'https://demos.community',
-    'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
+    'https://demos-frontend-r3so.onrender.com',
+    'https://demos-frontend.onrender.com',
+    'https://demos-app.vercel.app',
+    'https://demos-app-git-main-demos-projects.vercel.app',
+    'https://*.vercel.app'
   ];
   
   if (origin && allowedOrigins.includes(origin)) {
@@ -93,15 +101,19 @@ app.use((req, res, next) => {
     console.log('🔄 OPTIONS request handled by middleware');
   }
   
-  // Imposta sempre gli header CORS per le richieste effettive
-  if (origin) {
-    const allowedOrigins = [
-      'http://localhost:3000', 
-      'http://127.0.0.1:3000', 
-      'https://www.demos.community',
-      'https://demos.community',
-      'https://demos-5pwt0y12-demos-projects-54c4cd15.vercel.app'
-    ];
+      // Imposta sempre gli header CORS per le richieste effettive
+    if (origin) {
+      const allowedOrigins = [
+        'http://localhost:3000', 
+        'http://127.0.0.1:3000', 
+        'https://www.demos.community',
+        'https://demos.community',
+        'https://demos-frontend-r3so.onrender.com',
+        'https://demos-frontend.onrender.com',
+        'https://demos-app.vercel.app',
+        'https://demos-app-git-main-demos-projects.vercel.app',
+        'https://*.vercel.app'
+      ];
     
     if (allowedOrigins.includes(origin)) {
       res.header('Access-Control-Allow-Origin', origin);
