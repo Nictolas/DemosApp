@@ -4,9 +4,13 @@ import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Crown, Building2, Scale, FileText, Archive, Users, CheckSquare } from "lucide-react";
+import { useNoScroll } from "@/hooks/useNoScroll";
 
 export default function Vota() {
   const { user, isLoading } = useAuth();
+  
+  // Blocca lo scroll della pagina
+  useNoScroll(true);
 
   if (isLoading) {
     return (

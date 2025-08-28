@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { Link, Redirect } from "wouter";
+import { useNoScroll } from "@/hooks/useNoScroll";
 
 interface Notifica {
   id: string;
@@ -41,6 +42,9 @@ export default function Notifiche() {
   const { token: fcmToken, error: fcmError, permission } = useFCM();
   const queryClient = useQueryClient();
   
+  // Blocca lo scroll della pagina
+  useNoScroll(true);
+
   const [skipConfirm, setSkipConfirm] = useState(() => localStorage.getItem("skipLikeDislikeConfirm") === "true");
   const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; notificaId: string | null; action: string | null; }>({ open: false, notificaId: null, action: null });
 

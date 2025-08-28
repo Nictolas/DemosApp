@@ -4,10 +4,14 @@ import { Redirect, Link, useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Loader2, MessageSquare } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
+import { useNoScroll } from "@/hooks/useNoScroll";
 
 export default function Opinioni() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Blocca lo scroll della pagina
+  useNoScroll(true);
 
   if (isAuthLoading) {
     return <div className="h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
