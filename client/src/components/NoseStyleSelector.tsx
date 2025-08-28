@@ -21,9 +21,9 @@ export function NoseStyleSelector({ selectedNoseStyle, onNoseStyleChange, skinCo
   ];
 
   return (
-    <div className="mb-6 -mt-8 -ml-8">
+    <div className="mb-6">
       <h3 className="text-lg font-semibold mb-3 text-gray-800">Stile Naso</h3>
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-5 gap-3" style={{ marginTop: '-20px', marginLeft: '-30px' }}>
         {noseStyles.map((style) => (
           <button
             key={style.id}
