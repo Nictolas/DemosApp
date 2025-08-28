@@ -21,7 +21,7 @@ export function NoseStyleSelector({ selectedNoseStyle, onNoseStyleChange, skinCo
   ];
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 -mt-8 -ml-8">
       <h3 className="text-lg font-semibold mb-3 text-gray-800">Stile Naso</h3>
       <div className="grid grid-cols-5 gap-3">
         {noseStyles.map((style) => (
