@@ -243,6 +243,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   selectedGlassesStyle={config.glassesStyle}
                   glassesColor={config.glassesColor}
                   onGlassesStyleChange={(style) => setConfig({ ...config, glassesStyle: style })}
+                  onGlassesColorChange={(color) => setConfig({ ...config, glassesColor: color })}
                 />
 
                 <div className="flex justify-center">
