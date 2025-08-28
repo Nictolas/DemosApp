@@ -9,18 +9,18 @@ export function AviatorGlassesStyle({ glassesColor }: AviatorGlassesStyleProps) 
   
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* OCCHIALI AVIATOR - POSIZIONATI MOLTO PIÙ IN ALTO E A SINISTRA */}
-      <g transform="translate(15,25) scale(2.5,2.5)">
-        {/* Lente sinistra - forma aviator completamente chiusa */}
-        <path d="M10 13 L40 13 Q40 37 25 47 Q10 37 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
-        {/* Lente destra - forma aviator completamente chiusa */}
-        <path d="M60 13 L90 13 Q90 37 75 47 Q60 37 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
+      {/* OCCHIALI AVIATOR - POSIZIONATI correttamente sopra gli occhi */}
+      <g>
+        {/* Lente sinistra - forma aviator corretta */}
+        <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
+        {/* Lente destra - forma aviator corretta */}
+        <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
         {/* Ponte centrale */}
-        <path d="M37 25 L63 25" stroke={defaultColor} strokeWidth="3"/>
-        {/* Stanghette sinistra */}
-        <path d="M5 25 L12 25" stroke={defaultColor} strokeWidth="3"/>
+        <path d="M140 125 L160 125" stroke={defaultColor} strokeWidth="3"/>
+        {/* Stanghetta sinistra */}
+        <path d="M95 125 L110 125" stroke={defaultColor} strokeWidth="3"/>
         {/* Stanghetta destra */}
-        <path d="M88 25 L95 25" stroke={defaultColor} strokeWidth="3"/>
+        <path d="M190 125 L205 125" stroke={defaultColor} strokeWidth="3"/>
       </g>
     </svg>
   );
