@@ -2845,8 +2845,6 @@ app.get('/api/rappresentanti', verifyToken, async (req, res) => {
         email,
         ruolo,
         status,
-        provincia,
-        comune,
         'disponibile' as stato
       FROM users
       WHERE id != $1 
