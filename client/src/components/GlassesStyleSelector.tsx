@@ -18,7 +18,7 @@ export function GlassesStyleSelector({
   onGlassesStyleChange,
   onGlassesColorChange 
 }: GlassesStyleSelectorProps) {
-  // Usa sempre il colore nero per visualizzare gli occhiali nel selettore
+  // FORZA SEMPRE IL COLORE NERO per visualizzare gli occhiali nel selettore
   const displayColor = "#333333";
   
   const glassesStyles = [
@@ -31,7 +31,7 @@ export function GlassesStyleSelector({
   const handleStyleChange = (style: string) => {
     onGlassesStyleChange(style);
     
-    // Se si seleziona uno stile diverso da "none", imposta automaticamente il colore di default "Nero"
+    // SEMPRE imposta il colore di default "Nero" quando si seleziona uno stile
     if (style !== "none" && onGlassesColorChange) {
       onGlassesColorChange("#333333");
     }

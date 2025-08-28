@@ -47,17 +47,22 @@ const defaultConfig: AvatarConfig = {
 };
 
 export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEditorProps) {
-  // Assicurati che il colore degli occhiali sia sempre impostato al default "Nero"
+  // FORZA SEMPRE il colore degli occhiali al default "Nero"
   const normalizedInitialConfig = {
     ...initialConfig,
-    glassesColor: initialConfig.glassesColor || "#333333"
+    glassesColor: "#333333" // SEMPRE nero di default
   };
   
   const [config, setConfig] = useState<AvatarConfig>(normalizedInitialConfig);
 
-  // Assicurati che il colore degli occhiali sia sempre impostato al default "Nero"
+  // FORZA SEMPRE il colore degli occhiali al default "Nero"
   useEffect(() => {
-    if (!config.glassesColor || config.glassesColor === "") {
+    setConfig(prev => ({ ...prev, glassesColor: "#333333" }));
+  }, []); // Solo al mount
+
+  // Mantieni sempre il colore nero se viene cambiato
+  useEffect(() => {
+    if (config.glassesColor !== "#333333") {
       setConfig(prev => ({ ...prev, glassesColor: "#333333" }));
     }
   }, [config.glassesColor]);
