@@ -9,18 +9,17 @@ export function AviatorGlassesStyle({ glassesColor }: AviatorGlassesStyleProps) 
   
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* OCCHIALI AVIATOR - POSIZIONATI correttamente sopra gli occhi */}
+      {/* OCCHIALI AVIATOR - INGRANDITI E POSIZIONATI CORRETTAMENTE */}
       <g>
-        {/* Lente sinistra - forma aviator corretta */}
-        <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
-        {/* Lente destra - forma aviator corretta */}
-        <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
-        {/* Ponte centrale */}
-        <path d="M140 125 L160 125" stroke={defaultColor} strokeWidth="3"/>
-        {/* Stanghetta sinistra */}
-        <path d="M95 125 L110 125" stroke={defaultColor} strokeWidth="3"/>
-        {/* Stanghetta destra */}
-        <path d="M190 125 L205 125" stroke={defaultColor} strokeWidth="3"/>
+        {/* Lente sinistra - forma aviator più grande */}
+        <path d="M80 80 L120 80 Q120 120 100 130 Q80 120 Z" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        {/* Lente destra - forma aviator più grande */}
+        <path d="M180 80 L220 80 Q220 120 200 130 Q180 120 Z" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        {/* Ponte centrale - più spesso */}
+        <path d="M120 100 L180 100" stroke={defaultColor} strokeWidth="4"/>
+        {/* Stanghette - più spesse e visibili */}
+        <path d="M70 100 L80 100" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M220 100 L230 100" stroke={defaultColor} strokeWidth="4"/>
       </g>
     </svg>
   );

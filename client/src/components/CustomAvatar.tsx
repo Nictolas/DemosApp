@@ -547,15 +547,15 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
   const renderNose = () => {
     switch (avatarConfig.noseStyle) {
       case "small":
-        return <path d="M 148 135 Q 150 138 152 135" stroke="#000" strokeWidth="2" fill="none" />;
+        return <path d="M 138 125 Q 140 128 142 125" stroke="#000" strokeWidth="2" fill="none" />;
       case "large":
-        return <path d="M 145 132 Q 150 142 155 132" stroke="#000" strokeWidth="3" fill="none" />;
+        return <path d="M 135 122 Q 140 132 145 122" stroke="#000" strokeWidth="3" fill="none" />;
       case "pointed":
-        return <path d="M 148 133 L 150 140 L 152 133" stroke="#000" strokeWidth="2" fill="none" />;
+        return <path d="M 138 123 L 140 130 L 142 123" stroke="#000" strokeWidth="2" fill="none" />;
       case "button":
-        return <circle cx="150" cy="135" r="3" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="2" />;
+        return <circle cx="140" cy="125" r="3" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="2" />;
       default: // normal
-        return <path d="M 145 135 Q 150 140 155 135" stroke="#000" strokeWidth="3" fill="none" />;
+        return <path d="M 135 125 Q 140 130 145 125" stroke="#000" strokeWidth="3" fill="none" />;
     }
   };
 
