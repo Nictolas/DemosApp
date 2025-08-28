@@ -477,13 +477,21 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
   };
 
   const renderGlasses = () => {
+    // === DEBUG LOGS ===
+    console.log('🔍 DEBUG CustomAvatar - renderGlasses chiamata');
+    console.log('🔍 DEBUG CustomAvatar - avatarConfig.glassesStyle:', avatarConfig.glassesStyle);
+    console.log('🔍 DEBUG CustomAvatar - avatarConfig.glassesColor:', avatarConfig.glassesColor);
+    
     // FORZA SEMPRE il colore nero come default per gli occhiali
     const glassesColor = "#333333";
     
     // Se non c'è uno stile selezionato, non mostrare occhiali
     if (!avatarConfig.glassesStyle || avatarConfig.glassesStyle === "none") {
+      console.log('🔍 DEBUG CustomAvatar - Nessuno stile occhiali selezionato, ritorno null');
       return null;
     }
+    
+    console.log('🔍 DEBUG CustomAvatar - Rendering occhiali con stile:', avatarConfig.glassesStyle);
     
     switch (avatarConfig.glassesStyle) {
       case "round":
