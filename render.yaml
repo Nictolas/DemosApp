@@ -15,12 +15,21 @@ services:
       - key: JWT_SECRET
         sync: false
 
-  # Frontend (nuovo)
+  # Frontend (nuovo) - Configurazione ottimizzata
   - type: web
     name: demos-frontend
     env: static
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: cd client && npm install && npm run build
+    staticPublishPath: client/dist
     envVars:
       - key: NODE_ENV
         value: production
+      - key: VITE_API_URL
+        value: https://demos-backend.onrender.com
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000
