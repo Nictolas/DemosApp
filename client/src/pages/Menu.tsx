@@ -7,10 +7,14 @@ import { Loader2, BarChart2, MessageSquare, Megaphone, FileText, Home } from "lu
 // import { db, auth } from "@/lib/firebase-stub";
 // import appIcon from '../../public/icona.png';
 import Navbar from "@/components/Navbar";
+import { useNoScroll } from "@/hooks/useNoScroll";
 
 export default function Menu() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Blocca lo scroll della pagina
+  useNoScroll(true);
   
   // Determina se l'utente è admin direttamente dai dati dell'utente
   const isAdmin = user?.role === 'Admin' || user?.ruolo === 'Admin';

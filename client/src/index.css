@@ -32,6 +32,26 @@ body {
   /* overflow-y: auto;  // decommenta se vuoi lo scroll solo verticale */
 }
 
+/* --- CLASSI PER BLOCCARE SCROLL COMPLETAMENTE --- */
+.no-scroll {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  -webkit-overflow-scrolling: auto !important;
+}
+
+/* Blocca scroll per pagine specifiche */
+.page-no-scroll {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  -webkit-overflow-scrolling: auto !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
