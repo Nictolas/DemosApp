@@ -1,8 +1,8 @@
 # 🧠 MEMORIA PERSISTENTE DEL PROGETTO - NON DIMENTICARE MAI!
 
 ## 🏗️ **ARCHITETTURA ATTUALE:**
-- **Render**: Backend/API (FUNZIONANTE)
-- **Vercel**: Frontend (RICREATO - webhook attivo)
+- **Render**: Backend/API + Frontend (MIGRAZIONE IN CORSO)
+- **Vercel**: ABBANDONATO - troppi problemi
 - **Database**: Neon (PostgreSQL)
 - **Auth**: Auth.js integrato con Neon
 
@@ -41,10 +41,10 @@
 6. **Accesso diretto a Firebase** invece di API custom
 
 ## 🎯 **OBIETTIVO ATTUALE:**
-- **Spostare tutto su Render** (backend + frontend)
+- **MIGRAZIONE COMPLETA SU RENDER** (backend + frontend)
 - **Mantenere dominio** www.demos.community
 - **Configurare deploy automatico** GitHub → Render
-- **Abandonare Vercel** (non funziona più)
+- **Vercel completamente rimosso**
 
 ## 🔍 **ULTIMA CONFIGURAZIONE VERCEL:**
 ```json
