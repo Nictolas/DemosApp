@@ -314,7 +314,7 @@ export default function Profilo({ userId }: { userId?: string }) {
             
             <Card className="bg-white">
               <CardHeader>
-                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                <CardTitle className="text-2xl font-bold text-blue-600">
                   Profilo Utente
                 </CardTitle>
                 <CardDescription>
