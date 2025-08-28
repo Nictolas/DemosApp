@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -47,7 +47,20 @@ const defaultConfig: AvatarConfig = {
 };
 
 export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEditorProps) {
-  const [config, setConfig] = useState<AvatarConfig>(initialConfig);
+  // Assicurati che il colore degli occhiali sia sempre impostato al default "Nero"
+  const normalizedInitialConfig = {
+    ...initialConfig,
+    glassesColor: initialConfig.glassesColor || "#333333"
+  };
+  
+  const [config, setConfig] = useState<AvatarConfig>(normalizedInitialConfig);
+
+  // Assicurati che il colore degli occhiali sia sempre impostato al default "Nero"
+  useEffect(() => {
+    if (!config.glassesColor || config.glassesColor === "") {
+      setConfig(prev => ({ ...prev, glassesColor: "#333333" }));
+    }
+  }, [config.glassesColor]);
 
   const skinColors = [
     { name: "Molto Chiaro", value: "#FFE5D9" },
