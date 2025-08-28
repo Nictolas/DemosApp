@@ -23,6 +23,7 @@
 - ✅ **Vercel**: Ricreato con webhook attivo
 - ✅ **DNS**: Aggiornati per puntare a Vercel
 - ✅ **Configurazione**: Vercel configurato per frontend
+- ✅ **Build Settings**: Root Directory = client, Build Command = npm run build
 
 ## 🔧 **SOLUZIONI PROVATE (NON RIPETERE!):**
 - ❌ **vercel.json personalizzato**: Ignorato da Vercel
