@@ -2751,21 +2751,23 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
     candidati = candidati.map(candidato => {
       let avatarConfig = candidato.avatar_config;
       
-      // Se non c'è avatar_config o è vuoto, genera uno di default
-      if (!avatarConfig || avatarConfig === '{}' || avatarConfig === 'null') {
-        // Genera un avatar_config di default basato sul nome per varietà
-        const defaultConfig = {
-          skinColor: "#FDBCB4",
-          hairColor: "#8B4513", 
-          hairStyle: "short",
-          mustacheStyle: "none",
-          mustacheColor: "#2C1810",
-          beardStyle: "none",
-          beardColor: "#2C1810",
-          noseStyle: "normal",
-          suitColor: "#2C3E50",
-          tieColor: "#E74C3C"
-        };
+              // Se non c'è avatar_config o è vuoto, genera uno di default
+        if (!avatarConfig || avatarConfig === '{}' || avatarConfig === 'null') {
+          // Genera un avatar_config di default basato sul nome per varietà
+          const defaultConfig = {
+            skinColor: "#FDBCB4",
+            hairColor: "#8B4513", 
+            hairStyle: "short",
+            mustacheStyle: "none",
+            mustacheColor: "#2C1810",
+            beardStyle: "none",
+            beardColor: "#2C1810",
+            noseStyle: "normal",
+            suitColor: "#2C3E50",
+            tieColor: "#E74C3C",
+            glassesStyle: "none",
+            glassesColor: "#2C3E50"
+          };
         
         // Varia i colori in base al nome per diversità
         const nameHash = candidato.nome ? candidato.nome.charCodeAt(0) : 0;
@@ -2782,6 +2784,44 @@ app.get('/api/rappresentanti/disponibili', verifyToken, async (req, res) => {
         defaultConfig.tieColor = colors[colorIndex].tie;
         
         avatarConfig = JSON.stringify(defaultConfig);
+      } else if (avatarConfig) {
+        // Se c'è già un avatar_config, assicurati che abbia tutti i campi necessari
+        try {
+          const existingConfig = JSON.parse(avatarConfig);
+          const completeConfig = {
+            skinColor: existingConfig.skinColor || "#FDBCB4",
+            hairColor: existingConfig.hairColor || "#8B4513",
+            hairStyle: existingConfig.hairStyle || "short",
+            mustacheStyle: existingConfig.mustacheStyle || "none",
+            mustacheColor: existingConfig.mustacheColor || "#2C1810",
+            beardStyle: existingConfig.beardStyle || "none",
+            beardColor: existingConfig.beardColor || "#2C1810",
+            noseStyle: existingConfig.noseStyle || "normal",
+            suitColor: existingConfig.suitColor || "#2C3E50",
+            tieColor: existingConfig.tieColor || "#E74C3C",
+            glassesStyle: existingConfig.glassesStyle || "none",
+            glassesColor: existingConfig.glassesColor || "#2C3E50"
+          };
+          avatarConfig = JSON.stringify(completeConfig);
+        } catch (error) {
+          console.warn('⚠️ Errore nel parsing avatar_config per utente:', candidato.id, error);
+          // Se c'è un errore nel parsing, genera un config di default
+          const defaultConfig = {
+            skinColor: "#FDBCB4",
+            hairColor: "#8B4513",
+            hairStyle: "short",
+            mustacheStyle: "none",
+            mustacheColor: "#2C1810",
+            beardStyle: "none",
+            beardColor: "#2C1810",
+            noseStyle: "normal",
+            suitColor: "#2C3E50",
+            tieColor: "#E74C3C",
+            glassesStyle: "none",
+            glassesColor: "#2C3E50"
+          };
+          avatarConfig = JSON.stringify(defaultConfig);
+        }
       }
       
       return {
