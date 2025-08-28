@@ -47,9 +47,11 @@ const defaultConfig: AvatarConfig = {
 };
 
 export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEditorProps) {
-  // FORZA SEMPRE il colore degli occhiali al default "Nero"
+  // Normalizza la configurazione iniziale assicurandoci che tutti i campi siano definiti
   const normalizedInitialConfig = {
+    ...defaultConfig,
     ...initialConfig,
+    glassesStyle: initialConfig.glassesStyle || "none",
     glassesColor: "#333333" // SEMPRE nero di default
   };
   
