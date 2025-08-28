@@ -1,8 +1,8 @@
 # 🧠 MEMORIA PERSISTENTE DEL PROGETTO - NON DIMENTICARE MAI!
 
 ## 🏗️ **ARCHITETTURA ATTUALE:**
-- **Render**: Backend/API (FUNZIONANTE) + Frontend (DEPLOYATO CON SUCCESSO)
-- **Vercel**: COMPLETAMENTE ABBANDONATO E RIMOSSO
+- **Render**: Backend/API (FUNZIONANTE)
+- **Vercel**: Frontend (RICREATO - webhook attivo)
 - **Database**: Neon (PostgreSQL)
 - **Auth**: Auth.js integrato con Neon
 
@@ -20,9 +20,9 @@
 - ✅ **Build locale**: `npm run build` funziona al 100%
 
 ## 🚫 **PROBLEMI RISOLTI:**
-- ✅ **Vercel**: Completamente abbandonato e rimosso
-- ✅ **Deploy automatico**: GitHub → Render funziona perfettamente
-- ✅ **Configurazione**: Render configurato e funzionante
+- ✅ **Vercel**: Ricreato con webhook attivo
+- ✅ **DNS**: Aggiornati per puntare a Vercel
+- ✅ **Configurazione**: Vercel configurato per frontend
 
 ## 🔧 **SOLUZIONI PROVATE (NON RIPETERE!):**
 - ❌ **vercel.json personalizzato**: Ignorato da Vercel
