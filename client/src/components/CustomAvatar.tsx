@@ -490,45 +490,45 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         return (
           <g>
             {/* Lente sinistra - posizionata correttamente sopra l'occhio sinistro */}
-            <circle cx="125" cy="125" r="15" fill="rgba(51, 51, 51, 0.1)" stroke={glassesColor} strokeWidth="4"/>
+            <circle cx="125" cy="125" r="15" fill="none" stroke={glassesColor} strokeWidth="3"/>
             {/* Lente destra - posizionata correttamente sopra l'occhio destro */}
-            <circle cx="175" cy="125" r="15" fill="rgba(51, 51, 51, 0.1)" stroke={glassesColor} strokeWidth="4"/>
+            <circle cx="175" cy="125" r="15" fill="none" stroke={glassesColor} strokeWidth="3"/>
             {/* Ponte centrale - collega le due lenti */}
-            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
             {/* Stanghetta sinistra - più lunga e visibile */}
-            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
             {/* Stanghetta destra - più lunga e visibile */}
-            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
           </g>
         );
       case "square":
         return (
           <g>
             {/* Lente sinistra - rettangolo posizionato correttamente */}
-            <rect x="110" y="110" width="30" height="30" fill="rgba(51, 51, 51, 0.1)" stroke={glassesColor} strokeWidth="4"/>
+            <rect x="110" y="110" width="30" height="30" fill="none" stroke={glassesColor} strokeWidth="3"/>
             {/* Lente destra - rettangolo posizionato correttamente */}
-            <rect x="160" y="110" width="30" height="30" fill="rgba(51, 51, 51, 0.1)" stroke={glassesColor} strokeWidth="4"/>
+            <rect x="160" y="110" width="30" height="30" fill="none" stroke={glassesColor} strokeWidth="3"/>
             {/* Ponte centrale - collega le due lenti */}
-            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
             {/* Stanghetta sinistra - più lunga e visibile */}
-            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
             {/* Stanghetta destra - più lunga e visibile */}
-            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
           </g>
         );
       case "aviator":
         return (
           <g>
             {/* Lente sinistra - forma aviator completamente chiusa a "U" */}
-            <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 L110 110 Z" fill="rgba(51, 51, 51, 0.1)" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
             {/* Lente destra - forma aviator completamente chiusa a "U" */}
-            <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 L160 110 Z" fill="rgba(51, 51, 51, 0.1)" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
             {/* Ponte centrale - collega le due lenti */}
-            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
             {/* Stanghetta sinistra - più lunga e visibile */}
-            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M95 125 L110 125" stroke={glassesColor} strokeWidth="3"/>
             {/* Stanghetta destra - più lunga e visibile */}
-            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="4"/>
+            <path d="M190 125 L205 125" stroke={glassesColor} strokeWidth="3"/>
           </g>
         );
       default:
@@ -684,8 +684,10 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
           {/* Barba */}
           {renderBeard()}
 
-          {/* Occhiali */}
-          {renderGlasses()}
+          {/* Occhiali - sempre in primo piano */}
+          <g style={{ zIndex: 10 }}>
+            {renderGlasses()}
+          </g>
         </g>
       </svg>
     </div>
