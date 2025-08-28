@@ -18,11 +18,14 @@ export function GlassesStyleSelector({
   onGlassesStyleChange,
   onGlassesColorChange 
 }: GlassesStyleSelectorProps) {
+  // Usa sempre il colore nero per visualizzare gli occhiali nel selettore
+  const displayColor = "#333333";
+  
   const glassesStyles = [
     { id: "none", component: <NoneGlassesStyle /> },
-    { id: "round", component: <RoundGlassesStyle glassesColor={glassesColor} /> },
-    { id: "square", component: <SquareGlassesStyle glassesColor={glassesColor} /> },
-    { id: "aviator", component: <AviatorGlassesStyle glassesColor={glassesColor} /> },
+    { id: "round", component: <RoundGlassesStyle glassesColor={displayColor} /> },
+    { id: "square", component: <SquareGlassesStyle glassesColor={displayColor} /> },
+    { id: "aviator", component: <AviatorGlassesStyle glassesColor={displayColor} /> },
   ];
 
   const handleStyleChange = (style: string) => {
