@@ -477,8 +477,8 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
   };
 
   const renderGlasses = () => {
-    // Usa sempre il colore nero come default se non è impostato
-    const glassesColor = avatarConfig.glassesColor || "#333333";
+    // FORZA SEMPRE il colore nero come default per gli occhiali
+    const glassesColor = "#333333";
     
     // Se non c'è uno stile selezionato, non mostrare occhiali
     if (!avatarConfig.glassesStyle || avatarConfig.glassesStyle === "none") {
