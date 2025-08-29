@@ -3691,9 +3691,9 @@ app.get('/api/utenti', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/utenti - Richiesta ricevuta da utente:', req.userId, 'con ruolo:', req.userRole);
     
     const query = `
-      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, created_at
+      SELECT id, nome, cognome, email, ruolo, genere, data_nascita, created_at, status
       FROM users 
-      WHERE ruolo != 'pending'
+      WHERE status != 'pending'
       ORDER BY nome, cognome
     `;
     
@@ -5968,6 +5968,155 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
 });
 
 // ===== ENDPOINT DI TEST RESEND =====
+
+// Endpoint per approvare/rifiutare utenti
+app.post('/api/utenti/approve', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
+    
+    console.log('✅ APPROVAZIONE - Tentativo approvazione utente:', userId);
+    
+    // Verifica che l'utente esista e abbia status pending
+    const userQuery = 'SELECT id, nome, cognome, email, status FROM users WHERE id = $1 AND status = $2';
+    const userResult = await pool.query(userQuery, [userId, 'pending']);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato o già approvato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Aggiorna lo status dell'utente da 'pending' a 'approved'
+    await pool.query(
+      'UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2',
+      ['approved', userId]
+    );
+    
+    console.log('✅ Utente approvato con successo:', user.email);
+    
+    res.json({
+      success: true,
+      message: `Utente ${user.nome} ${user.cognome} approvato con successo`
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'approvazione utente:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'approvazione utente',
+      message: error.message
+    });
+  }
+});
+
+app.post('/api/utenti/reject', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
+    
+    console.log('❌ RIFIUTO - Tentativo rifiuto utente:', userId);
+    
+    // Verifica che l'utente esista e abbia status pending
+    const userQuery = 'SELECT id, nome, cognome, email, status FROM users WHERE id = $1 AND status = $2';
+    const userResult = await pool.query(userQuery, [userId, 'pending']);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato o già gestito'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Aggiorna lo status dell'utente da 'pending' a 'rejected'
+    await pool.query(
+      'UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2',
+      ['rejected', userId]
+    );
+    
+    console.log('❌ Utente rifiutato con successo:', user.email);
+    
+    res.json({
+      success: true,
+      message: `Utente ${user.nome} ${user.cognome} rifiutato`
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel rifiuto utente:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel rifiuto utente',
+      message: error.message
+    });
+  }
+});
+
+// Endpoint per eliminare utenti
+app.delete('/api/utenti/:userId', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
+    
+    console.log('🗑️ ELIMINAZIONE - Tentativo eliminazione utente:', userId);
+    
+    // Verifica che l'utente esista
+    const userQuery = 'SELECT id, nome, cognome, email, status FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Elimina l'utente
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    
+    console.log('🗑️ Utente eliminato con successo:', user.email);
+    
+    res.json({
+      success: true,
+      message: `Utente ${user.nome} ${user.cognome} eliminato con successo`
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione utente:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione utente',
+      message: error.message
+    });
+  }
+});
 
 // Endpoint per inviare manualmente email di conferma
 app.post('/api/resend-verification-email', async (req, res) => {
