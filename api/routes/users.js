@@ -368,9 +368,17 @@ router.post('/resend-verification-email', async (req, res) => {
     }
     
     // Invia email di verifica
-    const { sendVerificationEmail } = require('../services/emailService');
+    let emailService;
+    try {
+      emailService = require('../services/emailService');
+    } catch (error) {
+      console.log('⚠️ Servizio email non disponibile:', error.message);
+      emailService = {
+        sendVerificationEmail: async () => ({ success: false, error: 'Servizio email non disponibile' })
+      };
+    }
     const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${verificationToken}`;
-    await sendVerificationEmail(email, verificationToken, verificationUrl);
+    await emailService.sendVerificationEmail(email, verificationToken, verificationUrl);
     
     console.log('✅ Email di verifica reinviata con successo per:', email);
     

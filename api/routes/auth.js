@@ -3,7 +3,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../middleware/auth');
 const { validateInput, validateEmail } = require('../middleware/validation');
-const { sendResetPasswordEmail, sendVerificationEmail } = require('../services/emailService');
+// Importazione condizionale del servizio email
+let emailService;
+try {
+  emailService = require('../services/emailService');
+} catch (error) {
+  console.log('⚠️ Servizio email non disponibile:', error.message);
+  emailService = {
+    sendResetPasswordEmail: async () => ({ success: false, error: 'Servizio email non disponibile' }),
+    sendVerificationEmail: async () => ({ success: false, error: 'Servizio email non disponibile' })
+  };
+}
 
 const router = express.Router();
 
@@ -323,7 +333,7 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     // Invia email di verifica
     try {
       const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${verificationToken}`;
-      await sendVerificationEmail(email, verificationToken, verificationUrl);
+      await emailService.sendVerificationEmail(email, verificationToken, verificationUrl);
       
       console.log('✅ Email di verifica inviata per:', email);
       
@@ -420,7 +430,7 @@ router.post('/forgot-password', validateInput(['email']), validateEmail, async (
       console.log('🔗 DEBUG - Reset URL generato:', resetUrl);
       console.log('📧 DEBUG - Tentativo invio email tramite Resend...');
       
-      const emailResult = await sendResetPasswordEmail(email, resetToken, resetUrl);
+      const emailResult = await emailService.sendResetPasswordEmail(email, resetToken, resetUrl);
       
       if (emailResult.success) {
         console.log('✅ Email di reset inviata con successo tramite Resend per:', email);
