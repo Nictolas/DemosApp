@@ -267,11 +267,11 @@ export function RegisterForm({
                       <SelectValue placeholder="Seleziona genere" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Uomo">Uomo</SelectItem>
-                    <SelectItem value="Donna">Donna</SelectItem>
-                    <SelectItem value="Altro">Altro</SelectItem>
-                  </SelectContent>
+                                  <SelectContent>
+                  <SelectItem value="uomo">Uomo</SelectItem>
+                  <SelectItem value="donna">Donna</SelectItem>
+                  <SelectItem value="altro">Altro</SelectItem>
+                </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
