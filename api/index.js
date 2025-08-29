@@ -5969,6 +5969,74 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
 
 // ===== ENDPOINT DI TEST RESEND =====
 
+// Endpoint per inviare manualmente email di conferma
+app.post('/api/resend-verification-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email richiesta'
+      });
+    }
+    
+    console.log('📧 RINVIO EMAIL - Tentativo invio email di conferma per:', email);
+    
+    // Verifica se l'utente esiste e ha status pending
+    const userQuery = 'SELECT id, nome, cognome, email_verification_token FROM users WHERE email = $1 AND status = $2';
+    const userResult = await pool.query(userQuery, [email, 'pending']);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato o già verificato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Se non ha un token di verifica, ne genera uno nuovo
+    let verificationToken = user.email_verification_token;
+    if (!verificationToken) {
+      verificationToken = jwt.sign(
+        { 
+          email: user.email,
+          type: 'email_verification'
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      
+      // Aggiorna il token nel database
+      await pool.query(
+        'UPDATE users SET email_verification_token = $1 WHERE id = $2',
+        [verificationToken, user.id]
+      );
+    }
+    
+    // Invia email di verifica
+    const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${verificationToken}`;
+    await sendVerificationEmail(email, verificationToken, verificationUrl);
+    
+    console.log('✅ Email di verifica reinviata con successo per:', email);
+    
+    res.json({
+      success: true,
+      message: 'Email di conferma reinviata con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel reinvio email di verifica:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel reinvio email di verifica',
+      message: error.message
+    });
+  }
+});
+
 // Endpoint di test per Resend
 app.post('/api/test-resend-email', async (req, res) => {
   try {
