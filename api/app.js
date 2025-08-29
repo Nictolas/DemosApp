@@ -33,12 +33,16 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const rappresentantiRoutes = require('./routes/rappresentanti');
 const opinioniRoutes = require('./routes/opinioni');
+const elezioniRoutes = require('./routes/elezioni');
+const sondaggiRoutes = require('./routes/sondaggi');
 
 // Registrazione delle route
 app.use('/api/auth', authRoutes);
 app.use('/api/utenti', userRoutes);
 app.use('/api/rappresentanti', rappresentantiRoutes);
 app.use('/api/opinioni', opinioniRoutes);
+app.use('/api/elezioni', elezioniRoutes);
+app.use('/api/sondaggi', sondaggiRoutes);
 
 // Route di base e health check
 app.get('/', (req, res) => {

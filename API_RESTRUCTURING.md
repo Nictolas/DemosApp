@@ -52,6 +52,8 @@ api/
 - **`users.js`**: Gestione profili, approvazione utenti, gestione admin
 - **`rappresentanti.js`**: Gestione rappresentanti, candidati disponibili, assegnazione
 - **`opinioni.js`**: Gestione opinioni, statistiche, risposte utente
+- **`elezioni.js`**: Gestione elezioni, candidati, voti utente
+- **`sondaggi.js`**: Statistiche aggregate, analisi demografiche
 
 ### **3. Servizi (`/services`)**
 - **`emailService.js`**: Invio email con Resend, template HTML, gestione errori
@@ -110,6 +112,18 @@ node api/index.js
 - ✅ `GET /user-answers` - Risposte utente
 - ✅ `GET /stats/:opinionId` - Statistiche opinione
 
+### **Elezioni (`/api/elezioni`)**
+- ✅ `GET /prossime` - Prossime elezioni
+- ✅ `GET /` - Tutte le elezioni
+- ✅ `GET /utente` - Elezioni per utente
+- ✅ `POST /` - Crea nuova elezione
+- ✅ `GET /candidati` - Candidati per grado e categoria
+
+### **Sondaggi (`/api/sondaggi`)**
+- ✅ `GET /` - Sondaggi aggregati
+- ✅ `GET /stats` - Statistiche generali
+- ✅ `GET /genere` - Statistiche per genere
+
 ## 🔄 **Piano di Migrazione**
 
 ### **Fase 1: ✅ Completata e Testata**
@@ -120,11 +134,11 @@ node api/index.js
 - [x] Migrazione servizio email
 - [x] **Testing completo** di tutti gli endpoint migrati
 
-### **Fase 2: 🚧 In Corso**
+### **Fase 2: ✅ Completata**
 - [x] Migrazione route rappresentanti
 - [x] Migrazione route opinioni
-- [ ] Migrazione route elezioni
-- [ ] Migrazione route sondaggi
+- [x] Migrazione route elezioni
+- [x] Migrazione route sondaggi
 
 ### **Fase 3: 📋 Pianificata**
 - [ ] Migrazione route grazia/amnistia
