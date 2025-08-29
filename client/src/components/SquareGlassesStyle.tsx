@@ -9,17 +9,17 @@ export function SquareGlassesStyle({ glassesColor }: SquareGlassesStyleProps) {
   
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* OCCHIALI QUADRATI - INGRANDITI E POSIZIONATI CORRETTAMENTE */}
+      {/* OCCHIALI QUADRATI - SCALA AUMENTATA PER MAGGIORE VISIBILITÀ */}
       <g>
-        {/* Lente sinistra - più grande */}
-        <rect x="80" y="80" width="40" height="40" fill="none" stroke={defaultColor} strokeWidth="4"/>
-        {/* Lente destra - più grande */}
-        <rect x="180" y="80" width="40" height="40" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        {/* Lente sinistra - rettangolo più grande */}
+        <rect x="85" y="85" width="35" height="35" fill="none" stroke={defaultColor} strokeWidth="5"/>
+        {/* Lente destra - rettangolo più grande */}
+        <rect x="180" y="85" width="35" height="35" fill="none" stroke={defaultColor} strokeWidth="5"/>
         {/* Ponte centrale - più spesso */}
-        <path d="M120 100 L180 100" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M120 100 L180 100" stroke={defaultColor} strokeWidth="5"/>
         {/* Stanghette - più spesse e visibili */}
-        <path d="M70 100 L80 100" stroke={defaultColor} strokeWidth="4"/>
-        <path d="M220 100 L230 100" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M70 100 L85 100" stroke={defaultColor} strokeWidth="5"/>
+        <path d="M215 100 L230 100" stroke={defaultColor} strokeWidth="5"/>
       </g>
     </svg>
   );

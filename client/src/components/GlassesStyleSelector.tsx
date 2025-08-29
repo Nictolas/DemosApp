@@ -40,7 +40,7 @@ export function GlassesStyleSelector({
   return (
     <div className="mb-6">
       <h3 className="text-lg font-semibold mb-3 text-gray-800">Stile Occhiali</h3>
-      <div className="grid grid-cols-4 gap-3" style={{ marginTop: '20px', marginLeft: '15px' }}>
+      <div className="grid grid-cols-4 gap-3">
         {glassesStyles.map((style) => (
           <button
             key={style.id}
