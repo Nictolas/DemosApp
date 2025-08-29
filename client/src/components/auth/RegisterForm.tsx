@@ -31,11 +31,6 @@ export function RegisterForm({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Hook stabile per il genere
-  const stableGenere = useStableSelect({
-    onValueChange: (value) => form.setValue("genere", value)
-  });
-
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -266,7 +261,7 @@ export function RegisterForm({
         <div className="grid grid-cols-2 gap-4">
                     <FormItem>
             <FormLabel>Genere</FormLabel>
-            <Select onValueChange={stableGenere.handleValueChange} value={stableGenere.value}>
+            <Select onValueChange={(value) => form.setValue("genere", value)} value={form.watch("genere")}>
               <FormControl>
                 <SelectTrigger className="bg-white">
                   <SelectValue placeholder="Seleziona genere" />
