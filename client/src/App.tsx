@@ -60,7 +60,6 @@ import ProponiOpinione from "@/pages/ProponiOpinione";
 import ICE from "@/pages/ICE";
 import GestisciICE from "@/pages/GestisciICE";
 import VotaICE from "@/pages/VotaICE";
-import RegistrazioneWizard from "@/pages/RegistrazioneWizard";
 import DebugAuth from "@/pages/debug-auth";
 import Riscontro from "@/pages/Riscontro";
 
@@ -128,13 +127,7 @@ function Router() {
         )}
       </Route>
 
-      <Route path="/registrazione-wizard">
-        {() => (
-          <PageTransition location={location} type="fade-up">
-            <RegistrazioneWizard />
-          </PageTransition>
-        )}
-      </Route>
+
       <Route path="/menu">
         {(params) => (
           <PageTransition location={location} type="fade-side">
