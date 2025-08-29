@@ -21,6 +21,8 @@ interface AvatarConfig {
   noseStyle: string;
   suitColor: string;
   tieColor: string;
+  glassesStyle: string;
+  glassesColor: string;
 }
 
 const defaultAvatarConfig: AvatarConfig = {
@@ -33,7 +35,9 @@ const defaultAvatarConfig: AvatarConfig = {
     beardColor: "#2C1810",
     noseStyle: "normal",
     suitColor: "#2C3E50",
-    tieColor: "#E74C3C"
+    tieColor: "#E74C3C",
+    glassesStyle: "none",
+    glassesColor: "#333333"
 };
 
 export default function ModificaImmagine() {
