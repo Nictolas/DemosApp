@@ -10,6 +10,7 @@ import { registerSchema, RegisterFormValues } from "./authSchemas";
 import { useGeographicSelections } from "./useGeographicSelections";
 import { useBirthDate } from "./useBirthDate";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
+import { SelectTest } from "@/components/ui/select-test";
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormValues) => void;
@@ -65,6 +66,9 @@ export function RegisterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* TEST COMPONENTE SELECT */}
+        <SelectTest />
+        
         {/* Informazioni base */}
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -197,7 +201,6 @@ export function RegisterForm({
                 <CodiceFiscaleInput
                   value={field.value}
                   onChange={field.onChange}
-                  onBlur={field.onBlur}
                   placeholder="Codice Fiscale"
                   label=""
                 />
