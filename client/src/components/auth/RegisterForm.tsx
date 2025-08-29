@@ -13,6 +13,7 @@ import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 import { SelectTest } from "@/components/ui/select-test";
 import { useStableSelect } from "./useStableSelect";
 import { SelectDebug } from "@/components/ui/select-debug";
+import { SelectUltraDebug } from "@/components/ui/select-ultra-debug";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -70,6 +71,9 @@ export function RegisterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* ULTRA DEBUG COMPONENTE SELECT */}
+        <SelectUltraDebug />
+        
         {/* DEBUG COMPONENTE SELECT */}
         <SelectDebug 
           value={form.watch("genere")}
