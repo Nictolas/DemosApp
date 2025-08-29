@@ -35,6 +35,10 @@ const rappresentantiRoutes = require('./routes/rappresentanti');
 const opinioniRoutes = require('./routes/opinioni');
 const elezioniRoutes = require('./routes/elezioni');
 const sondaggiRoutes = require('./routes/sondaggi');
+const graziaRoutes = require('./routes/grazia');
+const amnistiaRoutes = require('./routes/amnistia');
+const iceRoutes = require('./routes/ice');
+const referendumRoutes = require('./routes/referendum');
 
 // Registrazione delle route
 app.use('/api/auth', authRoutes);
@@ -43,6 +47,10 @@ app.use('/api/rappresentanti', rappresentantiRoutes);
 app.use('/api/opinioni', opinioniRoutes);
 app.use('/api/elezioni', elezioniRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
+app.use('/api/grazia', graziaRoutes);
+app.use('/api/amnistia', amnistiaRoutes);
+app.use('/api/ice', iceRoutes);
+app.use('/api/referendum', referendumRoutes);
 
 // Route di base e health check
 app.get('/', (req, res) => {
