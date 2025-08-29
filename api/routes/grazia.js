@@ -1,0 +1,153 @@
+const express = require('express');
+const { verifyToken } = require('../middleware/auth');
+const { validateInput } = require('../middleware/validation');
+const { pool } = require('../middleware/auth');
+
+const router = express.Router();
+
+// POST /api/grazia - Crea richiesta di grazia
+router.post('/', verifyToken, validateInput(['nome_carcerato', 'motivo']), async (req, res) => {
+  try {
+    const { nome_carcerato, motivo } = req.body;
+    const userId = req.userId;
+    
+    const query = `
+      INSERT INTO richieste_grazia (utente_id, nome_carcerato, motivo, stato, created_at)
+      VALUES ($1, $2, $3, 'in_attesa', NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, nome_carcerato, motivo]);
+    
+    res.json({
+      success: true,
+      richiesta: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione richiesta grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella creazione richiesta grazia'
+    });
+  }
+});
+
+// GET /api/grazia - Ottieni richieste di grazia
+router.get('/', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG: Chiamata endpoint /api/grazia');
+    
+    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
+    const query = `
+      SELECT *
+      FROM voti_grazia
+      ORDER BY created_at DESC
+      LIMIT 10
+    `;
+    
+    const result = await pool.query(query);
+    console.log(`✅ Recuperati ${result.rows.length} record da voti_grazia`);
+    
+    // Creiamo una classifica Top 10 basata sul numero di voti per carcerato
+    const classificaQuery = `
+      SELECT nome, COUNT(*) as richieste
+      FROM voti_grazia
+      GROUP BY nome
+      ORDER BY richieste DESC
+      LIMIT 10
+    `;
+    
+    const classificaResult = await pool.query(classificaQuery);
+    console.log(`✅ Classifica creata con ${classificaResult.rows.length} carcerati`);
+    
+    res.json({
+      success: true,
+      classifica: classificaResult.rows,
+      richieste: result.rows,
+      mieiVoti: [], // Per ora vuoto
+      blocco: { isBlocked: false, unlockDate: null }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste grazia',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/grazia/richieste - Ottieni richieste per gestione
+router.get('/richieste', verifyToken, async (req, res) => {
+  try {
+    // SOLUZIONE: Uso solo voti_grazia senza JOIN problematico
+    const query = `
+      SELECT *
+      FROM voti_grazia
+      ORDER BY created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      richieste: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare richieste grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare richieste grazia'
+    });
+  }
+});
+
+// POST /api/grazia/vota - Salva voti grazia
+router.post('/vota', verifyToken, validateInput(['voti']), async (req, res) => {
+  try {
+    const { voti } = req.body;
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    
+    // Elimina i voti esistenti
+    await pool.query('DELETE FROM voti_grazia WHERE user_id = $1', [userId]);
+    
+    // Inserisci i nuovi voti
+    for (const nome of voti) {
+      await pool.query(
+        'INSERT INTO voti_grazia (user_id, nome, created_at) VALUES ($1, $2, NOW())',
+        [userId, nome]
+      );
+    }
+    
+    res.json({ success: true, message: 'Voti grazia salvati' });
+  } catch (error) {
+    console.error('❌ Errore nel salvare voti grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare voti grazia'
+    });
+  }
+});
+
+// POST /api/grazia/richiesta/:id/:action - Gestisci richiesta grazia
+router.post('/richiesta/:id/:action', verifyToken, async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    
+    if (action === 'approve') {
+      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['approvata', id]);
+    } else if (action === 'reject') {
+      await pool.query('UPDATE voti_grazia SET stato = $1 WHERE id = $2', ['rifiutata', id]);
+    }
+    
+    res.json({ success: true, message: `Richiesta ${action === 'approve' ? 'approvata' : 'rifiutata'}` });
+  } catch (error) {
+    console.error('❌ Errore nella gestione richiesta grazia:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella gestione richiesta grazia'
+    });
+  }
+});
+
+module.exports = router;

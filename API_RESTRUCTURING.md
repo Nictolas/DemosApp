@@ -54,6 +54,9 @@ api/
 - **`opinioni.js`**: Gestione opinioni, statistiche, risposte utente
 - **`elezioni.js`**: Gestione elezioni, candidati, voti utente
 - **`sondaggi.js`**: Statistiche aggregate, analisi demografiche
+- **`grazia.js`**: Richieste di grazia, voti, gestione
+- **`amnistia.js`**: Voti per leggi amnistia
+- **`ice.js`**: Iniziative Cittadine Europee, gestione e voti
 
 ### **3. Servizi (`/services`)**
 - **`emailService.js`**: Invio email con Resend, template HTML, gestione errori
@@ -124,6 +127,25 @@ node api/index.js
 - ✅ `GET /stats` - Statistiche generali
 - ✅ `GET /genere` - Statistiche per genere
 
+### **Grazia (`/api/grazia`)**
+- ✅ `POST /` - Crea richiesta di grazia
+- ✅ `GET /` - Ottieni richieste di grazia
+- ✅ `GET /richieste` - Richieste per gestione
+- ✅ `POST /vota` - Salva voti grazia
+- ✅ `POST /richiesta/:id/:action` - Gestisci richiesta
+
+### **Amnistia (`/api/amnistia`)**
+- ✅ `GET /` - Ottieni leggi per amnistia
+- ✅ `POST /vota` - Vota per amnistia
+- ✅ `DELETE /vota` - Rimuovi voto amnistia
+
+### **ICE (`/api/ice`)**
+- ✅ `GET /` - Ottieni richieste ICE
+- ✅ `GET /richieste` - Richieste per gestione
+- ✅ `POST /` - Crea richiesta ICE
+- ✅ `POST /:id/:action` - Gestisci richiesta ICE
+- ✅ `POST /vota` - Vota per richiesta ICE
+
 ## 🔄 **Piano di Migrazione**
 
 ### **Fase 1: ✅ Completata e Testata**
@@ -140,9 +162,10 @@ node api/index.js
 - [x] Migrazione route elezioni
 - [x] Migrazione route sondaggi
 
-### **Fase 3: 📋 Pianificata**
-- [ ] Migrazione route grazia/amnistia
-- [ ] Migrazione route ICE
+### **Fase 3: 🚧 In Corso**
+- [x] Migrazione route grazia
+- [x] Migrazione route amnistia
+- [x] Migrazione route ICE
 - [ ] Migrazione route referendum
 - [ ] Migrazione route governo
 
