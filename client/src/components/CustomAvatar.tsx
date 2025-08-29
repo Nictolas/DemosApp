@@ -546,6 +546,12 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
         return <path d="M 148 133 L 150 140 L 152 133" stroke="#000" strokeWidth="2" fill="none" />;
       case "button":
         return <circle cx="150" cy="135" r="3" fill={avatarConfig.skinColor} stroke="#000" strokeWidth="2" />;
+      case "arrow":
+        return <path d="M 155 135 L 145 140 L 155 145" stroke="#000" strokeWidth="3" fill="none" />;
+      case "broad":
+        return <path d="M 140 135 Q 150 140 160 135" stroke="#000" strokeWidth="4" fill="none" />;
+      case "curved":
+        return <path d="M 145 135 Q 150 145 155 135" stroke="#000" strokeWidth="3" fill="none" />;
       default: // normal
         return <path d="M 145 135 Q 150 140 155 135" stroke="#000" strokeWidth="3" fill="none" />;
     }

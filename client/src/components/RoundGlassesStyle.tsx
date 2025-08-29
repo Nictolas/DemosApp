@@ -9,17 +9,17 @@ export function RoundGlassesStyle({ glassesColor }: RoundGlassesStyleProps) {
   
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* OCCHIALI ROTONDI - SCALA AUMENTATA PER MAGGIORE VISIBILITÀ */}
+      {/* OCCHIALI ROTONDI - PATH ESATTI DELL'ANTEPRIMA AVATAR - SCALA AUMENTATA */}
       <g>
-        {/* Lente sinistra - ancora più grande */}
-        <circle cx="100" cy="100" r="25" fill="none" stroke={defaultColor} strokeWidth="5"/>
-        {/* Lente destra - ancora più grande */}
-        <circle cx="200" cy="100" r="25" fill="none" stroke={defaultColor} strokeWidth="5"/>
-        {/* Ponte centrale - più spesso */}
-        <path d="M125 100 L175 100" stroke={defaultColor} strokeWidth="5"/>
-        {/* Stanghette - più spesse e visibili */}
-        <path d="M65 100 L75 100" stroke={defaultColor} strokeWidth="5"/>
-        <path d="M225 100 L235 100" stroke={defaultColor} strokeWidth="5"/>
+        {/* Lente sinistra - path esatto dell'Anteprima Avatar */}
+        <circle cx="125" cy="125" r="15" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        {/* Lente destra - path esatto dell'Anteprima Avatar */}
+        <circle cx="175" cy="125" r="15" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        {/* Ponte centrale - path esatto dell'Anteprima Avatar */}
+        <path d="M140 125 L160 125" stroke={defaultColor} strokeWidth="4"/>
+        {/* Stanghette - path esatto dell'Anteprima Avatar */}
+        <path d="M95 125 L110 125" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M190 125 L205 125" stroke={defaultColor} strokeWidth="4"/>
       </g>
     </svg>
   );

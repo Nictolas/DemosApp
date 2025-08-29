@@ -4,6 +4,9 @@ import { SmallNoseStyle } from "./SmallNoseStyle";
 import { LargeNoseStyle } from "./LargeNoseStyle";
 import { PointedNoseStyle } from "./PointedNoseStyle";
 import { ButtonNoseStyle } from "./ButtonNoseStyle";
+import { ArrowNoseStyle } from "./ArrowNoseStyle";
+import { BroadNoseStyle } from "./BroadNoseStyle";
+import { CurvedNoseStyle } from "./CurvedNoseStyle";
 
 interface NoseStyleSelectorProps {
   selectedNoseStyle: string;
@@ -18,12 +21,15 @@ export function NoseStyleSelector({ selectedNoseStyle, onNoseStyleChange, skinCo
     { id: "large", component: <LargeNoseStyle skinColor={skinColor} /> },
     { id: "pointed", component: <PointedNoseStyle skinColor={skinColor} /> },
     { id: "button", component: <ButtonNoseStyle skinColor={skinColor} /> },
+    { id: "arrow", component: <ArrowNoseStyle skinColor={skinColor} /> },
+    { id: "broad", component: <BroadNoseStyle skinColor={skinColor} /> },
+    { id: "curved", component: <CurvedNoseStyle skinColor={skinColor} /> },
   ];
 
   return (
     <div className="mb-6">
       <h3 className="text-lg font-semibold mb-3 text-gray-800">Stile Naso</h3>
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {noseStyles.map((style) => (
           <button
             key={style.id}
@@ -37,7 +43,10 @@ export function NoseStyleSelector({ selectedNoseStyle, onNoseStyleChange, skinCo
                    style.id === "small" ? "Piccolo" :
                    style.id === "large" ? "Grande" :
                    style.id === "pointed" ? "Appuntito" :
-                   "A Bottone"}
+                   style.id === "button" ? "A Bottone" :
+                   style.id === "arrow" ? "A Freccia" :
+                   style.id === "broad" ? "Largo" :
+                   "Curvo"}
           >
             {style.component}
           </button>
