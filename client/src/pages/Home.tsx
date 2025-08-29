@@ -1,5 +1,4 @@
 import { Card, CardContent } from "@/components/ui/card";
-import UserRegistrationForm from "@/components/UserRegistrationForm";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 
@@ -15,8 +14,18 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card className="overflow-hidden">
           <CardContent className="px-4 py-5 sm:p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">Registrazione Utente</h2>
-            <UserRegistrationForm />
+            <h2 className="text-xl font-semibold text-gray-800 mb-6">Benvenuto in DEMOS</h2>
+            <p className="text-gray-600 mb-4">
+              Sei già registrato e autenticato. Per gestire il tuo account, vai su:
+            </p>
+            <div className="space-y-2">
+              <p className="text-gray-600">
+                • <strong>Menu</strong> → <strong>Profilo</strong> per modificare i tuoi dati
+              </p>
+              <p className="text-gray-600">
+                • <strong>Menu</strong> per accedere alle funzionalità dell'app
+              </p>
+            </div>
           </CardContent>
         </Card>
       </main>

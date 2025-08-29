@@ -43,9 +43,9 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 {user ? (
-                  <Link href="/registrazione">
+                  <Link href="/menu">
                     <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                      Vai alla registrazione
+                      Vai al Menu
                     </Button>
                   </Link>
                 ) : (
