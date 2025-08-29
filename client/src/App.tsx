@@ -22,7 +22,7 @@ import ScegliCandidato from "@/pages/ScegliCandidato";
 import StatisticheUtenti from "@/pages/StatisticheUtenti";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
-import RegistrazioneElezioneCandidatura from "@/pages/RegistrazioneElezioneCandidatura";
+
 import Strumenti from "@/pages/Comunica";
 import PodioTrasparenza from "@/pages/PodioTrasparenza";
 import Notifiche from "@/pages/Notifiche";
@@ -127,13 +127,7 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/registrazione-elezione-candidatura">
-        {() => (
-          <PageTransition location={location} type="fade-up">
-            <RegistrazioneElezioneCandidatura />
-          </PageTransition>
-        )}
-      </Route>
+
       <Route path="/registrazione-wizard">
         {() => (
           <PageTransition location={location} type="fade-up">
