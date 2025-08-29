@@ -3722,7 +3722,7 @@ app.get('/api/utenti/pending', verifyToken, async (req, res) => {
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita
       FROM users 
-      WHERE ruolo = 'pending'
+      WHERE status = 'pending'
       ORDER BY created_at DESC
     `;
     
