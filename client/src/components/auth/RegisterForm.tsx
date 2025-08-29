@@ -251,6 +251,7 @@ export function RegisterForm({
             </Select>
           </FormItem>
         </div>
+        </div>
 
         {/* Genere e Cittadinanza */}
         <div className="grid grid-cols-2 gap-4">
