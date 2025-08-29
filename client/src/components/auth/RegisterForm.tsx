@@ -208,7 +208,9 @@ export function RegisterForm({
         />
 
         {/* Data di Nascita */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Data di Nascita</h3>
+          <div className="grid grid-cols-3 gap-4">
           <FormItem>
             <FormLabel>Giorno</FormLabel>
             <Select value={birthDate.birthDay} onValueChange={birthDate.setBirthDay}>
@@ -642,24 +644,22 @@ export function RegisterForm({
           </div>
         )}
 
-        <div className="bg-blue-600 p-4 rounded-lg">
-          <Button 
-            type="submit" 
-            variant="default"
-            size="lg"
-            className="w-full bg-white hover:bg-gray-100 text-blue-600 font-semibold py-3 text-base rounded-lg shadow-md transition-all duration-200 hover:shadow-lg" 
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Registrazione in corso...
-              </>
-            ) : (
-              "Registrati"
-            )}
-          </Button>
-        </div>
+        <Button 
+          type="submit" 
+          variant="default"
+          size="lg"
+          className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 text-base rounded-lg shadow-md transition-all duration-200 hover:shadow-lg" 
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Registrazione in corso...
+            </>
+          ) : (
+            "Registrati"
+          )}
+        </Button>
 
         {error && (
           <div className="text-red-600 text-sm mt-2">{error}</div>
