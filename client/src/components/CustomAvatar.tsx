@@ -519,10 +519,10 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
       case "aviator":
         return (
           <g>
-            {/* Lente sinistra - forma aviator completamente chiusa a "U" */}
-            <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
-            {/* Lente destra - forma aviator completamente chiusa a "U" */}
-            <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Lente sinistra - forma aviator completamente chiusa */}
+            <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 L110 110 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
+            {/* Lente destra - forma aviator completamente chiusa */}
+            <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 L160 110 Z" fill="none" stroke={glassesColor} strokeWidth="3"/>
             {/* Ponte centrale - collega le due lenti */}
             <path d="M140 125 L160 125" stroke={glassesColor} strokeWidth="3"/>
             {/* Stanghetta sinistra - più lunga e visibile */}

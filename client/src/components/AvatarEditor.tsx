@@ -57,31 +57,14 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
   
   const [config, setConfig] = useState<AvatarConfig>(normalizedInitialConfig);
 
-  // === DEBUG LOGS ===
-  console.log('🔍 DEBUG AvatarEditor - initialConfig:', initialConfig);
-  console.log('🔍 DEBUG AvatarEditor - normalizedInitialConfig:', normalizedInitialConfig);
-  console.log('🔍 DEBUG AvatarEditor - config state:', config);
-  console.log('🔍 DEBUG AvatarEditor - glassesStyle:', config.glassesStyle);
-  console.log('🔍 DEBUG AvatarEditor - glassesColor:', config.glassesColor);
 
-  // FORZA SEMPRE il colore degli occhiali al default "Nero"
+
+  // FORZA SEMPRE il colore degli occhiali al default "Nero" solo al mount
   useEffect(() => {
     setConfig(prev => ({ ...prev, glassesColor: "#333333" }));
   }, []); // Solo al mount
 
-  // Mantieni sempre il colore nero se viene cambiato
-  useEffect(() => {
-    if (config.glassesColor !== "#333333") {
-      setConfig(prev => ({ ...prev, glassesColor: "#333333" }));
-    }
-  }, [config.glassesColor]);
 
-  // Log quando cambia la configurazione
-  useEffect(() => {
-    console.log('🔍 DEBUG AvatarEditor - Config cambiata:', config);
-    console.log('🔍 DEBUG AvatarEditor - Nuovo glassesStyle:', config.glassesStyle);
-    console.log('🔍 DEBUG AvatarEditor - Nuovo glassesColor:', config.glassesColor);
-  }, [config]);
 
   const skinColors = [
     { name: "Molto Chiaro", value: "#FFE5D9" },
