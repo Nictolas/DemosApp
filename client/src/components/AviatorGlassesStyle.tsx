@@ -9,17 +9,17 @@ export function AviatorGlassesStyle({ glassesColor }: AviatorGlassesStyleProps) 
   
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* OCCHIALI AVIATOR - SCALA ULTERIORMENTE AUMENTATA PER MAGGIORE VISIBILITÀ */}
+      {/* OCCHIALI AVIATOR - PATH ESATTI DELL'ANTEPRIMA AVATAR - SCALA AUMENTATA */}
       <g>
-        {/* Lente sinistra - forma aviator corretta */}
-        <path d="M70 70 L110 70 Q110 110 90 120 Q70 110 L70 70 Z" fill="none" stroke={defaultColor} strokeWidth="5"/>
-        {/* Lente destra - forma aviator corretta */}
-        <path d="M190 70 L230 70 Q230 110 210 120 Q190 110 L190 70 Z" fill="none" stroke={defaultColor} strokeWidth="5"/>
-        {/* Ponte centrale - più spesso */}
-        <path d="M110 90 L190 90" stroke={defaultColor} strokeWidth="5"/>
-        {/* Stanghette - più spesse e visibili */}
-        <path d="M60 90 L70 90" stroke={defaultColor} strokeWidth="5"/>
-        <path d="M230 90 L240 90" stroke={defaultColor} strokeWidth="5"/>
+        {/* Lente sinistra - path esatto dell'Anteprima Avatar */}
+        <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 L110 110 Z" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        {/* Lente destra - path esatto dell'Anteprima Avatar */}
+        <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 L160 110 Z" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        {/* Ponte centrale - path esatto dell'Anteprima Avatar */}
+        <path d="M140 125 L160 125" stroke={defaultColor} strokeWidth="4"/>
+        {/* Stanghette - path esatto dell'Anteprima Avatar */}
+        <path d="M95 125 L110 125" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M190 125 L205 125" stroke={defaultColor} strokeWidth="4"/>
       </g>
     </svg>
   );
