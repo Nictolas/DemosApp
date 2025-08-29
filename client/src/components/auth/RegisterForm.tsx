@@ -193,13 +193,13 @@ export function RegisterForm({
           name="codice_fiscale"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Codice Fiscale</FormLabel>
               <FormControl>
                 <CodiceFiscaleInput
                   value={field.value}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   placeholder="Codice Fiscale"
+                  label=""
                 />
               </FormControl>
               <FormMessage />
@@ -280,9 +280,45 @@ export function RegisterForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cittadinanza</FormLabel>
-                <FormControl>
-                  <Input placeholder="Cittadinanza" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona cittadinanza" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Italiana">Italiana</SelectItem>
+                    <SelectItem value="Francese">Francese</SelectItem>
+                    <SelectItem value="Tedesca">Tedesca</SelectItem>
+                    <SelectItem value="Spagnola">Spagnola</SelectItem>
+                    <SelectItem value="Portoghese">Portoghese</SelectItem>
+                    <SelectItem value="Austriaca">Austriaca</SelectItem>
+                    <SelectItem value="Belga">Belga</SelectItem>
+                    <SelectItem value="Olandese">Olandese</SelectItem>
+                    <SelectItem value="Svedese">Svedese</SelectItem>
+                    <SelectItem value="Danese">Danese</SelectItem>
+                    <SelectItem value="Finlandese">Finlandese</SelectItem>
+                    <SelectItem value="Norvegese">Norvegese</SelectItem>
+                    <SelectItem value="Svizzera">Svizzera</SelectItem>
+                    <SelectItem value="Greca">Greca</SelectItem>
+                    <SelectItem value="Polacca">Polacca</SelectItem>
+                    <SelectItem value="Ceca">Ceca</SelectItem>
+                    <SelectItem value="Slovacca">Slovacca</SelectItem>
+                    <SelectItem value="Ungherese">Ungherese</SelectItem>
+                    <SelectItem value="Romena">Romena</SelectItem>
+                    <SelectItem value="Bulgaro">Bulgaro</SelectItem>
+                    <SelectItem value="Croata">Croata</SelectItem>
+                    <SelectItem value="Slovena">Slovena</SelectItem>
+                    <SelectItem value="Lituana">Lituana</SelectItem>
+                    <SelectItem value="Lettone">Lettone</SelectItem>
+                    <SelectItem value="Estoniana">Estoniana</SelectItem>
+                    <SelectItem value="Maltese">Maltese</SelectItem>
+                    <SelectItem value="Cipriota">Cipriota</SelectItem>
+                    <SelectItem value="Lussemburghese">Lussemburghese</SelectItem>
+                    <SelectItem value="Irlandese">Irlandese</SelectItem>
+                    <SelectItem value="Altra">Altra</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -304,8 +340,9 @@ export function RegisterForm({
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="Elettore">Elettore</SelectItem>
+                  <SelectItem value="Politico">Politico</SelectItem>
                   <SelectItem value="Candidato">Candidato</SelectItem>
-                  <SelectItem value="Rappresentante">Rappresentante</SelectItem>
+                  <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -409,18 +446,199 @@ export function RegisterForm({
           </div>
         </div>
 
-        {/* Elezione e Candidatura (condizionali) */}
-        {form.watch("ruolo") === "Elettore" && (
+        {/* Elezione (per Politico e Candidato Politico) */}
+        {(form.watch("ruolo") === "Politico" || form.watch("ruolo") === "Candidato Politico") && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Elezione</h3>
-            {/* Campi elezione simili a residenza */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="paese_elezione"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paese di Elezione</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona paese" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Italia">Italia</SelectItem>
+                        <SelectItem value="Altro">Altro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="regione_elezione"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Regione di Elezione</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniElezione.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona regione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {geographicSelections.regioniElezione.map((regione) => (
+                          <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="provincia_elezione"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Provincia di Elezione</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceElezione.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona provincia" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {geographicSelections.provinceElezione.map((provincia) => (
+                          <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="comune_elezione"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comune di Elezione</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniElezione.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona comune" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {geographicSelections.comuniElezione.map((comune) => (
+                          <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         )}
 
-        {form.watch("ruolo") === "Candidato" && (
+        {/* Candidatura (per Candidato e Candidato Politico) */}
+        {(form.watch("ruolo") === "Candidato" || form.watch("ruolo") === "Candidato Politico") && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Candidatura</h3>
-            {/* Campi candidatura simili a residenza */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="paese_candidatura"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paese di Candidatura</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona paese" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Italia">Italia</SelectItem>
+                        <SelectItem value="Altro">Altro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="regione_candidatura"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Regione di Candidatura</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniCandidatura.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona regione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {geographicSelections.regioniCandidatura.map((regione) => (
+                          <SelectItem key={regione} value={regione}>{regione}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="provincia_candidatura"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Provincia di Candidatura</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceCandidatura.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona provincia" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {geographicSelections.provinceCandidatura.map((provincia) => (
+                          <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="comune_candidatura"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comune di Candidatura</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniCandidatura.length === 0}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona comune" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {geographicSelections.comuniCandidatura.map((comune) => (
+                          <SelectItem key={comune} value={comune}>{comune}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         )}
 
