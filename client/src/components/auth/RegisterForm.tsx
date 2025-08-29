@@ -11,6 +11,7 @@ import { useGeographicSelections } from "./useGeographicSelections";
 import { useBirthDate } from "./useBirthDate";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 import { SelectTest } from "@/components/ui/select-test";
+import { useStableSelect } from "./useStableSelect";
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormValues) => void;
@@ -29,6 +30,11 @@ export function RegisterForm({
 }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Hook stabile per il genere
+  const stableGenere = useStableSelect({
+    onValueChange: (value) => form.setValue("genere", value)
+  });
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -258,28 +264,22 @@ export function RegisterForm({
 
         {/* Genere e Cittadinanza */}
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="genere"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Genere</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                                         <SelectTrigger className="bg-white">
-                       <SelectValue placeholder="Seleziona genere" />
-                     </SelectTrigger>
-                  </FormControl>
-                                  <SelectContent>
-                  <SelectItem value="uomo">Uomo</SelectItem>
-                  <SelectItem value="donna">Donna</SelectItem>
-                  <SelectItem value="altro">Altro</SelectItem>
-                </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    <FormItem>
+            <FormLabel>Genere</FormLabel>
+            <Select onValueChange={stableGenere.handleValueChange} value={stableGenere.value}>
+              <FormControl>
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Seleziona genere" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                <SelectItem value="uomo">Uomo</SelectItem>
+                <SelectItem value="donna">Donna</SelectItem>
+                <SelectItem value="altro">Altro</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
           <FormField
             control={form.control}
             name="cittadinanza"
