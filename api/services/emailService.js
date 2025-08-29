@@ -1,7 +1,18 @@
 const { Resend } = require('resend');
 
-// Inizializzazione Resend
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Inizializzazione Resend con gestione errori
+let resend;
+try {
+  if (process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  } else {
+    console.log('⚠️ RESEND_API_KEY non configurata, servizio email disabilitato');
+    resend = null;
+  }
+} catch (error) {
+  console.log('⚠️ Errore nell\'inizializzazione Resend:', error.message);
+  resend = null;
+}
 
 /**
  * Invia email di reset password
@@ -11,11 +22,11 @@ const sendResetPasswordEmail = async (email, resetToken, resetUrl) => {
     console.log('📧 Tentativo invio email con Resend per:', email);
     
     // Verifica che Resend sia disponibile
-    if (typeof resend === 'undefined') {
-      throw new Error('Resend non è disponibile');
+    if (!resend) {
+      throw new Error('Resend non è configurato (RESEND_API_KEY mancante)');
     }
     
-    if (typeof resend.emails?.send !== 'function') {
+    if (!resend.emails || typeof resend.emails.send !== 'function') {
       throw new Error('resend.emails.send non è una funzione');
     }
     
@@ -131,11 +142,11 @@ const sendVerificationEmail = async (email, verificationToken, verificationUrl) 
     console.log('📧 Tentativo invio email di verifica con Resend per:', email);
     
     // Verifica che Resend sia disponibile
-    if (typeof resend === 'undefined') {
-      throw new Error('Resend non è disponibile');
+    if (!resend) {
+      throw new Error('Resend non è configurato (RESEND_API_KEY mancante)');
     }
     
-    if (typeof resend.emails?.send !== 'function') {
+    if (!resend.emails || typeof resend.emails.send !== 'function') {
       throw new Error('resend.emails.send non è una funzione');
     }
     

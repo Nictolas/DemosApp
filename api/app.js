@@ -31,10 +31,14 @@ app.use(limiter);
 // Importazione delle route modulari
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const rappresentantiRoutes = require('./routes/rappresentanti');
+const opinioniRoutes = require('./routes/opinioni');
 
 // Registrazione delle route
 app.use('/api/auth', authRoutes);
 app.use('/api/utenti', userRoutes);
+app.use('/api/rappresentanti', rappresentantiRoutes);
+app.use('/api/opinioni', opinioniRoutes);
 
 // Route di base e health check
 app.get('/', (req, res) => {
