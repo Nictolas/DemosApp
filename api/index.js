@@ -892,12 +892,9 @@ const sendResetPasswordEmail = async (email, resetToken, resetUrl) => {
       throw new Error('resend.emails.send non è una funzione');
     }
     
-    // Per test, invia sempre al tuo email se non è il tuo
-    const testEmail = email === 'nicolasmicheletti90@gmail.com' ? email : 'nicolasmicheletti90@gmail.com';
-    
     const emailData = {
       from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
-      to: testEmail,
+      to: email,
       subject: 'Reset Password - Demos Community',
       html: `
         <!DOCTYPE html>
@@ -1013,12 +1010,9 @@ const sendVerificationEmail = async (email, verificationToken, verificationUrl) 
       throw new Error('resend.emails.send non è una funzione');
     }
     
-    // Per test, invia sempre al tuo email se non è il tuo
-    const testEmail = email === 'nicolasmicheletti90@gmail.com' ? email : 'nicolasmicheletti90@gmail.com';
-    
     const emailData = {
       from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
-      to: testEmail,
+      to: email,
       subject: 'Conferma la tua email - Demos Community',
       html: `
         <!DOCTYPE html>
@@ -1189,14 +1183,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       if (emailResult.success) {
         console.log('✅ Email di reset inviata con successo tramite Resend per:', email);
         
-        // Messaggio diverso per test vs produzione
-        const message = email === 'nicolasmicheletti90@gmail.com' 
-          ? 'Link di reset inviato alla tua email. Controlla la casella di posta.'
-          : 'Link di reset inviato per test. Controlla la casella di posta di nicolasmicheletti90@gmail.com';
-        
         res.json({
           success: true,
-          message: message
+          message: 'Link di reset inviato alla tua email. Controlla la casella di posta.'
         });
       } else {
         console.log('❌ Fallimento invio email per:', email);
