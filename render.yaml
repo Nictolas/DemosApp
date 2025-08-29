@@ -1,10 +1,11 @@
 services:
-  # Backend API (già esistente)
+  # Backend API (con auto-deploy)
   - type: web
     name: demos-backend
     env: node
     buildCommand: npm install
     startCommand: npm start
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
@@ -19,12 +20,13 @@ services:
     customDomains:
       - name: api.demos.community
 
-  # Frontend (ottimizzato)
+  # Frontend (con auto-deploy)
   - type: web
     name: demos-frontend
     env: static
     buildCommand: cd client && npm ci --only=production && npm run build
     staticPublishPath: client/dist
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
