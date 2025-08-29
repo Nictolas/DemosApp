@@ -214,7 +214,7 @@ export function RegisterForm({
           <FormItem>
             <FormLabel>Giorno</FormLabel>
             <Select value={birthDate.birthDay} onValueChange={birthDate.setBirthDay}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white">
                 <SelectValue placeholder="Giorno" />
               </SelectTrigger>
               <SelectContent>
@@ -227,7 +227,7 @@ export function RegisterForm({
           <FormItem>
             <FormLabel>Mese</FormLabel>
             <Select value={birthDate.birthMonth} onValueChange={birthDate.setBirthMonth}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white">
                 <SelectValue placeholder="Mese" />
               </SelectTrigger>
               <SelectContent>
@@ -240,7 +240,7 @@ export function RegisterForm({
           <FormItem>
             <FormLabel>Anno</FormLabel>
             <Select value={birthDate.birthYear} onValueChange={birthDate.setBirthYear}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white">
                 <SelectValue placeholder="Anno" />
               </SelectTrigger>
               <SelectContent>
@@ -263,9 +263,9 @@ export function RegisterForm({
                 <FormLabel>Genere</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona genere" />
-                    </SelectTrigger>
+                                         <SelectTrigger className="bg-white">
+                       <SelectValue placeholder="Seleziona genere" />
+                     </SelectTrigger>
                   </FormControl>
                                   <SelectContent>
                   <SelectItem value="uomo">Uomo</SelectItem>
@@ -285,9 +285,9 @@ export function RegisterForm({
                 <FormLabel>Cittadinanza</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona cittadinanza" />
-                    </SelectTrigger>
+                                         <SelectTrigger className="bg-white">
+                       <SelectValue placeholder="Seleziona cittadinanza" />
+                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="Italiana">Italiana</SelectItem>
@@ -337,9 +337,9 @@ export function RegisterForm({
               <FormLabel>Ruolo</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona ruolo" />
-                  </SelectTrigger>
+                                       <SelectTrigger className="bg-white">
+                       <SelectValue placeholder="Seleziona ruolo" />
+                     </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="Elettore">Elettore</SelectItem>
@@ -365,7 +365,7 @@ export function RegisterForm({
                   <FormLabel>Paese</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona paese" />
                       </SelectTrigger>
                     </FormControl>
@@ -386,7 +386,7 @@ export function RegisterForm({
                   <FormLabel>Regione</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniResidenza.length === 0}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona regione" />
                       </SelectTrigger>
                     </FormControl>
@@ -410,7 +410,7 @@ export function RegisterForm({
                   <FormLabel>Provincia</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceResidenza.length === 0}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona provincia" />
                       </SelectTrigger>
                     </FormControl>
@@ -432,7 +432,7 @@ export function RegisterForm({
                   <FormLabel>Comune</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniResidenza.length === 0}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white">
                         <SelectValue placeholder="Seleziona comune" />
                       </SelectTrigger>
                     </FormControl>
@@ -462,7 +462,7 @@ export function RegisterForm({
                     <FormLabel>Paese di Elezione</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona paese" />
                         </SelectTrigger>
                       </FormControl>
@@ -483,7 +483,7 @@ export function RegisterForm({
                     <FormLabel>Regione di Elezione</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniElezione.length === 0}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona regione" />
                         </SelectTrigger>
                       </FormControl>
@@ -507,7 +507,7 @@ export function RegisterForm({
                     <FormLabel>Provincia di Elezione</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceElezione.length === 0}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona provincia" />
                         </SelectTrigger>
                       </FormControl>
@@ -529,7 +529,7 @@ export function RegisterForm({
                     <FormLabel>Comune di Elezione</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniElezione.length === 0}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona comune" />
                         </SelectTrigger>
                       </FormControl>
@@ -560,7 +560,7 @@ export function RegisterForm({
                     <FormLabel>Paese di Candidatura</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona paese" />
                         </SelectTrigger>
                       </FormControl>
@@ -581,7 +581,7 @@ export function RegisterForm({
                     <FormLabel>Regione di Candidatura</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniCandidatura.length === 0}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona regione" />
                         </SelectTrigger>
                       </FormControl>
@@ -605,7 +605,7 @@ export function RegisterForm({
                     <FormLabel>Provincia di Candidatura</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceCandidatura.length === 0}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona provincia" />
                         </SelectTrigger>
                       </FormControl>
@@ -625,9 +625,9 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Comune di Candidatura</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniCandidatura.length === 0}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniCandidatura.length === 0}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white">
                           <SelectValue placeholder="Seleziona comune" />
                         </SelectTrigger>
                       </FormControl>
