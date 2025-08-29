@@ -12,6 +12,7 @@ import { useBirthDate } from "./useBirthDate";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 import { SelectTest } from "@/components/ui/select-test";
 import { useStableSelect } from "./useStableSelect";
+import { SelectDebug } from "@/components/ui/select-debug";
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormValues) => void;
@@ -67,6 +68,18 @@ export function RegisterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* DEBUG COMPONENTE SELECT */}
+        <SelectDebug 
+          value={form.watch("genere")}
+          onValueChange={(value) => form.setValue("genere", value)}
+          placeholder="Seleziona genere"
+          options={[
+            { value: "uomo", label: "Uomo" },
+            { value: "donna", label: "Donna" },
+            { value: "altro", label: "Altro" }
+          ]}
+        />
+        
         {/* TEST COMPONENTE SELECT */}
         <SelectTest />
         
