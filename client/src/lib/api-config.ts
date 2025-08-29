@@ -5,7 +5,7 @@ const resolveBaseUrl = (): string => {
   // Controlla se siamo in produzione (Render)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
     console.log('Production detected, using Render API');
-    return 'https://api.demos.community/api';
+    return 'https://demos-c7k0.onrender.com/api';
   }
 
   // Sviluppo locale
