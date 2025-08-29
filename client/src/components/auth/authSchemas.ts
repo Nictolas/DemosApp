@@ -33,6 +33,36 @@ export const registerSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Le password non corrispondono",
   path: ["confirmPassword"],
+}).superRefine((data, ctx) => {
+  // Politico: obbligatori solo i campi elezione
+  if (data.ruolo === "Politico") {
+    if (!data.paese_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di elezione è obbligatorio", path: ["paese_elezione"] });
+    if (!data.regione_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di elezione è obbligatoria", path: ["regione_elezione"] });
+    if (!data.provincia_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di elezione è obbligatoria", path: ["provincia_elezione"] });
+    if (!data.comune_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di elezione è obbligatorio", path: ["comune_elezione"] });
+  }
+  // Candidato: obbligatori solo i campi candidatura
+  if (data.ruolo === "Candidato") {
+    if (!data.paese_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di candidatura è obbligatorio", path: ["paese_candidatura"] });
+    if (!data.regione_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di candidatura è obbligatoria", path: ["regione_candidatura"] });
+    if (!data.provincia_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di candidatura è obbligatoria", path: ["provincia_candidatura"] });
+    if (!data.comune_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di candidatura è obbligatorio", path: ["comune_candidatura"] });
+  }
+  // Candidato Politico: obbligatori entrambi
+  if (data.ruolo === "Candidato Politico") {
+    // Elezione
+    if (!data.paese_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di elezione è obbligatorio", path: ["paese_elezione"] });
+    if (!data.regione_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di elezione è obbligatoria", path: ["regione_elezione"] });
+    if (!data.provincia_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di elezione è obbligatoria", path: ["provincia_elezione"] });
+    if (!data.comune_elezione) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di elezione è obbligatorio", path: ["comune_elezione"] });
+    // Candidatura
+    if (!data.paese_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il paese di candidatura è obbligatorio", path: ["paese_candidatura"] });
+    if (!data.regione_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La regione di candidatura è obbligatoria", path: ["regione_candidatura"] });
+    if (!data.provincia_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La provincia di candidatura è obbligatoria", path: ["provincia_candidatura"] });
+    if (!data.comune_candidatura) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Il comune di candidatura è obbligatorio", path: ["comune_candidatura"] });
+  }
+}, {
+  message: "Compila tutti i campi obbligatori per il tuo ruolo",
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
