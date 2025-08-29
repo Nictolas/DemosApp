@@ -112,13 +112,7 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/registrazione">
-        {(params) => (
-          <PageTransition location={location} type="fade-side">
-            <ProtectedRoute path="/registrazione" component={Home} />
-          </PageTransition>
-        )}
-      </Route>
+
       <Route path="/registrazione-candidatura">
         {() => (
           <PageTransition location={location} type="fade-up">
