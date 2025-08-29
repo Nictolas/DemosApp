@@ -5967,6 +5967,74 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
   }
 });
 
+// ===== ENDPOINT DI TEST RESEND =====
+
+// Endpoint di test per Resend
+app.post('/api/test-resend-email', async (req, res) => {
+  try {
+    console.log('🧪 TEST RESEND - Verifica configurazione...');
+    
+    // Verifica variabili d'ambiente
+    const envCheck = {
+      RESEND_API_KEY: process.env.RESEND_API_KEY ? 'Configurato' : 'Non configurato',
+      EMAIL_FROM: process.env.EMAIL_FROM || 'Non configurato (usa default)',
+      NODE_ENV: process.env.NODE_ENV || 'Non configurato',
+      FRONTEND_URL: process.env.FRONTEND_URL || 'Non configurato (usa default)'
+    };
+    
+    console.log('🔍 TEST RESEND - Variabili ambiente:', envCheck);
+    
+    // Verifica istanza Resend
+    if (!resend) {
+      throw new Error('Istanza Resend non disponibile');
+    }
+    
+    if (!resend.emails || typeof resend.emails.send !== 'function') {
+      throw new Error('Metodo resend.emails.send non disponibile');
+    }
+    
+    // Test invio email semplice
+    const testEmailData = {
+      from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
+      to: 'nicolasmicheletti90@gmail.com', // Email di test
+      subject: 'Test Resend - Demos Community',
+      html: `
+        <h1>Test Resend</h1>
+        <p>Questo è un test per verificare che Resend funzioni correttamente.</p>
+        <p>Timestamp: ${new Date().toISOString()}</p>
+        <p>Variabili ambiente:</p>
+        <ul>
+          <li>RESEND_API_KEY: ${envCheck.RESEND_API_KEY}</li>
+          <li>EMAIL_FROM: ${envCheck.EMAIL_FROM}</li>
+          <li>NODE_ENV: ${envCheck.NODE_ENV}</li>
+        </ul>
+      `
+    };
+    
+    console.log('📧 TEST RESEND - Tentativo invio email di test...');
+    const result = await resend.emails.send(testEmailData);
+    
+    console.log('✅ TEST RESEND - Email di test inviata con successo:', result);
+    
+    res.json({
+      success: true,
+      message: 'Test Resend completato con successo',
+      envCheck,
+      result
+    });
+    
+  } catch (error) {
+    console.error('❌ TEST RESEND - Errore:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Test Resend fallito',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 // ===== ENDPOINTS PER GESTIONE ERRORI =====
 
 // Middleware per gestire errori 404
