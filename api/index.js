@@ -60,39 +60,10 @@ app.use(cors({
   maxAge: 86400 // Cache preflight per 24 ore
 }));
 
-// Gestione richieste preflight OPTIONS - Migliorata
-app.options('*', (req, res) => {
-  const origin = req.headers.origin;
-  console.log('🔄 OPTIONS preflight request from:', origin);
-  
-  // Verifica se l'origin è permesso
-  const allowedOrigins = [
-    'http://localhost:3000', 
-    'http://127.0.0.1:3000', 
-    'https://www.demos.community',
-    'https://demos.community',
-    'https://demos-frontend-r3so.onrender.com',
-    'https://demos-frontend.onrender.com',
-    'https://demos-app.vercel.app',
-    'https://demos-app-git-main-demos-projects.vercel.app',
-    'https://*.vercel.app'
-  ];
-  
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Max-Age', '86400');
-    console.log('✅ OPTIONS preflight allowed for:', origin);
-  } else {
-    console.log('🚫 OPTIONS preflight blocked for:', origin);
-  }
-  
-  res.sendStatus(200);
-});
+// Gestione richieste preflight OPTIONS - Semplificata
+app.options('*', cors());
 
-// Middleware per gestire CORS preflight - Migliorato
+// Middleware per gestire CORS preflight - Semplificato
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
@@ -101,19 +72,19 @@ app.use((req, res, next) => {
     console.log('🔄 OPTIONS request handled by middleware');
   }
   
-      // Imposta sempre gli header CORS per le richieste effettive
-    if (origin) {
-      const allowedOrigins = [
-        'http://localhost:3000', 
-        'http://127.0.0.1:3000', 
-        'https://www.demos.community',
-        'https://demos.community',
-        'https://demos-frontend-r3so.onrender.com',
-        'https://demos-frontend.onrender.com',
-        'https://demos-app.vercel.app',
-        'https://demos-app-git-main-demos-projects.vercel.app',
-        'https://*.vercel.app'
-      ];
+  // Imposta sempre gli header CORS per le richieste effettive
+  if (origin) {
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://127.0.0.1:3000', 
+      'https://www.demos.community',
+      'https://demos.community',
+      'https://demos-frontend-r3so.onrender.com',
+      'https://demos-frontend.onrender.com',
+      'https://demos-app.vercel.app',
+      'https://demos-app-git-main-demos-projects.vercel.app',
+      'https://*.vercel.app'
+    ];
     
     if (allowedOrigins.includes(origin)) {
       res.header('Access-Control-Allow-Origin', origin);
