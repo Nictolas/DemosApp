@@ -642,7 +642,13 @@ export function RegisterForm({
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button 
+          type="submit" 
+          variant="default"
+          size="lg"
+          className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-3 text-base rounded-lg shadow-md transition-all duration-200 hover:shadow-lg" 
+          disabled={isLoading}
+        >
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
