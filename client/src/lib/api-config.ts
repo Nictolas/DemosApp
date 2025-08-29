@@ -2,10 +2,10 @@
 declare const importMetaEnv: Record<string, string | undefined> & { VITE_API_BASE_URL?: string };
 
 const resolveBaseUrl = (): string => {
-  // Controlla se siamo in produzione (Vercel)
+  // Controlla se siamo in produzione (Render)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
     console.log('Production detected, using Render API');
-    return 'https://demos-c7k0.onrender.com/api';
+    return 'https://api.demos.community/api';
   }
 
   // Sviluppo locale
