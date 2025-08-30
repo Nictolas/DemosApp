@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 const nomeSchema = z.object({
   nome: z.string().min(2, "Il nome deve contenere almeno 2 caratteri").max(50, "Il nome è troppo lungo"),
@@ -14,7 +14,7 @@ const nomeSchema = z.object({
 type NomeValues = z.infer<typeof nomeSchema>;
 
 export default function RegistrazioneNome() {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const form = useForm<NomeValues>({
     resolver: zodResolver(nomeSchema),

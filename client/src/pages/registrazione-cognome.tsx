@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 const cognomeSchema = z.object({
   cognome: z.string().min(2, "Il cognome deve contenere almeno 2 caratteri").max(50, "Il cognome è troppo lungo"),
@@ -14,7 +14,7 @@ const cognomeSchema = z.object({
 type CognomeValues = z.infer<typeof cognomeSchema>;
 
 export default function RegistrazioneCognome() {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const form = useForm<CognomeValues>({
     resolver: zodResolver(cognomeSchema),

@@ -1,9 +1,9 @@
 import React from "react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 
 export default function RegistrazioneGenere() {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const handleGenereSelect = (genere: string) => {
     localStorage.setItem("registrazione_genere", genere);
