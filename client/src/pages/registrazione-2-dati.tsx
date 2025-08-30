@@ -56,42 +56,104 @@ export default function RegistrazioneDati() {
 
   const selectedRole = form.watch("ruolo");
 
-  const onSubmit = (data: DatiValues) => {
-    // Salva i dati nel localStorage
-    localStorage.setItem("registrazione_ruolo", data.ruolo);
-    if (data.grado_elezione) {
-      localStorage.setItem("registrazione_grado_elezione", data.grado_elezione);
+  const onSubmit = async (data: DatiValues) => {
+    try {
+      console.log('🚀 REGISTRAZIONE - Invio dati completi al server...');
+      
+      // Raccogli tutti i dati dal localStorage
+      const email = localStorage.getItem("registrazione_email");
+      const password = localStorage.getItem("registrazione_password");
+      const nome = localStorage.getItem("registrazione_nome");
+      const cognome = localStorage.getItem("registrazione_cognome");
+      const genere = localStorage.getItem("registrazione_genere");
+      const data_nascita = localStorage.getItem("registrazione_data_nascita");
+      const cittadinanza = localStorage.getItem("registrazione_cittadinanza");
+      const paese_residenza = localStorage.getItem("registrazione_paese_residenza");
+      const regione_residenza = localStorage.getItem("registrazione_regione_residenza");
+      const provincia_residenza = localStorage.getItem("registrazione_provincia_residenza");
+      const comune_residenza = localStorage.getItem("registrazione_comune_residenza");
+      const codice_fiscale = localStorage.getItem("registrazione_codice_fiscale");
+
+      if (!email || !password || !nome || !cognome) {
+        console.error('❌ Dati mancanti per la registrazione:', { email: !!email, password: !!password, nome: !!nome, cognome: !!cognome });
+        alert('Dati mancanti per la registrazione. Torna alla prima pagina.');
+        return;
+      }
+
+      // Prepara i dati per l'API
+      const userData = {
+        email,
+        password,
+        nome,
+        cognome,
+        genere,
+        data_nascita,
+        cittadinanza,
+        paese_residenza,
+        regione_residenza,
+        provincia_residenza,
+        comune_residenza,
+        codice_fiscale,
+        ruolo: data.ruolo,
+        grado_elezione: data.grado_elezione,
+        paese_elezione: data.paese_elezione,
+        regione_elezione: data.regione_elezione,
+        provincia_elezione: data.provincia_elezione,
+        comune_elezione: data.comune_elezione,
+        grado_candidatura: data.grado_candidatura,
+        paese_candidatura: data.paese_candidatura,
+        regione_candidatura: data.regione_candidatura,
+        provincia_candidatura: data.provincia_candidatura,
+        comune_candidatura: data.comune_candidatura
+      };
+
+      console.log('📤 Invio dati al server:', userData);
+
+      // Chiama l'endpoint di registrazione
+      const response = await fetch('https://demos-c7k0.onrender.com/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Registrazione completata:', result);
+
+      // Salva il token nel localStorage
+      if (result.token) {
+        localStorage.setItem('auth_token', result.token);
+        localStorage.setItem('user_id', result.user.id);
+        console.log('🎫 Token salvato, utente autenticato');
+      }
+
+      // Pulisci i dati temporanei
+      const keysToRemove = [
+        'registrazione_email', 'registrazione_password', 'registrazione_nome', 'registrazione_cognome',
+        'registrazione_genere', 'registrazione_data_nascita', 'registrazione_cittadinanza',
+        'registrazione_paese_residenza', 'registrazione_regione_residenza', 'registrazione_provincia_residenza',
+        'registrazione_comune_residenza', 'registrazione_codice_fiscale', 'registrazione_ruolo',
+        'registrazione_grado_elezione', 'registrazione_paese_elezione', 'registrazione_regione_elezione',
+        'registrazione_provincia_elezione', 'registrazione_comune_elezione', 'registrazione_grado_candidatura',
+        'registrazione_paese_candidatura', 'registrazione_regione_candidatura', 'registrazione_provincia_candidatura',
+        'registrazione_comune_candidatura'
+      ];
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Vai al menu principale
+      navigate("/menu");
+
+    } catch (error) {
+      console.error('💥 Errore durante la registrazione:', error);
+      alert(`Errore durante la registrazione: ${error.message}`);
     }
-    if (data.paese_elezione) {
-      localStorage.setItem("registrazione_paese_elezione", data.paese_elezione);
-    }
-    if (data.regione_elezione) {
-      localStorage.setItem("registrazione_regione_elezione", data.regione_elezione);
-    }
-    if (data.provincia_elezione) {
-      localStorage.setItem("registrazione_provincia_elezione", data.provincia_elezione);
-    }
-    if (data.comune_elezione) {
-      localStorage.setItem("registrazione_comune_elezione", data.comune_elezione);
-    }
-    if (data.grado_candidatura) {
-      localStorage.setItem("registrazione_grado_candidatura", data.grado_candidatura);
-    }
-    if (data.paese_candidatura) {
-      localStorage.setItem("registrazione_paese_candidatura", data.paese_candidatura);
-    }
-    if (data.regione_candidatura) {
-      localStorage.setItem("registrazione_regione_candidatura", data.regione_candidatura);
-    }
-    if (data.provincia_candidatura) {
-      localStorage.setItem("registrazione_provincia_candidatura", data.provincia_candidatura);
-    }
-    if (data.comune_candidatura) {
-      localStorage.setItem("registrazione_comune_candidatura", data.comune_candidatura);
-    }
-    
-    // Vai alla pagina successiva
-    navigate("/menu");
   };
 
   return (
