@@ -65,6 +65,8 @@ export default function AuthPage() {
   // Gestione del submit per la registrazione
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
+      console.log('🔍 Controllo email duplicata per:', data.email);
+      
       // Controlla se l'email esiste già nel database
       const response = await fetch('/api/check-email', {
         method: 'POST',
@@ -74,13 +76,17 @@ export default function AuthPage() {
         body: JSON.stringify({ email: data.email }),
       });
       
+      console.log('📡 Risposta API:', response.status, response.statusText);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const result = await response.json();
+      console.log('📊 Risultato API:', result);
       
       if (result.exists) {
+        console.log('❌ Email già registrata, blocco registrazione');
         toast({
           title: "Email già registrata",
           description: "Questa email è già presente nel sistema. Usa un'altra email o accedi se hai già un account.",
@@ -88,6 +94,8 @@ export default function AuthPage() {
         });
         return;
       }
+      
+      console.log('✅ Email non duplicata, procedo con registrazione');
       
       // Se l'email non esiste, procedi con la registrazione
       localStorage.setItem("registrazione_email", data.email);
@@ -97,7 +105,7 @@ export default function AuthPage() {
       window.location.href = "/registrazione-codice-fiscale";
       
     } catch (error) {
-      console.error('Errore durante la verifica email:', error);
+      console.error('💥 Errore durante la verifica email:', error);
       
       // Fallback: procedi comunque con la registrazione se l'API non funziona
       toast({
