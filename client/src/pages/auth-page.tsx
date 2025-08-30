@@ -68,8 +68,8 @@ export default function AuthPage() {
     localStorage.setItem("registrazione_email", data.email);
     localStorage.setItem("registrazione_password", data.password);
     
-    // Vai direttamente alla prima pagina di registrazione (nome)
-    window.location.href = "/registrazione-nome";
+          // Vai direttamente alla prima pagina di registrazione (codice fiscale)
+      window.location.href = "/registrazione-codice-fiscale";
   };
 
 

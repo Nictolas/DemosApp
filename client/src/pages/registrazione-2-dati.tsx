@@ -8,6 +8,8 @@ import { useLocation } from "wouter";
 
 const datiSchema = z.object({
   ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
+  luogo_elezione: z.string().optional(),
+  luogo_candidatura: z.string().optional(),
 });
 
 type DatiValues = z.infer<typeof datiSchema>;
@@ -25,6 +27,12 @@ export default function RegistrazioneDati() {
   const onSubmit = (data: DatiValues) => {
     // Salva i dati nel localStorage
     localStorage.setItem("registrazione_ruolo", data.ruolo);
+    if (data.luogo_elezione) {
+      localStorage.setItem("registrazione_luogo_elezione", data.luogo_elezione);
+    }
+    if (data.luogo_candidatura) {
+      localStorage.setItem("registrazione_luogo_candidatura", data.luogo_candidatura);
+    }
     
     // Vai alla pagina successiva
     navigate("/menu");
@@ -69,9 +77,160 @@ export default function RegistrazioneDati() {
                   <FormMessage />
                 </FormItem>
               )}
-            />
+                          />
 
-            <Button type="submit" className="w-full h-12 text-lg">
+              {/* Campi dinamici per Luogo di Elezione e Candidatura */}
+              {form.watch("ruolo") === "elettore" && (
+                <FormField
+                  control={form.control}
+                  name="luogo_elezione"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Luogo di Elezione *</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full h-12 text-lg text-center border rounded-md"
+                        >
+                          <option value="">Seleziona luogo di elezione</option>
+                          <option value="nazionale">Nazionale</option>
+                          <option value="regionale">Regionale</option>
+                          <option value="provinciale">Provinciale</option>
+                          <option value="comunale">Comunale</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {form.watch("ruolo") === "candidato" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="luogo_elezione"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Luogo di Elezione *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full h-12 text-lg text-center border rounded-md"
+                          >
+                            <option value="">Seleziona luogo di elezione</option>
+                            <option value="nazionale">Nazionale</option>
+                            <option value="regionale">Regionale</option>
+                            <option value="provinciale">Provinciale</option>
+                            <option value="comunale">Comunale</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="luogo_candidatura"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Luogo di Candidatura *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full h-12 text-lg text-center border rounded-md"
+                          >
+                            <option value="">Seleziona luogo di candidatura</option>
+                            <option value="nazionale">Nazionale</option>
+                            <option value="regionale">Regionale</option>
+                            <option value="provinciale">Provinciale</option>
+                            <option value="comunale">Comunale</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {form.watch("ruolo") === "candidato_politico" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="luogo_elezione"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Luogo di Elezione *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full h-12 text-lg text-center border rounded-md"
+                          >
+                            <option value="">Seleziona luogo di elezione</option>
+                            <option value="nazionale">Nazionale</option>
+                            <option value="regionale">Regionale</option>
+                            <option value="provinciale">Provinciale</option>
+                            <option value="comunale">Comunale</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="luogo_candidatura"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Luogo di Candidatura *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full h-12 text-lg text-center border rounded-md"
+                          >
+                            <option value="">Seleziona luogo di candidatura</option>
+                            <option value="nazionale">Nazionale</option>
+                            <option value="regionale">Regionale</option>
+                            <option value="provinciale">Provinciale</option>
+                            <option value="comunale">Comunale</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              {form.watch("ruolo") === "politico" && (
+                <FormField
+                  control={form.control}
+                  name="luogo_elezione"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Luogo di Elezione *</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full h-12 text-lg text-center border rounded-md"
+                        >
+                          <option value="">Seleziona luogo di elezione</option>
+                          <option value="nazionale">Nazionale</option>
+                          <option value="regionale">Regionale</option>
+                          <option value="provinciale">Provinciale</option>
+                          <option value="comunale">Comunale</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <Button type="submit" className="w-full h-12 text-lg">
               Continua
             </Button>
           </form>
