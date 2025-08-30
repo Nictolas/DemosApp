@@ -16,6 +16,7 @@ import { SelectDebug } from "@/components/ui/select-debug";
 import { SelectUltraDebug } from "@/components/ui/select-ultra-debug";
 import { SelectIsolated } from "@/components/ui/select-isolated";
 import { SelectMobileTest } from "@/components/ui/select-mobile-test";
+import { FormTestIsolated } from "@/components/ui/form-test-isolated";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -774,6 +775,12 @@ export function RegisterForm({
             </Button>
           </div>
         )}
+        
+        {/* FORM TEST ISOLATO */}
+        <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+          <h3 className="text-lg font-semibold mb-4 text-center">🧪 TEST FORM ISOLATO</h3>
+          <FormTestIsolated />
+        </div>
       </form>
     </Form>
   );
