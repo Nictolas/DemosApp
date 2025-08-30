@@ -33,7 +33,7 @@ export default function RegistrazioneCognome() {
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Registrazione</h1>
-          <p className="text-gray-600 mt-2">Passo 4 di 8 - Il tuo cognome</p>
+          
         </div>
 
         <div className="text-center mb-8">

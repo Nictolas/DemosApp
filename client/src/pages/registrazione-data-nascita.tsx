@@ -8,7 +8,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useLocation } from "wouter";
 
 const dataNascitaSchema = z.object({
-  data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
+  giorno: z.string().min(1, "Il giorno è obbligatorio"),
+  mese: z.string().min(1, "Il mese è obbligatorio"),
+  anno: z.string().min(1, "L'anno è obbligatorio"),
 });
 
 type DataNascitaValues = z.infer<typeof dataNascitaSchema>;
@@ -19,26 +21,29 @@ export default function RegistrazioneDataNascita() {
   const form = useForm<DataNascitaValues>({
     resolver: zodResolver(dataNascitaSchema),
     defaultValues: {
-      data_nascita: "",
+      giorno: "",
+      mese: "",
+      anno: "",
     },
   });
 
   const onSubmit = (data: DataNascitaValues) => {
-    localStorage.setItem("registrazione_data_nascita", data.data_nascita);
+    const dataCompleta = `${data.giorno}/${data.mese}/${data.anno}`;
+    localStorage.setItem("registrazione_data_nascita", dataCompleta);
     navigate("/registrazione-codice-fiscale");
   };
 
-  // Calcola l'età minima (18 anni fa)
+  // Calcola l'anno minimo (18 anni fa) e massimo (14 anni fa)
   const today = new Date();
-  const minDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-  const maxDate = new Date(today.getFullYear() - 14, today.getMonth(), today.getDate());
+  const minYear = today.getFullYear() - 18;
+  const maxYear = today.getFullYear() - 14;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Registrazione</h1>
-          <p className="text-gray-600 mt-2">Passo 5 di 8 - Data di nascita</p>
+          
         </div>
 
         <div className="text-center mb-8">
@@ -52,28 +57,82 @@ export default function RegistrazioneDataNascita() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="data_nascita"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-lg font-medium">Data di Nascita *</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="date"
-                      min={minDate.toISOString().split('T')[0]}
-                      max={maxDate.toISOString().split('T')[0]}
-                      className="w-full h-12 text-lg text-center"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Deve essere tra i 14 e i 18 anni
-                  </p>
-                </FormItem>
-              )}
-            />
+                         <div className="grid grid-cols-3 gap-4">
+               <FormField
+                 control={form.control}
+                 name="giorno"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel className="text-lg font-medium">Giorno *</FormLabel>
+                     <FormControl>
+                       <select
+                         {...field}
+                         className="w-full h-12 text-lg text-center border rounded-md"
+                       >
+                         <option value="">Giorno</option>
+                         {Array.from({ length: 31 }, (_, i) => i + 1).map((giorno) => (
+                           <option key={giorno} value={giorno.toString().padStart(2, '0')}>
+                             {giorno.toString().padStart(2, '0')}
+                           </option>
+                         ))}
+                       </select>
+                     </FormControl>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
+
+               <FormField
+                 control={form.control}
+                 name="mese"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel className="text-lg font-medium">Mese *</FormLabel>
+                     <FormControl>
+                       <select
+                         {...field}
+                         className="w-full h-12 text-lg text-center border rounded-md"
+                       >
+                         <option value="">Mese</option>
+                         {Array.from({ length: 12 }, (_, i) => i + 1).map((mese) => (
+                           <option key={mese} value={mese.toString().padStart(2, '0')}>
+                             {mese.toString().padStart(2, '0')}
+                           </option>
+                         ))}
+                       </select>
+                     </FormControl>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
+
+               <FormField
+                 control={form.control}
+                 name="anno"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel className="text-lg font-medium">Anno *</FormLabel>
+                     <FormControl>
+                       <select
+                         {...field}
+                         className="w-full h-12 text-lg text-center border rounded-md"
+                       >
+                         <option value="">Anno</option>
+                         {Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i).map((anno) => (
+                           <option key={anno} value={anno.toString()}>
+                             {anno}
+                           </option>
+                         ))}
+                       </select>
+                     </FormControl>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
+             </div>
+             <p className="text-xs text-gray-500 text-center">
+               Deve essere tra i 14 e i 18 anni
+             </p>
 
             <Button type="submit" className="w-full h-12 text-lg">
               Continua
