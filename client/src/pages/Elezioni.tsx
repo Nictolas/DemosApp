@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageTransition } from "@/components/PageTransition";
-import { CustomAvatar } from "@/components/CustomAvatar";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
 // === AGGIUNTO ===
