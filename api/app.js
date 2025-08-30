@@ -247,7 +247,7 @@ app.post('/api/register', async (req, res) => {
 
     // Importa la configurazione del database
     const { Pool } = require('pg');
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     
     if (!process.env.DATABASE_URL) {
       console.error('❌ DATABASE_URL mancante!');
