@@ -77,6 +77,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import React, { useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import DatabaseTest from "@/components/DatabaseTest";
+import { useGlobalRecovery } from "@/hooks/useGlobalRecovery";
 
 function Router() {
   const [location] = useLocation();
@@ -656,13 +657,45 @@ function App() {
     };
   }, []);
   const [location] = useLocation();
+  // 🛡️ SISTEMA DI RECOVERY GLOBALE A LIVELLO APP
+  const globalRecovery = useGlobalRecovery();
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RegistrationProvider>
-          <Router />
-          {location !== '/' && !location.startsWith('/reset-password') && !location.startsWith('/auth') && <Navbar />}
-          <Toaster />
+          <div className="App">
+            {/* 🛡️ OVERLAY DI RECOVERY GLOBALE - SEMPRE VISIBILE */}
+            {globalRecovery.recoveryCount > 0 && (
+              <div className="fixed top-0 left-0 right-0 z-[99999] bg-blue-600 text-white p-2 text-center text-sm font-medium">
+                🛡️ Recovery automatico attivato {globalRecovery.recoveryCount} volte
+              </div>
+            )}
+
+            {/* 🚨 PULSANTE DI RECOVERY GLOBALE - SEMPRE VISIBILE */}
+            <div className="fixed top-4 right-4 z-[99999]">
+              <button
+                onClick={globalRecovery.forceGlobalRerender}
+                className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-red-700"
+              >
+                🚨 RECUPERA APP
+              </button>
+            </div>
+
+            {/* 🚨 PULSANTE DI RECOVERY ALTERNATIVO - SEMPRE VISIBILE */}
+            <div className="fixed bottom-4 left-4 z-[99999]">
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-orange-700"
+              >
+                🔄 RICARICA PAGINA
+              </button>
+            </div>
+
+            <Router />
+            {location !== '/' && !location.startsWith('/reset-password') && !location.startsWith('/auth') && <Navbar />}
+            <Toaster />
+          </div>
         </RegistrationProvider>
       </AuthProvider>
     </QueryClientProvider>
