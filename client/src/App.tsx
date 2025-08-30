@@ -728,7 +728,7 @@ function App() {
             {/* 🚨 PULSANTE DI RECOVERY GLOBALE - SEMPRE VISIBILE */}
             <div className="fixed top-4 right-4 z-[99999]">
               <button
-                onClick={globalRecovery.forceGlobalRerender}
+                onClick={globalRecovery.forcePageRestore}
                 className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-red-700"
               >
                 🚨 RECUPERA APP
@@ -742,6 +742,16 @@ function App() {
                 className="bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-orange-700"
               >
                 🔄 RICARICA PAGINA
+              </button>
+            </div>
+
+            {/* 🚨 PULSANTE DI EMERGENZA - SEMPRE VISIBILE */}
+            <div className="fixed top-4 left-4 z-[99999]">
+              <button
+                onClick={globalRecovery.forceGlobalRerender}
+                className="bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-purple-700"
+              >
+                ⚡ FORZA RENDER
               </button>
             </div>
 
