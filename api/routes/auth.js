@@ -65,7 +65,7 @@ router.post('/login', validateInput(['email', 'password']), validateEmail, async
     
     // Cerca l'utente nel database
     const userQuery = `
-      SELECT id, nome, cognome, email, password_hash, ruolo, status, email_verified, 
+      SELECT id, nome, cognome, email, password_hash, ruolo, status, 
              avatar_config, created_at, updated_at
       FROM users 
       WHERE email = $1
@@ -127,7 +127,6 @@ router.post('/login', validateInput(['email', 'password']), validateEmail, async
         email: user.email,
         ruolo: user.ruolo,
         status: user.status,
-        email_verified: user.email_verified,
         avatar_config: user.avatar_config,
         created_at: user.created_at
       }
