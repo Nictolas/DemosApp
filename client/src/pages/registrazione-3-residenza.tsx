@@ -41,7 +41,7 @@ export default function RegistrazioneResidenza() {
     localStorage.setItem("registrazione_comune_residenza", data.comune_residenza);
     
     // Vai alla pagina successiva
-    navigate("/registrazione-4-ruolo");
+    navigate("/registrazione-2-dati");
   };
 
   // Reset dei campi dipendenti
@@ -196,15 +196,15 @@ export default function RegistrazioneResidenza() {
           </form>
         </Form>
 
-        <div className="text-center mt-6 space-y-2">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/registrazione-2-dati")}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ← Indietro
-          </Button>
-        </div>
+                 <div className="text-center mt-6 space-y-2">
+           <Button
+             variant="ghost"
+             onClick={() => navigate("/registrazione-data-nascita")}
+             className="text-gray-500 hover:text-gray-700"
+           >
+             ← Indietro
+           </Button>
+         </div>
       </div>
     </div>
   );

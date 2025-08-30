@@ -27,7 +27,7 @@ export default function RegistrazioneDati() {
     localStorage.setItem("registrazione_ruolo", data.ruolo);
     
     // Vai alla pagina successiva
-    navigate("/registrazione-3-residenza");
+    navigate("/menu");
   };
 
   return (
@@ -59,10 +59,11 @@ export default function RegistrazioneDati() {
                       {...field}
                       className="w-full h-12 text-lg text-center border rounded-md"
                     >
-                      <option value="">Seleziona ruolo</option>
-                      <option value="elettore">Elettore</option>
-                      <option value="candidato">Candidato</option>
-                      <option value="rappresentante">Rappresentante</option>
+                                             <option value="">Seleziona ruolo</option>
+                       <option value="elettore">Elettore</option>
+                       <option value="politico">Politico</option>
+                       <option value="candidato">Candidato</option>
+                       <option value="candidato_politico">Candidato Politico</option>
                     </select>
                   </FormControl>
                   <FormMessage />
@@ -76,15 +77,15 @@ export default function RegistrazioneDati() {
           </form>
         </Form>
 
-        <div className="text-center mt-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/registrazione-codice-fiscale")}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ← Indietro
-          </Button>
-        </div>
+                 <div className="text-center mt-6">
+           <Button
+             variant="ghost"
+             onClick={() => navigate("/registrazione-3-residenza")}
+             className="text-gray-500 hover:text-gray-700"
+           >
+             ← Indietro
+           </Button>
+         </div>
       </div>
     </div>
   );
