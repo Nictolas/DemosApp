@@ -113,13 +113,13 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                         <SelectValue placeholder="Seleziona regione" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      {ITALY_DATA.regioni.map((regione) => (
-                        <SelectItem key={regione.nome} value={regione.nome}>
-                          {regione.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                                           <SelectContent>
+                         {ITALY_DATA.Italia.regioni.map((regione) => (
+                           <SelectItem key={regione.nome} value={regione.nome}>
+                             {regione.nome}
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
@@ -140,13 +140,13 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {ITALY_DATA.regioni
-                          .find((r) => r.nome === watchRegioneResidenza)
-                          ?.province.map((provincia) => (
-                            <SelectItem key={provincia.nome} value={provincia.nome}>
-                              {provincia.nome}
-                            </SelectItem>
-                          )) || []}
+                                                 {ITALY_DATA.Italia.regioni
+                           .find((r) => r.nome === watchRegioneResidenza)
+                           ?.province.map((provincia) => (
+                             <SelectItem key={provincia.nome} value={provincia.nome}>
+                               {provincia.nome}
+                             </SelectItem>
+                           )) || []}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -169,14 +169,14 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {ITALY_DATA.regioni
-                          .find((r) => r.nome === watchRegioneResidenza)
-                          ?.province.find((p) => p.nome === watchProvinciaResidenza)
-                          ?.comuni.map((comune) => (
-                            <SelectItem key={comune.nome} value={comune.nome}>
-                              {comune.nome}
-                            </SelectItem>
-                          )) || []}
+                                                 {ITALY_DATA.Italia.regioni
+                           .find((r) => r.nome === watchRegioneResidenza)
+                           ?.province.find((p) => p.nome === watchProvinciaResidenza)
+                           ?.comuni.map((comune) => (
+                             <SelectItem key={comune.nome} value={comune.nome}>
+                               {comune.nome}
+                             </SelectItem>
+                           )) || []}
                       </SelectContent>
                     </Select>
                     <FormMessage />
