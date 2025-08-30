@@ -18,6 +18,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Email is required' });
     }
 
+    console.log('🔍 Controllo email nel database:', email);
+
     // Controlla se l'email esiste nella tabella users
     const result = await pool.query(
       'SELECT id FROM users WHERE email = $1',
@@ -25,11 +27,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
 
     const exists = result.rows.length > 0;
+    console.log('📊 Email trovata nel database:', exists, 'Righe:', result.rows.length);
 
     res.status(200).json({ exists });
 
   } catch (error) {
-    console.error('Error checking email:', error);
+    console.error('💥 Errore durante il controllo email:', error);
     res.status(500).json({ message: 'Internal server error' });
   } finally {
     await pool.end();
