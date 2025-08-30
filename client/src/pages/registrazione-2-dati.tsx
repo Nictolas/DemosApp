@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 
 const datiSchema = z.object({
@@ -20,7 +20,7 @@ const datiSchema = z.object({
 type DatiValues = z.infer<typeof datiSchema>;
 
 export default function RegistrazioneDati() {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const form = useForm<DatiValues>({
     resolver: zodResolver(datiSchema),

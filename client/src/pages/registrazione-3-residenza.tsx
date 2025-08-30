@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
 
 const residenzaSchema = z.object({
@@ -17,7 +17,7 @@ const residenzaSchema = z.object({
 type ResidenzaValues = z.infer<typeof residenzaSchema>;
 
 export default function RegistrazioneResidenza() {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const form = useForm<ResidenzaValues>({
     resolver: zodResolver(residenzaSchema),
