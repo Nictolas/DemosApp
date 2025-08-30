@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,7 @@ import { registerSchema, RegisterFormValues } from "./authSchemas";
 import { useGeographicSelections } from "./useGeographicSelections";
 import { useBirthDate } from "./useBirthDate";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
-
-
+import { useSelectVisibilityMonitor } from "./useSelectVisibilityMonitor";
 
 
 interface RegisterFormProps {
@@ -32,7 +31,8 @@ export function RegisterForm({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-
+  // 🚨 SISTEMA DI MONITORAGGIO SELECT
+  const visibilityMonitor = useSelectVisibilityMonitor();
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -67,9 +67,48 @@ export function RegisterForm({
   const geographicSelections = useGeographicSelections(form.watch);
   const birthDate = useBirthDate(form.setValue);
 
+  // 🚨 RECOVERY AUTOMATICO QUANDO I COMPONENTI SVANISCONO
+  useEffect(() => {
+    if (!visibilityMonitor.isVisible) {
+      console.log('🚨 COMPONENTI NON VISIBILI - ATTIVO RECOVERY AUTOMATICO');
+      visibilityMonitor.forceVisibilityRestore();
+    }
+  }, [visibilityMonitor.isVisible]);
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        
+        {/* 🚨 PULSANTI DI RECOVERY SPECIFICI PER SELECT */}
+        {!visibilityMonitor.isVisible && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+            <p className="text-red-800 text-sm font-medium mb-2">
+              🚨 COMPONENTI NON VISIBILI RILEVATI
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={visibilityMonitor.forceVisibilityRestore}
+                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+              >
+                🔄 RIPRISTINA VISIBILITÀ
+              </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+              >
+                🔄 RICARICA PAGINA
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 🚨 DEBUG INFO */}
+        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+          <p>🔍 Stato visibilità: {visibilityMonitor.isVisible ? 'VISIBILE' : 'NON VISIBILE'}</p>
+          <p>📝 Ultimo cambiamento: {visibilityMonitor.lastChange || 'Nessuno'}</p>
+        </div>
 
         
         {/* Informazioni base */}
