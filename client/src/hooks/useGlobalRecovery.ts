@@ -7,6 +7,43 @@ export function useGlobalRecovery() {
   const recoveryTimeoutRef = useRef<NodeJS.Timeout>()
   const checkIntervalRef = useRef<NodeJS.Timeout>()
   const lastKnownStateRef = useRef<any>(null)
+  const componentBackupRef = useRef<any>(null)
+  
+  // 🛡️ SISTEMA DI RECOVERY PREVENTIVO
+  const preventCorruption = () => {
+    try {
+      // 1. Salva backup dei componenti critici
+      const criticalElements = document.querySelectorAll('form, input, select, textarea, button')
+      componentBackupRef.current = Array.from(criticalElements).map(el => ({
+        tagName: el.tagName,
+        className: el.className,
+        id: el.id,
+        name: (el as any).name,
+        value: (el as any).value,
+        type: (el as any).type,
+        placeholder: (el as any).placeholder,
+        innerHTML: el.innerHTML
+      }))
+      
+      // 2. Forza re-render preventivo ogni 5 secondi
+      setInterval(() => {
+        try {
+          // Verifica integrità componenti
+          const currentElements = document.querySelectorAll('form, input, select, textarea, button')
+          if (currentElements.length < 5) { // Troppo pochi elementi = corruzione
+            console.log('⚠️ PREVENZIONE CORRUZIONE - Forzo re-render')
+            window.dispatchEvent(new Event('force-rerender'))
+          }
+        } catch (error) {
+          console.error('❌ Errore prevenzione:', error)
+        }
+      }, 5000)
+      
+      console.log('🛡️ Sistema di prevenzione corruzione attivato')
+    } catch (error) {
+      console.error('❌ Errore nell\'attivare prevenzione:', error)
+    }
+  }
   
   const forceGlobalRerender = () => {
     console.log('🔄 FORCE GLOBAL RERENDER ATTIVATO')
@@ -142,6 +179,35 @@ export function useGlobalRecovery() {
     }
   }
   
+  // 🚨 RECOVERY ULTRA-AGGRESSIVO
+  const forcePageRestore = () => {
+    console.log('🚨 RECOVERY ULTRA-AGGRESSIVO ATTIVATO')
+    
+    try {
+      // 1. Ripristina componenti dal backup se disponibile
+      if (componentBackupRef.current) {
+        console.log('🔄 Ripristino componenti dal backup')
+        // Forza re-render globale
+        window.dispatchEvent(new Event('force-rerender'))
+        
+        // Se non funziona entro 3 secondi, ricarica
+        setTimeout(() => {
+          if (!checkPageIntegrity()) {
+            console.log('🔄 Recovery fallito, ricarico pagina')
+            window.location.reload()
+          }
+        }, 3000)
+      } else {
+        // 2. Se non c'è backup, ricarica direttamente
+        console.log('🔄 Nessun backup disponibile, ricarico pagina')
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('❌ Errore nel recovery ultra-aggressivo:', error)
+      window.location.reload()
+    }
+  }
+  
   useEffect(() => {
     // Solo su mobile
     if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
@@ -149,6 +215,9 @@ export function useGlobalRecovery() {
     }
     
     console.log('🛡️ SISTEMA DI RECOVERY GLOBALE ATTIVATO')
+    
+    // 🛡️ ATTIVA PREVENZIONE CORRUZIONE
+    preventCorruption()
     
     // 1. Monitora eventi che potrebbero corrompere la pagina
     const events = [
@@ -283,6 +352,7 @@ export function useGlobalRecovery() {
     isRecovering,
     forceGlobalRerender,
     recoverPage,
-    checkPageIntegrity
+    checkPageIntegrity,
+    forcePageRestore // 🚨 NUOVO METODO ULTRA-AGGRESSIVO
   }
 }
