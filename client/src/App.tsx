@@ -22,6 +22,14 @@ import ScegliCandidato from "@/pages/ScegliCandidato";
 import StatisticheUtenti from "@/pages/StatisticheUtenti";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
+import RegistrazioneEmail from "@/pages/registrazione-1-email";
+import RegistrazioneNome from "@/pages/registrazione-nome";
+import RegistrazioneGenere from "@/pages/registrazione-genere";
+import RegistrazioneCittadinanza from "@/pages/registrazione-cittadinanza";
+import RegistrazioneCognome from "@/pages/registrazione-cognome";
+import RegistrazioneDataNascita from "@/pages/registrazione-data-nascita";
+import RegistrazioneDati from "@/pages/registrazione-2-dati";
+import RegistrazioneResidenza from "@/pages/registrazione-3-residenza";
 
 import Strumenti from "@/pages/Comunica";
 import PodioTrasparenza from "@/pages/PodioTrasparenza";
@@ -124,6 +132,64 @@ function Router() {
         {() => (
           <PageTransition location={location} type="fade-up">
             <RegistrazioneElezione />
+          </PageTransition>
+        )}
+      </Route>
+
+      {/* NUOVE PAGINE DI REGISTRAZIONE - UNA PER OGNI DOMANDA */}
+      <Route path="/registrazione-1-email">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneEmail />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/registrazione-nome">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneNome />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/registrazione-genere">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneGenere />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/registrazione-cittadinanza">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneCittadinanza />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/registrazione-cognome">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneCognome />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/registrazione-data-nascita">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneDataNascita />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/registrazione-2-dati">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneDati />
+          </PageTransition>
+        )}
+      </Route>
+      <Route path="/registrazione-3-residenza">
+        {() => (
+          <PageTransition location={location} type="fade-up">
+            <RegistrazioneResidenza />
           </PageTransition>
         )}
       </Route>

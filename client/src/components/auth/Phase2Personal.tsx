@@ -130,18 +130,17 @@ export function Phase2Personal({ onNext, onBack, defaultValues }: Phase2Personal
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Genere *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona genere" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="uomo">Uomo</SelectItem>
-                    <SelectItem value="donna">Donna</SelectItem>
-                    <SelectItem value="altro">Altro</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <select
+                    {...field}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Seleziona genere</option>
+                    <option value="uomo">Uomo</option>
+                    <option value="donna">Donna</option>
+                    <option value="altro">Altro</option>
+                  </select>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -153,18 +152,17 @@ export function Phase2Personal({ onNext, onBack, defaultValues }: Phase2Personal
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cittadinanza *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleziona cittadinanza" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="italiana">Italiana</SelectItem>
-                    <SelectItem value="europea">Europea</SelectItem>
-                    <SelectItem value="extra-ue">Extra-UE</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <select
+                    {...field}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Seleziona cittadinanza</option>
+                    <option value="italiana">Italiana</option>
+                    <option value="europea">Europea</option>
+                    <option value="extra-ue">Extra-UE</option>
+                  </select>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

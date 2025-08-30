@@ -330,15 +330,18 @@ export default function AuthPage() {
                     )}
                   />
                   
-                  <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
-                    {registerMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Inizializzazione...
-                      </>
-                    ) : (
-                      "Inizia Registrazione"
-                    )}
+                  <Button 
+                    type="button" 
+                    className="w-full" 
+                    onClick={() => {
+                      // Salva i dati nel localStorage
+                      localStorage.setItem("registrazione_email", registerForm.getValues("email"));
+                      localStorage.setItem("registrazione_password", registerForm.getValues("password"));
+                      // Vai alla prima pagina di registrazione
+                      window.location.href = "/registrazione-1-email";
+                    }}
+                  >
+                    Inizia Registrazione
                   </Button>
                 </form>
               </Form>
