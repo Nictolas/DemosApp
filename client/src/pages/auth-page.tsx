@@ -66,6 +66,7 @@ export default function AuthPage() {
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
       console.log('🔍 Controllo email duplicata per:', data.email);
+      console.log('🌐 URL API:', window.location.origin + '/api/check-email');
       
       // Controlla se l'email esiste già nel database
       const response = await fetch('/api/check-email', {
@@ -77,6 +78,7 @@ export default function AuthPage() {
       });
       
       console.log('📡 Risposta API:', response.status, response.statusText);
+      console.log('📡 Headers risposta:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -106,6 +108,9 @@ export default function AuthPage() {
       
     } catch (error) {
       console.error('💥 Errore durante la verifica email:', error);
+      if (error instanceof Error) {
+        console.error('💥 Stack trace:', error.stack);
+      }
       
       // Fallback: procedi comunque con la registrazione se l'API non funziona
       toast({
