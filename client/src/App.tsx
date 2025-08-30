@@ -77,7 +77,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import React, { useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import DatabaseTest from "@/components/DatabaseTest";
-import { useGlobalRecovery } from "@/hooks/useGlobalRecovery";
+
 
 function Router() {
   const [location] = useLocation();
@@ -649,115 +649,22 @@ function App() {
       window.addEventListener('touchend', handleTouchEnd, { passive: true });
     }
 
-    // 🛡️ SISTEMA DI RECOVERY AGGIUNTIVO
-    let recoveryCheckInterval: NodeJS.Timeout;
-    
-    const checkForPageCorruption = (): boolean => {
-      try {
-        // Controlla se la pagina è "vuota" o corrotta
-        const bodyText = document.body.innerText || document.body.textContent || '';
-        const hasContent = bodyText.trim().length > 50;
-        
-        // Controlla se ci sono elementi visibili
-        const visibleElements = document.querySelectorAll('input, select, textarea, button, h1, h2, h3, p, div');
-        const hasVisibleElements = Array.from(visibleElements).some(el => {
-          const style = window.getComputedStyle(el);
-          return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
-        });
-        
-        // Se la pagina è corrotta, attiva recovery
-        if (!hasContent || !hasVisibleElements) {
-          console.log('🚨 CORRUZIONE PAGINA RILEVATA DAL SISTEMA APP - ATTIVO RECOVERY');
-          
-          // Forza re-render globale
-          window.dispatchEvent(new Event('force-rerender'));
-          
-          // Se non funziona, ricarica la pagina
-          setTimeout(() => {
-            const isStillCorrupted = !checkForPageCorruption();
-            if (isStillCorrupted) {
-              console.log('🔄 Recovery fallito, ricarico pagina');
-              window.location.reload();
-            }
-          }, 5000); // Aumentato a 5 secondi
-          
-          return false; // Pagina corrotta
-        }
-        
-        return true; // Pagina integra
-      } catch (error) {
-        console.error('❌ Errore nel controllo corruzione:', error);
-        // Se c'è un errore, probabilmente la pagina è corrotta
-        window.location.reload();
-        return false;
-      }
-    };
-    
-    // Controlla ogni 5 secondi se la pagina è corrotta (meno aggressivo)
-    recoveryCheckInterval = setInterval(checkForPageCorruption, 5000);
-    
     return () => {
       if ('ontouchstart' in window) {
         window.removeEventListener('touchstart', handleTouchStart);
         window.removeEventListener('touchmove', handleTouchMove);
         window.removeEventListener('touchend', handleTouchEnd);
       }
-      
-      if (recoveryCheckInterval) {
-        clearInterval(recoveryCheckInterval);
-      }
     };
   }, []);
   
   const [location] = useLocation();
-  // 🛡️ SISTEMA DI RECOVERY GLOBALE A LIVELLO APP
-  const globalRecovery = useGlobalRecovery();
 
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RegistrationProvider>
           <div className="App">
-            {/* 🛡️ OVERLAY DI RECOVERY GLOBALE - SEMPRE VISIBILE */}
-            {globalRecovery.recoveryCount > 0 && (
-              <div className="fixed top-0 left-0 right-0 z-[99999] bg-blue-600 text-white p-2 text-center text-sm font-medium">
-                🛡️ Recovery automatico attivato {globalRecovery.recoveryCount} volte
-              </div>
-            )}
-
-            {/* 🚨 PULSANTE DI RECOVERY GLOBALE - SEMPRE VISIBILE */}
-            <div className="fixed top-4 right-4 z-[99999]">
-              <button
-                onClick={globalRecovery.recoverWithRouteRestore}
-                className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-red-700"
-              >
-                🚨 RECUPERA APP
-              </button>
-            </div>
-
-            {/* 🚨 PULSANTE DI RECOVERY ALTERNATIVO - SEMPRE VISIBILE */}
-            <div className="fixed bottom-4 left-4 z-[99999]">
-              <button
-                onClick={() => {
-                  globalRecovery.savePageState();
-                  window.location.reload();
-                }}
-                className="bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-orange-700"
-              >
-                🔄 RICARICA PAGINA
-              </button>
-            </div>
-
-            {/* 🚨 PULSANTE DI EMERGENZA - SEMPRE VISIBILE */}
-            <div className="fixed top-4 left-4 z-[99999]">
-              <button
-                onClick={globalRecovery.forceGlobalRerender}
-                className="bg-purple-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-purple-700"
-              >
-                ⚡ FORZA RENDER
-              </button>
-            </div>
-
             <Router />
             {location !== '/' && !location.startsWith('/reset-password') && !location.startsWith('/auth') && <Navbar />}
             <Toaster />

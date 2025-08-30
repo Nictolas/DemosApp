@@ -46,8 +46,7 @@ export function Phase2Personal({ onNext, onBack, defaultValues }: Phase2Personal
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold">Fase 2: Dati Personali</h3>
-          <p className="text-sm text-muted-foreground">Inserisci i tuoi dati personali</p>
+          <h3 className="text-lg font-semibold">Dati Personali</h3>
         </div>
 
         <FormField
