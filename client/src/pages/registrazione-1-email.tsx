@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Eye, EyeOff } from "lucide-react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 const emailSchema = z.object({
   email: z.string().email("Inserisci un'email valida"),
@@ -22,7 +22,7 @@ type EmailValues = z.infer<typeof emailSchema>;
 export default function RegistrazioneEmail() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const form = useForm<EmailValues>({
     resolver: zodResolver(emailSchema),

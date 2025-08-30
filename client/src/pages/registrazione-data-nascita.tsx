@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 
 const dataNascitaSchema = z.object({
   data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
@@ -14,7 +14,7 @@ const dataNascitaSchema = z.object({
 type DataNascitaValues = z.infer<typeof dataNascitaSchema>;
 
 export default function RegistrazioneDataNascita() {
-  const navigate = useNavigate();
+  const [, navigate] = useLocation();
 
   const form = useForm<DataNascitaValues>({
     resolver: zodResolver(dataNascitaSchema),
