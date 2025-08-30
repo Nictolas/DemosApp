@@ -12,6 +12,18 @@ const datiSchema = z.object({
   paese_elezione: z.string().optional(),
   grado_candidatura: z.string().optional(),
   paese_candidatura: z.string().optional(),
+}).refine((data) => {
+  // Validazione condizionale in base al ruolo
+  if (data.ruolo === "politico" || data.ruolo === "candidato_politico") {
+    return data.grado_elezione && data.paese_elezione;
+  }
+  if (data.ruolo === "candidato" || data.ruolo === "candidato_politico") {
+    return data.grado_candidatura && data.paese_candidatura;
+  }
+  return true; // "elettore" non richiede campi aggiuntivi
+}, {
+  message: "Compila tutti i campi richiesti per il ruolo selezionato",
+  path: ["ruolo"]
 });
 
 type DatiValues = z.infer<typeof datiSchema>;
@@ -29,6 +41,8 @@ export default function RegistrazioneDati() {
       paese_candidatura: "",
     },
   });
+
+  const selectedRole = form.watch("ruolo");
 
   const onSubmit = (data: DatiValues) => {
     // Salva i dati nel localStorage
@@ -79,344 +93,145 @@ export default function RegistrazioneDati() {
                       {...field}
                       className="w-full h-12 text-lg text-center border rounded-md"
                     >
-                                             <option value="">Seleziona ruolo</option>
-                       <option value="elettore">Elettore</option>
-                       <option value="politico">Politico</option>
-                       <option value="candidato">Candidato</option>
-                       <option value="candidato_politico">Candidato Politico</option>
+                      <option value="">Seleziona ruolo</option>
+                      <option value="elettore">Elettore</option>
+                      <option value="politico">Politico</option>
+                      <option value="candidato">Candidato</option>
+                      <option value="candidato_politico">Candidato Politico</option>
                     </select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
-                          />
+            />
 
-              {/* Campi dinamici per Grado di Elezione e Paese di Elezione */}
-              {form.watch("ruolo") === "elettore" && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="grado_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grado di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona grado di elezione</option>
-                            <option value="europeo">Europeo</option>
-                            <option value="nazionale">Nazionale</option>
-                            <option value="regionale">Regionale</option>
-                            <option value="provinciale">Provinciale</option>
-                            <option value="comunale">Comunale</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="paese_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paese di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona paese di elezione</option>
-                            <option value="Italia">Italia</option>
-                            <option value="Francia">Francia</option>
-                            <option value="Germania">Germania</option>
-                            <option value="Spagna">Spagna</option>
-                            <option value="Regno Unito">Regno Unito</option>
-                            <option value="altro">Altro</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
+            {/* Campi dinamici per Grado di Elezione e Paese di Elezione */}
+            {/* "Politico" e "Candidato Politico" mostrano i dati di elezione */}
+            {(selectedRole === "politico" || selectedRole === "candidato_politico") && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="grado_elezione"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Grado di Elezione *</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full h-12 text-lg text-center border rounded-md"
+                        >
+                          <option value="">Seleziona grado di elezione</option>
+                          <option value="europeo">Europeo</option>
+                          <option value="nazionale">Nazionale</option>
+                          <option value="regionale">Regionale</option>
+                          <option value="provinciale">Provinciale</option>
+                          <option value="comunale">Comunale</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="paese_elezione"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Paese di Elezione *</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full h-12 text-lg text-center border rounded-md"
+                        >
+                          <option value="">Seleziona paese di elezione</option>
+                          <option value="Italia">Italia</option>
+                          <option value="Francia">Francia</option>
+                          <option value="Germania">Germania</option>
+                          <option value="Spagna">Spagna</option>
+                          <option value="Regno Unito">Regno Unito</option>
+                          <option value="altro">Altro</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
-              {form.watch("ruolo") === "candidato" && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="grado_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grado di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona grado di elezione</option>
-                            <option value="europeo">Europeo</option>
-                            <option value="nazionale">Nazionale</option>
-                            <option value="regionale">Regionale</option>
-                            <option value="provinciale">Provinciale</option>
-                            <option value="comunale">Comunale</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="paese_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paese di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona paese di elezione</option>
-                            <option value="Italia">Italia</option>
-                            <option value="Francia">Francia</option>
-                            <option value="Germania">Germania</option>
-                            <option value="Spagna">Spagna</option>
-                            <option value="Regno Unito">Regno Unito</option>
-                            <option value="altro">Altro</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="grado_candidatura"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grado di Candidatura *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona grado di candidatura</option>
-                            <option value="europeo">Europeo</option>
-                            <option value="nazionale">Nazionale</option>
-                            <option value="regionale">Regionale</option>
-                            <option value="provinciale">Provinciale</option>
-                            <option value="comunale">Comunale</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="paese_candidatura"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paese di Candidatura *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona paese di candidatura</option>
-                            <option value="Italia">Italia</option>
-                            <option value="Francia">Francia</option>
-                            <option value="Germania">Germania</option>
-                            <option value="Spagna">Spagna</option>
-                            <option value="Regno Unito">Regno Unito</option>
-                            <option value="altro">Altro</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
+            {/* Campi dinamici per Grado di Candidatura e Paese di Candidatura */}
+            {/* "Candidato" e "Candidato Politico" mostrano i dati di candidatura */}
+            {(selectedRole === "candidato" || selectedRole === "candidato_politico") && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="grado_candidatura"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Grado di Candidatura *</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full h-12 text-lg text-center border rounded-md"
+                        >
+                          <option value="">Seleziona grado di candidatura</option>
+                          <option value="europeo">Europeo</option>
+                          <option value="nazionale">Nazionale</option>
+                          <option value="regionale">Regionale</option>
+                          <option value="provinciale">Provinciale</option>
+                          <option value="comunale">Comunale</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="paese_candidatura"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Paese di Candidatura *</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full h-12 text-lg text-center border rounded-md"
+                        >
+                          <option value="">Seleziona paese di candidatura</option>
+                          <option value="Italia">Italia</option>
+                          <option value="Francia">Francia</option>
+                          <option value="Germania">Germania</option>
+                          <option value="Spagna">Spagna</option>
+                          <option value="Regno Unito">Regno Unito</option>
+                          <option value="altro">Altro</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
-              {form.watch("ruolo") === "candidato_politico" && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="grado_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grado di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona grado di elezione</option>
-                            <option value="europeo">Europeo</option>
-                            <option value="nazionale">Nazionale</option>
-                            <option value="regionale">Regionale</option>
-                            <option value="provinciale">Provinciale</option>
-                            <option value="comunale">Comunale</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="paese_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paese di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona paese di elezione</option>
-                            <option value="Italia">Italia</option>
-                            <option value="Francia">Francia</option>
-                            <option value="Germania">Germania</option>
-                            <option value="Spagna">Spagna</option>
-                            <option value="Regno Unito">Regno Unito</option>
-                            <option value="altro">Altro</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="grado_candidatura"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grado di Candidatura *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona grado di candidatura</option>
-                            <option value="europeo">Europeo</option>
-                            <option value="nazionale">Nazionale</option>
-                            <option value="regionale">Regionale</option>
-                            <option value="provinciale">Provinciale</option>
-                            <option value="comunale">Comunale</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="paese_candidatura"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paese di Candidatura *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona paese di candidatura</option>
-                            <option value="Italia">Italia</option>
-                            <option value="Francia">Francia</option>
-                            <option value="Germania">Germania</option>
-                            <option value="Spagna">Spagna</option>
-                            <option value="Regno Unito">Regno Unito</option>
-                            <option value="altro">Altro</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
+            {/* "Elettore" non mostra altri campi - solo il ruolo */}
 
-              {form.watch("ruolo") === "politico" && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="grado_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grado di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona grado di elezione</option>
-                            <option value="europeo">Europeo</option>
-                            <option value="nazionale">Nazionale</option>
-                            <option value="regionale">Regionale</option>
-                            <option value="provinciale">Provinciale</option>
-                            <option value="comunale">Comunale</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="paese_elezione"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Paese di Elezione *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="w-full h-12 text-lg text-center border rounded-md"
-                          >
-                            <option value="">Seleziona paese di elezione</option>
-                            <option value="Italia">Italia</option>
-                            <option value="Francia">Francia</option>
-                            <option value="Germania">Germania</option>
-                            <option value="Spagna">Spagna</option>
-                            <option value="Regno Unito">Regno Unito</option>
-                            <option value="altro">Altro</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
-
-              <Button type="submit" className="w-full h-12 text-lg">
+            <Button type="submit" className="w-full h-12 text-lg">
               Continua
             </Button>
           </form>
         </Form>
 
-                 <div className="text-center mt-6">
-           <Button
-             variant="ghost"
-             onClick={() => navigate("/registrazione-3-residenza")}
-             className="text-gray-500 hover:text-gray-700"
-           >
-             ← Indietro
-           </Button>
-         </div>
+        <div className="text-center mt-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/registrazione-3-residenza")}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            ← Indietro
+          </Button>
+        </div>
       </div>
     </div>
   );
