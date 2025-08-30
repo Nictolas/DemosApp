@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+// Componente Progress personalizzato per evitare dipendenze esterne
+const Progress = ({ value, className }: { value: number; className?: string }) => (
+  <div className={`w-full bg-gray-200 rounded-full h-2 ${className || ''}`}>
+    <div 
+      className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+      style={{ width: `${value}%` }}
+    />
+  </div>
+);
 import { CheckCircle, Circle } from "lucide-react";
 import { Phase1Email } from "./Phase1Email";
 import { Phase2Personal } from "./Phase2Personal";
