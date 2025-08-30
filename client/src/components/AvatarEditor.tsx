@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { CustomAvatar } from "@/components/CustomAvatar";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { HairStyleSelector } from "@/components/HairStyleSelector";
 import { BeardStyleSelector } from "@/components/BeardStyleSelector";
 import { MustacheStyleSelector } from "@/components/MustacheStyleSelector";

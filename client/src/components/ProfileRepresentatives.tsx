@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CustomAvatar } from "@/components/CustomAvatar";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { UserInfo } from "@/types/profile";
 
 interface ProfileRepresentativesProps {

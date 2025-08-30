@@ -287,90 +287,28 @@ export function RegisterForm({
 
         {/* Genere e Cittadinanza */}
         <div className="grid grid-cols-2 gap-4">
-          <FormItem>
-            <FormLabel>Genere</FormLabel>
-            <SelectPrimitive.Root 
-              value={form.watch("genere")} 
-              onValueChange={(value) => form.setValue("genere", value)}
-            >
-              <SelectPrimitive.Trigger
-                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 bg-white text-black"
-                style={{
-                  backgroundColor: 'white',
-                  color: 'black',
-                  border: '1px solid #d1d5db'
-                }}
-              >
-                <SelectPrimitive.Value placeholder="Seleziona genere" />
-                <SelectPrimitive.Icon>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </SelectPrimitive.Icon>
-              </SelectPrimitive.Trigger>
-
-              <SelectPrimitive.Portal>
-                <SelectPrimitive.Content
-                  className="relative z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white text-black shadow-md"
-                  style={{
-                    backgroundColor: 'white',
-                    color: 'black',
-                    border: '1px solid #e5e7eb',
-                    zIndex: 9999
-                  }}
-                >
-                  <SelectPrimitive.Viewport className="p-1">
-                    <SelectPrimitive.Item
-                      value="uomo"
-                      className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-gray-100 focus:bg-blue-50"
-                      style={{
-                        backgroundColor: 'white',
-                        color: 'black'
-                      }}
-                    >
-                      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                        <SelectPrimitive.ItemIndicator>
-                          <Check className="h-4 w-4" />
-                        </SelectPrimitive.ItemIndicator>
-                      </span>
-                      <SelectPrimitive.ItemText>Uomo</SelectPrimitive.ItemText>
-                    </SelectPrimitive.Item>
-
-                    <SelectPrimitive.Item
-                      value="donna"
-                      className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-gray-100 focus:bg-blue-50"
-                      style={{
-                        backgroundColor: 'white',
-                        color: 'black'
-                      }}
-                    >
-                      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                        <SelectPrimitive.ItemIndicator>
-                          <Check className="h-4 w-4" />
-                        </SelectPrimitive.ItemIndicator>
-                      </span>
-                      <SelectPrimitive.ItemText>Donna</SelectPrimitive.ItemText>
-                    </SelectPrimitive.Item>
-
-                    <SelectPrimitive.Item
-                      value="altro"
-                      className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-gray-100 focus:bg-blue-50"
-                      style={{
-                        backgroundColor: 'white',
-                        color: 'black'
-                      }}
-                    >
-                      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                        <SelectPrimitive.ItemIndicator>
-                          <Check className="h-4 w-4" />
-                        </SelectPrimitive.ItemIndicator>
-                      </span>
-                      <SelectPrimitive.ItemText>Altro</SelectPrimitive.ItemText>
-                    </SelectPrimitive.Item>
-                  </SelectPrimitive.Viewport>
-                </SelectPrimitive.Content>
-              </SelectPrimitive.Portal>
-            </SelectPrimitive.Root>
-            <FormMessage />
-          </FormItem>
+          <FormField
+            control={form.control}
+            name="genere"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Genere</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Seleziona genere" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="uomo">Uomo</SelectItem>
+                    <SelectItem value="donna">Donna</SelectItem>
+                    <SelectItem value="altro">Altro</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="cittadinanza"
