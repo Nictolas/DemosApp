@@ -66,10 +66,11 @@ export default function AuthPage() {
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
       console.log('🔍 Controllo email duplicata per:', data.email);
-      console.log('🌐 URL API:', window.location.origin + '/api/check-email');
+      const apiUrl = 'https://demos-c7k0.onrender.com/api/check-email';
+      console.log('🌐 URL API:', apiUrl);
       
       // Controlla se l'email esiste già nel database
-      const response = await fetch('/api/check-email', {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

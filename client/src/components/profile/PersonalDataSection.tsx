@@ -68,35 +68,15 @@ export function PersonalDataSection({ formData, onFieldChange }: PersonalDataSec
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="cittadinanza">Cittadinanza *</Label>
-          <Input
-            id="cittadinanza"
-            value={formData.cittadinanza || ""}
-            onChange={(e) => onFieldChange("cittadinanza", e.target.value)}
-            placeholder="Inserisci la cittadinanza"
-            required
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="ruolo">Ruolo *</Label>
-          <Select
-            value={formData.ruolo || ""}
-            onValueChange={(value) => onFieldChange("ruolo", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona il ruolo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Elettore">Elettore</SelectItem>
-              <SelectItem value="Politico">Politico</SelectItem>
-              <SelectItem value="Candidato">Candidato</SelectItem>
-              <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <Label htmlFor="cittadinanza">Cittadinanza *</Label>
+        <Input
+          id="cittadinanza"
+          value={formData.cittadinanza || ""}
+          onChange={(e) => onFieldChange("cittadinanza", e.target.value)}
+          placeholder="Inserisci la cittadinanza"
+          required
+        />
       </div>
     </div>
   );
