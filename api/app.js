@@ -228,6 +228,129 @@ app.post('/api/check-email', async (req, res) => {
   }
 });
 
+// Endpoint di registrazione utente
+app.post('/api/register', async (req, res) => {
+  try {
+    const { email, password, nome, cognome, genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza, ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura } = req.body;
+
+    // Validazione campi obbligatori
+    if (!email || !password || !nome || !cognome) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campi obbligatori mancanti',
+        message: 'Email, password, nome e cognome sono obbligatori'
+      });
+    }
+
+    console.log('📝 REGISTRAZIONE - Tentativo registrazione per:', email);
+    console.log('📋 Dati ricevuti:', { email, nome, cognome, genere, data_nascita, cittadinanza, ruolo });
+
+    // Importa la configurazione del database
+    const { Pool } = require('pg');
+    const bcrypt = require('bcrypt');
+    
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ DATABASE_URL mancante!');
+      return res.status(500).json({
+        success: false,
+        error: 'Configurazione database mancante',
+        message: 'Variabile DATABASE_URL non configurata'
+      });
+    }
+
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    console.log('🔌 Pool database creato, tentativo connessione...');
+
+    // Test connessione
+    const client = await pool.connect();
+    console.log('✅ Connessione database riuscita!');
+    client.release();
+
+    // Hash della password
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+    console.log('🔐 Password hashata con successo');
+
+    // Inserisci l'utente nella tabella users
+    const insertQuery = `
+      INSERT INTO users (
+        email, password_hash, nome, cognome, genere, data_nascita, cittadinanza,
+        paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+        ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+        grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+        status, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
+      ) RETURNING id, email, nome, cognome
+    `;
+
+    const insertValues = [
+      email.toLowerCase(), passwordHash, nome, cognome, genere || null, data_nascita || null, cittadinanza || null,
+      paese_residenza || null, regione_residenza || null, provincia_residenza || null, comune_residenza || null,
+      ruolo || 'elettore', grado_elezione || null, paese_elezione || null, regione_elezione || null, provincia_elezione || null, comune_elezione || null,
+      grado_candidatura || null, paese_candidatura || null, regione_candidatura || null, provincia_candidatura || null, comune_candidatura || null,
+      'pending', new Date(), new Date()
+    ];
+
+    console.log('📝 Eseguendo query di inserimento...');
+    const result = await pool.query(insertQuery, insertValues);
+    
+    if (result.rows.length === 0) {
+      throw new Error('Inserimento utente fallito');
+    }
+
+    const newUser = result.rows[0];
+    console.log('✅ Utente registrato con successo:', newUser.email, 'ID:', newUser.id);
+
+    // Chiudi la connessione
+    await pool.end();
+
+    // Genera token JWT
+    const jwt = require('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+    
+    const token = jwt.sign(
+      { 
+        userId: newUser.id,
+        email: newUser.email,
+        ruolo: newUser.ruolo || 'elettore'
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    console.log('🎫 Token JWT generato per utente:', newUser.email);
+
+    res.json({
+      success: true,
+      message: 'Utente registrato con successo',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        nome: newUser.nome,
+        cognome: newUser.cognome,
+        ruolo: newUser.ruolo || 'elettore'
+      },
+      token: token
+    });
+
+  } catch (error) {
+    console.error('💥 Errore durante la registrazione:', error);
+    console.error('📋 Stack trace completo:', error.stack);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile completare la registrazione',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // Endpoint di test per Resend
 app.post('/api/test-resend-email', async (req, res) => {
   try {
