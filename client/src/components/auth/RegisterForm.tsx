@@ -15,6 +15,7 @@ import { useStableSelect } from "./useStableSelect";
 import { SelectDebug } from "@/components/ui/select-debug";
 import { SelectUltraDebug } from "@/components/ui/select-ultra-debug";
 import { SelectIsolated } from "@/components/ui/select-isolated";
+import { SelectMobileTest } from "@/components/ui/select-mobile-test";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
 
@@ -72,6 +73,9 @@ export function RegisterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* SELECT MOBILE TEST - SIMULAZIONE PROBLEMA UTENTE */}
+        <SelectMobileTest />
+        
         {/* SELECT ISOLATO - NO REACT HOOK FORM */}
         <SelectIsolated />
         
