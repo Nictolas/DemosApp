@@ -101,7 +101,7 @@ export function PageTransition({
     }, delay);
     
     return () => clearTimeout(hideTimer);
-  }, [actualLocation, /* children, */ delay, showLoader, loaderDuration]);
+  }, [actualLocation, delay, showLoader, loaderDuration]);
 
   return (
     <>
