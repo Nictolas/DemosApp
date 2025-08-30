@@ -10,8 +10,7 @@
     "install-client": "cd client && npm install",
     "install-server": "npm install",
     "install-all": "npm run install-server && npm run install-client",
-    "deploy": "npm run install-all && npm run build",
-    "vercel-build": "npm run install-all && npm run build"
+    "deploy": "npm run install-all && npm run build"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
