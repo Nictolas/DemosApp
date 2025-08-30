@@ -40,6 +40,32 @@ export function Phase1Email({ onNext, defaultValues }: Phase1EmailProps) {
     onNext(data);
   };
 
+  // Se le credenziali sono già fornite, mostra un riepilogo
+  if (defaultValues?.email && defaultValues?.password) {
+    return (
+      <div className="text-center space-y-4">
+        <h3 className="text-lg font-semibold">Credenziali Confermate</h3>
+        <p className="text-sm text-muted-foreground">Le tue credenziali sono già state inserite</p>
+        
+        <div className="bg-gray-50 p-4 rounded-lg text-left">
+          <p><strong>Email:</strong> {defaultValues.email}</p>
+          <p><strong>Password:</strong> ••••••••</p>
+        </div>
+        
+        <Button 
+          onClick={() => onNext({ 
+            email: defaultValues.email!, 
+            password: defaultValues.password!, 
+            confirmPassword: defaultValues.password! 
+          })}
+          className="w-full"
+        >
+          Procedi ai Dati Personali
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

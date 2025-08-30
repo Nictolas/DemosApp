@@ -51,18 +51,24 @@ type CompleteRegistrationData = Phase1Data & Phase2Data & Phase3Data & Phase4Dat
 interface RegistrationWizardProps {
   onComplete: (data: CompleteRegistrationData) => void;
   onCancel: () => void;
+  defaultValues?: Partial<CompleteRegistrationData>;
 }
 
-export function RegistrationWizard({ onComplete, onCancel }: RegistrationWizardProps) {
+export function RegistrationWizard({ onComplete, onCancel, defaultValues }: RegistrationWizardProps) {
   const [currentPhase, setCurrentPhase] = useState(1);
-  const [phaseData, setPhaseData] = useState<Partial<CompleteRegistrationData>>({});
+  const [phaseData, setPhaseData] = useState<Partial<CompleteRegistrationData>>(defaultValues || {});
 
   // Gestisce il passaggio alla fase successiva
   const handleNext = (phaseNumber: number, data: any) => {
     setPhaseData(prev => ({ ...prev, ...data }));
     
     if (phaseNumber < 4) {
-      setCurrentPhase(phaseNumber + 1);
+      // Se stiamo saltando la fase 1, vai direttamente alla fase 2
+      if (phaseNumber === 1 && defaultValues?.email && defaultValues?.password) {
+        setCurrentPhase(2);
+      } else {
+        setCurrentPhase(phaseNumber + 1);
+      }
     } else {
       // Ultima fase - completa la registrazione
       const completeData = { ...phaseData, ...data } as CompleteRegistrationData;
@@ -73,17 +79,31 @@ export function RegistrationWizard({ onComplete, onCancel }: RegistrationWizardP
   // Gestisce il ritorno alla fase precedente
   const handleBack = () => {
     if (currentPhase > 1) {
-      setCurrentPhase(currentPhase - 1);
+      // Se stiamo tornando dalla fase 2 e abbiamo saltato la fase 1, torna alla fase 1
+      if (currentPhase === 2 && defaultValues?.email && defaultValues?.password) {
+        setCurrentPhase(1);
+      } else {
+        setCurrentPhase(currentPhase - 1);
+      }
     }
   };
 
   // Calcola la percentuale di completamento
   const progressPercentage = (currentPhase / 4) * 100;
 
+  // Se le credenziali sono già fornite, inizia dalla fase 2
+  const effectivePhase = (defaultValues?.email && defaultValues?.password) ? Math.max(1, currentPhase - 1) : currentPhase;
+  const effectiveTotalPhases = (defaultValues?.email && defaultValues?.password) ? 3 : 4;
+  const effectiveProgressPercentage = (effectivePhase / effectiveTotalPhases) * 100;
+
   // Determina quali fasi sono completate
   const isPhaseCompleted = (phase: number) => {
     switch (phase) {
       case 1:
+        // Se la fase 1 è saltata, è sempre completata
+        if (defaultValues?.email && defaultValues?.password) {
+          return true;
+        }
         return !!(phaseData.email && phaseData.password);
       case 2:
         return !!(phaseData.nome && phaseData.cognome && phaseData.codice_fiscale);
@@ -96,11 +116,35 @@ export function RegistrationWizard({ onComplete, onCancel }: RegistrationWizardP
     }
   };
 
+  // Se le credenziali sono già fornite, salta la fase 1
+  React.useEffect(() => {
+    if (defaultValues?.email && defaultValues?.password && currentPhase === 1) {
+      setCurrentPhase(2);
+      setPhaseData(prev => ({ ...prev, ...defaultValues }));
+    }
+  }, [defaultValues, currentPhase]);
+
   // Renderizza la fase corrente
   const renderCurrentPhase = () => {
     const commonProps = {
       defaultValues: phaseData,
     };
+
+    // Se le credenziali sono già fornite e siamo alla fase 1, mostra il riepilogo
+    if (currentPhase === 1 && defaultValues?.email && defaultValues?.password) {
+      return (
+        <div className="text-center space-y-4">
+          <h3 className="text-lg font-semibold">Credenziali Confermate</h3>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p><strong>Email:</strong> {defaultValues.email}</p>
+            <p><strong>Password:</strong> ••••••••</p>
+          </div>
+          <Button onClick={() => handleNext(1, { email: defaultValues.email, password: defaultValues.password, confirmPassword: defaultValues.password })}>
+            Procedi ai Dati Personali
+          </Button>
+        </div>
+      );
+    }
 
     switch (currentPhase) {
       case 1:
@@ -142,15 +186,18 @@ export function RegistrationWizard({ onComplete, onCancel }: RegistrationWizardP
   // Renderizza l'indicatore delle fasi
   const renderPhaseIndicator = () => {
     const phases = [
-      { number: 1, title: "Credenziali", icon: "🔐" },
-      { number: 2, title: "Dati Personali", icon: "👤" },
-      { number: 3, title: "Residenza", icon: "🏠" },
-      { number: 4, title: "Ruolo", icon: "🎯" },
+      { number: 1, title: "Credenziali", icon: "🔐", skip: !!(defaultValues?.email && defaultValues?.password) },
+      { number: 2, title: "Dati Personali", icon: "👤", skip: false },
+      { number: 3, title: "Residenza", icon: "🏠", skip: false },
+      { number: 4, title: "Ruolo", icon: "🎯", skip: false },
     ];
+
+    // Filtra le fasi da saltare
+    const visiblePhases = phases.filter(phase => !phase.skip);
 
     return (
       <div className="flex justify-between items-center mb-8">
-        {phases.map((phase, index) => (
+        {visiblePhases.map((phase, index) => (
           <div key={phase.number} className="flex flex-col items-center">
             <div className="flex items-center justify-center w-12 h-12 rounded-full border-2 mb-2 transition-all duration-200">
               {isPhaseCompleted(phase.number) ? (
@@ -170,7 +217,7 @@ export function RegistrationWizard({ onComplete, onCancel }: RegistrationWizardP
             }`}>
               {phase.title}
             </span>
-            {index < phases.length - 1 && (
+            {index < visiblePhases.length - 1 && (
               <div className={`w-16 h-0.5 mt-4 ${
                 isPhaseCompleted(phase.number + 1) ? 'bg-green-600' : 'bg-gray-300'
               }`} />
@@ -188,20 +235,20 @@ export function RegistrationWizard({ onComplete, onCancel }: RegistrationWizardP
           <CardTitle className="text-2xl font-bold text-gray-800">
             Registrazione Account
           </CardTitle>
-          <p className="text-gray-600 mt-2">
-            Completa la registrazione in {4 - currentPhase + 1} passaggi
-          </p>
+                     <p className="text-gray-600 mt-2">
+             Completa la registrazione in {effectiveTotalPhases - effectivePhase + 1} passaggi
+           </p>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Indicatore di progresso */}
-          <div className="space-y-4">
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Fase {currentPhase} di 4</span>
-              <span>{Math.round(progressPercentage)}% completato</span>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-          </div>
+                     {/* Indicatore di progresso */}
+           <div className="space-y-4">
+             <div className="flex justify-between text-sm text-gray-600">
+               <span>Fase {effectivePhase} di {effectiveTotalPhases}</span>
+               <span>{Math.round(effectiveProgressPercentage)}% completato</span>
+             </div>
+             <Progress value={effectiveProgressPercentage} className="h-2" />
+           </div>
 
           {/* Indicatore delle fasi */}
           {renderPhaseIndicator()}
