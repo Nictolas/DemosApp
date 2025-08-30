@@ -316,11 +316,11 @@ body {
     line-height: 1.4;
   }
   
-  /* Nascondi il contenuto principale in orizzontale */
-  #root {
+  /* NON nascondere più il contenuto principale in orizzontale */
+  /* #root {
     opacity: 0.1;
     pointer-events: none;
-  }
+  } */
 }
 
 /* Approccio alternativo per forzare l'applicazione su mobile */
@@ -359,11 +359,11 @@ body {
       line-height: 1.4;
     }
     
-    /* Nascondi il contenuto principale in orizzontale */
-    #root {
+    /* NON nascondere più il contenuto principale in orizzontale */
+    /* #root {
       opacity: 0.1 !important;
       pointer-events: none !important;
-    }
+    } */
   }
 }
 

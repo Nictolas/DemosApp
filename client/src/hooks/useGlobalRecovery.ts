@@ -220,19 +220,14 @@ export function useGlobalRecovery() {
       window.addEventListener('load', restoreOnLoad)
     }
     
-    // 1. Monitora eventi che potrebbero corrompere la pagina
-    const events = [
-      'resize', 'orientationchange', 'focus', 'blur', 'input', 'change',
-      'touchstart', 'touchend', 'touchmove', 'keydown', 'keyup', 'keypress',
-      'beforeinput', 'compositionstart', 'compositionend', 'compositionupdate',
-      'focusin', 'focusout', 'select', 'selectstart', 'selectionchange',
-      'visibilitychange', 'pagehide', 'pageshow', 'beforeunload', 'load', 'unload',
-      'abort', 'error', 'online', 'offline'
+    // 1. Monitora SOLO eventi critici che potrebbero corrompere la pagina
+    const criticalEvents = [
+      'orientationchange', 'resize', 'visibilitychange', 'pagehide', 'pageshow'
     ]
     
-    const eventHandlers = events.map(event => {
+    const eventHandlers = criticalEvents.map(event => {
       const handler = () => {
-        // Salva lo stato dopo ogni evento importante
+        // Salva lo stato dopo ogni evento critico
         try {
           const currentState = {
             timestamp: Date.now(),
@@ -251,15 +246,13 @@ export function useGlobalRecovery() {
       return { event, handler }
     })
     
-    // 2. Monitora mutazioni del DOM
+    // 2. Monitora mutazioni del DOM (più conservativo)
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
-          // Se vengono rimossi molti nodi, potrebbe essere un problema
-          if (mutation.removedNodes.length > 10) {
-            console.log('⚠️ Molti nodi rimossi, controllo integrità')
-            setTimeout(checkPageIntegrity, 100)
-          }
+        if (mutation.type === 'childList' && mutation.removedNodes.length > 20) {
+          // Solo se vengono rimossi MOLTI nodi (probabilmente corruzione)
+          console.log('⚠️ Molti nodi rimossi, controllo integrità')
+          setTimeout(checkPageIntegrity, 100)
         }
       })
     })
@@ -269,10 +262,10 @@ export function useGlobalRecovery() {
       subtree: true
     })
     
-    // 3. Controllo periodico dell'integrità della pagina
+    // 3. Controllo periodico dell'integrità della pagina (meno frequente)
     checkIntervalRef.current = setInterval(() => {
       checkPageIntegrity()
-    }, 2000) // Ogni 2 secondi
+    }, 5000) // Ogni 5 secondi invece di 2
     
     // 4. Listener per eventi di recovery manuale
     const forceRerenderHandler = () => {
