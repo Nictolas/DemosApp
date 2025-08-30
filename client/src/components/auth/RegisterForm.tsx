@@ -10,15 +10,9 @@ import { registerSchema, RegisterFormValues } from "./authSchemas";
 import { useGeographicSelections } from "./useGeographicSelections";
 import { useBirthDate } from "./useBirthDate";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
-import { SelectTest } from "@/components/ui/select-test";
-import { useStableSelect } from "./useStableSelect";
-import { SelectDebug } from "@/components/ui/select-debug";
-import { SelectUltraDebug } from "@/components/ui/select-ultra-debug";
-import { SelectIsolated } from "@/components/ui/select-isolated";
-import { SelectMobileTest } from "@/components/ui/select-mobile-test";
-import { FormTestIsolated } from "@/components/ui/form-test-isolated";
-import * as SelectPrimitive from "@radix-ui/react-select";
-import { Check, ChevronDown } from "lucide-react";
+
+
+import { useGlobalRecovery } from "@/hooks/useGlobalRecovery";
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormValues) => void;
@@ -37,6 +31,9 @@ export function RegisterForm({
 }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // 🛡️ SISTEMA DI RECOVERY GLOBALE PER MOBILE
+  const globalRecovery = useGlobalRecovery();
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -74,29 +71,28 @@ export function RegisterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* SELECT MOBILE TEST - SIMULAZIONE PROBLEMA UTENTE */}
-        <SelectMobileTest />
-        
-        {/* SELECT ISOLATO - NO REACT HOOK FORM */}
-        <SelectIsolated />
-        
-        {/* ULTRA DEBUG COMPONENTE SELECT */}
-        <SelectUltraDebug />
-        
-        {/* DEBUG COMPONENTE SELECT */}
-        <SelectDebug 
-          value={form.watch("genere")}
-          onValueChange={(value) => form.setValue("genere", value)}
-          placeholder="Seleziona genere"
-          options={[
-            { value: "uomo", label: "Uomo" },
-            { value: "donna", label: "Donna" },
-            { value: "altro", label: "Altro" }
-          ]}
-        />
-        
-        {/* TEST COMPONENTE SELECT */}
-        <SelectTest />
+        {/* 🛡️ INFO RECOVERY GLOBALE */}
+        {globalRecovery.recoveryCount > 0 && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+            <p className="text-blue-800">
+              🛡️ <strong>Recovery automatico attivato {globalRecovery.recoveryCount} volte</strong>
+            </p>
+            <p className="text-blue-700 text-xs mt-1">
+              Ultimo: {globalRecovery.lastRecovery}
+            </p>
+          </div>
+        )}
+
+        {/* 🚨 PULSANTE RECOVERY MANUALE */}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={globalRecovery.forceGlobalRerender}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+          >
+            🚨 RECUPERA PAGINA (se svanisce tutto)
+          </button>
+        </div>
         
         {/* Informazioni base */}
         <div className="grid grid-cols-2 gap-4">
@@ -714,11 +710,7 @@ export function RegisterForm({
           </div>
         )}
         
-        {/* FORM TEST ISOLATO */}
-        <div className="mt-8 p-4 bg-gray-100 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4 text-center">🧪 TEST FORM ISOLATO</h3>
-          <FormTestIsolated />
-        </div>
+
       </form>
     </Form>
   );
