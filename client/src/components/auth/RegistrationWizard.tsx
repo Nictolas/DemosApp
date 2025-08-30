@@ -239,27 +239,13 @@ export function RegistrationWizard({ onComplete, onCancel, defaultValues }: Regi
   return (
     <div className="max-w-2xl mx-auto p-6">
       <Card className="shadow-lg">
-        <CardHeader className="text-center pb-6">
+                <CardHeader className="text-center pb-6">
           <CardTitle className="text-2xl font-bold text-gray-800">
             Registrazione Account
           </CardTitle>
-                     <p className="text-gray-600 mt-2">
-             Completa la registrazione in {effectiveTotalPhases - effectivePhase + 1} passaggi
-           </p>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-                     {/* Indicatore di progresso */}
-           <div className="space-y-4">
-             <div className="flex justify-between text-sm text-gray-600">
-               <span>Fase {effectivePhase} di {effectiveTotalPhases}</span>
-               <span>{Math.round(effectiveProgressPercentage)}% completato</span>
-             </div>
-             <Progress value={effectiveProgressPercentage} className="h-2" />
-           </div>
-
-          {/* Indicatore delle fasi */}
-          {renderPhaseIndicator()}
+                <CardContent className="space-y-6">
 
           {/* Contenuto della fase corrente */}
           <div className="min-h-[400px]">

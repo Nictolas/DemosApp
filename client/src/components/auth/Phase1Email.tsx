@@ -70,8 +70,7 @@ export function Phase1Email({ onNext, defaultValues }: Phase1EmailProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold">Fase 1: Credenziali</h3>
-          <p className="text-sm text-muted-foreground">Inserisci email e password per iniziare</p>
+          <h3 className="text-lg font-semibold">Credenziali</h3>
         </div>
 
         <FormField

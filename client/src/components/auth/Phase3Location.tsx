@@ -69,8 +69,7 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold">Fase 3: Luogo di Residenza</h3>
-          <p className="text-sm text-muted-foreground">Inserisci il tuo luogo di residenza</p>
+          <h3 className="text-lg font-semibold">Luogo di Residenza</h3>
         </div>
 
         <FormField
@@ -159,29 +158,41 @@ export function Phase3Location({ onNext, onBack, defaultValues }: Phase3Location
               <FormField
                 control={form.control}
                 name="comune_residenza"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Comune di Residenza *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona comune" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                                                 {ITALY_DATA.Italia.regioni
-                           .find((r) => r.nome === watchRegioneResidenza)
-                           ?.province.find((p) => p.nome === watchProvinciaResidenza)
-                           ?.comuni.map((comune) => (
-                             <SelectItem key={comune.nome} value={comune.nome}>
-                               {comune.nome}
-                             </SelectItem>
-                           )) || []}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  // Debug: trova i comuni disponibili
+                  const comuniDisponibili = ITALY_DATA.Italia.regioni
+                    .find((r) => r.nome === watchRegioneResidenza)
+                    ?.province.find((p) => p.nome === watchProvinciaResidenza)
+                    ?.comuni || [];
+                  
+                  console.log('🔍 Debug comuni:', {
+                    regione: watchRegioneResidenza,
+                    provincia: watchProvinciaResidenza,
+                    comuni: comuniDisponibili,
+                    count: comuniDisponibili.length
+                  });
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>Comune di Residenza *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona comune" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {comuniDisponibili.map((comune) => (
+                            <SelectItem key={comune.nome} value={comune.nome}>
+                              {comune.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             )}
           </>

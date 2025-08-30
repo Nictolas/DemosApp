@@ -111,8 +111,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold">Fase 4: Ruolo e Candidatura</h3>
-          <p className="text-sm text-muted-foreground">Inserisci il tuo ruolo e i luoghi di elezione/candidatura</p>
+          <h3 className="text-lg font-semibold">Ruolo e Candidature</h3>
         </div>
 
         <FormField
