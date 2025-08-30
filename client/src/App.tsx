@@ -26,7 +26,6 @@ import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
 import RegistrazioneNome from "@/pages/registrazione-nome";
 import RegistrazioneGenere from "@/pages/registrazione-genere";
 import RegistrazioneCittadinanza from "@/pages/registrazione-cittadinanza";
-import RegistrazioneCognome from "@/pages/registrazione-cognome";
 import RegistrazioneDataNascita from "@/pages/registrazione-data-nascita";
 import RegistrazioneCodiceFiscale from "@/pages/registrazione-codice-fiscale";
 import RegistrazioneDati from "@/pages/registrazione-2-dati";
@@ -159,13 +158,7 @@ function Router() {
           </PageTransition>
         )}
       </Route>
-      <Route path="/registrazione-cognome">
-        {() => (
-          <PageTransition location={location} type="fade-up">
-            <RegistrazioneCognome />
-          </PageTransition>
-        )}
-      </Route>
+      
              <Route path="/registrazione-data-nascita">
          {() => (
            <PageTransition location={location} type="fade-up">

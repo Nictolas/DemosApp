@@ -7,7 +7,7 @@ export default function RegistrazioneGenere() {
 
   const handleGenereSelect = (genere: string) => {
     localStorage.setItem("registrazione_genere", genere);
-    navigate("/registrazione-cittadinanza");
+    navigate("/registrazione-data-nascita");
   };
 
   return (

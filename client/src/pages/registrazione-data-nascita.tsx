@@ -30,7 +30,7 @@ export default function RegistrazioneDataNascita() {
   const onSubmit = (data: DataNascitaValues) => {
     const dataCompleta = `${data.giorno}/${data.mese}/${data.anno}`;
     localStorage.setItem("registrazione_data_nascita", dataCompleta);
-    navigate("/registrazione-codice-fiscale");
+    navigate("/registrazione-3-residenza");
   };
 
   // Calcola l'anno minimo (18 anni fa) e massimo (14 anni fa)
@@ -138,15 +138,15 @@ export default function RegistrazioneDataNascita() {
           </form>
         </Form>
 
-        <div className="text-center mt-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/registrazione-cognome")}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ← Indietro
-          </Button>
-        </div>
+                 <div className="text-center mt-6">
+           <Button
+             variant="ghost"
+             onClick={() => navigate("/registrazione-cittadinanza")}
+             className="text-gray-500 hover:text-gray-700"
+           >
+             ← Indietro
+           </Button>
+         </div>
       </div>
     </div>
   );

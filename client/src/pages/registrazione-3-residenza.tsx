@@ -41,7 +41,7 @@ export default function RegistrazioneResidenza() {
     localStorage.setItem("registrazione_comune_residenza", data.comune_residenza);
     
     // Vai alla pagina successiva
-    navigate("/registrazione-2-dati");
+    navigate("/registrazione-codice-fiscale");
   };
 
   // Reset dei campi dipendenti

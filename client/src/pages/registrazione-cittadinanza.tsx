@@ -7,7 +7,7 @@ export default function RegistrazioneCittadinanza() {
 
   const handleCittadinanzaSelect = (cittadinanza: string) => {
     localStorage.setItem("registrazione_cittadinanza", cittadinanza);
-    navigate("/registrazione-cognome");
+    navigate("/registrazione-data-nascita");
   };
 
   return (
