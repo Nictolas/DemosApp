@@ -40,6 +40,22 @@ const amnistiaRoutes = require('./routes/amnistia');
 const iceRoutes = require('./routes/ice');
 const referendumRoutes = require('./routes/referendum');
 
+// Router nuovi creati
+const capoStatoRoutes = require('./routes/capo-stato');
+const comunicazioniRoutes = require('./routes/comunicazioni');
+const eventiRoutes = require('./routes/eventi');
+const iniziativePopolariRoutes = require('./routes/iniziative-popolari');
+const notificheRoutes = require('./routes/notifiche');
+const statisticheRoutes = require('./routes/statistiche');
+const sostenitoriRoutes = require('./routes/sostenitori');
+const programmaRoutes = require('./routes/programma');
+const reazioniComunicazioniRoutes = require('./routes/reazioni-comunicazioni');
+const gestioneUtentiAggiuntiviRoutes = require('./routes/gestione-utenti-aggiuntivi');
+const verificaRuoliRoutes = require('./routes/verifica-ruoli');
+const governoRoutes = require('./routes/governo');
+const candidatiRoutes = require('./routes/candidati');
+const categorieRoutes = require('./routes/categorie');
+
 // Registrazione delle route
 app.use('/api/auth', authRoutes);
 app.use('/api/utenti', userRoutes);
@@ -51,6 +67,22 @@ app.use('/api/grazia', graziaRoutes);
 app.use('/api/amnistia', amnistiaRoutes);
 app.use('/api/ice', iceRoutes);
 app.use('/api/referendum', referendumRoutes);
+
+// Registrazione delle nuove route
+app.use('/api/capo-stato', capoStatoRoutes);
+app.use('/api/comunicazioni', comunicazioniRoutes);
+app.use('/api/eventi', eventiRoutes);
+app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
+app.use('/api/notifiche', notificheRoutes);
+app.use('/api/statistiche', statisticheRoutes);
+app.use('/api/sostenitori', sostenitoriRoutes);
+app.use('/api/programma', programmaRoutes);
+app.use('/api/reazioni-comunicazioni', reazioniComunicazioniRoutes);
+app.use('/api/gestione-utenti-aggiuntivi', gestioneUtentiAggiuntiviRoutes);
+app.use('/api/verifica-ruoli', verificaRuoliRoutes);
+app.use('/api/governo', governoRoutes);
+app.use('/api/candidati', candidatiRoutes);
+app.use('/api/categorie', categorieRoutes);
 
 // Route di base e health check
 app.get('/', (req, res) => {
@@ -74,6 +106,57 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Endpoint per testare la connessione al database
+app.get('/api/test-db', async (req, res) => {
+  try {
+    console.log('🧪 Test connessione database...');
+    console.log('🌍 Ambiente:', process.env.NODE_ENV);
+    console.log('🔗 DATABASE_URL presente:', !!process.env.DATABASE_URL);
+    
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({
+        success: false,
+        error: 'DATABASE_URL mancante',
+        message: 'Variabile d\'ambiente non configurata'
+      });
+    }
+
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    // Test connessione
+    const client = await pool.connect();
+    console.log('✅ Connessione database riuscita!');
+    
+    // Test query semplice
+    const result = await client.query('SELECT NOW() as current_time');
+    console.log('📊 Query test riuscita:', result.rows[0]);
+    
+    client.release();
+    await pool.end();
+
+    res.json({
+      success: true,
+      message: 'Connessione database OK',
+      timestamp: new Date().toISOString(),
+      dbTime: result.rows[0].current_time,
+      environment: process.env.NODE_ENV
+    });
+
+  } catch (error) {
+    console.error('💥 Errore test database:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore connessione database',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 // Endpoint per controllare se un'email esiste già
 app.post('/api/check-email', async (req, res) => {
   try {
@@ -88,13 +171,32 @@ app.post('/api/check-email', async (req, res) => {
     }
 
     console.log('🔍 Controllo email nel database:', email);
+    console.log('🌍 Ambiente:', process.env.NODE_ENV);
+    console.log('🔗 DATABASE_URL presente:', !!process.env.DATABASE_URL);
 
     // Importa la configurazione del database
     const { Pool } = require('pg');
+    
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ DATABASE_URL mancante!');
+      return res.status(500).json({
+        success: false,
+        error: 'Configurazione database mancante',
+        message: 'Variabile DATABASE_URL non configurata'
+      });
+    }
+
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
+
+    console.log('🔌 Pool database creato, tentativo connessione...');
+
+    // Test connessione
+    const client = await pool.connect();
+    console.log('✅ Connessione database riuscita!');
+    client.release();
 
     // Controlla se l'email esiste nella tabella users
     const result = await pool.query(
@@ -108,14 +210,19 @@ app.post('/api/check-email', async (req, res) => {
     // Chiudi la connessione
     await pool.end();
 
-    res.json({ exists });
+    const response = { exists };
+    console.log('📤 Invio risposta:', response);
+    res.json(response);
 
   } catch (error) {
     console.error('💥 Errore durante il controllo email:', error);
+    console.error('📋 Stack trace completo:', error.stack);
+    
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile verificare l\'email'
+      message: 'Impossibile verificare l\'email',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
