@@ -1,80 +1,145 @@
 import { useEffect, useRef, useState } from 'react'
 
-// Hook globale per recovery automatico su mobile
 export function useGlobalRecovery() {
   const [recoveryCount, setRecoveryCount] = useState(0)
   const [lastRecovery, setLastRecovery] = useState<string>('')
   const [isRecovering, setIsRecovering] = useState(false)
   const recoveryTimeoutRef = useRef<NodeJS.Timeout>()
   const checkIntervalRef = useRef<NodeJS.Timeout>()
+  const lastKnownStateRef = useRef<any>(null)
   
-  // Funzione per forzare re-render globale
   const forceGlobalRerender = () => {
-    console.log('🔄 FORZANDO RE-RENDER GLOBALE...')
+    console.log('🔄 FORCE GLOBAL RERENDER ATTIVATO')
     setRecoveryCount(prev => prev + 1)
-    setLastRecovery('Global Rerender')
+    setLastRecovery(new Date().toLocaleTimeString())
     
-    // Forza re-render di tutti i componenti
+    // Forza un re-render globale
     window.dispatchEvent(new Event('force-rerender'))
     
-    // Scroll forzato per riattivare il rendering
-    window.scrollTo(0, window.scrollY + 1)
-    window.scrollTo(0, window.scrollY - 1)
+    // Ripristina lo stato se disponibile
+    if (lastKnownStateRef.current) {
+      try {
+        localStorage.setItem('app-recovery-state', JSON.stringify(lastKnownStateRef.current))
+        console.log('💾 Stato di recovery salvato')
+      } catch (error) {
+        console.error('❌ Errore nel salvare lo stato di recovery:', error)
+      }
+    }
   }
   
-  // Funzione per ripristinare la pagina
   const recoverPage = () => {
-    console.log('🚨 RECOVERY AUTOMATICO ATTIVATO!')
-    setIsRecovering(true)
-    setLastRecovery('Auto Recovery')
+    if (isRecovering) return
     
-    // 1. Forza re-render globale
+    setIsRecovering(true)
+    console.log('🛡️ RECOVERY AUTOMATICO ATTIVATO')
+    
+    setRecoveryCount(prev => prev + 1)
+    setLastRecovery(new Date().toLocaleTimeString())
+    
+    // 1. Salva lo stato corrente
+    try {
+      const currentState = {
+        timestamp: Date.now(),
+        url: window.location.href,
+        scrollY: window.scrollY,
+        formData: getFormData()
+      }
+      lastKnownStateRef.current = currentState
+      localStorage.setItem('app-recovery-state', JSON.stringify(currentState))
+      console.log('💾 Stato salvato per recovery:', currentState)
+    } catch (error) {
+      console.error('❌ Errore nel salvare lo stato:', error)
+    }
+    
+    // 2. Forza re-render globale
     forceGlobalRerender()
     
-    // 2. Ripristina focus e scroll
+    // 3. Ripristina focus e scroll
     setTimeout(() => {
-      if (document.activeElement) {
-        document.activeElement.blur()
+      try {
+        // Ripristina scroll
+        if (lastKnownStateRef.current?.scrollY) {
+          window.scrollTo(0, lastKnownStateRef.current.scrollY)
+        }
+        
+        // Ripristina focus
+        const firstInput = document.querySelector('input, select, textarea')
+        if (firstInput) {
+          (firstInput as HTMLElement).focus()
+        }
+        
+        console.log('✅ Recovery completato')
+      } catch (error) {
+        console.error('❌ Errore nel completare recovery:', error)
+      } finally {
+        setIsRecovering(false)
       }
-      window.scrollTo(0, 0)
     }, 100)
-    
-    // 3. Reset dello stato di recovery
-    setTimeout(() => {
-      setIsRecovering(false)
-    }, 500)
   }
   
-  // Funzione per controllare se la pagina è "corrotta"
+  const getFormData = () => {
+    try {
+      const forms = document.querySelectorAll('form')
+      const formData: any = {}
+      
+      forms.forEach((form, index) => {
+        const formElements = form.querySelectorAll('input, select, textarea')
+        formElements.forEach((element) => {
+          const input = element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+          if (input.name || input.id) {
+            const key = input.name || input.id
+            formData[key] = input.value
+          }
+        })
+      })
+      
+      return formData
+    } catch (error) {
+      console.error('❌ Errore nel raccogliere form data:', error)
+      return {}
+    }
+  }
+  
   const checkPageIntegrity = () => {
-    // Controlla se ci sono elementi visibili
-    const visibleElements = document.querySelectorAll('input, select, button, form')
-    const hasVisibleElements = Array.from(visibleElements).some(el => {
-      const rect = el.getBoundingClientRect()
-      return rect.width > 0 && rect.height > 0
-    })
-    
-    // Se non ci sono elementi visibili, la pagina è corrotta
-    if (!hasVisibleElements) {
-      console.log('🚨 PAGINA CORROTTA RILEVATA! Nessun elemento visibile trovato.')
+    try {
+      // Controlla se ci sono elementi visibili
+      const visibleElements = document.querySelectorAll('input, select, textarea, button, h1, h2, h3, p, div')
+      const hasVisibleContent = Array.from(visibleElements).some(el => {
+        const style = window.getComputedStyle(el)
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
+      })
+      
+      // Controlla se ci sono form attivi
+      const forms = document.querySelectorAll('form')
+      const hasActiveForms = forms.length > 0
+      
+      // Controlla se la pagina è "vuota"
+      const bodyText = document.body.innerText || document.body.textContent || ''
+      const isPageEmpty = bodyText.trim().length < 50 // Meno di 50 caratteri = pagina vuota
+      
+      console.log('🔍 Controllo integrità pagina:', {
+        hasVisibleContent,
+        hasActiveForms,
+        isPageEmpty,
+        visibleElementsCount: visibleElements.length,
+        formsCount: forms.length,
+        bodyTextLength: bodyText.length
+      })
+      
+      // Se la pagina è corrotta, attiva recovery
+      if (!hasVisibleContent || isPageEmpty) {
+        console.log('🚨 PAGINA CORROTTA RILEVATA - ATTIVO RECOVERY')
+        recoverPage()
+        return false
+      }
+      
+      return true
+    } catch (error) {
+      console.error('❌ Errore nel controllo integrità:', error)
+      // Se c'è un errore, probabilmente la pagina è corrotta
       recoverPage()
       return false
     }
-    
-    // Controlla se i form sono accessibili
-    const forms = document.querySelectorAll('form')
-    const formsAccessible = Array.from(forms).every(form => {
-      const inputs = form.querySelectorAll('input, select')
-      return inputs.length > 0
-    })
-    
-    if (!formsAccessible) {
-      console.log('🚨 FORM INACCESSIBILI RILEVATI!')
-      recoverPage()
-      return false
-    }
-    
-    return true
   }
   
   useEffect(() => {
@@ -86,103 +151,129 @@ export function useGlobalRecovery() {
     console.log('🛡️ SISTEMA DI RECOVERY GLOBALE ATTIVATO')
     
     // 1. Monitora eventi che potrebbero corrompere la pagina
-    const handlePotentiallyCorruptingEvent = (eventType: string) => {
-      console.log(`⚠️ EVENTO POTENZIALMENTE CORRUTTORE: ${eventType}`)
-      
-      // Aspetta un po' per vedere se la pagina si corrompe
-      setTimeout(() => {
-        if (!checkPageIntegrity()) {
-          console.log(`🚨 CORRUZIONE RILEVATA DOPO ${eventType}`)
-        }
-      }, 200)
-    }
-    
-    // Eventi che potrebbero corrompere la pagina
-    const corruptingEvents = [
+    const events = [
       'resize', 'orientationchange', 'focus', 'blur', 'input', 'change',
-      'touchstart', 'touchend', 'touchmove', 'keydown', 'keyup',
-      'beforeinput', 'compositionstart', 'compositionend',
-      'focusin', 'focusout', 'select', 'selectstart',
-      'visibilitychange', 'pagehide', 'pageshow'
+      'touchstart', 'touchend', 'touchmove', 'keydown', 'keyup', 'keypress',
+      'beforeinput', 'compositionstart', 'compositionend', 'compositionupdate',
+      'focusin', 'focusout', 'select', 'selectstart', 'selectionchange',
+      'visibilitychange', 'pagehide', 'pageshow', 'beforeunload', 'load', 'unload',
+      'abort', 'error', 'online', 'offline'
     ]
     
-    // Aggiungi listener per tutti gli eventi
-    corruptingEvents.forEach(eventType => {
-      window.addEventListener(eventType, () => handlePotentiallyCorruptingEvent(eventType), { passive: true })
-      document.addEventListener(eventType, () => handlePotentiallyCorruptingEvent(eventType), { passive: true })
+    const eventHandlers = events.map(event => {
+      const handler = () => {
+        // Salva lo stato dopo ogni evento importante
+        try {
+          const currentState = {
+            timestamp: Date.now(),
+            event,
+            url: window.location.href,
+            scrollY: window.scrollY
+          }
+          lastKnownStateRef.current = currentState
+        } catch (error) {
+          console.error('❌ Errore nel salvare stato evento:', error)
+        }
+      }
+      
+      window.addEventListener(event, handler, { passive: true })
+      return { event, handler }
     })
     
     // 2. Monitora mutazioni del DOM
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
-        if (mutation.type === 'childList' || mutation.type === 'attributes') {
-          // Controlla se la mutazione ha corrotto la pagina
-          setTimeout(() => {
-            checkPageIntegrity()
-          }, 100)
+        if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+          // Se vengono rimossi molti nodi, potrebbe essere un problema
+          if (mutation.removedNodes.length > 10) {
+            console.log('⚠️ Molti nodi rimossi, controllo integrità')
+            setTimeout(checkPageIntegrity, 100)
+          }
         }
       })
     })
     
     observer.observe(document.body, {
       childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['style', 'class']
+      subtree: true
     })
     
     // 3. Controllo periodico dell'integrità della pagina
     checkIntervalRef.current = setInterval(() => {
       checkPageIntegrity()
-    }, 2000) // Controlla ogni 2 secondi
+    }, 2000) // Ogni 2 secondi
     
     // 4. Listener per eventi di recovery manuale
-    const handleForceRerender = () => {
-      console.log('🔄 RE-RENDER GLOBALE RICHIESTO MANUALMENTE')
+    const forceRerenderHandler = () => {
+      console.log('🔄 Evento force-rerender ricevuto')
       forceGlobalRerender()
     }
     
-    window.addEventListener('force-rerender', handleForceRerender)
+    window.addEventListener('force-rerender', forceRerenderHandler)
     
     // 5. Monitora errori JavaScript
-    const handleError = (event: ErrorEvent) => {
-      console.log('🚨 ERRORE JAVASCRIPT RILEVATO:', event.error)
+    const errorHandler = (event: ErrorEvent) => {
+      console.error('🚨 Errore JavaScript rilevato:', event.error)
       setTimeout(() => {
-        recoverPage()
+        if (checkPageIntegrity()) {
+          console.log('✅ Pagina integra dopo errore')
+        } else {
+          console.log('🚨 Pagina corrotta dopo errore, attivo recovery')
+          recoverPage()
+        }
       }, 100)
     }
     
-    window.addEventListener('error', handleError)
+    window.addEventListener('error', errorHandler)
     
     // 6. Monitora promise rejection
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.log('🚨 PROMISE REJECTION RILEVATA:', event.reason)
+    const unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
+      console.error('🚨 Promise rejection rilevata:', event.reason)
       setTimeout(() => {
-        recoverPage()
+        if (checkPageIntegrity()) {
+          console.log('✅ Pagina integra dopo promise rejection')
+        } else {
+          console.log('🚨 Pagina corrotta dopo promise rejection, attivo recovery')
+          recoverPage()
+        }
       }, 100)
     }
     
-    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+    window.addEventListener('unhandledrejection', unhandledRejectionHandler)
+    
+    // 7. Ripristina stato se disponibile
+    try {
+      const savedState = localStorage.getItem('app-recovery-state')
+      if (savedState) {
+        const parsedState = JSON.parse(savedState)
+        if (parsedState.url === window.location.href) {
+          lastKnownStateRef.current = parsedState
+          console.log('💾 Stato di recovery ripristinato:', parsedState)
+        }
+      }
+    } catch (error) {
+      console.error('❌ Errore nel ripristinare stato:', error)
+    }
     
     // Cleanup
     return () => {
-      corruptingEvents.forEach(eventType => {
-        window.removeEventListener(eventType, () => handlePotentiallyCorruptingEvent(eventType))
-        document.removeEventListener(eventType, () => handlePotentiallyCorruptingEvent(eventType))
+      // Rimuovi event listeners
+      eventHandlers.forEach(({ event, handler }) => {
+        window.removeEventListener(event, handler)
       })
       
+      // Ferma observer
+      observer.disconnect()
+      
+      // Ferma intervalli
       if (checkIntervalRef.current) {
         clearInterval(checkIntervalRef.current)
       }
       
-      if (recoveryTimeoutRef.current) {
-        clearTimeout(recoveryTimeoutRef.current)
-      }
-      
-      observer.disconnect()
-      window.removeEventListener('force-rerender', handleForceRerender)
-      window.removeEventListener('error', handleError)
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+      // Rimuovi event listeners personalizzati
+      window.removeEventListener('force-rerender', forceRerenderHandler)
+      window.removeEventListener('error', errorHandler)
+      window.removeEventListener('unhandledrejection', unhandledRejectionHandler)
     }
   }, [])
   

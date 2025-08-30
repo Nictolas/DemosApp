@@ -648,14 +648,67 @@ function App() {
       window.addEventListener('touchmove', handleTouchMove, { passive: true });
       window.addEventListener('touchend', handleTouchEnd, { passive: true });
     }
+
+    // 🛡️ SISTEMA DI RECOVERY AGGIUNTIVO
+    let recoveryCheckInterval: NodeJS.Timeout;
+    
+    const checkForPageCorruption = (): boolean => {
+      try {
+        // Controlla se la pagina è "vuota" o corrotta
+        const bodyText = document.body.innerText || document.body.textContent || '';
+        const hasContent = bodyText.trim().length > 50;
+        
+        // Controlla se ci sono elementi visibili
+        const visibleElements = document.querySelectorAll('input, select, textarea, button, h1, h2, h3, p, div');
+        const hasVisibleElements = Array.from(visibleElements).some(el => {
+          const style = window.getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        });
+        
+        // Se la pagina è corrotta, attiva recovery
+        if (!hasContent || !hasVisibleElements) {
+          console.log('🚨 CORRUZIONE PAGINA RILEVATA DAL SISTEMA APP - ATTIVO RECOVERY');
+          
+          // Forza re-render globale
+          window.dispatchEvent(new Event('force-rerender'));
+          
+          // Se non funziona, ricarica la pagina
+          setTimeout(() => {
+            const isStillCorrupted = !checkForPageCorruption();
+            if (isStillCorrupted) {
+              console.log('🔄 Recovery fallito, ricarico pagina');
+              window.location.reload();
+            }
+          }, 2000);
+          
+          return false; // Pagina corrotta
+        }
+        
+        return true; // Pagina integra
+      } catch (error) {
+        console.error('❌ Errore nel controllo corruzione:', error);
+        // Se c'è un errore, probabilmente la pagina è corrotta
+        window.location.reload();
+        return false;
+      }
+    };
+    
+    // Controlla ogni secondo se la pagina è corrotta
+    recoveryCheckInterval = setInterval(checkForPageCorruption, 1000);
+    
     return () => {
       if ('ontouchstart' in window) {
         window.removeEventListener('touchstart', handleTouchStart);
         window.removeEventListener('touchmove', handleTouchMove);
         window.removeEventListener('touchend', handleTouchEnd);
       }
+      
+      if (recoveryCheckInterval) {
+        clearInterval(recoveryCheckInterval);
+      }
     };
   }, []);
+  
   const [location] = useLocation();
   // 🛡️ SISTEMA DI RECOVERY GLOBALE A LIVELLO APP
   const globalRecovery = useGlobalRecovery();
