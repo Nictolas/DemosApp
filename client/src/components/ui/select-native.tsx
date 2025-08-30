@@ -1,138 +1,248 @@
 import * as React from "react"
-import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Select nativo completamente personalizzato
-const Select = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
-    value?: string
-    onValueChange?: (value: string) => void
-    children: React.ReactNode
-  }
->(({ className, children, value, onValueChange, ...props }, ref) => {
-  return (
-    <div ref={ref} className={cn("relative", className)} {...props}>
-      {children}
-    </div>
-  )
-})
-Select.displayName = "Select"
-
-// Trigger del select nativo
-const SelectTrigger = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    children: React.ReactNode
-    onClick?: () => void
-  }
->(({ className, children, onClick, ...props }, ref) => (
-  <button
-    ref={ref}
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-      className
-    )}
-    {...props}
-  >
-    {children}
-    <ChevronDown className="h-4 w-4 opacity-50" />
-  </button>
-))
-SelectTrigger.displayName = "SelectTrigger"
-
-// Contenuto del select nativo
-const SelectContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & {
-    children: React.ReactNode
-    isOpen: boolean
-  }
->(({ className, children, isOpen, ...props }, ref) => {
-  if (!isOpen) return null
+// Select nativo HTML che funziona sempre su mobile
+export function SelectNative({
+  value,
+  onValueChange,
+  children,
+  className,
+  placeholder = "Seleziona...",
+  disabled = false,
+  ...props
+}: {
+  value?: string
+  onValueChange?: (value: string) => void
+  children: React.ReactNode
+  className?: string
+  placeholder?: string
+  disabled?: boolean
+} & React.SelectHTMLAttributes<HTMLSelectElement>) {
   
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    if (onValueChange) {
+      onValueChange(event.target.value)
+    }
+  }
+
   return (
-    <div
-      ref={ref}
+    <select
+      value={value || ""}
+      onChange={handleChange}
+      disabled={disabled}
       className={cn(
-        "absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg",
+        "flex h-10 w-full items-center justify-between rounded-md border border-input bg-white text-black px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       style={{
         backgroundColor: 'white',
         color: 'black',
-        border: '1px solid #e5e7eb',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        zIndex: 9999
+        border: '1px solid #d1d5db',
+        position: 'relative',
+        zIndex: 1,
+        // Stili specifici per mobile
+        WebkitAppearance: 'none',
+        MozAppearance: 'none',
+        appearance: 'none',
+        backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e")`,
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'right 0.7em top 50%',
+        backgroundSize: '1em auto',
+        paddingRight: '2.5em'
+      }}
+      {...props}
+    >
+      {placeholder && (
+        <option value="" disabled>
+          {placeholder}
+        </option>
+      )}
+      {children}
+    </select>
+  )
+}
+
+// Componente SelectItem per il Select nativo
+function SelectItem({
+  value,
+  children,
+  className,
+  disabled = false,
+  ...props
+}: {
+  value: string
+  children: React.ReactNode
+  className?: string
+  disabled?: boolean
+} & React.OptionHTMLAttributes<HTMLOptionElement>) {
+  
+  return (
+    <option
+      value={value}
+      disabled={disabled}
+      className={cn(
+        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        className
+      )}
+      style={{
+        backgroundColor: 'white',
+        color: 'black',
+        padding: '8px 12px'
+      }}
+      {...props}
+    >
+      {children}
+    </option>
+  )
+}
+
+// Componente SelectGroup per il Select nativo
+function SelectGroup({
+  children,
+  className,
+  ...props
+}: {
+  children: React.ReactNode
+  className?: string
+} & React.OptgroupHTMLAttributes<HTMLOptGroupElement>) {
+  
+  return (
+    <optgroup
+      className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
+      style={{
+        backgroundColor: '#f8f9fa',
+        color: '#495057',
+        fontWeight: 'bold'
+      }}
+      {...props}
+    >
+      {children}
+    </optgroup>
+  )
+}
+
+// Componente SelectValue per il Select nativo
+function SelectValue({
+  placeholder,
+  children
+}: {
+  placeholder?: string
+  children?: React.ReactNode
+}) {
+  return children || placeholder || "Seleziona..."
+}
+
+// Componente SelectTrigger per il Select nativo (compatibilità)
+function SelectTrigger({
+  children,
+  className,
+  ...props
+}: {
+  children: React.ReactNode
+  className?: string
+} & React.HTMLAttributes<HTMLDivElement>) {
+  
+  return (
+    <div
+      className={cn(
+        "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+        className
+      )}
+      style={{
+        backgroundColor: 'white',
+        color: 'black',
+        border: '1px solid #d1d5db'
       }}
       {...props}
     >
       {children}
     </div>
   )
-})
-SelectContent.displayName = "SelectContent"
+}
 
-// Item del select nativo
-const SelectItem = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    value: string
-    children: React.ReactNode
-    onSelect?: (value: string) => void
-  }
->(({ className, children, value, onSelect, ...props }, ref) => (
-  <button
-    ref={ref}
-    type="button"
-    onClick={() => onSelect?.(value)}
-    className={cn(
-      "w-full px-3 py-2 text-left text-sm text-black hover:bg-gray-100 focus:bg-blue-50 focus:outline-none",
-      className
-    )}
-    style={{
-      backgroundColor: 'white',
-      color: 'black'
-    }}
-    {...props}
-  >
-    {children}
-  </button>
-))
-SelectItem.displayName = "SelectItem"
+// Componente SelectContent per il Select nativo (compatibilità)
+function SelectContent({
+  children,
+  className,
+  ...props
+}: {
+  children: React.ReactNode
+  className?: string
+} & React.HTMLAttributes<HTMLDivElement>) {
+  
+  return (
+    <div
+      className={cn(
+        "relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md",
+        className
+      )}
+      style={{
+        backgroundColor: 'white',
+        color: 'black',
+        border: '1px solid #d1d5db',
+        zIndex: 99999
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
 
-// Valore del select nativo
-const SelectValue = React.forwardRef<
-  HTMLSpanElement,
-  React.HTMLAttributes<HTMLSpanElement> & {
-    placeholder?: string
-    children?: React.ReactNode
-  }
->(({ className, placeholder, children, ...props }, ref) => (
-  <span ref={ref} className={cn("truncate", className)} {...props}>
-    {children || placeholder}
-  </span>
-))
-SelectValue.displayName = "SelectValue"
+// Componente SelectLabel per il Select nativo (compatibilità)
+function SelectLabel({
+  children,
+  className,
+  ...props
+}: {
+  children: React.ReactNode
+  className?: string
+} & React.HTMLAttributes<HTMLDivElement>) {
+  
+  return (
+    <div
+      className={cn("py-1.5 pl-8 pr-2 text-sm font-semibold", className)}
+      style={{
+        backgroundColor: '#f8f9fa',
+        color: '#495057',
+        fontWeight: 'bold'
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
 
-// Componenti di supporto per compatibilità
-const SelectGroup = ({ children }: { children: React.ReactNode }) => <>{children}</>
-const SelectLabel = ({ children }: { children: React.ReactNode }) => <>{children}</>
-const SelectSeparator = () => <hr className="my-1" />
-const SelectScrollUpButton = () => null
-const SelectScrollDownButton = () => null
+// Componente SelectSeparator per il Select nativo (compatibilità)
+function SelectSeparator({
+  className,
+  ...props
+}: {
+  className?: string
+} & React.HTMLAttributes<HTMLDivElement>) {
+  
+  return (
+    <div
+      className={cn("-mx-1 my-1 h-px bg-muted", className)}
+      style={{
+        backgroundColor: '#dee2e6',
+        height: '1px',
+        margin: '4px -4px'
+      }}
+      {...props}
+    />
+  )
+}
 
+// Esporta tutti i componenti per compatibilità
 export {
-  Select,
+  SelectNative as Select,
+  SelectItem,
   SelectGroup,
   SelectValue,
   SelectTrigger,
   SelectContent,
   SelectLabel,
-  SelectItem,
-  SelectSeparator,
-  SelectScrollUpButton,
-  SelectScrollDownButton,
+  SelectSeparator
 }
