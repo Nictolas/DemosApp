@@ -59,6 +59,7 @@ const categorieRoutes = require('./routes/categorie');
 // Registrazione delle route
 app.use('/api/auth', authRoutes);
 app.use('/api/utenti', userRoutes);
+app.use('/api/users', userRoutes); // Compatibilità con frontend esistente
 app.use('/api/rappresentanti', rappresentantiRoutes);
 app.use('/api/opinioni', opinioniRoutes);
 app.use('/api/elezioni', elezioniRoutes);
