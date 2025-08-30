@@ -184,7 +184,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {ITALY_DATA.regioni.map((regione) => (
+                        {ITALY_DATA.Italia.regioni.map((regione) => (
                           <SelectItem key={regione.nome} value={regione.nome}>
                             {regione.nome}
                           </SelectItem>
@@ -210,7 +210,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ITALY_DATA.regioni
+                          {ITALY_DATA.Italia.regioni
                             .find((r) => r.nome === watchRegioneElezione)
                             ?.province.map((provincia) => (
                               <SelectItem key={provincia.nome} value={provincia.nome}>
@@ -239,7 +239,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ITALY_DATA.regioni
+                          {ITALY_DATA.Italia.regioni
                             .find((r) => r.nome === watchRegioneElezione)
                             ?.province.find((p) => p.nome === watchProvinciaElezione)
                             ?.comuni.map((comune) => (
@@ -331,7 +331,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ITALY_DATA.regioni.map((regione) => (
+                          {ITALY_DATA.Italia.regioni.map((regione) => (
                             <SelectItem key={regione.nome} value={regione.nome}>
                               {regione.nome}
                             </SelectItem>
@@ -357,7 +357,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {ITALY_DATA.regioni
+                            {ITALY_DATA.Italia.regioni
                               .find((r) => r.nome === watchRegioneCandidatura)
                               ?.province.map((provincia) => (
                                 <SelectItem key={provincia.nome} value={provincia.nome}>
@@ -386,7 +386,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {ITALY_DATA.regioni
+                            {ITALY_DATA.Italia.regioni
                               .find((r) => r.nome === watchRegioneCandidatura)
                               ?.province.find((p) => p.nome === watchProvinciaCandidatura)
                               ?.comuni.map((comune) => (
