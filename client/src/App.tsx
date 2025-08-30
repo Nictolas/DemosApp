@@ -726,7 +726,11 @@ function App() {
         <RegistrationProvider>
           <div className="App">
             <Router />
-            {location !== '/' && !location.startsWith('/reset-password') && !location.startsWith('/auth') && <Navbar />}
+            {location !== '/' && 
+             !location.startsWith('/reset-password') && 
+             !location.startsWith('/auth') && 
+             !location.startsWith('/registrazione-') && 
+             <Navbar />}
             <Toaster />
           </div>
         </RegistrationProvider>

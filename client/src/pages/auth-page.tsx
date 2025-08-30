@@ -63,13 +63,42 @@ export default function AuthPage() {
   };
 
   // Gestione del submit per la registrazione
-  const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Salva le credenziali nel localStorage
-    localStorage.setItem("registrazione_email", data.email);
-    localStorage.setItem("registrazione_password", data.password);
-    
-          // Vai direttamente alla prima pagina di registrazione (codice fiscale)
+  const onRegisterSubmit = async (data: RegisterFormValues) => {
+    try {
+      // Controlla se l'email esiste già nel database
+      const response = await fetch('/api/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: data.email }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.exists) {
+        toast({
+          title: "Email già registrata",
+          description: "Questa email è già presente nel sistema. Usa un'altra email o accedi se hai già un account.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Se l'email non esiste, procedi con la registrazione
+      localStorage.setItem("registrazione_email", data.email);
+      localStorage.setItem("registrazione_password", data.password);
+      
+      // Vai direttamente alla prima pagina di registrazione (codice fiscale)
       window.location.href = "/registrazione-codice-fiscale";
+      
+    } catch (error) {
+      toast({
+        title: "Errore di verifica",
+        description: "Impossibile verificare l'email. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
   };
 
 
