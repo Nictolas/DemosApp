@@ -12,7 +12,7 @@ import { useBirthDate } from "./useBirthDate";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 
 
-import { useGlobalRecovery } from "@/hooks/useGlobalRecovery";
+
 
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormValues) => void;
@@ -32,8 +32,7 @@ export function RegisterForm({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // 🛡️ SISTEMA DI RECOVERY GLOBALE PER MOBILE
-  const globalRecovery = useGlobalRecovery();
+
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -71,28 +70,7 @@ export function RegisterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* 🛡️ INFO RECOVERY GLOBALE */}
-        {globalRecovery.recoveryCount > 0 && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-            <p className="text-blue-800">
-              🛡️ <strong>Recovery automatico attivato {globalRecovery.recoveryCount} volte</strong>
-            </p>
-            <p className="text-blue-700 text-xs mt-1">
-              Ultimo: {globalRecovery.lastRecovery}
-            </p>
-          </div>
-        )}
 
-        {/* 🚨 PULSANTE RECOVERY MANUALE */}
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={globalRecovery.forceGlobalRerender}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
-          >
-            🚨 RECUPERA PAGINA (se svanisce tutto)
-          </button>
-        </div>
         
         {/* Informazioni base */}
         <div className="grid grid-cols-2 gap-4">
