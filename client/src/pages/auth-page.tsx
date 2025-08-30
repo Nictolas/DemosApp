@@ -12,8 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
-import { ITALY_DATA } from "@/data/italyData";
-import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
+import { RegistrationWizard, CompleteRegistrationData } from "@/components/auth";
 import './auth-page.css';
 
 const loginSchema = z.object({
@@ -21,31 +20,11 @@ const loginSchema = z.object({
   password: z.string().min(6, "La password deve contenere almeno 6 caratteri"),
 });
 
+// Schema semplificato per il wizard
 const registerSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
   password: z.string().min(6, "La password deve contenere almeno 6 caratteri"),
   confirmPassword: z.string(),
-  codice_fiscale: z.string().min(16, "Il codice fiscale deve essere di 16 caratteri").max(16, "Il codice fiscale deve essere di 16 caratteri"),
-  nome: z.string().min(1, "Il nome è obbligatorio"),
-  cognome: z.string().min(1, "Il cognome è obbligatorio"),
-  data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
-  genere: z.string().min(1, "Il genere è obbligatorio"),
-  cittadinanza: z.string().min(1, "La cittadinanza è obbligatoria"),
-  paese_residenza: z.string().min(1, "Il paese di residenza è obbligatorio"),
-  regione_residenza: z.string().min(1, "La regione di residenza è obbligatoria"),
-  provincia_residenza: z.string().min(1, "La provincia di residenza è obbligatoria"),
-  comune_residenza: z.string().min(1, "Il comune di residenza è obbligatorio"),
-  paese_elezione: z.string().optional(),
-  regione_elezione: z.string().optional(),
-  provincia_elezione: z.string().optional(),
-  comune_elezione: z.string().optional(),
-  paese_candidatura: z.string().optional(),
-  regione_candidatura: z.string().optional(),
-  provincia_candidatura: z.string().optional(),
-  comune_candidatura: z.string().optional(),
-  ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
-  grado_elezione: z.string().optional(),
-  grado_candidatura: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Le password non corrispondono",
   path: ["confirmPassword"],
@@ -56,6 +35,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [showWizard, setShowWizard] = useState(false);
   const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail } = useAuth();
   const { toast } = useToast();
 
@@ -77,27 +57,6 @@ export default function AuthPage() {
       email: "",
       password: "",
       confirmPassword: "",
-      codice_fiscale: "",
-      nome: "",
-      cognome: "",
-      data_nascita: "",
-      genere: "",
-      cittadinanza: "",
-      paese_residenza: "",
-      regione_residenza: "",
-      provincia_residenza: "",
-      comune_residenza: "",
-      paese_elezione: "",
-      regione_elezione: "",
-      provincia_elezione: "",
-      comune_elezione: "",
-      paese_candidatura: "",
-      regione_candidatura: "",
-      provincia_candidatura: "",
-      comune_candidatura: "",
-      ruolo: "",
-      grado_elezione: "",
-      grado_candidatura: "",
     },
   });
 
@@ -143,8 +102,14 @@ export default function AuthPage() {
     loginMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
   };
 
-  // Gestione del submit per la registrazione
+  // Gestione del submit per la registrazione (solo credenziali base)
   const onRegisterSubmit = (data: RegisterFormValues) => {
+    // Mostra il wizard per completare la registrazione
+    setShowWizard(true);
+  };
+
+  // Gestione del completamento del wizard
+  const onWizardComplete = (data: CompleteRegistrationData) => {
     const registerData = {
       email: data.email.trim().toLowerCase(),
       password: data.password,
@@ -171,6 +136,12 @@ export default function AuthPage() {
       grado_candidatura: data.grado_candidatura,
     };
     registerMutation.mutate(registerData);
+  };
+
+  // Gestione dell'annullamento del wizard
+  const onWizardCancel = () => {
+    setShowWizard(false);
+    setActiveTab("login");
   };
 
   // Gestione del reinvio email di verifica
@@ -283,99 +254,110 @@ export default function AuthPage() {
             <TabsContent value="register">
               <Form {...registerForm}>
                 <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="Inserisci la tua email"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={registerForm.control}
-                      name="codice_fiscale"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Codice Fiscale</FormLabel>
-                          <FormControl>
-                            <CodiceFiscaleInput
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="Codice Fiscale"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="text-center mb-6">
+                    <h3 className="text-lg font-semibold">Inizia la Registrazione</h3>
+                    <p className="text-sm text-muted-foreground">Inserisci le tue credenziali per iniziare</p>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="nome"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Inserisci il tuo nome" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={registerForm.control}
-                      name="cognome"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cognome</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Inserisci il tuo cognome" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={registerForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="Inserisci la tua email"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="data_nascita"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data di Nascita</FormLabel>
-                          <FormControl>
+                  <FormField
+                    control={registerForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
                             <Input
-                              type="date"
+                              type={showRegisterPassword ? "text" : "password"}
+                              placeholder="Inserisci la password"
                               {...field}
-                              onChange={(e) => {
-                                field.onChange(e);
-                                birthDate.handleDateChange(e.target.value);
-                              }}
+                              className="pr-10"
                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={registerForm.control}
-                      name="genere"
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                            >
+                              {showRegisterPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={registerForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Conferma Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Conferma la password"
+                              {...field}
+                              className="pr-10"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                    {registerMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Inizializzazione...
+                      </>
+                    ) : (
+                      "Inizia Registrazione"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            </TabsContent>
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Genere</FormLabel>
@@ -1047,6 +1029,18 @@ export default function AuthPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Wizard di Registrazione */}
+      {showWizard && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <RegistrationWizard
+              onComplete={onWizardComplete}
+              onCancel={onWizardCancel}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
