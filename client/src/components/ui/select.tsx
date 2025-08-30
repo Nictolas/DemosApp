@@ -1,45 +1,47 @@
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 
-// Hook per retry automatico dei CSS su mobile
-function useCssRetry() {
-  const [cssReady, setCssReady] = React.useState(false)
+// Hook per recupero automatico su mobile
+function useMobileRecovery() {
+  const [needsRecovery, setNeedsRecovery] = React.useState(false)
+  const [recoveryCount, setRecoveryCount] = React.useState(0)
   
   React.useEffect(() => {
-    // Su mobile, aspetta che i CSS siano pronti
+    // Su mobile, monitora eventi che possono corrompere i Select
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-      const checkCss = () => {
-        // Verifica se i CSS sono stati applicati
-        const testElement = document.createElement('div')
-        testElement.style.cssText = 'background-color: white; color: black;'
-        document.body.appendChild(testElement)
+      
+      // Listener per eventi che corrompono i Select
+      const handleCorruptingEvent = () => {
+        setNeedsRecovery(true)
+        setRecoveryCount(prev => prev + 1)
         
-        const computedStyle = window.getComputedStyle(testElement)
-        const hasCss = computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' && 
-                      computedStyle.color !== 'rgba(0, 0, 0, 0)'
-        
-        document.body.removeChild(testElement)
-        
-        if (hasCss) {
-          setCssReady(true)
-        } else {
-          // Retry ogni 50ms fino a 2 secondi
-          setTimeout(checkCss, 50)
-        }
+        // Auto-recovery dopo 100ms
+        setTimeout(() => {
+          setNeedsRecovery(false)
+        }, 100)
       }
       
-      // Primo check dopo 100ms
-      setTimeout(checkCss, 100)
-    } else {
-      // Su desktop, CSS sono sempre pronti
-      setCssReady(true)
+      // Eventi che causano problemi su mobile
+      window.addEventListener('orientationchange', handleCorruptingEvent)
+      window.addEventListener('resize', handleCorruptingEvent)
+      window.addEventListener('scroll', handleCorruptingEvent)
+      window.addEventListener('focus', handleCorruptingEvent)
+      window.addEventListener('blur', handleCorruptingEvent)
+      
+      // Cleanup
+      return () => {
+        window.removeEventListener('orientationchange', handleCorruptingEvent)
+        window.removeEventListener('resize', handleCorruptingEvent)
+        window.removeEventListener('scroll', handleCorruptingEvent)
+        window.removeEventListener('focus', handleCorruptingEvent)
+        window.removeEventListener('blur', handleCorruptingEvent)
+      }
     }
   }, [])
   
-  return cssReady
+  return { needsRecovery, recoveryCount }
 }
 
 const Select = SelectPrimitive.Root
@@ -52,7 +54,7 @@ const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => {
-  const cssReady = useCssRetry()
+  const { needsRecovery, recoveryCount } = useMobileRecovery()
   
   return (
     <SelectPrimitive.Trigger
@@ -62,9 +64,14 @@ const SelectTrigger = React.forwardRef<
         className
       )}
       style={{
-        backgroundColor: cssReady ? 'white' : 'transparent',
-        color: cssReady ? 'black' : 'transparent',
-        border: cssReady ? '1px solid #d1d5db' : '1px solid transparent'
+        backgroundColor: needsRecovery ? 'transparent' : 'white',
+        color: needsRecovery ? 'transparent' : 'black',
+        border: needsRecovery ? '1px solid transparent' : '1px solid #d1d5db',
+        position: 'relative',
+        zIndex: needsRecovery ? 0 : 1,
+        // Forza re-render su mobile quando necessario
+        transform: needsRecovery ? 'scale(0.99)' : 'scale(1)',
+        transition: 'all 0.1s ease-in-out'
       }}
       {...props}
     >
@@ -116,7 +123,7 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => {
-  const cssReady = useCssRetry()
+  const { needsRecovery, recoveryCount } = useMobileRecovery()
   
   return (
     <SelectPrimitive.Portal>
@@ -129,10 +136,13 @@ const SelectContent = React.forwardRef<
           className
         )}
         style={{
-          backgroundColor: cssReady ? 'white' : 'transparent',
-          color: cssReady ? 'black' : 'transparent',
-          border: cssReady ? '1px solid #d1d5db' : '1px solid transparent',
-          zIndex: 99999
+          backgroundColor: needsRecovery ? 'transparent' : 'white',
+          color: needsRecovery ? 'transparent' : 'black',
+          border: needsRecovery ? '1px solid transparent' : '1px solid #d1d5db',
+          zIndex: needsRecovery ? 0 : 99999,
+          // Forza re-render su mobile quando necessario
+          transform: needsRecovery ? 'scale(0.99)' : 'scale(1)',
+          transition: 'all 0.1s ease-in-out'
         }}
         position={position}
         {...props}
@@ -170,7 +180,7 @@ const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ className, children, ...props }, ref) => {
-  const cssReady = useCssRetry()
+  const { needsRecovery } = useMobileRecovery()
   
   return (
     <SelectPrimitive.Item
@@ -180,8 +190,11 @@ const SelectItem = React.forwardRef<
         className
       )}
       style={{
-        backgroundColor: cssReady ? 'white' : 'transparent',
-        color: cssReady ? 'black' : 'transparent'
+        backgroundColor: needsRecovery ? 'transparent' : 'white',
+        color: needsRecovery ? 'transparent' : 'black',
+        // Forza re-render su mobile quando necessario
+        transform: needsRecovery ? 'scale(0.99)' : 'scale(1)',
+        transition: 'all 0.1s ease-in-out'
       }}
       {...props}
     >
