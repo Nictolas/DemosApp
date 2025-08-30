@@ -74,6 +74,52 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Endpoint per controllare se un'email esiste già
+app.post('/api/check-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email richiesta',
+        message: 'Il campo email è obbligatorio'
+      });
+    }
+
+    console.log('🔍 Controllo email nel database:', email);
+
+    // Importa la configurazione del database
+    const { Pool } = require('pg');
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    // Controlla se l'email esiste nella tabella users
+    const result = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+
+    const exists = result.rows.length > 0;
+    console.log('📊 Email trovata nel database:', exists, 'Righe:', result.rows.length);
+
+    // Chiudi la connessione
+    await pool.end();
+
+    res.json({ exists });
+
+  } catch (error) {
+    console.error('💥 Errore durante il controllo email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile verificare l\'email'
+    });
+  }
+});
+
 // Endpoint di test per Resend
 app.post('/api/test-resend-email', async (req, res) => {
   try {
