@@ -144,12 +144,13 @@ export default function AuthPage() {
                         <FormLabel>Password</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Input
-                              type={showLoginPassword ? "text" : "password"}
-                              placeholder="Inserisci la password"
-                              {...field}
-                              className="pr-10"
-                            />
+                                                         <Input
+                               type={showLoginPassword ? "text" : "password"}
+                               placeholder="Inserisci la password"
+                               {...field}
+                               className="pr-10"
+                               autoComplete="current-password"
+                             />
                             <Button
                               type="button"
                               variant="ghost"
@@ -205,7 +206,13 @@ export default function AuthPage() {
             
             <TabsContent value="register">
               <Form {...registerForm}>
-                <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    registerForm.handleSubmit(onRegisterSubmit)(e);
+                  }} 
+                  className="space-y-4"
+                >
                   <div className="text-center mb-6">
                     <h3 className="text-lg font-semibold">Inizia la Registrazione</h3>
                     <p className="text-sm text-muted-foreground">Inserisci le tue credenziali per iniziare</p>
@@ -237,12 +244,13 @@ export default function AuthPage() {
                         <FormLabel>Password</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Input
-                              type={showRegisterPassword ? "text" : "password"}
-                              placeholder="Inserisci la password"
-                              {...field}
-                              className="pr-10"
-                            />
+                                                         <Input
+                               type={showRegisterPassword ? "text" : "password"}
+                               placeholder="Inserisci la password"
+                               {...field}
+                               className="pr-10"
+                               autoComplete="new-password"
+                             />
                             <Button
                               type="button"
                               variant="ghost"
@@ -271,12 +279,13 @@ export default function AuthPage() {
                         <FormLabel>Conferma Password</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Input
-                              type={showConfirmPassword ? "text" : "password"}
-                              placeholder="Conferma la password"
-                              {...field}
-                              className="pr-10"
-                            />
+                                                         <Input
+                               type={showConfirmPassword ? "text" : "password"}
+                               placeholder="Conferma la password"
+                               {...field}
+                               className="pr-10"
+                               autoComplete="new-password"
+                             />
                             <Button
                               type="button"
                               variant="ghost"

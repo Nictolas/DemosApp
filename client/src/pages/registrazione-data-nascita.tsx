@@ -130,9 +130,7 @@ export default function RegistrazioneDataNascita() {
                  )}
                />
              </div>
-             <p className="text-xs text-gray-500 text-center">
-               Deve essere tra i 14 e i 18 anni
-             </p>
+
 
             <Button type="submit" className="w-full h-12 text-lg">
               Continua
