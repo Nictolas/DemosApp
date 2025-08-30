@@ -10,15 +10,21 @@ const datiSchema = z.object({
   ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
   grado_elezione: z.string().optional(),
   paese_elezione: z.string().optional(),
+  regione_elezione: z.string().optional(),
+  provincia_elezione: z.string().optional(),
+  comune_elezione: z.string().optional(),
   grado_candidatura: z.string().optional(),
   paese_candidatura: z.string().optional(),
+  regione_candidatura: z.string().optional(),
+  provincia_candidatura: z.string().optional(),
+  comune_candidatura: z.string().optional(),
 }).refine((data) => {
   // Validazione condizionale in base al ruolo
   if (data.ruolo === "politico" || data.ruolo === "candidato_politico") {
-    return data.grado_elezione && data.paese_elezione;
+    return data.grado_elezione && data.paese_elezione && data.regione_elezione && data.provincia_elezione && data.comune_elezione;
   }
   if (data.ruolo === "candidato" || data.ruolo === "candidato_politico") {
-    return data.grado_candidatura && data.paese_candidatura;
+    return data.grado_candidatura && data.paese_candidatura && data.regione_candidatura && data.provincia_candidatura && data.comune_candidatura;
   }
   return true; // "elettore" non richiede campi aggiuntivi
 }, {
@@ -37,8 +43,14 @@ export default function RegistrazioneDati() {
       ruolo: "",
       grado_elezione: "",
       paese_elezione: "",
+      regione_elezione: "",
+      provincia_elezione: "",
+      comune_elezione: "",
       grado_candidatura: "",
       paese_candidatura: "",
+      regione_candidatura: "",
+      provincia_candidatura: "",
+      comune_candidatura: "",
     },
   });
 
@@ -53,11 +65,29 @@ export default function RegistrazioneDati() {
     if (data.paese_elezione) {
       localStorage.setItem("registrazione_paese_elezione", data.paese_elezione);
     }
+    if (data.regione_elezione) {
+      localStorage.setItem("registrazione_regione_elezione", data.regione_elezione);
+    }
+    if (data.provincia_elezione) {
+      localStorage.setItem("registrazione_provincia_elezione", data.provincia_elezione);
+    }
+    if (data.comune_elezione) {
+      localStorage.setItem("registrazione_comune_elezione", data.comune_elezione);
+    }
     if (data.grado_candidatura) {
       localStorage.setItem("registrazione_grado_candidatura", data.grado_candidatura);
     }
     if (data.paese_candidatura) {
       localStorage.setItem("registrazione_paese_candidatura", data.paese_candidatura);
+    }
+    if (data.regione_candidatura) {
+      localStorage.setItem("registrazione_regione_candidatura", data.regione_candidatura);
+    }
+    if (data.provincia_candidatura) {
+      localStorage.setItem("registrazione_provincia_candidatura", data.provincia_candidatura);
+    }
+    if (data.comune_candidatura) {
+      localStorage.setItem("registrazione_comune_candidatura", data.comune_candidatura);
     }
     
     // Vai alla pagina successiva
@@ -133,30 +163,171 @@ export default function RegistrazioneDati() {
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="paese_elezione"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Paese di Elezione *</FormLabel>
-                      <FormControl>
-                        <select
-                          {...field}
-                          className="w-full h-12 text-lg text-center border rounded-md"
-                        >
-                          <option value="">Seleziona paese di elezione</option>
-                          <option value="Italia">Italia</option>
-                          <option value="Francia">Francia</option>
-                          <option value="Germania">Germania</option>
-                          <option value="Spagna">Spagna</option>
-                          <option value="Regno Unito">Regno Unito</option>
-                          <option value="altro">Altro</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                                  <FormField
+                    control={form.control}
+                    name="paese_elezione"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Paese di Elezione *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full h-12 text-lg text-center border rounded-md"
+                          >
+                            <option value="">Seleziona paese di elezione</option>
+                            <option value="Italia">Italia</option>
+                            <option value="Francia">Francia</option>
+                            <option value="Germania">Germania</option>
+                            <option value="Spagna">Spagna</option>
+                            <option value="Regno Unito">Regno Unito</option>
+                            <option value="altro">Altro</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Campi geografici per Elezione (solo se Paese = Italia) */}
+                  {form.watch("paese_elezione") === "Italia" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="regione_elezione"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Regione di Elezione *</FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className="w-full h-12 text-lg text-center border rounded-md"
+                              >
+                                <option value="">Seleziona regione</option>
+                                <option value="Abruzzo">Abruzzo</option>
+                                <option value="Basilicata">Basilicata</option>
+                                <option value="Calabria">Calabria</option>
+                                <option value="Campania">Campania</option>
+                                <option value="Emilia-Romagna">Emilia-Romagna</option>
+                                <option value="Friuli-Venezia Giulia">Friuli-Venezia Giulia</option>
+                                <option value="Lazio">Lazio</option>
+                                <option value="Liguria">Liguria</option>
+                                <option value="Lombardia">Lombardia</option>
+                                <option value="Marche">Marche</option>
+                                <option value="Molise">Molise</option>
+                                <option value="Piemonte">Piemonte</option>
+                                <option value="Puglia">Puglia</option>
+                                <option value="Sardegna">Sardegna</option>
+                                <option value="Sicilia">Sicilia</option>
+                                <option value="Toscana">Toscana</option>
+                                <option value="Trentino-Alto Adige">Trentino-Alto Adige</option>
+                                <option value="Umbria">Umbria</option>
+                                <option value="Valle d'Aosta">Valle d'Aosta</option>
+                                <option value="Veneto">Veneto</option>
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="provincia_elezione"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Provincia di Elezione *</FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className="w-full h-12 text-lg text-center border rounded-md"
+                                disabled={!form.watch("regione_elezione")}
+                              >
+                                <option value="">Seleziona provincia</option>
+                                {form.watch("regione_elezione") === "Toscana" && (
+                                  <>
+                                    <option value="Arezzo">Arezzo</option>
+                                    <option value="Firenze">Firenze</option>
+                                    <option value="Grosseto">Grosseto</option>
+                                    <option value="Livorno">Livorno</option>
+                                    <option value="Lucca">Lucca</option>
+                                    <option value="Massa-Carrara">Massa-Carrara</option>
+                                    <option value="Pisa">Pisa</option>
+                                    <option value="Pistoia">Pistoia</option>
+                                    <option value="Prato">Prato</option>
+                                    <option value="Siena">Siena</option>
+                                  </>
+                                )}
+                                {/* Altre regioni possono essere aggiunte qui */}
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="comune_elezione"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Comune di Elezione *</FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className="w-full h-12 text-lg text-center border rounded-md"
+                                disabled={!form.watch("provincia_elezione")}
+                              >
+                                <option value="">Seleziona comune</option>
+                                {form.watch("provincia_elezione") === "Pisa" && (
+                                  <>
+                                    <option value="Bientina">Bientina</option>
+                                    <option value="Buti">Buti</option>
+                                    <option value="Calci">Calci</option>
+                                    <option value="Calcinaia">Calcinaia</option>
+                                    <option value="Capannoli">Capannoli</option>
+                                    <option value="Casale Marittimo">Casale Marittimo</option>
+                                    <option value="Casciana Terme Lari">Casciana Terme Lari</option>
+                                    <option value="Cascina">Cascina</option>
+                                    <option value="Castelfranco di Sotto">Castelfranco di Sotto</option>
+                                    <option value="Castellina Marittima">Castellina Marittima</option>
+                                    <option value="Castelnuovo di Val di Cecina">Castelnuovo di Val di Cecina</option>
+                                    <option value="Chianni">Chianni</option>
+                                    <option value="Crespina Lorenzana">Crespina Lorenzana</option>
+                                    <option value="Fauglia">Fauglia</option>
+                                    <option value="Guardistallo">Guardistallo</option>
+                                    <option value="Lajatico">Lajatico</option>
+                                    <option value="Montecatini Val di Cecina">Montecatini Val di Cecina</option>
+                                    <option value="Montescudaio">Montescudaio</option>
+                                    <option value="Monteverdi Marittimo">Monteverdi Marittimo</option>
+                                    <option value="Montopoli in Val d'Arno">Montopoli in Val d'Arno</option>
+                                    <option value="Orciano Pisano">Orciano Pisano</option>
+                                    <option value="Palaia">Palaia</option>
+                                    <option value="Peccioli">Peccioli</option>
+                                    <option value="Pisa">Pisa</option>
+                                    <option value="Pomarance">Pomarance</option>
+                                    <option value="Ponsacco">Ponsacco</option>
+                                    <option value="Pontedera">Pontedera</option>
+                                    <option value="Riparbella">Riparbella</option>
+                                    <option value="San Giuliano Terme">San Giuliano Terme</option>
+                                    <option value="San Miniato">San Miniato</option>
+                                    <option value="Santa Croce sull'Arno">Santa Croce sull'Arno</option>
+                                    <option value="Santa Luce">Santa Luce</option>
+                                    <option value="Santa Maria a Monte">Santa Maria a Monte</option>
+                                    <option value="Terricciola">Terricciola</option>
+                                    <option value="Vecchiano">Vecchiano</option>
+                                    <option value="Vicopisano">Vicopisano</option>
+                                    <option value="Volterra">Volterra</option>
+                                  </>
+                                )}
+                                {/* Altri comuni possono essere aggiunti qui */}
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
                   )}
-                />
               </>
             )}
 
@@ -188,30 +359,171 @@ export default function RegistrazioneDati() {
                   )}
                 />
                 
-                <FormField
-                  control={form.control}
-                  name="paese_candidatura"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Paese di Candidatura *</FormLabel>
-                      <FormControl>
-                        <select
-                          {...field}
-                          className="w-full h-12 text-lg text-center border rounded-md"
-                        >
-                          <option value="">Seleziona paese di candidatura</option>
-                          <option value="Italia">Italia</option>
-                          <option value="Francia">Francia</option>
-                          <option value="Germania">Germania</option>
-                          <option value="Spagna">Spagna</option>
-                          <option value="Regno Unito">Regno Unito</option>
-                          <option value="altro">Altro</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                                  <FormField
+                    control={form.control}
+                    name="paese_candidatura"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Paese di Candidatura *</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full h-12 text-lg text-center border rounded-md"
+                          >
+                            <option value="">Seleziona paese di candidatura</option>
+                            <option value="Italia">Italia</option>
+                            <option value="Francia">Francia</option>
+                            <option value="Germania">Germania</option>
+                            <option value="Spagna">Spagna</option>
+                            <option value="Regno Unito">Regno Unito</option>
+                            <option value="altro">Altro</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Campi geografici per Candidatura (solo se Paese = Italia) */}
+                  {form.watch("paese_candidatura") === "Italia" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="regione_candidatura"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Regione di Candidatura *</FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className="w-full h-12 text-lg text-center border rounded-md"
+                              >
+                                <option value="">Seleziona regione</option>
+                                <option value="Abruzzo">Abruzzo</option>
+                                <option value="Basilicata">Basilicata</option>
+                                <option value="Calabria">Calabria</option>
+                                <option value="Campania">Campania</option>
+                                <option value="Emilia-Romagna">Emilia-Romagna</option>
+                                <option value="Friuli-Venezia Giulia">Friuli-Venezia Giulia</option>
+                                <option value="Lazio">Lazio</option>
+                                <option value="Liguria">Liguria</option>
+                                <option value="Lombardia">Lombardia</option>
+                                <option value="Marche">Marche</option>
+                                <option value="Molise">Molise</option>
+                                <option value="Piemonte">Piemonte</option>
+                                <option value="Puglia">Puglia</option>
+                                <option value="Sardegna">Sardegna</option>
+                                <option value="Sicilia">Sicilia</option>
+                                <option value="Toscana">Toscana</option>
+                                <option value="Trentino-Alto Adige">Trentino-Alto Adige</option>
+                                <option value="Umbria">Umbria</option>
+                                <option value="Valle d'Aosta">Valle d'Aosta</option>
+                                <option value="Veneto">Veneto</option>
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="provincia_candidatura"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Provincia di Candidatura *</FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className="w-full h-12 text-lg text-center border rounded-md"
+                                disabled={!form.watch("regione_candidatura")}
+                              >
+                                <option value="">Seleziona provincia</option>
+                                {form.watch("regione_candidatura") === "Toscana" && (
+                                  <>
+                                    <option value="Arezzo">Arezzo</option>
+                                    <option value="Firenze">Firenze</option>
+                                    <option value="Grosseto">Grosseto</option>
+                                    <option value="Livorno">Livorno</option>
+                                    <option value="Lucca">Lucca</option>
+                                    <option value="Massa-Carrara">Massa-Carrara</option>
+                                    <option value="Pisa">Pisa</option>
+                                    <option value="Pistoia">Pistoia</option>
+                                    <option value="Prato">Prato</option>
+                                    <option value="Siena">Siena</option>
+                                  </>
+                                )}
+                                {/* Altre regioni possono essere aggiunte qui */}
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="comune_candidatura"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Comune di Candidatura *</FormLabel>
+                            <FormControl>
+                              <select
+                                {...field}
+                                className="w-full h-12 text-lg text-center border rounded-md"
+                                disabled={!form.watch("provincia_candidatura")}
+                              >
+                                <option value="">Seleziona comune</option>
+                                {form.watch("provincia_candidatura") === "Pisa" && (
+                                  <>
+                                    <option value="Bientina">Bientina</option>
+                                    <option value="Buti">Buti</option>
+                                    <option value="Calci">Calci</option>
+                                    <option value="Calcinaia">Calcinaia</option>
+                                    <option value="Capannoli">Capannoli</option>
+                                    <option value="Casale Marittimo">Casale Marittimo</option>
+                                    <option value="Casciana Terme Lari">Casciana Terme Lari</option>
+                                    <option value="Cascina">Cascina</option>
+                                    <option value="Castelfranco di Sotto">Castelfranco di Sotto</option>
+                                    <option value="Castellina Marittima">Castellina Marittima</option>
+                                    <option value="Castelnuovo di Val di Cecina">Castelnuovo di Val di Cecina</option>
+                                    <option value="Chianni">Chianni</option>
+                                    <option value="Crespina Lorenzana">Crespina Lorenzana</option>
+                                    <option value="Fauglia">Fauglia</option>
+                                    <option value="Guardistallo">Guardistallo</option>
+                                    <option value="Lajatico">Lajatico</option>
+                                    <option value="Montecatini Val di Cecina">Montecatini Val di Cecina</option>
+                                    <option value="Montescudaio">Montescudaio</option>
+                                    <option value="Monteverdi Marittimo">Monteverdi Marittimo</option>
+                                    <option value="Montopoli in Val d'Arno">Montopoli in Val d'Arno</option>
+                                    <option value="Orciano Pisano">Orciano Pisano</option>
+                                    <option value="Palaia">Palaia</option>
+                                    <option value="Peccioli">Peccioli</option>
+                                    <option value="Pisa">Pisa</option>
+                                    <option value="Pomarance">Pomarance</option>
+                                    <option value="Ponsacco">Ponsacco</option>
+                                    <option value="Pontedera">Pontedera</option>
+                                    <option value="Riparbella">Riparbella</option>
+                                    <option value="San Giuliano Terme">San Giuliano Terme</option>
+                                    <option value="San Miniato">San Miniato</option>
+                                    <option value="Santa Croce sull'Arno">Santa Croce sull'Arno</option>
+                                    <option value="Santa Luce">Santa Luce</option>
+                                    <option value="Santa Maria a Monte">Santa Maria a Monte</option>
+                                    <option value="Terricciola">Terricciola</option>
+                                    <option value="Vecchiano">Vecchiano</option>
+                                    <option value="Vicopisano">Vicopisano</option>
+                                    <option value="Volterra">Volterra</option>
+                                  </>
+                                )}
+                                {/* Altri comuni possono essere aggiunti qui */}
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
                   )}
-                />
               </>
             )}
 
