@@ -74,6 +74,10 @@ export default function AuthPage() {
         body: JSON.stringify({ email: data.email }),
       });
       
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
       
       if (result.exists) {
@@ -93,11 +97,19 @@ export default function AuthPage() {
       window.location.href = "/registrazione-codice-fiscale";
       
     } catch (error) {
+      console.error('Errore durante la verifica email:', error);
+      
+      // Fallback: procedi comunque con la registrazione se l'API non funziona
       toast({
-        title: "Errore di verifica",
-        description: "Impossibile verificare l'email. Riprova più tardi.",
-        variant: "destructive",
+        title: "Avviso",
+        description: "Impossibile verificare se l'email esiste già. Procedi con la registrazione.",
+        variant: "default",
       });
+      
+      // Procedi con la registrazione
+      localStorage.setItem("registrazione_email", data.email);
+      localStorage.setItem("registrazione_password", data.password);
+      window.location.href = "/registrazione-codice-fiscale";
     }
   };
 
