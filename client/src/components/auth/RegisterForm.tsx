@@ -4,13 +4,48 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { registerSchema, RegisterFormValues } from "./authSchemas";
 import { useGeographicSelections } from "./useGeographicSelections";
 import { useBirthDate } from "./useBirthDate";
 import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
-import { useSelectVisibilityMonitor } from "./useSelectVisibilityMonitor";
+
+// 🚨 SELECT NATIVI PER ELIMINARE IL PROBLEMA DI RENDERING
+function NativeSelect({ 
+  value, 
+  onValueChange, 
+  children, 
+  className = "",
+  placeholder = "Seleziona..."
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  children: React.ReactNode;
+  className?: string;
+  placeholder?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onValueChange(e.target.value)}
+      className={`w-full p-2 border border-gray-300 rounded-md bg-white text-black ${className}`}
+      style={{
+        backgroundColor: 'white',
+        color: 'black',
+        border: '1px solid #d1d5db',
+        fontSize: '14px',
+        height: '40px'
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {children}
+    </select>
+  );
+}
+
+function NativeSelectItem({ value, children }: { value: string; children: React.ReactNode }) {
+  return <option value={value}>{children}</option>;
+}
 
 
 interface RegisterFormProps {
@@ -30,9 +65,6 @@ export function RegisterForm({
 }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // 🚨 SISTEMA DI MONITORAGGIO SELECT
-  const visibilityMonitor = useSelectVisibilityMonitor();
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -67,49 +99,9 @@ export function RegisterForm({
   const geographicSelections = useGeographicSelections(form.watch);
   const birthDate = useBirthDate(form.setValue);
 
-  // 🚨 RECOVERY AUTOMATICO QUANDO I COMPONENTI SVANISCONO
-  useEffect(() => {
-    if (!visibilityMonitor.isVisible) {
-      console.log('🚨 COMPONENTI NON VISIBILI - ATTIVO RECOVERY AUTOMATICO');
-      visibilityMonitor.forceVisibilityRestore();
-    }
-  }, [visibilityMonitor.isVisible]);
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        
-        {/* 🚨 PULSANTI DI RECOVERY SPECIFICI PER SELECT */}
-        {!visibilityMonitor.isVisible && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
-            <p className="text-red-800 text-sm font-medium mb-2">
-              🚨 COMPONENTI NON VISIBILI RILEVATI
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={visibilityMonitor.forceVisibilityRestore}
-                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-              >
-                🔄 RIPRISTINA VISIBILITÀ
-              </button>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
-              >
-                🔄 RICARICA PAGINA
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 🚨 DEBUG INFO */}
-        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-          <p>🔍 Stato visibilità: {visibilityMonitor.isVisible ? 'VISIBILE' : 'NON VISIBILE'}</p>
-          <p>📝 Ultimo cambiamento: {visibilityMonitor.lastChange || 'Nessuno'}</p>
-        </div>
-
         
         {/* Informazioni base */}
         <div className="grid grid-cols-2 gap-4">
@@ -258,42 +250,27 @@ export function RegisterForm({
           <div className="grid grid-cols-3 gap-4">
           <FormItem>
             <FormLabel>Giorno</FormLabel>
-            <Select value={birthDate.birthDay} onValueChange={birthDate.setBirthDay}>
-              <SelectTrigger className="bg-white">
-                <SelectValue placeholder="Giorno" />
-              </SelectTrigger>
-              <SelectContent>
-                {birthDate.days.map((day) => (
-                  <SelectItem key={day} value={day}>{day}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect value={birthDate.birthDay} onValueChange={birthDate.setBirthDay}>
+              {birthDate.days.map((day) => (
+                <NativeSelectItem key={day} value={day}>{day}</NativeSelectItem>
+              ))}
+            </NativeSelect>
           </FormItem>
           <FormItem>
             <FormLabel>Mese</FormLabel>
-            <Select value={birthDate.birthMonth} onValueChange={birthDate.setBirthMonth}>
-              <SelectTrigger className="bg-white">
-                <SelectValue placeholder="Mese" />
-              </SelectTrigger>
-              <SelectContent>
-                {birthDate.months.map((month) => (
-                  <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect value={birthDate.birthMonth} onValueChange={birthDate.setBirthMonth}>
+              {birthDate.months.map((month) => (
+                <NativeSelectItem key={month.value} value={month.value}>{month.label}</NativeSelectItem>
+              ))}
+            </NativeSelect>
           </FormItem>
           <FormItem>
             <FormLabel>Anno</FormLabel>
-            <Select value={birthDate.birthYear} onValueChange={birthDate.setBirthYear}>
-              <SelectTrigger className="bg-white">
-                <SelectValue placeholder="Anno" />
-              </SelectTrigger>
-              <SelectContent>
-                {birthDate.years.map((year) => (
-                  <SelectItem key={year} value={year}>{year}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <NativeSelect value={birthDate.birthYear} onValueChange={birthDate.setBirthYear}>
+              {birthDate.years.map((year) => (
+                <NativeSelectItem key={year} value={year}>{year}</NativeSelectItem>
+              ))}
+            </NativeSelect>
           </FormItem>
         </div>
         </div>
@@ -306,18 +283,11 @@ export function RegisterForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Genere</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue placeholder="Seleziona genere" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="uomo">Uomo</SelectItem>
-                    <SelectItem value="donna">Donna</SelectItem>
-                    <SelectItem value="altro">Altro</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect onValueChange={field.onChange} value={field.value}>
+                  <NativeSelectItem value="uomo">Uomo</NativeSelectItem>
+                  <NativeSelectItem value="donna">Donna</NativeSelectItem>
+                  <NativeSelectItem value="altro">Altro</NativeSelectItem>
+                </NativeSelect>
                 <FormMessage />
               </FormItem>
             )}
@@ -328,45 +298,38 @@ export function RegisterForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cittadinanza</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                                         <SelectTrigger className="bg-white">
-                       <SelectValue placeholder="Seleziona cittadinanza" />
-                     </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Italiana">Italiana</SelectItem>
-                    <SelectItem value="Francese">Francese</SelectItem>
-                    <SelectItem value="Tedesca">Tedesca</SelectItem>
-                    <SelectItem value="Spagnola">Spagnola</SelectItem>
-                    <SelectItem value="Portoghese">Portoghese</SelectItem>
-                    <SelectItem value="Austriaca">Austriaca</SelectItem>
-                    <SelectItem value="Belga">Belga</SelectItem>
-                    <SelectItem value="Olandese">Olandese</SelectItem>
-                    <SelectItem value="Svedese">Svedese</SelectItem>
-                    <SelectItem value="Danese">Danese</SelectItem>
-                    <SelectItem value="Finlandese">Finlandese</SelectItem>
-                    <SelectItem value="Norvegese">Norvegese</SelectItem>
-                    <SelectItem value="Svizzera">Svizzera</SelectItem>
-                    <SelectItem value="Greca">Greca</SelectItem>
-                    <SelectItem value="Polacca">Polacca</SelectItem>
-                    <SelectItem value="Ceca">Ceca</SelectItem>
-                    <SelectItem value="Slovacca">Slovacca</SelectItem>
-                    <SelectItem value="Ungherese">Ungherese</SelectItem>
-                    <SelectItem value="Romena">Romena</SelectItem>
-                    <SelectItem value="Bulgaro">Bulgaro</SelectItem>
-                    <SelectItem value="Croata">Croata</SelectItem>
-                    <SelectItem value="Slovena">Slovena</SelectItem>
-                    <SelectItem value="Lituana">Lituana</SelectItem>
-                    <SelectItem value="Lettone">Lettone</SelectItem>
-                    <SelectItem value="Estoniana">Estoniana</SelectItem>
-                    <SelectItem value="Maltese">Maltese</SelectItem>
-                    <SelectItem value="Cipriota">Cipriota</SelectItem>
-                    <SelectItem value="Lussemburghese">Lussemburghese</SelectItem>
-                    <SelectItem value="Irlandese">Irlandese</SelectItem>
-                    <SelectItem value="Altra">Altra</SelectItem>
-                  </SelectContent>
-                </Select>
+                <NativeSelect onValueChange={field.onChange} value={field.value}>
+                  <NativeSelectItem value="Italiana">Italiana</NativeSelectItem>
+                  <NativeSelectItem value="Francese">Francese</NativeSelectItem>
+                  <NativeSelectItem value="Tedesca">Tedesca</NativeSelectItem>
+                  <NativeSelectItem value="Spagnola">Spagnola</NativeSelectItem>
+                  <NativeSelectItem value="Portoghese">Portoghese</NativeSelectItem>
+                  <NativeSelectItem value="Austriaca">Austriaca</NativeSelectItem>
+                  <NativeSelectItem value="Belga">Belga</NativeSelectItem>
+                  <NativeSelectItem value="Olandese">Olandese</NativeSelectItem>
+                  <NativeSelectItem value="Svedese">Svedese</NativeSelectItem>
+                  <NativeSelectItem value="Danese">Danese</NativeSelectItem>
+                  <NativeSelectItem value="Finlandese">Finlandese</NativeSelectItem>
+                  <NativeSelectItem value="Norvegese">Norvegese</NativeSelectItem>
+                  <NativeSelectItem value="Svizzera">Svizzera</NativeSelectItem>
+                  <NativeSelectItem value="Greca">Greca</NativeSelectItem>
+                  <NativeSelectItem value="Polacca">Polacca</NativeSelectItem>
+                  <NativeSelectItem value="Ceca">Ceca</NativeSelectItem>
+                  <NativeSelectItem value="Slovacca">Slovacca</NativeSelectItem>
+                  <NativeSelectItem value="Ungherese">Ungherese</NativeSelectItem>
+                  <NativeSelectItem value="Romena">Romena</NativeSelectItem>
+                  <NativeSelectItem value="Bulgaro">Bulgaro</NativeSelectItem>
+                  <NativeSelectItem value="Croata">Croata</NativeSelectItem>
+                  <NativeSelectItem value="Slovena">Slovena</NativeSelectItem>
+                  <NativeSelectItem value="Lituana">Lituana</NativeSelectItem>
+                  <NativeSelectItem value="Lettone">Lettone</NativeSelectItem>
+                  <NativeSelectItem value="Estoniana">Estoniana</NativeSelectItem>
+                  <NativeSelectItem value="Maltese">Maltese</NativeSelectItem>
+                  <NativeSelectItem value="Cipriota">Cipriota</NativeSelectItem>
+                  <NativeSelectItem value="Lussemburghese">Lussemburghese</NativeSelectItem>
+                  <NativeSelectItem value="Irlandese">Irlandese</NativeSelectItem>
+                  <NativeSelectItem value="Altra">Altra</NativeSelectItem>
+                </NativeSelect>
                 <FormMessage />
               </FormItem>
             )}
@@ -380,19 +343,12 @@ export function RegisterForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Ruolo</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                                       <SelectTrigger className="bg-white">
-                       <SelectValue placeholder="Seleziona ruolo" />
-                     </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Elettore">Elettore</SelectItem>
-                  <SelectItem value="Politico">Politico</SelectItem>
-                  <SelectItem value="Candidato">Candidato</SelectItem>
-                  <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-                </SelectContent>
-              </Select>
+              <NativeSelect onValueChange={field.onChange} value={field.value}>
+                <NativeSelectItem value="Elettore">Elettore</NativeSelectItem>
+                <NativeSelectItem value="Politico">Politico</NativeSelectItem>
+                <NativeSelectItem value="Candidato">Candidato</NativeSelectItem>
+                <NativeSelectItem value="Candidato Politico">Candidato Politico</NativeSelectItem>
+              </NativeSelect>
               <FormMessage />
             </FormItem>
           )}
@@ -408,17 +364,10 @@ export function RegisterForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Paese</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleziona paese" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Italia">Italia</SelectItem>
-                      <SelectItem value="Altro">Altro</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect onValueChange={field.onChange} value={field.value}>
+                    <NativeSelectItem value="Italia">Italia</NativeSelectItem>
+                    <NativeSelectItem value="Altro">Altro</NativeSelectItem>
+                  </NativeSelect>
                   <FormMessage />
                 </FormItem>
               )}
@@ -429,18 +378,11 @@ export function RegisterForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Regione</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniResidenza.length === 0}>
-                    <FormControl>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleziona regione" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {geographicSelections.regioniResidenza.map((regione) => (
-                        <SelectItem key={regione} value={regione}>{regione}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniResidenza.length === 0}>
+                    {geographicSelections.regioniResidenza.map((regione) => (
+                      <NativeSelectItem key={regione} value={regione}>{regione}</NativeSelectItem>
+                    ))}
+                  </NativeSelect>
                   <FormMessage />
                 </FormItem>
               )}
@@ -453,18 +395,11 @@ export function RegisterForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Provincia</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceResidenza.length === 0}>
-                    <FormControl>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleziona provincia" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {geographicSelections.provinceResidenza.map((provincia) => (
-                        <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceResidenza.length === 0}>
+                    {geographicSelections.provinceResidenza.map((provincia) => (
+                      <NativeSelectItem key={provincia} value={provincia}>{provincia}</NativeSelectItem>
+                    ))}
+                  </NativeSelect>
                   <FormMessage />
                 </FormItem>
               )}
@@ -475,18 +410,11 @@ export function RegisterForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Comune</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniResidenza.length === 0}>
-                    <FormControl>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Seleziona comune" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {geographicSelections.comuniResidenza.map((comune) => (
-                        <SelectItem key={comune} value={comune}>{comune}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniResidenza.length === 0}>
+                    {geographicSelections.comuniResidenza.map((comune) => (
+                      <NativeSelectItem key={comune} value={comune}>{comune}</NativeSelectItem>
+                    ))}
+                  </NativeSelect>
                   <FormMessage />
                 </FormItem>
               )}
@@ -505,17 +433,10 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paese di Elezione</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona paese" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Italia">Italia</SelectItem>
-                        <SelectItem value="Altro">Altro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect onValueChange={field.onChange} value={field.value}>
+                      <NativeSelectItem value="Italia">Italia</NativeSelectItem>
+                      <NativeSelectItem value="Altro">Altro</NativeSelectItem>
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -526,18 +447,11 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Regione di Elezione</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniElezione.length === 0}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona regione" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {geographicSelections.regioniElezione.map((regione) => (
-                          <SelectItem key={regione} value={regione}>{regione}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniElezione.length === 0}>
+                      {geographicSelections.regioniElezione.map((regione) => (
+                        <NativeSelectItem key={regione} value={regione}>{regione}</NativeSelectItem>
+                      ))}
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -550,18 +464,11 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provincia di Elezione</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceElezione.length === 0}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona provincia" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {geographicSelections.provinceElezione.map((provincia) => (
-                          <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceElezione.length === 0}>
+                      {geographicSelections.provinceElezione.map((provincia) => (
+                        <NativeSelectItem key={provincia} value={provincia}>{provincia}</NativeSelectItem>
+                      ))}
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -572,18 +479,11 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Comune di Elezione</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniElezione.length === 0}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona comune" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {geographicSelections.comuniElezione.map((comune) => (
-                          <SelectItem key={comune} value={comune}>{comune}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniElezione.length === 0}>
+                      {geographicSelections.comuniElezione.map((comune) => (
+                        <NativeSelectItem key={comune} value={comune}>{comune}</NativeSelectItem>
+                      ))}
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -603,17 +503,10 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paese di Candidatura</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona paese" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Italia">Italia</SelectItem>
-                        <SelectItem value="Altro">Altro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect onValueChange={field.onChange} value={field.value}>
+                      <NativeSelectItem value="Italia">Italia</NativeSelectItem>
+                      <NativeSelectItem value="Altro">Altro</NativeSelectItem>
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -624,18 +517,11 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Regione di Candidatura</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniCandidatura.length === 0}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona regione" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {geographicSelections.regioniCandidatura.map((regione) => (
-                          <SelectItem key={regione} value={regione}>{regione}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.regioniCandidatura.length === 0}>
+                      {geographicSelections.regioniCandidatura.map((regione) => (
+                        <NativeSelectItem key={regione} value={regione}>{regione}</NativeSelectItem>
+                      ))}
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -648,18 +534,11 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provincia di Candidatura</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceCandidatura.length === 0}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona provincia" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {geographicSelections.provinceCandidatura.map((provincia) => (
-                          <SelectItem key={provincia} value={provincia}>{provincia}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.provinceCandidatura.length === 0}>
+                      {geographicSelections.provinceCandidatura.map((provincia) => (
+                        <NativeSelectItem key={provincia} value={provincia}>{provincia}</NativeSelectItem>
+                      ))}
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -670,18 +549,11 @@ export function RegisterForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Comune di Candidatura</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniCandidatura.length === 0}>
-                      <FormControl>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue placeholder="Seleziona comune" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {geographicSelections.comuniCandidatura.map((comune) => (
-                          <SelectItem key={comune} value={comune}>{comune}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <NativeSelect onValueChange={field.onChange} value={field.value} disabled={geographicSelections.comuniCandidatura.length === 0}>
+                      {geographicSelections.comuniCandidatura.map((comune) => (
+                        <NativeSelectItem key={comune} value={comune}>{comune}</NativeSelectItem>
+                      ))}
+                    </NativeSelect>
                     <FormMessage />
                   </FormItem>
                 )}
