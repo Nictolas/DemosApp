@@ -679,7 +679,7 @@ function App() {
               console.log('🔄 Recovery fallito, ricarico pagina');
               window.location.reload();
             }
-          }, 2000);
+          }, 5000); // Aumentato a 5 secondi
           
           return false; // Pagina corrotta
         }
@@ -693,8 +693,8 @@ function App() {
       }
     };
     
-    // Controlla ogni secondo se la pagina è corrotta
-    recoveryCheckInterval = setInterval(checkForPageCorruption, 1000);
+    // Controlla ogni 5 secondi se la pagina è corrotta (meno aggressivo)
+    recoveryCheckInterval = setInterval(checkForPageCorruption, 5000);
     
     return () => {
       if ('ontouchstart' in window) {
