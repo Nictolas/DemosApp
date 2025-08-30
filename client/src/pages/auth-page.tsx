@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { RegistrationWizard, CompleteRegistrationData } from "@/components/auth";
+
 import './auth-page.css';
 
 const loginSchema = z.object({
@@ -33,7 +33,6 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  const [showWizard, setShowWizard] = useState(false);
   const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail } = useAuth();
   const { toast } = useToast();
 
@@ -63,49 +62,17 @@ export default function AuthPage() {
     loginMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
   };
 
-  // Gestione del submit per la registrazione (solo credenziali base)
+  // Gestione del submit per la registrazione
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Salva le credenziali e mostra il wizard per completare la registrazione
-    setShowWizard(true);
+    // Salva le credenziali nel localStorage
+    localStorage.setItem("registrazione_email", data.email);
+    localStorage.setItem("registrazione_password", data.password);
+    
+    // Vai direttamente alla prima pagina di registrazione (nome)
+    window.location.href = "/registrazione-nome";
   };
 
-  // Gestione del completamento del wizard
-  const onWizardComplete = (data: CompleteRegistrationData) => {
-    // Combina le credenziali dal form con i dati del wizard
-    const registerData = {
-      email: registerForm.getValues("email").trim().toLowerCase(),
-      password: registerForm.getValues("password"),
-      codice_fiscale: data.codice_fiscale.toUpperCase(),
-      nome: data.nome,
-      cognome: data.cognome,
-      ruolo: data.ruolo,
-      data_nascita: data.data_nascita,
-      genere: data.genere,
-      cittadinanza: data.cittadinanza,
-      paese_residenza: data.paese_residenza,
-      regione_residenza: data.regione_residenza,
-      provincia_residenza: data.provincia_residenza,
-      comune_residenza: data.comune_residenza,
-      paese_elezione: data.paese_elezione,
-      regione_elezione: data.regione_elezione,
-      provincia_elezione: data.provincia_elezione,
-      comune_elezione: data.comune_elezione,
-      paese_candidatura: data.paese_candidatura,
-      regione_candidatura: data.regione_candidatura,
-      provincia_candidatura: data.provincia_candidatura,
-      comune_candidatura: data.comune_candidatura,
-      grado_elezione: data.grado_elezione,
-      grado_candidatura: data.grado_candidatura,
-    };
-    registerMutation.mutate(registerData);
-    setShowWizard(false);
-  };
 
-  // Gestione dell'annullamento del wizard
-  const onWizardCancel = () => {
-    setShowWizard(false);
-    setActiveTab("login");
-  };
 
   // Gestione del reinvio email di verifica
   const handleResendVerification = async () => {
@@ -343,22 +310,7 @@ export default function AuthPage() {
         </CardContent>
       </Card>
 
-      {/* Wizard di Registrazione */}
-      {showWizard && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <RegistrationWizard
-              onComplete={onWizardComplete}
-              onCancel={onWizardCancel}
-              defaultValues={{
-                email: registerForm.getValues("email"),
-                password: registerForm.getValues("password"),
-                confirmPassword: registerForm.getValues("confirmPassword"),
-              }}
-            />
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }

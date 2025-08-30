@@ -22,7 +22,7 @@ import ScegliCandidato from "@/pages/ScegliCandidato";
 import StatisticheUtenti from "@/pages/StatisticheUtenti";
 import RegistrazioneCandidatura from "@/pages/RegistrazioneCandidatura";
 import RegistrazioneElezione from "@/pages/RegistrazioneElezione";
-import RegistrazioneEmail from "@/pages/registrazione-1-email";
+
 import RegistrazioneNome from "@/pages/registrazione-nome";
 import RegistrazioneGenere from "@/pages/registrazione-genere";
 import RegistrazioneCittadinanza from "@/pages/registrazione-cittadinanza";
@@ -137,14 +137,7 @@ function Router() {
         )}
       </Route>
 
-      {/* NUOVE PAGINE DI REGISTRAZIONE - UNA PER OGNI DOMANDA */}
-      <Route path="/registrazione-1-email">
-        {() => (
-          <PageTransition location={location} type="fade-up">
-            <RegistrazioneEmail />
-          </PageTransition>
-        )}
-      </Route>
+             {/* NUOVE PAGINE DI REGISTRAZIONE - UNA PER OGNI DOMANDA */}
       <Route path="/registrazione-nome">
         {() => (
           <PageTransition location={location} type="fade-up">

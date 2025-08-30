@@ -3,18 +3,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useLocation } from "wouter";
-import CodiceFiscaleInput from "@/components/CodiceFiscaleInput";
 
 const datiSchema = z.object({
-  codice_fiscale: z.string().min(16, "Il codice fiscale deve essere di 16 caratteri").max(16, "Il codice fiscale deve essere di 16 caratteri"),
-  nome: z.string().min(1, "Il nome è obbligatorio"),
-  cognome: z.string().min(1, "Il cognome è obbligatorio"),
-  data_nascita: z.string().min(1, "La data di nascita è obbligatoria"),
-  genere: z.string().min(1, "Il genere è obbligatorio"),
-  cittadinanza: z.string().min(1, "La cittadinanza è obbligatoria"),
+  ruolo: z.string().min(1, "Il ruolo è obbligatorio"),
 });
 
 type DatiValues = z.infer<typeof datiSchema>;
@@ -25,23 +18,13 @@ export default function RegistrazioneDati() {
   const form = useForm<DatiValues>({
     resolver: zodResolver(datiSchema),
     defaultValues: {
-      codice_fiscale: "",
-      nome: "",
-      cognome: "",
-      data_nascita: "",
-      genere: "",
-      cittadinanza: "",
+      ruolo: "",
     },
   });
 
   const onSubmit = (data: DatiValues) => {
     // Salva i dati nel localStorage
-    localStorage.setItem("registrazione_codice_fiscale", data.codice_fiscale);
-    localStorage.setItem("registrazione_nome", data.nome);
-    localStorage.setItem("registrazione_cognome", data.cognome);
-    localStorage.setItem("registrazione_data_nascita", data.data_nascita);
-    localStorage.setItem("registrazione_genere", data.genere);
-    localStorage.setItem("registrazione_cittadinanza", data.cittadinanza);
+    localStorage.setItem("registrazione_ruolo", data.ruolo);
     
     // Vai alla pagina successiva
     navigate("/registrazione-3-residenza");
@@ -52,141 +35,51 @@ export default function RegistrazioneDati() {
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Registrazione</h1>
-          
+        </div>
+
+        <div className="text-center mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            Quale ruolo vuoi ricoprire?
+          </h2>
+          <p className="text-gray-600 text-sm">
+            Scegli il tuo ruolo nella piattaforma
+          </p>
         </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="codice_fiscale"
+              name="ruolo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Codice Fiscale *</FormLabel>
+                  <FormLabel>Ruolo *</FormLabel>
                   <FormControl>
-                    <CodiceFiscaleInput
+                    <select
                       {...field}
-                      placeholder="Codice Fiscale"
-                      className="w-full"
-                    />
+                      className="w-full h-12 text-lg text-center border rounded-md"
+                    >
+                      <option value="">Seleziona ruolo</option>
+                      <option value="elettore">Elettore</option>
+                      <option value="candidato">Candidato</option>
+                      <option value="rappresentante">Rappresentante</option>
+                    </select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="nome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome *</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Il tuo nome"
-                        className="w-full"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="cognome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cognome *</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Il tuo cognome"
-                        className="w-full"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="data_nascita"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data di Nascita *</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="date"
-                      className="w-full"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="genere"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Genere *</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="">Seleziona genere</option>
-                        <option value="uomo">Uomo</option>
-                        <option value="donna">Donna</option>
-                        <option value="altro">Altro</option>
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="cittadinanza"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cittadinanza *</FormLabel>
-                    <FormControl>
-                      <select
-                        {...field}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="">Seleziona cittadinanza</option>
-                        <option value="italiana">Italiana</option>
-                        <option value="europea">Europea</option>
-                        <option value="extra-ue">Extra-UE</option>
-                      </select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <Button type="submit" className="w-full">
+            <Button type="submit" className="w-full h-12 text-lg">
               Continua
             </Button>
           </form>
         </Form>
 
-        <div className="text-center mt-6 space-y-2">
+        <div className="text-center mt-6">
           <Button
             variant="ghost"
-            onClick={() => navigate("/registrazione-1-email")}
+            onClick={() => navigate("/registrazione-codice-fiscale")}
             className="text-gray-500 hover:text-gray-700"
           >
             ← Indietro
