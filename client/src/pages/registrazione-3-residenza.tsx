@@ -19,6 +19,10 @@ type ResidenzaValues = z.infer<typeof residenzaSchema>;
 export default function RegistrazioneResidenza() {
   const [, navigate] = useLocation();
 
+  // Debug: verifica che i dati italiani siano caricati
+  console.log("ITALY_DATA caricato:", ITALY_DATA);
+  console.log("Regioni disponibili:", ITALY_DATA.Italia.regioni.length);
+
   const form = useForm<ResidenzaValues>({
     resolver: zodResolver(residenzaSchema),
     defaultValues: {
@@ -33,6 +37,11 @@ export default function RegistrazioneResidenza() {
   const watchRegioneResidenza = form.watch("regione_residenza");
   const watchProvinciaResidenza = form.watch("provincia_residenza");
 
+  // Debug: verifica i valori dei campi
+  console.log("Paese selezionato:", watchPaeseResidenza);
+  console.log("Regione selezionata:", watchRegioneResidenza);
+  console.log("Provincia selezionata:", watchProvinciaResidenza);
+
   const onSubmit = (data: ResidenzaValues) => {
     // Salva i dati nel localStorage
     localStorage.setItem("registrazione_paese_residenza", data.paese_residenza);
@@ -40,8 +49,8 @@ export default function RegistrazioneResidenza() {
     localStorage.setItem("registrazione_provincia_residenza", data.provincia_residenza);
     localStorage.setItem("registrazione_comune_residenza", data.comune_residenza);
     
-    // Vai alla pagina successiva
-    navigate("/registrazione-codice-fiscale");
+          // Vai alla pagina successiva
+      navigate("/registrazione-2-dati");
   };
 
   // Reset dei campi dipendenti
@@ -127,43 +136,52 @@ export default function RegistrazioneResidenza() {
                   )}
                 />
 
-                {watchRegioneResidenza && (
-                  <FormField
-                    control={form.control}
-                    name="provincia_residenza"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Provincia di Residenza *</FormLabel>
-                        <FormControl>
-                          <select
-                            {...field}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <option value="">Seleziona provincia</option>
-                            {ITALY_DATA.Italia.regioni
-                              .find((r) => r.nome === watchRegioneResidenza)
-                              ?.province.map((provincia) => (
-                                <option key={provincia.nome} value={provincia.nome}>
-                                  {provincia.nome}
-                                </option>
-                              )) || []}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                                 {watchRegioneResidenza && (
+                   <FormField
+                     control={form.control}
+                     name="provincia_residenza"
+                     render={({ field }) => {
+                       const regioniTrovate = ITALY_DATA.Italia.regioni.find((r) => r.nome === watchRegioneResidenza);
+                       const provinceDisponibili = regioniTrovate?.province || [];
+                       
+                       console.log("Regione trovata:", regioniTrovate);
+                       console.log("Province disponibili:", provinceDisponibili);
+                       
+                       return (
+                         <FormItem>
+                           <FormLabel>Provincia di Residenza *</FormLabel>
+                           <FormControl>
+                             <select
+                               {...field}
+                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                             >
+                               <option value="">Seleziona provincia</option>
+                               {provinceDisponibili.map((provincia) => (
+                                 <option key={provincia.nome} value={provincia.nome}>
+                                   {provincia.nome}
+                                 </option>
+                               ))}
+                             </select>
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       );
+                     }}
+                   />
+                 )}
 
                 {watchProvinciaResidenza && (
                   <FormField
                     control={form.control}
                     name="comune_residenza"
                     render={({ field }) => {
-                      const comuniDisponibili = ITALY_DATA.Italia.regioni
-                        .find((r) => r.nome === watchRegioneResidenza)
-                        ?.province.find((p) => p.nome === watchProvinciaResidenza)
-                        ?.comuni || [];
+                      const regioniTrovate = ITALY_DATA.Italia.regioni.find((r) => r.nome === watchRegioneResidenza);
+                      const provinceTrovate = regioniTrovate?.province.find((p) => p.nome === watchProvinciaResidenza);
+                      const comuniDisponibili = provinceTrovate?.comuni || [];
+                      
+                      console.log("Regione per comuni:", regioniTrovate);
+                      console.log("Provincia per comuni:", provinceTrovate);
+                      console.log("Comuni disponibili:", comuniDisponibili);
                       
                       return (
                         <FormItem>
@@ -175,8 +193,8 @@ export default function RegistrazioneResidenza() {
                             >
                               <option value="">Seleziona comune</option>
                               {comuniDisponibili.map((comune) => (
-                                <option key={comune.nome} value={comune.nome}>
-                                  {comune.nome}
+                                <option key={comune} value={comune}>
+                                  {comune}
                                 </option>
                               ))}
                             </select>
