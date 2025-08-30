@@ -36,9 +36,8 @@ app.use(cors({
       'https://demos.community',
       'https://demos-frontend-r3so.onrender.com',
       'https://demos-frontend.onrender.com',
-      'https://demos-app.vercel.app',
-      'https://demos-app-git-main-demos-projects.vercel.app',
-      'https://*.vercel.app'
+      'https://demos-app.onrender.com',
+      'https://*.onrender.com'
     ];
     
     // Log per debug
@@ -81,9 +80,8 @@ app.use((req, res, next) => {
       'https://demos.community',
       'https://demos-frontend-r3so.onrender.com',
       'https://demos-frontend.onrender.com',
-      'https://demos-app.vercel.app',
-      'https://demos-app-git-main-demos-projects.vercel.app',
-      'https://*.vercel.app'
+      'https://demos-app.onrender.com',
+      'https://*.onrender.com'
     ];
     
     if (allowedOrigins.includes(origin)) {
@@ -6248,6 +6246,43 @@ app.post('/api/test-resend-email', async (req, res) => {
       error: 'Test Resend fallito',
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// ===== ENDPOINT PER CONTROLLO EMAIL DUPLICATA =====
+
+app.post('/api/check-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email richiesta',
+        message: 'Il campo email è obbligatorio'
+      });
+    }
+
+    console.log('🔍 Controllo email nel database:', email);
+
+    // Controlla se l'email esiste nella tabella users
+    const result = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+
+    const exists = result.rows.length > 0;
+    console.log('📊 Email trovata nel database:', exists, 'Righe:', result.rows.length);
+
+    res.json({ exists });
+
+  } catch (error) {
+    console.error('💥 Errore durante il controllo email:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile verificare l\'email'
     });
   }
 });

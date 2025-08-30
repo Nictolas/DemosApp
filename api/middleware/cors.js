@@ -13,9 +13,8 @@ const corsOptions = {
       'https://demos.community',
       'https://demos-frontend-r3so.onrender.com',
       'https://demos-frontend.onrender.com',
-      'https://demos-app.vercel.app',
-      'https://demos-app-git-main-demos-projects.vercel.app',
-      'https://*.vercel.app'
+      'https://demos-app.onrender.com',
+      'https://*.onrender.com'
     ];
     
     // Log per debug
@@ -58,9 +57,8 @@ const corsPreflight = (req, res, next) => {
       'https://demos.community',
       'https://demos-frontend-r3so.onrender.com',
       'https://demos-frontend.onrender.com',
-      'https://demos-app.vercel.app',
-      'https://demos-app-git-main-demos-projects.vercel.app',
-      'https://*.vercel.app'
+      'https://demos-app.onrender.com',
+      'https://*.onrender.com'
     ];
     
     if (allowedOrigins.includes(origin)) {
