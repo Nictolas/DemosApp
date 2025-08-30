@@ -3,45 +3,71 @@ import * as SelectPrimitive from "@radix-ui/react-select"
 import { Check, ChevronDown, ChevronUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Hook per recupero automatico su mobile
-function useMobileRecovery() {
+// Hook per recupero ultra-aggressivo su mobile
+function useUltraMobileRecovery() {
   const [needsRecovery, setNeedsRecovery] = React.useState(false)
   const [recoveryCount, setRecoveryCount] = React.useState(0)
+  const [lastEvent, setLastEvent] = React.useState<string>('')
   
   React.useEffect(() => {
-    // Su mobile, monitora eventi che possono corrompere i Select
+    // Su mobile, monitora TUTTI gli eventi che potrebbero corrompere i Select
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
       
-      // Listener per eventi che corrompono i Select
-      const handleCorruptingEvent = () => {
+      // Listener per TUTTI gli eventi che potrebbero corrompere i Select
+      const handleAnyEvent = (eventType: string) => {
+        console.log(`🚨 EVENTO CORRUTTORE RILEVATO: ${eventType}`)
+        setLastEvent(eventType)
         setNeedsRecovery(true)
         setRecoveryCount(prev => prev + 1)
         
-        // Auto-recovery dopo 100ms
-        setTimeout(() => {
-          setNeedsRecovery(false)
-        }, 100)
+        // Recovery più aggressivo: riprova più volte
+        setTimeout(() => setNeedsRecovery(false), 50)
+        setTimeout(() => setNeedsRecovery(false), 100)
+        setTimeout(() => setNeedsRecovery(false), 200)
+        setTimeout(() => setNeedsRecovery(false), 500)
       }
       
-      // Eventi che causano problemi su mobile
-      window.addEventListener('orientationchange', handleCorruptingEvent)
-      window.addEventListener('resize', handleCorruptingEvent)
-      window.addEventListener('scroll', handleCorruptingEvent)
-      window.addEventListener('focus', handleCorruptingEvent)
-      window.addEventListener('blur', handleCorruptingEvent)
+      // TUTTI gli eventi che potrebbero causare problemi
+      const events = [
+        'orientationchange', 'resize', 'scroll', 'focus', 'blur',
+        'input', 'change', 'click', 'touchstart', 'touchend', 'touchmove',
+        'keydown', 'keyup', 'keypress', 'beforeinput', 'input',
+        'compositionstart', 'compositionend', 'compositionupdate',
+        'focusin', 'focusout', 'select', 'selectstart', 'selectionchange',
+        'visibilitychange', 'pagehide', 'pageshow', 'beforeunload',
+        'load', 'unload', 'abort', 'error', 'online', 'offline'
+      ]
+      
+      // Aggiungi listener per TUTTI gli eventi
+      events.forEach(eventType => {
+        window.addEventListener(eventType, () => handleAnyEvent(eventType), { passive: true })
+        document.addEventListener(eventType, () => handleAnyEvent(eventType), { passive: true })
+      })
+      
+      // Monitora anche mutazioni del DOM
+      const observer = new MutationObserver(() => {
+        handleAnyEvent('DOM_MUTATION')
+      })
+      
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      })
       
       // Cleanup
       return () => {
-        window.removeEventListener('orientationchange', handleCorruptingEvent)
-        window.removeEventListener('resize', handleCorruptingEvent)
-        window.removeEventListener('scroll', handleCorruptingEvent)
-        window.removeEventListener('focus', handleCorruptingEvent)
-        window.removeEventListener('blur', handleCorruptingEvent)
+        events.forEach(eventType => {
+          window.removeEventListener(eventType, () => handleAnyEvent(eventType))
+          document.removeEventListener(eventType, () => handleAnyEvent(eventType))
+        })
+        observer.disconnect()
       }
     }
   }, [])
   
-  return { needsRecovery, recoveryCount }
+  return { needsRecovery, recoveryCount, lastEvent }
 }
 
 const Select = SelectPrimitive.Root
@@ -54,7 +80,7 @@ const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
 >(({ className, children, ...props }, ref) => {
-  const { needsRecovery, recoveryCount } = useMobileRecovery()
+  const { needsRecovery, recoveryCount, lastEvent } = useUltraMobileRecovery()
   
   return (
     <SelectPrimitive.Trigger
@@ -69,9 +95,11 @@ const SelectTrigger = React.forwardRef<
         border: needsRecovery ? '1px solid transparent' : '1px solid #d1d5db',
         position: 'relative',
         zIndex: needsRecovery ? 0 : 1,
-        // Forza re-render su mobile quando necessario
-        transform: needsRecovery ? 'scale(0.99)' : 'scale(1)',
-        transition: 'all 0.1s ease-in-out'
+        // Recovery ultra-aggressivo: forza re-render completo
+        transform: needsRecovery ? 'scale(0.98) rotate(0.1deg)' : 'scale(1) rotate(0deg)',
+        transition: 'all 0.05s ease-in-out',
+        // Debug info visibile
+        outline: needsRecovery ? '2px solid red' : 'none'
       }}
       {...props}
     >
@@ -123,7 +151,7 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => {
-  const { needsRecovery, recoveryCount } = useMobileRecovery()
+  const { needsRecovery, recoveryCount, lastEvent } = useUltraMobileRecovery()
   
   return (
     <SelectPrimitive.Portal>
@@ -140,9 +168,11 @@ const SelectContent = React.forwardRef<
           color: needsRecovery ? 'transparent' : 'black',
           border: needsRecovery ? '1px solid transparent' : '1px solid #d1d5db',
           zIndex: needsRecovery ? 0 : 99999,
-          // Forza re-render su mobile quando necessario
-          transform: needsRecovery ? 'scale(0.99)' : 'scale(1)',
-          transition: 'all 0.1s ease-in-out'
+          // Recovery ultra-aggressivo: forza re-render completo
+          transform: needsRecovery ? 'scale(0.98) rotate(0.1deg)' : 'scale(1) rotate(0deg)',
+          transition: 'all 0.05s ease-in-out',
+          // Debug info visibile
+          outline: needsRecovery ? '2px solid red' : 'none'
         }}
         position={position}
         {...props}
@@ -180,7 +210,7 @@ const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
 >(({ className, children, ...props }, ref) => {
-  const { needsRecovery } = useMobileRecovery()
+  const { needsRecovery } = useUltraMobileRecovery()
   
   return (
     <SelectPrimitive.Item
@@ -192,9 +222,11 @@ const SelectItem = React.forwardRef<
       style={{
         backgroundColor: needsRecovery ? 'transparent' : 'white',
         color: needsRecovery ? 'transparent' : 'black',
-        // Forza re-render su mobile quando necessario
-        transform: needsRecovery ? 'scale(0.99)' : 'scale(1)',
-        transition: 'all 0.1s ease-in-out'
+        // Recovery ultra-aggressivo: forza re-render completo
+        transform: needsRecovery ? 'scale(0.98) rotate(0.1deg)' : 'scale(1) rotate(0deg)',
+        transition: 'all 0.05s ease-in-out',
+        // Debug info visibile
+        outline: needsRecovery ? '2px solid red' : 'none'
       }}
       {...props}
     >
