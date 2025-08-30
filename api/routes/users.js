@@ -14,7 +14,7 @@ router.get('/me', verifyToken, async (req, res) => {
     
     const query = `
       SELECT id, nome, cognome, email, ruolo, genere, data_nascita, 
-             regione_residenza, provincia_residenza, comune_residenza, cittadinanza, avatar_config, premium,
+             paese_residenza, regione_residenza, provincia_residenza, comune_residenza, cittadinanza, avatar_config, premium,
              created_at, updated_at, status
       FROM users 
       WHERE id = $1
@@ -39,9 +39,9 @@ router.get('/me', verifyToken, async (req, res) => {
         nome: user.nome,
         cognome: user.cognome,
         email: user.email,
-        ruolo: user.ruolo,
         genere: user.genere,
         data_nascita: user.data_nascita,
+        paese_residenza: user.paese_residenza,
         regione_residenza: user.regione_residenza,
         provincia_residenza: user.provincia_residenza,
         comune_residenza: user.comune_residenza,
