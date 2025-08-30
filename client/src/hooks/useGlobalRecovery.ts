@@ -7,41 +7,85 @@ export function useGlobalRecovery() {
   const recoveryTimeoutRef = useRef<NodeJS.Timeout>()
   const checkIntervalRef = useRef<NodeJS.Timeout>()
   const lastKnownStateRef = useRef<any>(null)
-  const componentBackupRef = useRef<any>(null)
   
-  // 🛡️ SISTEMA DI RECOVERY PREVENTIVO
-  const preventCorruption = () => {
+  // 🎯 SALVA STATO COMPLETO DELLA PAGINA
+  const savePageState = () => {
     try {
-      // 1. Salva backup dei componenti critici
-      const criticalElements = document.querySelectorAll('form, input, select, textarea, button')
-      componentBackupRef.current = Array.from(criticalElements).map(el => ({
-        tagName: el.tagName,
-        className: el.className,
-        id: el.id,
-        name: (el as any).name,
-        value: (el as any).value,
-        type: (el as any).type,
-        placeholder: (el as any).placeholder,
-        innerHTML: el.innerHTML
-      }))
+      const currentState = {
+        timestamp: Date.now(),
+        url: window.location.href,
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash,
+        scrollY: window.scrollY,
+        formData: getFormData(),
+        pageTitle: document.title,
+        bodyContent: document.body.innerHTML.substring(0, 1000) // Primi 1000 caratteri per debug
+      }
       
-      // 2. Forza re-render preventivo ogni 5 secondi
-      setInterval(() => {
-        try {
-          // Verifica integrità componenti
-          const currentElements = document.querySelectorAll('form, input, select, textarea, button')
-          if (currentElements.length < 5) { // Troppo pochi elementi = corruzione
-            console.log('⚠️ PREVENZIONE CORRUZIONE - Forzo re-render')
-            window.dispatchEvent(new Event('force-rerender'))
-          }
-        } catch (error) {
-          console.error('❌ Errore prevenzione:', error)
-        }
-      }, 5000)
+      lastKnownStateRef.current = currentState
+      localStorage.setItem('app-page-state', JSON.stringify(currentState))
+      console.log('💾 Stato pagina salvato:', currentState)
       
-      console.log('🛡️ Sistema di prevenzione corruzione attivato')
+      return currentState
     } catch (error) {
-      console.error('❌ Errore nell\'attivare prevenzione:', error)
+      console.error('❌ Errore nel salvare stato pagina:', error)
+      return null
+    }
+  }
+  
+  // 🎯 RIPRISTINA STATO COMPLETO DELLA PAGINA
+  const restorePageState = () => {
+    try {
+      const savedState = localStorage.getItem('app-page-state')
+      if (!savedState) {
+        console.log('❌ Nessuno stato salvato trovato')
+        return false
+      }
+      
+      const state = JSON.parse(savedState)
+      console.log('🔄 Ripristino stato pagina:', state)
+      
+      // Ripristina scroll
+      if (state.scrollY) {
+        window.scrollTo(0, state.scrollY)
+      }
+      
+      // Ripristina focus su primo input
+      setTimeout(() => {
+        const firstInput = document.querySelector('input, select, textarea')
+        if (firstInput) {
+          (firstInput as HTMLElement).focus()
+        }
+      }, 100)
+      
+      return true
+    } catch (error) {
+      console.error('❌ Errore nel ripristinare stato:', error)
+      return false
+    }
+  }
+  
+  // 🚨 RECOVERY CON RIPRISTINO ROTTA
+  const recoverWithRouteRestore = () => {
+    console.log('🚨 RECOVERY CON RIPRISTINO ROTTA ATTIVATO')
+    
+    try {
+      // 1. Salva stato corrente
+      const currentState = savePageState()
+      if (!currentState) {
+        console.log('❌ Impossibile salvare stato, ricarico diretto')
+        window.location.reload()
+        return
+      }
+      
+      // 2. Ricarica la pagina
+      console.log('🔄 Ricarico pagina per ripristino completo')
+      window.location.reload()
+      
+    } catch (error) {
+      console.error('❌ Errore nel recovery con ripristino rotta:', error)
+      window.location.reload()
     }
   }
   
@@ -53,15 +97,8 @@ export function useGlobalRecovery() {
     // Forza un re-render globale
     window.dispatchEvent(new Event('force-rerender'))
     
-    // Ripristina lo stato se disponibile
-    if (lastKnownStateRef.current) {
-      try {
-        localStorage.setItem('app-recovery-state', JSON.stringify(lastKnownStateRef.current))
-        console.log('💾 Stato di recovery salvato')
-      } catch (error) {
-        console.error('❌ Errore nel salvare lo stato di recovery:', error)
-      }
-    }
+    // Salva stato prima del re-render
+    savePageState()
   }
   
   const recoverPage = () => {
@@ -73,45 +110,11 @@ export function useGlobalRecovery() {
     setRecoveryCount(prev => prev + 1)
     setLastRecovery(new Date().toLocaleTimeString())
     
-    // 1. Salva lo stato corrente
-    try {
-      const currentState = {
-        timestamp: Date.now(),
-        url: window.location.href,
-        scrollY: window.scrollY,
-        formData: getFormData()
-      }
-      lastKnownStateRef.current = currentState
-      localStorage.setItem('app-recovery-state', JSON.stringify(currentState))
-      console.log('💾 Stato salvato per recovery:', currentState)
-    } catch (error) {
-      console.error('❌ Errore nel salvare lo stato:', error)
-    }
+    // Salva stato e attiva recovery
+    savePageState()
+    recoverWithRouteRestore()
     
-    // 2. Forza re-render globale
-    forceGlobalRerender()
-    
-    // 3. Ripristina focus e scroll
-    setTimeout(() => {
-      try {
-        // Ripristina scroll
-        if (lastKnownStateRef.current?.scrollY) {
-          window.scrollTo(0, lastKnownStateRef.current.scrollY)
-        }
-        
-        // Ripristina focus
-        const firstInput = document.querySelector('input, select, textarea')
-        if (firstInput) {
-          (firstInput as HTMLElement).focus()
-        }
-        
-        console.log('✅ Recovery completato')
-      } catch (error) {
-        console.error('❌ Errore nel completare recovery:', error)
-      } finally {
-        setIsRecovering(false)
-      }
-    }, 100)
+    setIsRecovering(false)
   }
   
   const getFormData = () => {
@@ -179,35 +182,6 @@ export function useGlobalRecovery() {
     }
   }
   
-  // 🚨 RECOVERY ULTRA-AGGRESSIVO
-  const forcePageRestore = () => {
-    console.log('🚨 RECOVERY ULTRA-AGGRESSIVO ATTIVATO')
-    
-    try {
-      // 1. Ripristina componenti dal backup se disponibile
-      if (componentBackupRef.current) {
-        console.log('🔄 Ripristino componenti dal backup')
-        // Forza re-render globale
-        window.dispatchEvent(new Event('force-rerender'))
-        
-        // Se non funziona entro 3 secondi, ricarica
-        setTimeout(() => {
-          if (!checkPageIntegrity()) {
-            console.log('🔄 Recovery fallito, ricarico pagina')
-            window.location.reload()
-          }
-        }, 3000)
-      } else {
-        // 2. Se non c'è backup, ricarica direttamente
-        console.log('🔄 Nessun backup disponibile, ricarico pagina')
-        window.location.reload()
-      }
-    } catch (error) {
-      console.error('❌ Errore nel recovery ultra-aggressivo:', error)
-      window.location.reload()
-    }
-  }
-  
   useEffect(() => {
     // Solo su mobile
     if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
@@ -216,8 +190,35 @@ export function useGlobalRecovery() {
     
     console.log('🛡️ SISTEMA DI RECOVERY GLOBALE ATTIVATO')
     
-    // 🛡️ ATTIVA PREVENZIONE CORRUZIONE
-    preventCorruption()
+    // 🎯 RIPRISTINA STATO SE DISPONIBILE (dopo reload)
+    const restoreOnLoad = () => {
+      try {
+        const savedState = localStorage.getItem('app-page-state')
+        if (savedState) {
+          const state = JSON.parse(savedState)
+          
+          // Se siamo sulla stessa rotta, ripristina stato
+          if (state.pathname === window.location.pathname) {
+            console.log('🔄 Ripristino stato dopo reload:', state.pathname)
+            setTimeout(() => {
+              restorePageState()
+            }, 500) // Aspetta che la pagina si carichi
+          } else {
+            console.log('🔄 Rotta diversa, pulisco stato salvato')
+            localStorage.removeItem('app-page-state')
+          }
+        }
+      } catch (error) {
+        console.error('❌ Errore nel ripristino stato onload:', error)
+      }
+    }
+    
+    // Esegui ripristino quando la pagina si carica
+    if (document.readyState === 'complete') {
+      restoreOnLoad()
+    } else {
+      window.addEventListener('load', restoreOnLoad)
+    }
     
     // 1. Monitora eventi che potrebbero corrompere la pagina
     const events = [
@@ -237,6 +238,7 @@ export function useGlobalRecovery() {
             timestamp: Date.now(),
             event,
             url: window.location.href,
+            pathname: window.location.pathname,
             scrollY: window.scrollY
           }
           lastKnownStateRef.current = currentState
@@ -310,20 +312,6 @@ export function useGlobalRecovery() {
     
     window.addEventListener('unhandledrejection', unhandledRejectionHandler)
     
-    // 7. Ripristina stato se disponibile
-    try {
-      const savedState = localStorage.getItem('app-recovery-state')
-      if (savedState) {
-        const parsedState = JSON.parse(savedState)
-        if (parsedState.url === window.location.href) {
-          lastKnownStateRef.current = parsedState
-          console.log('💾 Stato di recovery ripristinato:', parsedState)
-        }
-      }
-    } catch (error) {
-      console.error('❌ Errore nel ripristinare stato:', error)
-    }
-    
     // Cleanup
     return () => {
       // Rimuovi event listeners
@@ -343,6 +331,7 @@ export function useGlobalRecovery() {
       window.removeEventListener('force-rerender', forceRerenderHandler)
       window.removeEventListener('error', errorHandler)
       window.removeEventListener('unhandledrejection', unhandledRejectionHandler)
+      window.removeEventListener('load', restoreOnLoad)
     }
   }, [])
   
@@ -353,6 +342,8 @@ export function useGlobalRecovery() {
     forceGlobalRerender,
     recoverPage,
     checkPageIntegrity,
-    forcePageRestore // 🚨 NUOVO METODO ULTRA-AGGRESSIVO
+    recoverWithRouteRestore, // 🎯 NUOVO METODO CON RIPRISTINO ROTTA
+    savePageState,
+    restorePageState
   }
 }

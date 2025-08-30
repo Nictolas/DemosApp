@@ -728,7 +728,7 @@ function App() {
             {/* 🚨 PULSANTE DI RECOVERY GLOBALE - SEMPRE VISIBILE */}
             <div className="fixed top-4 right-4 z-[99999]">
               <button
-                onClick={globalRecovery.forcePageRestore}
+                onClick={globalRecovery.recoverWithRouteRestore}
                 className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-red-700"
               >
                 🚨 RECUPERA APP
@@ -738,7 +738,10 @@ function App() {
             {/* 🚨 PULSANTE DI RECOVERY ALTERNATIVO - SEMPRE VISIBILE */}
             <div className="fixed bottom-4 left-4 z-[99999]">
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  globalRecovery.savePageState();
+                  window.location.reload();
+                }}
                 className="bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg hover:bg-orange-700"
               >
                 🔄 RICARICA PAGINA
