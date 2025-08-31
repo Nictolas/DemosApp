@@ -275,6 +275,22 @@ app.post('/api/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
     console.log('🔐 Password hashata con successo');
 
+    // Converti la data di nascita dal formato DD/MM/YYYY a YYYY-MM-DD
+    let dataNascitaConvertita = null;
+    if (data_nascita) {
+      try {
+        const [giorno, mese, anno] = data_nascita.split('/');
+        if (giorno && mese && anno) {
+          dataNascitaConvertita = `${anno}-${mese.padStart(2, '0')}-${giorno.padStart(2, '0')}`;
+          console.log('📅 Data di nascita convertita:', data_nascita, '→', dataNascitaConvertita);
+        } else {
+          console.warn('⚠️ Formato data non valido:', data_nascita);
+        }
+      } catch (error) {
+        console.error('❌ Errore conversione data:', error);
+      }
+    }
+
     // Inserisci l'utente nella tabella users
     const insertQuery = `
       INSERT INTO users (
@@ -289,7 +305,7 @@ app.post('/api/register', async (req, res) => {
     `;
 
     const insertValues = [
-      email.toLowerCase(), passwordHash, nome, cognome, genere || null, data_nascita || null, cittadinanza || null,
+      email.toLowerCase(), passwordHash, nome, cognome, genere || null, dataNascitaConvertita, cittadinanza || null,
       paese_residenza || null, regione_residenza || null, provincia_residenza || null, comune_residenza || null,
       ruolo || 'elettore', grado_elezione || null, paese_elezione || null, regione_elezione || null, provincia_elezione || null, comune_elezione || null,
       grado_candidatura || null, paese_candidatura || null, regione_candidatura || null, provincia_candidatura || null, comune_candidatura || null,
