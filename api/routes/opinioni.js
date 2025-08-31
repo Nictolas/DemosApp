@@ -99,7 +99,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni-list - Ottieni opinioni per grado
-router.get('/list', verifyToken, async (req, res) => {
+router.get('/opinioni-list', verifyToken, async (req, res) => {
   try {
     const { grado } = req.query;
     const userId = req.userId;
