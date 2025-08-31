@@ -277,19 +277,42 @@ app.post('/api/register', async (req, res) => {
 
     // Converti la data di nascita dal formato DD/MM/YYYY a YYYY-MM-DD
     let dataNascitaConvertita = null;
-    if (data_nascita) {
+    if (data_nascita && data_nascita.trim() !== '') {
       try {
-        const [giorno, mese, anno] = data_nascita.split('/');
-        if (giorno && mese && anno) {
-          dataNascitaConvertita = `${anno}-${mese.padStart(2, '0')}-${giorno.padStart(2, '0')}`;
-          console.log('📅 Data di nascita convertita:', data_nascita, '→', dataNascitaConvertita);
+        console.log('📅 Tentativo conversione data:', data_nascita);
+        
+        // Verifica formato DD/MM/YYYY
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+        const match = data_nascita.match(dateRegex);
+        
+        if (match) {
+          const [, giorno, mese, anno] = match;
+          
+          // Validazione valori
+          const giornoNum = parseInt(giorno);
+          const meseNum = parseInt(mese);
+          const annoNum = parseInt(anno);
+          
+          if (giornoNum >= 1 && giornoNum <= 31 && 
+              meseNum >= 1 && meseNum <= 12 && 
+              annoNum >= 1900 && annoNum <= 2100) {
+            
+            dataNascitaConvertita = `${annoNum}-${meseNum.toString().padStart(2, '0')}-${giornoNum.toString().padStart(2, '0')}`;
+            console.log('✅ Data di nascita convertita con successo:', data_nascita, '→', dataNascitaConvertita);
+          } else {
+            console.warn('⚠️ Valori data fuori range:', { giorno: giornoNum, mese: meseNum, anno: annoNum });
+          }
         } else {
-          console.warn('⚠️ Formato data non valido:', data_nascita);
+          console.warn('⚠️ Formato data non valido (atteso DD/MM/YYYY):', data_nascita);
         }
       } catch (error) {
-        console.error('❌ Errore conversione data:', error);
+        console.error('❌ Errore critico conversione data:', error);
+        console.error('📋 Stack trace conversione:', error.stack);
       }
     }
+    
+    // Log finale per debugging
+    console.log('📅 Data finale per database:', dataNascitaConvertita || 'NULL (nessuna data)');
 
     // Inserisci l'utente nella tabella users
     const insertQuery = `
