@@ -42,6 +42,8 @@ export default function AuthPage() {
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   // Stato per mostrare/nascondere la conferma password nella registrazione
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Stato per il caricamento durante il controllo email
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -65,6 +67,7 @@ export default function AuthPage() {
   // Gestione del submit per la registrazione
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
+      setIsCheckingEmail(true); // Attiva il caricamento
       console.log('🔍 Controllo email duplicata per:', data.email);
       const apiUrl = 'https://demos-c7k0.onrender.com/api/check-email';
       console.log('🌐 URL API:', apiUrl);
@@ -95,6 +98,7 @@ export default function AuthPage() {
           description: "Questa email è già presente nel sistema. Usa un'altra email o accedi se hai già un account.",
           variant: "destructive",
         });
+        setIsCheckingEmail(false); // Disattiva il caricamento
         return;
       }
       
@@ -105,6 +109,7 @@ export default function AuthPage() {
       localStorage.setItem("registrazione_password", data.password);
       
       // Vai direttamente alla prima pagina di registrazione (codice fiscale)
+      setIsCheckingEmail(false); // Disattiva il caricamento prima del redirect
       window.location.href = "/registrazione-codice-fiscale";
       
     } catch (error) {
@@ -123,7 +128,10 @@ export default function AuthPage() {
       // Procedi con la registrazione
       localStorage.setItem("registrazione_email", data.email);
       localStorage.setItem("registrazione_password", data.password);
+      setIsCheckingEmail(false); // Disattiva il caricamento prima del redirect
       window.location.href = "/registrazione-codice-fiscale";
+    } finally {
+      setIsCheckingEmail(false); // Disattiva sempre il caricamento
     }
   };
 
@@ -364,8 +372,16 @@ export default function AuthPage() {
                   <Button 
                     type="submit" 
                     className="w-full" 
+                    disabled={isCheckingEmail}
                   >
-                    Inizia Registrazione
+                    {isCheckingEmail ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Controllo Email...
+                      </>
+                    ) : (
+                      "Inizia Registrazione"
+                    )}
                   </Button>
                 </form>
               </Form>
