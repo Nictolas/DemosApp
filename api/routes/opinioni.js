@@ -117,7 +117,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/opinioni-list - Ottieni opinioni per grado
+// GET /api/opinioni-list - Ottieni opinioni per grado con risposte utente
 router.get('/opinioni-list', verifyToken, async (req, res) => {
   try {
     const { grado } = req.query;
@@ -202,9 +202,23 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
         userAnswer = userAnswers.omobitransfobia;
       }
       
+      // Converti la risposta nel formato corretto
+      let formattedAnswer = null;
+      if (userAnswer === null || userAnswer === undefined) {
+        formattedAnswer = 'Astenuto';
+      } else if (userAnswer === 'Favorevole' || userAnswer === 'favorevole') {
+        formattedAnswer = 'Favorevole';
+      } else if (userAnswer === 'Contrario' || userAnswer === 'contrario') {
+        formattedAnswer = 'Contrario';
+      } else if (userAnswer === 'Indeciso' || userAnswer === 'indeciso') {
+        formattedAnswer = 'Indeciso';
+      } else {
+        formattedAnswer = 'Astenuto'; // Default per valori non riconosciuti
+      }
+      
       return {
         ...opinione,
-        userAnswer: userAnswer
+        userAnswer: formattedAnswer
       };
     });
     
@@ -320,6 +334,121 @@ router.get('/debug', verifyToken, async (req, res) => {
       success: false,
       error: 'Errore durante debug',
       message: error.message
+    });
+  }
+});
+
+// POST /api/opinioni/salva - Salva le opinioni dell'utente
+router.post('/salva', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { opinions } = req.body;
+    
+    console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
+    console.log('👤 User ID:', userId);
+    console.log('📝 Opinion da salvare:', opinions);
+    
+    if (!opinions || typeof opinions !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Formato opinioni non valido',
+        message: 'Le opinioni devono essere un oggetto'
+      });
+    }
+    
+    // Mappa le opinioni ai campi della tabella users
+    const opinionMapping = {
+      'energia_nucleare': 'energia_nucleare',
+      'sperimentazione_animale': 'sperimentazione_animale',
+      'legalizzazione_canapa': 'legalizzazione_canapa',
+      'caccia': 'caccia',
+      'eutanasia': 'eutanasia',
+      'carne_coltivata': 'carne_coltivata',
+      'cittadina_animale': 'cittadina_animale',
+      'nato': 'nato',
+      'matrimonio_gay': 'matrimonio_gay',
+      'salario_minimo': 'salario_minimo',
+      'case_chiuse': 'case_chiuse',
+      'omobitransfobia': 'omobitransfobia'
+    };
+    
+    // Prepara l'UPDATE dinamico
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    for (const [opinionId, risposta] of Object.entries(opinions)) {
+      // Trova il campo corrispondente nella tabella users
+      const fieldName = opinionMapping[opinionId];
+      
+      if (fieldName) {
+        // Converti la risposta nel formato corretto per il database
+        let dbValue = null;
+        if (risposta === 'Favorevole') {
+          dbValue = 'Favorevole';
+        } else if (risposta === 'Contrario') {
+          dbValue = 'Contrario';
+        } else if (risposta === 'Indeciso') {
+          dbValue = 'Indeciso';
+        } else if (risposta === 'Astenuto') {
+          dbValue = null;
+        }
+        
+        updateFields.push(`${fieldName} = $${paramIndex}`);
+        updateValues.push(dbValue);
+        paramIndex++;
+      }
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Aggiungi updated_at
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateValues.push(new Date());
+    
+    // Esegui l'UPDATE
+    const updateQuery = `
+      UPDATE users 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramIndex + 1}
+    `;
+    
+    updateValues.push(userId);
+    
+    console.log('📝 Query UPDATE:', updateQuery);
+    console.log('🔍 Valori:', updateValues);
+    
+    const result = await pool.query(updateQuery, updateValues);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinion salvate con successo per utente:', userId);
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - 1, // -1 per escludere updated_at
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni'
     });
   }
 });
