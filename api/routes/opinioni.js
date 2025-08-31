@@ -30,17 +30,17 @@ router.get('/profile', verifyToken, async (req, res) => {
     
     // Query per ottenere le domande delle opinioni dalla tabella opinioni
     const opinionQuery = `
-      SELECT DISTINCT o.grado_opinione, o.text
+      SELECT DISTINCT o.gradi_opinione[1] as grado_primario, o.text
       FROM opinioni o
-      ORDER BY o.grado_opinione, o.text
+      ORDER BY o.gradi_opinione[1], o.text
     `;
     
     const opinionResult = await pool.query(opinionQuery);
     
     // Formatta le domande per il frontend
     const questions = opinionResult.rows.map(row => ({
-      id: `${row.grado_opinione}_${row.text.replace(/\s+/g, '_')}`,
-      text: `${row.grado_opinione}: ${row.text}`
+      id: `${row.grado_primario}_${row.text.replace(/\s+/g, '_')}`,
+      text: `${row.grado_primario}: ${row.text}`
     }));
     
     // Query per ottenere le risposte dell'utente dalla tabella utenti
@@ -158,7 +158,14 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       console.log('🔍 Verifico se esistono opinioni nella tabella...');
       
       // Query per vedere tutte le opinioni disponibili
-      const allOpinionsQuery = 'SELECT DISTINCT grado_opinione, COUNT(*) as count FROM opinioni GROUP BY grado_opinione';
+      const allOpinionsQuery = `
+        SELECT 
+          unnest(gradi_opinione) as grado,
+          COUNT(*) as count 
+        FROM opinioni 
+        GROUP BY unnest(gradi_opinione)
+        ORDER BY grado
+      `;
       const allOpinionsResult = await pool.query(allOpinionsQuery);
       console.log('📋 Tutte le opinioni disponibili:', allOpinionsResult.rows);
     } else {
