@@ -1,0 +1,133 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { pool } = require('../../middleware/auth');
+const { validateInput, validateEmail } = require('../../middleware/validation');
+
+const router = express.Router();
+
+// Costanti
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const SALT_ROUNDS = 10;
+
+// Importazione condizionale del servizio email
+let emailService;
+try {
+  emailService = require('../../services/emailService');
+} catch (error) {
+  console.log('⚠️ Servizio email non disponibile:', error.message);
+  emailService = {
+    sendVerificationEmail: async () => ({ success: false, error: 'Servizio email non disponibile' })
+  };
+}
+
+// POST /api/auth/register - Registrazione nuovo utente
+router.post('/register', validateInput(['email', 'password', 'nome', 'cognome']), validateEmail, async (req, res) => {
+  try {
+    const { email, password, nome, cognome, codice_fiscale } = req.body;
+    
+    console.log('📝 Tentativo registrazione per:', email);
+    
+    // Verifica se l'email è già registrata
+    const existingUserQuery = 'SELECT id FROM users WHERE email = $1';
+    const existingUserResult = await pool.query(existingUserQuery, [email.toLowerCase()]);
+    
+    if (existingUserResult.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email già registrata',
+        message: 'Un account con questa email esiste già'
+      });
+    }
+    
+    // Verifica se il codice fiscale è già registrato (se fornito)
+    if (codice_fiscale) {
+      const existingCfQuery = 'SELECT id FROM users WHERE codice_fiscale = $1';
+      const existingCfResult = await pool.query(existingCfQuery, [codice_fiscale.toUpperCase()]);
+      
+      if (existingCfResult.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Codice fiscale già registrato',
+          message: 'Un account con questo codice fiscale esiste già'
+        });
+      }
+    }
+    
+    // Hash della password
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    
+    // Genera token di verifica email (valido per 24 ore)
+    const verificationToken = jwt.sign(
+      { 
+        email: email.toLowerCase(),
+        type: 'email_verification'
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    // Inserisci nuovo utente con status "pending"
+    const insertQuery = `
+      INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, status, email_verification_token, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING id, nome, cognome, email, ruolo, codice_fiscale, status
+    `;
+    
+    const result = await pool.query(insertQuery, [
+      nome, 
+      cognome, 
+      email.toLowerCase(), 
+      passwordHash, 
+      'Elettore',
+      codice_fiscale ? codice_fiscale.toUpperCase() : null,
+      'pending',
+      verificationToken
+    ]);
+    
+    const newUser = result.rows[0];
+    
+    // Invia email di verifica
+    try {
+      const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${verificationToken}`;
+      await emailService.sendVerificationEmail(email, verificationToken, verificationUrl);
+      
+      console.log('✅ Email di verifica inviata per:', email);
+      
+      res.json({
+        success: true,
+        message: 'Registrazione completata! Controlla la tua email per confermare l\'account.',
+        user: {
+          id: newUser.id,
+          name: newUser.nome,
+          cognome: newUser.cognome,
+          email: newUser.email,
+          ruolo: newUser.ruolo,
+          codice_fiscale: newUser.codice_fiscale,
+          status: newUser.status
+        },
+        requiresVerification: true
+      });
+      
+    } catch (emailError) {
+      console.error('❌ Errore nell\'invio email di verifica:', emailError);
+      
+      // Se l'email non può essere inviata, elimina l'utente e restituisci errore
+      await pool.query('DELETE FROM users WHERE id = $1', [newUser.id]);
+      
+      res.status(500).json({
+        success: false,
+        error: 'Errore nell\'invio email di verifica. Riprova più tardi.'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Errore nella registrazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella registrazione'
+    });
+  }
+});
+
+module.exports = router;
