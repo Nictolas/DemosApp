@@ -45,8 +45,19 @@ router.get('/profile', verifyToken, async (req, res) => {
     
     // Query per ottenere le risposte dell'utente dalla tabella utenti
     const userQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-             carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
+      SELECT 
+        -- Opinion nazionali
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
+        -- Opinion comunali
+        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
+        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
+        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
+        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
+        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
+        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
+        comunale_verde_pubblico_e_giardini
       FROM users
       WHERE id = $1
     `;
@@ -154,8 +165,19 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     
     // Query per ottenere le risposte dell'utente dalla tabella utenti
     const userQuery = `
-      SELECT energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-             carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia
+      SELECT 
+        -- Opinion nazionali
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
+        -- Opinion comunali
+        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
+        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
+        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
+        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
+        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
+        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
+        comunale_verde_pubblico_e_giardini
       FROM users
       WHERE id = $1
     `;
@@ -175,7 +197,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       const opinioneKey = opinione.text?.toLowerCase().replace(/\s+/g, '_');
       let userAnswer = null;
       
-      // Mappa le opinioni specifiche
+      // Mappa le opinioni nazionali
       if (opinioneKey?.includes('energia_nucleare')) {
         userAnswer = userAnswers.energia_nucleare;
       } else if (opinioneKey?.includes('sperimentazione_animale')) {
@@ -200,6 +222,40 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
         userAnswer = userAnswers.case_chiuse;
       } else if (opinioneKey?.includes('omobitransfobia')) {
         userAnswer = userAnswers.omobitransfobia;
+      }
+      // Mappa le opinioni comunali
+      else if (opinioneKey?.includes('cassonetti_intelligenti_con_tessera')) {
+        userAnswer = userAnswers.comunale_cassonetti_intelligenti_con_tessera;
+      } else if (opinioneKey?.includes('concessione_spazi_pubblici_a_centri_sociali_autogestiti')) {
+        userAnswer = userAnswers.comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti;
+      } else if (opinioneKey?.includes('divieto_di_nuovi_fast_food_nel_centro_storico')) {
+        userAnswer = userAnswers.comunale_divieto_di_nuovi_fast_food_nel_centro_storico;
+      } else if (opinioneKey?.includes('estensione_delle_zone_a_traffico_limitato')) {
+        userAnswer = userAnswers.comunale_estensione_delle_zone_a_traffico_limitato;
+      } else if (opinioneKey?.includes('finanziamento_eventi_culturali_gratuiti')) {
+        userAnswer = userAnswers.comunale_finanziamento_eventi_culturali_gratuiti;
+      } else if (opinioneKey?.includes('nuova_biblioteca_comunale')) {
+        userAnswer = userAnswers.comunale_nuova_biblioteca_comunale;
+      } else if (opinioneKey?.includes('nuove_case_popolari')) {
+        userAnswer = userAnswers.comunale_nuove_case_popolari;
+      } else if (opinioneKey?.includes('nuove_piste_ciclabili')) {
+        userAnswer = userAnswers.comunale_nuove_piste_ciclabili;
+      } else if (opinioneKey?.includes('nuovi_asili_nido_comunali')) {
+        userAnswer = userAnswers.comunale_nuovi_asili_nido_comunali;
+      } else if (opinioneKey?.includes('nuovo_stadio_comunale')) {
+        userAnswer = userAnswers.comunale_nuovo_stadio_comunale;
+      } else if (opinioneKey?.includes('parcheggi_gratuiti_per_residenti')) {
+        userAnswer = userAnswers.comunale_parcheggi_gratuiti_per_residenti;
+      } else if (opinioneKey?.includes('potenziamento_trasporto_pubblico')) {
+        userAnswer = userAnswers.comunale_potenziamento_trasporto_pubblico;
+      } else if (opinioneKey?.includes('riduzione_tasse_rifiuti')) {
+        userAnswer = userAnswers.comunale_riduzione_tasse_rifiuti;
+      } else if (opinioneKey?.includes('sicurezza_strade_scolastiche')) {
+        userAnswer = userAnswers.comunale_sicurezza_strade_scolastiche;
+      } else if (opinioneKey?.includes('sostegno_commercio_locale')) {
+        userAnswer = userAnswers.comunale_sostegno_commercio_locale;
+      } else if (opinioneKey?.includes('verde_pubblico_e_giardini')) {
+        userAnswer = userAnswers.comunale_verde_pubblico_e_giardini;
       }
       
       // Converti la risposta nel formato corretto
@@ -358,6 +414,7 @@ router.post('/salva', verifyToken, async (req, res) => {
     
     // Mappa le opinioni ai campi della tabella users
     const opinionMapping = {
+      // Opinion nazionali
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
       'legalizzazione_canapa': 'legalizzazione_canapa',
@@ -369,7 +426,24 @@ router.post('/salva', verifyToken, async (req, res) => {
       'matrimonio_gay': 'matrimonio_gay',
       'salario_minimo': 'salario_minimo',
       'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia'
+      'omobitransfobia': 'omobitransfobia',
+      // Opinion comunali
+      'comunale_cassonetti_intelligenti_con_tessera': 'comunale_cassonetti_intelligenti_con_tessera',
+      'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+      'comunale_divieto_di_nuovi_fast_food_nel_centro_storico': 'comunale_divieto_di_nuovi_fast_food_nel_centro_storico',
+      'comunale_estensione_delle_zone_a_traffico_limitato': 'comunale_estensione_delle_zone_a_traffico_limitato',
+      'comunale_finanziamento_eventi_culturali_gratuiti': 'comunale_finanziamento_eventi_culturali_gratuiti',
+      'comunale_nuova_biblioteca_comunale': 'comunale_nuova_biblioteca_comunale',
+      'comunale_nuove_case_popolari': 'comunale_nuove_case_popolari',
+      'comunale_nuove_piste_ciclabili': 'comunale_nuove_piste_ciclabili',
+      'comunale_nuovi_asili_nido_comunali': 'comunale_nuovi_asili_nido_comunali',
+      'comunale_nuovo_stadio_comunale': 'comunale_nuovo_stadio_comunale',
+      'comunale_parcheggi_gratuiti_per_residenti': 'comunale_parcheggi_gratuiti_per_residenti',
+      'comunale_potenziamento_trasporto_pubblico': 'comunale_potenziamento_trasporto_pubblico',
+      'comunale_riduzione_tasse_rifiuti': 'comunale_riduzione_tasse_rifiuti',
+      'comunale_sicurezza_strade_scolastiche': 'comunale_sicurezza_strade_scolastiche',
+      'comunale_sostegno_commercio_locale': 'comunale_sostegno_commercio_locale',
+      'comunale_verde_pubblico_e_giardini': 'comunale_verde_pubblico_e_giardini'
     };
     
     // Prepara l'UPDATE dinamico
