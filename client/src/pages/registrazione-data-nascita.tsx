@@ -33,10 +33,10 @@ export default function RegistrazioneDataNascita() {
     navigate("/registrazione-3-residenza");
   };
 
-  // Calcola l'anno minimo (18 anni fa) e massimo (14 anni fa)
+  // Calcola l'anno minimo (100 anni fa) e massimo (14 anni fa)
   const today = new Date();
-  const minYear = today.getFullYear() - 18;
-  const maxYear = today.getFullYear() - 14;
+  const minYear = today.getFullYear() - 100;  // 100 anni fa per includere persone anziane
+  const maxYear = today.getFullYear() - 14;   // 14 anni fa per età minima legale
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
