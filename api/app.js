@@ -194,16 +194,22 @@ app.get('/api/test-db', async (req, res) => {
 app.get('/api/opinioni-list', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-list - Richiesta diretta (compatibilità frontend)');
+    console.log('🔑 Headers ricevuti:', req.headers);
     
     // Reindirizza alla route modulare
     const opinioniRoutes = require('./routes/opinioni');
     const router = opinioniRoutes;
     
-    // Crea una richiesta mock per il router
+    // Crea una richiesta mock per il router con TUTTI gli headers
     const mockReq = {
       ...req,
-      url: '/opinioni-list' + req.url.replace('/api/opinioni-list', '')
+      url: '/opinioni-list' + req.url.replace('/api/opinioni-list', ''),
+      headers: { ...req.headers }, // Copia esplicita degli headers
+      get: (name) => req.headers[name], // Metodo get per compatibilità
+      header: (name) => req.headers[name] // Metodo header per compatibilità
     };
+    
+    console.log('🔑 Mock request headers:', mockReq.headers);
     
     // Usa il router modulare
     router.handle(mockReq, res);
