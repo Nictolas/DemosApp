@@ -4,6 +4,25 @@ const { pool } = require('../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/opinioni/test - Endpoint di test senza autenticazione
+router.get('/test', async (req, res) => {
+  try {
+    console.log('🧪 TEST - Endpoint opinioni raggiunto senza autenticazione');
+    
+    res.json({
+      success: true,
+      message: 'Endpoint opinioni raggiunto correttamente',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Errore endpoint test:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore endpoint test'
+    });
+  }
+});
+
 // GET /api/opinioni/profile - Ottieni opinioni per profilo utente
 router.get('/profile', verifyToken, async (req, res) => {
   try {
