@@ -403,6 +403,10 @@ router.post('/salva', verifyToken, async (req, res) => {
     console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
     console.log('👤 User ID:', userId);
     console.log('📝 Opinion da salvare:', opinions);
+    console.log('🔍 DEBUG: Type of opinions:', typeof opinions);
+    console.log('🔍 DEBUG: Keys in opinions:', Object.keys(opinions));
+    console.log('🔍 DEBUG: Values in opinions:', Object.values(opinions));
+    console.log('🔍 DEBUG: Full opinions object:', JSON.stringify(opinions, null, 2));
     
     if (!opinions || typeof opinions !== 'object') {
       return res.status(400).json({
@@ -452,8 +456,12 @@ router.post('/salva', verifyToken, async (req, res) => {
     let paramIndex = 1;
     
     for (const [opinionId, risposta] of Object.entries(opinions)) {
+      console.log(`🔍 DEBUG: Processing opinionId: "${opinionId}" with risposta: "${risposta}"`);
+      
       // Trova il campo corrispondente nella tabella users
       const fieldName = opinionMapping[opinionId];
+      
+      console.log(`🔍 DEBUG: Found fieldName: "${fieldName}" for opinionId: "${opinionId}"`);
       
       if (fieldName) {
         // Converti la risposta nel formato corretto per il database
@@ -468,9 +476,16 @@ router.post('/salva', verifyToken, async (req, res) => {
           dbValue = null;
         }
         
+        console.log(`🔍 DEBUG: Converted risposta "${risposta}" to dbValue: "${dbValue}"`);
+        
         updateFields.push(`${fieldName} = $${paramIndex}`);
         updateValues.push(dbValue);
         paramIndex++;
+        
+        console.log(`✅ DEBUG: Added field "${fieldName}" to updateFields`);
+      } else {
+        console.log(`❌ DEBUG: No fieldName found for opinionId: "${opinionId}"`);
+        console.log(`🔍 DEBUG: Available keys in opinionMapping:`, Object.keys(opinionMapping));
       }
     }
     
