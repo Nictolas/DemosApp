@@ -208,17 +208,53 @@ export default function RegistrazioneDati() {
                     <FormItem>
                       <FormLabel>Grado di Elezione *</FormLabel>
                       <FormControl>
-                        <select
-                          {...field}
-                          className="w-full h-12 text-lg text-center border rounded-md"
-                        >
-                          <option value="">Seleziona grado di elezione</option>
-                          <option value="europeo">Europeo</option>
-                          <option value="nazionale">Nazionale</option>
-                          <option value="regionale">Regionale</option>
-                          <option value="provinciale">Provinciale</option>
-                          <option value="comunale">Comunale</option>
-                        </select>
+                        <div className="grid grid-cols-1 gap-3">
+                          <Button
+                            type="button"
+                            variant={field.value === "europeo" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "europeo" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("europeo")}
+                          >
+                            <span className="mr-3 text-xl">🌍</span>
+                            Europeo
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "nazionale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "nazionale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("nazionale")}
+                          >
+                            <span className="mr-3 text-xl">🏛️</span>
+                            Nazionale
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "regionale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "regionale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("regionale")}
+                          >
+                            <span className="mr-3 text-xl">🗺️</span>
+                            Regionale
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "provinciale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "provinciale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("provinciale")}
+                          >
+                            <span className="mr-3 text-xl">📍</span>
+                            Provinciale
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "comunale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "comunale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("comunale")}
+                          >
+                            <span className="mr-3 text-xl">🏡</span>
+                            Comunale
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -404,17 +440,53 @@ export default function RegistrazioneDati() {
                     <FormItem>
                       <FormLabel>Grado di Candidatura *</FormLabel>
                       <FormControl>
-                        <select
-                          {...field}
-                          className="w-full h-12 text-lg text-center border rounded-md"
-                        >
-                          <option value="">Seleziona grado di candidatura</option>
-                          <option value="europeo">Europeo</option>
-                          <option value="nazionale">Nazionale</option>
-                          <option value="regionale">Regionale</option>
-                          <option value="provinciale">Provinciale</option>
-                          <option value="comunale">Comunale</option>
-                        </select>
+                        <div className="grid grid-cols-1 gap-3">
+                          <Button
+                            type="button"
+                            variant={field.value === "europeo" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "europeo" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("europeo")}
+                          >
+                            <span className="mr-3 text-xl">🌍</span>
+                            Europeo
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "nazionale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "nazionale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("nazionale")}
+                          >
+                            <span className="mr-3 text-xl">🏛️</span>
+                            Nazionale
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "regionale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "regionale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("regionale")}
+                          >
+                            <span className="mr-3 text-xl">🗺️</span>
+                            Regionale
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "provinciale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "provinciale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("provinciale")}
+                          >
+                            <span className="mr-3 text-xl">📍</span>
+                            Provinciale
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={field.value === "comunale" ? "default" : "outline"}
+                            className={`h-12 text-lg justify-start ${field.value === "comunale" ? "bg-blue-600 text-white" : "hover:bg-blue-50"}`}
+                            onClick={() => field.onChange("comunale")}
+                          >
+                            <span className="mr-3 text-xl">🏡</span>
+                            Comunale
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
