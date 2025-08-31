@@ -1,215 +1,207 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
-import { Redirect, useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Loader2, CheckCircle, XCircle, HelpCircle, MinusCircle } from 'lucide-react';
 
-interface Question {
-  id: string;
+interface Opinione {
+  id: number;
   text: string;
+  userAnswer: string;
 }
 
-interface UserOpinionsData {
-  questions: Question[];
-  userAnswers: Record<string, string>;
-  blocco: {
-    isBlocked: boolean;
-    unlockDate?: string;
-  };
-}
-
-const options = [
-  { value: "Favorevole", color: "bg-green-600 text-white" },
-  { value: "Indeciso", color: "bg-yellow-500 text-white" },
-  { value: "Contrario", color: "bg-red-600 text-white" }
-];
-
-// Mappatura degli ID delle opinioni ai loro argomenti
-const getOpinionTopic = (id: string, questionText: string): string => {
-  // Mappatura per le opinioni base
-  const baseOpinionsMap: Record<string, string> = {
-    'energia_nucleare': 'Energia Nucleare',
-    'sperimentazione_animale': 'Sperimentazione Animale',
-    'legalizzazione_canapa': 'Legalizzazione Canapa',
-    'caccia': 'Caccia',
-    'cittadina_animale': 'Cittadinanza Animale',
-    'eutanasia': 'Eutanasia',
-    'case_chiuse': 'Case Chiuse',
-    'salario_minimo': 'Salario Minimo',
-    'matrimonio_gay': 'Matrimonio Gay',
-    'nato': 'NATO',
-    'omobitransfobia': 'Legge contro l\'omobitransfobia'
-  };
-  
-  // Se è un'opinione base, usa la mappatura
-  if (baseOpinionsMap[id]) {
-    return baseOpinionsMap[id];
-  }
-  
-  // Per le opinioni dinamiche, estrai l'argomento dalla domanda
-  if (questionText) {
-    // Rimuovi "Sei favorevole a" o "Sei favorevole alla" dall'inizio
-    let topic = questionText.replace(/^Sei favorevole (a|alla) /i, '');
-    
-    // Rimuovi il punto interrogativo alla fine
-    topic = topic.replace(/\?$/, '');
-    
-    // Capitalizza la prima lettera
-    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
-    
-    return topic;
-  }
-  
-  // Fallback: usa l'ID
-  return id;
-};
-
-export default function OpinioniRegionali() {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const { toast } = useToast();
+const OpinioniRegionali: React.FC = () => {
+  const [, navigate] = useLocation();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
-  // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[]}>({
-    queryKey: ['opinioniQuestions'],
+  // Fetch opinioni regionali
+  const { data: opinioniData, isLoading, error } = useQuery({
+    queryKey: ['opinioniQuestions', 'Regionale'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=Regionale");
-      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      return response.json();
-    },
-    enabled: !!user
-  });
-
-  // 2. Caricamento risposte utente con React Query
-  const { data: userAnswersData, isLoading: isLoadingUserAnswers } = useQuery<{success: boolean, data: Record<string, string>}>({
-    queryKey: ['userOpinions'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni/user-answers");
-      if (!response.ok) throw new Error("Errore nel caricamento delle risposte.");
-      return response.json();
-    },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-      // Inizializza lo stato locale con le risposte dell'utente
-      setOpinions(fetchedData.data || {});
+      const response = await fetch('/api/opinioni-list?grado=Regionale', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Errore nel caricare le opinioni regionali');
+      }
+      
+      const data = await response.json();
+      return data.opinioni;
     }
   });
 
-  // Combina i dati
-  const isLoading = isLoadingQuestions || isLoadingUserAnswers;
-  const questions = questionsData?.data || [];
-  const userAnswers = userAnswersData?.data || {};
-
-  // Sincronizza le opinioni quando userAnswers è disponibile
-  useEffect(() => {
-    if (userAnswers && Object.keys(userAnswers).length > 0) {
-      setOpinions(userAnswers);
-    }
-  }, [userAnswers]);
-
-  // 2. Mutazione per salvare le opinioni
+  // Mutation per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
-    onSuccess: () => {
-      toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['userOpinions'] });
-      setTimeout(() => setLocation("/menu"), 1500);
+    mutationFn: async (opinions: Record<string, string>) => {
+      const response = await fetch('/api/opinioni/salva', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ opinions })
+      });
+
+      if (!response.ok) {
+        throw new Error('Errore nel salvare le opinioni');
+      }
+
+      return response.json();
     },
-    onError: (error: any) => {
-      toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
+    onSuccess: () => {
+      // Invalida la cache per ricaricare i dati
+      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Regionale'] });
+      alert('Opinioni regionali salvate con successo!');
+      navigate('/menu');
+    },
+    onError: (error) => {
+      console.error('Errore nel salvare:', error);
+      alert('Errore nel salvare le opinioni regionali');
     }
   });
 
-  const handleOpinionChange = (questionId: string, value: string) => {
-    setOpinions(prev => ({ ...prev, [questionId]: value }));
+  // Gestisce il cambio di opinione
+  const handleOpinionChange = (opinionId: string, value: string) => {
+    setOpinions(prev => ({
+      ...prev,
+      [opinionId]: value
+    }));
   };
 
+  // Gestisce il salvataggio
   const handleSave = () => {
-    console.log('🔍 DEBUG handleSave:');
-    console.log('  questions:', questions);
-    console.log('  opinions:', opinions);
-    
-    // Filtra solo le opinioni che hanno un valore (non null/undefined)
-    const opinionsToSave = Object.fromEntries(
-      Object.entries(opinions).filter(([key, value]) => value !== null && value !== undefined)
-    );
-    
-    console.log('  opinionsToSave:', opinionsToSave);
-    console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
-    
-    if (Object.keys(opinionsToSave).length === 0) {
-      console.log('❌ DEBUG: Nessuna opinione da salvare');
-      toast({ title: "Attenzione", description: "Seleziona almeno un'opinione prima di salvare.", variant: "destructive" });
+    if (Object.keys(opinions).length === 0) {
+      alert('Seleziona almeno un\'opinione prima di salvare');
       return;
     }
-    
-    console.log('✅ DEBUG: Procedo con il salvataggio');
-    saveMutation.mutate(opinionsToSave);
+    saveMutation.mutate(opinions);
   };
 
-  if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (!user) return <Redirect to="/auth" />;
-  
-  // Per ora non abbiamo il sistema di blocco, quindi sempre false
-  const blocco = { isBlocked: false, unlockDate: null };
-  const unlockDate = null;
+  // Inizializza le opinioni quando i dati vengono caricati
+  React.useEffect(() => {
+    if (opinioniData) {
+      const initialOpinions: Record<string, string> = {};
+      opinioniData.forEach((opinione: Opinione) => {
+        if (opinione.userAnswer && opinione.userAnswer !== 'Astenuto') {
+          initialOpinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] = opinione.userAnswer;
+        }
+      });
+      setOpinions(initialOpinions);
+    }
+  }, [opinioniData]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Caricamento opinioni regionali...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center text-red-600">
+          <p>Errore nel caricare le opinioni regionali</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Riprova
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-purple-50 to-white page-with-navbar">
-      <div className="container mx-auto px-4 py-8">
-        <Card className="w-full max-w-4xl mx-auto">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold">Opinioni Regionali</CardTitle>
-            <CardDescription>Esprimi la tua opinione su temi di rilevanza regionale per trovare rappresentanti con idee simili alle tue.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
-            ) : questions.length === 0 ? (
-              <div className="text-center py-8"><p className="text-muted-foreground">Nessuna domanda disponibile.</p></div>
-            ) : (
-              <>
-                {questions.map((question) => (
-                  <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-center">{getOpinionTopic(question.id, question.text)}</h3>
-                    <div className="flex justify-center">
-                      <div className="flex w-full max-w-md">
-                        {options.map((option, idx) => (
-                          <button
-                            key={option.value} type="button"
-                            className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${opinions[question.id] === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-100 z-0'}`}
-                            onClick={() => handleOpinionChange(question.id, option.value)}
-                            disabled={blocco?.isBlocked}
-                          >
-                            {option.value}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex justify-center pt-6">
-                  <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
-                    {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            🗺️ Opinion Regionali
+          </h1>
+          <p className="text-gray-600">
+            Esprimi la tua opinione sulle questioni che riguardano la tua regione
+          </p>
+        </div>
+
+        <div className="grid gap-6">
+          {opinioniData?.map((opinione: Opinione) => (
+            <Card key={opinione.id} className="shadow-md">
+              <CardHeader>
+                <CardTitle className="text-lg text-gray-800">
+                  {opinione.text}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Button
+                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Favorevole' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Favorevole')}
+                    className="flex items-center gap-2"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    Favorevole
+                  </Button>
+                  
+                  <Button
+                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Contrario' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Contrario')}
+                    className="flex items-center gap-2"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Contrario
+                  </Button>
+                  
+                  <Button
+                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Indeciso' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Indeciso')}
+                    className="flex items-center gap-2"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    Indeciso
+                  </Button>
+                  
+                  <Button
+                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Astenuto' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Astenuto')}
+                    className="flex items-center gap-2"
+                  >
+                    <MinusCircle className="h-4 w-4" />
+                    Astenuto
                   </Button>
                 </div>
-                {blocco?.isBlocked && (
-                  <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
-                    <b>Hai già modificato le opinioni questa settimana.</b><br />
-                    Potrai farlo di nuovo dal: {unlockDate || "-"}
-                  </div>
-                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="mt-8 text-center">
+          <Button
+            onClick={handleSave}
+            disabled={saveMutation.isPending || Object.keys(opinions).length === 0}
+            size="lg"
+            className="px-8"
+          >
+            {saveMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Salvataggio...
               </>
+            ) : (
+              'Salva Opinion Regionali'
             )}
-          </CardContent>
-        </Card>
+          </Button>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default OpinioniRegionali;
