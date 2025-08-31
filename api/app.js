@@ -224,6 +224,40 @@ app.get('/api/opinioni-list', async (req, res) => {
   }
 });
 
+// Endpoint diretto per opinioni-proposte (compatibilità frontend)
+app.get('/api/opinioni-proposte', async (req, res) => {
+  try {
+    console.log('🔍 GET /api/opinioni-proposte - Richiesta diretta (compatibilità frontend)');
+    console.log('🔑 Headers ricevuti:', req.headers);
+    
+    // Reindirizza alla route modulare
+    const opinioniRoutes = require('./routes/opinioni');
+    const router = opinioniRoutes;
+    
+    // Crea una richiesta mock per il router con TUTTI gli headers
+    const mockReq = {
+      ...req,
+      url: '/proposte' + req.url.replace('/api/opinioni-proposte', ''),
+      headers: { ...req.headers }, // Copia esplicita degli headers
+      get: (name) => req.headers[name], // Metodo get per compatibilità
+      header: (name) => req.headers[name] // Metodo header per compatibilità
+    };
+    
+    console.log('🔑 Mock request headers:', mockReq.headers);
+    
+    // Usa il router modulare
+    router.handle(mockReq, res);
+    
+  } catch (error) {
+    console.error('💥 Errore endpoint diretto opinioni-proposte:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile processare la richiesta opinioni proposte'
+    });
+  }
+});
+
 // Endpoint per controllare se un'email esiste già
 app.post('/api/check-email', async (req, res) => {
   try {
