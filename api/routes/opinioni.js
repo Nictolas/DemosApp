@@ -96,7 +96,7 @@ router.get('/', verifyToken, async (req, res) => {
     
     res.json({
       success: true,
-      opinioni: result.rows
+      data: result.rows
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare opinioni:', error);
@@ -119,7 +119,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
     
     res.json({
       success: true,
-      opinioni: result.rows
+      data: result.rows
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare opinioni proposte:', error);

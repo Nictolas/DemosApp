@@ -46,7 +46,7 @@ export default function GestisciOpinioni() {
   });
 
   // 2. Caricamento opinioni proposte con React Query
-  const { data: proposteResponse, isLoading: isLoadingProposte, isError: isProposteError } = useQuery<OpinioneProposta[]>({
+  const { data: proposteResponse, isLoading: isLoadingProposte, isError: isProposteError } = useQuery<{success: boolean, data: OpinioneProposta[]}>({
     queryKey: ['opinioniProposte'],
     queryFn: async () => {
         const response = await apiRequest('GET', '/api/opinioni-proposte');
@@ -57,7 +57,7 @@ export default function GestisciOpinioni() {
 
   // Estrai i dati con fallback sicuro e logging per debug
   const opinioni = opinioniResponse?.data || opinioniResponse || [];
-  const proposte = proposteResponse || [];
+  const proposte = proposteResponse?.data || proposteResponse || [];
   
   // Debug logging
   console.log('🔍 DEBUG GestisciOpinioni:', {
