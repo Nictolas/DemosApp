@@ -56,8 +56,7 @@ const governoRoutes = require('./routes/governo');
 const candidatiRoutes = require('./routes/candidati');
 const categorieRoutes = require('./routes/categorie');
 
-// Registrazione delle route
-app.use('/api/auth', authRoutes);
+// Registrazione delle route modulari
 app.use('/api/utenti', userRoutes);
 app.use('/api/users', userRoutes); // Compatibilità con frontend esistente
 app.use('/api/rappresentanti', rappresentantiRoutes);
@@ -84,6 +83,9 @@ app.use('/api/verifica-ruoli', verificaRuoliRoutes);
 app.use('/api/governo', governoRoutes);
 app.use('/api/candidati', candidatiRoutes);
 app.use('/api/categorie', categorieRoutes);
+
+// Registrazione delle route di autenticazione (DOPO gli endpoint personalizzati)
+app.use('/api/auth', authRoutes);
 
 // Route di base e health check
 app.get('/', (req, res) => {
