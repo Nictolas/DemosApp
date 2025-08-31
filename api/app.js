@@ -57,35 +57,63 @@ const candidatiRoutes = require('./routes/candidati');
 const categorieRoutes = require('./routes/categorie');
 
 // Registrazione delle route modulari
+console.log('🔧 Registrazione route modulari...');
 app.use('/api/utenti', userRoutes);
+console.log('✅ Route /api/utenti registrata');
 app.use('/api/users', userRoutes); // Compatibilità con frontend esistente
+console.log('✅ Route /api/users registrata');
 app.use('/api/rappresentanti', rappresentantiRoutes);
+console.log('✅ Route /api/rappresentanti registrata');
 app.use('/api/opinioni', opinioniRoutes);
+console.log('✅ Route /api/opinioni registrata - Endpoint disponibili:', opinioniRoutes.stack?.map(r => r.route?.path).filter(Boolean));
 app.use('/api/elezioni', elezioniRoutes);
+console.log('✅ Route /api/elezioni registrata');
 app.use('/api/sondaggi', sondaggiRoutes);
+console.log('✅ Route /api/sondaggi registrata');
 app.use('/api/grazia', graziaRoutes);
+console.log('✅ Route /api/grazia registrata');
 app.use('/api/amnistia', amnistiaRoutes);
+console.log('✅ Route /api/amnistia registrata');
 app.use('/api/ice', iceRoutes);
+console.log('✅ Route /api/ice registrata');
 app.use('/api/referendum', referendumRoutes);
+console.log('✅ Route /api/referendum registrata');
 
 // Registrazione delle nuove route
+console.log('🔧 Registrazione nuove route...');
 app.use('/api/capo-stato', capoStatoRoutes);
+console.log('✅ Route /api/capo-stato registrata');
 app.use('/api/comunicazioni', comunicazioniRoutes);
+console.log('✅ Route /api/comunicazioni registrata');
 app.use('/api/eventi', eventiRoutes);
+console.log('✅ Route /api/eventi registrata');
 app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
+console.log('✅ Route /api/iniziative-popolari registrata');
 app.use('/api/notifiche', notificheRoutes);
+console.log('✅ Route /api/notifiche registrata');
 app.use('/api/statistiche', statisticheRoutes);
+console.log('✅ Route /api/statistiche registrata');
 app.use('/api/sostenitori', sostenitoriRoutes);
+console.log('✅ Route /api/sostenitori registrata');
 app.use('/api/programma', programmaRoutes);
+console.log('✅ Route /api/programma registrata');
 app.use('/api/reazioni-comunicazioni', reazioniComunicazioniRoutes);
+console.log('✅ Route /api/reazioni-comunicazioni registrata');
 app.use('/api/gestione-utenti-aggiuntivi', gestioneUtentiAggiuntiviRoutes);
+console.log('✅ Route /api/gestione-utenti-aggiuntivi registrata');
 app.use('/api/verifica-ruoli', verificaRuoliRoutes);
+console.log('✅ Route /api/verifica-ruoli registrata');
 app.use('/api/governo', governoRoutes);
+console.log('✅ Route /api/governo registrata');
 app.use('/api/candidati', candidatiRoutes);
+console.log('✅ Route /api/candidati registrata');
 app.use('/api/categorie', categorieRoutes);
+console.log('✅ Route /api/categorie registrata');
 
 // Registrazione delle route di autenticazione (DOPO gli endpoint personalizzati)
+console.log('🔧 Registrazione route di autenticazione...');
 app.use('/api/auth', authRoutes);
+console.log('✅ Route /api/auth registrata - Endpoint disponibili:', authRoutes.stack?.map(r => r.route?.path).filter(Boolean));
 
 // Route di base e health check
 app.get('/', (req, res) => {
