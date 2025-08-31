@@ -37,7 +37,7 @@ export default function OpinioniComunali() {
 
   // Caricamento domande e risposte utente con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, opinioni: Question[], userAnswers: Record<string, string>}>({
-    queryKey: ['opinioniQuestions'],
+    queryKey: ['opinioniQuestions', 'Comunale'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Comunale");
       if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
@@ -69,7 +69,7 @@ export default function OpinioniComunali() {
     mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni comunali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions'] });
+      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Comunale'] });
       setTimeout(() => setLocation("/menu"), 1500);
     },
     onError: (error: any) => {

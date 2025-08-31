@@ -39,7 +39,7 @@ export default function OpinioniNazionali() {
 
   // 1. Caricamento domande con React Query
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, opinioni: Question[], userAnswers: Record<string, string>}>({
-    queryKey: ['opinioniQuestions'],
+    queryKey: ['opinioniQuestions', 'Nazionale'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Nazionale");
       if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
@@ -72,7 +72,7 @@ export default function OpinioniNazionali() {
     mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni nazionali sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions'] });
+      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Nazionale'] });
       setTimeout(() => setLocation("/menu"), 1500);
     },
     onError: (error: any) => {
