@@ -38,12 +38,12 @@ router.get('/check-codice-fiscale', async (req, res) => {
     
     if (result.rows.length > 0) {
       res.json({
-        success: false,
+        exists: true,
         message: 'Codice fiscale già registrato nel sistema'
       });
     } else {
       res.json({
-        success: true,
+        exists: false,
         message: 'Codice fiscale disponibile'
       });
     }
