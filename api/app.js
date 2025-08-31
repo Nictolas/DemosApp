@@ -190,6 +190,34 @@ app.get('/api/test-db', async (req, res) => {
 
 // Endpoint /api/auth/me spostato nelle route modulari per CORS corretto
 
+// Endpoint diretto per opinioni-list (compatibilità frontend)
+app.get('/api/opinioni-list', async (req, res) => {
+  try {
+    console.log('🔍 GET /api/opinioni-list - Richiesta diretta (compatibilità frontend)');
+    
+    // Reindirizza alla route modulare
+    const opinioniRoutes = require('./routes/opinioni');
+    const router = opinioniRoutes;
+    
+    // Crea una richiesta mock per il router
+    const mockReq = {
+      ...req,
+      url: '/opinioni-list' + req.url.replace('/api/opinioni-list', '')
+    };
+    
+    // Usa il router modulare
+    router.handle(mockReq, res);
+    
+  } catch (error) {
+    console.error('💥 Errore endpoint diretto opinioni-list:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile processare la richiesta opinioni'
+    });
+  }
+});
+
 // Endpoint per controllare se un'email esiste già
 app.post('/api/check-email', async (req, res) => {
   try {
