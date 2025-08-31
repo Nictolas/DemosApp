@@ -607,13 +607,13 @@ router.post('/salva', verifyToken, async (req, res) => {
       'comunale_parcheggi_gratuiti_per_residenti': 'comunale_parcheggi_gratuiti_per_residenti',
       'comunale_potenziamento_trasporto_pubblico': 'comunale_potenziamento_trasporto_pubblico',
       'comunale_riduzione_tasse_rifiuti': 'comunale_riduzione_tasse_rifiuti',
-             'comunale_sicurezza_strade_scolastiche': 'comunale_sicurezza_strade_scolastiche',
-       'comunale_sostegno_commercio_locale': 'comunale_sostegno_commercio_locale',
-       'comunale_verde_pubblico_e_giardini': 'comunale_verde_pubblico_e_giardini',
-       // Opinion regionali
-       'regionale_nuovi_inceneritori': 'regionale_nuovi_inceneritori',
-       'regionale_chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia'
-     };
+      'comunale_sicurezza_strade_scolastiche': 'comunale_sicurezza_strade_scolastiche',
+      'comunale_sostegno_commercio_locale': 'comunale_sostegno_commercio_locale',
+      'comunale_verde_pubblico_e_giardini': 'comunale_verde_pubblico_e_giardini',
+      // Opinion regionali
+      'regionale_nuovi_inceneritori': 'regionale_nuovi_inceneritori',
+      'regionale_chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia'
+    };
     
     // Prepara l'UPDATE dinamico
     const updateFields = [];
