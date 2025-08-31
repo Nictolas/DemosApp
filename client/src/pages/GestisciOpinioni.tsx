@@ -13,6 +13,7 @@ interface Opinione {
   id: string;
   text: string;
   categoria: string;
+  gradi_opinione: string[];
 }
 
 interface OpinioneProposta {
@@ -75,7 +76,7 @@ export default function GestisciOpinioni() {
   
   // 3. Mutazioni per le opinioni ufficiali
   const addMutation = useMutation({
-    mutationFn: (newData: { id: string; text: string; grado_opinione: string }) => apiRequest('POST', '/api/opinioni', newData),
+    mutationFn: (newData: { id: string; text: string; gradi_opinione: string[] }) => apiRequest('POST', '/api/opinioni', newData),
     onSuccess: () => { toast({ title: "Successo", description: "Opinione aggiunta." }); setNewId(""); setNewText(""); setNewGrado("Nazionale"); invalidateAll(); },
     onError: () => toast({ title: "Errore", description: "Impossibile aggiungere l'opinione.", variant: "destructive" }),
   });
@@ -87,7 +88,7 @@ export default function GestisciOpinioni() {
   });
   
   const editMutation = useMutation({
-    mutationFn: (updatedData: { id: string; text: string; grado_opinione: string }) => apiRequest('PUT', `/api/opinioni/${updatedData.id}`, { text: updatedData.text, grado_opinione: updatedData.grado_opinione }),
+    mutationFn: (updatedData: { id: string; text: string; gradi_opinione: string[] }) => apiRequest('PUT', `/api/opinioni/${updatedData.id}`, { text: updatedData.text, gradi_opinione: updatedData.gradi_opinione }),
     onSuccess: () => { toast({ title: "Successo", description: "Opinione aggiornata." }); setEditingId(null); setEditText(""); setEditGrado("Nazionale"); invalidateAll(); },
     onError: () => toast({ title: "Errore", description: "Impossibile aggiornare l'opinione.", variant: "destructive" }),
   });
@@ -107,7 +108,7 @@ export default function GestisciOpinioni() {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newId.trim() || !newText.trim()) return;
-    addMutation.mutate({ id: newId.trim(), text: newText.trim(), grado_opinione: newGrado });
+    addMutation.mutate({ id: newId.trim(), text: newText.trim(), gradi_opinione: [newGrado] });
   };
 
   const handleDelete = (id: string) => {
@@ -118,7 +119,17 @@ export default function GestisciOpinioni() {
 
   const handleEditSave = () => {
     if (!editingId || !editText.trim()) return;
-    editMutation.mutate({ id: editingId, text: editText.trim(), grado_opinione: editGrado });
+    // Trova l'opinione corrente per mantenere i gradi esistenti
+    const currentOpinione = opinioni.find(op => op.id === editingId);
+    const currentGradi = currentOpinione?.gradi_opinione || [];
+    
+    // Se il grado selezionato non è già presente, aggiungilo
+    let newGradi = currentGradi;
+    if (!currentGradi.includes(editGrado)) {
+      newGradi = [...currentGradi, editGrado];
+    }
+    
+    editMutation.mutate({ id: editingId, text: editText.trim(), gradi_opinione: newGradi });
   };
 
   return (
@@ -199,7 +210,34 @@ export default function GestisciOpinioni() {
                         ) : (
                           <div className="flex flex-col">
                             <span className="font-medium">{op.text} <span className="text-xs text-muted-foreground">({op.id})</span></span>
-                            <span className="text-xs text-muted-foreground">Grado: {op.grado_opinione}</span>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {GRADI_OPINIONE.map(grado => (
+                                <label key={grado} className="flex items-center gap-1 text-xs">
+                                  <input
+                                    type="checkbox"
+                                    checked={op.gradi_opinione?.includes(grado) || false}
+                                    onChange={(e) => {
+                                      const currentGradi = op.gradi_opinione || [];
+                                      let newGradi;
+                                      if (e.target.checked) {
+                                        newGradi = [...currentGradi, grado];
+                                      } else {
+                                        newGradi = currentGradi.filter(g => g !== grado);
+                                      }
+                                      editMutation.mutate({ 
+                                        id: op.id, 
+                                        text: op.text, 
+                                        gradi_opinione: newGradi 
+                                      });
+                                    }}
+                                    className="w-3 h-3"
+                                  />
+                                  <span className={op.gradi_opinione?.includes(grado) ? "font-medium" : "text-muted-foreground"}>
+                                    {grado}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
                           </div>
                         )}
                       <div className="flex gap-2">
@@ -212,7 +250,7 @@ export default function GestisciOpinioni() {
                           </>
                         ) : (
                           <>
-                            <Button size="sm" variant="outline" onClick={() => {setEditingId(op.id); setEditText(op.text); setEditGrado(op.grado_opinione);}}>
+                            <Button size="sm" variant="outline" onClick={() => {setEditingId(op.id); setEditText(op.text); setEditGrado(op.gradi_opinione?.[0] || "Nazionale");}}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button size="sm" variant="destructive" disabled={deleteMutation.isPending} onClick={() => handleDelete(op.id)}>

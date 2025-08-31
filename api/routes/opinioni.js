@@ -107,6 +107,144 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/opinioni - Crea una nuova opinione
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { id, text, gradi_opinione } = req.body;
+    
+    console.log('📝 POST /api/opinioni - Creazione nuova opinione');
+    console.log('🔍 ID opinione:', id);
+    console.log('🔍 Testo:', text);
+    console.log('🔍 Gradi:', gradi_opinione);
+    
+    if (!id || !text || !gradi_opinione || !Array.isArray(gradi_opinione)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti o non validi',
+        message: 'ID, testo e gradi_opinione sono obbligatori e gradi_opinione deve essere un array'
+      });
+    }
+    
+    const insertQuery = `
+      INSERT INTO opinioni (id, text, gradi_opinione, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (id) DO UPDATE SET
+        text = EXCLUDED.text,
+        gradi_opinione = EXCLUDED.gradi_opinione,
+        updated_at = EXCLUDED.updated_at
+    `;
+    
+    const now = new Date();
+    const result = await pool.query(insertQuery, [id, text, gradi_opinione, now, now]);
+    
+    console.log('✅ Opinione creata/aggiornata con successo:', id);
+    
+    res.json({
+      success: true,
+      message: 'Opinione creata/aggiornata con successo',
+      data: { id, text, gradi_opinione }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella creazione opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile creare l\'opinione'
+    });
+  }
+});
+
+// DELETE /api/opinioni/:id - Elimina un'opinione
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('🗑️ DELETE /api/opinioni/:id - Eliminazione opinione');
+    console.log('🔍 ID opinione:', id);
+    
+    const deleteQuery = 'DELETE FROM opinioni WHERE id = $1';
+    const result = await pool.query(deleteQuery, [id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata',
+        message: 'Impossibile eliminare l\'opinione'
+      });
+    }
+    
+    console.log('✅ Opinione eliminata con successo:', id);
+    
+    res.json({
+      success: true,
+      message: 'Opinione eliminata con successo',
+      data: { id }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminare opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile eliminare l\'opinione'
+    });
+  }
+});
+
+// PUT /api/opinioni/:id - Aggiorna un'opinione esistente
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, gradi_opinione } = req.body;
+    
+    console.log('📝 PUT /api/opinioni/:id - Aggiornamento opinione');
+    console.log('🔍 ID opinione:', id);
+    console.log('🔍 Nuovo testo:', text);
+    console.log('🔍 Nuovi gradi:', gradi_opinione);
+    
+    if (!text || !gradi_opinione || !Array.isArray(gradi_opinione)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti o non validi',
+        message: 'Testo e gradi_opinione sono obbligatori e gradi_opinione deve essere un array'
+      });
+    }
+    
+    const updateQuery = `
+      UPDATE opinioni 
+      SET text = $1, gradi_opinione = $2, updated_at = $3
+      WHERE id = $4
+    `;
+    
+    const result = await pool.query(updateQuery, [text, gradi_opinione, new Date(), id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata',
+        message: 'Impossibile aggiornare l\'opinione'
+      });
+    }
+    
+    console.log('✅ Opinione aggiornata con successo:', id);
+    
+    res.json({
+      success: true,
+      message: 'Opinione aggiornata con successo',
+      data: { id, text, gradi_opinione }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornare opinione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile aggiornare l\'opinione'
+    });
+  }
+});
+
 // GET /api/opinioni-proposte - Ottieni opinioni proposte
 router.get('/proposte', verifyToken, async (req, res) => {
   try {
