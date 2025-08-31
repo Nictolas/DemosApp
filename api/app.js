@@ -231,10 +231,15 @@ app.post('/api/check-email', async (req, res) => {
 // Endpoint di registrazione utente
 app.post('/api/register', async (req, res) => {
   try {
+    console.log('🚀 REGISTRAZIONE INIZIATA - Ricevuta richiesta POST /api/register');
+    console.log('📋 Headers ricevuti:', req.headers);
+    console.log('📦 Body ricevuto:', JSON.stringify(req.body, null, 2));
+    
     const { email, password, nome, cognome, genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza, ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione, grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura } = req.body;
 
     // Validazione campi obbligatori
     if (!email || !password || !nome || !cognome) {
+      console.log('❌ Validazione fallita - campi obbligatori mancanti');
       return res.status(400).json({
         success: false,
         error: 'Campi obbligatori mancanti',
@@ -242,12 +247,19 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
+    console.log('✅ Validazione campi obbligatori superata');
     console.log('📝 REGISTRAZIONE - Tentativo registrazione per:', email);
     console.log('📋 Dati ricevuti:', { email, nome, cognome, genere, data_nascita, cittadinanza, ruolo });
 
     // Importa la configurazione del database
+    console.log('📚 Importazione moduli...');
     const { Pool } = require('pg');
     const bcrypt = require('bcryptjs');
+    
+    console.log('🔍 Verifica variabili d\'ambiente...');
+    console.log('🌍 NODE_ENV:', process.env.NODE_ENV);
+    console.log('🔗 DATABASE_URL presente:', !!process.env.DATABASE_URL);
+    console.log('🔑 JWT_SECRET presente:', !!process.env.JWT_SECRET);
     
     if (!process.env.DATABASE_URL) {
       console.error('❌ DATABASE_URL mancante!');
@@ -258,6 +270,7 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
+    console.log('✅ DATABASE_URL configurata, creazione pool...');
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
