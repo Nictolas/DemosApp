@@ -85,9 +85,9 @@ router.get('/profile', verifyToken, async (req, res) => {
 router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
-      SELECT o.*, o.grado_opinione as categoria_nome
+      SELECT o.*, o.gradi_opinione as categoria_nome
       FROM opinioni o
-      ORDER BY o.grado_opinione, o.text
+      ORDER BY o.gradi_opinione[1], o.text
     `;
     
     const result = await pool.query(query);
@@ -137,11 +137,11 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     console.log('🔍 GET /api/opinioni-list - Richiesta opinioni per grado:', grado);
     console.log('👤 User ID:', userId);
     
-    // Query per ottenere le opinioni dalla tabella opinioni usando il campo grado_opinione
+    // Query per ottenere le opinioni dalla tabella opinioni usando il campo gradi_opinione (array)
     const query = `
-      SELECT o.*, o.grado_opinione as categoria_nome
+      SELECT o.*, o.gradi_opinione as categoria_nome
       FROM opinioni o
-      WHERE o.grado_opinione = $1
+      WHERE $1 = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
     
@@ -363,8 +363,15 @@ router.get('/debug', verifyToken, async (req, res) => {
     const countResult = await pool.query(countQuery);
     const totalRows = countResult.rows[0].total;
     
-    // 4. Verifica gradi disponibili
-    const degreesQuery = 'SELECT DISTINCT grado_opinione, COUNT(*) as count FROM opinioni GROUP BY grado_opinione';
+    // 4. Verifica gradi disponibili (usando array)
+    const degreesQuery = `
+      SELECT 
+        unnest(gradi_opinione) as grado,
+        COUNT(*) as count 
+      FROM opinioni 
+      GROUP BY unnest(gradi_opinione)
+      ORDER BY grado
+    `;
     const degreesResult = await pool.query(degreesQuery);
     
     // 5. Esempi di opinioni
