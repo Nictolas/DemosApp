@@ -12,14 +12,14 @@ export function RoundGlassesStyle({ glassesColor }: RoundGlassesStyleProps) {
       {/* OCCHIALI ROTONDI - PATH ESATTI DELL'ANTEPRIMA AVATAR - SCALA AUMENTATA */}
       <g>
         {/* Lente sinistra - path esatto dell'Anteprima Avatar */}
-        <circle cx="125" cy="125" r="15" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        <circle cx="125" cy="125" r="12" fill="none" stroke={defaultColor} strokeWidth="3"/>
         {/* Lente destra - path esatto dell'Anteprima Avatar */}
-        <circle cx="175" cy="125" r="15" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        <circle cx="175" cy="125" r="12" fill="none" stroke={defaultColor} strokeWidth="3"/>
         {/* Ponte centrale - path esatto dell'Anteprima Avatar */}
-        <path d="M140 125 L160 125" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M137 125 L163 125" stroke={defaultColor} strokeWidth="3"/>
         {/* Stanghette - path esatto dell'Anteprima Avatar */}
-        <path d="M95 125 L110 125" stroke={defaultColor} strokeWidth="4"/>
-        <path d="M190 125 L205 125" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M100 125 L113 125" stroke={defaultColor} strokeWidth="3"/>
+        <path d="M187 125 L200 125" stroke={defaultColor} strokeWidth="3"/>
       </g>
     </svg>
   );

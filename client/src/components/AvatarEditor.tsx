@@ -166,24 +166,6 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   skinColor={config.skinColor}
                   onNoseStyleChange={(style) => setConfig({ ...config, noseStyle: style })}
                 />
-
-                <GlassesStyleSelector
-                  selectedGlassesStyle={config.glassesStyle}
-                  glassesColor={config.glassesColor}
-                  onGlassesStyleChange={(style) => setConfig({ ...config, glassesStyle: style })}
-                  onGlassesColorChange={(color) => setConfig({ ...config, glassesColor: color })}
-                />
-
-                <div className="flex justify-center">
-                  <ColorSelector
-                    label="Colore Occhiali"
-                    colors={glassesColors}
-                    selectedColor={config.glassesColor}
-                    onColorChange={(color) => setConfig({ ...config, glassesColor: color })}
-                    buttonSize="large"
-                    gridCols={6}
-                  />
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -273,6 +255,24 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
                   buttonSize="large"
                   gridCols={6}
                 />
+
+                <GlassesStyleSelector
+                  selectedGlassesStyle={config.glassesStyle}
+                  glassesColor={config.glassesColor}
+                  onGlassesStyleChange={(style) => setConfig({ ...config, glassesStyle: style })}
+                  onGlassesColorChange={(color) => setConfig({ ...config, glassesColor: color })}
+                />
+
+                <div className="flex justify-center">
+                  <ColorSelector
+                    label="Colore Occhiali"
+                    colors={glassesColors}
+                    selectedColor={config.glassesColor}
+                    onColorChange={(color) => setConfig({ ...config, glassesColor: color })}
+                    buttonSize="large"
+                    gridCols={6}
+                  />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
