@@ -1,3 +1,4 @@
+import { Switch } from "wouter";
 import { MainRoutes } from "../routes/MainRoutes";
 import { OpinionRoutes } from "../routes/OpinionRoutes";
 import { ManagementRoutes } from "../routes/ManagementRoutes";
@@ -8,7 +9,7 @@ import { AuthRoutes } from "../routes/AuthRoutes";
 
 export const AppRouter = () => {
   return (
-    <>
+    <Switch>
       <MainRoutes />
       <OpinionRoutes />
       <ManagementRoutes />
@@ -16,6 +17,6 @@ export const AppRouter = () => {
       <VotingRoutes />
       <SurveyRoutes />
       <AuthRoutes />
-    </>
+    </Switch>
   );
 };
