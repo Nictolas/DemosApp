@@ -1,0 +1,101 @@
+import React from "react";
+import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuthReady } from "@/hooks/use-auth-ready";
+import { Redirect } from "wouter";
+import { Loader2 } from "lucide-react";
+import { useCapoStatoData } from "./hooks/useCapoStatoData";
+import { useCapoStatoVoting } from "./hooks/useCapoStatoVoting";
+import { Header } from "./components/Header";
+import { BlockedWarning } from "./components/BlockedWarning";
+import { VotingForm } from "./components/VotingForm";
+import { CandidatesRanking } from "./components/CandidatesRanking";
+import { SaveButton } from "./components/SaveButton";
+import { ConfirmDialog } from "./components/ConfirmDialog";
+
+export default function CapodiStato() {
+  const authReady = useAuthReady();
+  const { user, isLoading } = useAuth();
+
+  // Hook per i dati
+  const { data, isLoading: isLoadingData } = useCapoStatoData(user);
+
+  // Hook per la logica di voto
+  const {
+    selectedVoti,
+    showConfirmDialog,
+    setShowConfirmDialog,
+    saveVotiMutation,
+    handleAddNomeLocal,
+    handleRemoveLocal,
+    toggleSelezione,
+    votiCambiati
+  } = useCapoStatoVoting(data);
+
+  // Loading states
+  if (!authReady || isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Redirect se non autenticato
+  if (!user) {
+    return <Redirect to="/auth" />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+      <div className="container mx-auto max-w-4xl">
+        <Header />
+
+        {data?.blocco.isBlocked && (
+          <BlockedWarning unlockDate={data.blocco.unlockDate} />
+        )}
+
+        {isLoadingData ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Form di voto */}
+            <VotingForm
+              selectedVoti={selectedVoti}
+              classifica={data?.classifica || []}
+              isBlocked={data?.blocco.isBlocked || false}
+              onAddNome={handleAddNomeLocal}
+              onRemoveNome={handleRemoveLocal}
+            />
+
+            {/* Classifica candidati */}
+            <CandidatesRanking
+              classifica={data?.classifica || []}
+              selectedVoti={selectedVoti}
+              isBlocked={data?.blocco.isBlocked || false}
+              isPending={saveVotiMutation.isPending}
+              onToggleSelezione={toggleSelezione}
+            />
+
+            {/* Pulsante salvataggio */}
+            <SaveButton
+              onSave={() => setShowConfirmDialog(true)}
+              isPending={saveVotiMutation.isPending}
+              votiCambiati={votiCambiati}
+              isBlocked={data?.blocco.isBlocked || false}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Dialog di conferma */}
+      <ConfirmDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        onConfirm={() => saveVotiMutation.mutate(selectedVoti)}
+        isPending={saveVotiMutation.isPending}
+      />
+    </div>
+  );
+}
