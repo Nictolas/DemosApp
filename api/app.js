@@ -11,6 +11,7 @@ const servicesRoutes = require('./routes/services');
 const authRoutes = require('./routes/auth/index');
 const userRoutes = require('./routes/users/index');
 const opinioniRoutes = require('./routes/opinioni/index');
+const governoRoutes = require('./routes/governo');
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use('/api', servicesRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/opinioni', opinioniRoutes);
+app.use('/api/governo', governoRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {

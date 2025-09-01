@@ -30,6 +30,34 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/governo/ideale - Governo ideale dell'utente
+router.get('/ideale', async (req, res) => {
+  try {
+    console.log('🔍 GET /api/governo/ideale - Richiesta governo ideale');
+    
+    // Per ora restituiamo un governo ideale di esempio
+    // In futuro potremmo recuperarlo dal database per utente specifico
+    const governoIdeale = {
+      presidente_consiglio: "Mario Rossi",
+      ministro_interni: "Giulia Bianchi",
+      ministro_esteri: "Luca Verdi",
+      ministro_economia: "Anna Neri",
+      ministro_giustizia: "Paolo Blu"
+    };
+    
+    res.json({
+      success: true,
+      data: governoIdeale
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero governo ideale:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 // POST /api/governo - Aggiungi membro governo
 router.post('/', async (req, res) => {
   try {
