@@ -1,1 +1,1 @@
-export { default } from './GestisciOpinioni';
+export { default } from './GestisciOpinioni/index';
