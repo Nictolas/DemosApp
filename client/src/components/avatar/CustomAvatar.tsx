@@ -101,7 +101,10 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
           />
 
           {/* Occhiali - sempre in primo piano */}
-          <AvatarGlasses glassesStyle={avatarConfig.glassesStyle} />
+          <AvatarGlasses 
+            glassesStyle={avatarConfig.glassesStyle} 
+            glassesColor={avatarConfig.glassesColor}
+          />
         </g>
       </svg>
     </div>
