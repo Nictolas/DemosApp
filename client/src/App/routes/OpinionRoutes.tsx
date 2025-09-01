@@ -15,6 +15,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
+              path="/opinioni/:opinionField/:regionName/:provinceName/:comuneName"
               component={() => (
                 <pageComponents.DettaglioOpinione 
                   opinionField={params.opinionField} 
@@ -32,6 +33,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
+              path="/opinioni/:opinionField/:regionName/:provinceName"
               component={() => (
                 <pageComponents.DettaglioOpinione 
                   opinionField={params.opinionField} 
@@ -48,6 +50,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
+              path="/opinioni/:opinionField/:regionName"
               component={() => (
                 <pageComponents.DettaglioOpinione 
                   opinionField={params.opinionField} 
@@ -63,6 +66,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
         {(params) => (
           <PageTransition location={location} type="fade-side">
             <ProtectedRoute 
+              path="/opinioni/:opinionField"
               component={() => (
                 <pageComponents.DettaglioOpinione 
                   opinionField={params.opinionField} 
@@ -77,7 +81,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
       <Route path="/opinioni">
         {() => (
           <PageTransition location={location} type="fade-side">
-            <ProtectedRoute component={pageComponents.Opinioni} />
+            <ProtectedRoute path="/opinioni" component={pageComponents.Opinioni} />
           </PageTransition>
         )}
       </Route>
@@ -85,7 +89,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
       <Route path="/opinioni-europee">
         {() => (
           <PageTransition location={location} type="fade-side">
-            <ProtectedRoute component={pageComponents.OpinioniEuropee} />
+            <ProtectedRoute path="/opinioni-europee" component={pageComponents.OpinioniEuropee} />
           </PageTransition>
         )}
       </Route>
@@ -93,7 +97,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
       <Route path="/opinioni-nazionali">
         {() => (
           <PageTransition location={location} type="fade-side">
-            <ProtectedRoute component={pageComponents.OpinioniNazionali} />
+            <ProtectedRoute path="/opinioni-nazionali" component={pageComponents.OpinioniNazionali} />
           </PageTransition>
         )}
       </Route>
@@ -101,7 +105,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
       <Route path="/opinioni-regionali">
         {() => (
           <PageTransition location={location} type="fade-side">
-            <ProtectedRoute component={pageComponents.OpinioniRegionali} />
+            <ProtectedRoute path="/opinioni-regionali" component={pageComponents.OpinioniRegionali} />
           </PageTransition>
         )}
       </Route>
@@ -109,7 +113,7 @@ export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
       <Route path="/opinioni-comunali">
         {() => (
           <PageTransition location={location} type="fade-side">
-            <ProtectedRoute component={pageComponents.OpinioniComunali} />
+            <ProtectedRoute path="/opinioni-comunali" component={pageComponents.OpinioniComunali} />
           </PageTransition>
         )}
       </Route>

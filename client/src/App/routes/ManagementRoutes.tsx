@@ -14,7 +14,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciUtenti} />
+            <ProtectedRoute path="/gestisci-utenti" component={pageComponents.GestisciUtenti} />
           </PageTransition>
         )}
       </Route>
@@ -23,7 +23,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciElezioni} />
+            <ProtectedRoute path="/gestisci-elezioni" component={pageComponents.GestisciElezioni} />
           </PageTransition>
         )}
       </Route>
@@ -32,7 +32,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciOpinioni} />
+            <ProtectedRoute path="/gestisci-opinioni" component={pageComponents.GestisciOpinioni} />
           </PageTransition>
         )}
       </Route>
@@ -41,7 +41,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciGrazia} />
+            <ProtectedRoute path="/gestisci-grazia" component={pageComponents.GestisciGrazia} />
           </PageTransition>
         )}
       </Route>
@@ -50,7 +50,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciIniziativePopolari} />
+            <ProtectedRoute path="/gestisci-iniziative-popolari" component={pageComponents.GestisciIniziativePopolari} />
           </PageTransition>
         )}
       </Route>
@@ -59,7 +59,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciReferendumAbrogativi} />
+            <ProtectedRoute path="/gestisci-referendum-abrogativi" component={pageComponents.GestisciReferendumAbrogativi} />
           </PageTransition>
         )}
       </Route>
@@ -68,7 +68,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciGoverno} />
+            <ProtectedRoute path="/gestisci-governo" component={pageComponents.GestisciGoverno} />
           </PageTransition>
         )}
       </Route>
@@ -77,7 +77,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.GestisciICE} />
+            <ProtectedRoute path="/gestisci-ice" component={pageComponents.GestisciICE} />
           </PageTransition>
         )}
       </Route>
@@ -86,7 +86,7 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute  component={pageComponents.Gestisci} />
+            <ProtectedRoute path="/gestisci" component={pageComponents.Gestisci} />
           </PageTransition>
         )}
       </Route>

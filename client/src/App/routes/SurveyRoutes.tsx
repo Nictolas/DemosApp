@@ -14,7 +14,7 @@ export const SurveyRoutes = ({ location }: SurveyRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute  component={pageComponents.Sondaggi} />
+            <ProtectedRoute path="/sondaggi" component={pageComponents.Sondaggi} />
           </PageTransition>
         )}
       </Route>
@@ -23,7 +23,7 @@ export const SurveyRoutes = ({ location }: SurveyRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute  component={pageComponents.SondaggiRegione} />
+            <ProtectedRoute path="/sondaggi-regione" component={pageComponents.SondaggiRegione} />
           </PageTransition>
         )}
       </Route>
@@ -32,7 +32,7 @@ export const SurveyRoutes = ({ location }: SurveyRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute  component={pageComponents.SondaggiProvincia} />
+            <ProtectedRoute path="/sondaggi-provincia" component={pageComponents.SondaggiProvincia} />
           </PageTransition>
         )}
       </Route>
@@ -41,7 +41,7 @@ export const SurveyRoutes = ({ location }: SurveyRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute  component={pageComponents.SondaggiComune} />
+            <ProtectedRoute path="/sondaggi-comune" component={pageComponents.SondaggiComune} />
           </PageTransition>
         )}
       </Route>
@@ -50,7 +50,7 @@ export const SurveyRoutes = ({ location }: SurveyRoutesProps) => {
       <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute  component={pageComponents.StatisticheOpinione} />
+            <ProtectedRoute path="/statistiche-opinione" component={pageComponents.StatisticheOpinione} />
           </PageTransition>
         )}
       </Route>
