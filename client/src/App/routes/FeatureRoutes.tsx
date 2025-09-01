@@ -175,9 +175,11 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       {/* Route impostazioni */}
       <Route path="/impostazioni">
         {() => (
-          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+          <div style={{padding: '20px', background: 'white', minHeight: '100vh'}}>
+            <h1>TEST IMPOSTAZIONI - SENZA PAGETRANSITION</h1>
+            <p>Se vedi questo, il problema è nel PageTransition</p>
             <ProtectedRoute path="/impostazioni" component={pageComponents.Impostazioni} />
-          </PageTransition>
+          </div>
         )}
       </Route>
 
