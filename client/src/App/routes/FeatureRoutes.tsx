@@ -175,9 +175,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       {/* Route impostazioni */}
       <Route path="/impostazioni">
         {() => (
-          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/impostazioni" component={pageComponents.Impostazioni} />
-          </PageTransition>
+          <ProtectedRoute path="/impostazioni" component={pageComponents.Impostazioni} />
         )}
       </Route>
 
