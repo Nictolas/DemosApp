@@ -14,9 +14,9 @@ const server = app.listen(PORT, () => {
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     if (isProduction) {
-      console.log(`✅ Un altro processo ha già avviato il server sulla porta ${PORT}`);
-      console.log('💡 Uscita graceful per evitare conflitti');
-      process.exit(0); // Exit gracefully in produzione
+      console.log(`⚠️  Porta ${PORT} già in uso, ma continuo a servire richieste`);
+      console.log('💡 Render può avere istanze multiple, questo è normale');
+      // Non uscire in produzione, lascia che Render gestisca le istanze
     } else {
       console.error(`❌ Errore: Porta ${PORT} già in uso`);
       console.log('💡 Soluzioni:');
