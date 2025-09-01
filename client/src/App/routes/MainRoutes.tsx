@@ -1,13 +1,10 @@
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { pageComponents } from "../imports";
 
-interface MainRoutesProps {
-  location: string;
-}
-
-export const MainRoutes = ({ location }: MainRoutesProps) => {
+export const MainRoutes = () => {
+  const [location] = useLocation();
   return (
     <>
       {/* Route principale */}

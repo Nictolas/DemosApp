@@ -1,13 +1,10 @@
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { pageComponents } from "../imports";
 
-interface SurveyRoutesProps {
-  location: string;
-}
-
-export const SurveyRoutes = ({ location }: SurveyRoutesProps) => {
+export const SurveyRoutes = () => {
+  const [location] = useLocation();
   return (
     <>
       {/* Route sondaggi */}

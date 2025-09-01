@@ -1,13 +1,10 @@
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { pageComponents } from "../imports";
 
-interface ManagementRoutesProps {
-  location: string;
-}
-
-export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
+export const ManagementRoutes = () => {
+  const [location] = useLocation();
   return (
     <>
       {/* Route di gestione utenti */}
