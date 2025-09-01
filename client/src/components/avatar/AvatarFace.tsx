@@ -29,6 +29,18 @@ export function AvatarFace({ skinColor, noseStyle }: AvatarFaceProps) {
 
   return (
     <>
+      {/* Orecchie (dietro) - devono essere disegnate prima della testa */}
+      <ellipse cx="90" cy="130" rx="15" ry="22" fill={skinColor} />
+      <ellipse cx="210" cy="130" rx="15" ry="22" fill={skinColor} />
+      
+      {/* Collo trapezoidale (dietro) - deve essere disegnato prima della testa */}
+      <path
+        d="M130 195 L170 195 L180 225 L120 225 Z"
+        fill={skinColor}
+        stroke="#000"
+        strokeWidth="3"
+      />
+      
       {/* Testa più larga e allungata */}
       <path
         d="M90 130 Q90 60 150 55 Q210 60 210 130 Q210 200 150 205 Q90 200 90 130 Z"
@@ -46,18 +58,6 @@ export function AvatarFace({ skinColor, noseStyle }: AvatarFaceProps) {
       
       {/* Bocca */}
       <path d="M 135 165 Q 150 175 165 165" stroke="#000" strokeWidth="3" fill="none" />
-      
-      {/* Orecchie (dietro) */}
-      <ellipse cx="90" cy="130" rx="15" ry="22" fill={skinColor} />
-      <ellipse cx="210" cy="130" rx="15" ry="22" fill={skinColor} />
-      
-      {/* Collo trapezoidale (dietro) */}
-      <path
-        d="M130 195 L170 195 L180 225 L120 225 Z"
-        fill={skinColor}
-        stroke="#000"
-        strokeWidth="3"
-      />
     </>
   );
 }

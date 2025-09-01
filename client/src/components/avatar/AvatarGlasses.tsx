@@ -2,16 +2,14 @@ import React from "react";
 
 interface AvatarGlassesProps {
   glassesStyle: string;
+  glassesColor?: string;
 }
 
-export function AvatarGlasses({ glassesStyle }: AvatarGlassesProps) {
+export function AvatarGlasses({ glassesStyle, glassesColor = "#333333" }: AvatarGlassesProps) {
   // Se non c'è uno stile selezionato, non mostrare occhiali
   if (!glassesStyle || glassesStyle === "none") {
     return null;
   }
-
-  // FORZA SEMPRE il colore nero come default per gli occhiali
-  const glassesColor = "#333333";
 
   const renderGlasses = () => {
     switch (glassesStyle) {
