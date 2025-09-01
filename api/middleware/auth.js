@@ -24,11 +24,16 @@ const verifyToken = async (req, res, next) => {
     
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      req.user = {
+        id: decoded.userId || decoded.email,
+        role: decoded.role || decoded.ruolo,
+        email: decoded.email
+      };
       req.userId = decoded.userId || decoded.email;
       req.userRole = decoded.role || decoded.ruolo;
       req.userEmail = decoded.email;
       
-      console.log('🔐 DEBUG - Token verificato per utente:', req.userId, 'con ruolo:', req.userRole);
+      console.log('🔐 DEBUG - Token verificato per utente:', req.user.id, 'con ruolo:', req.user.role);
       
       next();
     } catch (jwtError) {
