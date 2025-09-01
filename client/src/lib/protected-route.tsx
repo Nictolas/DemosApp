@@ -13,14 +13,14 @@ export function ProtectedRoute({
   const { user, isLoading } = useAuth();
 
   // === DEBUG LOGS ===
-  console.log('🔍 DEBUG ProtectedRoute - path prop:', path);
-  console.log('🔍 DEBUG ProtectedRoute - user:', user);
-  console.log('🔍 DEBUG ProtectedRoute - isLoading:', isLoading);
-  console.log('🔍 DEBUG ProtectedRoute - typeof user:', typeof user);
+  // console.log('🔍 DEBUG ProtectedRoute - path prop:', path);
+  // console.log('🔍 DEBUG ProtectedRoute - user:', user);
+  // console.log('🔍 DEBUG ProtectedRoute - isLoading:', isLoading);
+  // console.log('🔍 DEBUG ProtectedRoute - typeof user:', typeof user);
 
   // Mostra loader mentre carica l'autenticazione
   if (isLoading || typeof user === 'undefined') {
-    console.log('🔍 DEBUG ProtectedRoute - Mostrando loader per:', path);
+    // console.log('🔍 DEBUG ProtectedRoute - Mostrando loader per:', path);
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -30,11 +30,11 @@ export function ProtectedRoute({
 
   // Redirect se non autenticato
   if (!user) {
-    console.log('🔍 DEBUG ProtectedRoute - Redirect a /auth per:', path);
+    // console.log('🔍 DEBUG ProtectedRoute - Redirect a /auth per:', path);
     return <Redirect to="/auth" />;
   }
 
   // Renderizza il componente se autenticato
-  console.log('🔍 DEBUG ProtectedRoute - Rendering componente per:', path);
+  // console.log('🔍 DEBUG ProtectedRoute - Rendering componente per:', path);
   return <Component />;
 }
