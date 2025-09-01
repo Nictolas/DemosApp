@@ -11,91 +11,91 @@ export const VotingRoutes = ({ location }: VotingRoutesProps) => {
   return (
     <>
       {/* Route ICE */}
-      <Route path="/ice">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/ice" component={pageComponents.ICE} />
+            <ProtectedRoute  component={pageComponents.ICE} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route vota ICE */}
-      <Route path="/vota-ice">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/vota-ice" component={pageComponents.VotaICE} />
+            <ProtectedRoute  component={pageComponents.VotaICE} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route vota iniziativa popolare */}
-      <Route path="/vota-iniziativa-popolare">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/vota-iniziativa-popolare" component={pageComponents.VotaIniziativaPopolare} />
+            <ProtectedRoute  component={pageComponents.VotaIniziativaPopolare} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route vota referendum abrogativo */}
-      <Route path="/vota-referendum-abrogativo">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/vota-referendum-abrogativo" component={pageComponents.VotaReferendumAbrogativo} />
+            <ProtectedRoute  component={pageComponents.VotaReferendumAbrogativo} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route votazione */}
-      <Route path="/votazione">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/votazione" component={pageComponents.Votazione} />
+            <ProtectedRoute  component={pageComponents.Votazione} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route evento */}
-      <Route path="/evento">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/evento" component={pageComponents.Evento} />
+            <ProtectedRoute  component={pageComponents.Evento} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route programma */}
-      <Route path="/programma">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/programma" component={pageComponents.Programma} />
+            <ProtectedRoute  component={pageComponents.Programma} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route dona */}
-      <Route path="/dona">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/dona" component={pageComponents.Dona} />
+            <ProtectedRoute  component={pageComponents.Dona} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route proponi opinione */}
-      <Route path="/proponi-opinione">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/proponi-opinione" component={pageComponents.ProponiOpinione} />
+            <ProtectedRoute  component={pageComponents.ProponiOpinione} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route riscontro */}
-      <Route path="/riscontro">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/riscontro" component={pageComponents.Riscontro} />
+            <ProtectedRoute  component={pageComponents.Riscontro} />
           </PageTransition>
         )}
       </Route>

@@ -122,7 +122,7 @@ export const MainRoutes = ({ location }: MainRoutesProps) => {
       <Route path="/menu">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/menu" component={pageComponents.Menu} />
+            <ProtectedRoute component={pageComponents.Menu} />
           </PageTransition>
         )}
       </Route>
@@ -131,7 +131,7 @@ export const MainRoutes = ({ location }: MainRoutesProps) => {
       <Route path="/menu/profilo">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/menu/profilo" component={pageComponents.Profilo} />
+            <ProtectedRoute component={pageComponents.Profilo} />
           </PageTransition>
         )}
       </Route>
@@ -139,7 +139,7 @@ export const MainRoutes = ({ location }: MainRoutesProps) => {
       <Route path="/menu/profilo/:userId">
         {(params) => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/menu/profilo/:userId" component={pageComponents.Profilo} />
+            <ProtectedRoute component={pageComponents.Profilo} />
           </PageTransition>
         )}
       </Route>
@@ -147,7 +147,7 @@ export const MainRoutes = ({ location }: MainRoutesProps) => {
       <Route path="/modifica-immagine">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/modifica-immagine" component={pageComponents.ModificaImmagine} />
+            <ProtectedRoute component={pageComponents.ModificaImmagine} />
           </PageTransition>
         )}
       </Route>

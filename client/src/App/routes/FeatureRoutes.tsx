@@ -14,7 +14,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/rappresentanti">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/rappresentanti" component={pageComponents.Rappresentanti} />
+            <ProtectedRoute component={pageComponents.Rappresentanti} />
           </PageTransition>
         )}
       </Route>
@@ -23,7 +23,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/elezioni">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/elezioni" component={pageComponents.Elezioni} />
+            <ProtectedRoute component={pageComponents.Elezioni} />
           </PageTransition>
         )}
       </Route>
@@ -32,7 +32,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/scegli-rappresentante">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/scegli-rappresentante" component={pageComponents.ScegliRappresentante} />
+            <ProtectedRoute component={pageComponents.ScegliRappresentante} />
           </PageTransition>
         )}
       </Route>
@@ -41,7 +41,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/scegli-candidato">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/scegli-candidato" component={pageComponents.ScegliCandidato} />
+            <ProtectedRoute component={pageComponents.ScegliCandidato} />
           </PageTransition>
         )}
       </Route>
@@ -50,7 +50,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/statistiche-utenti">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/statistiche-utenti" component={pageComponents.StatisticheUtenti} />
+            <ProtectedRoute component={pageComponents.StatisticheUtenti} />
           </PageTransition>
         )}
       </Route>
@@ -59,7 +59,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/strumenti">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/strumenti" component={pageComponents.Strumenti} />
+            <ProtectedRoute component={pageComponents.Strumenti} />
           </PageTransition>
         )}
       </Route>
@@ -68,7 +68,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/podio-trasparenza">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/podio-trasparenza" component={pageComponents.PodioTrasparenza} />
+            <ProtectedRoute component={pageComponents.PodioTrasparenza} />
           </PageTransition>
         )}
       </Route>
@@ -77,7 +77,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/notifiche">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/notifiche" component={pageComponents.Notifiche} />
+            <ProtectedRoute component={pageComponents.Notifiche} />
           </PageTransition>
         )}
       </Route>
@@ -86,7 +86,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/capo-di-stato">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/capo-di-stato" component={pageComponents.CapodiStato} />
+            <ProtectedRoute component={pageComponents.CapodiStato} />
           </PageTransition>
         )}
       </Route>
@@ -95,7 +95,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/governo">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/governo" component={pageComponents.Governo} />
+            <ProtectedRoute component={pageComponents.Governo} />
           </PageTransition>
         )}
       </Route>
@@ -104,7 +104,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/grazia">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/grazia" component={pageComponents.Grazia} />
+            <ProtectedRoute component={pageComponents.Grazia} />
           </PageTransition>
         )}
       </Route>
@@ -113,7 +113,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/amnistia">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/amnistia" component={pageComponents.Amnistia} />
+            <ProtectedRoute component={pageComponents.Amnistia} />
           </PageTransition>
         )}
       </Route>
@@ -122,7 +122,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/vota">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/vota" component={pageComponents.Vota} />
+            <ProtectedRoute component={pageComponents.Vota} />
           </PageTransition>
         )}
       </Route>
@@ -131,7 +131,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/eventi">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/eventi" component={pageComponents.Eventi} />
+            <ProtectedRoute component={pageComponents.Eventi} />
           </PageTransition>
         )}
       </Route>
@@ -140,7 +140,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/proponi">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/proponi" component={pageComponents.Proponi} />
+            <ProtectedRoute component={pageComponents.Proponi} />
           </PageTransition>
         )}
       </Route>
@@ -149,7 +149,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/iniziative-popolari">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/iniziative-popolari" component={pageComponents.IniziativePopolare} />
+            <ProtectedRoute component={pageComponents.IniziativePopolare} />
           </PageTransition>
         )}
       </Route>
@@ -158,7 +158,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/referendum-abrogativi">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/referendum-abrogativi" component={pageComponents.ReferendumAbrogativi} />
+            <ProtectedRoute component={pageComponents.ReferendumAbrogativi} />
           </PageTransition>
         )}
       </Route>
@@ -167,7 +167,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/sostenitori">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/sostenitori" component={pageComponents.Sostenitori} />
+            <ProtectedRoute component={pageComponents.Sostenitori} />
           </PageTransition>
         )}
       </Route>
@@ -175,11 +175,9 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       {/* Route impostazioni */}
       <Route path="/impostazioni">
         {() => (
-          <div style={{padding: '20px', background: 'white', minHeight: '100vh'}}>
-            <h1>TEST IMPOSTAZIONI - SENZA PAGETRANSITION</h1>
-            <p>Se vedi questo, il problema è nel PageTransition</p>
-            <ProtectedRoute path="/impostazioni" component={pageComponents.Impostazioni} />
-          </div>
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+            <ProtectedRoute component={pageComponents.Impostazioni} />
+          </PageTransition>
         )}
       </Route>
 
@@ -187,7 +185,7 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       <Route path="/reclama-profilo">
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/reclama-profilo" component={pageComponents.ReclamaProfilo} />
+            <ProtectedRoute component={pageComponents.ReclamaProfilo} />
           </PageTransition>
         )}
       </Route>
