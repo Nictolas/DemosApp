@@ -1,13 +1,10 @@
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { pageComponents } from "../imports";
 
-interface OpinionRoutesProps {
-  location: string;
-}
-
-export const OpinionRoutes = ({ location }: OpinionRoutesProps) => {
+export const OpinionRoutes = () => {
+  const [location] = useLocation();
   return (
     <>
       {/* Route opinioni con parametri dinamici */}

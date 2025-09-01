@@ -1,13 +1,10 @@
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { pageComponents } from "../imports";
 
-interface VotingRoutesProps {
-  location: string;
-}
-
-export const VotingRoutes = ({ location }: VotingRoutesProps) => {
+export const VotingRoutes = () => {
+  const [location] = useLocation();
   return (
     <>
       {/* Route ICE */}

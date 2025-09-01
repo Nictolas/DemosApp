@@ -1,13 +1,10 @@
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { pageComponents } from "../imports";
 
-interface FeatureRoutesProps {
-  location: string;
-}
-
-export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
+export const FeatureRoutes = () => {
+  const [location] = useLocation();
   return (
     <>
       {/* Route rappresentanti */}

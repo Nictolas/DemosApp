@@ -1,12 +1,9 @@
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { pageComponents } from "../imports";
 
-interface AuthRoutesProps {
-  location: string;
-}
-
-export const AuthRoutes = ({ location }: AuthRoutesProps) => {
+export const AuthRoutes = () => {
+  const [location] = useLocation();
   return (
     <>
       {/* Route reset password */}
