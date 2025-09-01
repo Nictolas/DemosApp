@@ -175,13 +175,9 @@ export const FeatureRoutes = ({ location }: FeatureRoutesProps) => {
       {/* Route impostazioni */}
       <Route path="/impostazioni">
         {() => (
-          <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-            <div className="container mx-auto px-4 py-8">
-              <h1 className="text-3xl font-bold text-gray-900">TEST IMPOSTAZIONI</h1>
-              <p className="text-gray-600">Se vedi questo, il routing funziona!</p>
-              <ProtectedRoute path="/impostazioni" component={pageComponents.Impostazioni} />
-            </div>
-          </div>
+          <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+            <ProtectedRoute path="/impostazioni" component={pageComponents.Impostazioni} />
+          </PageTransition>
         )}
       </Route>
 
