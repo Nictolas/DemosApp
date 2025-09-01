@@ -11,82 +11,82 @@ export const ManagementRoutes = ({ location }: ManagementRoutesProps) => {
   return (
     <>
       {/* Route di gestione utenti */}
-      <Route path="/gestisci-utenti">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-utenti" component={pageComponents.GestisciUtenti} />
+            <ProtectedRoute  component={pageComponents.GestisciUtenti} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione elezioni */}
-      <Route path="/gestisci-elezioni">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-elezioni" component={pageComponents.GestisciElezioni} />
+            <ProtectedRoute  component={pageComponents.GestisciElezioni} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione opinioni */}
-      <Route path="/gestisci-opinioni">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-opinioni" component={pageComponents.GestisciOpinioni} />
+            <ProtectedRoute  component={pageComponents.GestisciOpinioni} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione grazia */}
-      <Route path="/gestisci-grazia">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-grazia" component={pageComponents.GestisciGrazia} />
+            <ProtectedRoute  component={pageComponents.GestisciGrazia} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione iniziative popolari */}
-      <Route path="/gestisci-iniziative-popolari">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-iniziative-popolari" component={pageComponents.GestisciIniziativePopolari} />
+            <ProtectedRoute  component={pageComponents.GestisciIniziativePopolari} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione referendum abrogativi */}
-      <Route path="/gestisci-referendum-abrogativi">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-referendum-abrogativi" component={pageComponents.GestisciReferendumAbrogativi} />
+            <ProtectedRoute  component={pageComponents.GestisciReferendumAbrogativi} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione governo */}
-      <Route path="/gestisci-governo">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-governo" component={pageComponents.GestisciGoverno} />
+            <ProtectedRoute  component={pageComponents.GestisciGoverno} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione ICE */}
-      <Route path="/gestisci-ice">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci-ice" component={pageComponents.GestisciICE} />
+            <ProtectedRoute  component={pageComponents.GestisciICE} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route di gestione generale */}
-      <Route path="/gestisci">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={400}>
-            <ProtectedRoute path="/gestisci" component={pageComponents.Gestisci} />
+            <ProtectedRoute  component={pageComponents.Gestisci} />
           </PageTransition>
         )}
       </Route>

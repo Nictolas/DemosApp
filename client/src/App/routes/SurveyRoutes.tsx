@@ -11,46 +11,46 @@ export const SurveyRoutes = ({ location }: SurveyRoutesProps) => {
   return (
     <>
       {/* Route sondaggi */}
-      <Route path="/sondaggi">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/sondaggi" component={pageComponents.Sondaggi} />
+            <ProtectedRoute  component={pageComponents.Sondaggi} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route sondaggi regione */}
-      <Route path="/sondaggi-regione">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/sondaggi-regione" component={pageComponents.SondaggiRegione} />
+            <ProtectedRoute  component={pageComponents.SondaggiRegione} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route sondaggi provincia */}
-      <Route path="/sondaggi-provincia">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/sondaggi-provincia" component={pageComponents.SondaggiProvincia} />
+            <ProtectedRoute  component={pageComponents.SondaggiProvincia} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route sondaggi comune */}
-      <Route path="/sondaggi-comune">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/sondaggi-comune" component={pageComponents.SondaggiComune} />
+            <ProtectedRoute  component={pageComponents.SondaggiComune} />
           </PageTransition>
         )}
       </Route>
 
       {/* Route statistiche opinione */}
-      <Route path="/statistiche-opinione">
+      <Route >
         {() => (
           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-            <ProtectedRoute path="/statistiche-opinione" component={pageComponents.StatisticheOpinione} />
+            <ProtectedRoute  component={pageComponents.StatisticheOpinione} />
           </PageTransition>
         )}
       </Route>
