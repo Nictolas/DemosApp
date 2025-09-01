@@ -77,6 +77,7 @@ export function CustomAvatar({ config, size = 100, className = "rounded-full", o
           <AvatarClothing 
             suitColor={avatarConfig.suitColor}
             tieColor={avatarConfig.tieColor}
+            skinColor={avatarConfig.skinColor}
           />
           
           {/* Faccia base (testa, occhi, naso, bocca, orecchie, collo) */}
