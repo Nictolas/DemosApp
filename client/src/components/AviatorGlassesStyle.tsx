@@ -12,14 +12,14 @@ export function AviatorGlassesStyle({ glassesColor }: AviatorGlassesStyleProps) 
       {/* OCCHIALI AVIATOR - PATH ESATTI DELL'ANTEPRIMA AVATAR - SCALA AUMENTATA */}
       <g>
         {/* Lente sinistra - path esatto dell'Anteprima Avatar */}
-        <path d="M110 110 L140 110 Q140 140 125 150 Q110 140 L110 110 Z" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M113 113 L137 113 Q137 137 125 140 Q113 137 L113 113 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
         {/* Lente destra - path esatto dell'Anteprima Avatar */}
-        <path d="M160 110 L190 110 Q190 140 175 150 Q160 140 L160 110 Z" fill="none" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M163 113 L187 113 Q187 137 175 140 Q163 137 L163 113 Z" fill="none" stroke={defaultColor} strokeWidth="3"/>
         {/* Ponte centrale - path esatto dell'Anteprima Avatar */}
-        <path d="M140 125 L160 125" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M137 125 L163 125" stroke={defaultColor} strokeWidth="3"/>
         {/* Stanghette - path esatto dell'Anteprima Avatar */}
-        <path d="M95 125 L110 125" stroke={defaultColor} strokeWidth="4"/>
-        <path d="M190 125 L205 125" stroke={defaultColor} strokeWidth="4"/>
+        <path d="M100 125 L113 125" stroke={defaultColor} strokeWidth="3"/>
+        <path d="M187 125 L200 125" stroke={defaultColor} strokeWidth="3"/>
       </g>
     </svg>
   );
