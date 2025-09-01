@@ -3,11 +3,20 @@ import React from "react";
 interface AvatarClothingProps {
   suitColor: string;
   tieColor: string;
+  skinColor?: string;
 }
 
-export function AvatarClothing({ suitColor, tieColor }: AvatarClothingProps) {
+export function AvatarClothing({ suitColor, tieColor, skinColor = "#FDBCB4" }: AvatarClothingProps) {
   return (
     <>
+      {/* Collo trapezoidale (dietro tutto) */}
+      <path
+        d="M130 195 L170 195 L180 225 L120 225 Z"
+        fill={skinColor}
+        stroke="#000"
+        strokeWidth="3"
+      />
+      
       {/* Spalle con braccia ancora più in alto */}
       <ellipse
         cx="150"
