@@ -1,0 +1,34 @@
+import React from "react";
+import { CardContent } from "@/components/ui/card";
+import { MenuButton } from "./MenuButton";
+import { menuItems } from "../constants/menuItems";
+import { MenuButtonProps } from "../types";
+
+interface MenuGridProps {
+  hasAdvancedAccess: boolean;
+  onNavigate: (path: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+}
+
+export const MenuGrid: React.FC<MenuGridProps> = ({
+  hasAdvancedAccess,
+  onNavigate
+}) => {
+  const visibleItems = menuItems.filter(item => 
+    !item.requiresAdvancedAccess || hasAdvancedAccess
+  );
+
+  return (
+    <CardContent className="grid grid-cols-2 gap-2 p-4 flex-1">
+      {visibleItems.map((item) => (
+        <MenuButton
+          key={item.id}
+          path={item.path}
+          icon={item.icon}
+          label={item.label}
+          color={item.color}
+          onNavigate={onNavigate}
+        />
+      ))}
+    </CardContent>
+  );
+};
