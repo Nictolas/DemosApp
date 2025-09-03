@@ -69,6 +69,17 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
     onNavigate(categoria.id);
   };
 
+  // Mappa colori per le categorie (come nella pagina opinioni)
+  const colorMap = { 
+    blue: { bg: "#dbeafe", text: "#1e40af", icon: "#2563eb" },
+    green: { bg: "#bbf7d0", text: "#166534", icon: "#16a34a" }, 
+    purple: { bg: "#ede9fe", text: "#581c87", icon: "#9333ea" }, 
+    orange: { bg: "#fef9c3", text: "#92400e", icon: "#ea580c" },
+    teal: { bg: "#a7f3d0", text: "#064e3b", icon: "#0d9488" }
+  };
+  
+  const color = colorMap[categoria.color as keyof typeof colorMap] || colorMap.blue;
+
   return (
     <button
       type="button"
@@ -95,12 +106,12 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
       onContextMenu={e => e.preventDefault()}
     >
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+        <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
         <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
       </svg>
       <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
-        <User className={`h-8 md:h-12 w-8 md:w-12 mb-2 text-${categoria.color}-600`} />
-        <div className={`text-base md:text-xl font-bold mb-1 text-center leading-tight text-${categoria.color}-800`}>
+        <User className="h-8 md:h-12 w-8 md:w-12 mb-2" style={{ color: color.icon }} />
+        <div className="text-base md:text-xl font-bold mb-1 text-center leading-tight" style={{ color: color.text }}>
           {categoria.nome}
         </div>
         {renderRappresentante(categoria.id)}
