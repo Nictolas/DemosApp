@@ -117,10 +117,13 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const userOpinions = userOpinionsResult.rows[0] || {};
     
     console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
+    console.log('🔍 DEBUG - Opinion utente corrente:', userOpinions);
     
     // Funzione per calcolare le opinioni comuni tra utente e rappresentante (solo opinioni europee)
     const calculateCommonOpinions = (userOpinions, candidateOpinions, europeanOpinions) => {
       let commonCount = 0;
+      
+      console.log('🔍 DEBUG calculateCommonOpinions - Inizio calcolo per candidato:', candidateOpinions.nome, candidateOpinions.cognome);
       
       europeanOpinions.forEach(opinion => {
         // Converte il testo dell'opinione nel nome del campo del database
@@ -129,12 +132,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         const userAnswer = userOpinions[fieldName];
         const candidateAnswer = candidateOpinions[fieldName];
         
+        console.log(`🔍 DEBUG calculateCommonOpinions - ${opinion.text}: user="${userAnswer}", candidate="${candidateAnswer}"`);
+        
         // Conta come opinione comune solo se entrambi hanno risposto e la risposta è identica
         if (userAnswer && candidateAnswer && userAnswer === candidateAnswer) {
           commonCount++;
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${opinion.text} = "${userAnswer}"`);
         }
       });
       
+      console.log(`🔍 DEBUG calculateCommonOpinions - Totale opinioni comuni per ${candidateOpinions.nome} ${candidateOpinions.cognome}: ${commonCount}`);
       return commonCount;
     };
     
