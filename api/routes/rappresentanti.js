@@ -49,7 +49,21 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         grado_elezione,
         regione_elezione,
         provincia_elezione,
-        comune_elezione
+        comune_elezione,
+        -- Opinion nazionali
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
+        -- Opinion comunali
+        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
+        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
+        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
+        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
+        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
+        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
+        comunale_verde_pubblico_e_giardini,
+        -- Opinion regionali
+        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia
       FROM users
       WHERE id != $1 
         AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico')
@@ -62,7 +76,62 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Query params:', queryParams);
+    
+    // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
+    const userOpinionsQuery = `
+      SELECT 
+        -- Opinion nazionali
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
+        -- Opinion comunali
+        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
+        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
+        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
+        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
+        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
+        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
+        comunale_verde_pubblico_e_giardini,
+        -- Opinion regionali
+        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia
+      FROM users
+      WHERE id = $1
+    `;
+    
+    const userOpinionsResult = await pool.query(userOpinionsQuery, [userId]);
+    const userOpinions = userOpinionsResult.rows[0] || {};
+    
+    console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
+    
+    // Funzione per calcolare le opinioni comuni tra utente e rappresentante
+    const calculateCommonOpinions = (userOpinions, candidateOpinions) => {
+      let commonCount = 0;
+      const opinionFields = [
+        'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
+        'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia',
+        'comunale_cassonetti_intelligenti_con_tessera', 'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+        'comunale_divieto_di_nuovi_fast_food_nel_centro_storico', 'comunale_estensione_delle_zone_a_traffico_limitato',
+        'comunale_finanziamento_eventi_culturali_gratuiti', 'comunale_nuova_biblioteca_comunale',
+        'comunale_nuove_case_popolari', 'comunale_nuove_piste_ciclabili', 'comunale_nuovi_asili_nido_comunali',
+        'comunale_nuovo_stadio_comunale', 'comunale_parcheggi_gratuiti_per_residenti',
+        'comunale_potenziamento_trasporto_pubblico', 'comunale_riduzione_tasse_rifiuti',
+        'comunale_sicurezza_strade_scolastiche', 'comunale_sostegno_commercio_locale',
+        'comunale_verde_pubblico_e_giardini',
+        'regionale_nuovi_inceneritori', 'regionale_chiusura_ospedali_di_provincia'
+      ];
+      
+      opinionFields.forEach(field => {
+        const userAnswer = userOpinions[field];
+        const candidateAnswer = candidateOpinions[field];
+        
+        // Conta come opinione comune solo se entrambi hanno risposto e la risposta è identica
+        if (userAnswer && candidateAnswer && userAnswer === candidateAnswer) {
+          commonCount++;
+        }
+      });
+      
+      return commonCount;
+    };
     
     // Debug: controlliamo quanti utenti hanno grado_elezione = 'Europeo'
     const debugQuery = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = 'Europeo'`;
@@ -76,6 +145,33 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
+    
+    // Calcola le opinioni comuni per ogni candidato e aggiungi il campo opinioni_comuni
+    candidati = candidati.map(candidato => {
+      const opinioniComuni = calculateCommonOpinions(userOpinions, candidato);
+      return {
+        ...candidato,
+        opinioni_comuni: opinioniComuni
+      };
+    });
+    
+    // Ordina per opinioni comuni (decrescente) e poi per cognome
+    candidati.sort((a, b) => {
+      if (b.opinioni_comuni !== a.opinioni_comuni) {
+        return b.opinioni_comuni - a.opinioni_comuni;
+      }
+      return a.cognome.localeCompare(b.cognome);
+    });
+    
+    // Limita ai primi 4 candidati più compatibili
+    candidati = candidati.slice(0, 4);
+    
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Candidati dopo calcolo compatibilità:', candidati.length);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Top candidati:', candidati.map(c => ({ 
+      nome: c.nome, 
+      cognome: c.cognome, 
+      opinioni_comuni: c.opinioni_comuni 
+    })));
     
     // Debug: vediamo alcuni esempi di utenti con grado_elezione = 'Europeo'
     const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status, avatar_config FROM users WHERE grado_elezione = 'Europeo' LIMIT 5`;
