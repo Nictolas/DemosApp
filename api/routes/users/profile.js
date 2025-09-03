@@ -236,4 +236,63 @@ router.put('/me', verifyToken, async (req, res) => {
   }
 });
 
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante per categoria
+router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante');
+    
+    const { userId } = req.params;
+    const { campo, rappresentanteId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - userId dal parametro:', userId);
+    console.log('🔍 DEBUG - authenticatedUserId dal token:', authenticatedUserId);
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - rappresentanteId:', rappresentanteId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = ['rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune'];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Aggiorna il campo del rappresentante
+    const query = `UPDATE users SET ${campo} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
+    const result = await pool.query(query, [rappresentanteId, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    console.log('✅ Rappresentante selezionato con successo');
+    
+    res.json({
+      success: true,
+      message: 'Rappresentante selezionato con successo',
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione rappresentante:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;

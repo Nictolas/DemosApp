@@ -75,9 +75,14 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione Europeo E ruolo corretto:', debugResult2.rows[0].count);
     
     // Debug: vediamo alcuni esempi di utenti con grado_elezione = 'Europeo'
-    const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status FROM users WHERE grado_elezione = 'Europeo' LIMIT 5`;
+    const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status, avatar_config FROM users WHERE grado_elezione = 'Europeo' LIMIT 5`;
     const debugResult3 = await pool.query(debugQuery3);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esempi utenti Europeo:', debugResult3.rows);
+    
+    // Debug: controlliamo se i candidati hanno avatar_config
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Primi 3 candidati con avatar_config:', 
+      candidati.slice(0, 3).map(c => ({ id: c.id, nome: c.nome, cognome: c.cognome, avatar_config: c.avatar_config }))
+    );
     
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;

@@ -12,11 +12,19 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   const selezionaRappresentante = async (rappresentanteId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
     
+    console.log('🔍 DEBUG - user object:', user);
+    console.log('🔍 DEBUG - user.uid:', user.uid);
+    console.log('🔍 DEBUG - user.id:', user.id);
+    
     setSelezionando(true);
     try {
+      // Usa user.id invece di user.uid se uid è undefined
+      const userId = user.uid || user.id;
+      console.log('🔍 DEBUG - userId da usare:', userId);
+      
       const updateResponse = await apiRequest(
         "PUT",
-        `/api/users/${user.uid}/seleziona-rappresentante`,
+        `/api/users/${userId}/seleziona-rappresentante`,
         {
           campo: getFieldName(categoria),
           rappresentanteId: rappresentanteId,
