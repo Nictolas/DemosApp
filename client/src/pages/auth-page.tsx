@@ -39,7 +39,7 @@ type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot-password">("login");
   const [showWizard, setShowWizard] = useState(false);
-  const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail } = useAuth();
+  const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail, forgotPasswordMutation } = useAuth();
   const { toast } = useToast();
 
   // Stato per mostrare/nascondere la password nel login
