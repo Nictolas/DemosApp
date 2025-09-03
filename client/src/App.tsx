@@ -11,7 +11,8 @@ import { ProtectedRoute } from "@/lib/protected-route";
 // Import dei componenti principali
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/auth-page";
-import ResetPasswordConfirm from "./pages/ResetPasswordConfirm";
+import ResetPasswordConfirmPage from "./pages/reset-password-confirm";
+import ResetPasswordPage from "./pages/reset-password";
 import Menu from "./pages/Menu";
 import Profilo from "./pages/Profilo";
 import Impostazioni from "./pages/Impostazioni";
@@ -98,9 +99,15 @@ export default function App() {
               </Route>
 
               {/* Route reset password */}
+              <Route path="/reset-password">
+                <PageTransition location={location} type="fade-up">
+                  <ResetPasswordPage />
+                </PageTransition>
+              </Route>
+
               <Route path="/reset-password-confirm">
                 <PageTransition location={location} type="fade-up">
-                  <ResetPasswordConfirm />
+                  <ResetPasswordConfirmPage />
                 </PageTransition>
               </Route>
 
@@ -182,7 +189,7 @@ export default function App() {
             {/* Navbar condizionale */}
             {location !== '/' && 
              !location.startsWith('/auth') && 
-             !location.startsWith('/reset-password-confirm') && 
+             !location.startsWith('/reset-password') && 
              <Navbar />}
             
             <Toaster />
