@@ -87,9 +87,8 @@ export function ViewOpinioniDialog({
           console.log('🔍 DEBUG fetchQuestions - Opinioni raw ricevute:', result.data.opinioni);
           result.data.opinioni.forEach((opinion: any) => {
             console.log(`🔍 DEBUG fetchQuestions - Opinion ${opinion.id}: userAnswer = "${opinion.userAnswer}"`);
-            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-              opinioniMap[opinion.id] = opinion.userAnswer;
-            }
+            // Includi tutte le risposte, trattando null come 'Astenuto'
+            opinioniMap[opinion.id] = opinion.userAnswer || 'Astenuto';
           });
           console.log('🔍 DEBUG fetchQuestions - OpinionMap creata:', opinioniMap);
           setOpinions(opinioniMap);

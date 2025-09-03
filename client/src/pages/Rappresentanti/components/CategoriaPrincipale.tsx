@@ -18,7 +18,7 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
 }) => {
   const renderRappresentante = (categoriaId: string) => {
     // Controlli di sicurezza per evitare TypeError
-    if (!data || !data.rappresentanti || !data.idMap) {
+    if (!data) {
       return (
         <div className="flex flex-col space-y-3 items-center">
           <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -30,9 +30,23 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
         </div>
       );
     }
-    
-    const rappresentanteData = data.rappresentanti[categoriaId];
-    const rappresentanteUid = data.idMap[categoriaId];
+
+    // Nuova logica per la struttura aggiornata
+    let rappresentanteData = null;
+    let rappresentanteUid = null;
+
+    if (data.rappresentantiPerGrado && categoriaId === 'europeo') {
+      // Per il Parlamento Europeo, cerca il rappresentante selezionato
+      const europeanRepresentatives = data.rappresentantiPerGrado['Europeo'] || [];
+      if (data.selectedEuropeanRepresentativeId) {
+        rappresentanteData = europeanRepresentatives.find(r => r.id === data.selectedEuropeanRepresentativeId);
+        rappresentanteUid = data.selectedEuropeanRepresentativeId;
+      }
+    } else if (data.rappresentanti && data.idMap) {
+      // Fallback per struttura legacy
+      rappresentanteData = data.rappresentanti[categoriaId];
+      rappresentanteUid = data.idMap[categoriaId];
+    }
 
     let avatarContent;
     if (rappresentanteData && rappresentanteData.avatar_config) {

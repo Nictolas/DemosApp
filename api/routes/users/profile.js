@@ -364,12 +364,14 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
       const fieldName = opinion.text.toLowerCase().replace(/\s+/g, '_');
       const userAnswer = userOpinions[fieldName];
       
-      // Converti le risposte del database al formato frontend
-      let frontendAnswer = null;
-      if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
-      else if (userAnswer === 'No') frontendAnswer = 'Contrario';
-      else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
-      else if (userAnswer === null) frontendAnswer = 'Astenuto';
+      // Debug log per capire i valori
+      if (fieldName === 'carne_coltivata') {
+        console.log('🔍 DEBUG - carne_coltivata per utente', userId, ':', userAnswer, 'tipo:', typeof userAnswer);
+      }
+      
+      // Le risposte sono già nel formato frontend: "Favorevole", "Indeciso", "Contrario", "Astenuto"
+      let frontendAnswer = userAnswer;
+      if (userAnswer === null || userAnswer === 'null') frontendAnswer = 'Astenuto';
       
       return {
         id: fieldName,
