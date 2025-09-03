@@ -28,11 +28,16 @@ const registerSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
+});
+
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
+type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 
 export default function AuthPage() {
-  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [activeTab, setActiveTab] = useState<"login" | "register" | "forgot-password">("login");
   const [showWizard, setShowWizard] = useState(false);
   const { user, isLoading, loginMutation, registerMutation, resendVerificationEmail } = useAuth();
   const { toast } = useToast();
@@ -58,6 +63,13 @@ export default function AuthPage() {
     },
   });
 
+  const forgotPasswordForm = useForm<ForgotPasswordFormValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
   // Gestione del submit per il login
   const onLoginSubmit = (data: LoginFormValues) => {
     loginMutation.mutate({ ...data, email: data.email.trim().toLowerCase() });
@@ -67,6 +79,11 @@ export default function AuthPage() {
   const onRegisterSubmit = (data: RegisterFormValues) => {
     // Mostra il wizard per completare la registrazione
     setShowWizard(true);
+  };
+
+  // Gestione del submit per il reset password
+  const onForgotPasswordSubmit = (data: ForgotPasswordFormValues) => {
+    forgotPasswordMutation.mutate(data);
   };
 
   // Gestione del completamento del wizard
@@ -141,10 +158,11 @@ export default function AuthPage() {
         </CardHeader>
 
         <CardContent>
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register")}>
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register" | "forgot-password")}>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="login">Accedi</TabsTrigger>
               <TabsTrigger value="register">Registrati</TabsTrigger>
+              <TabsTrigger value="forgot-password">Password Dimenticata</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
@@ -212,6 +230,17 @@ export default function AuthPage() {
                       "Accedi"
                     )}
                   </Button>
+
+                  <div className="text-center mt-4">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                      onClick={() => setActiveTab("forgot-password")}
+                    >
+                      Password dimenticata?
+                    </Button>
+                  </div>
 
                   {loginMutation.isError && (
                     <div className="text-center">
@@ -339,6 +368,57 @@ export default function AuthPage() {
                       "Inizia Registrazione"
                     )}
                   </Button>
+                </form>
+              </Form>
+            </TabsContent>
+
+            <TabsContent value="forgot-password">
+              <Form {...forgotPasswordForm}>
+                <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPasswordSubmit)} className="space-y-4">
+                  <div className="text-center mb-6">
+                    <h3 className="text-lg font-semibold">Reset Password</h3>
+                    <p className="text-sm text-muted-foreground">Inserisci la tua email per ricevere il link di reset</p>
+                  </div>
+                  
+                  <FormField
+                    control={forgotPasswordForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="Inserisci la tua email"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button type="submit" className="w-full" disabled={forgotPasswordMutation.isPending}>
+                    {forgotPasswordMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Invio in corso...
+                      </>
+                    ) : (
+                      "Invia Link di Reset"
+                    )}
+                  </Button>
+
+                  <div className="text-center mt-4">
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                      onClick={() => setActiveTab("login")}
+                    >
+                      Torna al Login
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </TabsContent>
