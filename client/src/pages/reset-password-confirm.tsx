@@ -50,7 +50,7 @@ export default function ResetPasswordConfirmPage() {
         },
         body: JSON.stringify({ 
           token,
-          password: newPassword 
+          newPassword: newPassword 
         }),
       });
 
