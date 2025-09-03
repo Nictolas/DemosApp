@@ -16,10 +16,14 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       
       setLoading(true);
       try {
-        const response = await apiRequest(
-          "GET", 
-          `/api/rappresentanti/disponibili?grado=${encodeURIComponent(getTitolo(categoria))}&categoria=${encodeURIComponent(categoria || '')}`
-        );
+        const grado = getTitolo(categoria);
+        const url = `/api/rappresentanti/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
+        
+        console.log('🔍 DEBUG Frontend - Chiamata API:', url);
+        console.log('🔍 DEBUG Frontend - Categoria:', categoria);
+        console.log('🔍 DEBUG Frontend - Grado:', grado);
+        
+        const response = await apiRequest("GET", url);
 
         if (!response.ok) {
           throw new Error("Errore nel caricamento dei dati dal server.");
@@ -27,14 +31,19 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         
         const result = await response.json();
         
+        console.log('🔍 DEBUG Frontend - Risposta API:', result);
+        
         if (!result.success) {
           throw new Error(result.error || "Errore nel caricamento dei dati");
         }
         
         const { candidati, utente } = result.data;
         
+        console.log('🔍 DEBUG Frontend - Candidati ricevuti:', candidati?.length || 0);
+        console.log('🔍 DEBUG Frontend - Utente:', utente);
+        
         setRappresentanteSelezionato(utente[getFieldName(categoria)] || null);
-        setRappresentanti(candidati);
+        setRappresentanti(candidati || []);
 
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);

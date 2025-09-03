@@ -62,6 +62,22 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Query params:', queryParams);
+    
+    // Debug: controlliamo quanti utenti hanno grado_elezione = 'Europeo'
+    const debugQuery = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = 'Europeo'`;
+    const debugResult = await pool.query(debugQuery);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione Europeo:', debugResult.rows[0].count);
+    
+    // Debug: controlliamo quanti utenti hanno grado_elezione = 'Europeo' E ruolo corretto
+    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = 'Europeo' AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico') AND status = 'active'`;
+    const debugResult2 = await pool.query(debugQuery2);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione Europeo E ruolo corretto:', debugResult2.rows[0].count);
+    
+    // Debug: vediamo alcuni esempi di utenti con grado_elezione = 'Europeo'
+    const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status FROM users WHERE grado_elezione = 'Europeo' LIMIT 5`;
+    const debugResult3 = await pool.query(debugQuery3);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esempi utenti Europeo:', debugResult3.rows);
     
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
@@ -197,7 +213,18 @@ router.get('/', verifyToken, async (req, res) => {
     const userId = req.userId;
     console.log('🔍 DEBUG - userId:', userId);
     
+    // Prima controlliamo quali ruoli esistono nel database
+    const rolesQuery = `SELECT DISTINCT ruolo FROM users WHERE ruolo IS NOT NULL`;
+    const rolesResult = await pool.query(rolesQuery);
+    console.log('🔍 DEBUG - Ruoli disponibili nel database:', rolesResult.rows.map(r => r.ruolo));
+    
+    // Controlliamo anche quanti utenti ci sono in totale
+    const countQuery = `SELECT COUNT(*) as total FROM users`;
+    const countResult = await pool.query(countQuery);
+    console.log('🔍 DEBUG - Totale utenti nel database:', countResult.rows[0].total);
+    
     // Usa SOLO la tabella users - SEMPRE così
+    // Filtra per utenti che possono essere rappresentanti (Politico, Candidato, etc.)
     const query = `
       SELECT 
         id as rappresentante_id,
@@ -209,16 +236,33 @@ router.get('/', verifyToken, async (req, res) => {
         'disponibile' as stato
       FROM users
       WHERE id != $1 
-        AND ruolo = 'User'
+        AND ruolo IN ('Politico', 'Candidato', 'Candidato Politico', 'Elettore')
         AND status = 'active'
       ORDER BY cognome, nome
     `;
     
     const result = await pool.query(query, [userId]);
+    console.log('🔍 DEBUG - Risultati query rappresentanti:', result.rows.length, 'utenti trovati');
+    
+    // Struttura la risposta come si aspetta il frontend
+    const rappresentanti = {};
+    const idMap = {};
+    
+    // Organizza i rappresentanti per categoria (per ora tutti insieme)
+    if (result.rows.length > 0) {
+      rappresentanti['tutti'] = result.rows;
+      // Crea idMap per mappare gli ID
+      result.rows.forEach(rapp => {
+        idMap[rapp.rappresentante_id] = `${rapp.nome} ${rapp.cognome}`;
+      });
+    }
     
     res.json({
       success: true,
-      rappresentanti: result.rows
+      data: {
+        rappresentanti,
+        idMap
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare rappresentanti:', error);
