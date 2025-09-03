@@ -159,10 +159,9 @@ export default function AuthPage() {
 
         <CardContent>
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register" | "forgot-password")}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Accedi</TabsTrigger>
               <TabsTrigger value="register">Registrati</TabsTrigger>
-              <TabsTrigger value="forgot-password">Password Dimenticata</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
