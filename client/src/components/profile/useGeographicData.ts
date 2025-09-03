@@ -13,17 +13,22 @@ interface GeographicData {
 
 export function useGeographicData(
   initialData: {
-    paese: string;
-    regione: string;
-    provincia: string;
-    comune: string;
+    paese_residenza?: string;
+    regione_residenza?: string;
+    provincia_residenza?: string;
+    comune_residenza?: string;
+    // Supporto per i nomi legacy
+    paese?: string;
+    regione?: string;
+    provincia?: string;
+    comune?: string;
   }
 ) {
   const [data, setData] = useState<GeographicData>({
-    selectedPaese: initialData.paese || "",
-    selectedRegione: initialData.regione || "",
-    selectedProvincia: initialData.provincia || "",
-    selectedComune: initialData.comune || "",
+    selectedPaese: initialData.paese_residenza || initialData.paese || "",
+    selectedRegione: initialData.regione_residenza || initialData.regione || "",
+    selectedProvincia: initialData.provincia_residenza || initialData.provincia || "",
+    selectedComune: initialData.comune_residenza || initialData.comune || "",
     regioni: [],
     province: [],
     comuni: [],

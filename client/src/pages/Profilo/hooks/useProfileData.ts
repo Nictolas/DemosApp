@@ -32,7 +32,7 @@ export const useProfileData = (userId?: string) => {
       
       // 1. Carica dati utente
       console.log('🔍 DEBUG Profilo - Caricando dati utente...');
-      const userResponse = await apiRequest("GET", "/api/users/me");
+      const userResponse = await apiRequest("GET", "/api/auth/me");
       if (!userResponse.ok) {
         throw new Error(`Errore nel caricamento dati utente: ${userResponse.status}`);
       }
@@ -99,10 +99,15 @@ export const useProfileData = (userId?: string) => {
       // 5. Carica configurazione avatar
       if (userData.avatar_config) {
         try {
-          setAvatarConfig(JSON.parse(userData.avatar_config));
+          const parsedConfig = JSON.parse(userData.avatar_config);
+          setAvatarConfig(parsedConfig);
         } catch (avatarError) {
           console.warn('⚠️ DEBUG Profilo - Errore nel parsing avatar config:', avatarError);
+          // Se l'avatar_config non è JSON valido, imposta null
+          setAvatarConfig(null);
         }
+      } else {
+        setAvatarConfig(null);
       }
       
       console.log('✅ DEBUG Profilo - Caricamento completato con successo');
