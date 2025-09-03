@@ -32,6 +32,10 @@ interface RegisterData {
   cognome?: string; // Campo italiano per compatibilità
 }
 
+interface ForgotPasswordData {
+  email: string;
+}
+
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
@@ -40,6 +44,7 @@ type AuthContextType = {
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<User, Error, RegisterData>;
   resendVerificationEmail: (email: string) => Promise<any>;
+  forgotPasswordMutation: UseMutationResult<any, Error, ForgotPasswordData>;
 };
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -283,6 +288,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Mutation per il reset password
+  const forgotPasswordMutation = useMutation({
+    mutationFn: async (data: ForgotPasswordData) => {
+      const response = await fetch(getApiUrl(API_CONFIG.AUTH.FORGOT_PASSWORD), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Errore nella richiesta reset password');
+      }
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Errore nella richiesta reset password');
+      }
+
+      return result;
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Errore", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Email inviata!", 
+        description: "Controlla la tua email per il link di reset password",
+        variant: "default"
+      });
+    },
+  });
+
   return (
     <AuthContext.Provider 
       value={{
@@ -293,6 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logoutMutation,
         registerMutation,
         resendVerificationEmail,
+        forgotPasswordMutation,
       }}
     >
       {children}
