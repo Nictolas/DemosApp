@@ -3,9 +3,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { OpinioniDialogData } from "../types";
 import { getFieldName } from "../utils/rappresentanteUtils";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const useRappresentantiActions = (user: any, categoria: string, fcmToken: string | null) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selezionando, setSelezionando] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<OpinioniDialogData | null>(null);
 
@@ -36,6 +38,9 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       }
       
       onSuccess(rappresentanteId);
+
+      // Invalida la query dei rappresentanti per aggiornare la pagina rappresentanti
+      await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
 
       // Gestione FCM
       if (fcmToken) {
