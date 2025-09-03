@@ -74,10 +74,6 @@ export function ViewOpinioniDialog({
         const result = await res.json();
         if (result.success && result.data) {
           setQuestions(Array.isArray(result.data.questions) ? result.data.questions : []);
-          // Aggiorna anche le opinioni dell'utente se disponibili
-          if (result.data.userAnswers) {
-            setUserOpinions(result.data.userAnswers);
-          }
         } else {
           setQuestions([]);
         }
@@ -166,19 +162,27 @@ export function ViewOpinioniDialog({
 
   useEffect(() => {
     if (open) {
-      console.log('DEBUG opinioni:', opinions);
-      console.log('DEBUG fonti:', fonti);
-      console.log('DEBUG questions:', questions);
+      console.log('🔍 DEBUG ViewOpinioniDialog - Stato attuale:');
+      console.log('  - opinions:', opinions);
+      console.log('  - questions:', questions);
+      console.log('  - myOpinions:', myOpinions);
+      console.log('  - isLoadingOpinions:', isLoadingOpinions);
+      console.log('  - isLoadingQuestions:', isLoadingQuestions);
+      console.log('  - isLoadingMyOpinions:', isLoadingMyOpinions);
+      console.log('  - tab attivo:', tab);
     }
-  }, [open, opinions, fonti, questions]);
+  }, [open, opinions, fonti, questions, myOpinions, isLoadingOpinions, isLoadingQuestions, isLoadingMyOpinions, tab]);
 
   const loadUserOpinions = async () => {
     try {
+      console.log('🔍 DEBUG loadUserOpinions - Inizio caricamento opinioni per utente:', utenteId);
       setIsLoadingOpinions(true);
       const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=Europeo`);
       
+      console.log('🔍 DEBUG loadUserOpinions - Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 DEBUG loadUserOpinions - Data ricevuta:', data);
         if (data.success) {
           // Converte le opinioni nel formato atteso
           const opinioniMap: Record<string, string> = {};
@@ -187,11 +191,16 @@ export function ViewOpinioniDialog({
               opinioniMap[opinion.id] = opinion.userAnswer;
             }
           });
+          console.log('🔍 DEBUG loadUserOpinions - OpinionMap creata:', opinioniMap);
           setOpinions(opinioniMap);
+        } else {
+          console.log('🔍 DEBUG loadUserOpinions - API response non success:', data);
         }
+      } else {
+        console.log('🔍 DEBUG loadUserOpinions - Response non OK:', response.status);
       }
     } catch (error) {
-      console.error('Errore nel caricamento delle opinioni da API:', error);
+      console.error('❌ Errore nel caricamento delle opinioni da API:', error);
       toast({
         title: "Errore",
         description: "Non è stato possibile caricare le opinioni dell'utente.",
@@ -229,16 +238,21 @@ export function ViewOpinioniDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
         <DialogHeader>
-          <div className="flex flex-col items-center justify-center w-full">
-            {/* Avatar centrato */}
-            {avatarConfig && (
-              <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm mb-2 mt-4" style={{ width: 64, height: 64 }}>
-                <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
-              </div>
-            )}
-            {/* Nome utente centrato */}
-            <div className="text-xl font-bold text-center mb-1">{nome && cognome ? `${nome} ${cognome}` : "Utente"}</div>
-          </div>
+          <DialogTitle className="text-center">
+            <div className="flex flex-col items-center justify-center w-full">
+              {/* Avatar centrato */}
+              {avatarConfig && (
+                <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm mb-2 mt-4" style={{ width: 64, height: 64 }}>
+                  <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
+                </div>
+              )}
+              {/* Nome utente centrato */}
+              <div className="text-xl font-bold text-center mb-1">{nome && cognome ? `${nome} ${cognome}` : "Utente"}</div>
+            </div>
+          </DialogTitle>
+          <DialogDescription className="text-center">
+            Visualizza le opinioni di questo rappresentante
+          </DialogDescription>
         </DialogHeader>
         {/* Tabs contenuto */}
         <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: 120 }}>
