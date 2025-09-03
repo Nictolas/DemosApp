@@ -53,31 +53,13 @@ export default function Profilo({ userId }: ProfiloProps) {
   // Gestione salvataggio profilo
   const handleSaveProfile = async (updatedData: any) => {
     try {
-      const response = await fetch('/api/users/me', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: JSON.stringify(updatedData),
+      toast({
+        title: "Successo",
+        description: "Profilo aggiornato con successo!",
       });
-
-      if (!response.ok) {
-        throw new Error('Errore nel salvataggio del profilo');
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        toast({
-          title: "Successo",
-          description: "Profilo aggiornato con successo!",
-        });
-        setIsEditing(false);
-        // Ricarica i dati del profilo
-        await fetchAllProfileData();
-      } else {
-        throw new Error(result.message || 'Errore nel salvataggio');
-      }
+      setIsEditing(false);
+      // Ricarica i dati del profilo
+      await fetchAllProfileData();
     } catch (error) {
       console.error('Errore nel salvataggio del profilo:', error);
       toast({
@@ -108,10 +90,10 @@ export default function Profilo({ userId }: ProfiloProps) {
         {userInfo && !isLoading && !isLoadingInfo && !error && (
           <>
             {/* Form di modifica o informazioni del profilo */}
-            {isEditing ? (
+            {isEditing && userInfo ? (
               <EditProfileForm
-                userInfo={userInfo}
-                onSave={handleSaveProfile}
+                userData={{...userInfo, uid: userInfo.id || ''}}
+                onProfileUpdated={handleSaveProfile}
                 onCancel={() => setIsEditing(false)}
               />
             ) : (

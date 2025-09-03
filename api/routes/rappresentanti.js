@@ -193,7 +193,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
 // GET /api/rappresentanti - Ottieni rappresentanti dell'utente
 router.get('/', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 GET /api/rappresentanti - Richiesta rappresentanti');
     const userId = req.userId;
+    console.log('🔍 DEBUG - userId:', userId);
     
     // Usa SOLO la tabella users - SEMPRE così
     const query = `
