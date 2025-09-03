@@ -5,6 +5,7 @@ let resend;
 try {
   if (process.env.RESEND_API_KEY) {
     resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('✅ Resend configurato correttamente');
   } else {
     console.log('⚠️ RESEND_API_KEY non configurata, servizio email disabilitato');
     resend = null;
@@ -31,7 +32,7 @@ const sendResetPasswordEmail = async (email, resetToken, resetUrl) => {
     }
     
     const emailData = {
-      from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM || 'Demos Community <noreply@demos.community>',
       to: email,
       subject: 'Reset Password - Demos Community',
       html: `
@@ -151,7 +152,7 @@ const sendVerificationEmail = async (email, verificationToken, verificationUrl) 
     }
     
     const emailData = {
-      from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM || 'Demos Community <noreply@demos.community>',
       to: email,
       subject: 'Conferma la tua email - Demos Community',
       html: `
@@ -282,7 +283,7 @@ const testResend = async () => {
     
     // Test invio email semplice
     const testEmailData = {
-      from: process.env.EMAIL_FROM || 'Demos Community <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM || 'Demos Community <noreply@demos.community>',
       to: 'nicolasmicheletti90@gmail.com', // Email di test
       subject: 'Test Resend - Demos Community',
       html: `
