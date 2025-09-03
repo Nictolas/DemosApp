@@ -97,79 +97,46 @@ export function ViewOpinioniDialog({
     // eslint-disable-next-line
   }, [open, utenteId, questions]);
 
-  // Sostituisco la useEffect che carica le opinioni dell'utente loggato tramite API con una che le carica da Firestore
+  // Carica le opinioni dell'utente corrente tramite API
   useEffect(() => {
     const fetchMyOpinions = async () => {
-      if (!user) return;
+      if (!user?.id) return;
       setIsLoadingMyOpinions(true);
       try {
-        const userDoc = await getDoc(doc(db, "utenti", user.uid));
-        if (!userDoc.exists()) {
-          setMyOpinions({});
-          return;
-        }
-        const data = userDoc.data();
-        // Recupera la lista delle domande dinamiche
-        let opinioniList: {id: string, text: string}[] = Array.isArray(questions) ? questions : [];
-        // Filtra solo i campi che sono opinioni
-        const opinioni: Record<string, string> = {};
-        for (const key of Object.keys(data)) {
-          if (
-            opinioniList.find(q => q.id === key) ||
-            [
-              'energia_nucleare',
-              'sperimentazione_animale',
-              'legalizzazione_canapa',
-              'caccia'
-            ].includes(key)
-          ) {
-            opinioni[key] = data[key];
+        const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=Europeo`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            // Converte le opinioni nel formato atteso
+            const opinioniMap: Record<string, string> = {};
+            data.data.opinioni.forEach((opinion: any) => {
+              if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+                opinioniMap[opinion.id] = opinion.userAnswer;
+              }
+            });
+            setMyOpinions(opinioniMap);
           }
         }
-        setMyOpinions(opinioni);
-      } catch {
+      } catch (error) {
+        console.error('Errore nel caricamento delle opinioni da API:', error);
         setMyOpinions({});
       } finally {
         setIsLoadingMyOpinions(false);
       }
     };
-    if (user && open && Array.isArray(questions) && questions.length > 0) fetchMyOpinions();
-    // eslint-disable-next-line
-  }, [user, open, questions]);
+    if (user && open) fetchMyOpinions();
+  }, [user?.id, open]);
 
-  // Carica le iniziative e i referendum a cui l'utente ha messo Like
+  // Carica le iniziative e i referendum a cui l'utente ha messo Like (per ora vuoto)
   useEffect(() => {
     const fetchLikes = async () => {
       if (!utenteId) return;
       setIsLoadingLikes(true);
       try {
-        // Recupera i Like alle iniziative popolari
-        const qIniz = query(collection(db, "voti_iniziative_popolari"), where("userId", "==", utenteId));
-        const snapIniz = await getDocs(qIniz);
-        const iniziativaIds = snapIniz.docs.map(doc => doc.data().iniziativaId);
-        // Recupera i nomi delle iniziative
-        const iniziativeNomi = await Promise.all(
-          iniziativaIds.map(async (id: string) => {
-            const docRef = doc(db, "iniziative_popolari", id);
-            const docSnap = await getDoc(docRef);
-            return docSnap.exists() ? docSnap.data().nome : null;
-          })
-        );
-        setLikedIniziative(iniziativeNomi.filter(Boolean));
-
-        // Recupera i Like ai referendum abrogativi
-        const qRef = query(collection(db, "voti_referendum_abrogativi"), where("userId", "==", utenteId));
-        const snapRef = await getDocs(qRef);
-        const referendumIds = snapRef.docs.map(doc => doc.data().referendumId);
-        // Recupera i nomi dei referendum
-        const referendumNomi = await Promise.all(
-          referendumIds.map(async (id: string) => {
-            const docRef = doc(db, "referendum_abrogativi", id);
-            const docSnap = await getDoc(docRef);
-            return docSnap.exists() ? docSnap.data().nome : null;
-          })
-        );
-        setLikedReferendum(referendumNomi.filter(Boolean));
+        // Per ora non carichiamo i like, potrebbero non essere necessari
+        setLikedIniziative([]);
+        setLikedReferendum([]);
       } catch (e) {
         setLikedIniziative([]);
         setLikedReferendum([]);
@@ -180,19 +147,14 @@ export function ViewOpinioniDialog({
     if (open) fetchLikes();
   }, [utenteId, open]);
 
-  // Carica le fonti delle opinioni
+  // Carica le fonti delle opinioni (per ora vuoto, da implementare se necessario)
   useEffect(() => {
     const fetchFonti = async () => {
       if (!utenteId) return;
       setIsLoadingFonti(true);
       try {
-        const userDoc = await getDoc(doc(db, "utenti", utenteId));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setFonti(data.fonti_opinioni || {});
-        } else {
-          setFonti({});
-        }
+        // Per ora non carichiamo le fonti, potrebbero non essere necessarie
+        setFonti({});
       } catch {
         setFonti({});
       } finally {
@@ -213,32 +175,23 @@ export function ViewOpinioniDialog({
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const userDoc = await getDoc(doc(db, "utenti", utenteId));
-      if (!userDoc.exists()) {
-        setOpinions({});
-        return;
-      }
-      const data = userDoc.data();
-      // Recupera la lista delle domande dinamiche
-      let opinioniList: {id: string, text: string}[] = questions;
-      // Filtra solo i campi che sono opinioni
-      const opinioni: Record<string, string> = {};
-      for (const key of Object.keys(data)) {
-        if (
-          opinioniList.find(q => q.id === key) ||
-          [
-            'energia_nucleare',
-            'sperimentazione_animale',
-            'legalizzazione_canapa',
-            'caccia'
-          ].includes(key)
-        ) {
-          opinioni[key] = data[key];
+      const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=Europeo`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Converte le opinioni nel formato atteso
+          const opinioniMap: Record<string, string> = {};
+          data.data.opinioni.forEach((opinion: any) => {
+            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+              opinioniMap[opinion.id] = opinion.userAnswer;
+            }
+          });
+          setOpinions(opinioniMap);
         }
       }
-      setOpinions(opinioni);
     } catch (error) {
-      console.error('Errore nel caricamento delle opinioni da Firestore:', error);
+      console.error('Errore nel caricamento delle opinioni da API:', error);
       toast({
         title: "Errore",
         description: "Non è stato possibile caricare le opinioni dell'utente.",

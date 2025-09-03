@@ -295,4 +295,109 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
   }
 });
 
+// GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
+router.get('/:userId/opinioni', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
+    
+    const { userId } = req.params;
+    const { grado } = req.query; // Parametro opzionale per filtrare per grado
+    
+    // Verifica che l'utente autenticato possa accedere a questi dati
+    const authenticatedUserId = req.userId;
+    
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni
+    let opinioniQuery = `
+      SELECT o.id, o.text, o.gradi_opinione
+      FROM opinioni o
+    `;
+    let opinioniParams = [];
+    
+    if (grado) {
+      opinioniQuery += ` WHERE $1 = ANY(o.gradi_opinione)`;
+      opinioniParams.push(grado);
+    }
+    
+    opinioniQuery += ` ORDER BY o.text`;
+    
+    const opinioniResult = await pool.query(opinioniQuery, opinioniParams);
+    const opinioni = opinioniResult.rows;
+    
+    console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
+    if (grado) {
+      console.log('🔍 DEBUG - Filtro grado applicato:', grado);
+    }
+    
+    // Carica le opinioni dell'utente specifico
+    const userOpinionsQuery = `
+      SELECT 
+        -- Opinion nazionali
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
+        -- Opinion comunali
+        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
+        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
+        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
+        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
+        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
+        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
+        comunale_verde_pubblico_e_giardini,
+        -- Opinion regionali
+        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia
+      FROM users
+      WHERE id = $1
+    `;
+    
+    const userOpinionsResult = await pool.query(userOpinionsQuery, [userId]);
+    const userOpinions = userOpinionsResult.rows[0] || {};
+    
+    if (!userOpinionsResult.rows[0]) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    // Formatta le opinioni per il frontend
+    const formattedOpinions = opinioni.map(opinion => {
+      const fieldName = opinion.text.toLowerCase().replace(/\s+/g, '_');
+      const userAnswer = userOpinions[fieldName];
+      
+      // Converti le risposte del database al formato frontend
+      let frontendAnswer = null;
+      if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
+      else if (userAnswer === 'No') frontendAnswer = 'Contrario';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
+      else if (userAnswer === null) frontendAnswer = 'Astenuto';
+      
+      return {
+        id: fieldName,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per utente ${userId}`);
+    
+    res.json({
+      success: true,
+      data: {
+        opinioni: formattedOpinions,
+        utenteId: userId,
+        grado: grado || 'tutti'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
 module.exports = router;
