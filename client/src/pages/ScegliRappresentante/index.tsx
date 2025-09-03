@@ -65,7 +65,7 @@ export default function ScegliRappresentante() {
         {rappresentanti.length === 0 ? (
           <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
         ) : (
-          <div className="grid grid-cols-2 gap-4 pb-4 max-w-2xl mx-auto">
+          <div className="grid grid-cols-2 gap-4 pb-4 max-w-2xl mx-auto" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
             {rappresentanti.map((rappresentante) => (
               <RappresentanteCard
                 key={rappresentante.id}
