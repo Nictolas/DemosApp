@@ -5,8 +5,11 @@ export interface RappresentanteInfo {
 }
 
 export interface RappresentantiData {
-  rappresentanti: Record<string, RappresentanteInfo>; // Es: { europeo: {...}, camera: {...} }
-  idMap: Record<string, string>; // Es: { europeo: 'uid123', camera: 'uid456' }
+  rappresentantiPerGrado: Record<string, any[]>; // Es: { Europeo: [...], Camera: [...] }
+  selectedEuropeanRepresentativeId: string | null;
+  // Legacy support
+  rappresentanti?: Record<string, RappresentanteInfo>; // Es: { europeo: {...}, camera: {...} }
+  idMap?: Record<string, string>; // Es: { europeo: 'uid123', camera: 'uid456' }
 }
 
 export interface Categoria {
