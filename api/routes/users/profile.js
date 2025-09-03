@@ -32,11 +32,24 @@ router.get('/me', verifyToken, async (req, res) => {
     const user = result.rows[0];
     console.log('✅ Profilo utente recuperato:', user.email);
     
-    // Formatta la data di nascita per il frontend
+    // Formatta la data di nascita per il frontend (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
     if (user.data_nascita) {
       const data = new Date(user.data_nascita);
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    // Gestisci avatar_config - se è una stringa JSON valida, mantienila, altrimenti imposta null
+    let avatarConfig = null;
+    if (user.avatar_config) {
+      try {
+        // Verifica se è già un JSON valido
+        JSON.parse(user.avatar_config);
+        avatarConfig = user.avatar_config;
+      } catch (e) {
+        // Se non è JSON valido, imposta null
+        avatarConfig = null;
+      }
     }
     
     res.json({
@@ -65,7 +78,7 @@ router.get('/me', verifyToken, async (req, res) => {
         provincia_candidatura: user.provincia_candidatura,
         comune_candidatura: user.comune_candidatura,
         status: user.status,
-        avatar_config: user.avatar_config,
+        avatar_config: avatarConfig,
         created_at: user.created_at,
         updated_at: user.updated_at
       }
@@ -118,6 +131,104 @@ router.post('/me/avatar', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nell\'aggiornamento avatar:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// PUT /api/users/me - Aggiorna profilo utente autenticato
+router.put('/me', verifyToken, async (req, res) => {
+  try {
+    console.log('✏️ PUT /api/users/me - Aggiornamento profilo utente');
+    
+    const userId = req.user.id;
+    const updateData = req.body;
+    
+    // Lista dei campi consentiti per l'aggiornamento
+    const allowedFields = [
+      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza',
+      'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
+      'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
+      'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
+      'comune_candidatura', 'grado_candidatura'
+    ];
+    
+    // Filtra solo i campi consentiti
+    const filteredData = {};
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key) && updateData[key] !== undefined) {
+        filteredData[key] = updateData[key];
+      }
+    });
+    
+    if (Object.keys(filteredData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessun campo valido da aggiornare'
+      });
+    }
+    
+    // Costruisci la query di aggiornamento dinamicamente
+    const setClause = Object.keys(filteredData).map((key, index) => `${key} = $${index + 1}`).join(', ');
+    const values = Object.values(filteredData);
+    const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`;
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Profilo utente aggiornato:', updatedUser.email);
+    
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
+    res.json({
+      success: true,
+      message: 'Profilo aggiornato con successo',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        nome: updatedUser.nome,
+        cognome: updatedUser.cognome,
+        genere: updatedUser.genere,
+        data_nascita: dataNascitaFormattata,
+        cittadinanza: updatedUser.cittadinanza,
+        paese_residenza: updatedUser.paese_residenza,
+        regione_residenza: updatedUser.regione_residenza,
+        provincia_residenza: updatedUser.provincia_residenza,
+        comune_residenza: updatedUser.comune_residenza,
+        ruolo: updatedUser.ruolo,
+        grado_elezione: updatedUser.grado_elezione,
+        paese_elezione: updatedUser.paese_elezione,
+        regione_elezione: updatedUser.regione_elezione,
+        provincia_elezione: updatedUser.provincia_elezione,
+        comune_elezione: updatedUser.comune_elezione,
+        grado_candidatura: updatedUser.grado_candidatura,
+        paese_candidatura: updatedUser.paese_candidatura,
+        regione_candidatura: updatedUser.regione_candidatura,
+        provincia_candidatura: updatedUser.provincia_candidatura,
+        comune_candidatura: updatedUser.comune_candidatura,
+        status: updatedUser.status,
+        avatar_config: updatedUser.avatar_config,
+        created_at: updatedUser.created_at,
+        updated_at: updatedUser.updated_at
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento profilo:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

@@ -58,7 +58,7 @@ router.get('/me', async (req, res) => {
     const user = result.rows[0];
     console.log('✅ Profilo utente recuperato:', user.email);
 
-    // Formatta la data di nascita per il frontend
+    // Formatta la data di nascita per il frontend (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
     if (user.data_nascita) {
       const data = new Date(user.data_nascita);

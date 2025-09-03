@@ -166,12 +166,30 @@ export const useRegistrationForm = () => {
 
     setSubmitting(true);
     try {
+      // Mappa i campi geografici ai nomi corretti delle API
+      const apiData = {
+        ...formState.data,
+        paese_residenza: formState.data.regione ? "Italia" : undefined,
+        regione_residenza: formState.data.regione,
+        provincia_residenza: formState.data.provincia,
+        comune_residenza: formState.data.comune,
+        data_nascita: formState.data.dataNascita,
+        codice_fiscale: formState.data.codiceFiscale
+      };
+      
+      // Rimuovi i campi non necessari per l'API
+      delete apiData.regione;
+      delete apiData.provincia;
+      delete apiData.comune;
+      delete apiData.dataNascita;
+      delete apiData.codiceFiscale;
+
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formState.data),
+        body: JSON.stringify(apiData),
       });
 
       if (!response.ok) {

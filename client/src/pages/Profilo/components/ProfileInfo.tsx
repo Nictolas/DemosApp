@@ -68,30 +68,30 @@ export const ProfileInfo = ({
             </div>
             
             <div>
-              <label className="text-sm font-medium text-gray-500">Sesso</label>
-              <p className="text-lg text-gray-900">{userInfo.sesso || 'Non specificato'}</p>
+              <label className="text-sm font-medium text-gray-500">Genere</label>
+              <p className="text-lg text-gray-900">{userInfo.genere || 'Non specificato'}</p>
             </div>
           </div>
           
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-gray-500">Paese</label>
-              <p className="text-lg text-gray-900">{userInfo.paese || 'Non specificato'}</p>
+              <p className="text-lg text-gray-900">{userInfo.paese_residenza || 'Non specificato'}</p>
             </div>
             
             <div>
               <label className="text-sm font-medium text-gray-500">Regione</label>
-              <p className="text-lg text-gray-900">{userInfo.regione || 'Non specificata'}</p>
+              <p className="text-lg text-gray-900">{userInfo.regione_residenza || 'Non specificata'}</p>
             </div>
             
             <div>
               <label className="text-sm font-medium text-gray-500">Provincia</label>
-              <p className="text-lg text-gray-900">{userInfo.provincia || 'Non specificata'}</p>
+              <p className="text-lg text-gray-900">{userInfo.provincia_residenza || 'Non specificata'}</p>
             </div>
             
             <div>
               <label className="text-sm font-medium text-gray-500">Comune</label>
-              <p className="text-lg text-gray-900">{userInfo.comune || 'Non specificato'}</p>
+              <p className="text-lg text-gray-900">{userInfo.comune_residenza || 'Non specificato'}</p>
             </div>
           </div>
         </div>

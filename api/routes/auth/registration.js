@@ -67,10 +67,22 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       { expiresIn: '24h' }
     );
     
+    // Estrai i dati geografici dal body
+    const { 
+      paese_residenza, 
+      regione_residenza, 
+      provincia_residenza, 
+      comune_residenza,
+      data_nascita,
+      genere,
+      cittadinanza
+    } = req.body;
+    
     // Inserisci nuovo utente con status "pending"
     const insertQuery = `
-      INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, status, email_verification_token, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, status, email_verification_token, 
+                        genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
       RETURNING id, nome, cognome, email, ruolo, codice_fiscale, status
     `;
     
@@ -82,7 +94,14 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       'Elettore',
       codice_fiscale ? codice_fiscale.toUpperCase() : null,
       'pending',
-      verificationToken
+      verificationToken,
+      genere || null,
+      data_nascita || null,
+      cittadinanza || null,
+      paese_residenza || null,
+      regione_residenza || null,
+      provincia_residenza || null,
+      comune_residenza || null
     ]);
     
     const newUser = result.rows[0];
