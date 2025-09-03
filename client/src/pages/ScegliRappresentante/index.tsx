@@ -44,40 +44,44 @@ export default function ScegliRappresentante() {
 
   return (
     <PageTransition>
-      <div className="container mx-auto px-4 py-8">
-        <LoadingStates 
-          authReady={authReady} 
-          isLoading={isLoading} 
-          loading={loading} 
-        />
-        
-        <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
-        
-        <ViewOpinioniDialog
-          open={!!opinioniDialogData}
-          onOpenChange={(open) => { if (!open) closeOpinioniDialog(); }}
-          utenteId={opinioniDialogData?.utenteId || ''}
-          nome={opinioniDialogData?.nome}
-          cognome={opinioniDialogData?.cognome}
-          avatarConfig={opinioniDialogData?.avatarConfig}
-        />
-        
-        {rappresentanti.length === 0 ? (
-          <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
-        ) : (
-          <div className="grid grid-cols-2 gap-4 pb-4 max-w-2xl mx-auto" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-            {rappresentanti.map((rappresentante) => (
-              <RappresentanteCard
-                key={rappresentante.id}
-                rappresentante={rappresentante}
-                isSelected={rappresentante.id === rappresentanteSelezionato}
-                isSelezionando={selezionando}
-                onSeleziona={handleSelezionaRappresentante}
-                onViewOpinioni={openOpinioniDialog}
-              />
-            ))}
-          </div>
-        )}
+      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
+        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+          <LoadingStates 
+            authReady={authReady} 
+            isLoading={isLoading} 
+            loading={loading} 
+          />
+          
+          <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
+          
+          <ViewOpinioniDialog
+            open={!!opinioniDialogData}
+            onOpenChange={(open) => { if (!open) closeOpinioniDialog(); }}
+            utenteId={opinioniDialogData?.utenteId || ''}
+            nome={opinioniDialogData?.nome}
+            cognome={opinioniDialogData?.cognome}
+            avatarConfig={opinioniDialogData?.avatarConfig}
+          />
+          
+          {rappresentanti.length === 0 ? (
+            <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="grid grid-cols-2 gap-4 w-full max-w-2xl" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                {rappresentanti.map((rappresentante) => (
+                  <RappresentanteCard
+                    key={rappresentante.id}
+                    rappresentante={rappresentante}
+                    isSelected={rappresentante.id === rappresentanteSelezionato}
+                    isSelezionando={selezionando}
+                    onSeleziona={handleSelezionaRappresentante}
+                    onViewOpinioni={openOpinioniDialog}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </PageTransition>
   );

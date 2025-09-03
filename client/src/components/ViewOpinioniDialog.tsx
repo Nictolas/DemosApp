@@ -84,7 +84,9 @@ export function ViewOpinioniDialog({
           
           // Carica anche le opinioni dell'utente selezionato
           const opinioniMap: Record<string, string> = {};
+          console.log('🔍 DEBUG fetchQuestions - Opinioni raw ricevute:', result.data.opinioni);
           result.data.opinioni.forEach((opinion: any) => {
+            console.log(`🔍 DEBUG fetchQuestions - Opinion ${opinion.id}: userAnswer = "${opinion.userAnswer}"`);
             if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
               opinioniMap[opinion.id] = opinion.userAnswer;
             }
@@ -100,6 +102,7 @@ export function ViewOpinioniDialog({
         toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
       } finally {
         setIsLoadingQuestions(false);
+        setIsLoadingOpinions(false); // Aggiunto per risolvere il loading infinito
       }
     };
     fetchQuestions();
@@ -219,7 +222,7 @@ export function ViewOpinioniDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
+      <DialogContent className="sm:max-w-3xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col bg-white" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
         <DialogHeader>
           <DialogTitle className="text-center text-xl font-bold">
             {nome && cognome ? `${nome} ${cognome}` : "Utente"}
