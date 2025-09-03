@@ -69,13 +69,32 @@ export function ViewOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const res = await apiRequest("GET", "/api/opinioni/profile");
+        // Chiama direttamente l'endpoint per le opinioni europee
+        const res = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=Europeo`);
         if (!res.ok) throw new Error();
         const result = await res.json();
         if (result.success && result.data) {
-          setQuestions(Array.isArray(result.data.questions) ? result.data.questions : []);
+          // Estrae le domande dalle opinioni ricevute
+          const questionsArray = result.data.opinioni.map((opinion: any) => ({
+            id: opinion.id,
+            text: opinion.text
+          }));
+          console.log('🔍 DEBUG fetchQuestions - Questions caricate da opinioni europee:', questionsArray);
+          setQuestions(questionsArray);
+          
+          // Carica anche le opinioni dell'utente selezionato
+          const opinioniMap: Record<string, string> = {};
+          result.data.opinioni.forEach((opinion: any) => {
+            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+              opinioniMap[opinion.id] = opinion.userAnswer;
+            }
+          });
+          console.log('🔍 DEBUG fetchQuestions - OpinionMap creata:', opinioniMap);
+          setOpinions(opinioniMap);
         } else {
+          console.log('🔍 DEBUG fetchQuestions - Nessuna question trovata o errore:', result);
           setQuestions([]);
+          setOpinions({});
         }
       } catch {
         toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
@@ -84,14 +103,9 @@ export function ViewOpinioniDialog({
       }
     };
     fetchQuestions();
-  }, [open]); // Dipendenza da 'open' invece che array vuoto
+  }, [open, utenteId]); // Aggiunto utenteId come dipendenza
 
-  useEffect(() => {
-    if (open && utenteId && Array.isArray(questions) && questions.length > 0) {
-      loadUserOpinions();
-    }
-    // eslint-disable-next-line
-  }, [open, utenteId, questions]);
+  // Le opinioni vengono ora caricate insieme alle domande nel primo useEffect
 
   // Carica le opinioni dell'utente corrente tramite API
   useEffect(() => {
@@ -170,46 +184,15 @@ export function ViewOpinioniDialog({
       console.log('  - isLoadingQuestions:', isLoadingQuestions);
       console.log('  - isLoadingMyOpinions:', isLoadingMyOpinions);
       console.log('  - tab attivo:', tab);
-    }
-  }, [open, opinions, fonti, questions, myOpinions, isLoadingOpinions, isLoadingQuestions, isLoadingMyOpinions, tab]);
-
-  const loadUserOpinions = async () => {
-    try {
-      console.log('🔍 DEBUG loadUserOpinions - Inizio caricamento opinioni per utente:', utenteId);
-      setIsLoadingOpinions(true);
-      const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=Europeo`);
+      console.log('  - utenteId:', utenteId);
       
-      console.log('🔍 DEBUG loadUserOpinions - Response status:', response.status);
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 DEBUG loadUserOpinions - Data ricevuta:', data);
-        if (data.success) {
-          // Converte le opinioni nel formato atteso
-          const opinioniMap: Record<string, string> = {};
-          data.data.opinioni.forEach((opinion: any) => {
-            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-              opinioniMap[opinion.id] = opinion.userAnswer;
-            }
-          });
-          console.log('🔍 DEBUG loadUserOpinions - OpinionMap creata:', opinioniMap);
-          setOpinions(opinioniMap);
-        } else {
-          console.log('🔍 DEBUG loadUserOpinions - API response non success:', data);
-        }
-      } else {
-        console.log('🔍 DEBUG loadUserOpinions - Response non OK:', response.status);
-      }
-    } catch (error) {
-      console.error('❌ Errore nel caricamento delle opinioni da API:', error);
-      toast({
-        title: "Errore",
-        description: "Non è stato possibile caricare le opinioni dell'utente.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingOpinions(false);
+      // Debug per categorizeAllOpinionsDyn
+      const categorized = categorizeAllOpinionsDyn();
+      console.log('🔍 DEBUG categorizeAllOpinionsDyn result:', categorized);
     }
-  };
+  }, [open, opinions, fonti, questions, myOpinions, isLoadingOpinions, isLoadingQuestions, isLoadingMyOpinions, tab, utenteId]);
+
+  // La funzione loadUserOpinions è stata integrata nel primo useEffect
 
   // Sostituisco la funzione categorizeAllOpinions con una versione che cicla su tutte le domande attive (questions)
   function categorizeAllOpinionsDyn(): {favorevoli: {id: string, label: string}[], indecisi: {id: string, label: string}[], contrari: {id: string, label: string}[]} {
@@ -238,24 +221,31 @@ export function ViewOpinioniDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl max-w-full w-full h-full sm:h-auto sm:rounded-2xl p-0 sm:p-6 flex flex-col" style={{ maxHeight: '100dvh', minHeight: '100dvh', minWidth: '100vw', maxWidth: '100vw' }}>
         <DialogHeader>
-          <DialogTitle className="text-center">
-            <div className="flex flex-col items-center justify-center w-full">
-              {/* Avatar centrato */}
-              {avatarConfig && (
-                <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm mb-2 mt-4" style={{ width: 64, height: 64 }}>
-                  <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
-                </div>
-              )}
-              {/* Nome utente centrato */}
-              <div className="text-xl font-bold text-center mb-1">{nome && cognome ? `${nome} ${cognome}` : "Utente"}</div>
-            </div>
+          <DialogTitle className="text-center text-xl font-bold">
+            {nome && cognome ? `${nome} ${cognome}` : "Utente"}
           </DialogTitle>
           <DialogDescription className="text-center">
             Visualizza le opinioni di questo rappresentante
           </DialogDescription>
         </DialogHeader>
+        
+        {/* Avatar centrato separato dal DialogTitle */}
+        {avatarConfig && (
+          <div className="flex justify-center mb-4">
+            <div className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm" style={{ width: 64, height: 64 }}>
+              <CustomAvatar config={JSON.parse(avatarConfig)} size={64} className="w-full h-full" />
+            </div>
+          </div>
+        )}
         {/* Tabs contenuto */}
         <div className="flex-1 overflow-y-auto px-4" style={{ paddingBottom: 120 }}>
+          {isLoadingOpinions || isLoadingQuestions ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Caricamento opinioni...</span>
+            </div>
+          ) : (
+            <>
           {tab === 'favorevole' && (
             <div className="grid grid-cols-1 md:grid-cols-1 gap-6 md:gap-6">
               {/* Colonna Favorevoli - Verde */}
@@ -392,6 +382,8 @@ export function ViewOpinioniDialog({
           )}
           {tab === 'altro' && (
             <div className="text-center text-muted-foreground">Altre informazioni (placeholder)</div>
+          )}
+            </>
           )}
         </div>
         {/* Barra pulsanti fissa in basso */}
