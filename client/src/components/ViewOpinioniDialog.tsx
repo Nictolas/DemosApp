@@ -48,7 +48,7 @@ export function ViewOpinioniDialog({
   const [likedReferendum, setLikedReferendum] = useState<string[]>([]);
   const [isLoadingLikes, setIsLoadingLikes] = useState(false);
   const [fonti, setFonti] = useState<Record<string, string>>({});
-  const [isLoadingFonti, setIsLoadingFonti] = useState(false);
+
   const [tab, setTab] = useState<'favorevole' | 'indeciso' | 'contrario' | 'sostegno' | 'altro'>('favorevole');
   const [, setLocation] = useLocation();
   const [showCambiaModal, setShowCambiaModal] = useState<{categoria: string | null} | false>(false);
@@ -92,6 +92,15 @@ export function ViewOpinioniDialog({
           });
           console.log('🔍 DEBUG fetchQuestions - OpinionMap creata:', opinioniMap);
           setOpinions(opinioniMap);
+
+          // Carica le fonti delle opinioni
+          if (result.data.fonti) {
+            console.log('🔍 DEBUG fetchQuestions - Fonti ricevute:', result.data.fonti);
+            setFonti(result.data.fonti);
+          } else {
+            console.log('🔍 DEBUG fetchQuestions - Nessuna fonte ricevuta');
+            setFonti({});
+          }
         } else {
           console.log('🔍 DEBUG fetchQuestions - Nessuna question trovata o errore:', result);
           setQuestions([]);
@@ -159,22 +168,7 @@ export function ViewOpinioniDialog({
     if (open) fetchLikes();
   }, [utenteId, open]);
 
-  // Carica le fonti delle opinioni (per ora vuoto, da implementare se necessario)
-  useEffect(() => {
-    const fetchFonti = async () => {
-      if (!utenteId) return;
-      setIsLoadingFonti(true);
-      try {
-        // Per ora non carichiamo le fonti, potrebbero non essere necessarie
-        setFonti({});
-      } catch {
-        setFonti({});
-      } finally {
-        setIsLoadingFonti(false);
-      }
-    };
-    if (open) fetchFonti();
-  }, [utenteId, open]);
+  // Le fonti vengono ora caricate insieme alle opinioni nel primo useEffect
 
   useEffect(() => {
     if (open) {

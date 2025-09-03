@@ -308,7 +308,7 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
     
     // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni
     let opinioniQuery = `
-      SELECT o.id, o.text, o.gradi_opinione
+      SELECT o.id, o.text, o.gradi_opinione, o.source, o.fonte_url
       FROM opinioni o
     `;
     let opinioniParams = [];
@@ -344,7 +344,9 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
         comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
         comunale_verde_pubblico_e_giardini,
         -- Opinion regionali
-        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia
+        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia,
+        -- Fonti delle opinioni
+        fonti_opinioni
       FROM users
       WHERE id = $1
     `;
@@ -358,6 +360,10 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
         error: 'Utente non trovato'
       });
     }
+
+    // Estrai le fonti delle opinioni
+    const fontiOpinioni = userOpinions.fonti_opinioni || {};
+    console.log('🔍 DEBUG - Fonti opinioni per utente', userId, ':', fontiOpinioni);
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinioni.map(opinion => {
@@ -387,6 +393,7 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
       success: true,
       data: {
         opinioni: formattedOpinions,
+        fonti: fontiOpinioni,
         utenteId: userId,
         grado: grado || 'tutti'
       }
