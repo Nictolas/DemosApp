@@ -19,6 +19,7 @@ import OpinioniNazionali from "./pages/OpinioniNazionali";
 import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
 import Rappresentanti from "./pages/Rappresentanti";
+import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
 import Navbar from "./components/Navbar";
@@ -138,6 +139,13 @@ export default function App() {
               <Route path="/rappresentanti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/rappresentanti" component={Rappresentanti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route scegli rappresentante */}
+              <Route path="/scegli-rappresentante/:categoria">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/scegli-rappresentante/:categoria" component={ScegliRappresentante} />
                 </PageTransition>
               </Route>
 
