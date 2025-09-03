@@ -77,7 +77,22 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
     
+    // Carica le opinioni specifiche per il grado "Europeo" dalla tabella opinioni
+    const europeanOpinionsQuery = `
+      SELECT o.id, o.text, o.gradi_opinione
+      FROM opinioni o
+      WHERE 'Europeo' = ANY(o.gradi_opinione)
+      ORDER BY o.text
+    `;
+    
+    const europeanOpinionsResult = await pool.query(europeanOpinionsQuery);
+    const europeanOpinions = europeanOpinionsResult.rows;
+    
+    console.log('🔍 DEBUG - Opinion europee caricate:', europeanOpinions.length);
+    console.log('🔍 DEBUG - Opinion europee:', europeanOpinions.map(o => o.text));
+    
     // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
+    // Carica solo i campi che corrispondono alle opinioni europee
     const userOpinionsQuery = `
       SELECT 
         -- Opinion nazionali
@@ -103,26 +118,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
     
-    // Funzione per calcolare le opinioni comuni tra utente e rappresentante
-    const calculateCommonOpinions = (userOpinions, candidateOpinions) => {
+    // Funzione per calcolare le opinioni comuni tra utente e rappresentante (solo opinioni europee)
+    const calculateCommonOpinions = (userOpinions, candidateOpinions, europeanOpinions) => {
       let commonCount = 0;
-      const opinionFields = [
-        'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
-        'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia',
-        'comunale_cassonetti_intelligenti_con_tessera', 'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-        'comunale_divieto_di_nuovi_fast_food_nel_centro_storico', 'comunale_estensione_delle_zone_a_traffico_limitato',
-        'comunale_finanziamento_eventi_culturali_gratuiti', 'comunale_nuova_biblioteca_comunale',
-        'comunale_nuove_case_popolari', 'comunale_nuove_piste_ciclabili', 'comunale_nuovi_asili_nido_comunali',
-        'comunale_nuovo_stadio_comunale', 'comunale_parcheggi_gratuiti_per_residenti',
-        'comunale_potenziamento_trasporto_pubblico', 'comunale_riduzione_tasse_rifiuti',
-        'comunale_sicurezza_strade_scolastiche', 'comunale_sostegno_commercio_locale',
-        'comunale_verde_pubblico_e_giardini',
-        'regionale_nuovi_inceneritori', 'regionale_chiusura_ospedali_di_provincia'
-      ];
       
-      opinionFields.forEach(field => {
-        const userAnswer = userOpinions[field];
-        const candidateAnswer = candidateOpinions[field];
+      europeanOpinions.forEach(opinion => {
+        // Converte il testo dell'opinione nel nome del campo del database
+        const fieldName = opinion.text.toLowerCase().replace(/\s+/g, '_');
+        
+        const userAnswer = userOpinions[fieldName];
+        const candidateAnswer = candidateOpinions[fieldName];
         
         // Conta come opinione comune solo se entrambi hanno risposto e la risposta è identica
         if (userAnswer && candidateAnswer && userAnswer === candidateAnswer) {
@@ -148,7 +153,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     // Calcola le opinioni comuni per ogni candidato e aggiungi il campo opinioni_comuni
     candidati = candidati.map(candidato => {
-      const opinioniComuni = calculateCommonOpinions(userOpinions, candidato);
+      const opinioniComuni = calculateCommonOpinions(userOpinions, candidato, europeanOpinions);
       return {
         ...candidato,
         opinioni_comuni: opinioniComuni
