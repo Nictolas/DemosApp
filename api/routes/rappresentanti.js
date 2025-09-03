@@ -74,6 +74,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const debugResult2 = await pool.query(debugQuery2);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione Europeo E ruolo corretto:', debugResult2.rows[0].count);
     
+    // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
+    let candidati = result.rows;
+    
     // Debug: vediamo alcuni esempi di utenti con grado_elezione = 'Europeo'
     const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status, avatar_config FROM users WHERE grado_elezione = 'Europeo' LIMIT 5`;
     const debugResult3 = await pool.query(debugQuery3);
@@ -84,12 +87,19 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       candidati.slice(0, 3).map(c => ({ id: c.id, nome: c.nome, cognome: c.cognome, avatar_config: c.avatar_config }))
     );
     
-    // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
-    let candidati = result.rows;
-    
     // Assicurati che ogni candidato abbia un avatar_config valido
     candidati = candidati.map(candidato => {
       let avatarConfig = candidato.avatar_config;
+      
+      // Fix per avatar_config doppio-encoded (rimuove virgolette extra)
+      if (avatarConfig && typeof avatarConfig === 'string' && avatarConfig.startsWith('"') && avatarConfig.endsWith('"')) {
+        try {
+          avatarConfig = JSON.parse(avatarConfig);
+        } catch (e) {
+          console.warn('⚠️ Errore nel parsing avatar_config doppio-encoded:', e);
+          avatarConfig = null;
+        }
+      }
       
       // Se non c'è avatar_config o è vuoto, genera uno di default
       if (!avatarConfig || avatarConfig === '{}' || avatarConfig === 'null') {
@@ -166,7 +176,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       
       return {
         ...candidato,
-        avatar_config: avatarConfig
+        avatar_config: typeof avatarConfig === 'object' ? JSON.stringify(avatarConfig) : avatarConfig
       };
     });
     
