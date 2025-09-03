@@ -25,9 +25,17 @@ export function useProfileForm(
   const { toast } = useToast();
   const [formData, setFormData] = useState<UserInfo & { uid: string }>({
     ...userData,
-    data_nascita: normalizeDate(userData.data_nascita),
+    data_nascita: normalizeDate(userData?.data_nascita),
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Aggiorna formData quando userData cambia
+  useEffect(() => {
+    setFormData({
+      ...userData,
+      data_nascita: normalizeDate(userData?.data_nascita),
+    });
+  }, [userData]);
 
   // Funzione generica per aggiornare il formData
   const handleChange = (field: keyof (UserInfo & { uid: string }), value: string) => {
@@ -42,7 +50,7 @@ export function useProfileForm(
     setIsSubmitting(true);
 
     try {
-      const response = await apiRequest("PUT", `/api/users/${userData.uid}`, formData);
+      const response = await apiRequest("PUT", "/api/users/me", formData);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -50,7 +58,11 @@ export function useProfileForm(
       }
       
       const data = await response.json();
-      onProfileUpdated(data.data || formData);
+      if (data.success) {
+        onProfileUpdated(data.user || formData);
+      } else {
+        throw new Error(data.error || "Errore durante l'aggiornamento del profilo");
+      }
     } catch (error) {
       console.error("Errore durante l'aggiornamento:", error);
       
