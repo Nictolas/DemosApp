@@ -308,19 +308,14 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
     
     // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni
     let opinioniQuery = `
-      SELECT o.id, o.text, o.gradi_opinione, o.source, o.fonte_url
+      SELECT o.id, o.text, o.source
       FROM opinioni o
     `;
-    let opinioniParams = [];
-    
-    if (grado) {
-      opinioniQuery += ` WHERE $1 = ANY(o.gradi_opinione)`;
-      opinioniParams.push(grado);
-    }
+
     
     opinioniQuery += ` ORDER BY o.text`;
     
-    const opinioniResult = await pool.query(opinioniQuery, opinioniParams);
+    const opinioniResult = await pool.query(opinioniQuery);
     const opinioni = opinioniResult.rows;
     
     console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
@@ -382,7 +377,7 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
       return {
         id: fieldName,
         text: opinion.text,
-        grado: opinion.gradi_opinione,
+        grado: ['Europeo'], // Per ora hardcodiamo come Europeo
         userAnswer: frontendAnswer
       };
     });
