@@ -50,19 +50,19 @@ export default function ResetPasswordConfirmPage() {
         },
         body: JSON.stringify({ 
           token,
-          newPassword 
+          password: newPassword 
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess("Password reimpostata con successo! Reindirizzamento alla homepage...");
+        setSuccess("Password reimpostata con successo! Reindirizzamento al login...");
         setNewPassword("");
         setConfirmPassword("");
-        // Redirect alla homepage dopo 2 secondi
+        // Redirect al login dopo 2 secondi
         setTimeout(() => {
-          window.location.href = '/';
+          window.location.href = '/auth';
         }, 2000);
       } else {
         setError(data.error || "Errore durante il reset della password.");
