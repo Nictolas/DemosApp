@@ -308,7 +308,7 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
     
     // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni
     let opinioniQuery = `
-      SELECT o.id, o.text, o.source
+      SELECT o.id, o.text
       FROM opinioni o
     `;
 
@@ -378,7 +378,8 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
         id: fieldName,
         text: opinion.text,
         grado: ['Europeo'], // Per ora hardcodiamo come Europeo
-        userAnswer: frontendAnswer
+        userAnswer: frontendAnswer,
+        source: 'unknown' // Default source since we don't have it in the table
       };
     });
     
