@@ -52,6 +52,25 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       comune_candidatura
     } = req.body;
     
+    // Converti la data dal formato DD/MM/YYYY a YYYY-MM-DD per PostgreSQL
+    let formattedDataNascita = null;
+    if (data_nascita) {
+      try {
+        // Se la data è nel formato DD/MM/YYYY, convertila
+        if (data_nascita.includes('/')) {
+          const [day, month, year] = data_nascita.split('/');
+          formattedDataNascita = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          console.log('📅 Data convertita:', data_nascita, '→', formattedDataNascita);
+        } else {
+          // Se è già nel formato corretto, usala così
+          formattedDataNascita = data_nascita;
+        }
+      } catch (error) {
+        console.error('❌ Errore nella conversione data:', error);
+        formattedDataNascita = null;
+      }
+    }
+    
     console.log('📝 Tentativo registrazione per:', email);
     console.log('📊 Dati ricevuti:', JSON.stringify(req.body, null, 2));
     
@@ -105,7 +124,7 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       'pending',
       verificationToken,
       genere || null,
-      data_nascita || null,
+      formattedDataNascita, // Usa la data convertita
       cittadinanza || null,
       paese_residenza || null,
       regione_residenza || null,
