@@ -30,40 +30,30 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     
     const { email, password, nome, cognome, codice_fiscale } = req.body;
     
+    // Estrai tutti i dati dal body
+    const { 
+      paese_residenza, 
+      regione_residenza, 
+      provincia_residenza, 
+      comune_residenza,
+      data_nascita,
+      genere,
+      cittadinanza,
+      ruolo,
+      grado_elezione,
+      paese_elezione,
+      regione_elezione,
+      provincia_elezione,
+      comune_elezione,
+      grado_candidatura,
+      paese_candidatura,
+      regione_candidatura,
+      provincia_candidatura,
+      comune_candidatura
+    } = req.body;
+    
     console.log('📝 Tentativo registrazione per:', email);
     console.log('📊 Dati ricevuti:', JSON.stringify(req.body, null, 2));
-    
-    // Debug: verifica i parametri che verranno passati alla query
-    const queryParams = [
-      nome, 
-      cognome, 
-      email.toLowerCase(), 
-      passwordHash, 
-      ruolo || 'Elettore',
-      codice_fiscale ? codice_fiscale.toUpperCase() : null,
-      'pending',
-      verificationToken,
-      genere || null,
-      data_nascita || null,
-      cittadinanza || null,
-      paese_residenza || null,
-      regione_residenza || null,
-      provincia_residenza || null,
-      comune_residenza || null,
-      grado_elezione || null,
-      paese_elezione || null,
-      regione_elezione || null,
-      provincia_elezione || null,
-      comune_elezione || null,
-      grado_candidatura || null,
-      paese_candidatura || null,
-      regione_candidatura || null,
-      provincia_candidatura || null,
-      comune_candidatura || null
-    ];
-    
-    console.log('🔍 Parametri query:', queryParams.length);
-    console.log('🔍 Parametri:', queryParams);
     
     // Verifica se l'email è già registrata
     const existingUserQuery = 'SELECT id FROM users WHERE email = $1';
@@ -104,27 +94,37 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       { expiresIn: '24h' }
     );
     
-    // Estrai i dati dal body
-    const { 
-      paese_residenza, 
-      regione_residenza, 
-      provincia_residenza, 
-      comune_residenza,
-      data_nascita,
-      genere,
-      cittadinanza,
-      ruolo,
-      grado_elezione,
-      paese_elezione,
-      regione_elezione,
-      provincia_elezione,
-      comune_elezione,
-      grado_candidatura,
-      paese_candidatura,
-      regione_candidatura,
-      provincia_candidatura,
-      comune_candidatura
-    } = req.body;
+    // Debug: verifica i parametri che verranno passati alla query
+    const queryParams = [
+      nome, 
+      cognome, 
+      email.toLowerCase(), 
+      passwordHash, 
+      ruolo || 'Elettore',
+      codice_fiscale ? codice_fiscale.toUpperCase() : null,
+      'pending',
+      verificationToken,
+      genere || null,
+      data_nascita || null,
+      cittadinanza || null,
+      paese_residenza || null,
+      regione_residenza || null,
+      provincia_residenza || null,
+      comune_residenza || null,
+      grado_elezione || null,
+      paese_elezione || null,
+      regione_elezione || null,
+      provincia_elezione || null,
+      comune_elezione || null,
+      grado_candidatura || null,
+      paese_candidatura || null,
+      regione_candidatura || null,
+      provincia_candidatura || null,
+      comune_candidatura || null
+    ];
+    
+    console.log('🔍 Parametri query:', queryParams.length);
+    console.log('🔍 Parametri:', queryParams);
     
     // Inserisci nuovo utente con status "pending"
     const insertQuery = `
