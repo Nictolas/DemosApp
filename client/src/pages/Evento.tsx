@@ -11,8 +11,15 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 
 const eventoSchema = z.object({
-  dove: z.string().min(1, "Il luogo è obbligatorio"),
-  quando: z.string().min(1, "La data è obbligatoria"),
+  nome_evento: z.string().min(1, "Il nome dell'evento è obbligatorio"),
+  tipologia_evento: z.string().min(1, "La tipologia è obbligatoria"),
+  paese_evento: z.string().min(1, "Il paese è obbligatorio"),
+  regione_evento: z.string().min(1, "La regione è obbligatoria"),
+  provincia_evento: z.string().min(1, "La provincia è obbligatoria"),
+  comune_evento: z.string().min(1, "Il comune è obbligatorio"),
+  indirizzo_evento: z.string().optional(),
+  orario_evento: z.string().min(1, "L'orario è obbligatorio"),
+  organizzatore: z.string().min(1, "L'organizzatore è obbligatorio"),
 });
 
 type EventoFormData = z.infer<typeof eventoSchema>;
@@ -24,8 +31,15 @@ export default function Evento() {
   const eventoForm = useForm<EventoFormData>({
     resolver: zodResolver(eventoSchema),
     defaultValues: {
-      dove: "",
-      quando: "",
+      nome_evento: "",
+      tipologia_evento: "",
+      paese_evento: "Italia",
+      regione_evento: "",
+      provincia_evento: "",
+      comune_evento: "",
+      indirizzo_evento: "",
+      orario_evento: "",
+      organizzatore: "",
     },
   });
 
@@ -120,13 +134,13 @@ export default function Evento() {
               <form onSubmit={eventoForm.handleSubmit(onSubmitEvento)} className="space-y-4">
                 <FormField
                   control={eventoForm.control}
-                  name="dove"
+                  name="nome_evento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Dove</FormLabel>
+                      <FormLabel>Nome Evento</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Es: Piazza del Duomo, Milano"
+                          placeholder="Es: Assemblea Pubblica"
                           {...field}
                           disabled={submitEvento.isPending}
                         />
@@ -138,13 +152,139 @@ export default function Evento() {
 
                 <FormField
                   control={eventoForm.control}
-                  name="quando"
+                  name="tipologia_evento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Quando</FormLabel>
+                      <FormLabel>Tipologia Evento</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Assemblea, Conferenza, Incontro"
+                          {...field}
+                          disabled={submitEvento.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={eventoForm.control}
+                  name="paese_evento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Paese</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Italia"
+                          {...field}
+                          disabled={submitEvento.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={eventoForm.control}
+                  name="regione_evento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Regione</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Lombardia"
+                          {...field}
+                          disabled={submitEvento.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={eventoForm.control}
+                  name="provincia_evento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Provincia</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Milano"
+                          {...field}
+                          disabled={submitEvento.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={eventoForm.control}
+                  name="comune_evento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Comune</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Milano"
+                          {...field}
+                          disabled={submitEvento.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={eventoForm.control}
+                  name="indirizzo_evento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Indirizzo (opzionale)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Piazza del Duomo, 1"
+                          {...field}
+                          disabled={submitEvento.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={eventoForm.control}
+                  name="orario_evento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Orario</FormLabel>
                       <FormControl>
                         <Input
                           type="datetime-local"
+                          {...field}
+                          disabled={submitEvento.isPending}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={eventoForm.control}
+                  name="organizzatore"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organizzatore</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Es: Comune di Milano"
                           {...field}
                           disabled={submitEvento.isPending}
                         />

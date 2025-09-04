@@ -57,7 +57,7 @@ router.get('/', async (req, res) => {
 // POST /api/eventi - Crea nuovo evento
 router.post('/', async (req, res) => {
   try {
-    const { nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento } = req.body;
+    const { nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore } = req.body;
     
     if (!nome_evento || !tipologia_evento) {
       return res.status(400).json({
@@ -67,8 +67,8 @@ router.post('/', async (req, res) => {
     }
     
     const result = await pool.query(
-      'INSERT INTO eventi (nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento]
+      'INSERT INTO eventi (nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore]
     );
     
     res.status(201).json({
