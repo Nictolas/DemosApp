@@ -3,7 +3,6 @@ import { useLocation, useRouter } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth-neon";
 import { Mail, RefreshCw, CheckCircle, AlertCircle, LogOut, Home } from 'lucide-react';
 
 const VerificaEmail: React.FC = () => {
@@ -12,7 +11,6 @@ const VerificaEmail: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { toast } = useToast();
-  const { logoutMutation } = useAuth();
   const router = useRouter();
   const location = useLocation();
 
@@ -34,6 +32,38 @@ const VerificaEmail: React.FC = () => {
       verifyEmail(token);
     }
   }, [location]);
+
+  // Se non abbiamo email, mostra un messaggio di errore
+  if (!email) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm">
+            <CardHeader className="text-center pb-6">
+              <div className="mx-auto mb-6 w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg">
+                <AlertCircle className="w-10 h-10 text-white" />
+              </div>
+              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-600 bg-clip-text text-transparent">
+                Errore
+              </CardTitle>
+              <CardDescription className="text-lg text-gray-600 mt-2">
+                Email non trovata. Effettua nuovamente la registrazione.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <Button
+                onClick={handleGoHome}
+                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Home className="w-5 h-5 mr-3" />
+                Torna alla Homepage
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const verifyEmail = async (token: string) => {
     setIsVerifying(true);
@@ -127,8 +157,31 @@ const VerificaEmail: React.FC = () => {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await logoutMutation.mutateAsync();
-      // Il redirect viene gestito dal hook useAuth
+      // Chiama l'endpoint di logout
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        await fetch('https://demos-c7k0.onrender.com/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+      
+      // Pulisce tutti i dati di autenticazione
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('user_status');
+      localStorage.removeItem('user_id');
+      
+      toast({
+        title: "Logout effettuato",
+        description: "Sei stato disconnesso con successo.",
+      });
+      
+      // Reindirizza alla homepage
+      router.push('/');
     } catch (error) {
       console.error('Errore logout:', error);
       toast({
@@ -142,7 +195,7 @@ const VerificaEmail: React.FC = () => {
 
   const handleGoHome = () => {
     // Pulisce tutti i dati di autenticazione
-    localStorage.removeItem('token');
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('user_email');
     localStorage.removeItem('user_status');
     localStorage.removeItem('user_id');
