@@ -74,11 +74,42 @@ export default function AuthPage() {
   };
 
   // Gestione del submit per la registrazione (solo credenziali base)
-  const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Salva i dati iniziali e reindirizza alla prima pagina di registrazione
-    localStorage.setItem("registrazione_email", data.email);
-    localStorage.setItem("registrazione_password", data.password);
-    window.location.href = "/registrazione-nome";
+  const onRegisterSubmit = async (data: RegisterFormValues) => {
+    try {
+      // CONTROLLO EMAIL DUPLICATA ALL'INIZIO
+      const response = await fetch('/api/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: data.email.trim().toLowerCase() }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.exists) {
+        // Email già registrata - BLOCCA SUBITO
+        toast({
+          title: "Email già registrata",
+          description: "Un account con questa email esiste già. Prova con un'altra email o accedi.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Email disponibile, salva i dati e procedi
+      localStorage.setItem("registrazione_email", data.email);
+      localStorage.setItem("registrazione_password", data.password);
+      window.location.href = "/registrazione-nome";
+      
+    } catch (error) {
+      console.error('Errore nel controllo email:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile verificare l'email. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Gestione del submit per il reset password
