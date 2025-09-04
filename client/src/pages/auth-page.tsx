@@ -189,7 +189,7 @@ export default function AuthPage() {
         // Se l'email è disponibile, procedi
         localStorage.setItem("registrazione_email", data.email);
         localStorage.setItem("registrazione_password", data.password);
-        window.location.href = "/registrazione-nome";
+        window.location.href = "/registrazione-codice-fiscale";
       }, 1000);
       return;
     }
@@ -197,7 +197,7 @@ export default function AuthPage() {
     // Email disponibile, salva i dati e procedi
     localStorage.setItem("registrazione_email", data.email);
     localStorage.setItem("registrazione_password", data.password);
-    window.location.href = "/registrazione-nome";
+    window.location.href = "/registrazione-codice-fiscale";
   };
 
   // Gestione del submit per il reset password
