@@ -261,7 +261,33 @@ export default function GestisciUtenti() {
               </Card>
             </div>
 
-            {/* Tabella utenti */}
+            {/* Sezione Utenti in Attesa */}
+            {pendingUsers.length > 0 && (
+              <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg mb-6">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-2xl text-gray-800">
+                    <Users className="h-6 w-6 mr-3 text-yellow-600" />
+                    Utenti in Attesa
+                  </CardTitle>
+                  <CardDescription className="text-gray-600">
+                    Utenti in attesa di approvazione ({pendingUsers.length})
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <UsersTable 
+                    users={pendingUsers}
+                    displayColumns={displayColumns}
+                    sortState={sortState}
+                    onSort={updateSort}
+                    onEdit={handleEdit}
+                    onEditOpinioni={handleEditOpinioni}
+                    onDelete={handleDelete}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Tabella utenti attivi */}
             <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-2xl text-gray-800">
