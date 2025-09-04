@@ -8,7 +8,7 @@ import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
 import { Loader2, Users, AlertCircle } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
-import { getDisplayColumns } from "./utils";
+import { getDisplayColumns } from "./utils/columnUtils";
 import { Header } from "./components/Header";
 import { SearchBar } from "./components/SearchBar";
 import { UsersTable } from "./components/UsersTable";
