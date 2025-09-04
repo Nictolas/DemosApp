@@ -23,21 +23,23 @@ export default function RegistrazioneRuolo() {
   const ruoli = [
     { id: "Elettore", nome: "Elettore", descrizione: "Cittadino che può votare", emoji: "🙋‍♂️" },
     { id: "Politico", nome: "Politico", descrizione: "Rappresentante politico", emoji: "👔" },
-    { id: "Candidato", nome: "Candidato", descrizione: "Candidato alle elezioni", emoji: "🗳️" },
-    { id: "Candidato Politico", nome: "Candidato Politico", descrizione: "Candidato con esperienza politica", emoji: "🔄" }
+    { id: "Candidato", nome: "Candidato", descrizione: "Cittadino candidato alle elezioni", emoji: "🗳️" },
+    { id: "Candidato Politico", nome: "Candidato Politico", descrizione: "Politico candidato alle elezioni", emoji: "🔄" }
   ];
 
   const gradiElezione = [
-    { id: "nazionale", nome: "Nazionale" },
+    { id: "europeo", nome: "Europeo" },
+    { id: "camera", nome: "Camera" },
+    { id: "senato", nome: "Senato" },
     { id: "regionale", nome: "Regionale" },
-    { id: "provinciale", nome: "Provinciale" },
     { id: "comunale", nome: "Comunale" }
   ];
 
   const gradiCandidatura = [
-    { id: "nazionale", nome: "Nazionale" },
+    { id: "europeo", nome: "Europeo" },
+    { id: "camera", nome: "Camera" },
+    { id: "senato", nome: "Senato" },
     { id: "regionale", nome: "Regionale" },
-    { id: "provinciale", nome: "Provinciale" },
     { id: "comunale", nome: "Comunale" }
   ];
 
@@ -302,7 +304,7 @@ export default function RegistrazioneRuolo() {
                       >
                         <option value="">Seleziona regione</option>
                         {ITALY_DATA.Italia.regioni.map((regione) => (
-                          <option key={regione.id} value={regione.id}>
+                          <option key={regione.nome} value={regione.nome}>
                             {regione.nome}
                           </option>
                         ))}
@@ -319,9 +321,9 @@ export default function RegistrazioneRuolo() {
                       >
                         <option value="">Seleziona provincia</option>
                         {regioneElezione && ITALY_DATA.Italia.regioni
-                          .find(r => r.id === regioneElezione)
+                          .find(r => r.nome === regioneElezione)
                           ?.province.map((provincia) => (
-                            <option key={provincia.id} value={provincia.id}>
+                            <option key={provincia.nome} value={provincia.nome}>
                               {provincia.nome}
                             </option>
                           ))}
@@ -338,8 +340,8 @@ export default function RegistrazioneRuolo() {
                       >
                         <option value="">Seleziona comune</option>
                         {provinciaElezione && ITALY_DATA.Italia.regioni
-                          .find(r => r.id === regioneElezione)
-                          ?.province.find(p => p.id === provinciaElezione)
+                          .find(r => r.nome === regioneElezione)
+                          ?.province.find(p => p.nome === provinciaElezione)
                           ?.comuni.map((comune) => (
                             <option key={comune} value={comune}>
                               {comune}
@@ -401,7 +403,7 @@ export default function RegistrazioneRuolo() {
                       >
                         <option value="">Seleziona regione</option>
                         {ITALY_DATA.Italia.regioni.map((regione) => (
-                          <option key={regione.id} value={regione.id}>
+                          <option key={regione.nome} value={regione.nome}>
                             {regione.nome}
                           </option>
                         ))}
@@ -418,9 +420,9 @@ export default function RegistrazioneRuolo() {
                       >
                         <option value="">Seleziona provincia</option>
                         {regioneCandidatura && ITALY_DATA.Italia.regioni
-                          .find(r => r.id === regioneCandidatura)
+                          .find(r => r.nome === regioneCandidatura)
                           ?.province.map((provincia) => (
-                            <option key={provincia.id} value={provincia.id}>
+                            <option key={provincia.nome} value={provincia.nome}>
                               {provincia.nome}
                             </option>
                           ))}
@@ -437,8 +439,8 @@ export default function RegistrazioneRuolo() {
                       >
                         <option value="">Seleziona comune</option>
                         {provinciaCandidatura && ITALY_DATA.Italia.regioni
-                          .find(r => r.id === regioneCandidatura)
-                          ?.province.find(p => p.id === provinciaCandidatura)
+                          .find(r => r.nome === regioneCandidatura)
+                          ?.province.find(p => p.nome === provinciaCandidatura)
                           ?.comuni.map((comune) => (
                             <option key={comune} value={comune}>
                               {comune}
