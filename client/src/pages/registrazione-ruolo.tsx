@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ITALY_DATA } from "@/data/italyData";
 import { useToast } from "@/hooks/use-toast";
 
@@ -262,30 +261,30 @@ export default function RegistrazioneRuolo() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Paese</label>
-                    <Select value={paeseElezione} onValueChange={setPaeseElezione}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona paese" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Italia">Italia</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={paeseElezione}
+                      onChange={(e) => setPaeseElezione(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Seleziona paese</option>
+                      <option value="Italia">Italia</option>
+                    </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium mb-2">Grado Elezione</label>
-                    <Select value={gradoElezione} onValueChange={setGradoElezione}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona grado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {gradiElezione.map((grado) => (
-                          <SelectItem key={grado.id} value={grado.id}>
-                            {grado.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={gradoElezione}
+                      onChange={(e) => setGradoElezione(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Seleziona grado</option>
+                      {gradiElezione.map((grado) => (
+                        <option key={grado.id} value={grado.id}>
+                          {grado.nome}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -293,58 +292,60 @@ export default function RegistrazioneRuolo() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Regione</label>
-                      <Select value={regioneElezione} onValueChange={(value) => {
-                        console.log('🌍 Regione elezione selezionata:', value);
-                        setRegioneElezione(value);
-                      }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona regione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ITALY_DATA.Italia.regioni.map((regione) => (
-                            <SelectItem key={regione.id} value={regione.id}>
-                              {regione.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={regioneElezione}
+                        onChange={(e) => {
+                          console.log('🌍 Regione elezione selezionata:', e.target.value);
+                          setRegioneElezione(e.target.value);
+                        }}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Seleziona regione</option>
+                        {ITALY_DATA.Italia.regioni.map((regione) => (
+                          <option key={regione.id} value={regione.id}>
+                            {regione.nome}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Provincia</label>
-                      <Select value={provinciaElezione} onValueChange={setProvinciaElezione} disabled={!regioneElezione}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona provincia" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {regioneElezione && ITALY_DATA.Italia.regioni
-                            .find(r => r.id === regioneElezione)
-                            ?.province.map((provincia) => (
-                              <SelectItem key={provincia.id} value={provincia.id}>
-                                {provincia.nome}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={provinciaElezione}
+                        onChange={(e) => setProvinciaElezione(e.target.value)}
+                        disabled={!regioneElezione}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Seleziona provincia</option>
+                        {regioneElezione && ITALY_DATA.Italia.regioni
+                          .find(r => r.id === regioneElezione)
+                          ?.province.map((provincia) => (
+                            <option key={provincia.id} value={provincia.id}>
+                              {provincia.nome}
+                            </option>
+                          ))}
+                      </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Comune</label>
-                      <Select value={comuneElezione} onValueChange={setComuneElezione} disabled={!provinciaElezione}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona comune" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {provinciaElezione && ITALY_DATA.Italia.regioni
-                            .find(r => r.id === regioneElezione)
-                            ?.province.find(p => p.id === provinciaElezione)
-                            ?.comuni.map((comune) => (
-                              <SelectItem key={comune} value={comune}>
-                                {comune}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={comuneElezione}
+                        onChange={(e) => setComuneElezione(e.target.value)}
+                        disabled={!provinciaElezione}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Seleziona comune</option>
+                        {provinciaElezione && ITALY_DATA.Italia.regioni
+                          .find(r => r.id === regioneElezione)
+                          ?.province.find(p => p.id === provinciaElezione)
+                          ?.comuni.map((comune) => (
+                            <option key={comune} value={comune}>
+                              {comune}
+                            </option>
+                          ))}
+                      </select>
                     </div>
                   </div>
                 )}
@@ -359,30 +360,30 @@ export default function RegistrazioneRuolo() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Paese</label>
-                    <Select value={paeseCandidatura} onValueChange={setPaeseCandidatura}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona paese" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Italia">Italia</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={paeseCandidatura}
+                      onChange={(e) => setPaeseCandidatura(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Seleziona paese</option>
+                      <option value="Italia">Italia</option>
+                    </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium mb-2">Grado Candidatura</label>
-                    <Select value={gradoCandidatura} onValueChange={setGradoCandidatura}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona grado" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {gradiCandidatura.map((grado) => (
-                          <SelectItem key={grado.id} value={grado.id}>
-                            {grado.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <select
+                      value={gradoCandidatura}
+                      onChange={(e) => setGradoCandidatura(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Seleziona grado</option>
+                      {gradiCandidatura.map((grado) => (
+                        <option key={grado.id} value={grado.id}>
+                          {grado.nome}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -390,58 +391,60 @@ export default function RegistrazioneRuolo() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Regione</label>
-                      <Select value={regioneCandidatura} onValueChange={(value) => {
-                        console.log('🏛️ Regione candidatura selezionata:', value);
-                        setRegioneCandidatura(value);
-                      }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona regione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ITALY_DATA.Italia.regioni.map((regione) => (
-                            <SelectItem key={regione.id} value={regione.id}>
-                              {regione.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={regioneCandidatura}
+                        onChange={(e) => {
+                          console.log('🏛️ Regione candidatura selezionata:', e.target.value);
+                          setRegioneCandidatura(e.target.value);
+                        }}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Seleziona regione</option>
+                        {ITALY_DATA.Italia.regioni.map((regione) => (
+                          <option key={regione.id} value={regione.id}>
+                            {regione.nome}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Provincia</label>
-                      <Select value={provinciaCandidatura} onValueChange={setProvinciaCandidatura} disabled={!regioneCandidatura}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona provincia" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {regioneCandidatura && ITALY_DATA.Italia.regioni
-                            .find(r => r.id === regioneCandidatura)
-                            ?.province.map((provincia) => (
-                              <SelectItem key={provincia.id} value={provincia.id}>
-                                {provincia.nome}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={provinciaCandidatura}
+                        onChange={(e) => setProvinciaCandidatura(e.target.value)}
+                        disabled={!regioneCandidatura}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Seleziona provincia</option>
+                        {regioneCandidatura && ITALY_DATA.Italia.regioni
+                          .find(r => r.id === regioneCandidatura)
+                          ?.province.map((provincia) => (
+                            <option key={provincia.id} value={provincia.id}>
+                              {provincia.nome}
+                            </option>
+                          ))}
+                      </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium mb-2">Comune</label>
-                      <Select value={comuneCandidatura} onValueChange={setComuneCandidatura} disabled={!provinciaCandidatura}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona comune" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {provinciaCandidatura && ITALY_DATA.Italia.regioni
-                            .find(r => r.id === regioneCandidatura)
-                            ?.province.find(p => p.id === provinciaCandidatura)
-                            ?.comuni.map((comune) => (
-                              <SelectItem key={comune} value={comune}>
-                                {comune}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={comuneCandidatura}
+                        onChange={(e) => setComuneCandidatura(e.target.value)}
+                        disabled={!provinciaCandidatura}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="">Seleziona comune</option>
+                        {provinciaCandidatura && ITALY_DATA.Italia.regioni
+                          .find(r => r.id === regioneCandidatura)
+                          ?.province.find(p => p.id === provinciaCandidatura)
+                          ?.comuni.map((comune) => (
+                            <option key={comune} value={comune}>
+                              {comune}
+                            </option>
+                          ))}
+                      </select>
                     </div>
                   </div>
                 )}
