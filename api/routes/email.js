@@ -7,6 +7,9 @@ const router = express.Router();
 
 // Supporto per richieste OPTIONS (preflight)
 router.options('/check-email', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.status(200).end();
 });
 
