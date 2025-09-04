@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation } from "@tanstack/react-query";
@@ -97,7 +98,7 @@ export default function Evento() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 page-with-navbar">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 page-with-navbar" style={{ paddingBottom: '120px' }}>
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
@@ -151,13 +152,21 @@ export default function Evento() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Paese</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Es: Italia"
-                          {...field}
-                          disabled={submitEvento.isPending}
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona paese" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Italia">Italia</SelectItem>
+                          <SelectItem value="Francia">Francia</SelectItem>
+                          <SelectItem value="Germania">Germania</SelectItem>
+                          <SelectItem value="Spagna">Spagna</SelectItem>
+                          <SelectItem value="Regno Unito">Regno Unito</SelectItem>
+                          <SelectItem value="altro">Altro</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -169,13 +178,35 @@ export default function Evento() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Regione</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Es: Lombardia"
-                          {...field}
-                          disabled={submitEvento.isPending}
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona regione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Lombardia">Lombardia</SelectItem>
+                          <SelectItem value="Lazio">Lazio</SelectItem>
+                          <SelectItem value="Campania">Campania</SelectItem>
+                          <SelectItem value="Sicilia">Sicilia</SelectItem>
+                          <SelectItem value="Veneto">Veneto</SelectItem>
+                          <SelectItem value="Emilia-Romagna">Emilia-Romagna</SelectItem>
+                          <SelectItem value="Piemonte">Piemonte</SelectItem>
+                          <SelectItem value="Puglia">Puglia</SelectItem>
+                          <SelectItem value="Toscana">Toscana</SelectItem>
+                          <SelectItem value="Calabria">Calabria</SelectItem>
+                          <SelectItem value="Sardegna">Sardegna</SelectItem>
+                          <SelectItem value="Liguria">Liguria</SelectItem>
+                          <SelectItem value="Marche">Marche</SelectItem>
+                          <SelectItem value="Abruzzo">Abruzzo</SelectItem>
+                          <SelectItem value="Friuli-Venezia Giulia">Friuli-Venezia Giulia</SelectItem>
+                          <SelectItem value="Trentino-Alto Adige">Trentino-Alto Adige</SelectItem>
+                          <SelectItem value="Umbria">Umbria</SelectItem>
+                          <SelectItem value="Basilicata">Basilicata</SelectItem>
+                          <SelectItem value="Molise">Molise</SelectItem>
+                          <SelectItem value="Valle d'Aosta">Valle d'Aosta</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -187,13 +218,35 @@ export default function Evento() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provincia</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Es: Milano"
-                          {...field}
-                          disabled={submitEvento.isPending}
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona provincia" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Milano">Milano</SelectItem>
+                          <SelectItem value="Roma">Roma</SelectItem>
+                          <SelectItem value="Napoli">Napoli</SelectItem>
+                          <SelectItem value="Torino">Torino</SelectItem>
+                          <SelectItem value="Palermo">Palermo</SelectItem>
+                          <SelectItem value="Genova">Genova</SelectItem>
+                          <SelectItem value="Bologna">Bologna</SelectItem>
+                          <SelectItem value="Firenze">Firenze</SelectItem>
+                          <SelectItem value="Bari">Bari</SelectItem>
+                          <SelectItem value="Catania">Catania</SelectItem>
+                          <SelectItem value="Venezia">Venezia</SelectItem>
+                          <SelectItem value="Verona">Verona</SelectItem>
+                          <SelectItem value="Messina">Messina</SelectItem>
+                          <SelectItem value="Padova">Padova</SelectItem>
+                          <SelectItem value="Trieste">Trieste</SelectItem>
+                          <SelectItem value="Brescia">Brescia</SelectItem>
+                          <SelectItem value="Parma">Parma</SelectItem>
+                          <SelectItem value="Taranto">Taranto</SelectItem>
+                          <SelectItem value="Prato">Prato</SelectItem>
+                          <SelectItem value="Modena">Modena</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -205,13 +258,35 @@ export default function Evento() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Comune</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Es: Milano"
-                          {...field}
-                          disabled={submitEvento.isPending}
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona comune" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Milano">Milano</SelectItem>
+                          <SelectItem value="Roma">Roma</SelectItem>
+                          <SelectItem value="Napoli">Napoli</SelectItem>
+                          <SelectItem value="Torino">Torino</SelectItem>
+                          <SelectItem value="Palermo">Palermo</SelectItem>
+                          <SelectItem value="Genova">Genova</SelectItem>
+                          <SelectItem value="Bologna">Bologna</SelectItem>
+                          <SelectItem value="Firenze">Firenze</SelectItem>
+                          <SelectItem value="Bari">Bari</SelectItem>
+                          <SelectItem value="Catania">Catania</SelectItem>
+                          <SelectItem value="Venezia">Venezia</SelectItem>
+                          <SelectItem value="Verona">Verona</SelectItem>
+                          <SelectItem value="Messina">Messina</SelectItem>
+                          <SelectItem value="Padova">Padova</SelectItem>
+                          <SelectItem value="Trieste">Trieste</SelectItem>
+                          <SelectItem value="Brescia">Brescia</SelectItem>
+                          <SelectItem value="Parma">Parma</SelectItem>
+                          <SelectItem value="Taranto">Taranto</SelectItem>
+                          <SelectItem value="Prato">Prato</SelectItem>
+                          <SelectItem value="Modena">Modena</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
