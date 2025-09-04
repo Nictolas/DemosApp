@@ -13,9 +13,32 @@ const pool = new Pool({
 // GET /api/eventi - Lista eventi
 router.get('/', async (req, res) => {
   try {
+    console.log('🔍 GET /api/eventi - Richiesta eventi');
+    
+    // Prima controlliamo se la tabella esiste
+    const tableExists = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'eventi'
+      );
+    `);
+    
+    console.log('📋 Tabella eventi esiste:', tableExists.rows[0].exists);
+    
+    if (!tableExists.rows[0].exists) {
+      return res.json({
+        success: true,
+        data: [],
+        message: 'Tabella eventi non trovata'
+      });
+    }
+    
     const result = await pool.query(
       'SELECT * FROM eventi ORDER BY created_at ASC'
     );
+    
+    console.log('📊 Eventi trovati:', result.rows.length);
     
     res.json({
       success: true,
@@ -25,7 +48,8 @@ router.get('/', async (req, res) => {
     console.error('❌ Errore nel recupero eventi:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: error.message
     });
   }
 });
