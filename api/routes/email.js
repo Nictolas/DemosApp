@@ -63,12 +63,19 @@ router.post('/check-email', async (req, res) => {
     console.error('💥 Errore durante il controllo email:', error);
     console.error('📋 Stack trace completo:', error.stack);
     
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server',
-      message: 'Impossibile verificare l\'email',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    // Assicurati che la risposta sia sempre JSON valido
+    try {
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        message: 'Impossibile verificare l\'email',
+        exists: false,
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    } catch (jsonError) {
+      console.error('❌ Errore nel serializzare JSON:', jsonError);
+      res.status(500).send('{"success":false,"error":"Errore interno","exists":false}');
+    }
   }
 });
 
