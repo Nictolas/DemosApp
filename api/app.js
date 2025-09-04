@@ -15,6 +15,7 @@ const governoRoutes = require('./routes/governo');
 const rappresentantiRoutes = require('./routes/rappresentanti');
 const notificheRoutes = require('./routes/notifiche');
 const eventiRoutes = require('./routes/eventi');
+const ultimaComunicazioneRoutes = require('./routes/ultima-comunicazione');
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.use('/api/governo', governoRoutes);
 app.use('/api/rappresentanti', rappresentantiRoutes);
 app.use('/api/notifiche', notificheRoutes);
 app.use('/api/eventi', eventiRoutes);
+app.use('/api/ultima-comunicazione', ultimaComunicazioneRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {

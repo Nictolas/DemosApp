@@ -31,10 +31,10 @@ export default function Evento() {
 
   // Get complete user data including role
   const { data: userData } = useQuery({
-    queryKey: ["/api/users", user?.email],
+    queryKey: ["/api/users/me", user?.email],
     queryFn: async () => {
       if (!user?.email) return null;
-      const response = await fetch(`/api/users/${encodeURIComponent(user.uid)}`);
+      const response = await fetch(`/api/users/me`);
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },
