@@ -25,6 +25,7 @@ import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
 import Elezioni from "./pages/Elezioni";
+import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
 import Navbar from "./components/Navbar";
@@ -185,6 +186,13 @@ export default function App() {
               <Route path="/elezioni">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/elezioni" component={Elezioni} />
+                </PageTransition>
+              </Route>
+
+              {/* Route eventi */}
+              <Route path="/eventi">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/eventi" component={Eventi} />
                 </PageTransition>
               </Route>
 

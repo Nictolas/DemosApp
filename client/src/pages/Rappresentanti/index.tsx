@@ -64,7 +64,7 @@ export default function Rappresentanti() {
           touch-action: none !important;
         }
       `}</style>
-      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '200px' }}>
+      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '240px' }}>
         <div className="container mx-auto px-4 py-8 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />
