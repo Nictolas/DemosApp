@@ -27,8 +27,8 @@ export const menuItems = [
     icon: FileText,
     label: "Proponi",
     color: {
-      bg: "#fef9c3",
-      icon: "#ca8a04"
+      bg: "#f0f9ff",
+      icon: "#0284c7"
     }
   },
   {
