@@ -125,13 +125,20 @@ export default function RegistrazioneRuolo() {
       console.log('📡 Risposta server:', response.status, response.statusText);
       
       let result;
-      try {
-        result = await response.json();
-        console.log('📊 Risposta JSON:', result);
-      } catch (error) {
-        console.error('❌ Errore parsing JSON:', error);
-        console.log('📄 Testo risposta:', await response.text());
-        throw new Error('Risposta del server non valida');
+      const responseText = await response.text();
+      console.log('📄 Testo risposta raw:', responseText);
+      
+      if (responseText) {
+        try {
+          result = JSON.parse(responseText);
+          console.log('📊 Risposta JSON:', result);
+        } catch (error) {
+          console.error('❌ Errore parsing JSON:', error);
+          throw new Error('Risposta del server non valida');
+        }
+      } else {
+        console.log('⚠️ Risposta vuota dal server');
+        result = { message: 'Risposta vuota dal server' };
       }
 
       if (response.ok) {
