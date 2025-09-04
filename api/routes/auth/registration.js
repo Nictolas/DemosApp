@@ -29,6 +29,38 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     console.log('📝 Tentativo registrazione per:', email);
     console.log('📊 Dati ricevuti:', JSON.stringify(req.body, null, 2));
     
+    // Debug: verifica i parametri che verranno passati alla query
+    const queryParams = [
+      nome, 
+      cognome, 
+      email.toLowerCase(), 
+      passwordHash, 
+      ruolo || 'Elettore',
+      codice_fiscale ? codice_fiscale.toUpperCase() : null,
+      'pending',
+      verificationToken,
+      genere || null,
+      data_nascita || null,
+      cittadinanza || null,
+      paese_residenza || null,
+      regione_residenza || null,
+      provincia_residenza || null,
+      comune_residenza || null,
+      grado_elezione || null,
+      paese_elezione || null,
+      regione_elezione || null,
+      provincia_elezione || null,
+      comune_elezione || null,
+      grado_candidatura || null,
+      paese_candidatura || null,
+      regione_candidatura || null,
+      provincia_candidatura || null,
+      comune_candidatura || null
+    ];
+    
+    console.log('🔍 Parametri query:', queryParams.length);
+    console.log('🔍 Parametri:', queryParams);
+    
     // Verifica se l'email è già registrata
     const existingUserQuery = 'SELECT id FROM users WHERE email = $1';
     const existingUserResult = await pool.query(existingUserQuery, [email.toLowerCase()]);
@@ -100,33 +132,9 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       RETURNING id, nome, cognome, email, ruolo, codice_fiscale, status
     `;
     
-    const result = await pool.query(insertQuery, [
-      nome, 
-      cognome, 
-      email.toLowerCase(), 
-      passwordHash, 
-      ruolo || 'Elettore',
-      codice_fiscale ? codice_fiscale.toUpperCase() : null,
-      'pending',
-      verificationToken,
-      genere || null,
-      data_nascita || null,
-      cittadinanza || null,
-      paese_residenza || null,
-      regione_residenza || null,
-      provincia_residenza || null,
-      comune_residenza || null,
-      grado_elezione || null,
-      paese_elezione || null,
-      regione_elezione || null,
-      provincia_elezione || null,
-      comune_elezione || null,
-      grado_candidatura || null,
-      paese_candidatura || null,
-      regione_candidatura || null,
-      provincia_candidatura || null,
-      comune_candidatura || null
-    ]);
+    console.log('🚀 Esecuzione query INSERT...');
+    const result = await pool.query(insertQuery, queryParams);
+    console.log('✅ Query INSERT completata con successo');
     
     const newUser = result.rows[0];
     
@@ -166,9 +174,11 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     
   } catch (error) {
     console.error('❌ Errore nella registrazione:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore nella registrazione'
+      error: 'Errore nella registrazione',
+      message: error.message
     });
   }
 });
