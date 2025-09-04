@@ -22,10 +22,10 @@ export default function RegistrazioneRuolo() {
   const [gradoCandidatura, setGradoCandidatura] = useState("");
 
   const ruoli = [
-    { id: "Elettore", nome: "Elettore", descrizione: "Cittadino che può votare" },
-    { id: "Politico", nome: "Politico", descrizione: "Rappresentante politico" },
-    { id: "Candidato", nome: "Candidato", descrizione: "Candidato alle elezioni" },
-    { id: "Candidato Politico", nome: "Candidato Politico", descrizione: "Candidato con esperienza politica" }
+    { id: "Elettore", nome: "Elettore", descrizione: "Cittadino che può votare", emoji: "🙋‍♂️" },
+    { id: "Politico", nome: "Politico", descrizione: "Rappresentante politico", emoji: "👔" },
+    { id: "Candidato", nome: "Candidato", descrizione: "Candidato alle elezioni", emoji: "🗳️" },
+    { id: "Candidato Politico", nome: "Candidato Politico", descrizione: "Candidato con esperienza politica", emoji: "🔄" }
   ];
 
   const gradiElezione = [
@@ -216,34 +216,37 @@ export default function RegistrazioneRuolo() {
               <h3 className="text-lg font-semibold">Ruolo *</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {ruoli.map((ruolo, index) => {
-                  const colors = [
-                    { bg: "#fef9c3", text: "#ca8a04", border: "#fde047" }, // Giallo
-                    { bg: "#fbcfe8", text: "#db2777", border: "#f9a8d4" }, // Rosa
-                    { bg: "#f0f9ff", text: "#0284c7", border: "#7dd3fc" }, // Blu
-                    { bg: "#dcfce7", text: "#16a34a", border: "#86efac" }   // Verde
+                  const colorClasses = [
+                    "bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border-yellow-300", // Giallo
+                    "bg-pink-100 hover:bg-pink-200 text-pink-800 border-pink-300", // Rosa  
+                    "bg-blue-100 hover:bg-blue-200 text-blue-800 border-blue-300", // Blu
+                    "bg-green-100 hover:bg-green-200 text-green-800 border-green-300"  // Verde
                   ];
-                  const color = colors[index % colors.length];
+                  const selectedColorClasses = [
+                    "bg-yellow-200 text-yellow-900 border-yellow-400", // Giallo selezionato
+                    "bg-pink-200 text-pink-900 border-pink-400", // Rosa selezionato
+                    "bg-blue-200 text-blue-900 border-blue-400", // Blu selezionato  
+                    "bg-green-200 text-green-900 border-green-400"  // Verde selezionato
+                  ];
+                  
+                  const isSelected = selectedRuolo === ruolo.id;
+                  const colorClass = isSelected ? selectedColorClasses[index] : colorClasses[index];
                   
                   return (
                     <Button
                       key={ruolo.id}
-                      variant={selectedRuolo === ruolo.id ? "default" : "outline"}
-                      className={`h-auto p-4 text-left justify-start transition-all duration-200 ${
-                        selectedRuolo === ruolo.id 
-                          ? "shadow-lg transform scale-105" 
-                          : "hover:shadow-md hover:scale-102"
+                      variant="outline"
+                      className={`h-auto p-4 text-left justify-start transition-all duration-200 border-2 ${colorClass} ${
+                        isSelected ? "shadow-lg transform scale-105" : "hover:shadow-md hover:scale-102"
                       }`}
-                      style={{
-                        backgroundColor: selectedRuolo === ruolo.id ? color.bg : "white",
-                        color: selectedRuolo === ruolo.id ? color.text : "#374151",
-                        borderColor: selectedRuolo === ruolo.id ? color.border : "#d1d5db",
-                        borderWidth: "2px"
-                      }}
                       onClick={() => handleRuoloSelect(ruolo.id)}
                     >
-                      <div>
-                        <div className="font-semibold">{ruolo.nome}</div>
-                        <div className="text-sm opacity-80 mt-1">{ruolo.descrizione}</div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{ruolo.emoji}</span>
+                        <div>
+                          <div className="font-semibold">{ruolo.nome}</div>
+                          <div className="text-sm opacity-80 mt-1">{ruolo.descrizione}</div>
+                        </div>
                       </div>
                     </Button>
                   );
