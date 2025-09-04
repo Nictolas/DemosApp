@@ -25,6 +25,7 @@ import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
 import Gestisci from "./pages/Gestisci";
+import Strumenti from "./pages/Strumenti";
 import Navbar from "./components/Navbar";
 
 // Hook per la navigazione touch
@@ -182,7 +183,14 @@ export default function App() {
               {/* Route strumenti */}
               <Route path="/strumenti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/strumenti" component={Gestisci} />
+                  <ProtectedRoute path="/strumenti" component={Strumenti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci */}
+              <Route path="/gestisci">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci" component={Gestisci} />
                 </PageTransition>
               </Route>
 
