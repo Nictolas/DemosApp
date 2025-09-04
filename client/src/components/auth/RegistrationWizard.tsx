@@ -1,129 +1,135 @@
-import React from "react";
-import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState } from "react";
+import { Phase1Email } from "./Phase1Email";
+import { Phase2Personal } from "./Phase2Personal";
+import { Phase3Location } from "./Phase3Location";
+import { Phase4Role } from "./Phase4Role";
 
-interface RegistrationData {
+export interface CompleteRegistrationData {
   email: string;
   password: string;
+  codice_fiscale: string;
   nome: string;
   cognome: string;
+  data_nascita: string;
   genere: string;
   cittadinanza: string;
+  paese_residenza: string;
+  regione_residenza: string;
+  provincia_residenza: string;
+  comune_residenza: string;
+  paese_elezione?: string;
+  regione_elezione?: string;
+  provincia_elezione?: string;
+  comune_elezione?: string;
+  paese_candidatura?: string;
+  regione_candidatura?: string;
+  provincia_candidatura?: string;
+  comune_candidatura?: string;
+  ruolo: string;
+  grado_elezione?: string;
+  grado_candidatura?: string;
 }
 
 interface RegistrationWizardProps {
-  onComplete: (data: RegistrationData) => void;
+  onComplete: (data: CompleteRegistrationData) => void;
   onCancel: () => void;
-  defaultValues?: Partial<RegistrationData>;
+  defaultValues?: Partial<CompleteRegistrationData>;
 }
 
 export function RegistrationWizard({ onComplete, onCancel, defaultValues }: RegistrationWizardProps) {
-  const form = useForm<RegistrationData>({
-    defaultValues: {
-      email: defaultValues?.email || "",
-      password: defaultValues?.password || "",
-      nome: defaultValues?.nome || "",
-      cognome: defaultValues?.cognome || "",
-      genere: defaultValues?.genere || "",
-      cittadinanza: defaultValues?.cittadinanza || "",
-    }
-  });
+  const [currentPhase, setCurrentPhase] = useState(1);
+  const [formData, setFormData] = useState<Partial<CompleteRegistrationData>>(defaultValues || {});
 
-  const onSubmit = (data: RegistrationData) => {
-    onComplete(data);
+  const handlePhase1Complete = (data: any) => {
+    setFormData(prev => ({ ...prev, ...data }));
+    setCurrentPhase(2);
+  };
+
+  const handlePhase2Complete = (data: any) => {
+    setFormData(prev => ({ ...prev, ...data }));
+    setCurrentPhase(3);
+  };
+
+  const handlePhase3Complete = (data: any) => {
+    setFormData(prev => ({ ...prev, ...data }));
+    setCurrentPhase(4);
+  };
+
+  const handlePhase4Complete = (data: any) => {
+    const completeData = { ...formData, ...data } as CompleteRegistrationData;
+    onComplete(completeData);
+  };
+
+  const handleBack = () => {
+    if (currentPhase > 1) {
+      setCurrentPhase(currentPhase - 1);
+    }
+  };
+
+  const handleCancel = () => {
+    onCancel();
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <Card className="shadow-lg">
-        <CardHeader className="text-center pb-6">
-          <CardTitle className="text-2xl font-bold text-gray-800">
-            Registrazione Account
-          </CardTitle>
-        </CardHeader>
+    <div className="max-w-4xl mx-auto p-6">
+      {/* Progress Bar */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-600">Fase {currentPhase} di 4</span>
+          <span className="text-sm text-gray-500">
+            {Math.round((currentPhase / 4) * 100)}% completato
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div 
+            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${(currentPhase / 4) * 100}%` }}
+          />
+        </div>
+      </div>
 
-        <CardContent className="space-y-6">
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {/* Email e Password */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Email *</label>
-                <Input
-                  {...form.register("email", { required: "Email obbligatoria" })}
-                  type="email"
-                  placeholder="email@esempio.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Password *</label>
-                <Input
-                  {...form.register("password", { required: "Password obbligatoria" })}
-                  type="password"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
+      {/* Phase Components */}
+      {currentPhase === 1 && (
+        <Phase1Email
+          onNext={handlePhase1Complete}
+          defaultValues={formData}
+        />
+      )}
 
-            {/* Nome e Cognome */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nome *</label>
-                <Input
-                  {...form.register("nome", { required: "Nome obbligatorio" })}
-                  placeholder="Il tuo nome"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Cognome *</label>
-                <Input
-                  {...form.register("cognome", { required: "Cognome obbligatorio" })}
-                  placeholder="Il tuo cognome"
-                />
-              </div>
-            </div>
+      {currentPhase === 2 && (
+        <Phase2Personal
+          onNext={handlePhase2Complete}
+          onBack={handleBack}
+          defaultValues={formData}
+        />
+      )}
 
-            {/* Genere e Cittadinanza */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Genere *</label>
-                <select
-                  {...form.register("genere", { required: "Genere obbligatorio" })}
-                  className="w-full rounded-md border border-input px-3 py-2"
-                >
-                  <option value="">Seleziona genere</option>
-                  <option value="uomo">Uomo</option>
-                  <option value="donna">Donna</option>
-                  <option value="altro">Altro</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Cittadinanza *</label>
-                <select
-                  {...form.register("cittadinanza", { required: "Cittadinanza obbligatoria" })}
-                  className="w-full rounded-md border border-input px-3 py-2"
-                >
-                  <option value="">Seleziona cittadinanza</option>
-                  <option value="italiana">Italiana</option>
-                  <option value="europea">Europea</option>
-                  <option value="extra-ue">Extra-UE</option>
-                </select>
-              </div>
-            </div>
+      {currentPhase === 3 && (
+        <Phase3Location
+          onNext={handlePhase3Complete}
+          onBack={handleBack}
+          defaultValues={formData}
+        />
+      )}
 
-            {/* Pulsanti */}
-            <div className="flex gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-                Annulla
-              </Button>
-              <Button type="submit" className="flex-1">
-                Completa Registrazione
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {currentPhase === 4 && (
+        <Phase4Role
+          onSubmit={handlePhase4Complete}
+          onBack={handleBack}
+          defaultValues={formData}
+        />
+      )}
+
+      {/* Cancel Button */}
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="text-sm text-gray-500 hover:text-gray-700 underline"
+        >
+          Annulla registrazione
+        </button>
+      </div>
     </div>
   );
 }
