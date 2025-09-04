@@ -97,7 +97,7 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
   return (
     <button
       type="button"
-      className="relative w-full h-64 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform mb-4"
+      className="relative w-full h-80 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform mb-4"
       onMouseDown={(e) => {
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
