@@ -83,7 +83,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   return (
     <button
       type="button"
-      className="relative w-full h-80 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="relative w-full h-60 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={(e) => {
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
