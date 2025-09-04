@@ -99,8 +99,8 @@ app.use((req, res, next) => {
 // Route di base
 app.use('/api', healthRoutes);
 
-// Route per email (solo /api/check-email)
-app.use('/api/check-email', emailRoutes);
+// Route per email e registrazione
+app.use('/api', emailRoutes);
 
 // Route per database
 app.use('/api', databaseRoutes);
