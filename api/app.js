@@ -88,14 +88,19 @@ app.use((req, res, next) => {
     console.log('🚨 DEBUG: Body size:', req.body ? Object.keys(req.body).length : 'Nessun body');
   }
   
+  // Debug per tutte le richieste POST a /api/auth/*
+  if (req.path.startsWith('/api/auth/') && req.method === 'POST') {
+    console.log('🔍 DEBUG: Richiesta POST a /api/auth/* rilevata:', req.path);
+  }
+  
   next();
 });
 
 // Route di base
 app.use('/api', healthRoutes);
 
-// Route per email e registrazione
-app.use('/api', emailRoutes);
+// Route per email (solo /api/check-email)
+app.use('/api/check-email', emailRoutes);
 
 // Route per database
 app.use('/api', databaseRoutes);
