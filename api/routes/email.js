@@ -5,6 +5,11 @@ const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
+// Supporto per richieste OPTIONS (preflight)
+router.options('/check-email', (req, res) => {
+  res.status(200).end();
+});
+
 // Endpoint per controllare se un'email esiste già
 router.post('/check-email', async (req, res) => {
   try {

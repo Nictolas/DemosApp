@@ -31,6 +31,19 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Route di base per evitare errori "Route non trovata"
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Demos API Server', 
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.head('/', (req, res) => {
+  res.status(200).end();
+});
+
 // CORS - Configurazione robusta per produzione
 const corsOptions = {
   origin: function (origin, callback) {
