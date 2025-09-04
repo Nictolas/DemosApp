@@ -1,8 +1,10 @@
-import { Home, MessageSquare, Users, Vote, Settings, Bell } from "lucide-react";
+import { Home, MessageSquare, Users, Settings, Bell, Megaphone } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth-neon";
 
 export default function Navbar() {
   const [location] = useLocation();
+  const { user } = useAuth();
 
   // Funzione per determinare se un link è attivo
   const isActive = (path: string) => {
@@ -20,6 +22,10 @@ export default function Navbar() {
     
     return `${baseClasses} ${isActive(path) ? activeClasses : inactiveClasses}`;
   };
+
+  // Determina se l'utente ha accesso agli strumenti avanzati
+  const userRole = user?.role || user?.ruolo;
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-between items-center h-24 z-[9999] pt-3 pb-4 select-none px-4" style={{ boxShadow: '0 -1px 8px 0 rgba(0,0,0,0.03)' }}>
@@ -39,10 +45,12 @@ export default function Navbar() {
         <Bell className={`h-7 w-7 mb-1 ${isActive("/notifiche") ? "drop-shadow-lg text-blue-600" : ""}`} />
         <span className={`text-xs hidden md:block ${isActive("/notifiche") ? "text-blue-600 font-semibold" : ""}`}>Notifiche</span>
       </Link>
-      <Link href="/vota" className={getLinkClasses("/vota")} style={{marginTop: 0}}>
-        <Vote className={`h-7 w-7 mb-1 ${isActive("/vota") ? "drop-shadow-lg text-blue-600" : ""}`} />
-        <span className={`text-xs hidden md:block ${isActive("/vota") ? "text-blue-600 font-semibold" : ""}`}>Vota</span>
-      </Link>
+      {hasAdvancedAccess && (
+        <Link href="/strumenti" className={getLinkClasses("/strumenti")} style={{marginTop: 0}}>
+          <Megaphone className={`h-7 w-7 mb-1 ${isActive("/strumenti") ? "drop-shadow-lg text-blue-600" : ""}`} />
+          <span className={`text-xs hidden md:block ${isActive("/strumenti") ? "text-blue-600 font-semibold" : ""}`}>Strumenti</span>
+        </Link>
+      )}
       <Link href="/impostazioni" className={getLinkClasses("/impostazioni")} style={{marginTop: 0}}>
         <Settings className={`h-7 w-7 mb-1 ${isActive("/impostazioni") ? "drop-shadow-lg text-blue-600" : ""}`} />
         <span className={`text-xs hidden md:block ${isActive("/impostazioni") ? "text-blue-600 font-semibold" : ""}`}>Impostazioni</span>

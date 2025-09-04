@@ -1,4 +1,4 @@
-import { BarChart2, Megaphone, FileText } from "lucide-react";
+import { BarChart2, Megaphone, FileText, Vote } from "lucide-react";
 
 export const menuItems = [
   {
@@ -10,17 +10,6 @@ export const menuItems = [
       bg: "#fef9c3",
       icon: "#ca8a04"
     }
-  },
-  {
-    id: "strumenti",
-    path: "/strumenti",
-    icon: Megaphone,
-    label: "Strumenti",
-    color: {
-      bg: "#ede9fe",
-      icon: "#9333ea"
-    },
-    requiresAdvancedAccess: true
   },
   {
     id: "eventi",
@@ -40,6 +29,16 @@ export const menuItems = [
     color: {
       bg: "#fef9c3",
       icon: "#ca8a04"
+    }
+  },
+  {
+    id: "vota",
+    path: "/vota",
+    icon: Vote,
+    label: "Vota",
+    color: {
+      bg: "#dcfce7",
+      icon: "#16a34a"
     }
   }
 ];
