@@ -85,7 +85,18 @@ export default function AuthPage() {
         body: JSON.stringify({ email: data.email.trim().toLowerCase() }),
       });
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('Errore nel parsing JSON:', jsonError);
+        toast({
+          title: "Errore",
+          description: "Risposta non valida dal server. Riprova più tardi.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (response.ok && result.exists) {
         // Email già registrata - BLOCCA SUBITO
