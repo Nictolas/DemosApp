@@ -24,6 +24,10 @@ try {
 // POST /api/auth/register - Registrazione nuovo utente
 router.post('/register', validateInput(['email', 'password', 'nome', 'cognome']), validateEmail, async (req, res) => {
   try {
+    console.log('✅ DEBUG: Richiesta /api/auth/register ricevuta!');
+    console.log('✅ DEBUG: Headers:', req.headers);
+    console.log('✅ DEBUG: Body:', req.body);
+    
     const { email, password, nome, cognome, codice_fiscale } = req.body;
     
     console.log('📝 Tentativo registrazione per:', email);
