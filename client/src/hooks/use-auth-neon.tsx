@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Query per ottenere l'utente corrente
   const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: ['user'],
+    queryKey: ['user', token], // Aggiungi token alla queryKey per forzare il refetch quando cambia
     queryFn: async () => {
       if (!token) {
         console.log('🔍 DEBUG useAuth - Nessun token disponibile');
@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     enabled: !!token,
     retry: false,
+    staleTime: 0, // Forza sempre il refetch
   });
 
   // Mutation per il login
@@ -148,6 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['user'], data);
+      // Invalida e refetch la query per forzare il refresh dei dati utente
+      queryClient.invalidateQueries(['user']);
+      queryClient.refetchQueries(['user']);
       toast({ 
         title: "Login effettuato!", 
         description: `Benvenuto ${data.nome || data.email}`,
