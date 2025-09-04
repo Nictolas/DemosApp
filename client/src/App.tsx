@@ -279,6 +279,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route capo di stato (alternativa) */}
+              <Route path="/capo-di-stato">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/capo-di-stato" component={CapodiStato} />
+                </PageTransition>
+              </Route>
+
               {/* Route amnistia */}
               <Route path="/amnistia">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
