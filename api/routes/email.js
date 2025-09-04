@@ -117,6 +117,7 @@ router.post('/register', async (req, res) => {
     console.log('✅ Connessione database riuscita!');
     client.release();
 
+
     // Hash della password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
