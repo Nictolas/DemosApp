@@ -137,8 +137,19 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     `;
     
     console.log('🚀 Esecuzione query INSERT...');
-    const result = await pool.query(insertQuery, queryParams);
-    console.log('✅ Query INSERT completata con successo');
+    console.log('🔍 Query SQL:', insertQuery);
+    console.log('🔍 Parametri count:', queryParams.length);
+    
+    let result;
+    try {
+      result = await pool.query(insertQuery, queryParams);
+      console.log('✅ Query INSERT completata con successo');
+      console.log('📊 Risultato query:', result.rows);
+    } catch (queryError) {
+      console.error('❌ Errore nella query INSERT:', queryError);
+      console.error('❌ Stack trace query:', queryError.stack);
+      throw queryError;
+    }
     
     const newUser = result.rows[0];
     
