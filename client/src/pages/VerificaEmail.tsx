@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'wouter';
+import { useLocation, useRouter } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +10,7 @@ const VerificaEmail: React.FC = () => {
   const [email, setEmail] = useState<string>('');
   const [isVerifying, setIsVerifying] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const router = useRouter();
   const location = useLocation();
 
   useEffect(() => {
@@ -55,7 +55,7 @@ const VerificaEmail: React.FC = () => {
         localStorage.setItem('user_status', 'verified');
         
         // Reindirizza al menu
-        navigate('/menu');
+        router.push('/menu');
       } else {
         toast({
           title: "Errore nella verifica",
@@ -129,7 +129,7 @@ const VerificaEmail: React.FC = () => {
     localStorage.removeItem('user_id');
     
     // Reindirizza alla homepage
-    navigate('/');
+    router.push('/');
   };
 
   return (
