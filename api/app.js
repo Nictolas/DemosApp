@@ -15,6 +15,15 @@ const governoRoutes = require('./routes/governo');
 const rappresentantiRoutes = require('./routes/rappresentanti');
 const notificheRoutes = require('./routes/notifiche');
 const eventiRoutes = require('./routes/eventi');
+const graziaRoutes = require('./routes/grazia');
+const amnistiaRoutes = require('./routes/amnistia');
+const capoStatoRoutes = require('./routes/capo-stato');
+const candidatiRoutes = require('./routes/candidati');
+const elezioniRoutes = require('./routes/elezioni');
+const iceRoutes = require('./routes/ice');
+const iniziativePopolariRoutes = require('./routes/iniziative-popolari');
+const referendumRoutes = require('./routes/referendum');
+const comunicazioniRoutes = require('./routes/comunicazioni');
 
 const app = express();
 
@@ -84,6 +93,15 @@ app.use('/api/governo', governoRoutes);
 app.use('/api/rappresentanti', rappresentantiRoutes);
 app.use('/api/notifiche', notificheRoutes);
 app.use('/api/eventi', eventiRoutes);
+app.use('/api/grazia', graziaRoutes);
+app.use('/api/amnistia', amnistiaRoutes);
+app.use('/api/capo-stato', capoStatoRoutes);
+app.use('/api/candidati', candidatiRoutes);
+app.use('/api/elezioni', elezioniRoutes);
+app.use('/api/ice', iceRoutes);
+app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
+app.use('/api/referendum', referendumRoutes);
+app.use('/api/comunicazioni', comunicazioniRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {
