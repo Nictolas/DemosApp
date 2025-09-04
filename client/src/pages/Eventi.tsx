@@ -2,7 +2,7 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Calendar, MapPin, Clock, User } from "lucide-react";
+import { Loader2, Calendar } from "lucide-react";
 
 export default function Eventi() {
   const { user, isLoading } = useAuth();
@@ -52,33 +52,34 @@ export default function Eventi() {
           ) : eventi.length > 0 ? (
             eventi.map((evento: any) => (
               <div key={evento.id} className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
-                {/* Nome Evento */}
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  {evento.nome_evento}
-                </h3>
-                
-                {/* Organizzatore */}
-                <div className="flex items-center mb-3">
-                  <User className="h-5 w-5 text-blue-600 mr-2" />
-                  <span className="text-gray-700 font-medium">
-                    {evento.organizzatore || 'Organizzatore non specificato'}
-                  </span>
-                </div>
-                
-                {/* Luogo e Orario */}
-                <div className="flex items-center text-gray-600">
-                  <MapPin className="h-5 w-5 text-gray-500 mr-2" />
-                  <span className="mr-4">
-                    {evento.comune_evento && evento.indirizzo_evento 
-                      ? `${evento.comune_evento}, ${evento.indirizzo_evento}`
-                      : evento.comune_evento || 'Luogo non specificato'
-                    }
-                  </span>
-                  <Clock className="h-5 w-5 text-gray-500 mr-2" />
-                  <span>
-                    {evento.orario_evento || 'Orario non specificato'}
-                  </span>
-                </div>
+                                            {/* Nome Evento */}
+                            <h3 className="text-xl font-bold text-gray-900 mb-3">
+                              {evento.nome_evento}
+                            </h3>
+                            
+                            {/* Organizzatore */}
+                            <div className="mb-3">
+                              <span className="text-gray-700 font-medium">
+                                {evento.organizzatore || 'Organizzatore non specificato'}
+                              </span>
+                            </div>
+                            
+                            {/* Luogo */}
+                            <div className="mb-3">
+                              <span className="text-gray-600">
+                                {evento.comune_evento && evento.indirizzo_evento 
+                                  ? `${evento.comune_evento}, ${evento.indirizzo_evento}`
+                                  : evento.comune_evento || 'Luogo non specificato'
+                                }
+                              </span>
+                            </div>
+                            
+                            {/* Giorno - Orario */}
+                            <div>
+                              <span className="text-gray-600">
+                                {evento.orario_evento || 'Orario non specificato'}
+                              </span>
+                            </div>
               </div>
             ))
           ) : (
