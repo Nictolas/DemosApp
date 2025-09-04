@@ -13,6 +13,14 @@ import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/auth-page";
 import ResetPasswordConfirmPage from "./pages/reset-password-confirm";
 import ResetPasswordPage from "./pages/reset-password";
+
+// Import delle pagine di registrazione separate
+import RegistrazioneNome from "./pages/registrazione-nome";
+import RegistrazioneGenere from "./pages/registrazione-genere";
+import RegistrazioneCittadinanza from "./pages/registrazione-cittadinanza";
+import RegistrazioneDataNascita from "./pages/registrazione-data-nascita";
+import RegistrazioneCodiceFiscale from "./pages/registrazione-codice-fiscale";
+import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import Menu from "./pages/Menu";
 import Profilo from "./pages/Profilo";
 import Impostazioni from "./pages/Impostazioni";
@@ -133,6 +141,43 @@ export default function App() {
               <Route path="/auth">
                 <PageTransition location={location} type="fade-up">
                   <AuthPage />
+                </PageTransition>
+              </Route>
+
+              {/* Route per le pagine di registrazione separate */}
+              <Route path="/registrazione-nome">
+                <PageTransition location={location} type="fade-up">
+                  <RegistrazioneNome />
+                </PageTransition>
+              </Route>
+
+              <Route path="/registrazione-genere">
+                <PageTransition location={location} type="fade-up">
+                  <RegistrazioneGenere />
+                </PageTransition>
+              </Route>
+
+              <Route path="/registrazione-cittadinanza">
+                <PageTransition location={location} type="fade-up">
+                  <RegistrazioneCittadinanza />
+                </PageTransition>
+              </Route>
+
+              <Route path="/registrazione-data-nascita">
+                <PageTransition location={location} type="fade-up">
+                  <RegistrazioneDataNascita />
+                </PageTransition>
+              </Route>
+
+              <Route path="/registrazione-codice-fiscale">
+                <PageTransition location={location} type="fade-up">
+                  <RegistrazioneCodiceFiscale />
+                </PageTransition>
+              </Route>
+
+              <Route path="/registrazione-3-residenza">
+                <PageTransition location={location} type="fade-up">
+                  <RegistrazioneResidenza />
                 </PageTransition>
               </Route>
 
