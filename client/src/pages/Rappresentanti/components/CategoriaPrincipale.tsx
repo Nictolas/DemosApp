@@ -21,8 +21,8 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
     if (!data) {
       return (
         <div className="flex flex-col space-y-2 items-center">
-          <div className="h-12 w-12 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-            <User className="h-6 w-6 text-gray-400" />
+          <div className="h-16 w-16 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+            <User className="h-8 w-8 text-gray-400" />
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
@@ -52,14 +52,14 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
     if (rappresentanteData && rappresentanteData.avatar_config) {
       try {
         const config = JSON.parse(rappresentanteData.avatar_config);
-        avatarContent = <CustomAvatar config={config} size={48} className="w-full h-full" />;
+        avatarContent = <CustomAvatar config={config} size={64} className="w-full h-full" />;
       } catch (e) { /* Fallback to default */ }
     }
 
     return (
       <div className="flex flex-col space-y-2 items-center">
-        <div className="h-12 w-12 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-          {avatarContent || <User className="h-6 w-6 text-gray-400" />}
+        <div className="h-16 w-16 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+          {avatarContent || <User className="h-8 w-8 text-gray-400" />}
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
@@ -97,7 +97,7 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
   return (
     <button
       type="button"
-      className="relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform mb-4"
+      className="relative w-full h-48 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform mb-4"
       onMouseDown={(e) => {
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
@@ -123,9 +123,9 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
         <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
         <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
       </svg>
-      <div className="relative z-10 p-3 flex flex-col items-center justify-center">
-        <User className="h-8 w-8 mb-1" style={{ color: color.icon }} />
-        <div className="text-xl font-bold mb-1" style={{ color: color.text }}>{categoria.nome}</div>
+      <div className="relative z-10 p-6 flex flex-col items-center justify-center">
+        <User className="h-10 w-10 mb-2" style={{ color: color.icon }} />
+        <div className="text-2xl font-bold mb-2" style={{ color: color.text }}>{categoria.nome}</div>
         {renderRappresentante(categoria.id)}
       </div>
     </button>

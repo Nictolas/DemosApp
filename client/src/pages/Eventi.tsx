@@ -9,10 +9,13 @@ export default function Eventi() {
   const { user, isLoading } = useAuth();
 
   // Fetch eventi data from API
-  const { data: eventi = [], isLoading: eventiLoading } = useQuery<any[]>({
+  const { data: eventiResponse, isLoading: eventiLoading } = useQuery<any>({
     queryKey: ["/api/eventi"],
     enabled: !!user,
   });
+
+  // Extract eventi array from API response
+  const eventi = eventiResponse?.data || [];
 
   if (isLoading) {
     return (

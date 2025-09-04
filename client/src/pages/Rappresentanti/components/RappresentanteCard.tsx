@@ -21,8 +21,8 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
     if (!data || !data.rappresentanti || !data.idMap) {
       return (
         <div className="flex flex-col space-y-2 items-center">
-          <div className="h-12 w-12 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-            <User className="h-6 w-6 text-gray-400" />
+          <div className="h-14 w-14 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+            <User className="h-7 w-7 text-gray-400" />
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
@@ -38,14 +38,14 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
     if (rappresentanteData && rappresentanteData.avatar_config) {
       try {
         const config = JSON.parse(rappresentanteData.avatar_config);
-        avatarContent = <CustomAvatar config={config} size={48} className="w-full h-full" />;
+        avatarContent = <CustomAvatar config={config} size={56} className="w-full h-full" />;
       } catch (e) { /* Fallback to default */ }
     }
 
     return (
       <div className="flex flex-col space-y-2 items-center">
-        <div className="h-12 w-12 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-          {avatarContent || <User className="h-6 w-6 text-gray-400" />}
+        <div className="h-14 w-14 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+          {avatarContent || <User className="h-7 w-7 text-gray-400" />}
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
@@ -83,7 +83,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   return (
     <button
       type="button"
-      className="relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={(e) => {
         e.currentTarget.classList.add('scale-95', 'shadow-md');
       }}
@@ -109,9 +109,9 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
         <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
       </svg>
-      <div className="relative z-10 p-3 flex flex-col items-center justify-center">
-        <User className="h-6 w-6 mb-1" style={{ color: color.icon }} />
-        <div className="text-sm font-bold mb-1 text-center leading-tight" style={{ color: color.text }}>
+      <div className="relative z-10 p-4 flex flex-col items-center justify-center">
+        <User className="h-8 w-8 mb-2" style={{ color: color.icon }} />
+        <div className="text-lg font-bold mb-2 text-center leading-tight" style={{ color: color.text }}>
           {categoria.nome}
         </div>
         {renderRappresentante(categoria.id)}
