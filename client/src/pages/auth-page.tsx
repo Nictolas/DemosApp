@@ -76,14 +76,20 @@ export default function AuthPage() {
   // Gestione del submit per la registrazione (solo credenziali base)
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     try {
+      console.log('🔍 DEBUG: Inizio controllo email duplicata');
+      console.log('🔍 DEBUG: Email da controllare:', data.email.trim().toLowerCase());
+      
       // CONTROLLO EMAIL DUPLICATA ALL'INIZIO
-      const response = await fetch('/api/check-email', {
+      const response = await fetch('https://demos-c7k0.onrender.com/api/check-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email: data.email.trim().toLowerCase() }),
       });
+      
+      console.log('🔍 DEBUG: Response status:', response.status);
+      console.log('🔍 DEBUG: Response ok:', response.ok);
 
       let result;
       try {
