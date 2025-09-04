@@ -12,6 +12,8 @@ import { getDisplayColumns } from "./utils/columnUtils";
 import { Header } from "./components/Header";
 import { SearchBar } from "./components/SearchBar";
 import { UsersTable } from "./components/UsersTable";
+import { PendingUsersTable } from "./components/PendingUsersTable";
+import { usePendingUserActions } from "./hooks/usePendingUserActions";
 import { Pagination } from "./components/Pagination";
 import { USERS_PER_PAGE } from "./constants";
 
@@ -46,6 +48,13 @@ export default function GestisciUtenti() {
     updateLastUpdateTime,
     setCurrentPage
   } = useUserManagement();
+
+  // Hook per le azioni sugli utenti pending
+  const {
+    approveUser,
+    rejectUser,
+    isProcessing
+  } = usePendingUserActions();
 
   // Debug logging per capire il ruolo dell'utente
   useEffect(() => {
@@ -183,6 +192,15 @@ export default function GestisciUtenti() {
     setCurrentPage(page);
   };
 
+  const handleApproveUser = (user: any) => {
+    approveUser(user.id);
+  };
+
+  const handleRejectUser = (user: any) => {
+    // Per ora rifiutiamo senza motivo, in futuro si può aggiungere un dialog per inserire il motivo
+    rejectUser({ userId: user.id });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-7xl p-6">
@@ -274,14 +292,11 @@ export default function GestisciUtenti() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <UsersTable 
+                  <PendingUsersTable 
                     users={pendingUsers}
-                    displayColumns={displayColumns}
-                    sortState={sortState}
-                    onSort={updateSort}
-                    onEdit={handleEdit}
-                    onEditOpinioni={handleEditOpinioni}
-                    onDelete={handleDelete}
+                    onApprove={handleApproveUser}
+                    onReject={handleRejectUser}
+                    isProcessing={isProcessing}
                   />
                 </CardContent>
               </Card>
