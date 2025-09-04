@@ -114,7 +114,7 @@ export default function RegistrazioneRuolo() {
       });
 
       // Chiama l'API di registrazione (che ha il controllo email duplicata)
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('https://demos-c7k0.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
