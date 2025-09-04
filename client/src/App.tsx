@@ -28,6 +28,40 @@ import Elezioni from "./pages/Elezioni";
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
+import Sondaggi from "./pages/Sondaggi";
+import Proponi from "./pages/Proponi";
+import ProponiOpinione from "./pages/ProponiOpinione";
+import CapodiStato from "./pages/CapodiStato";
+import Amnistia from "./pages/Amnistia";
+import Grazia from "./pages/Grazia";
+import Governo from "./pages/Governo";
+import ICE from "./pages/ICE";
+import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
+import IniziativePopolare from "./pages/IniziativePopolare";
+import GestisciUtenti from "./pages/GestisciUtenti";
+import GestisciElezioni from "./pages/GestisciElezioni";
+import GestisciGrazia from "./pages/GestisciGrazia";
+import GestisciOpinioni from "./pages/GestisciOpinioni";
+import GestisciIniziativePopolari from "./pages/GestisciIniziativePopolari";
+import GestisciReferendumAbrogativi from "./pages/GestisciReferendumAbrogativi";
+import GestisciICE from "./pages/GestisciICE";
+import GestisciGoverno from "./pages/GestisciGoverno";
+import StatisticheUtenti from "./pages/StatisticheUtenti";
+import StatisticheOpinione from "./pages/StatisticheOpinione";
+import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
+import VotaReferendumAbrogativo from "./pages/VotaReferendumAbrogativo";
+import VotaICE from "./pages/VotaICE";
+import Votazione from "./pages/Votazione";
+import ScegliCandidato from "./pages/ScegliCandidato";
+import Sostenitori from "./pages/Sostenitori";
+import Comunica from "./pages/Comunica";
+import Evento from "./pages/Evento";
+import Programma from "./pages/Programma";
+import Riscontro from "./pages/Riscontro";
+import OpinioniEuropee from "./pages/OpinioniEuropee";
+import ProponiReferendumAbrogativi from "./pages/ProponiReferendumAbrogativi";
+import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
+import ProponiICE from "./pages/ProponiICE";
 import Navbar from "./components/Navbar";
 
 // Hook per la navigazione touch
@@ -214,6 +248,244 @@ export default function App() {
               <Route path="/impostazioni">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/impostazioni" component={Impostazioni} />
+                </PageTransition>
+              </Route>
+
+              {/* Route sondaggi */}
+              <Route path="/sondaggi">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/sondaggi" component={Sondaggi} />
+                </PageTransition>
+              </Route>
+
+              {/* Route proponi */}
+              <Route path="/proponi">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/proponi" component={Proponi} />
+                </PageTransition>
+              </Route>
+
+              {/* Route proponi opinione */}
+              <Route path="/proponi-opinione">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/proponi-opinione" component={ProponiOpinione} />
+                </PageTransition>
+              </Route>
+
+              {/* Route capo di stato */}
+              <Route path="/capo-stato">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/capo-stato" component={CapodiStato} />
+                </PageTransition>
+              </Route>
+
+              {/* Route amnistia */}
+              <Route path="/amnistia">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/amnistia" component={Amnistia} />
+                </PageTransition>
+              </Route>
+
+              {/* Route grazia */}
+              <Route path="/grazia">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/grazia" component={Grazia} />
+                </PageTransition>
+              </Route>
+
+              {/* Route governo */}
+              <Route path="/governo">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/governo" component={Governo} />
+                </PageTransition>
+              </Route>
+
+              {/* Route ICE */}
+              <Route path="/ice">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/ice" component={ICE} />
+                </PageTransition>
+              </Route>
+
+              {/* Route referendum abrogativi */}
+              <Route path="/referendum-abrogativi">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/referendum-abrogativi" component={ReferendumAbrogativi} />
+                </PageTransition>
+              </Route>
+
+              {/* Route iniziative popolari */}
+              <Route path="/iniziative-popolari">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/iniziative-popolari" component={IniziativePopolare} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci utenti */}
+              <Route path="/gestisci-utenti">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci elezioni */}
+              <Route path="/gestisci-elezioni">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-elezioni" component={GestisciElezioni} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci grazia */}
+              <Route path="/gestisci-grazia">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-grazia" component={GestisciGrazia} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci opinioni */}
+              <Route path="/gestisci-opinioni">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-opinioni" component={GestisciOpinioni} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci iniziative popolari */}
+              <Route path="/gestisci-iniziative-popolari">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-iniziative-popolari" component={GestisciIniziativePopolari} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci referendum abrogativi */}
+              <Route path="/gestisci-referendum-abrogativi">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-referendum-abrogativi" component={GestisciReferendumAbrogativi} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci ICE */}
+              <Route path="/gestisci-ice">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-ice" component={GestisciICE} />
+                </PageTransition>
+              </Route>
+
+              {/* Route gestisci governo */}
+              <Route path="/gestisci-governo">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gestisci-governo" component={GestisciGoverno} />
+                </PageTransition>
+              </Route>
+
+              {/* Route statistiche utenti */}
+              <Route path="/statistiche-utenti">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/statistiche-utenti" component={StatisticheUtenti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route statistiche opinione */}
+              <Route path="/statistiche-opinione">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/statistiche-opinione" component={StatisticheOpinione} />
+                </PageTransition>
+              </Route>
+
+              {/* Route vota iniziativa popolare */}
+              <Route path="/vota-iniziativa-popolare">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/vota-iniziativa-popolare" component={VotaIniziativaPopolare} />
+                </PageTransition>
+              </Route>
+
+              {/* Route vota referendum abrogativo */}
+              <Route path="/vota-referendum-abrogativo">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/vota-referendum-abrogativo" component={VotaReferendumAbrogativo} />
+                </PageTransition>
+              </Route>
+
+              {/* Route vota ICE */}
+              <Route path="/vota-ice">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/vota-ice" component={VotaICE} />
+                </PageTransition>
+              </Route>
+
+              {/* Route votazione */}
+              <Route path="/votazione">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/votazione" component={Votazione} />
+                </PageTransition>
+              </Route>
+
+              {/* Route scegli candidato */}
+              <Route path="/scegli-candidato">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/scegli-candidato" component={ScegliCandidato} />
+                </PageTransition>
+              </Route>
+
+              {/* Route sostenitori */}
+              <Route path="/sostenitori">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/sostenitori" component={Sostenitori} />
+                </PageTransition>
+              </Route>
+
+              {/* Route comunica */}
+              <Route path="/comunica">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/comunica" component={Comunica} />
+                </PageTransition>
+              </Route>
+
+              {/* Route evento */}
+              <Route path="/evento">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/evento" component={Evento} />
+                </PageTransition>
+              </Route>
+
+              {/* Route programma */}
+              <Route path="/programma">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/programma" component={Programma} />
+                </PageTransition>
+              </Route>
+
+              {/* Route riscontro */}
+              <Route path="/riscontro">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/riscontro" component={Riscontro} />
+                </PageTransition>
+              </Route>
+
+              {/* Route opinioni europee */}
+              <Route path="/opinioni-europee">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/opinioni-europee" component={OpinioniEuropee} />
+                </PageTransition>
+              </Route>
+
+              {/* Route proponi referendum abrogativi */}
+              <Route path="/proponi-referendum-abrogativi">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/proponi-referendum-abrogativi" component={ProponiReferendumAbrogativi} />
+                </PageTransition>
+              </Route>
+
+              {/* Route proponi iniziativa popolare */}
+              <Route path="/proponi-iniziativa-popolare">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/proponi-iniziativa-popolare" component={ProponiIniziativaPopolare} />
+                </PageTransition>
+              </Route>
+
+              {/* Route proponi ICE */}
+              <Route path="/proponi-ice">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/proponi-ice" component={ProponiICE} />
                 </PageTransition>
               </Route>
             </Switch>
