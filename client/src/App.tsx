@@ -22,7 +22,7 @@ import RegistrazioneDataNascita from "./pages/registrazione-data-nascita";
 import RegistrazioneCodiceFiscale from "./pages/registrazione-codice-fiscale";
 import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import RegistrazioneRuolo from "./pages/registrazione-ruolo";
-import VerificaEmail from "./pages/VerificaEmail";
+import VerificaEmailStandalone from "./pages/VerificaEmailStandalone";
 import Menu from "./pages/Menu";
 import Profilo from "./pages/Profilo";
 import Impostazioni from "./pages/Impostazioni";
@@ -193,7 +193,7 @@ export default function App() {
 
               <Route path="/verifica-email">
                 <PageTransition location={location} type="fade-up">
-                  <VerificaEmail />
+                  <VerificaEmailStandalone />
                 </PageTransition>
               </Route>
 
