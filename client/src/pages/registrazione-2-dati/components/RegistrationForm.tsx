@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormField } from './FormField';
 import { SelectField } from './SelectField';
@@ -18,6 +19,7 @@ const cittadinanzaOptions = [
 ];
 
 export const RegistrationForm: React.FC = () => {
+  const [, navigate] = useLocation();
   const {
     formState,
     formActions,
@@ -37,7 +39,20 @@ export const RegistrationForm: React.FC = () => {
   };
 
   const handleNext = async () => {
-    await submitForm();
+    // Salva i dati nel localStorage e naviga alla pagina del ruolo
+    const data = formState.data;
+    Object.entries(data).forEach(([key, value]) => {
+      if (value) {
+        localStorage.setItem(`registrazione_${key}`, value);
+      }
+    });
+    
+    // Salva anche i dati geografici
+    if (formState.selectedRegione) localStorage.setItem('registrazione_regione', formState.selectedRegione);
+    if (formState.selectedProvincia) localStorage.setItem('registrazione_provincia', formState.selectedProvincia);
+    if (formState.selectedComune) localStorage.setItem('registrazione_comune', formState.selectedComune);
+    
+    navigate('/registrazione-ruolo');
   };
 
   return (
@@ -205,7 +220,7 @@ export const RegistrationForm: React.FC = () => {
                 onNext={handleNext}
                 isSubmitting={formState.isSubmitting}
                 canProceed={true}
-                nextText="Completa Registrazione"
+                nextText="Continua"
               />
             </form>
           </CardContent>
