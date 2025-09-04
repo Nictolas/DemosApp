@@ -49,18 +49,11 @@ export default function LandingPage() {
                     </Button>
                   </Link>
                 ) : (
-                  <>
-                    <Link href="/auth">
-                      <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
-                        Inizia ora
-                      </Button>
-                    </Link>
-                    <Link href="/auth">
-                      <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                        Accedi
-                      </Button>
-                    </Link>
-                  </>
+                  <Link href="/auth">
+                    <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white">
+                      Inizia ora
+                    </Button>
+                  </Link>
                 )}
               </div>
             </div>

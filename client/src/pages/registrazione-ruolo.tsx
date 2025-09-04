@@ -129,7 +129,7 @@ export default function RegistrazioneRuolo() {
           }
         });
         
-        navigate("/auth");
+        navigate("/menu");
       } else {
         // Errore nella registrazione (incluso email duplicata)
         toast({

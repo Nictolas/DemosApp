@@ -555,6 +555,7 @@ export default function App() {
             {location !== '/' && 
              !location.startsWith('/auth') && 
              !location.startsWith('/reset-password') && 
+             !location.startsWith('/registrazione') && 
              <Navbar />}
             
             <Toaster />
