@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
     }
     
     const result = await pool.query(
-      'SELECT * FROM eventi ORDER BY created_at ASC'
+      'SELECT id, nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore, created_at FROM eventi ORDER BY created_at ASC'
     );
     
     console.log('📊 Eventi trovati:', result.rows.length);
