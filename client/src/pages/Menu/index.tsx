@@ -18,14 +18,15 @@ export default function Menu() {
     queryClient.invalidateQueries(['user']);
   }, [queryClient]);
 
-  // Redirect to auth page if not logged in
-  if (!user && !isLoading) {
+  // Redirect to auth page if not logged in (ma solo se non c'è token)
+  const hasToken = localStorage.getItem('auth_token');
+  if (!user && !isLoading && !hasToken) {
     return <Redirect to="/auth" />;
   }
 
   return (
                       <div className="h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white select-none overflow-hidden page-with-navbar" style={{ paddingBottom: '120px' }}>
-      {isLoading ? (
+      {isLoading || (hasToken && !user) ? (
         <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>

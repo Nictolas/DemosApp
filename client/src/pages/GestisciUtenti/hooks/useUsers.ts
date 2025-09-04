@@ -9,8 +9,8 @@ export const useUsers = (user: any) => {
     queryKey: ['allUsers'],
     queryFn: async () => {
       const [allUsersResponse, pendingUsersResponse] = await Promise.all([
-        apiRequest("GET", "/api/utenti"),
-        apiRequest("GET", "/api/utenti/pending")
+        apiRequest("GET", "/api/users"),
+        apiRequest("GET", "/api/users/pending")
       ]);
       if (!allUsersResponse.ok || !pendingUsersResponse.ok) throw new Error("Errore nel caricamento degli utenti");
       const allUsersData = await allUsersResponse.json();
@@ -31,7 +31,7 @@ export const useUsers = (user: any) => {
 
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await apiRequest("DELETE", `/api/utenti/${userId}`);
+      const response = await apiRequest("DELETE", `/api/users/${userId}`);
       if (!response.ok) throw new Error("Errore nell'eliminazione dell'utente");
       return response.json();
     },
