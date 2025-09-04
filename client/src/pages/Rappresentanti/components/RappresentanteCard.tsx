@@ -20,12 +20,12 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
     // Controlli di sicurezza per evitare TypeError
     if (!data || !data.rappresentanti || !data.idMap) {
       return (
-        <div className="flex flex-col space-y-3 items-center">
-          <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-            <User className="h-10 w-10 text-gray-400" />
+        <div className="flex flex-col space-y-2 items-center">
+          <div className="h-12 w-12 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+            <User className="h-6 w-6 text-gray-400" />
           </div>
           <div className="text-center">
-            <p className="text-gray-500 italic">Nessuno scelto</p>
+            <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
           </div>
         </div>
       );
@@ -38,18 +38,18 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
     if (rappresentanteData && rappresentanteData.avatar_config) {
       try {
         const config = JSON.parse(rappresentanteData.avatar_config);
-        avatarContent = <CustomAvatar config={config} size={80} className="w-full h-full" />;
+        avatarContent = <CustomAvatar config={config} size={48} className="w-full h-full" />;
       } catch (e) { /* Fallback to default */ }
     }
 
     return (
-      <div className="flex flex-col space-y-3 items-center">
-        <div className="h-20 w-20 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-          {avatarContent || <User className="h-10 w-10 text-gray-400" />}
+      <div className="flex flex-col space-y-2 items-center">
+        <div className="h-12 w-12 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+          {avatarContent || <User className="h-6 w-6 text-gray-400" />}
         </div>
         <div className="text-center">
           {rappresentanteData && rappresentanteData.nome && rappresentanteData.cognome ? (
-            <p className="font-medium text-primary cursor-pointer hover:underline" onClick={(e) => {
+            <p className="font-medium text-primary cursor-pointer hover:underline text-sm" onClick={(e) => {
                 e.stopPropagation(); // Previeni l'apertura del modal di cambio
                 if (rappresentanteUid && rappresentanteData) {
                   onOpenOpinioni(rappresentanteUid, rappresentanteData.nome, rappresentanteData.cognome, rappresentanteData.avatar_config, categoriaId);
@@ -58,7 +58,7 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
               {`${rappresentanteData.nome} ${rappresentanteData.cognome}`}
             </p>
           ) : (
-            <p className="text-gray-500 italic">Nessuno scelto</p>
+            <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
           )}
         </div>
       </div>
@@ -109,9 +109,9 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
         <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
         <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
       </svg>
-      <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center">
-        <User className="h-8 md:h-12 w-8 md:w-12 mb-2" style={{ color: color.icon }} />
-        <div className="text-base md:text-xl font-bold mb-1 text-center leading-tight" style={{ color: color.text }}>
+      <div className="relative z-10 p-3 flex flex-col items-center justify-center">
+        <User className="h-6 w-6 mb-1" style={{ color: color.icon }} />
+        <div className="text-sm font-bold mb-1 text-center leading-tight" style={{ color: color.text }}>
           {categoria.nome}
         </div>
         {renderRappresentante(categoria.id)}
