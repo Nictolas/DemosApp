@@ -64,8 +64,8 @@ export default function Rappresentanti() {
           touch-action: none !important;
         }
       `}</style>
-                      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '20px' }}>
-        <div className="container mx-auto px-4 py-2 overflow-hidden max-w-full h-full">
+                      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '10px' }}>
+        <div className="container mx-auto px-4 py-1 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />
           ) : isError ? (
@@ -88,7 +88,7 @@ export default function Rappresentanti() {
               })()}
               
               {/* Altre card */}
-              <div className="grid grid-cols-2 gap-1 pb-1">
+              <div className="grid grid-cols-2 gap-0.5 pb-0.5">
                 {categorie.slice(1).map((categoria) => {
                   return (
                     <RappresentanteCard
