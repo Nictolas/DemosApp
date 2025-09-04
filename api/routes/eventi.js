@@ -14,7 +14,7 @@ const pool = new Pool({
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM eventi ORDER BY data_inizio ASC'
+      'SELECT * FROM eventi ORDER BY created_at ASC'
     );
     
     res.json({
@@ -33,18 +33,18 @@ router.get('/', async (req, res) => {
 // POST /api/eventi - Crea nuovo evento
 router.post('/', async (req, res) => {
   try {
-    const { titolo, descrizione, data_inizio, data_fine, luogo, organizzatore_id } = req.body;
+    const { nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento } = req.body;
     
-    if (!titolo || !data_inizio || !organizzatore_id) {
+    if (!nome_evento || !tipologia_evento) {
       return res.status(400).json({
         success: false,
-        error: 'Titolo, data inizio e organizzatore sono obbligatori'
+        error: 'Nome evento e tipologia sono obbligatori'
       });
     }
     
     const result = await pool.query(
-      'INSERT INTO eventi (titolo, descrizione, data_inizio, data_fine, luogo, organizzatore_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [titolo, descrizione, data_inizio, data_fine, luogo, organizzatore_id]
+      'INSERT INTO eventi (nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento]
     );
     
     res.status(201).json({

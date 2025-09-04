@@ -14,6 +14,7 @@ const opinioniRoutes = require('./routes/opinioni/index');
 const governoRoutes = require('./routes/governo');
 const rappresentantiRoutes = require('./routes/rappresentanti');
 const notificheRoutes = require('./routes/notifiche');
+const eventiRoutes = require('./routes/eventi');
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.use('/api/opinioni', opinioniRoutes);
 app.use('/api/governo', governoRoutes);
 app.use('/api/rappresentanti', rappresentantiRoutes);
 app.use('/api/notifiche', notificheRoutes);
+app.use('/api/eventi', eventiRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {

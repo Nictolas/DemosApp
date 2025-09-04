@@ -24,7 +24,7 @@ export default function Menu() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white select-none overflow-hidden page-with-navbar" style={{ paddingBottom: '160px' }}>
+                      <div className="h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white select-none overflow-hidden page-with-navbar" style={{ paddingBottom: '280px' }}>
       {isLoading ? (
         <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
