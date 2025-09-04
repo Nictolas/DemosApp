@@ -42,7 +42,8 @@ export function ProtectedRoute({
     localStorage.setItem('user_id', user.id);
     
     // Reindirizza alla verifica email
-    return <Redirect to={`/verifica-email?email=${encodeURIComponent(user.email)}`} />;
+    window.location.href = `/verifica-email?email=${encodeURIComponent(user.email)}`;
+    return null;
   }
 
   // Renderizza il componente se autenticato e verificato
