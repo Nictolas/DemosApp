@@ -52,12 +52,12 @@ router.post('/check-email', async (req, res) => {
     const exists = result.rows.length > 0;
     console.log('📊 Email trovata nel database:', exists, 'Righe:', result.rows.length);
 
-    // Chiudi la connessione
-    await pool.end();
-
     const response = { exists };
     console.log('📤 Invio risposta:', response);
     res.json(response);
+
+    // Chiudi la connessione DOPO aver inviato la risposta
+    await pool.end();
 
   } catch (error) {
     console.error('💥 Errore durante il controllo email:', error);
