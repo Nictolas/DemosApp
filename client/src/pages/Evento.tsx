@@ -222,7 +222,7 @@ export default function Evento() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ITALY_DATA.regioni.map((regione) => (
+                          {ITALY_DATA.Italia.regioni.map((regione) => (
                             <SelectItem key={regione.nome} value={regione.nome}>
                               {regione.nome}
                             </SelectItem>
@@ -247,7 +247,7 @@ export default function Evento() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {watchRegioneEvento && ITALY_DATA.regioni
+                          {watchRegioneEvento && ITALY_DATA.Italia.regioni
                             .find(r => r.nome === watchRegioneEvento)
                             ?.province.map((provincia) => (
                               <SelectItem key={provincia.nome} value={provincia.nome}>
@@ -274,12 +274,12 @@ export default function Evento() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {watchProvinciaEvento && watchRegioneEvento && ITALY_DATA.regioni
+                          {watchProvinciaEvento && watchRegioneEvento && ITALY_DATA.Italia.regioni
                             .find(r => r.nome === watchRegioneEvento)
                             ?.province.find(p => p.nome === watchProvinciaEvento)
                             ?.comuni.map((comune) => (
-                              <SelectItem key={comune.nome} value={comune.nome}>
-                                {comune.nome}
+                              <SelectItem key={comune} value={comune}>
+                                {comune}
                               </SelectItem>
                             ))}
                         </SelectContent>
