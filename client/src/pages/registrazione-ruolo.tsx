@@ -218,7 +218,11 @@ export default function RegistrazioneRuolo() {
                   <Button
                     key={ruolo.id}
                     variant={selectedRuolo === ruolo.id ? "default" : "outline"}
-                    className="h-auto p-4 text-left justify-start"
+                    className={`h-auto p-4 text-left justify-start ${
+                      selectedRuolo === ruolo.id 
+                        ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600" 
+                        : "bg-white hover:bg-blue-50 text-gray-700 border-gray-300"
+                    }`}
                     onClick={() => handleRuoloSelect(ruolo.id)}
                   >
                     <div>
@@ -420,10 +424,10 @@ export default function RegistrazioneRuolo() {
 
             {/* Pulsante Continua */}
             <div className="flex justify-center pt-6">
-              <Button 
+                            <Button
                 onClick={handleComplete}
                 disabled={!selectedRuolo}
-                className="px-8 py-3"
+                className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 Completa Registrazione
               </Button>

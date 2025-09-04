@@ -15,7 +15,18 @@ export const useUsers = (user: any) => {
       if (!allUsersResponse.ok || !pendingUsersResponse.ok) throw new Error("Errore nel caricamento degli utenti");
       const allUsersData = await allUsersResponse.json();
       const pendingUsersData = await pendingUsersResponse.json();
-      return { utenti: allUsersData, pendingUsers: pendingUsersData };
+      // Aggiungi campo nome_completo agli utenti
+      const addFullName = (users: any[]) => {
+        return users.map(user => ({
+          ...user,
+          nome_completo: `${user.nome || ''} ${user.cognome || ''}`.trim()
+        }));
+      };
+
+      return { 
+        utenti: allUsersData.success ? addFullName(allUsersData.users) : [], 
+        pendingUsers: pendingUsersData.success ? addFullName(pendingUsersData.pendingUsers) : [] 
+      };
     },
     // Uso user.ruolo che è il campo restituito dall'API
     enabled: !!user && user.ruolo === 'Admin',

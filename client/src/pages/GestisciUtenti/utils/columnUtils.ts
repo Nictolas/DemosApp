@@ -6,6 +6,8 @@ export const getDisplayColumns = (users: any[]) => {
   if (!users || users.length === 0) return [];
   
   const firstUser = users[0];
+  if (!firstUser || typeof firstUser !== 'object') return [];
+  
   const allColumns = Object.keys(firstUser);
   
   // Filtra le colonne nascoste
