@@ -6,6 +6,7 @@ const verificationRoutes = require('./verification');
 const loginRoutes = require('./login');
 const registrationRoutes = require('./registration');
 const passwordResetRoutes = require('./password-reset');
+const logoutRoutes = require('./logout');
 
 const router = express.Router();
 
@@ -15,5 +16,6 @@ router.use('/', verificationRoutes);
 router.use('/', loginRoutes);
 router.use('/', registrationRoutes);
 router.use('/', passwordResetRoutes);
+router.use('/', logoutRoutes);
 
 module.exports = router;

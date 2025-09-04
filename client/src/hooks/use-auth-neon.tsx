@@ -191,6 +191,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Alla prossima!",
         variant: "default"
       });
+      
+      // Redirect alla landing page
+      window.location.href = '/';
     },
   });
 
