@@ -104,6 +104,15 @@ export default function RegistrazioneRuolo() {
         comune_candidatura: comuneCandidatura
       };
 
+      // Debug: verifica i dati che verranno inviati
+      console.log('🔍 Dati registrazione:', registrationData);
+      console.log('🔍 Campi obbligatori:', {
+        email: !!email,
+        password: !!password,
+        nome: !!nome,
+        cognome: !!cognome
+      });
+
       // Chiama l'API di registrazione (che ha il controllo email duplicata)
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -113,7 +122,17 @@ export default function RegistrazioneRuolo() {
         body: JSON.stringify(registrationData),
       });
 
-      const result = await response.json();
+      console.log('📡 Risposta server:', response.status, response.statusText);
+      
+      let result;
+      try {
+        result = await response.json();
+        console.log('📊 Risposta JSON:', result);
+      } catch (error) {
+        console.error('❌ Errore parsing JSON:', error);
+        console.log('📄 Testo risposta:', await response.text());
+        throw new Error('Risposta del server non valida');
+      }
 
       if (response.ok) {
         // Registrazione completata con successo
