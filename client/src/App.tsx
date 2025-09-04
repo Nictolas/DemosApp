@@ -129,23 +129,32 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RegistrationProvider>
-          <div className="App">
-            <Switch>
-              {/* Route principale */}
-              <Route path="/">
-                <PageTransition location={location} type="fade-up" delay={100}>
-                  <LandingPage />
-                </PageTransition>
-              </Route>
+      <div className="App">
+        <Switch>
+          {/* Route di verifica email - fuori dall'AuthProvider */}
+          <Route path="/verifica-email">
+            <PageTransition location={location} type="fade-up">
+              <VerificaEmailStandalone />
+            </PageTransition>
+          </Route>
 
-              {/* Route di autenticazione */}
-              <Route path="/auth">
-                <PageTransition location={location} type="fade-up">
-                  <AuthPage />
-                </PageTransition>
-              </Route>
+          {/* Altre route dentro AuthProvider */}
+          <AuthProvider>
+            <RegistrationProvider>
+              <Switch>
+                {/* Route principale */}
+                <Route path="/">
+                  <PageTransition location={location} type="fade-up" delay={100}>
+                    <LandingPage />
+                  </PageTransition>
+                </Route>
+
+                {/* Route di autenticazione */}
+                <Route path="/auth">
+                  <PageTransition location={location} type="fade-up">
+                    <AuthPage />
+                  </PageTransition>
+                </Route>
 
               {/* Route per le pagine di registrazione separate */}
               <Route path="/registrazione-nome">
@@ -191,11 +200,6 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              <Route path="/verifica-email">
-                <PageTransition location={location} type="fade-up">
-                  <VerificaEmailStandalone />
-                </PageTransition>
-              </Route>
 
 
               {/* Route reset password */}
@@ -563,20 +567,21 @@ export default function App() {
                   <ProtectedRoute path="/proponi-ice" component={ProponiICE} />
                 </PageTransition>
               </Route>
-            </Switch>
+              </Switch>
 
-            {/* Navbar condizionale */}
-            {location !== '/' && 
-             !location.startsWith('/auth') && 
-             !location.startsWith('/reset-password') && 
-             !location.startsWith('/registrazione') && 
-             !location.startsWith('/verifica-email') && 
-             <Navbar />}
-            
-            <Toaster />
-          </div>
-        </RegistrationProvider>
-      </AuthProvider>
+              {/* Navbar condizionale */}
+              {location !== '/' && 
+               !location.startsWith('/auth') && 
+               !location.startsWith('/reset-password') && 
+               !location.startsWith('/registrazione') && 
+               !location.startsWith('/verifica-email') && 
+               <Navbar />}
+              
+              <Toaster />
+            </RegistrationProvider>
+          </AuthProvider>
+        </Switch>
+      </div>
     </QueryClientProvider>
   );
 }
