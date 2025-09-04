@@ -55,6 +55,7 @@ import GestisciIniziativePopolari from "./pages/GestisciIniziativePopolari";
 import GestisciReferendumAbrogativi from "./pages/GestisciReferendumAbrogativi";
 import GestisciICE from "./pages/GestisciICE";
 import GestisciGoverno from "./pages/GestisciGoverno";
+import ModificaImmagine from "./pages/ModificaImmagine";
 import StatisticheUtenti from "./pages/StatisticheUtenti";
 import StatisticheOpinione from "./pages/StatisticheOpinione";
 import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
@@ -214,6 +215,12 @@ export default function App() {
               <Route path="/menu/profilo">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/menu/profilo" component={Profilo} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/modifica-immagine">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/modifica-immagine" component={ModificaImmagine} />
                 </PageTransition>
               </Route>
 
