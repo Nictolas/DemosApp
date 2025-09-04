@@ -33,7 +33,7 @@ export default function RegistrazioneEmail() {
     localStorage.setItem("registrazione_password", data.password);
     
     // Vai alla pagina successiva
-    navigate("/registrazione-nome");
+    navigate("/registrazione-codice-fiscale");
   };
 
   return (

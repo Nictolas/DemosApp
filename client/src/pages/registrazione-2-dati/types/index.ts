@@ -12,6 +12,17 @@ export interface RegistrationData {
   regione: string;
   telefono: string;
   email: string;
+  ruolo: string;
+  paese_elezione?: string;
+  regione_elezione?: string;
+  provincia_elezione?: string;
+  comune_elezione?: string;
+  paese_candidatura?: string;
+  regione_candidatura?: string;
+  provincia_candidatura?: string;
+  comune_candidatura?: string;
+  grado_elezione?: string;
+  grado_candidatura?: string;
 }
 
 export interface GeographicData {
