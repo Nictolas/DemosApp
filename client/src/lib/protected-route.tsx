@@ -34,7 +34,18 @@ export function ProtectedRoute({
     return <Redirect to="/auth" />;
   }
 
-  // Renderizza il componente se autenticato
+  // Controlla lo status dell'utente
+  if (user.status === 'pending') {
+    // Salva l'email per la verifica
+    localStorage.setItem('user_email', user.email);
+    localStorage.setItem('user_status', 'pending');
+    localStorage.setItem('user_id', user.id);
+    
+    // Reindirizza alla verifica email
+    return <Redirect to={`/verifica-email?email=${encodeURIComponent(user.email)}`} />;
+  }
+
+  // Renderizza il componente se autenticato e verificato
   // console.log('🔍 DEBUG ProtectedRoute - Rendering componente per:', path);
   return <Component />;
 }

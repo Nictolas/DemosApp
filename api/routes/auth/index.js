@@ -7,6 +7,8 @@ const loginRoutes = require('./login');
 const registrationRoutes = require('./registration');
 const passwordResetRoutes = require('./password-reset');
 const logoutRoutes = require('./logout');
+const verifyEmailRoutes = require('./verify-email');
+const resendVerificationRoutes = require('./resend-verification');
 
 const router = express.Router();
 
@@ -17,5 +19,7 @@ router.use('/', loginRoutes);
 router.use('/', registrationRoutes);
 router.use('/', passwordResetRoutes);
 router.use('/', logoutRoutes);
+router.use('/', verifyEmailRoutes);
+router.use('/', resendVerificationRoutes);
 
 module.exports = router;

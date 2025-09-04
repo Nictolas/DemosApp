@@ -17,6 +17,7 @@ interface User {
   cognome?: string; // Campo italiano per compatibilità con API
   role?: string;
   ruolo?: string; // Campo italiano per compatibilità con API
+  status?: string; // Status dell'utente: pending, verified, approved
 }
 
 interface LoginCredentials {
@@ -152,6 +153,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Invalida e refetch la query per forzare il refresh dei dati utente
       queryClient.invalidateQueries(['user']);
       queryClient.refetchQueries(['user']);
+      
+      // Controlla lo status dell'utente
+      if (data.status === 'pending') {
+        // Salva l'email per la verifica
+        localStorage.setItem('user_email', data.email);
+        localStorage.setItem('user_status', 'pending');
+        localStorage.setItem('user_id', data.id);
+        
+        toast({ 
+          title: "Email non verificata", 
+          description: "Devi verificare la tua email prima di accedere al menu.",
+          variant: "destructive"
+        });
+        
+        // Reindirizza alla pagina di verifica email
+        window.location.href = `/verifica-email?email=${encodeURIComponent(data.email)}`;
+        return;
+      }
+      
       toast({ 
         title: "Login effettuato!", 
         description: `Benvenuto ${data.nome || data.email}`,

@@ -148,14 +148,20 @@ export default function RegistrazioneRuolo() {
           description: "Controlla la tua email per confermare l'account.",
         });
         
-        // Pulisce il localStorage
+        // Salva l'email dell'utente per la verifica
+        localStorage.setItem('user_email', email);
+        localStorage.setItem('user_status', 'pending');
+        localStorage.setItem('user_id', result.user.id);
+        
+        // Pulisce i dati di registrazione
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('registrazione_')) {
             localStorage.removeItem(key);
           }
         });
         
-        navigate("/menu");
+        // Reindirizza alla pagina di verifica email
+        navigate(`/verifica-email?email=${encodeURIComponent(email)}`);
       } else {
         // Errore nella registrazione (incluso email duplicata)
         toast({
