@@ -36,11 +36,41 @@ router.post('/login', validateInput(['email', 'password']), validateEmail, async
     const user = userResult.rows[0];
     
     // Verifica se l'utente è attivo
-    if (user.status !== 'active' && user.status !== 'approved') {
+    if (user.status === 'suspended' || user.status === 'banned') {
       return res.status(401).json({
         success: false,
-        error: 'Account non attivo',
-        message: 'Il tuo account non è ancora stato approvato o è stato sospeso'
+        error: 'Account sospeso',
+        message: 'Il tuo account è stato sospeso o bannato'
+      });
+    }
+    
+    // Se l'utente è in stato pending, permetti il login ma indica che deve verificare l'email
+    if (user.status === 'pending') {
+      // Genera token anche per utenti pending
+      const token = jwt.sign(
+        { 
+          userId: user.id, 
+          email: user.email,
+          status: user.status
+        },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      return res.json({
+        success: true,
+        message: 'Login effettuato, ma devi verificare la tua email',
+        token,
+        user: {
+          id: user.id,
+          nome: user.nome,
+          cognome: user.cognome,
+          email: user.email,
+          ruolo: user.ruolo,
+          status: user.status,
+          avatar_config: user.avatar_config
+        },
+        requiresVerification: true
       });
     }
     
@@ -59,7 +89,8 @@ router.post('/login', validateInput(['email', 'password']), validateEmail, async
       { 
         userId: user.id, 
         email: user.email,
-        ruolo: user.ruolo
+        ruolo: user.ruolo,
+        status: user.status
       },
       JWT_SECRET,
       { expiresIn: '7d' }
