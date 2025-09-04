@@ -3,7 +3,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2 } from "lucide-react";
 import { User, SortState } from "../types";
-import { getDisplayColumns, formatColumnValue, renderColumnValue } from "../utils";
+import { formatColumnValue } from "../utils/columnUtils";
+import { renderColumnValue } from "../utils/renderUtils";
 
 interface UsersTableProps {
   users: User[];
