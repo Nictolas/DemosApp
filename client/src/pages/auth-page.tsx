@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { RegistrationWizard, CompleteRegistrationData } from "@/components/auth";
+import { RegistrationWizard, CompleteRegistrationData } from "@/components/auth/RegistrationWizard";
 import './auth-page.css';
 
 const loginSchema = z.object({
@@ -77,7 +77,7 @@ export default function AuthPage() {
 
   // Gestione del submit per la registrazione (solo credenziali base)
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Mostra il wizard per completare la registrazione
+    // Mostra il wizard per completare la registrazione con i dati iniziali
     setShowWizard(true);
   };
 
@@ -432,6 +432,10 @@ export default function AuthPage() {
             <RegistrationWizard
               onComplete={onWizardComplete}
               onCancel={onWizardCancel}
+              defaultValues={{
+                email: registerForm.getValues("email"),
+                password: registerForm.getValues("password")
+              }}
             />
           </div>
         </div>
