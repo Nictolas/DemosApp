@@ -13,15 +13,8 @@ export default function Menu() {
   const { navigateWithButtonReset, setLocation } = useMenuActions();
   const queryClient = useQueryClient();
 
-  // Debug temporaneo per capire il problema
-  console.log('🔍 DEBUG Menu - user:', user);
-  console.log('🔍 DEBUG Menu - isLoading:', isLoading);
-  console.log('🔍 DEBUG Menu - isAdmin:', isAdmin);
-  console.log('🔍 DEBUG Menu - hasAdvancedAccess:', hasAdvancedAccess);
-
   // Forza il refetch dei dati utente quando il componente viene montato
   useEffect(() => {
-    console.log('🔍 DEBUG Menu - useEffect triggered, refetching user data');
     queryClient.invalidateQueries(['user']);
   }, [queryClient]);
 

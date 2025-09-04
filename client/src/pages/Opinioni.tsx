@@ -77,7 +77,7 @@ export default function Opinioni() {
                 <button
                   key={categoria.id}
                   type="button"
-                  className="relative w-full h-full min-h-56 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                  className="relative w-full h-full min-h-72 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                   onMouseDown={(e) => {
                     e.currentTarget.classList.add('scale-95', 'shadow-md');
                   }}
