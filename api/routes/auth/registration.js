@@ -27,6 +27,7 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     const { email, password, nome, cognome, codice_fiscale } = req.body;
     
     console.log('📝 Tentativo registrazione per:', email);
+    console.log('📊 Dati ricevuti:', JSON.stringify(req.body, null, 2));
     
     // Verifica se l'email è già registrata
     const existingUserQuery = 'SELECT id FROM users WHERE email = $1';
@@ -67,7 +68,7 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       { expiresIn: '24h' }
     );
     
-    // Estrai i dati geografici dal body
+    // Estrai i dati dal body
     const { 
       paese_residenza, 
       regione_residenza, 
@@ -75,14 +76,27 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       comune_residenza,
       data_nascita,
       genere,
-      cittadinanza
+      cittadinanza,
+      ruolo,
+      grado_elezione,
+      paese_elezione,
+      regione_elezione,
+      provincia_elezione,
+      comune_elezione,
+      grado_candidatura,
+      paese_candidatura,
+      regione_candidatura,
+      provincia_candidatura,
+      comune_candidatura
     } = req.body;
     
     // Inserisci nuovo utente con status "pending"
     const insertQuery = `
       INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, status, email_verification_token, 
-                        genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+                        genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+                        grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+                        grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, NOW())
       RETURNING id, nome, cognome, email, ruolo, codice_fiscale, status
     `;
     
@@ -91,7 +105,7 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       cognome, 
       email.toLowerCase(), 
       passwordHash, 
-      'Elettore',
+      ruolo || 'Elettore',
       codice_fiscale ? codice_fiscale.toUpperCase() : null,
       'pending',
       verificationToken,
@@ -101,7 +115,17 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       paese_residenza || null,
       regione_residenza || null,
       provincia_residenza || null,
-      comune_residenza || null
+      comune_residenza || null,
+      grado_elezione || null,
+      paese_elezione || null,
+      regione_elezione || null,
+      provincia_elezione || null,
+      comune_elezione || null,
+      grado_candidatura || null,
+      paese_candidatura || null,
+      regione_candidatura || null,
+      provincia_candidatura || null,
+      comune_candidatura || null
     ]);
     
     const newUser = result.rows[0];
