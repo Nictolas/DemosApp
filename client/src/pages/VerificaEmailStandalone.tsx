@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useRouter } from 'wouter';
+import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, RefreshCw, CheckCircle, AlertCircle, LogOut, Home } from 'lucide-react';
+import { Mail, RefreshCw, CheckCircle, AlertCircle, LogOut } from 'lucide-react';
 
 const VerificaEmailStandalone: React.FC = () => {
   const [isResending, setIsResending] = useState(false);
@@ -11,7 +11,6 @@ const VerificaEmailStandalone: React.FC = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
   const location = useLocation();
 
   useEffect(() => {
@@ -56,7 +55,7 @@ const VerificaEmailStandalone: React.FC = () => {
         localStorage.setItem('user_status', 'verified');
         
         // Reindirizza al menu
-        router.push('/menu');
+        window.location.href = '/menu';
       } else {
         toast({
           title: "Errore nella verifica",
@@ -149,7 +148,7 @@ const VerificaEmailStandalone: React.FC = () => {
       });
       
       // Reindirizza alla homepage
-      router.push('/');
+      window.location.href = '/';
     } catch (error) {
       console.error('Errore logout:', error);
       toast({
@@ -161,16 +160,6 @@ const VerificaEmailStandalone: React.FC = () => {
     }
   };
 
-  const handleGoHome = () => {
-    // Pulisce tutti i dati di autenticazione
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('user_status');
-    localStorage.removeItem('user_id');
-    
-    // Reindirizza alla homepage
-    router.push('/');
-  };
 
   // Se non abbiamo email, mostra un messaggio di errore
   if (!email) {
@@ -191,10 +180,9 @@ const VerificaEmailStandalone: React.FC = () => {
             </CardHeader>
             <CardContent className="px-6 pb-6">
               <Button
-                onClick={handleGoHome}
+                onClick={() => window.location.href = '/'}
                 className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
               >
-                <Home className="w-5 h-5 mr-3" />
                 Torna alla Homepage
               </Button>
             </CardContent>
@@ -280,35 +268,24 @@ const VerificaEmailStandalone: React.FC = () => {
                     )}
                   </Button>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      onClick={handleGoHome}
-                      variant="outline"
-                      className="h-12 border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                    >
-                      <Home className="w-4 h-4 mr-2" />
-                      Homepage
-                    </Button>
-
-                    <Button
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                      variant="outline"
-                      className="h-12 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-all duration-200"
-                    >
-                      {isLoggingOut ? (
-                        <>
-                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
-                          Logout...
-                        </>
-                      ) : (
-                        <>
-                          <LogOut className="w-4 h-4 mr-2" />
-                          Logout
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    variant="outline"
+                    className="w-full h-12 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-all duration-200"
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                        Logout...
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                      </>
+                    )}
+                  </Button>
                 </div>
               </>
             )}
