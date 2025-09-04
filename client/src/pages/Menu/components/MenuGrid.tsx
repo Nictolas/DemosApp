@@ -17,9 +17,6 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
     !item.requiresAdvancedAccess || hasAdvancedAccess
   );
 
-  // Debug temporaneo
-  console.log('🔍 DEBUG MenuGrid - visibleItems:', visibleItems);
-  console.log('🔍 DEBUG MenuGrid - hasAdvancedAccess:', hasAdvancedAccess);
 
   return (
     <CardContent className="grid grid-cols-2 gap-2 p-4 flex-1">
