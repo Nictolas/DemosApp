@@ -1,3 +1,4 @@
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation } from "@tanstack/react-query";
 import { Redirect } from "wouter";
+import { ITALY_DATA } from "@/data/italyData";
 
 const eventoSchema = z.object({
   nome_evento: z.string().min(1, "Il nome dell'evento è obbligatorio"),
@@ -19,8 +21,8 @@ const eventoSchema = z.object({
   provincia_evento: z.string().min(1, "La provincia è obbligatoria"),
   comune_evento: z.string().min(1, "Il comune è obbligatorio"),
   indirizzo_evento: z.string().optional(),
+  giorno_evento: z.string().min(1, "Il giorno è obbligatorio"),
   orario_evento: z.string().min(1, "L'orario è obbligatorio"),
-  organizzatore: z.string().min(1, "L'organizzatore è obbligatorio"),
 });
 
 type EventoFormData = z.infer<typeof eventoSchema>;
@@ -39,8 +41,8 @@ export default function Evento() {
       provincia_evento: "",
       comune_evento: "",
       indirizzo_evento: "",
+      giorno_evento: "",
       orario_evento: "",
-      organizzatore: "",
     },
   });
 
@@ -65,12 +67,47 @@ export default function Evento() {
     );
   }
 
+  // Watch per la selezione a sequenza
+  const watchPaeseEvento = eventoForm.watch("paese_evento");
+  const watchRegioneEvento = eventoForm.watch("regione_evento");
+  const watchProvinciaEvento = eventoForm.watch("provincia_evento");
+
+  // Reset dei campi dipendenti quando cambia il paese
+  React.useEffect(() => {
+    if (watchPaeseEvento !== "Italia") {
+      eventoForm.setValue("regione_evento", "");
+      eventoForm.setValue("provincia_evento", "");
+      eventoForm.setValue("comune_evento", "");
+    }
+  }, [watchPaeseEvento, eventoForm]);
+
+  // Reset dei campi dipendenti quando cambia la regione
+  React.useEffect(() => {
+    if (watchRegioneEvento) {
+      eventoForm.setValue("provincia_evento", "");
+      eventoForm.setValue("comune_evento", "");
+    }
+  }, [watchRegioneEvento, eventoForm]);
+
+  // Reset dei campi dipendenti quando cambia la provincia
+  React.useEffect(() => {
+    if (watchProvinciaEvento) {
+      eventoForm.setValue("comune_evento", "");
+    }
+  }, [watchProvinciaEvento, eventoForm]);
+
   const submitEvento = useMutation({
     mutationFn: async (data: EventoFormData) => {
+      // Aggiungi automaticamente l'organizzatore (nome dell'utente)
+      const dataWithOrganizzatore = {
+        ...data,
+        organizzatore: user?.nome && user?.cognome ? `${user.nome} ${user.cognome}` : user?.email || "Utente"
+      };
+      
       const response = await fetch("/api/eventi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(dataWithOrganizzatore),
       });
       if (!response.ok) {
         throw new Error("Errore nell'invio del evento");
@@ -185,26 +222,11 @@ export default function Evento() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Lombardia">Lombardia</SelectItem>
-                          <SelectItem value="Lazio">Lazio</SelectItem>
-                          <SelectItem value="Campania">Campania</SelectItem>
-                          <SelectItem value="Sicilia">Sicilia</SelectItem>
-                          <SelectItem value="Veneto">Veneto</SelectItem>
-                          <SelectItem value="Emilia-Romagna">Emilia-Romagna</SelectItem>
-                          <SelectItem value="Piemonte">Piemonte</SelectItem>
-                          <SelectItem value="Puglia">Puglia</SelectItem>
-                          <SelectItem value="Toscana">Toscana</SelectItem>
-                          <SelectItem value="Calabria">Calabria</SelectItem>
-                          <SelectItem value="Sardegna">Sardegna</SelectItem>
-                          <SelectItem value="Liguria">Liguria</SelectItem>
-                          <SelectItem value="Marche">Marche</SelectItem>
-                          <SelectItem value="Abruzzo">Abruzzo</SelectItem>
-                          <SelectItem value="Friuli-Venezia Giulia">Friuli-Venezia Giulia</SelectItem>
-                          <SelectItem value="Trentino-Alto Adige">Trentino-Alto Adige</SelectItem>
-                          <SelectItem value="Umbria">Umbria</SelectItem>
-                          <SelectItem value="Basilicata">Basilicata</SelectItem>
-                          <SelectItem value="Molise">Molise</SelectItem>
-                          <SelectItem value="Valle d'Aosta">Valle d'Aosta</SelectItem>
+                          {ITALY_DATA.regioni.map((regione) => (
+                            <SelectItem key={regione.nome} value={regione.nome}>
+                              {regione.nome}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -218,33 +240,20 @@ export default function Evento() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provincia</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!watchRegioneEvento}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Seleziona provincia" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Milano">Milano</SelectItem>
-                          <SelectItem value="Roma">Roma</SelectItem>
-                          <SelectItem value="Napoli">Napoli</SelectItem>
-                          <SelectItem value="Torino">Torino</SelectItem>
-                          <SelectItem value="Palermo">Palermo</SelectItem>
-                          <SelectItem value="Genova">Genova</SelectItem>
-                          <SelectItem value="Bologna">Bologna</SelectItem>
-                          <SelectItem value="Firenze">Firenze</SelectItem>
-                          <SelectItem value="Bari">Bari</SelectItem>
-                          <SelectItem value="Catania">Catania</SelectItem>
-                          <SelectItem value="Venezia">Venezia</SelectItem>
-                          <SelectItem value="Verona">Verona</SelectItem>
-                          <SelectItem value="Messina">Messina</SelectItem>
-                          <SelectItem value="Padova">Padova</SelectItem>
-                          <SelectItem value="Trieste">Trieste</SelectItem>
-                          <SelectItem value="Brescia">Brescia</SelectItem>
-                          <SelectItem value="Parma">Parma</SelectItem>
-                          <SelectItem value="Taranto">Taranto</SelectItem>
-                          <SelectItem value="Prato">Prato</SelectItem>
-                          <SelectItem value="Modena">Modena</SelectItem>
+                          {watchRegioneEvento && ITALY_DATA.regioni
+                            .find(r => r.nome === watchRegioneEvento)
+                            ?.province.map((provincia) => (
+                              <SelectItem key={provincia.nome} value={provincia.nome}>
+                                {provincia.nome}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -258,33 +267,21 @@ export default function Evento() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Comune</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!watchProvinciaEvento}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Seleziona comune" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Milano">Milano</SelectItem>
-                          <SelectItem value="Roma">Roma</SelectItem>
-                          <SelectItem value="Napoli">Napoli</SelectItem>
-                          <SelectItem value="Torino">Torino</SelectItem>
-                          <SelectItem value="Palermo">Palermo</SelectItem>
-                          <SelectItem value="Genova">Genova</SelectItem>
-                          <SelectItem value="Bologna">Bologna</SelectItem>
-                          <SelectItem value="Firenze">Firenze</SelectItem>
-                          <SelectItem value="Bari">Bari</SelectItem>
-                          <SelectItem value="Catania">Catania</SelectItem>
-                          <SelectItem value="Venezia">Venezia</SelectItem>
-                          <SelectItem value="Verona">Verona</SelectItem>
-                          <SelectItem value="Messina">Messina</SelectItem>
-                          <SelectItem value="Padova">Padova</SelectItem>
-                          <SelectItem value="Trieste">Trieste</SelectItem>
-                          <SelectItem value="Brescia">Brescia</SelectItem>
-                          <SelectItem value="Parma">Parma</SelectItem>
-                          <SelectItem value="Taranto">Taranto</SelectItem>
-                          <SelectItem value="Prato">Prato</SelectItem>
-                          <SelectItem value="Modena">Modena</SelectItem>
+                          {watchProvinciaEvento && watchRegioneEvento && ITALY_DATA.regioni
+                            .find(r => r.nome === watchRegioneEvento)
+                            ?.province.find(p => p.nome === watchProvinciaEvento)
+                            ?.comuni.map((comune) => (
+                              <SelectItem key={comune.nome} value={comune.nome}>
+                                {comune.nome}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -312,13 +309,13 @@ export default function Evento() {
 
                 <FormField
                   control={eventoForm.control}
-                  name="orario_evento"
+                  name="giorno_evento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Orario</FormLabel>
+                      <FormLabel>Giorno</FormLabel>
                       <FormControl>
                         <Input
-                          type="datetime-local"
+                          type="date"
                           {...field}
                           disabled={submitEvento.isPending}
                         />
@@ -330,13 +327,13 @@ export default function Evento() {
 
                 <FormField
                   control={eventoForm.control}
-                  name="organizzatore"
+                  name="orario_evento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Organizzatore</FormLabel>
+                      <FormLabel>Orario</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Es: Comune di Milano"
+                          type="time"
                           {...field}
                           disabled={submitEvento.isPending}
                         />
@@ -345,6 +342,7 @@ export default function Evento() {
                     </FormItem>
                   )}
                 />
+
 
                 <Button 
                   type="submit" 
