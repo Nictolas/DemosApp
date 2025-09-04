@@ -43,6 +43,7 @@ export default function RegistrazioneRuolo() {
   ];
 
   const handleRuoloSelect = (ruolo: string) => {
+    console.log('🎯 Ruolo selezionato:', ruolo);
     setSelectedRuolo(ruolo);
   };
 
@@ -214,23 +215,39 @@ export default function RegistrazioneRuolo() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Ruolo *</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {ruoli.map((ruolo) => (
-                  <Button
-                    key={ruolo.id}
-                    variant={selectedRuolo === ruolo.id ? "default" : "outline"}
-                    className={`h-auto p-4 text-left justify-start ${
-                      selectedRuolo === ruolo.id 
-                        ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600" 
-                        : "bg-white hover:bg-blue-50 text-gray-700 border-gray-300"
-                    }`}
-                    onClick={() => handleRuoloSelect(ruolo.id)}
-                  >
-                    <div>
-                      <div className="font-semibold">{ruolo.nome}</div>
-                      <div className="text-sm opacity-80 mt-1">{ruolo.descrizione}</div>
-                    </div>
-                  </Button>
-                ))}
+                {ruoli.map((ruolo, index) => {
+                  const colors = [
+                    { bg: "#fef9c3", text: "#ca8a04", border: "#fde047" }, // Giallo
+                    { bg: "#fbcfe8", text: "#db2777", border: "#f9a8d4" }, // Rosa
+                    { bg: "#f0f9ff", text: "#0284c7", border: "#7dd3fc" }, // Blu
+                    { bg: "#dcfce7", text: "#16a34a", border: "#86efac" }   // Verde
+                  ];
+                  const color = colors[index % colors.length];
+                  
+                  return (
+                    <Button
+                      key={ruolo.id}
+                      variant={selectedRuolo === ruolo.id ? "default" : "outline"}
+                      className={`h-auto p-4 text-left justify-start transition-all duration-200 ${
+                        selectedRuolo === ruolo.id 
+                          ? "shadow-lg transform scale-105" 
+                          : "hover:shadow-md hover:scale-102"
+                      }`}
+                      style={{
+                        backgroundColor: selectedRuolo === ruolo.id ? color.bg : "white",
+                        color: selectedRuolo === ruolo.id ? color.text : "#374151",
+                        borderColor: selectedRuolo === ruolo.id ? color.border : "#d1d5db",
+                        borderWidth: "2px"
+                      }}
+                      onClick={() => handleRuoloSelect(ruolo.id)}
+                    >
+                      <div>
+                        <div className="font-semibold">{ruolo.nome}</div>
+                        <div className="text-sm opacity-80 mt-1">{ruolo.descrizione}</div>
+                      </div>
+                    </Button>
+                  );
+                })}
               </div>
             </div>
 
@@ -273,7 +290,10 @@ export default function RegistrazioneRuolo() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Regione</label>
-                      <Select value={regioneElezione} onValueChange={setRegioneElezione}>
+                      <Select value={regioneElezione} onValueChange={(value) => {
+                        console.log('🌍 Regione elezione selezionata:', value);
+                        setRegioneElezione(value);
+                      }}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleziona regione" />
                         </SelectTrigger>
@@ -367,7 +387,10 @@ export default function RegistrazioneRuolo() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Regione</label>
-                      <Select value={regioneCandidatura} onValueChange={setRegioneCandidatura}>
+                      <Select value={regioneCandidatura} onValueChange={(value) => {
+                        console.log('🏛️ Regione candidatura selezionata:', value);
+                        setRegioneCandidatura(value);
+                      }}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleziona regione" />
                         </SelectTrigger>
@@ -424,10 +447,16 @@ export default function RegistrazioneRuolo() {
 
             {/* Pulsante Continua */}
             <div className="flex justify-center pt-6">
-                            <Button
+              <Button
                 onClick={handleComplete}
                 disabled={!selectedRuolo}
-                className="px-8 py-3 bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
+                className="px-8 py-3 text-white font-semibold text-lg shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                style={{
+                  background: selectedRuolo 
+                    ? "linear-gradient(135deg, #10b981 0%, #059669 100%)" 
+                    : "#9ca3af",
+                  border: "none"
+                }}
               >
                 Completa Registrazione
               </Button>
