@@ -80,6 +80,14 @@ app.use((req, res, next) => {
   console.log(`📡 ${req.method} ${req.path} - ${new Date().toISOString()}`);
   console.log(`🌐 Origin: ${req.headers.origin || 'Nessuna'}`);
   console.log(`🔗 Referer: ${req.headers.referer || 'Nessuna'}`);
+  
+  // Debug specifico per le richieste di registrazione
+  if (req.path === '/api/auth/register' && req.method === 'POST') {
+    console.log('🚨 DEBUG: Richiesta POST /api/auth/register rilevata!');
+    console.log('🚨 DEBUG: Headers:', req.headers);
+    console.log('🚨 DEBUG: Body size:', req.body ? Object.keys(req.body).length : 'Nessun body');
+  }
+  
   next();
 });
 

@@ -2,6 +2,10 @@
 const validateInput = (requiredFields) => {
   return (req, res, next) => {
     try {
+      console.log('🔍 DEBUG validateInput: Richiesta ricevuta per:', req.path);
+      console.log('🔍 DEBUG validateInput: Campi richiesti:', requiredFields);
+      console.log('🔍 DEBUG validateInput: Body ricevuto:', req.body);
+      
       const missingFields = [];
       
       // Verifica che tutti i campi richiesti siano presenti
@@ -12,6 +16,7 @@ const validateInput = (requiredFields) => {
       });
       
       if (missingFields.length > 0) {
+        console.log('❌ DEBUG validateInput: Campi mancanti:', missingFields);
         return res.status(400).json({
           success: false,
           error: 'Campi mancanti o vuoti',
@@ -77,11 +82,14 @@ const validateNumericId = (paramName) => {
 // Middleware per validare email
 const validateEmail = (req, res, next) => {
   try {
+    console.log('🔍 DEBUG validateEmail: Validazione email per:', req.path);
     const { email } = req.body;
+    console.log('🔍 DEBUG validateEmail: Email ricevuta:', email);
     
     if (email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
+        console.log('❌ DEBUG validateEmail: Email non valida:', email);
         return res.status(400).json({
           success: false,
           error: 'Email non valida',
@@ -90,6 +98,7 @@ const validateEmail = (req, res, next) => {
       }
     }
     
+    console.log('✅ DEBUG validateEmail: Email valida, procedo');
     next();
   } catch (error) {
     console.error('❌ Errore nella validazione email:', error);
