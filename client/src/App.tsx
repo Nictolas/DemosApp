@@ -570,6 +570,7 @@ export default function App() {
              !location.startsWith('/auth') && 
              !location.startsWith('/reset-password') && 
              !location.startsWith('/registrazione') && 
+             !location.startsWith('/verifica-email') && 
              <Navbar />}
             
             <Toaster />
