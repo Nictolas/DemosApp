@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ITALY_DATA } from "@/data/italyData";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RegistrazioneRuolo() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [selectedRuolo, setSelectedRuolo] = useState("");
   const [paeseElezione, setPaeseElezione] = useState("");
   const [regioneElezione, setRegioneElezione] = useState("");
@@ -44,21 +46,104 @@ export default function RegistrazioneRuolo() {
     setSelectedRuolo(ruolo);
   };
 
-  const handleComplete = () => {
-    // Salva tutti i dati nel localStorage
-    localStorage.setItem("registrazione_ruolo", selectedRuolo);
-    if (paeseElezione) localStorage.setItem("registrazione_paese_elezione", paeseElezione);
-    if (regioneElezione) localStorage.setItem("registrazione_regione_elezione", regioneElezione);
-    if (provinciaElezione) localStorage.setItem("registrazione_provincia_elezione", provinciaElezione);
-    if (comuneElezione) localStorage.setItem("registrazione_comune_elezione", comuneElezione);
-    if (paeseCandidatura) localStorage.setItem("registrazione_paese_candidatura", paeseCandidatura);
-    if (regioneCandidatura) localStorage.setItem("registrazione_regione_candidatura", regioneCandidatura);
-    if (provinciaCandidatura) localStorage.setItem("registrazione_provincia_candidatura", provinciaCandidatura);
-    if (comuneCandidatura) localStorage.setItem("registrazione_comune_candidatura", comuneCandidatura);
-    if (gradoElezione) localStorage.setItem("registrazione_grado_elezione", gradoElezione);
-    if (gradoCandidatura) localStorage.setItem("registrazione_grado_candidatura", gradoCandidatura);
+  const handleComplete = async () => {
+    try {
+      // Raccoglie tutti i dati dal localStorage
+      const email = localStorage.getItem("registrazione_email");
+      const password = localStorage.getItem("registrazione_password");
+      const nome = localStorage.getItem("registrazione_nome");
+      const cognome = localStorage.getItem("registrazione_cognome");
+      const genere = localStorage.getItem("registrazione_genere");
+      const cittadinanza = localStorage.getItem("registrazione_cittadinanza");
+      const dataNascita = localStorage.getItem("registrazione_data_nascita");
+      const codiceFiscale = localStorage.getItem("registrazione_codice_fiscale");
+      const paeseResidenza = localStorage.getItem("registrazione_paese_residenza");
+      const regioneResidenza = localStorage.getItem("registrazione_regione_residenza");
+      const provinciaResidenza = localStorage.getItem("registrazione_provincia_residenza");
+      const comuneResidenza = localStorage.getItem("registrazione_comune_residenza");
 
-    navigate("/registrazione-completata");
+      // Salva i dati del ruolo
+      localStorage.setItem("registrazione_ruolo", selectedRuolo);
+      if (paeseElezione) localStorage.setItem("registrazione_paese_elezione", paeseElezione);
+      if (regioneElezione) localStorage.setItem("registrazione_regione_elezione", regioneElezione);
+      if (provinciaElezione) localStorage.setItem("registrazione_provincia_elezione", provinciaElezione);
+      if (comuneElezione) localStorage.setItem("registrazione_comune_elezione", comuneElezione);
+      if (paeseCandidatura) localStorage.setItem("registrazione_paese_candidatura", paeseCandidatura);
+      if (regioneCandidatura) localStorage.setItem("registrazione_regione_candidatura", regioneCandidatura);
+      if (provinciaCandidatura) localStorage.setItem("registrazione_provincia_candidatura", provinciaCandidatura);
+      if (comuneCandidatura) localStorage.setItem("registrazione_comune_candidatura", comuneCandidatura);
+      if (gradoElezione) localStorage.setItem("registrazione_grado_elezione", gradoElezione);
+      if (gradoCandidatura) localStorage.setItem("registrazione_grado_candidatura", gradoCandidatura);
+
+      // Prepara i dati per l'API
+      const registrationData = {
+        email,
+        password,
+        nome,
+        cognome,
+        genere,
+        cittadinanza,
+        data_nascita: dataNascita,
+        codice_fiscale: codiceFiscale,
+        paese_residenza: paeseResidenza,
+        regione_residenza: regioneResidenza,
+        provincia_residenza: provinciaResidenza,
+        comune_residenza: comuneResidenza,
+        ruolo: selectedRuolo,
+        grado_elezione: gradoElezione,
+        paese_elezione: paeseElezione,
+        regione_elezione: regioneElezione,
+        provincia_elezione: provinciaElezione,
+        comune_elezione: comuneElezione,
+        grado_candidatura: gradoCandidatura,
+        paese_candidatura: paeseCandidatura,
+        regione_candidatura: regioneCandidatura,
+        provincia_candidatura: provinciaCandidatura,
+        comune_candidatura: comuneCandidatura
+      };
+
+      // Chiama l'API di registrazione (che ha il controllo email duplicata)
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registrationData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Registrazione completata con successo
+        toast({
+          title: "Registrazione completata!",
+          description: "Controlla la tua email per confermare l'account.",
+        });
+        
+        // Pulisce il localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('registrazione_')) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        navigate("/auth");
+      } else {
+        // Errore nella registrazione (incluso email duplicata)
+        toast({
+          title: "Errore nella registrazione",
+          description: result.message || "Si è verificato un errore. Riprova.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Errore nella registrazione:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile completare la registrazione. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
   };
 
   const showElezioneFields = selectedRuolo === "Politico" || selectedRuolo === "Candidato Politico";
