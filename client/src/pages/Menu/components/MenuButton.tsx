@@ -39,7 +39,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
   return (
     <button
       type="button"
-      className="relative w-full h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className="relative w-full h-40 md:h-32 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}

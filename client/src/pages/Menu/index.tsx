@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Redirect } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -6,10 +6,24 @@ import { useMenuData } from "./hooks/useMenuData";
 import { useMenuActions } from "./hooks/useMenuActions";
 import { MenuHeader } from "./components/MenuHeader";
 import { MenuGrid } from "./components/MenuGrid";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Menu() {
   const { user, isLoading, isAdmin, hasAdvancedAccess } = useMenuData();
   const { navigateWithButtonReset, setLocation } = useMenuActions();
+  const queryClient = useQueryClient();
+
+  // Debug temporaneo per capire il problema
+  console.log('🔍 DEBUG Menu - user:', user);
+  console.log('🔍 DEBUG Menu - isLoading:', isLoading);
+  console.log('🔍 DEBUG Menu - isAdmin:', isAdmin);
+  console.log('🔍 DEBUG Menu - hasAdvancedAccess:', hasAdvancedAccess);
+
+  // Forza il refetch dei dati utente quando il componente viene montato
+  useEffect(() => {
+    console.log('🔍 DEBUG Menu - useEffect triggered, refetching user data');
+    queryClient.invalidateQueries(['user']);
+  }, [queryClient]);
 
   // Redirect to auth page if not logged in
   if (!user && !isLoading) {
