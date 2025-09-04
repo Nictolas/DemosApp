@@ -279,13 +279,6 @@ export default function Strumenti() {
         {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={() => setLocation("/menu")}
-            className="flex items-center gap-2"
-          >
-            Torna al Menu
-          </Button>
         </div>
 
         {/* Titolo */}
