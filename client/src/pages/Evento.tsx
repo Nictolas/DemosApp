@@ -7,8 +7,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Redirect } from "wouter";
 
 const eventoSchema = z.object({
   nome_evento: z.string().min(1, "Il nome dell'evento è obbligatorio"),
@@ -25,7 +25,7 @@ const eventoSchema = z.object({
 type EventoFormData = z.infer<typeof eventoSchema>;
 
 export default function Evento() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { toast } = useToast();
 
   const eventoForm = useForm<EventoFormData>({
@@ -43,44 +43,21 @@ export default function Evento() {
     },
   });
 
-  // Get complete user data including role
-  const { data: userData } = useQuery({
-    queryKey: ["/api/users/me", user?.email],
-    queryFn: async () => {
-      if (!user?.email) return null;
-      const response = await fetch(`/api/users/me`);
-      if (!response.ok) throw new Error('Failed to fetch user data');
-      return response.json();
-    },
-    enabled: !!user?.email,
-  });
+  // Redirect if not logged in
+  if (!user && !isLoading) {
+    return <Redirect to="/auth" />;
+  }
 
-  // Show loading while userData is being fetched
-  if (!userData) {
+  // Show loading while user is being fetched
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Caricamento dati utente...</p>
+              <p className="mt-4 text-gray-600">Caricamento...</p>
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if user has the right role
-  const userRole = (userData as any)?.ruolo;
-  if (!user || (userRole !== "Politico" && userRole !== "Candidato Politico" && userRole !== "Admin")) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4 py-8">
-          <AlertTriangle className="h-4 w-4 text-red-600 mb-2" />
-          <div className="text-lg font-semibold mb-2">Accesso negato</div>
-          <div className="text-gray-700 dark:text-gray-300">
-            Questa sezione è accessibile solo ai Politici, ai Candidati Politici e agli Admin. Il tuo ruolo attuale: {userRole || 'Non definito'}
           </div>
         </div>
       </div>
