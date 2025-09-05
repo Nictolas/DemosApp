@@ -188,7 +188,7 @@ export default function OpinioniComunali() {
                 {opinioniEspresse.length > 0 && (
                   <div className="space-y-6">
                     <h2 className="text-xl font-bold text-green-700 border-b-2 border-green-200 pb-2">
-                      ✅ Opinion Espresse ({opinioniEspresse.length})
+                      ✅ Opinioni Espresse ({opinioniEspresse.length})
                     </h2>
                     {opinioniEspresse.map((question) => (
                       <div key={question.id} className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
