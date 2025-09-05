@@ -31,7 +31,13 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     
     const opinionResult = await pool.query(opinionQuery, [grado]);
     
+    console.log(`🔍 DEBUG - Query per grado ${grado}:`, opinionQuery);
+    console.log(`🔍 DEBUG - Parametri query:`, [grado]);
+    console.log(`🔍 DEBUG - Risultati trovati:`, opinionResult.rows.length);
+    console.log(`🔍 DEBUG - Prime 3 opinioni:`, opinionResult.rows.slice(0, 3).map(o => ({ text: o.text, gradi: o.gradi_opinione })));
+    
     if (opinionResult.rows.length === 0) {
+      console.log(`⚠️ Nessuna opinione trovata per il grado: ${grado}`);
       return res.json({
         success: true,
         data: [],
@@ -65,6 +71,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     
     // Mappa delle opinioni ai campi del database
     const opinionMapping = {
+      // Opinion nazionali
       'energia_nucleare': 'energia_nucleare',
       'sperimentazione_animale': 'sperimentazione_animale',
       'legalizzazione_canapa': 'legalizzazione_canapa',
@@ -77,6 +84,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       'salario_minimo': 'salario_minimo',
       'case_chiuse': 'case_chiuse',
       'omobitransfobia': 'omobitransfobia',
+      // Opinion comunali
       'comunale_cassonetti_intelligenti_con_tessera': 'comunale_cassonetti_intelligenti_con_tessera',
       'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti',
       'comunale_divieto_di_nuovi_fast_food_nel_centro_storico': 'comunale_divieto_di_nuovi_fast_food_nel_centro_storico',
@@ -93,6 +101,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       'comunale_sicurezza_strade_scolastiche': 'comunale_sicurezza_strade_scolastiche',
       'comunale_sostegno_commercio_locale': 'comunale_sostegno_commercio_locale',
       'comunale_verde_pubblico_e_giardini': 'comunale_verde_pubblico_e_giardini',
+      // Opinion regionali
       'regionale_nuovi_inceneritori': 'regionale_nuovi_inceneritori',
       'regionale_chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia'
     };
@@ -101,6 +110,13 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     const formattedOpinions = opinionResult.rows.map(opinion => {
       const opinionId = opinion.text.toLowerCase().replace(/\s+/g, '_');
       const userAnswer = userAnswers[opinionMapping[opinionId]];
+      
+      console.log(`🔍 DEBUG - Mappatura opinione:`, {
+        text: opinion.text,
+        opinionId: opinionId,
+        mappedField: opinionMapping[opinionId],
+        userAnswer: userAnswer
+      });
       
       // Converti le risposte del database al formato frontend
       let frontendAnswer = null;

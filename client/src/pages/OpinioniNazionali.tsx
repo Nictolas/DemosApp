@@ -11,6 +11,8 @@ import { apiRequest } from "@/lib/queryClient";
 interface Question {
   id: string;
   text: string;
+  grado: string[];
+  userAnswer: string | null;
 }
 
 interface UserOpinionsData {
@@ -38,7 +40,7 @@ export default function OpinioniNazionali() {
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
   // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, opinioni: Question[], userAnswers: Record<string, string>}>({
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', 'Nazionale'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Nazionale");
@@ -50,7 +52,7 @@ export default function OpinioniNazionali() {
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = questionsData?.opinioni || [];
+  const questions = questionsData?.data || [];
   const userAnswers = questionsData?.userAnswers || {};
 
   // Sincronizza le opinioni quando le domande vengono caricate
@@ -59,7 +61,7 @@ export default function OpinioniNazionali() {
       // Mappa le risposte dell'utente usando userAnswer da ogni opinione
       const mappedOpinions: Record<string, string> = {};
       questions.forEach(question => {
-        if (question.userAnswer && question.userAnswer !== 'Non espresso') {
+        if (question.userAnswer && question.userAnswer !== 'Astenuto') {
           mappedOpinions[question.id] = question.userAnswer;
         }
       });
