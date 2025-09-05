@@ -9,13 +9,15 @@ interface ProfileInfoProps {
   isEditing: boolean;
   onEditClick: () => void;
   onModificaImmagine: () => void;
+  canEdit?: boolean;
 }
 
 export const ProfileInfo = ({ 
   userInfo, 
   isEditing, 
   onEditClick, 
-  onModificaImmagine 
+  onModificaImmagine,
+  canEdit = true
 }: ProfileInfoProps) => {
   const [, setLocation] = useLocation();
 
@@ -125,15 +127,19 @@ export const ProfileInfo = ({
         )}
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button onClick={onModificaImmagine} variant="outline">
-          <Image className="mr-2 h-4 w-4" />
-          Modifica Immagine
-        </Button>
-        {!isEditing && (
-          <Button onClick={onEditClick}>
-            <Edit className="mr-2 h-4 w-4" />
-            Modifica Profilo
-          </Button>
+        {canEdit && (
+          <>
+            <Button onClick={onModificaImmagine} variant="outline">
+              <Image className="mr-2 h-4 w-4" />
+              Modifica Immagine
+            </Button>
+            {!isEditing && (
+              <Button onClick={onEditClick}>
+                <Edit className="mr-2 h-4 w-4" />
+                Modifica Profilo
+              </Button>
+            )}
+          </>
         )}
       </CardFooter>
     </Card>

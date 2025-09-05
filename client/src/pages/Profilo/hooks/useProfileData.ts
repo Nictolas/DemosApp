@@ -29,10 +29,22 @@ export const useProfileData = (userId?: string) => {
     
     try {
       console.log('🔍 DEBUG Profilo - Iniziando caricamento dati profilo...');
+      console.log('🔍 DEBUG Profilo - userId passato:', userId);
       
       // 1. Carica dati utente
       console.log('🔍 DEBUG Profilo - Caricando dati utente...');
-      const userResponse = await apiRequest("GET", "/api/auth/me");
+      
+      // Se userId è fornito, carica i dati di quell'utente specifico
+      // Altrimenti carica i dati dell'utente autenticato
+      let userResponse;
+      if (userId) {
+        // Carica dati di un utente specifico (per admin)
+        userResponse = await apiRequest("GET", `/api/users/${userId}`);
+      } else {
+        // Carica dati dell'utente autenticato
+        userResponse = await apiRequest("GET", "/api/auth/me");
+      }
+      
       if (!userResponse.ok) {
         throw new Error(`Errore nel caricamento dati utente: ${userResponse.status}`);
       }
@@ -60,7 +72,17 @@ export const useProfileData = (userId?: string) => {
       // 3. Carica domande opinioni
       console.log('🔍 DEBUG Profilo - Caricando domande opinioni...');
       try {
-        const opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
+        // Se userId è fornito, carica le opinioni di quell'utente specifico
+        // Altrimenti carica le opinioni dell'utente autenticato
+        let opinionsResponse;
+        if (userId) {
+          // Carica opinioni di un utente specifico (per admin)
+          opinionsResponse = await apiRequest("GET", `/api/users/${userId}/opinioni`);
+        } else {
+          // Carica opinioni dell'utente autenticato
+          opinionsResponse = await apiRequest("GET", "/api/opinioni/profile");
+        }
+        
         if (opinionsResponse.ok) {
           const opinionsResult = await opinionsResponse.json();
           console.log('🔍 DEBUG Profilo - Risposta opinioni:', opinionsResult);
