@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth-neon";
+import { apiRequest } from "@/lib/queryClient";
 
 
 
@@ -71,17 +72,22 @@ export function EditOpinioniDialog({
   const loadUserOpinions = async () => {
     try {
       setIsLoadingOpinions(true);
-      const userDoc = await getDoc(doc(db, "utenti", utenteId));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        // Prendi tutte le opinioni con valore valido
-        const filteredOpinions: Record<string, string> = {};
-        Object.keys(data).forEach(key => {
-          if (["Favorevole", "Indeciso", "Contrario"].includes(data[key])) {
-            filteredOpinions[key] = data[key];
-          }
-        });
-        setOpinions(filteredOpinions);
+      const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data && data.data.opinioni) {
+          // Converte le opinioni nel formato atteso
+          const opinioniMap: Record<string, string> = {};
+          data.data.opinioni.forEach((opinion: any) => {
+            if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+              opinioniMap[opinion.id] = opinion.userAnswer;
+            }
+          });
+          setOpinions(opinioniMap);
+        }
+      } else {
+        throw new Error('Errore nel caricamento delle opinioni');
       }
     } catch (error) {
       console.error('Errore nel caricamento delle opinioni:', error);
@@ -97,10 +103,15 @@ export function EditOpinioniDialog({
 
   const loadFonti = async () => {
     try {
-      const userDoc = await getDoc(doc(db, "utenti", utenteId));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setFonti(data.fonti_opinioni || {});
+      const response = await apiRequest("GET", `/api/users/${utenteId}/opinioni`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data && data.data.fonti) {
+          setFonti(data.data.fonti);
+        } else {
+          setFonti({});
+        }
       } else {
         setFonti({});
       }
@@ -136,14 +147,22 @@ export function EditOpinioniDialog({
   const saveOpinions = async () => {
     try {
       setIsSubmitting(true);
-      await updateDoc(doc(db, "utenti", utenteId), { ...opinions, fonti_opinioni: fonti });
-      toast({
-        title: "Successo",
-        description: "Le opinioni e le fonti dell'utente sono state aggiornate con successo.",
-        variant: "default",
+      const response = await apiRequest("PUT", `/api/users/${utenteId}/opinioni`, {
+        opinioni: opinions,
+        fonti: fonti
       });
-      onOpinioniUpdated();
-      onOpenChange(false);
+      
+      if (response.ok) {
+        toast({
+          title: "Successo",
+          description: "Le opinioni e le fonti dell'utente sono state aggiornate con successo.",
+          variant: "default",
+        });
+        onOpinioniUpdated();
+        onOpenChange(false);
+      } else {
+        throw new Error('Errore nel salvataggio');
+      }
     } catch (error) {
       console.error('Errore nell\'aggiornamento delle opinioni:', error);
       toast({
