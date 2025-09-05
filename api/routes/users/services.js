@@ -65,7 +65,7 @@ router.post('/resend-verification-email', async (req, res) => {
     
     // Reinvia email di verifica
     try {
-      const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${user.email_verification_token}`;
+      const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/conferma-email?token=${user.email_verification_token}&email=${encodeURIComponent(user.email)}`;
       await emailService.sendVerificationEmail(email, user.email_verification_token, verificationUrl);
       
       console.log('✅ Email di verifica reinviata per:', email);
