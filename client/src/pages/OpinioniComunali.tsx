@@ -56,13 +56,26 @@ export default function OpinioniComunali() {
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
     if (questions && questions.length > 0) {
+      console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
       // Mappa le risposte dell'utente usando userAnswer da ogni opinione
       const mappedOpinions: Record<string, string> = {};
       questions.forEach(question => {
-        if (question.userAnswer && question.userAnswer !== 'Astenuto') {
+        console.log(`🔍 DEBUG question in useEffect:`, {
+          id: question.id,
+          text: question.text,
+          userAnswer: question.userAnswer,
+          grado: question.grado
+        });
+        
+        if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
+          console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
+        } else if (question.userAnswer === 'Astenuto') {
+          // Non mappare 'Astenuto' ma loggarlo per debug
+          console.log(`ℹ️ Opinione 'Astenuto' non mappata: ${question.id}`);
         }
       });
+      console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
       setOpinions(mappedOpinions);
     }
   }, [questions]);
@@ -73,7 +86,7 @@ export default function OpinioniComunali() {
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni comunali sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Comunale'] });
-      setTimeout(() => setLocation("/menu"), 1500);
+      // Rimane nella stessa pagina invece di reindirizzare
     },
     onError: (error: any) => {
       toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
