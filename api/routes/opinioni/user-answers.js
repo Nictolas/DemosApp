@@ -117,6 +117,8 @@ router.post('/salva', verifyToken, async (req, res) => {
       'comunale_verde_pubblico_e_giardini': 'comunale_verde_pubblico_e_giardini',
       
       // Opinion regionali
+      'nuovi_inceneritori': 'regionale_nuovi_inceneritori',
+      'chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia',
       'regionale_nuovi_inceneritori': 'regionale_nuovi_inceneritori',
       'regionale_chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia'
     };
