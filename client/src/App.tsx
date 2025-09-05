@@ -229,6 +229,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route del profilo utente specifico */}
+              <Route path="/menu/profilo/:userId">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/menu/profilo/:userId" component={Profilo} />
+                </PageTransition>
+              </Route>
+
               <Route path="/modifica-immagine">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/modifica-immagine" component={ModificaImmagine} />

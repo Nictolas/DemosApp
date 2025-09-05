@@ -6,6 +6,7 @@ export const HIDDEN_COLUMNS = [
   'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia',
   // Colonne specifiche da nascondere
   'id', 'nome', 'cognome', 'password_hash', 'avatar_config', 'fonti_opinioni', 'firestore_uid',
+  'created_at', 'updated_at',
   // Colonne di candidatura ed elezione (nascoste perché non necessarie per la gestione utenti)
   'candidato_attivo', 'status_candidatura', 'grado_candidatura', 'paese_candidatura', 'regione_candidatura', 
   'provincia_candidatura', 'comune_candidatura', 'data_candidatura', 'note_candidatura',

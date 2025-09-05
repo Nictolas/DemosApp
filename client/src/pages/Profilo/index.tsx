@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Redirect, useLocation } from "wouter";
+import { Redirect, useLocation, useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
 import { EditProfileForm } from "@/components/EditProfileForm";
@@ -22,11 +22,15 @@ interface ProfiloProps {
   userId?: string;
 }
 
-export default function Profilo({ userId }: ProfiloProps) {
+export default function Profilo({ userId: propUserId }: ProfiloProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const params = useParams();
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Estrai userId dall'URL o dalla prop
+  const userId = propUserId || params.userId;
 
   // Hook personalizzato per la gestione dei dati del profilo
   const {
