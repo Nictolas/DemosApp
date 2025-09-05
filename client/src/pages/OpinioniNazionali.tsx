@@ -92,7 +92,7 @@ export default function OpinioniNazionali() {
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
+    mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinioni: newOpinions }),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni nazionali sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Nazionale'] });
