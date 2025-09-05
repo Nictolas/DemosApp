@@ -11,6 +11,8 @@ import { apiRequest } from "@/lib/queryClient";
 interface Question {
   id: string;
   text: string;
+  grado: string[];
+  userAnswer: string | null;
 }
 
 interface UserOpinionsData {
@@ -76,8 +78,8 @@ export default function OpinioniEuropee() {
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
   // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[]}>({
-    queryKey: ['opinioniQuestions'],
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
+    queryKey: ['opinioniQuestions', 'Europeo'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Europeo");
       if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
@@ -86,40 +88,44 @@ export default function OpinioniEuropee() {
     enabled: !!user
   });
 
-  // 2. Caricamento risposte utente con React Query
-  const { data: userAnswersData, isLoading: isLoadingUserAnswers } = useQuery<{success: boolean, data: Record<string, string>}>({
-    queryKey: ['userOpinions'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/opinioni/user-answers");
-      if (!response.ok) throw new Error("Errore nel caricamento delle risposte.");
-      return response.json();
-    },
-    enabled: !!user,
-    onSuccess: (fetchedData) => {
-      // Inizializza lo stato locale con le risposte dell'utente
-      setOpinions(fetchedData.data || {});
-    }
-  });
-
   // Combina i dati
-  const isLoading = isLoadingQuestions || isLoadingUserAnswers;
+  const isLoading = isLoadingQuestions;
   const questions = questionsData?.data || [];
-  const userAnswers = userAnswersData?.data || {};
 
-  // Sincronizza le opinioni quando userAnswers è disponibile
+  // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
-    if (userAnswers && Object.keys(userAnswers).length > 0) {
-      setOpinions(userAnswers);
+    if (questions && questions.length > 0) {
+      console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
+      // Mappa le risposte dell'utente usando userAnswer da ogni opinione
+      const mappedOpinions: Record<string, string> = {};
+      questions.forEach(question => {
+        console.log(`🔍 DEBUG question in useEffect:`, {
+          id: question.id,
+          text: question.text,
+          userAnswer: question.userAnswer,
+          grado: question.grado
+        });
+        
+        if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
+          mappedOpinions[question.id] = question.userAnswer;
+          console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
+        } else if (question.userAnswer === 'Astenuto') {
+          // Non mappare 'Astenuto' ma loggarlo per debug
+          console.log(`ℹ️ Opinione 'Astenuto' non mappata: ${question.id}`);
+        }
+      });
+      console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
+      setOpinions(mappedOpinions);
     }
-  }, [userAnswers]);
+  }, [questions]);
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
     mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinions: newOpinions }),
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni europee sono state salvate." });
-      queryClient.invalidateQueries({ queryKey: ['userOpinions'] });
-      setTimeout(() => setLocation("/menu"), 1500);
+      queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Europeo'] });
+      // Rimane nella stessa pagina invece di reindirizzare
     },
     onError: (error: any) => {
       toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
@@ -135,10 +141,22 @@ export default function OpinioniEuropee() {
     console.log('  questions:', questions);
     console.log('  opinions:', opinions);
     
-    // Filtra solo le opinioni che hanno un valore (non null/undefined)
-    const opinionsToSave = Object.fromEntries(
-      Object.entries(opinions).filter(([key, value]) => value !== null && value !== undefined)
-    );
+    // Mappa le opinioni usando l'ID corretto per l'API
+    const opinionsToSave: Record<string, string> = {};
+    questions.forEach(question => {
+      console.log(`🔍 DEBUG question:`, {
+        id: question.id,
+        text: question.text,
+        userAnswer: question.userAnswer,
+        opinionValue: opinions[question.id]
+      });
+      
+      if (opinions[question.id] && opinions[question.id] !== 'Non espresso') {
+        // Usa l'ID dell'opinione come chiave per l'API
+        opinionsToSave[question.id] = opinions[question.id];
+        console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
+      }
+    });
     
     console.log('  opinionsToSave:', opinionsToSave);
     console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
