@@ -43,9 +43,12 @@ export default function OpinioniNazionali() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', 'Nazionale'],
     queryFn: async () => {
+      console.log('🔍 DEBUG - Caricamento opinioni nazionali...');
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Nazionale");
       if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      return response.json();
+      const data = await response.json();
+      console.log('🔍 DEBUG - Risposta API:', data);
+      return data;
     },
     enabled: !!user
   });
@@ -54,6 +57,13 @@ export default function OpinioniNazionali() {
   const isLoading = isLoadingQuestions;
   const questions = questionsData?.data || [];
   const userAnswers = questionsData?.userAnswers || {};
+  
+  // Debug
+  useEffect(() => {
+    console.log('🔍 DEBUG - questionsData:', questionsData);
+    console.log('🔍 DEBUG - questions:', questions);
+    console.log('🔍 DEBUG - questions.length:', questions.length);
+  }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni
   const opinioniEspresse = questions

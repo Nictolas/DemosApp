@@ -32,9 +32,12 @@ export default function OpinioniRegionali() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', 'Regionale'],
     queryFn: async () => {
+      console.log('🔍 DEBUG - Caricamento opinioni regionali...');
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Regionale");
       if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      return response.json();
+      const data = await response.json();
+      console.log('🔍 DEBUG - Risposta API:', data);
+      return data;
     },
     enabled: !!user
   });
@@ -42,6 +45,13 @@ export default function OpinioniRegionali() {
   // Combina i dati
   const isLoading = isLoadingQuestions;
   const questions = questionsData?.data || [];
+  
+  // Debug
+  useEffect(() => {
+    console.log('🔍 DEBUG - questionsData:', questionsData);
+    console.log('🔍 DEBUG - questions:', questions);
+    console.log('🔍 DEBUG - questions.length:', questions.length);
+  }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni
   const opinioniEspresse = questions
