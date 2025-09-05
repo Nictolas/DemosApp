@@ -1,89 +1,33 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
-import { Redirect, useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-
-interface Question {
-  id: string;
-  text: string;
-  grado: string[];
-  userAnswer: string | null;
-}
-
-interface UserOpinionsData {
-  questions: Question[];
-  userAnswers: Record<string, string>;
-  blocco: {
-    isBlocked: boolean;
-    unlockDate?: string;
-  };
-}
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 const options = [
-  { value: "Favorevole", color: "bg-green-600 text-white" },
-  { value: "Indeciso", color: "bg-yellow-500 text-white" },
-  { value: "Contrario", color: "bg-red-600 text-white" }
+  { value: 'Favorevole', color: 'bg-green-500 text-white' },
+  { value: 'Contrario', color: 'bg-red-500 text-white' },
+  { value: 'Indeciso', color: 'bg-yellow-500 text-white' },
+  { value: 'Astenuto', color: 'bg-gray-500 text-white' }
 ];
 
-// Mappatura degli ID delle opinioni ai loro argomenti
-const getOpinionTopic = (id: string, questionText: string): string => {
-  // Mappatura per le opinioni base
-  const baseOpinionsMap: Record<string, string> = {
-    'energia_nucleare': 'Energia Nucleare',
-    'sperimentazione_animale': 'Sperimentazione Animale',
-    'legalizzazione_canapa': 'Legalizzazione Canapa',
-    'caccia': 'Caccia',
-    'cittadina_animale': 'Cittadinanza Animale',
-    'eutanasia': 'Eutanasia',
-    'case_chiuse': 'Case Chiuse',
-    'salario_minimo': 'Salario Minimo',
-    'matrimonio_gay': 'Matrimonio Gay',
-    'nato': 'NATO',
-    'omobitransfobia': 'Legge contro l\'omobitransfobia'
-  };
-  
-  // Se è un'opinione base, usa la mappatura
-  if (baseOpinionsMap[id]) {
-    return baseOpinionsMap[id];
-  }
-  
-  // Per le opinioni dinamiche, estrai l'argomento dalla domanda
-  if (questionText) {
-    // Rimuovi "Sei favorevole a" o "Sei favorevole alla" dall'inizio
-    let topic = questionText.replace(/^Sei favorevole (a|alla) /i, '');
-    
-    // Rimuovi il punto interrogativo alla fine
-    topic = topic.replace(/\?$/, '');
-    
-    // Capitalizza la prima lettera
-    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
-    
-    return topic;
-  }
-  
-  // Fallback: usa l'ID
-  return id;
-};
-
 export default function OpinioniEuropee() {
-  const { user, isLoading: isAuthLoading } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
-  // 1. Caricamento domande con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
+  // 1. Query per caricare le domande
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', 'Europeo'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Europeo");
-      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
-      return response.json();
+      return response;
     },
     enabled: !!user
   });
@@ -91,6 +35,7 @@ export default function OpinioniEuropee() {
   // Combina i dati
   const isLoading = isLoadingQuestions;
   const questions = questionsData?.data || [];
+
   // Dividi le opinioni in due sezioni
   const opinioniEspresse = questions
     .filter(q => q.userAnswer && ['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
@@ -104,24 +49,23 @@ export default function OpinioniEuropee() {
   useEffect(() => {
     if (questions && questions.length > 0) {
       console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
-      // Mappa le risposte dell'utente usando userAnswer da ogni opinione
       const mappedOpinions: Record<string, string> = {};
+      
       questions.forEach(question => {
-        console.log(`🔍 DEBUG question in useEffect:`, {
+        console.log(`🔍 DEBUG question:`, {
           id: question.id,
           text: question.text,
-          userAnswer: question.userAnswer,
-          grado: question.grado
+          userAnswer: question.userAnswer
         });
         
         if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
           console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
-        } else if (question.userAnswer === 'Astenuto') {
-          // Non mappare 'Astenuto' ma loggarlo per debug
-          console.log(`ℹ️ Opinione 'Astenuto' non mappata: ${question.id}`);
+        } else {
+          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer})`);
         }
       });
+      
       console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
       setOpinions(mappedOpinions);
     }
@@ -180,7 +124,7 @@ export default function OpinioniEuropee() {
   };
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  if (!user) return <Redirect to="/auth" />;
+  if (!user) return <div>Redirecting...</div>;
   
   // Per ora non abbiamo il sistema di blocco, quindi sempre false
   const blocco = { isBlocked: false, unlockDate: null };
@@ -195,7 +139,6 @@ export default function OpinioniEuropee() {
             <CardDescription>Esprimi la tua opinione su temi di rilevanza europea per trovare rappresentanti con idee simili alle tue.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
             ) : questions.length === 0 ? (
@@ -258,35 +201,6 @@ export default function OpinioniEuropee() {
                   </div>
                 )}
 
-                <div className="flex justify-center pt-6">
-                  <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
-                    {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
-                  </Button>
-                </div>
-                {blocco?.isBlocked && (
-                  <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
-                    <b>Hai già modificato le opinioni questa settimana.</b><br />
-                    Potrai farlo di nuovo dal: {unlockDate || "-"}
-                  </div>
-                )}
-              </>
-            )}</h3>
-                    <div className="flex justify-center">
-                      <div className="flex w-full max-w-md">
-                        {options.map((option, idx) => (
-                          <button
-                            key={option.value} type="button"
-                            className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${opinions[question.id] === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-100 z-0'}`}
-                            onClick={() => handleOpinionChange(question.id, option.value)}
-                            disabled={blocco?.isBlocked}
-                          >
-                            {option.value}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
                 <div className="flex justify-center pt-6">
                   <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
                     {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
