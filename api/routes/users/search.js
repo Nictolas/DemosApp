@@ -9,8 +9,9 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 GET /api/users/ - Lista utenti richiesta da admin');
     
-    const { page = 1, limit = 50, search, status, ruolo } = req.query;
-    const offset = (page - 1) * limit;
+    const { page = 1, limit, search, status, ruolo } = req.query;
+    const limitValue = limit ? parseInt(limit) : null; // Se non specificato, restituisce tutti gli utenti
+    const offset = limitValue ? (page - 1) * limitValue : 0;
     
     // Costruisci query base
     let whereClause = '';
@@ -54,15 +55,21 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     const totalUsers = parseInt(countResult.rows[0].total);
     
     // Query per gli utenti con paginazione
-    const usersQuery = `
+    let usersQuery = `
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at
       FROM users 
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     
-    const usersResult = await pool.query(usersQuery, [...queryParams, limit, offset]);
+    let queryParamsWithPagination = [...queryParams];
+    
+    if (limitValue) {
+      usersQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      queryParamsWithPagination.push(limitValue, offset);
+    }
+    
+    const usersResult = await pool.query(usersQuery, queryParamsWithPagination);
     
     console.log(`✅ Lista utenti recuperata: ${usersResult.rows.length} su ${totalUsers} totali`);
     
@@ -71,9 +78,9 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
       users: usersResult.rows,
       pagination: {
         page: parseInt(page),
-        limit: parseInt(limit),
+        limit: limitValue || totalUsers,
         total: totalUsers,
-        pages: Math.ceil(totalUsers / limit)
+        pages: limitValue ? Math.ceil(totalUsers / limitValue) : 1
       }
     });
     
