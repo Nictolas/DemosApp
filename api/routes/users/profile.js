@@ -462,4 +462,149 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
   }
 });
 
+// PUT /api/users/:userId/opinioni - Salva le opinioni di un utente specifico (solo admin)
+router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('💾 PUT /api/users/:userId/opinioni - Salvataggio opinioni utente da admin');
+    
+    const { userId } = req.params;
+    const { opinioni, fonti } = req.body;
+    
+    console.log('👤 User ID:', userId);
+    console.log('📋 Opinion ricevute:', opinioni);
+    console.log('🔗 Fonti ricevute:', fonti);
+    
+    if (!opinioni || typeof opinioni !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Dati mancanti',
+        message: 'Il campo opinioni è obbligatorio'
+      });
+    }
+    
+    // Mappa delle opinioni ai campi del database
+    const opinionMapping = {
+      // Opinion nazionali/europee
+      'energia_nucleare': 'energia_nucleare',
+      'sperimentazione_animale': 'sperimentazione_animale',
+      'legalizzazione_canapa': 'legalizzazione_canapa',
+      'caccia': 'caccia',
+      'eutanasia': 'eutanasia',
+      'carne_coltivata': 'carne_coltivata',
+      'cittadina_animale': 'cittadina_animale',
+      'nato': 'nato',
+      'matrimonio_gay': 'matrimonio_gay',
+      'salario_minimo': 'salario_minimo',
+      'case_chiuse': 'case_chiuse',
+      'omobitransfobia': 'omobitransfobia',
+      
+      // Opinion comunali (senza prefissi)
+      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+      'nuove_case_popolari': 'nuove_case_popolari',
+      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+      'sostegno_commercio_locale': 'sostegno_commercio_locale',
+      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
+      
+      // Opinion regionali (senza prefissi)
+      'nuovi_inceneritori': 'nuovi_inceneritori',
+      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+      
+      // Opinion nazionali/comunali (senza prefissi)
+      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
+    };
+    
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+    
+    // Processa le opinioni
+    for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      const dbField = opinionMapping[opinionId];
+      
+      if (dbField) {
+        let dbValue = null;
+        if (risposta === 'Favorevole') dbValue = 'Favorevole';
+        else if (risposta === 'Contrario') dbValue = 'Contrario';
+        else if (risposta === 'Indeciso') dbValue = 'Indeciso';
+        else if (risposta === 'Astenuto') dbValue = null;
+        
+        updateFields.push(`${dbField} = $${paramIndex}`);
+        updateValues.push(dbValue);
+        paramIndex++;
+      }
+    }
+    
+    // Processa le fonti se fornite
+    if (fonti && typeof fonti === 'object') {
+      updateFields.push(`fonti_opinioni = $${paramIndex}`);
+      updateValues.push(JSON.stringify(fonti));
+      paramIndex++;
+    }
+    
+    // Aggiungi updated_at
+    updateFields.push(`updated_at = $${paramIndex}`);
+    updateValues.push(new Date());
+    paramIndex++;
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Esegui l'UPDATE
+    const updateQuery = `
+      UPDATE users 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramIndex}
+    `;
+    
+    updateValues.push(userId);
+    
+    const result = await pool.query(updateQuery, updateValues);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Impossibile aggiornare le opinioni'
+      });
+    }
+    
+    console.log('✅ Opinion salvate con successo per utente:', userId);
+    
+    res.json({
+      success: true,
+      message: 'Opinioni salvate con successo',
+      updatedFields: updateFields.length - 1, // -1 per escludere updated_at
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare opinioni utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile salvare le opinioni'
+    });
+  }
+});
+
 module.exports = router;
