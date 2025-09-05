@@ -15,7 +15,7 @@ export const getFieldName = (categoria: string): string => {
     case "camera": return "rappresentante_camera";
     case "senato": return "rappresentante_senato";
     case "regione": return "rappresentante_regionale";
-    case "comune": return "rappresentante_comunale";
+    case "comune": return "rappresentante_comune";
     default: return "";
   }
 };
@@ -24,9 +24,21 @@ export const getAvatarContent = (avatarConfig: string | undefined) => {
   if (!avatarConfig) return null;
   
   try {
-    const config = JSON.parse(avatarConfig);
+    // Gestisci il caso di doppia serializzazione JSON
+    let config;
+    if (typeof avatarConfig === 'string') {
+      // Prima prova a fare il parse diretto
+      config = JSON.parse(avatarConfig);
+      // Se il risultato è ancora una stringa, fai un secondo parse
+      if (typeof config === 'string') {
+        config = JSON.parse(config);
+      }
+    } else {
+      config = avatarConfig;
+    }
     return config;
   } catch (error) {
+    console.log('⚠️ Errore parsing avatar:', error);
     return null;
   }
 };
