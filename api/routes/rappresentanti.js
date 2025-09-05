@@ -327,7 +327,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       
       return {
         ...candidato,
-        avatar_config: typeof avatarConfig === 'object' ? JSON.stringify(avatarConfig) : avatarConfig
+        avatar_config: avatarConfig // avatarConfig è già una stringa JSON
       };
     });
     
