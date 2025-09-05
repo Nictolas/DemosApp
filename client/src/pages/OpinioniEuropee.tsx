@@ -55,6 +55,14 @@ export default function OpinioniEuropee() {
     .filter(q => !q.userAnswer || q.userAnswer === 'Astenuto' || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
     .sort((a, b) => a.text.localeCompare(b.text));
 
+  // Debug per vedere le sezioni
+  useEffect(() => {
+    console.log('🔍 DEBUG - opinioniEspresse:', opinioniEspresse);
+    console.log('🔍 DEBUG - opinioniDaInserire:', opinioniDaInserire);
+    console.log('🔍 DEBUG - opinioniEspresse.length:', opinioniEspresse.length);
+    console.log('🔍 DEBUG - opinioniDaInserire.length:', opinioniDaInserire.length);
+  }, [opinioniEspresse, opinioniDaInserire]);
+
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
     if (questions && questions.length > 0) {
