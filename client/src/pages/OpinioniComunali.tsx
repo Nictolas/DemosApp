@@ -10,8 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 
 const options = [
   { value: 'Favorevole', color: 'bg-green-500 text-white' },
-  { value: 'Contrario', color: 'bg-red-500 text-white' },
-  { value: 'Indeciso', color: 'bg-yellow-500 text-white' }
+  { value: 'Indeciso', color: 'bg-yellow-500 text-white' },
+  { value: 'Contrario', color: 'bg-red-500 text-white' }
 ];
 
 export default function OpinioniComunali() {
