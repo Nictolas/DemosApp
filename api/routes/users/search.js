@@ -55,7 +55,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
     // Query per gli utenti con paginazione
     const usersQuery = `
-      SELECT id, nome, cognome, email, ruolo, status, created_at, updated_at
+      SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at
       FROM users 
       ${whereClause}
       ORDER BY created_at DESC
