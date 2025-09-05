@@ -45,23 +45,27 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente
+    // Query per ottenere le risposte dell'utente - SENZA PREFISSI
     const userQuery = `
       SELECT 
-        -- Opinion nazionali
+        -- Opinion nazionali/europee
         energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
         carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali
-        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
-        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
-        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
-        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
-        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
-        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
-        comunale_verde_pubblico_e_giardini,
-        -- Opinion regionali
-        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia
+        -- Opinion comunali (senza prefissi)
+        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
+        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
+        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
+        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
+        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
+        sicurezza_strade_scolastiche, sostegno_commercio_locale,
+        verde_pubblico_e_giardini,
+        -- Opinion regionali (senza prefissi)
+        nuovi_inceneritori, chiusura_ospedali_di_provincia,
+        -- Opinion nazionali/comunali (senza prefissi)
+        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
+        riduzione_parcheggi_a_pagamento
       FROM users
       WHERE id = $1
     `;
