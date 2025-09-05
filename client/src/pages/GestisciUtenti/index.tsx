@@ -129,10 +129,8 @@ export default function GestisciUtenti() {
   // Filtraggio e ordinamento
   const filteredUsers = useMemo(() => {
     let filtered = allUsers.filter((u: any) => {
-      // Filtra solo utenti con status "active"
-      if (u.status !== 'active') {
-        return false;
-      }
+      // Mostra tutti gli utenti, non solo quelli con status "active"
+      // (rimosso il filtro hardcoded per status)
       
       const searchLower = searchTerm.toLowerCase();
       return (
@@ -264,8 +262,8 @@ export default function GestisciUtenti() {
                       <Users className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-green-600">Utenti Attivi</p>
-                      <p className="text-2xl font-bold text-green-900">{allUsers.filter((u: any) => u.status === 'active').length}</p>
+                      <p className="text-sm font-medium text-green-600">Tutti gli Utenti</p>
+                      <p className="text-2xl font-bold text-green-900">{allUsers.length}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -314,10 +312,10 @@ export default function GestisciUtenti() {
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-2xl text-gray-800">
                   <Users className="h-6 w-6 mr-3 text-blue-600" />
-                  Utenti Attivi
+                  Tutti gli Utenti
                 </CardTitle>
                 <CardDescription className="text-gray-600">
-                  Visualizza e gestisci tutti gli utenti della piattaforma
+                  Visualizza e gestisci tutti gli utenti della piattaforma (attivi, pending, ecc.)
                 </CardDescription>
               </CardHeader>
               <CardContent>

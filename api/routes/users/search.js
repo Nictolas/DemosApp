@@ -122,4 +122,54 @@ router.get('/pending', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/users/:userId - Ottieni un utente specifico (solo admin)
+router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/users/:userId - Richiesta utente specifico');
+    
+    const { userId } = req.params;
+    
+    // Verifica che userId sia valido
+    if (!userId || isNaN(parseInt(userId))) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID utente non valido'
+      });
+    }
+    
+    // Query per ottenere l'utente specifico
+    const result = await pool.query(`
+      SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
+             genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
+             provincia_residenza, comune_residenza, avatar_config
+      FROM users 
+      WHERE id = $1
+    `, [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utente non trovato'
+      });
+    }
+    
+    const user = result.rows[0];
+    
+    console.log('✅ Utente trovato:', user.email);
+    
+    res.json({
+      success: true,
+      user: user
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero utente specifico:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Errore interno del server',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
