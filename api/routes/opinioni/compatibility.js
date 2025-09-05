@@ -120,19 +120,19 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     'regionale_nuovi_inceneritori': 'regionale_nuovi_inceneritori',
     'regionale_chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia',
     
-    // Opinion europee (stesse delle nazionali)
-    'europeo_energia_nucleare': 'energia_nucleare',
-    'europeo_sperimentazione_animale': 'sperimentazione_animale',
-    'europeo_legalizzazione_canapa': 'legalizzazione_canapa',
-    'europeo_caccia': 'caccia',
-    'europeo_eutanasia': 'eutanasia',
-    'europeo_carne_coltivata': 'carne_coltivata',
-    'europeo_cittadina_animale': 'cittadina_animale',
-    'europeo_nato': 'nato',
-    'europeo_matrimonio_gay': 'matrimonio_gay',
-    'europeo_salario_minimo': 'salario_minimo',
-    'europeo_case_chiuse': 'case_chiuse',
-    'europeo_omobitransfobia': 'omobitransfobia'
+    // Opinion europee (stesse delle nazionali - senza prefisso)
+    'energia_nucleare': 'energia_nucleare',
+    'sperimentazione_animale': 'sperimentazione_animale',
+    'legalizzazione_canapa': 'legalizzazione_canapa',
+    'caccia': 'caccia',
+    'eutanasia': 'eutanasia',
+    'carne_coltivata': 'carne_coltivata',
+    'cittadina_animale': 'cittadina_animale',
+    'nato': 'nato',
+    'matrimonio_gay': 'matrimonio_gay',
+    'salario_minimo': 'salario_minimo',
+    'case_chiuse': 'case_chiuse',
+    'omobitransfobia': 'omobitransfobia'
     };
     
     // Formatta le opinioni per il frontend
