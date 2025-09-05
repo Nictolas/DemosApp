@@ -22,6 +22,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       // Mappa i gradi dal frontend ai valori del database
       const gradoMapping = {
         'Europeo': 'Europeo',
+        'Nazionale': 'Europeo', // Per Camera e Senato usiamo Europeo come fallback
         'Camera': 'Camera',
         'Senato': 'Senato', 
         'Regionale': 'Regionale',
@@ -378,54 +379,77 @@ router.get('/', verifyToken, async (req, res) => {
     const userId = req.userId;
     console.log('🔍 DEBUG - userId:', userId);
     
-    // Prima controlliamo quali ruoli esistono nel database
-    const rolesQuery = `SELECT DISTINCT ruolo FROM users WHERE ruolo IS NOT NULL`;
-    const rolesResult = await pool.query(rolesQuery);
-    console.log('🔍 DEBUG - Ruoli disponibili nel database:', rolesResult.rows.map(r => r.ruolo));
-    
-    // Controlliamo anche quanti utenti ci sono in totale
-    const countQuery = `SELECT COUNT(*) as total FROM users`;
-    const countResult = await pool.query(countQuery);
-    console.log('🔍 DEBUG - Totale utenti nel database:', countResult.rows[0].total);
-    
-    // Usa SOLO la tabella users - SEMPRE così
-    // Filtra per utenti che possono essere rappresentanti (Politico, Candidato, etc.)
-    const query = `
+    // Ottieni i rappresentanti selezionati dall'utente
+    const userQuery = `
       SELECT 
-        id as rappresentante_id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        status,
-        'disponibile' as stato
+        rappresentante_europeo,
+        rappresentante_camera,
+        rappresentante_senato,
+        rappresentante_regionale,
+        rappresentante_comune
       FROM users
-      WHERE id != $1 
-        AND ruolo IN ('Politico', 'Candidato', 'Candidato Politico', 'Elettore')
-        AND status = 'active'
-      ORDER BY cognome, nome
+      WHERE id = $1
     `;
     
-    const result = await pool.query(query, [userId]);
-    console.log('🔍 DEBUG - Risultati query rappresentanti:', result.rows.length, 'utenti trovati');
+    const userResult = await pool.query(userQuery, [userId]);
+    const user = userResult.rows[0] || {};
     
-    // Struttura la risposta come si aspetta il frontend
-    const rappresentanti = {};
+    console.log('🔍 DEBUG Frontend - Utente rappresentanti selezionati:', user);
+    
+    // Ottieni i dettagli dei rappresentanti selezionati
+    const rappresentantiSelezionati = {};
     const idMap = {};
     
-    // Organizza i rappresentanti per categoria (per ora tutti insieme)
-    if (result.rows.length > 0) {
-      rappresentanti['tutti'] = result.rows;
-      // Crea idMap per mappare gli ID
-      result.rows.forEach(rapp => {
-        idMap[rapp.rappresentante_id] = `${rapp.nome} ${rapp.cognome}`;
-      });
+    // Lista dei campi rappresentante
+    const campiRappresentante = [
+      { campo: 'rappresentante_europeo', categoria: 'europeo' },
+      { campo: 'rappresentante_camera', categoria: 'camera' },
+      { campo: 'rappresentante_senato', categoria: 'senato' },
+      { campo: 'rappresentante_regionale', categoria: 'regione' },
+      { campo: 'rappresentante_comune', categoria: 'comune' }
+    ];
+    
+    for (const { campo, categoria } of campiRappresentante) {
+      const rappresentanteId = user[campo];
+      
+      if (rappresentanteId) {
+        // Ottieni i dettagli del rappresentante
+        const rappresentanteQuery = `
+          SELECT 
+            id,
+            nome,
+            cognome,
+            email,
+            ruolo,
+            status,
+            avatar_config
+          FROM users
+          WHERE id = $1
+        `;
+        
+        const rappresentanteResult = await pool.query(rappresentanteQuery, [rappresentanteId]);
+        
+        if (rappresentanteResult.rows.length > 0) {
+          const rappresentante = rappresentanteResult.rows[0];
+          rappresentantiSelezionati[categoria] = [rappresentante];
+          idMap[rappresentanteId] = `${rappresentante.nome} ${rappresentante.cognome}`;
+          
+          console.log(`🔍 DEBUG - Rappresentante ${categoria} trovato:`, rappresentante.nome, rappresentante.cognome);
+        } else {
+          console.log(`⚠️ DEBUG - Rappresentante ${categoria} con ID ${rappresentanteId} non trovato`);
+        }
+      } else {
+        console.log(`ℹ️ DEBUG - Nessun rappresentante selezionato per ${categoria}`);
+      }
     }
+    
+    console.log('🔍 DEBUG Frontend - Rappresentanti selezionati:', rappresentantiSelezionati);
+    console.log('🔍 DEBUG Frontend - idMap:', idMap);
     
     res.json({
       success: true,
       data: {
-        rappresentanti,
+        rappresentanti: rappresentantiSelezionati,
         idMap
       }
     });
