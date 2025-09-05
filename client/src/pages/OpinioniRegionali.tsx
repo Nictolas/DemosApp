@@ -111,10 +111,12 @@ export default function OpinioniRegionali() {
         opinionValue: opinions[question.id]
       });
       
-      if (opinions[question.id] && opinions[question.id] !== 'Non espresso') {
+      if (opinions[question.id] && opinions[question.id] !== 'Non espresso' && opinions[question.id] !== 'Astenuto') {
         // Usa l'ID dell'opinione come chiave per l'API
         opinionsToSave[question.id] = opinions[question.id];
         console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
+      } else {
+        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Non espresso' ? 'Non espresso' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
       }
     });
     
