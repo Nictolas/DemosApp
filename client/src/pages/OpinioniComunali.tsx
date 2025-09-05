@@ -11,8 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 const options = [
   { value: 'Favorevole', color: 'bg-green-500 text-white' },
   { value: 'Contrario', color: 'bg-red-500 text-white' },
-  { value: 'Indeciso', color: 'bg-yellow-500 text-white' },
-  { value: 'Astenuto', color: 'bg-gray-500 text-white' }
+  { value: 'Indeciso', color: 'bg-yellow-500 text-white' }
 ];
 
 export default function OpinioniComunali() {
@@ -53,7 +52,7 @@ export default function OpinioniComunali() {
     .sort((a, b) => a.text.localeCompare(b.text));
   
   const opinioniDaInserire = questions
-    .filter(q => !q.userAnswer || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
+    .filter(q => !q.userAnswer || q.userAnswer === 'Astenuto' || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
     .sort((a, b) => a.text.localeCompare(b.text));
 
   // Sincronizza le opinioni quando le domande vengono caricate
@@ -73,7 +72,8 @@ export default function OpinioniComunali() {
           mappedOpinions[question.id] = question.userAnswer;
           console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
         } else {
-          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer})`);
+          mappedOpinions[question.id] = 'Astenuto';
+          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> impostato Astenuto`);
         }
       });
       
@@ -114,7 +114,7 @@ export default function OpinioniComunali() {
         opinionValue: opinions[question.id]
       });
       
-      if (opinions[question.id] && opinions[question.id] !== 'Non espresso') {
+      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
         // Usa l'ID dell'opinione come chiave per l'API
         opinionsToSave[question.id] = opinions[question.id];
         console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
