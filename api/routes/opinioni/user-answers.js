@@ -118,6 +118,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
       'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
       'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
       
       // Opinion regionali (senza prefissi)
       'nuovi_inceneritori': 'nuovi_inceneritori',

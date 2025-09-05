@@ -45,7 +45,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente - SENZA PREFISSI
+    // Query per ottenere le risposte dell'utente - SOLO COLONNE ESISTENTI
     const userQuery = `
       SELECT 
         -- Opinion nazionali/europee
@@ -111,8 +111,9 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
       'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
       'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
       
-      // Colonne extra (senza prefissi)
+      // Colonne extra (senza prefissi) - SOLO COLONNE ESISTENTI
       'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
       'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
       'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
