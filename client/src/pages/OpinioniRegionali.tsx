@@ -60,6 +60,9 @@ export default function OpinioniRegionali() {
         if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
           console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
+        } else if (question.userAnswer === 'Astenuto') {
+          // Non mappare 'Astenuto' ma loggarlo per debug
+          console.log(`ℹ️ Opinione 'Astenuto' non mappata: ${question.id}`);
         }
       });
       console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);

@@ -137,6 +137,8 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
       else if (userAnswer === 'No') frontendAnswer = 'Contrario';
       else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
+      else if (userAnswer === 'Contrario') frontendAnswer = 'Contrario'; // Aggiunto per compatibilità
+      else if (userAnswer === 'Favorevole') frontendAnswer = 'Favorevole'; // Aggiunto per compatibilità
       else if (userAnswer === null) frontendAnswer = 'Astenuto';
       
       return {

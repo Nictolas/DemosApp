@@ -73,6 +73,8 @@ router.post('/salva', verifyToken, async (req, res) => {
     console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
     console.log('👤 User ID:', userId);
     console.log('📋 Opinion ricevute:', opinioni);
+    console.log('🔍 Tipo opinioni:', typeof opinioni);
+    console.log('🔍 Chiavi opinioni:', Object.keys(opinioni || {}));
     
     if (!opinioni || typeof opinioni !== 'object') {
       return res.status(400).json({
