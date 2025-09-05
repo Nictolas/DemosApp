@@ -35,8 +35,8 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-x-auto w-full">
+      <Table className="w-full">
         <TableHeader>
           <TableRow>
             {displayColumns.map((column) => (
@@ -60,7 +60,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
           {users.map((user) => (
             <TableRow key={user.id} className="hover:bg-gray-50">
               {displayColumns.map((column) => (
-                <TableCell key={column} className="max-w-[200px]">
+                <TableCell key={column} className="min-w-[150px] max-w-[300px]">
                   <div className="truncate" title={formatColumnValue(user[column], column)}>
                     {renderColumnValue(user[column], column, user)}
                   </div>
