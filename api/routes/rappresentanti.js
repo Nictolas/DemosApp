@@ -50,20 +50,24 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         regione_elezione,
         provincia_elezione,
         comune_elezione,
-        -- Opinion nazionali
+        -- Opinion nazionali/europee
         energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
         carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali
-        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
-        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
-        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
-        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
-        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
-        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
-        comunale_verde_pubblico_e_giardini,
-        -- Opinion regionali
-        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia
+        -- Opinion comunali (senza prefissi)
+        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
+        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
+        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
+        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
+        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
+        sicurezza_strade_scolastiche, sostegno_commercio_locale,
+        verde_pubblico_e_giardini,
+        -- Opinion regionali (senza prefissi)
+        nuovi_inceneritori, chiusura_ospedali_di_provincia,
+        -- Opinion nazionali/comunali (senza prefissi)
+        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
+        riduzione_parcheggi_a_pagamento
       FROM users
       WHERE id != $1 
         AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico')
@@ -77,38 +81,41 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
     
-    // Carica le opinioni specifiche per il grado "Europeo" dalla tabella opinioni
-    const europeanOpinionsQuery = `
+    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni
+    const gradoOpinionsQuery = `
       SELECT o.id, o.text, o.gradi_opinione
       FROM opinioni o
-      WHERE 'Europeo' = ANY(o.gradi_opinione)
+      WHERE $1 = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
     
-    const europeanOpinionsResult = await pool.query(europeanOpinionsQuery);
-    const europeanOpinions = europeanOpinionsResult.rows;
+    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [grado]);
+    const gradoOpinions = gradoOpinionsResult.rows;
     
-    console.log('🔍 DEBUG - Opinion europee caricate:', europeanOpinions.length);
-    console.log('🔍 DEBUG - Opinion europee:', europeanOpinions.map(o => o.text));
+    console.log(`🔍 DEBUG - Opinion per grado ${grado} caricate:`, gradoOpinions.length);
+    console.log(`🔍 DEBUG - Opinion per grado ${grado}:`, gradoOpinions.map(o => o.text));
     
     // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
-    // Carica solo i campi che corrispondono alle opinioni europee
     const userOpinionsQuery = `
       SELECT 
-        -- Opinion nazionali
+        -- Opinion nazionali/europee
         energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
         carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali
-        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
-        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
-        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
-        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
-        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
-        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
-        comunale_verde_pubblico_e_giardini,
-        -- Opinion regionali
-        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia
+        -- Opinion comunali (senza prefissi)
+        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
+        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
+        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
+        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
+        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
+        sicurezza_strade_scolastiche, sostegno_commercio_locale,
+        verde_pubblico_e_giardini,
+        -- Opinion regionali (senza prefissi)
+        nuovi_inceneritori, chiusura_ospedali_di_provincia,
+        -- Opinion nazionali/comunali (senza prefissi)
+        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
+        riduzione_parcheggi_a_pagamento
       FROM users
       WHERE id = $1
     `;
@@ -119,48 +126,83 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
     console.log('🔍 DEBUG - Opinion utente corrente:', userOpinions);
     
-    // Funzione per calcolare le opinioni comuni tra utente e rappresentante (solo opinioni europee)
-    const calculateCommonOpinions = (userOpinions, candidateOpinions, europeanOpinions) => {
+    // Funzione per calcolare le opinioni comuni tra utente e rappresentante
+    const calculateCommonOpinions = (userOpinions, candidateOpinions, grado) => {
       let commonCount = 0;
       
-      console.log('🔍 DEBUG calculateCommonOpinions - Inizio calcolo per candidato:', candidateOpinions.nome, candidateOpinions.cognome);
+      console.log('🔍 DEBUG calculateCommonOpinions - Inizio calcolo per candidato:', candidateOpinions.nome, candidateOpinions.cognome, 'grado:', grado);
       
-      europeanOpinions.forEach(opinion => {
-        // Converte il testo dell'opinione nel nome del campo del database
-        const fieldName = opinion.text.toLowerCase().replace(/\s+/g, '_');
-        
+      // Definisci le opinioni per ogni grado
+      const opinioniPerGrado = {
+        'Europeo': [
+          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
+          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia'
+        ],
+        'Camera': [
+          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
+          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia'
+        ],
+        'Senato': [
+          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
+          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia'
+        ],
+        'Regionale': [
+          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
+          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia',
+          'nuovi_inceneritori', 'chiusura_ospedali_di_provincia'
+        ],
+        'Comunale': [
+          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
+          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia',
+          'cassonetti_intelligenti_con_tessera', 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+          'divieto_di_nuovi_fast_food_nel_centro_storico', 'estensione_delle_zone_a_traffico_limitato',
+          'finanziamento_eventi_culturali_gratuiti', 'nuova_biblioteca_comunale',
+          'nuove_case_popolari', 'nuove_piste_ciclabili', 'nuovi_asili_nido_comunali',
+          'nuovo_stadio_comunale', 'parcheggi_gratuiti_per_residenti',
+          'potenziamento_trasporto_pubblico', 'riduzione_tasse_rifiuti',
+          'sicurezza_strade_scolastiche', 'sostegno_commercio_locale',
+          'verde_pubblico_e_giardini', 'raccolta_rifiuti_porta_a_porta', 
+          'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+          'sussidi_comunali_per_famiglie_numerose', 'videosorveglianza_in_spazi_pubblici',
+          'riduzione_parcheggi_a_pagamento'
+        ]
+      };
+      
+      const opinioniDaControllare = opinioniPerGrado[grado] || opinioniPerGrado['Europeo'];
+      
+      opinioniDaControllare.forEach(fieldName => {
         const userAnswer = userOpinions[fieldName];
         const candidateAnswer = candidateOpinions[fieldName];
         
-        console.log(`🔍 DEBUG calculateCommonOpinions - ${opinion.text}: user="${userAnswer}", candidate="${candidateAnswer}"`);
+        console.log(`🔍 DEBUG calculateCommonOpinions - ${fieldName}: user="${userAnswer}", candidate="${candidateAnswer}"`);
         
         // Conta come opinione comune solo se entrambi hanno risposto e la risposta è identica
         if (userAnswer && candidateAnswer && userAnswer === candidateAnswer) {
           commonCount++;
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${opinion.text} = "${userAnswer}"`);
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${fieldName} = "${userAnswer}"`);
         }
       });
       
-      console.log(`🔍 DEBUG calculateCommonOpinions - Totale opinioni comuni per ${candidateOpinions.nome} ${candidateOpinions.cognome}: ${commonCount}`);
+      console.log(`🔍 DEBUG calculateCommonOpinions - Totale opinioni comuni per ${candidateOpinions.nome} ${candidateOpinions.cognome} (${grado}): ${commonCount}`);
       return commonCount;
     };
     
-    // Debug: controlliamo quanti utenti hanno grado_elezione = 'Europeo'
-    const debugQuery = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = 'Europeo'`;
-    const debugResult = await pool.query(debugQuery);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione Europeo:', debugResult.rows[0].count);
+    // Debug: controlliamo quanti utenti hanno grado_elezione = grado richiesto
+    const debugQuery = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1`;
+    const debugResult = await pool.query(debugQuery, [grado]);
+    console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado}:`, debugResult.rows[0].count);
     
-    // Debug: controlliamo quanti utenti hanno grado_elezione = 'Europeo' E ruolo corretto
-    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = 'Europeo' AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico') AND status = 'active'`;
-    const debugResult2 = await pool.query(debugQuery2);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione Europeo E ruolo corretto:', debugResult2.rows[0].count);
+    // Debug: controlliamo quanti utenti hanno grado_elezione = grado richiesto E ruolo corretto
+    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1 AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico') AND status = 'active'`;
+    const debugResult2 = await pool.query(debugQuery2, [grado]);
+    console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado} E ruolo corretto:`, debugResult2.rows[0].count);
     
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
     
     // Calcola le opinioni comuni per ogni candidato e aggiungi il campo opinioni_comuni
     candidati = candidati.map(candidato => {
-      const opinioniComuni = calculateCommonOpinions(userOpinions, candidato, europeanOpinions);
+      const opinioniComuni = calculateCommonOpinions(userOpinions, candidato, grado);
       return {
         ...candidato,
         opinioni_comuni: opinioniComuni
@@ -185,10 +227,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       opinioni_comuni: c.opinioni_comuni 
     })));
     
-    // Debug: vediamo alcuni esempi di utenti con grado_elezione = 'Europeo'
-    const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status, avatar_config FROM users WHERE grado_elezione = 'Europeo' LIMIT 5`;
-    const debugResult3 = await pool.query(debugQuery3);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esempi utenti Europeo:', debugResult3.rows);
+    // Debug: vediamo alcuni esempi di utenti con grado_elezione = grado richiesto
+    const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status, avatar_config FROM users WHERE grado_elezione = $1 LIMIT 5`;
+    const debugResult3 = await pool.query(debugQuery3, [grado]);
+    console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Esempi utenti ${grado}:`, debugResult3.rows);
     
     // Debug: controlliamo se i candidati hanno avatar_config
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Primi 3 candidati con avatar_config:', 
