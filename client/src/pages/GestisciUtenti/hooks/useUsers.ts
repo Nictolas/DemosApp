@@ -19,7 +19,7 @@ export const useUsers = (user: any) => {
       const addFullName = (users: any[]) => {
         return users.map(user => ({
           ...user,
-          nome_completo: `${user.nome || ''} ${user.cognome || ''}`.trim()
+          nome_completo: `${user.nome || ''} ${user.cognome || ''}`.trim() || user.name || 'N/A'
         }));
       };
 

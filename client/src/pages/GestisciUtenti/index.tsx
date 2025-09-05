@@ -129,13 +129,20 @@ export default function GestisciUtenti() {
   // Filtraggio e ordinamento
   const filteredUsers = useMemo(() => {
     let filtered = allUsers.filter((u: any) => {
+      // Filtra solo utenti con status "active"
+      if (u.status !== 'active') {
+        return false;
+      }
+      
       const searchLower = searchTerm.toLowerCase();
       return (
         u.nome?.toLowerCase().includes(searchLower) ||
         u.cognome?.toLowerCase().includes(searchLower) ||
+        u.name?.toLowerCase().includes(searchLower) ||
         u.email?.toLowerCase().includes(searchLower) ||
         u.ruolo?.toLowerCase().includes(searchLower) ||
-        `${u.nome} ${u.cognome}`.toLowerCase().includes(searchLower)
+        `${u.nome} ${u.cognome}`.toLowerCase().includes(searchLower) ||
+        u.nome_completo?.toLowerCase().includes(searchLower)
       );
     });
 
