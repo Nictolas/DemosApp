@@ -91,6 +91,14 @@ export default function OpinioniEuropee() {
   // Combina i dati
   const isLoading = isLoadingQuestions;
   const questions = questionsData?.data || [];
+  // Dividi le opinioni in due sezioni
+  const opinioniEspresse = questions
+    .filter(q => q.userAnswer && ['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
+    .sort((a, b) => a.text.localeCompare(b.text));
+  
+  const opinioniDaInserire = questions
+    .filter(q => !q.userAnswer || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
+    .sort((a, b) => a.text.localeCompare(b.text));
 
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
@@ -125,7 +133,7 @@ export default function OpinioniEuropee() {
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni europee sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Europeo'] });
-      // Rimane nella stessa pagina invece di reindirizzare
+      setTimeout(() => setLocation("/opinioni"), 1500);
     },
     onError: (error: any) => {
       toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
@@ -187,15 +195,82 @@ export default function OpinioniEuropee() {
             <CardDescription>Esprimi la tua opinione su temi di rilevanza europea per trovare rappresentanti con idee simili alle tue.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /><span className="ml-2">Caricamento...</span></div>
             ) : questions.length === 0 ? (
               <div className="text-center py-8"><p className="text-muted-foreground">Nessuna domanda disponibile.</p></div>
             ) : (
               <>
-                {questions.map((question) => (
-                  <div key={question.id} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-center">{getOpinionTopic(question.id, question.text)}</h3>
+                {/* Opinioni Espresse */}
+                {opinioniEspresse.length > 0 && (
+                  <div className="space-y-6">
+                    <h2 className="text-xl font-bold text-green-700 border-b-2 border-green-200 pb-2">
+                      ✅ Opinion Espresse ({opinioniEspresse.length})
+                    </h2>
+                    {opinioniEspresse.map((question) => (
+                      <div key={question.id} className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h3 className="text-lg font-semibold text-center">{question.text}</h3>
+                        <div className="flex justify-center">
+                          <div className="flex w-full max-w-md">
+                            {options.map((option, idx) => (
+                              <button
+                                key={option.value} type="button"
+                                className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${opinions[question.id] === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-10 z-0'}`}
+                                onClick={() => handleOpinionChange(question.id, option.value)}
+                                disabled={blocco?.isBlocked}
+                              >
+                                {option.value}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Opinioni da Inserire */}
+                {opinioniDaInserire.length > 0 && (
+                  <div className="space-y-6">
+                    <h2 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2">
+                      📝 Opinion da Inserire ({opinioniDaInserire.length})
+                    </h2>
+                    {opinioniDaInserire.map((question) => (
+                      <div key={question.id} className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h3 className="text-lg font-semibold text-center">{question.text}</h3>
+                        <div className="flex justify-center">
+                          <div className="flex w-full max-w-md">
+                            {options.map((option, idx) => (
+                              <button
+                                key={option.value} type="button"
+                                className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${idx === 0 ? 'rounded-l-full' : ''} ${idx === options.length - 1 ? 'rounded-r-full' : ''} ${opinions[question.id] === option.value ? option.color + ' scale-95 z-10' : 'bg-white hover:bg-gray-10 z-0'}`}
+                                onClick={() => handleOpinionChange(question.id, option.value)}
+                                disabled={blocco?.isBlocked}
+                              >
+                                {option.value}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex justify-center pt-6">
+                  <Button onClick={handleSave} disabled={saveMutation.isPending || blocco?.isBlocked} className="px-8 py-3 text-lg">
+                    {saveMutation.isPending ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Salvando...</> : "Salva le mie opinioni"}
+                  </Button>
+                </div>
+                {blocco?.isBlocked && (
+                  <div className="mt-4 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded text-center">
+                    <b>Hai già modificato le opinioni questa settimana.</b><br />
+                    Potrai farlo di nuovo dal: {unlockDate || "-"}
+                  </div>
+                )}
+              </>
+            )}</h3>
                     <div className="flex justify-center">
                       <div className="flex w-full max-w-md">
                         {options.map((option, idx) => (
