@@ -31,21 +31,22 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
       );
     }
 
-    // Nuova logica per la struttura aggiornata
+    // Logica per la struttura aggiornata dell'API
     let rappresentanteData = null;
     let rappresentanteUid = null;
 
-    if (data.rappresentantiPerGrado && categoriaId === 'europeo') {
-      // Per il Parlamento Europeo, cerca il rappresentante selezionato
-      const europeanRepresentatives = data.rappresentantiPerGrado['Europeo'] || [];
-      if (data.selectedEuropeanRepresentativeId) {
-        rappresentanteData = europeanRepresentatives.find(r => r.id === data.selectedEuropeanRepresentativeId);
-        rappresentanteUid = data.selectedEuropeanRepresentativeId;
+    if (data.rappresentanti && data.idMap) {
+      // La nuova struttura dell'API restituisce rappresentanti per categoria
+      const rappresentantiPerCategoria = data.rappresentanti[categoriaId];
+      
+      if (rappresentantiPerCategoria && Array.isArray(rappresentantiPerCategoria) && rappresentantiPerCategoria.length > 0) {
+        rappresentanteData = rappresentantiPerCategoria[0]; // Prendi il primo (e unico) rappresentante
+        rappresentanteUid = rappresentanteData.id;
+        
+        console.log(`🔍 DEBUG CategoriaPrincipale - Rappresentante trovato per ${categoriaId}:`, rappresentanteData);
+      } else {
+        console.log(`🔍 DEBUG CategoriaPrincipale - Nessun rappresentante per ${categoriaId}:`, rappresentantiPerCategoria);
       }
-    } else if (data.rappresentanti && data.idMap) {
-      // Fallback per struttura legacy
-      rappresentanteData = data.rappresentanti[categoriaId];
-      rappresentanteUid = data.idMap[categoriaId];
     }
 
     let avatarContent;
