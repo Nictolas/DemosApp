@@ -26,8 +26,12 @@ export default function OpinioniComunali() {
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: ['opinioniQuestions', 'Comunale'],
     queryFn: async () => {
+      console.log('🔍 DEBUG - Caricamento opinioni comunali...');
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Comunale");
-      return response;
+      if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
+      const data = await response.json();
+      console.log('🔍 DEBUG - Risposta API:', data);
+      return data;
     },
     enabled: !!user
   });
@@ -35,6 +39,13 @@ export default function OpinioniComunali() {
   // Combina i dati
   const isLoading = isLoadingQuestions;
   const questions = questionsData?.data || [];
+  
+  // Debug
+  useEffect(() => {
+    console.log('🔍 DEBUG - questionsData:', questionsData);
+    console.log('🔍 DEBUG - questions:', questions);
+    console.log('🔍 DEBUG - questions.length:', questions.length);
+  }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni
   const opinioniEspresse = questions
