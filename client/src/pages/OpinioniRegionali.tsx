@@ -59,7 +59,7 @@ export default function OpinioniRegionali() {
     .sort((a, b) => a.text.localeCompare(b.text));
   
   const opinioniDaInserire = questions
-    .filter(q => !q.userAnswer || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
+    .filter(q => !q.userAnswer || q.userAnswer === 'Astenuto' || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
     .sort((a, b) => a.text.localeCompare(b.text));
 
   // Sincronizza le opinioni quando le domande vengono caricate
@@ -79,9 +79,9 @@ export default function OpinioniRegionali() {
         if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
           console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
-        } else if (question.userAnswer === 'Astenuto') {
-          // Non mappare 'Astenuto' ma loggarlo per debug
-          console.log(`ℹ️ Opinione 'Astenuto' non mappata: ${question.id}`);
+        } else {
+          mappedOpinions[question.id] = 'Astenuto';
+          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> impostato Astenuto`);
         }
       });
       console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
@@ -121,7 +121,7 @@ export default function OpinioniRegionali() {
         opinionValue: opinions[question.id]
       });
       
-      if (opinions[question.id] && opinions[question.id] !== 'Non espresso' && opinions[question.id] !== 'Astenuto') {
+      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
         // Usa l'ID dell'opinione come chiave per l'API
         opinionsToSave[question.id] = opinions[question.id];
         console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);

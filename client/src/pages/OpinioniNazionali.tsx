@@ -71,7 +71,7 @@ export default function OpinioniNazionali() {
     .sort((a, b) => a.text.localeCompare(b.text));
   
   const opinioniDaInserire = questions
-    .filter(q => !q.userAnswer || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
+    .filter(q => !q.userAnswer || q.userAnswer === 'Astenuto' || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
     .sort((a, b) => a.text.localeCompare(b.text));
 
   // Sincronizza le opinioni quando le domande vengono caricate
@@ -80,8 +80,10 @@ export default function OpinioniNazionali() {
       // Mappa le risposte dell'utente usando userAnswer da ogni opinione
       const mappedOpinions: Record<string, string> = {};
       questions.forEach(question => {
-        if (question.userAnswer && question.userAnswer !== 'Astenuto') {
+        if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
+        } else {
+          mappedOpinions[question.id] = 'Astenuto';
         }
       });
       setOpinions(mappedOpinions);
@@ -113,7 +115,7 @@ export default function OpinioniNazionali() {
     // Mappa le opinioni usando l'ID corretto per l'API
     const opinionsToSave: Record<string, string> = {};
     questions.forEach(question => {
-      if (opinions[question.id] && opinions[question.id] !== 'Non espresso') {
+      if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
         // Usa l'ID dell'opinione come chiave per l'API
         opinionsToSave[question.id] = opinions[question.id];
       }

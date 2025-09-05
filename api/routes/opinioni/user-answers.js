@@ -160,10 +160,10 @@ router.post('/salva', verifyToken, async (req, res) => {
       console.log(`🔍 DEBUG - Campo database: ${dbField}`);
       
       if (dbField) {
-        // Converti le risposte
+        // Mantieni le risposte originali (le colonne users sono TEXT)
         let dbValue = null;
-        if (risposta === 'Favorevole') dbValue = 'Sì';
-        else if (risposta === 'Contrario') dbValue = 'No';
+        if (risposta === 'Favorevole') dbValue = 'Favorevole';
+        else if (risposta === 'Contrario') dbValue = 'Contrario';
         else if (risposta === 'Indeciso') dbValue = 'Indeciso';
         else if (risposta === 'Astenuto') dbValue = null;
         
