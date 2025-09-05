@@ -99,6 +99,7 @@ router.post('/salva', verifyToken, async (req, res) => {
       'salario_minimo': 'salario_minimo',
       'case_chiuse': 'case_chiuse',
       'omobitransfobia': 'omobitransfobia',
+      'legge_contro_l\'omobitransfobia': 'omobitransfobia',
       
       // Opinion comunali
       'comunale_cassonetti_intelligenti_con_tessera': 'comunale_cassonetti_intelligenti_con_tessera',
@@ -131,7 +132,9 @@ router.post('/salva', verifyToken, async (req, res) => {
     let paramIndex = 1;
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
+      console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
       const dbField = opinionMapping[opinionId];
+      console.log(`🔍 DEBUG - Campo database: ${dbField}`);
       
       if (dbField) {
         // Converti le risposte
@@ -148,6 +151,7 @@ router.post('/salva', verifyToken, async (req, res) => {
         console.log(`📝 Campo ${dbField} = ${dbValue}`);
       } else {
         console.warn(`⚠️ Campo non mappato: ${opinionId}`);
+        console.warn(`⚠️ Chiavi disponibili nella mappatura:`, Object.keys(opinionMapping));
       }
     }
     
