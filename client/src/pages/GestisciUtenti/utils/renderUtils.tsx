@@ -76,12 +76,13 @@ export const renderColumnValue = (value: any, columnName: string, user?: User) =
   
   // Gestione speciale per la colonna "Nome Completo" o "name"
   if ((columnName === 'nome_completo' || columnName === 'name') && user) {
+    const displayName = user.nome_completo || user.name || `${user.nome || ''} ${user.cognome || ''}`.trim() || 'N/A';
     return (
       <Link 
         href={`/menu/profilo/${user.id}?from=utenti`} 
         className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
       >
-        {user.nome} {user.cognome}
+        {displayName}
       </Link>
     );
   }
