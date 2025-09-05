@@ -91,12 +91,13 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       'finanziamento_eventi_culturali_gratuiti': 'comunale_finanziamento_eventi_culturali_gratuiti',
       'legge_contro_l\'omobitransfobia': 'omobitransfobia',
       'nuove_case_popolari': 'comunale_nuove_case_popolari',
-      // Opinion comunali
-      'cassonetti_intelligenti_con_tessera': 'comunale_cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'comunale_nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'comunale_nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'comunale_nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'comunale_nuovo_stadio_comunale',
+          // Opinion comunali
+    'cassonetti_intelligenti_con_tessera': 'comunale_cassonetti_intelligenti_con_tessera',
+    'nuova_biblioteca_comunale': 'comunale_nuova_biblioteca_comunale',
+    'nuove_piste_ciclabili': 'comunale_nuove_piste_ciclabili',
+    'nuovi_asili_nido_comunali': 'comunale_nuovi_asili_nido_comunali',
+    'nuovo_stadio_comunale': 'comunale_nuovo_stadio_comunale',
+    'riduzione_parcheggi_a_pagamento': 'comunale_riduzione_parcheggi_a_pagamento',
       'comunale_cassonetti_intelligenti_con_tessera': 'comunale_cassonetti_intelligenti_con_tessera',
       'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti',
       'comunale_divieto_di_nuovi_fast_food_nel_centro_storico': 'comunale_divieto_di_nuovi_fast_food_nel_centro_storico',
@@ -113,11 +114,25 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       'comunale_sicurezza_strade_scolastiche': 'comunale_sicurezza_strade_scolastiche',
       'comunale_sostegno_commercio_locale': 'comunale_sostegno_commercio_locale',
       'comunale_verde_pubblico_e_giardini': 'comunale_verde_pubblico_e_giardini',
-      // Opinion regionali
-      'nuovi_inceneritori': 'regionale_nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia',
-      'regionale_nuovi_inceneritori': 'regionale_nuovi_inceneritori',
-      'regionale_chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia'
+          // Opinion regionali
+    'nuovi_inceneritori': 'regionale_nuovi_inceneritori',
+    'chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia',
+    'regionale_nuovi_inceneritori': 'regionale_nuovi_inceneritori',
+    'regionale_chiusura_ospedali_di_provincia': 'regionale_chiusura_ospedali_di_provincia',
+    
+    // Opinion europee (stesse delle nazionali)
+    'europeo_energia_nucleare': 'energia_nucleare',
+    'europeo_sperimentazione_animale': 'sperimentazione_animale',
+    'europeo_legalizzazione_canapa': 'legalizzazione_canapa',
+    'europeo_caccia': 'caccia',
+    'europeo_eutanasia': 'eutanasia',
+    'europeo_carne_coltivata': 'carne_coltivata',
+    'europeo_cittadina_animale': 'cittadina_animale',
+    'europeo_nato': 'nato',
+    'europeo_matrimonio_gay': 'matrimonio_gay',
+    'europeo_salario_minimo': 'salario_minimo',
+    'europeo_case_chiuse': 'case_chiuse',
+    'europeo_omobitransfobia': 'omobitransfobia'
     };
     
     // Formatta le opinioni per il frontend

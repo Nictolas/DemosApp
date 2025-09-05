@@ -145,14 +145,14 @@ export default function OpinioniEuropee() {
               <div className="text-center py-8"><p className="text-muted-foreground">Nessuna domanda disponibile.</p></div>
             ) : (
               <>
-                {/* Opinioni Espresse */}
-                {opinioniEspresse.length > 0 && (
+                {/* Opinioni da Inserire */}
+                {opinioniDaInserire.length > 0 && (
                   <div className="space-y-6">
-                    <h2 className="text-xl font-bold text-green-700 border-b-2 border-green-200 pb-2">
-                      ✅ Opinion Espresse ({opinioniEspresse.length})
+                    <h2 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2">
+                      📝 Opinion da Inserire ({opinioniDaInserire.length})
                     </h2>
-                    {opinioniEspresse.map((question) => (
-                      <div key={question.id} className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                    {opinioniDaInserire.map((question) => (
+                      <div key={question.id} className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                         <h3 className="text-lg font-semibold text-center">{question.text}</h3>
                         <div className="flex justify-center">
                           <div className="flex w-full max-w-md">
@@ -173,14 +173,14 @@ export default function OpinioniEuropee() {
                   </div>
                 )}
 
-                {/* Opinioni da Inserire */}
-                {opinioniDaInserire.length > 0 && (
+                {/* Opinioni Espresse */}
+                {opinioniEspresse.length > 0 && (
                   <div className="space-y-6">
-                    <h2 className="text-xl font-bold text-blue-700 border-b-2 border-blue-200 pb-2">
-                      📝 Opinion da Inserire ({opinioniDaInserire.length})
+                    <h2 className="text-xl font-bold text-green-700 border-b-2 border-green-200 pb-2">
+                      ✅ Opinion Espresse ({opinioniEspresse.length})
                     </h2>
-                    {opinioniDaInserire.map((question) => (
-                      <div key={question.id} className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    {opinioniEspresse.map((question) => (
+                      <div key={question.id} className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
                         <h3 className="text-lg font-semibold text-center">{question.text}</h3>
                         <div className="flex justify-center">
                           <div className="flex w-full max-w-md">
