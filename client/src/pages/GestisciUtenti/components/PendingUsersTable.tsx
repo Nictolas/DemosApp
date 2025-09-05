@@ -27,8 +27,8 @@ export const PendingUsersTable: React.FC<PendingUsersTableProps> = ({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
+    <div className="overflow-x-auto w-full">
+      <Table className="w-full">
         <TableHeader>
           <TableRow>
             <TableHead className="font-medium text-gray-700">Nome Completo</TableHead>

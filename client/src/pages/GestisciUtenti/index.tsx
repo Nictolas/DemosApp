@@ -203,7 +203,7 @@ export default function GestisciUtenti() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
-      <div className="container mx-auto max-w-7xl p-6">
+      <div className="container mx-auto max-w-full p-6">
         {/* Header */}
         <Header 
           lastUpdateTime={lastUpdateTime}
@@ -281,7 +281,7 @@ export default function GestisciUtenti() {
 
             {/* Sezione Utenti in Attesa */}
             {pendingUsers.length > 0 && (
-              <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg mb-6">
+              <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg mb-6 w-full">
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center text-2xl text-gray-800">
                     <Users className="h-6 w-6 mr-3 text-yellow-600" />
@@ -303,7 +303,7 @@ export default function GestisciUtenti() {
             )}
 
             {/* Tabella utenti attivi */}
-            <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg">
+            <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg w-full">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-2xl text-gray-800">
                   <Users className="h-6 w-6 mr-3 text-blue-600" />
