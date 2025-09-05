@@ -128,16 +128,21 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     console.log('🔍 GET /api/users/:userId - Richiesta utente specifico');
     
     const { userId } = req.params;
+    console.log('🔍 DEBUG - userId ricevuto:', userId);
     
-    // Verifica che userId sia valido
-    if (!userId || isNaN(parseInt(userId))) {
+    // Verifica che userId sia valido (UUID o numero)
+    if (!userId || (isNaN(parseInt(userId)) && !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i))) {
+      console.log('❌ DEBUG - userId non valido:', userId);
       return res.status(400).json({
         success: false,
         message: 'ID utente non valido'
       });
     }
     
+    console.log('✅ DEBUG - userId valido, procedo con la query');
+    
     // Query per ottenere l'utente specifico
+    console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
     const result = await pool.query(`
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
              genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
@@ -146,7 +151,10 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       WHERE id = $1
     `, [userId]);
     
+    console.log('🔍 DEBUG - Query completata, righe trovate:', result.rows.length);
+    
     if (result.rows.length === 0) {
+      console.log('❌ DEBUG - Utente non trovato per userId:', userId);
       return res.status(404).json({
         success: false,
         message: 'Utente non trovato'
@@ -164,6 +172,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel recupero utente specifico:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Errore interno del server',

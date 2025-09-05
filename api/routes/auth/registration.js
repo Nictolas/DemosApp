@@ -174,7 +174,7 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     
     // Invia email di verifica
     try {
-      const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/verify-email?token=${verificationToken}`;
+      const verificationUrl = `${process.env.FRONTEND_URL || 'https://www.demos.community'}/conferma-email?token=${verificationToken}&email=${encodeURIComponent(email)}`;
       await emailService.sendVerificationEmail(email, verificationToken, verificationUrl);
       
       console.log('✅ Email di verifica inviata per:', email);
