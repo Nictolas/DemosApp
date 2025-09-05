@@ -155,7 +155,11 @@ router.post('/salva', verifyToken, async (req, res) => {
       }
     }
     
+    console.log(`🔍 DEBUG - Campi da aggiornare: ${updateFields.length}`);
+    console.log(`🔍 DEBUG - Valori:`, updateValues);
+    
     if (updateFields.length === 0) {
+      console.error('❌ ERRORE: Nessun campo da aggiornare');
       return res.status(400).json({
         success: false,
         error: 'Nessuna opinione valida da salvare',
