@@ -46,13 +46,23 @@ export default function OpinioniRegionali() {
   // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
     if (questions && questions.length > 0) {
+      console.log('🔍 DEBUG useEffect - questions ricevute:', questions);
       // Mappa le risposte dell'utente usando userAnswer da ogni opinione
       const mappedOpinions: Record<string, string> = {};
       questions.forEach(question => {
-        if (question.userAnswer && question.userAnswer !== 'Astenuto') {
+        console.log(`🔍 DEBUG question in useEffect:`, {
+          id: question.id,
+          text: question.text,
+          userAnswer: question.userAnswer,
+          grado: question.grado
+        });
+        
+        if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
+          console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
         }
       });
+      console.log('🔍 DEBUG mappedOpinions:', mappedOpinions);
       setOpinions(mappedOpinions);
     }
   }, [questions]);
@@ -63,7 +73,7 @@ export default function OpinioniRegionali() {
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Regionale'] });
-      setTimeout(() => setLocation("/menu"), 1500);
+      // Rimane nella stessa pagina invece di reindirizzare
     },
     onError: (error: any) => {
       toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
@@ -82,9 +92,17 @@ export default function OpinioniRegionali() {
     // Mappa le opinioni usando l'ID corretto per l'API
     const opinionsToSave: Record<string, string> = {};
     questions.forEach(question => {
+      console.log(`🔍 DEBUG question:`, {
+        id: question.id,
+        text: question.text,
+        userAnswer: question.userAnswer,
+        opinionValue: opinions[question.id]
+      });
+      
       if (opinions[question.id] && opinions[question.id] !== 'Non espresso') {
         // Usa l'ID dell'opinione come chiave per l'API
         opinionsToSave[question.id] = opinions[question.id];
+        console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
       }
     });
     
