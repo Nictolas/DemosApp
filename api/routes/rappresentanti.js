@@ -171,16 +171,31 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       
       const opinioniDaControllare = opinioniPerGrado[grado] || opinioniPerGrado['Europeo'];
       
+      // Funzione per normalizzare le risposte al formato frontend
+      const normalizeAnswer = (answer) => {
+        if (!answer) return null;
+        if (answer === 'Sì') return 'Favorevole';
+        if (answer === 'No') return 'Contrario';
+        if (answer === 'Indeciso') return 'Indeciso';
+        if (answer === 'Favorevole') return 'Favorevole';
+        if (answer === 'Contrario') return 'Contrario';
+        return answer; // Mantieni il valore originale se non riconosciuto
+      };
+      
       opinioniDaControllare.forEach(fieldName => {
         const userAnswer = userOpinions[fieldName];
         const candidateAnswer = candidateOpinions[fieldName];
         
-        console.log(`🔍 DEBUG calculateCommonOpinions - ${fieldName}: user="${userAnswer}", candidate="${candidateAnswer}"`);
+        // Normalizza le risposte al formato frontend
+        const normalizedUserAnswer = normalizeAnswer(userAnswer);
+        const normalizedCandidateAnswer = normalizeAnswer(candidateAnswer);
+        
+        console.log(`🔍 DEBUG calculateCommonOpinions - ${fieldName}: user="${userAnswer}"->"${normalizedUserAnswer}", candidate="${candidateAnswer}"->"${normalizedCandidateAnswer}"`);
         
         // Conta come opinione comune solo se entrambi hanno risposto e la risposta è identica
-        if (userAnswer && candidateAnswer && userAnswer === candidateAnswer) {
+        if (normalizedUserAnswer && normalizedCandidateAnswer && normalizedUserAnswer === normalizedCandidateAnswer) {
           commonCount++;
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${fieldName} = "${userAnswer}"`);
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${fieldName} = "${normalizedUserAnswer}"`);
         }
       });
       
