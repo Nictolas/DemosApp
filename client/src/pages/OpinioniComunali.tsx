@@ -11,6 +11,8 @@ import { apiRequest } from "@/lib/queryClient";
 interface Question {
   id: string;
   text: string;
+  grado: string[];
+  userAnswer: string | null;
 }
 
 interface UserOpinionsData {
@@ -36,7 +38,7 @@ export default function OpinioniComunali() {
   const [opinions, setOpinions] = useState<Record<string, string>>({});
 
   // Caricamento domande e risposte utente con React Query
-  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, opinioni: Question[], userAnswers: Record<string, string>}>({
+  const { data: questionsData, isLoading: isLoadingQuestions } = useQuery<{success: boolean, data: Question[], grado: string, total: number}>({
     queryKey: ['opinioniQuestions', 'Comunale'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/opinioni-list?grado=Comunale");
@@ -48,21 +50,22 @@ export default function OpinioniComunali() {
 
   // Combina i dati
   const isLoading = isLoadingQuestions;
-  const questions = questionsData?.opinioni || [];
+  const questions = questionsData?.data || [];
   const userAnswers = questionsData?.userAnswers || {};
 
-  // Sincronizza le opinioni quando userAnswers è disponibile
+  // Sincronizza le opinioni quando le domande vengono caricate
   useEffect(() => {
-    if (questions && userAnswers && Object.keys(userAnswers).length > 0) {
-      const initialOpinions: Record<string, string> = {};
+    if (questions && questions.length > 0) {
+      // Mappa le risposte dell'utente usando userAnswer da ogni opinione
+      const mappedOpinions: Record<string, string> = {};
       questions.forEach(question => {
-        if (userAnswers[question.id]) {
-          initialOpinions[question.id] = userAnswers[question.id];
+        if (question.userAnswer && question.userAnswer !== 'Astenuto') {
+          mappedOpinions[question.id] = question.userAnswer;
         }
       });
-      setOpinions(initialOpinions);
+      setOpinions(mappedOpinions);
     }
-  }, [questions, userAnswers]);
+  }, [questions]);
 
   // Mutazione per salvare le opinioni
   const saveMutation = useMutation({

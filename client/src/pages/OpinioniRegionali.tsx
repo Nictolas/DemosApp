@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Loader2, CheckCircle, XCircle, HelpCircle, MinusCircle } from 'lucide-react';
 
 interface Opinione {
-  id: number;
+  id: string;
   text: string;
-  userAnswer: string;
+  grado: string[];
+  userAnswer: string | null;
 }
 
 const OpinioniRegionali: React.FC = () => {
@@ -31,7 +32,7 @@ const OpinioniRegionali: React.FC = () => {
       }
       
       const data = await response.json();
-      return data.opinioni;
+      return data.data;
     }
   });
 
@@ -88,7 +89,7 @@ const OpinioniRegionali: React.FC = () => {
       const initialOpinions: Record<string, string> = {};
       opinioniData.forEach((opinione: Opinione) => {
         if (opinione.userAnswer && opinione.userAnswer !== 'Astenuto') {
-          initialOpinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] = opinione.userAnswer;
+          initialOpinions[opinione.id] = opinione.userAnswer;
         }
       });
       setOpinions(initialOpinions);
@@ -142,8 +143,8 @@ const OpinioniRegionali: React.FC = () => {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Button
-                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Favorevole' ? 'default' : 'outline'}
-                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Favorevole')}
+                    variant={opinions[opinione.id] === 'Favorevole' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.id, 'Favorevole')}
                     className="flex items-center gap-2"
                   >
                     <CheckCircle className="h-4 w-4" />
@@ -151,8 +152,8 @@ const OpinioniRegionali: React.FC = () => {
                   </Button>
                   
                   <Button
-                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Contrario' ? 'default' : 'outline'}
-                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Contrario')}
+                    variant={opinions[opinione.id] === 'Contrario' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.id, 'Contrario')}
                     className="flex items-center gap-2"
                   >
                     <XCircle className="h-4 w-4" />
@@ -160,8 +161,8 @@ const OpinioniRegionali: React.FC = () => {
                   </Button>
                   
                   <Button
-                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Indeciso' ? 'default' : 'outline'}
-                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Indeciso')}
+                    variant={opinions[opinione.id] === 'Indeciso' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.id, 'Indeciso')}
                     className="flex items-center gap-2"
                   >
                     <HelpCircle className="h-4 w-4" />
@@ -169,8 +170,8 @@ const OpinioniRegionali: React.FC = () => {
                   </Button>
                   
                   <Button
-                    variant={opinions[opinione.text.toLowerCase().replace(/\s+/g, '_')] === 'Astenuto' ? 'default' : 'outline'}
-                    onClick={() => handleOpinionChange(opinione.text.toLowerCase().replace(/\s+/g, '_'), 'Astenuto')}
+                    variant={opinions[opinione.id] === 'Astenuto' ? 'default' : 'outline'}
+                    onClick={() => handleOpinionChange(opinione.id, 'Astenuto')}
                     className="flex items-center gap-2"
                   >
                     <MinusCircle className="h-4 w-4" />
