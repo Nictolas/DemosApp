@@ -48,9 +48,23 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
     let avatarContent;
     if (rappresentanteData && rappresentanteData.avatar_config) {
       try {
-        const config = JSON.parse(rappresentanteData.avatar_config);
+        // Gestisci il caso di doppia serializzazione JSON
+        let config;
+        if (typeof rappresentanteData.avatar_config === 'string') {
+          // Prima prova a fare il parse diretto
+          config = JSON.parse(rappresentanteData.avatar_config);
+          // Se il risultato è ancora una stringa, fai un secondo parse
+          if (typeof config === 'string') {
+            config = JSON.parse(config);
+          }
+        } else {
+          config = rappresentanteData.avatar_config;
+        }
         avatarContent = <CustomAvatar config={config} size={56} className="w-full h-full" />;
-      } catch (e) { /* Fallback to default */ }
+        console.log(`🔍 DEBUG RappresentanteCard - Avatar config per ${categoriaId}:`, config);
+      } catch (e) { 
+        console.log(`⚠️ DEBUG RappresentanteCard - Errore parsing avatar per ${categoriaId}:`, e);
+      }
     }
 
     return (
