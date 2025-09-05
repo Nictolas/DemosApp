@@ -326,20 +326,24 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
     // Carica le opinioni dell'utente specifico
     const userOpinionsQuery = `
       SELECT 
-        -- Opinion nazionali
+        -- Opinion nazionali/europee
         energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
         carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali
-        comunale_cassonetti_intelligenti_con_tessera, comunale_concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        comunale_divieto_di_nuovi_fast_food_nel_centro_storico, comunale_estensione_delle_zone_a_traffico_limitato,
-        comunale_finanziamento_eventi_culturali_gratuiti, comunale_nuova_biblioteca_comunale,
-        comunale_nuove_case_popolari, comunale_nuove_piste_ciclabili, comunale_nuovi_asili_nido_comunali,
-        comunale_nuovo_stadio_comunale, comunale_parcheggi_gratuiti_per_residenti,
-        comunale_potenziamento_trasporto_pubblico, comunale_riduzione_tasse_rifiuti,
-        comunale_sicurezza_strade_scolastiche, comunale_sostegno_commercio_locale,
-        comunale_verde_pubblico_e_giardini,
-        -- Opinion regionali
-        regionale_nuovi_inceneritori, regionale_chiusura_ospedali_di_provincia,
+        -- Opinion comunali (senza prefissi)
+        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
+        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
+        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
+        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
+        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
+        sicurezza_strade_scolastiche, sostegno_commercio_locale,
+        verde_pubblico_e_giardini,
+        -- Opinion regionali (senza prefissi)
+        nuovi_inceneritori, chiusura_ospedali_di_provincia,
+        -- Opinion nazionali/comunali (senza prefissi)
+        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
+        riduzione_parcheggi_a_pagamento,
         -- Fonti delle opinioni
         fonti_opinioni
       FROM users
@@ -360,24 +364,77 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
     const fontiOpinioni = userOpinions.fonti_opinioni || {};
     console.log('🔍 DEBUG - Fonti opinioni per utente', userId, ':', fontiOpinioni);
     
+    // Mappa delle opinioni ai campi del database - SENZA PREFISSI
+    const opinionMapping = {
+      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
+      'energia_nucleare': 'energia_nucleare',
+      'sperimentazione_animale': 'sperimentazione_animale',
+      'legalizzazione_canapa': 'legalizzazione_canapa',
+      'caccia': 'caccia',
+      'eutanasia': 'eutanasia',
+      'carne_coltivata': 'carne_coltivata',
+      'cittadina_animale': 'cittadina_animale',
+      'nato': 'nato',
+      'matrimonio_gay': 'matrimonio_gay',
+      'salario_minimo': 'salario_minimo',
+      'case_chiuse': 'case_chiuse',
+      'omobitransfobia': 'omobitransfobia',
+      
+      // Opinion regionali/comunali (senza prefissi)
+      'nuovi_inceneritori': 'nuovi_inceneritori',
+      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+      
+      // Opinion comunali (senza prefissi)
+      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
+      
+      // Opinion nazionali/comunali (senza prefissi)
+      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+      'nuove_case_popolari': 'nuove_case_popolari',
+      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+      'sostegno_commercio_locale': 'sostegno_commercio_locale',
+      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
+    };
+
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinioni.map(opinion => {
-      const fieldName = opinion.text.toLowerCase().replace(/\s+/g, '_');
-      const userAnswer = userOpinions[fieldName];
+      const opinionId = opinion.id; // Usa l'ID corretto dalla tabella opinioni
+      const userAnswer = userOpinions[opinionMapping[opinionId]];
       
-      // Debug log per capire i valori
-      if (fieldName === 'carne_coltivata') {
-        console.log('🔍 DEBUG - carne_coltivata per utente', userId, ':', userAnswer, 'tipo:', typeof userAnswer);
-      }
+      console.log(`🔍 DEBUG - Mappatura opinione:`, {
+        text: opinion.text,
+        opinionId: opinionId,
+        mappedField: opinionMapping[opinionId],
+        userAnswer: userAnswer
+      });
       
-      // Le risposte sono già nel formato frontend: "Favorevole", "Indeciso", "Contrario", "Astenuto"
-      let frontendAnswer = userAnswer;
-      if (userAnswer === null || userAnswer === 'null') frontendAnswer = 'Astenuto';
+      // Converti le risposte del database al formato frontend
+      let frontendAnswer = null;
+      if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
+      else if (userAnswer === 'No') frontendAnswer = 'Contrario';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
+      else if (userAnswer === 'Contrario') frontendAnswer = 'Contrario';
+      else if (userAnswer === 'Favorevole') frontendAnswer = 'Favorevole';
+      else if (userAnswer === null) frontendAnswer = 'Astenuto';
       
       return {
-        id: fieldName,
+        id: opinionId,
         text: opinion.text,
-        grado: ['Europeo'], // Per ora hardcodiamo come Europeo
+        grado: opinion.gradi_opinione || ['Europeo'], // Usa i gradi dalla tabella opinioni
         userAnswer: frontendAnswer,
         source: 'unknown' // Default source since we don't have it in the table
       };
