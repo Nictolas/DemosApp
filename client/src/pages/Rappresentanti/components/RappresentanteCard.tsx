@@ -31,8 +31,19 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
       );
     }
     
-    const rappresentanteData = data.rappresentanti[categoriaId];
-    const rappresentanteUid = data.idMap[categoriaId];
+    // La nuova struttura dell'API restituisce rappresentanti per categoria come array
+    const rappresentantiPerCategoria = data.rappresentanti[categoriaId];
+    let rappresentanteData = null;
+    let rappresentanteUid = null;
+    
+    if (rappresentantiPerCategoria && Array.isArray(rappresentantiPerCategoria) && rappresentantiPerCategoria.length > 0) {
+      rappresentanteData = rappresentantiPerCategoria[0]; // Prendi il primo (e unico) rappresentante
+      rappresentanteUid = rappresentanteData.id;
+      
+      console.log(`🔍 DEBUG RappresentanteCard - Rappresentante trovato per ${categoriaId}:`, rappresentanteData);
+    } else {
+      console.log(`🔍 DEBUG RappresentanteCard - Nessun rappresentante per ${categoriaId}:`, rappresentantiPerCategoria);
+    }
 
     let avatarContent;
     if (rappresentanteData && rappresentanteData.avatar_config) {
