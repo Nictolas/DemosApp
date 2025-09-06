@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Edit, Trash2, Check, X } from "lucide-react";
+import { Loader2, Edit, Trash2, Check, X, FileText } from "lucide-react";
 import { Opinione, GRADI_OPINIONE } from "../types";
 import { useOpinioniMutations } from "../hooks";
+import { ApprofondimentoDialog } from "./ApprofondimentoDialog";
 
 interface ListaOpinioniProps {
   opinioni: Opinione[];
@@ -20,6 +21,8 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [editGrado, setEditGrado] = useState("Nazionale");
+  const [approfondimentoDialogOpen, setApprofondimentoDialogOpen] = useState(false);
+  const [selectedOpinione, setSelectedOpinione] = useState<Opinione | null>(null);
   
   const { deleteMutation, editMutation } = useOpinioniMutations();
 
@@ -64,6 +67,11 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
     setEditingId(null);
     setEditText("");
     setEditGrado("Nazionale");
+  };
+
+  const handleApprofondimento = (opinione: Opinione) => {
+    setSelectedOpinione(opinione);
+    setApprofondimentoDialogOpen(true);
   };
 
   if (isLoading) {
@@ -180,14 +188,24 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
                   size="sm" 
                   variant="outline" 
                   onClick={() => handleEditStart(op)}
+                  title="Modifica opinione"
                 >
                   <Edit className="h-4 w-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => handleApprofondimento(op)}
+                  title="Crea/modifica Approfondimento"
+                >
+                  <FileText className="h-4 w-4" />
                 </Button>
                 <Button 
                   size="sm" 
                   variant="destructive" 
                   disabled={deleteMutation.isPending} 
                   onClick={() => handleDelete(op.id)}
+                  title="Elimina opinione"
                 >
                   {deleteMutation.isPending && deleteMutation.variables === op.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -200,6 +218,15 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
           </div>
         </div>
       ))}
+      
+      {/* Dialog per Approfondimento */}
+      {selectedOpinione && (
+        <ApprofondimentoDialog
+          opinione={selectedOpinione}
+          open={approfondimentoDialogOpen}
+          onOpenChange={setApprofondimentoDialogOpen}
+        />
+      )}
     </div>
   );
 };

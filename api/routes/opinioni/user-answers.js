@@ -196,4 +196,105 @@ router.post('/salva', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/opinioni/:id/approfondimento - Ottieni approfondimento di un'opinione
+router.get('/:id/approfondimento', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🔍 GET /api/opinioni/:id/approfondimento - Richiesta approfondimento per opinione:', id);
+    
+    const query = `
+      SELECT id, text, approfondimento, gradi_opinione
+      FROM opinioni 
+      WHERE id = $1
+    `;
+    
+    const result = await pool.query(query, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    const opinione = result.rows[0];
+    
+    res.json({
+      success: true,
+      data: {
+        id: opinione.id,
+        text: opinione.text,
+        approfondimento: opinione.approfondimento || '',
+        gradi_opinione: opinione.gradi_opinione
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare approfondimento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare approfondimento'
+    });
+  }
+});
+
+// PUT /api/opinioni/:id/approfondimento - Aggiorna approfondimento di un'opinione (solo admin)
+router.put('/:id/approfondimento', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approfondimento } = req.body;
+    
+    console.log('💾 PUT /api/opinioni/:id/approfondimento - Salvataggio approfondimento per opinione:', id);
+    
+    // Verifica che l'utente sia admin
+    const userQuery = `
+      SELECT ruolo FROM users WHERE id = $1
+    `;
+    const userResult = await pool.query(userQuery, [req.userId]);
+    
+    if (userResult.rows.length === 0 || (userResult.rows[0].ruolo !== 'Admin' && userResult.rows[0].ruolo !== 'admin')) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Solo gli amministratori possono modificare gli approfondimenti'
+      });
+    }
+    
+    const updateQuery = `
+      UPDATE opinioni 
+      SET approfondimento = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, text, approfondimento
+    `;
+    
+    const result = await pool.query(updateQuery, [approfondimento || '', id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata'
+      });
+    }
+    
+    console.log('✅ Approfondimento salvato con successo per opinione:', id);
+    
+    res.json({
+      success: true,
+      data: {
+        id: result.rows[0].id,
+        text: result.rows[0].text,
+        approfondimento: result.rows[0].approfondimento
+      },
+      message: 'Approfondimento salvato con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel salvare approfondimento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel salvare approfondimento'
+    });
+  }
+});
+
 module.exports = router;
