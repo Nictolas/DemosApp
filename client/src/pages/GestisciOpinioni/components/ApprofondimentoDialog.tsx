@@ -271,41 +271,59 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                     );
                   }
 
-                  return gradiAttivi.map(([grado, testo]) => (
-                    <div key={grado} className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`grado-${grado}`}
-                        checked={gradiProposta[grado as keyof typeof gradiProposta]}
-                        onCheckedChange={(checked) => {
-                          if (!readOnly) {
-                            setGradiProposta(prev => ({
-                              ...prev,
-                              [grado]: checked as boolean
-                            }));
-                          }
-                        }}
-                        disabled={readOnly}
-                      />
-                      <label
-                        htmlFor={`grado-${grado}`}
-                        className="text-lg font-semibold text-gray-900"
-                      >
-                        Proposta {grado}
-                      </label>
-                    </div>
-                    
-                    <Textarea
-                      value={testo}
-                      onChange={(e) => {
-                        if (!readOnly) {
-                          setApprofondimentiPerGrado(prev => ({
-                            ...prev,
-                            [grado]: e.target.value
-                          }));
-                        }
-                      }}
-                      placeholder={`Inserisci qui l'approfondimento per la Proposta ${grado}...
+                  return gradiAttivi.map(([grado, testo]) => {
+                    // Mappa delle emoji per ogni grado
+                    const emojiMap = {
+                      'Europeo': '🌍',
+                      'Nazionale': '🏛️',
+                      'Regionale': '🗺️',
+                      'Comunale': '🏠'
+                    };
+
+                    return (
+                      <div key={grado} className="space-y-3">
+                        {readOnly ? (
+                          // Modalità readOnly: mostra solo emoji e contenuto
+                          <div className="flex items-start space-x-3">
+                            <span className="text-2xl mt-1">{emojiMap[grado as keyof typeof emojiMap]}</span>
+                            <div className="flex-1">
+                              <div className="bg-gray-50 p-4 rounded-lg border">
+                                <div className="whitespace-pre-wrap text-gray-900">
+                                  {testo || 'Nessun contenuto disponibile.'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          // Modalità admin: mostra checkbox e controlli
+                          <>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`grado-${grado}`}
+                                checked={gradiProposta[grado as keyof typeof gradiProposta]}
+                                onCheckedChange={(checked) => {
+                                  setGradiProposta(prev => ({
+                                    ...prev,
+                                    [grado]: checked as boolean
+                                  }));
+                                }}
+                              />
+                              <label
+                                htmlFor={`grado-${grado}`}
+                                className="text-lg font-semibold text-gray-900"
+                              >
+                                Proposta {grado}
+                              </label>
+                            </div>
+                            <Textarea
+                              value={testo}
+                              onChange={(e) => {
+                                setApprofondimentiPerGrado(prev => ({
+                                  ...prev,
+                                  [grado]: e.target.value
+                                }));
+                              }}
+                              placeholder={`Inserisci qui l'approfondimento per la Proposta ${grado}...
 
 Esempi di formattazione Markdown:
 # Titolo principale
@@ -324,11 +342,14 @@ Puoi aggiungere:
 - Pro e contro
 - Impatto sociale
 - Riferimenti normativi`}
-                      className="min-h-[200px] resize-none bg-white"
-                      disabled={readOnly || !gradiProposta[grado as keyof typeof gradiProposta]}
-                    />
-                  </div>
-                ));
+                              className="min-h-[200px] resize-none bg-white"
+                              disabled={!gradiProposta[grado as keyof typeof gradiProposta]}
+                            />
+                          </>
+                        )}
+                      </div>
+                    );
+                  });
                 })()}
               </div>
             )}
