@@ -11,12 +11,32 @@ router.get('/profile', verifyToken, async (req, res) => {
     
     // Query per ottenere le domande delle opinioni dalla tabella opinioni
     const opinionQuery = `
-      SELECT DISTINCT o.gradi_opinione[1] as grado_primario, o.text
+      SELECT DISTINCT 
+        CASE 
+          WHEN o.gradi_opinione IS NOT NULL AND array_length(o.gradi_opinione, 1) > 0 
+          THEN o.gradi_opinione[1] 
+          ELSE 'Nazionale' 
+        END as grado_primario, 
+        o.text
       FROM opinioni o
-      ORDER BY o.gradi_opinione[1], o.text
+      WHERE o.text IS NOT NULL AND o.text != ''
+      ORDER BY grado_primario, o.text
     `;
     
     const opinionResult = await pool.query(opinionQuery);
+    
+    console.log(`🔍 DEBUG - Risultati query: ${opinionResult.rows.length} righe`);
+    
+    if (opinionResult.rows.length === 0) {
+      console.log('⚠️ Nessuna opinione trovata nella tabella opinioni');
+      return res.json({
+        success: true,
+        data: {
+          questions: []
+        },
+        message: 'Nessuna opinione disponibile'
+      });
+    }
     
     // Formatta le domande per il frontend
     const questions = opinionResult.rows.map(row => ({
@@ -34,6 +54,19 @@ router.get('/profile', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare domande opinioni:', error);
+    
+    // Se la tabella non esiste, restituisci un array vuoto invece di un errore
+    if (error.code === '42P01') { // Tabella non esiste
+      console.log('⚠️ Tabella opinioni non esiste, restituisco array vuoto');
+      return res.json({
+        success: true,
+        data: {
+          questions: []
+        },
+        message: 'Tabella opinioni non disponibile'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare domande opinioni'

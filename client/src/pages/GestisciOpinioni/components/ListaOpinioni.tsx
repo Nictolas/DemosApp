@@ -106,9 +106,14 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
     );
   }
 
+  // Ordina le opinioni alfabeticamente per testo
+  const opinioniOrdinate = [...opinioni].sort((a, b) => 
+    a.text.localeCompare(b.text, 'it', { sensitivity: 'base' })
+  );
+
   return (
     <div className="space-y-2">
-      {opinioni.map((op) => (
+      {opinioniOrdinate.map((op) => (
         <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-sm">
           {editingId === op.id ? (
             <div className="flex flex-col md:flex-row gap-2 flex-1">
