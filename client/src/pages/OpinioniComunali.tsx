@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth-neon';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 
 const options = [
   { value: 'Favorevole', color: 'bg-green-500 text-white' },
@@ -164,7 +165,13 @@ export default function OpinioniComunali() {
                     </h2>
                     {opinioniDaInserire.map((question) => (
                       <div key={question.id} className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <h3 className="text-lg font-semibold text-center">{question.text}</h3>
+                        <div className="flex items-center justify-center gap-3">
+                          <h3 className="text-lg font-semibold">{question.text}</h3>
+                          <ApprofondimentoButton 
+                            opinionId={question.id} 
+                            opinionText={question.text}
+                          />
+                        </div>
                         <div className="flex justify-center">
                           <div className="flex w-full max-w-md">
                             {options.map((option, idx) => (
@@ -192,7 +199,13 @@ export default function OpinioniComunali() {
                     </h2>
                     {opinioniEspresse.map((question) => (
                       <div key={question.id} className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
-                        <h3 className="text-lg font-semibold text-center">{question.text}</h3>
+                        <div className="flex items-center justify-center gap-3">
+                          <h3 className="text-lg font-semibold">{question.text}</h3>
+                          <ApprofondimentoButton 
+                            opinionId={question.id} 
+                            opinionText={question.text}
+                          />
+                        </div>
                         <div className="flex justify-center">
                           <div className="flex w-full max-w-md">
                             {options.map((option, idx) => (

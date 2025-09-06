@@ -10,15 +10,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Opinione } from "../types";
 
 interface ApprofondimentoDialogProps {
-  opinione: Opinione;
+  opinione?: Opinione;
+  opinionId?: string;
+  opinionText?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  readOnly?: boolean;
 }
 
 export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   opinione,
+  opinionId,
+  opinionText,
   open,
-  onOpenChange
+  onOpenChange,
+  readOnly = false
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -42,26 +48,30 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
 
   // Carica l'approfondimento esistente quando si apre il dialog
   useEffect(() => {
-    if (open && opinione.id) {
-      // Inizializza i gradi dall'opinione corrente
-      if (opinione.gradi_opinione && Array.isArray(opinione.gradi_opinione)) {
-        const gradi = {
-          Europeo: opinione.gradi_opinione.includes('Europeo'),
-          Nazionale: opinione.gradi_opinione.includes('Nazionale'),
-          Regionale: opinione.gradi_opinione.includes('Regionale'),
-          Comunale: opinione.gradi_opinione.includes('Comunale')
-        };
-        setGradiProposta(gradi);
+    if (open) {
+      const currentOpinionId = opinionId || opinione?.id;
+      if (currentOpinionId) {
+        // Inizializza i gradi dall'opinione corrente (solo se non in modalità readOnly)
+        if (!readOnly && opinione?.gradi_opinione && Array.isArray(opinione.gradi_opinione)) {
+          const gradi = {
+            Europeo: opinione.gradi_opinione.includes('Europeo'),
+            Nazionale: opinione.gradi_opinione.includes('Nazionale'),
+            Regionale: opinione.gradi_opinione.includes('Regionale'),
+            Comunale: opinione.gradi_opinione.includes('Comunale')
+          };
+          setGradiProposta(gradi);
+        }
+        
+        loadApprofondimento();
       }
-      
-      loadApprofondimento();
     }
-  }, [open, opinione.id, opinione.gradi_opinione]);
+  }, [open, opinionId, opinione?.id, readOnly]);
 
   const loadApprofondimento = async () => {
     try {
       setIsLoading(true);
-      const response = await apiRequest("GET", `/api/opinioni/${opinione.id}/approfondimento`);
+      const currentOpinionId = opinionId || opinione?.id;
+      const response = await apiRequest("GET", `/api/opinioni/${currentOpinionId}/approfondimento`);
       
       if (response.ok) {
         const data = await response.json();
@@ -144,6 +154,8 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   };
 
   const handleSave = async () => {
+    if (readOnly) return;
+    
     try {
       setIsSaving(true);
       
@@ -158,7 +170,8 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         .map(([grado, testo]) => `## Proposta ${grado}\n\n${testo}`)
         .join('\n\n');
       
-      const response = await apiRequest("PUT", `/api/opinioni/${opinione.id}/approfondimento`, {
+      const currentOpinionId = opinionId || opinione?.id;
+      const response = await apiRequest("PUT", `/api/opinioni/${currentOpinionId}/approfondimento`, {
         approfondimento: approfondimentoCombinato,
         gradi_opinione: gradiSelezionati
       });
@@ -208,12 +221,14 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
       <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col bg-white">
         <DialogHeader className="bg-white">
           <DialogTitle className="flex items-center gap-2">
-            <span>Approfondimento: {opinione.text}</span>
-            <span className="text-sm text-muted-foreground">({opinione.id})</span>
+            <span>Approfondimento: {opinionText || opinione?.text}</span>
+            <span className="text-sm text-muted-foreground">({opinionId || opinione?.id})</span>
           </DialogTitle>
           <DialogDescription>
-            Aggiungi informazioni dettagliate e approfondimenti per questa opinione. 
-            Puoi utilizzare il formato Markdown per formattare il testo.
+            {readOnly 
+              ? "Visualizza le informazioni dettagliate e gli approfondimenti per questa opinione."
+              : "Aggiungi informazioni dettagliate e approfondimenti per questa opinione. Puoi utilizzare il formato Markdown per formattare il testo."
+            }
           </DialogDescription>
         </DialogHeader>
         
@@ -235,11 +250,14 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                         id={`grado-${grado}`}
                         checked={gradiProposta[grado as keyof typeof gradiProposta]}
                         onCheckedChange={(checked) => {
-                          setGradiProposta(prev => ({
-                            ...prev,
-                            [grado]: checked as boolean
-                          }));
+                          if (!readOnly) {
+                            setGradiProposta(prev => ({
+                              ...prev,
+                              [grado]: checked as boolean
+                            }));
+                          }
                         }}
+                        disabled={readOnly}
                       />
                       <label
                         htmlFor={`grado-${grado}`}
@@ -252,10 +270,12 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
                     <Textarea
                       value={testo}
                       onChange={(e) => {
-                        setApprofondimentiPerGrado(prev => ({
-                          ...prev,
-                          [grado]: e.target.value
-                        }));
+                        if (!readOnly) {
+                          setApprofondimentiPerGrado(prev => ({
+                            ...prev,
+                            [grado]: e.target.value
+                          }));
+                        }
                       }}
                       placeholder={`Inserisci qui l'approfondimento per la Proposta ${grado}...
 
@@ -277,7 +297,7 @@ Puoi aggiungere:
 - Impatto sociale
 - Riferimenti normativi`}
                       className="min-h-[200px] resize-none bg-white"
-                      disabled={!gradiProposta[grado as keyof typeof gradiProposta]}
+                      disabled={readOnly || !gradiProposta[grado as keyof typeof gradiProposta]}
                     />
                   </div>
                 ))}
@@ -287,28 +307,38 @@ Puoi aggiungere:
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annulla
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={isSaving || isLoading}
-            className="min-w-[120px]"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Salvataggio...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Salva
-              </>
-            )}
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              disabled={isSaving || isLoading}
+              className="min-w-[120px]"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Salvataggio...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Salva
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+        
+        {readOnly && (
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
+            <Button onClick={() => onOpenChange(false)} className="min-w-[120px]">
+              Chiudi
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
