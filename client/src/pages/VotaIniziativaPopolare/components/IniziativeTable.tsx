@@ -21,7 +21,7 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
 }) => {
   if (!iniziative || iniziative.length === 0) {
     return (
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <ThumbsUp className="h-5 w-5" />
@@ -45,7 +45,7 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
   }
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <ThumbsUp className="h-5 w-5" />

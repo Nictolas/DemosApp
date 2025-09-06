@@ -15,14 +15,15 @@ export const MenuHeader: React.FC<MenuHeaderProps> = ({
       <img 
         src="/icona.png" 
         alt="Logo Demos" 
-        className={`w-20 h-20 mx-auto mb-3 ${isAdmin ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+        className={`w-28 h-28 mx-auto mb-4 ${isAdmin ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
         onClick={isAdmin ? onAdminClick : undefined}
       />
-      <CardTitle className="text-2xl font-bold text-gray-800 mb-2">
+      <CardTitle className="text-4xl font-bold text-gray-800 mb-3">
         Menu Principale
       </CardTitle>
-      <CardDescription className="text-gray-600">
-        Benvenuto nell'applicazione DEMOS. Seleziona un'opzione per continuare.
+      <CardDescription className="text-gray-600 text-lg">
+        Benvenuto nell'applicazione DEMOS.<br />
+        Seleziona un'opzione per continuare.
       </CardDescription>
     </CardHeader>
   );

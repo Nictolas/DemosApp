@@ -16,7 +16,7 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
   onRemoveVoto
 }) => {
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <ThumbsUp className="h-5 w-5" />
