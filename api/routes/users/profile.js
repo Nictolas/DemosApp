@@ -608,4 +608,55 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/users/update-candidato - Aggiorna candidato selezionato
+router.post('/update-candidato', verifyToken, async (req, res) => {
+  try {
+    const { userId, fieldName, candidatoId, fcmToken } = req.body;
+    const currentUserId = req.userId;
+    
+    console.log('🔍 POST /api/users/update-candidato - Richiesta ricevuta:', { userId, fieldName, candidatoId, fcmToken });
+    
+    // Verifica che l'utente stia aggiornando il proprio profilo
+    if (userId !== currentUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il fieldName sia valido
+    const validFields = ['candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'];
+    if (!validFields.includes(fieldName)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Aggiorna il candidato selezionato
+    const updateQuery = `
+      UPDATE users 
+      SET ${fieldName} = $1, updated_at = NOW()
+      WHERE id = $2
+    `;
+    
+    await pool.query(updateQuery, [candidatoId, userId]);
+    
+    console.log('✅ Candidato aggiornato con successo:', { fieldName, candidatoId });
+    
+    res.json({
+      success: true,
+      message: 'Candidato aggiornato con successo'
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento candidato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile aggiornare il candidato'
+    });
+  }
+});
+
 module.exports = router;
