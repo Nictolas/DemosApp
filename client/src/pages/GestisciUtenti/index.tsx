@@ -379,6 +379,7 @@ export default function GestisciUtenti() {
               utenteId={selectedUser.id} 
               open={showEditOpinioniDialog} 
               onOpenChange={setShowEditOpinioniDialog} 
+              onOpinioniUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
             />
           </>
         )}

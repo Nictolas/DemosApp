@@ -50,10 +50,19 @@ export function EditOpinioniDialog({
           const data = await response.json();
           if (data.success && data.data && data.data.questions) {
             setQuestions(data.data.questions);
+          } else {
+            console.warn('Nessuna domanda trovata nella risposta API:', data);
+            setQuestions([]);
           }
+        } else {
+          console.error('Errore nel caricamento delle domande:', response.status, response.statusText);
+          toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
+          setQuestions([]);
         }
-      } catch {
+      } catch (error) {
+        console.error('Errore nel caricamento delle domande:', error);
         toast({ title: "Errore", description: "Impossibile caricare le opinioni disponibili.", variant: "destructive" });
+        setQuestions([]);
       } finally {
         setIsLoadingQuestions(false);
       }
@@ -190,6 +199,13 @@ export function EditOpinioniDialog({
             <div className="flex justify-center items-center h-60">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="ml-2">Caricamento opinioni...</span>
+            </div>
+          ) : questions.length === 0 ? (
+            <div className="flex justify-center items-center h-60">
+              <div className="text-center">
+                <p className="text-gray-500 mb-2">Nessuna opinione disponibile</p>
+                <p className="text-sm text-gray-400">Non ci sono opinioni configurate nel sistema</p>
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
