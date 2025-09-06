@@ -23,28 +23,28 @@ export default function Opinioni() {
   const categorie = [
     { 
       id: "europee", 
-      nome: "Opinioni Europee", 
+      nome: "Opinioni\nEuropee", 
       descrizione: "Temi di rilevanza europea",
       color: "blue",
       path: "/opinioni-europee"
     },
     { 
       id: "nazionali", 
-      nome: "Opinioni Nazionali", 
+      nome: "Opinioni\nNazionali", 
       descrizione: "Temi di rilevanza nazionale",
       color: "green",
       path: "/opinioni-nazionali"
     },
     { 
       id: "regionali", 
-      nome: "Opinioni Regionali", 
+      nome: "Opinioni\nRegionali", 
       descrizione: "Temi di rilevanza regionale",
       color: "purple",
       path: "/opinioni-regionali"
     },
     { 
       id: "comunali", 
-      nome: "Opinioni Comunali", 
+      nome: "Opinioni\nComunali", 
       descrizione: "Temi di rilevanza comunale",
       color: "orange",
       path: "/opinioni-comunali"
@@ -105,7 +105,7 @@ export default function Opinioni() {
                   </svg>
                   <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center h-full">
                     <MessageSquare className="h-8 md:h-12 w-8 md:w-12 mb-2" style={{ color: color.icon }} />
-                    <div className="text-base md:text-xl font-bold mb-1 text-center leading-tight" style={{ color: color.text }}>
+                    <div className="text-base md:text-xl font-bold mb-1 text-center leading-tight whitespace-pre-line" style={{ color: color.text }}>
                       {categoria.nome}
                     </div>
                     <p className="text-sm text-center" style={{ color: color.text }}>

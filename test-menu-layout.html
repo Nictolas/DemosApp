@@ -72,7 +72,7 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 16px;
-            padding-bottom: 140px; /* Spazio extra per il bordo della card */
+            padding-bottom: 120px; /* Spazio per la navbar */
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -82,10 +82,21 @@
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            flex: 1;
             display: flex;
             flex-direction: column;
+        }
+        
+        .card-content {
+            padding: 16px;
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
             min-height: 0;
+        }
+        
+        .buttons-container {
+            margin-top: 16px;
         }
         
         .card-header {
@@ -239,6 +250,8 @@
                     <h1 class="card-title">Menu Principale</h1>
                     <p class="card-description">Benvenuto nell'applicazione DEMOS. Seleziona un'opzione per continuare.</p>
                 </div>
+            </div>
+            <div class="buttons-container">
                 <div class="card-content">
                     <button class="menu-button elezioni">
                         <div class="button-bg"></div>

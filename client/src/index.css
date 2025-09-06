@@ -385,7 +385,7 @@ body {
 
 /* Assicura che il contenuto della pagina menu abbia spazio sufficiente sopra la navbar */
 .menu-page .container {
-  padding-bottom: 140px !important; /* Spazio extra per il bordo della card */
+  padding-bottom: 120px !important; /* Spazio per la navbar */
 }
 
 /* Assicura che i pulsanti del menu non siano troppo alti */
