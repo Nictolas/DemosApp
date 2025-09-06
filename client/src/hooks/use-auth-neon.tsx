@@ -177,6 +177,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: `Benvenuto ${data.nome || data.email}`,
         variant: "default"
       });
+      
+      // Reindirizza al menu dopo il login di successo
+      window.location.href = '/menu';
     },
     onError: (error) => {
       toast({ 
@@ -283,6 +286,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: `Benvenuto ${data.nome || data.email}`,
         variant: "default"
       });
+      
+      // Reindirizza al menu dopo la registrazione completata
+      window.location.href = '/menu';
     },
   });
 
