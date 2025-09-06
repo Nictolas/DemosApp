@@ -182,4 +182,67 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/users/:userId - Aggiorna utente specifico (solo admin)
+router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('✏️ PUT /api/users/:userId - Aggiornamento utente da admin');
+    
+    const { userId } = req.params;
+    const updateData = req.body;
+    
+    console.log('🔍 DEBUG - userId:', userId);
+    console.log('🔍 DEBUG - updateData:', updateData);
+    
+    // Lista dei campi consentiti per l'aggiornamento
+    const allowedFields = [
+      'grado_elezione', 'grado_candidatura'
+    ];
+    
+    // Filtra solo i campi consentiti
+    const filteredData = {};
+    Object.keys(updateData).forEach(key => {
+      if (allowedFields.includes(key) && updateData[key] !== undefined) {
+        filteredData[key] = updateData[key];
+      }
+    });
+    
+    if (Object.keys(filteredData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nessun campo valido da aggiornare'
+      });
+    }
+    
+    // Costruisci la query di aggiornamento dinamicamente
+    const setClause = Object.keys(filteredData).map((key, index) => `${key} = $${index + 1}`).join(', ');
+    const values = Object.values(filteredData);
+    const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`;
+    
+    const result = await pool.query(query, [...values, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const updatedUser = result.rows[0];
+    console.log('✅ Utente aggiornato:', updatedUser.email);
+    
+    res.json({
+      success: true,
+      message: 'Utente aggiornato con successo',
+      user: updatedUser
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;

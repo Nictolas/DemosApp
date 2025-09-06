@@ -5,6 +5,7 @@ import { Edit, Trash2 } from "lucide-react";
 import { User, SortState } from "../types";
 import { formatColumnValue } from "../utils/columnUtils";
 import { renderColumnValue } from "../utils/renderUtils";
+import { EditableDropdown } from "./EditableDropdown";
 
 interface UsersTableProps {
   users: User[];
@@ -14,6 +15,8 @@ interface UsersTableProps {
   onEdit: (user: User) => void;
   onEditOpinioni: (user: User) => void;
   onDelete: (user: User) => void;
+  userChanges?: Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>;
+  onFieldChange?: (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => void;
 }
 
 export const UsersTable: React.FC<UsersTableProps> = ({
@@ -23,7 +26,9 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   onSort,
   onEdit,
   onEditOpinioni,
-  onDelete
+  onDelete,
+  userChanges = {},
+  onFieldChange
 }) => {
   if (users.length === 0) {
     return (
@@ -61,9 +66,19 @@ export const UsersTable: React.FC<UsersTableProps> = ({
             <TableRow key={user.id} className="hover:bg-gray-50">
               {displayColumns.map((column) => (
                 <TableCell key={column} className="min-w-[150px] max-w-[300px]">
-                  <div className="truncate" title={formatColumnValue(user[column], column)}>
-                    {renderColumnValue(user[column], column, user)}
-                  </div>
+                  {column === 'grado_elezione' || column === 'grado_candidatura' ? (
+                    <EditableDropdown
+                      value={userChanges[user.id]?.[column] !== undefined ? userChanges[user.id][column] : user[column]}
+                      onChange={(value) => onFieldChange?.(user.id, column, value)}
+                      options={['Europeo', 'Nazionale', 'Camera', 'Senato', 'Regionale', 'Comunale']}
+                      placeholder="Seleziona..."
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="truncate" title={formatColumnValue(user[column], column)}>
+                      {renderColumnValue(user[column], column, user)}
+                    </div>
+                  )}
                 </TableCell>
               ))}
               <TableCell className="text-center">
