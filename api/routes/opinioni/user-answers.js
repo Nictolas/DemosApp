@@ -244,6 +244,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
     const result = await pool.query(query, [id]);
     
     if (result.rows.length === 0) {
+      console.log('⚠️ Opinione non trovata:', id);
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata'
@@ -252,18 +253,40 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
     
     const opinione = result.rows[0];
     
+    console.log('✅ Opinione trovata:', {
+      id: opinione.id,
+      text: opinione.text,
+      hasApprofondimento: !!opinione.approfondimento,
+      gradi_opinione: opinione.gradi_opinione
+    });
+    
     res.json({
       success: true,
       data: {
         id: opinione.id,
         text: opinione.text,
         approfondimento: opinione.approfondimento || '',
-        gradi_opinione: opinione.gradi_opinione
+        gradi_opinione: opinione.gradi_opinione || []
       }
     });
     
   } catch (error) {
     console.error('❌ Errore nel recuperare approfondimento:', error);
+    
+    // Se la tabella non esiste, restituisci dati di default
+    if (error.code === '42P01') { // Tabella non esiste
+      console.log('⚠️ Tabella opinioni non esiste, restituisco dati di default');
+      return res.json({
+        success: true,
+        data: {
+          id: req.params.id,
+          text: 'Opinione non trovata',
+          approfondimento: '',
+          gradi_opinione: []
+        }
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare approfondimento'
@@ -278,6 +301,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     const { approfondimento, gradi_opinione } = req.body;
     
     console.log('💾 PUT /api/opinioni/:id/approfondimento - Salvataggio approfondimento per opinione:', id);
+    console.log('📋 Dati ricevuti:', { approfondimento, gradi_opinione });
     
     // Verifica che l'utente sia admin
     const userQuery = `

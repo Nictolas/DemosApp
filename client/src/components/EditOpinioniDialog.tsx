@@ -71,9 +71,15 @@ export function EditOpinioniDialog({
   }, []);
 
   useEffect(() => {
-    if (open && utenteId && questions.length > 0) {
-      loadUserOpinions();
-      loadFonti();
+    if (open && utenteId) {
+      if (questions.length > 0) {
+        loadUserOpinions();
+        loadFonti();
+      } else {
+        // Se non ci sono domande, carica comunque le opinioni dell'utente
+        loadUserOpinions();
+        loadFonti();
+      }
     }
     // eslint-disable-next-line
   }, [open, utenteId, questions]);
@@ -85,15 +91,22 @@ export function EditOpinioniDialog({
       
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 DEBUG - Dati opinioni utente ricevuti:', data);
+        
         if (data.success && data.data && data.data.opinioni) {
           // Converte le opinioni nel formato atteso
           const opinioniMap: Record<string, string> = {};
           data.data.opinioni.forEach((opinion: any) => {
+            console.log('🔍 DEBUG - Processando opinione:', opinion);
             if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
+              // Usa l'ID dell'opinione per mappare correttamente
               opinioniMap[opinion.id] = opinion.userAnswer;
             }
           });
+          console.log('🔍 DEBUG - Mappa opinioni creata:', opinioniMap);
           setOpinions(opinioniMap);
+        } else {
+          console.log('⚠️ Nessuna opinione trovata nei dati ricevuti');
         }
       } else {
         throw new Error('Errore nel caricamento delle opinioni');
@@ -116,15 +129,21 @@ export function EditOpinioniDialog({
       
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 DEBUG - Dati fonti ricevuti:', data);
+        
         if (data.success && data.data && data.data.fonti) {
+          console.log('🔍 DEBUG - Fonti caricate:', data.data.fonti);
           setFonti(data.data.fonti);
         } else {
+          console.log('⚠️ Nessuna fonte trovata nei dati ricevuti');
           setFonti({});
         }
       } else {
+        console.log('⚠️ Errore nel caricamento delle fonti');
         setFonti({});
       }
-    } catch {
+    } catch (error) {
+      console.error('Errore nel caricamento delle fonti:', error);
       setFonti({});
     }
   };
@@ -186,15 +205,15 @@ export function EditOpinioniDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
+        <DialogHeader className="bg-white">
           <DialogTitle>Modifica Opinioni Utente</DialogTitle>
           <DialogDescription>
             Modifica le opinioni dell'utente. Le modifiche saranno salvate solo quando fai clic su "Salva".
           </DialogDescription>
         </DialogHeader>
         
-        <div className="max-h-[60vh] overflow-y-auto pr-1">
+        <div className="max-h-[60vh] overflow-y-auto pr-1 bg-white">
           {isLoadingOpinions || isLoadingQuestions ? (
             <div className="flex justify-center items-center h-60">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -213,7 +232,7 @@ export function EditOpinioniDialog({
                 const key = question.id;
                 const label = question.text;
                 return (
-                  <div key={key} className="border rounded-lg p-4 shadow-sm">
+                  <div key={key} className="border rounded-lg p-4 shadow-sm bg-white">
                     <h3 className="text-lg font-semibold mb-2">{label}</h3>
                     <div className="flex gap-2 mb-2">
                       {options.map((option) => {
@@ -255,7 +274,7 @@ export function EditOpinioniDialog({
           )}
         </div>
         
-        <div className="flex justify-end space-x-2 mt-4">
+        <div className="flex justify-end space-x-2 mt-4 bg-white">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Annulla
           </Button>
