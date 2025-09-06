@@ -63,13 +63,14 @@ export default function Elezioni() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Elezioni</h1>
-            <p className="text-gray-600">Scegli i tuoi candidati per le prossime elezioni</p>
-          </div>
-
+      <style jsx global>{`
+        body, html {
+          overflow: hidden !important;
+          touch-action: none !important;
+        }
+      `}</style>
+      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
+        <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />
           ) : isError ? (
