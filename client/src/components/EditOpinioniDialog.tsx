@@ -99,8 +99,11 @@ export function EditOpinioniDialog({
           data.data.opinioni.forEach((opinion: any) => {
             console.log('🔍 DEBUG - Processando opinione:', opinion);
             if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-              // Usa l'ID dell'opinione per mappare correttamente
-              opinioniMap[opinion.id] = opinion.userAnswer;
+              // Crea l'ID nel formato delle domande (grado_text)
+              const grado = opinion.grado && opinion.grado.length > 0 ? opinion.grado[0] : 'Nazionale';
+              const questionId = `${grado}_${opinion.text.replace(/\s+/g, '_')}`;
+              opinioniMap[questionId] = opinion.userAnswer;
+              console.log('🔍 DEBUG - Mappatura creata:', { questionId, userAnswer: opinion.userAnswer });
             }
           });
           console.log('🔍 DEBUG - Mappa opinioni creata:', opinioniMap);
@@ -133,7 +136,23 @@ export function EditOpinioniDialog({
         
         if (data.success && data.data && data.data.fonti) {
           console.log('🔍 DEBUG - Fonti caricate:', data.data.fonti);
-          setFonti(data.data.fonti);
+          
+          // Mappa le fonti nel formato delle domande
+          const fontiMap: Record<string, string> = {};
+          if (data.data.opinioni) {
+            data.data.opinioni.forEach((opinion: any) => {
+              const grado = opinion.grado && opinion.grado.length > 0 ? opinion.grado[0] : 'Nazionale';
+              const questionId = `${grado}_${opinion.text.replace(/\s+/g, '_')}`;
+              const fonte = data.data.fonti[opinion.id];
+              if (fonte) {
+                fontiMap[questionId] = fonte;
+                console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
+              }
+            });
+          }
+          
+          console.log('🔍 DEBUG - Mappa fonti creata:', fontiMap);
+          setFonti(fontiMap);
         } else {
           console.log('⚠️ Nessuna fonte trovata nei dati ricevuti');
           setFonti({});
@@ -175,9 +194,81 @@ export function EditOpinioniDialog({
   const saveOpinions = async () => {
     try {
       setIsSubmitting(true);
+      
+      // Converti le opinioni dal formato domande al formato database
+      const opinioniPerDatabase: Record<string, string> = {};
+      const fontiPerDatabase: Record<string, string> = {};
+      
+      // Mappa delle opinioni per convertire gli ID
+      const opinionMapping: Record<string, string> = {
+        'energia_nucleare': 'energia_nucleare',
+        'sperimentazione_animale': 'sperimentazione_animale',
+        'legalizzazione_canapa': 'legalizzazione_canapa',
+        'caccia': 'caccia',
+        'eutanasia': 'eutanasia',
+        'carne_coltivata': 'carne_coltivata',
+        'cittadina_animale': 'cittadina_animale',
+        'nato': 'nato',
+        'matrimonio_gay': 'matrimonio_gay',
+        'salario_minimo': 'salario_minimo',
+        'case_chiuse': 'case_chiuse',
+        'omobitransfobia': 'omobitransfobia',
+        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+        'nuove_case_popolari': 'nuove_case_popolari',
+        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+        'sostegno_commercio_locale': 'sostegno_commercio_locale',
+        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
+        'nuovi_inceneritori': 'nuovi_inceneritori',
+        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
+      };
+      
+      // Converti le opinioni
+      Object.entries(opinions).forEach(([questionId, answer]) => {
+        // Estrai il testo dell'opinione dall'ID della domanda (rimuovi il grado)
+        const textPart = questionId.split('_').slice(1).join('_');
+        const dbField = opinionMapping[textPart];
+        if (dbField) {
+          // Converti le risposte al formato database
+          let dbAnswer = answer;
+          if (answer === 'Favorevole') dbAnswer = 'Sì';
+          else if (answer === 'Contrario') dbAnswer = 'No';
+          else if (answer === 'Indeciso') dbAnswer = 'Indeciso';
+          
+          opinioniPerDatabase[dbField] = dbAnswer;
+        }
+      });
+      
+      // Converti le fonti
+      Object.entries(fonti).forEach(([questionId, fonte]) => {
+        const textPart = questionId.split('_').slice(1).join('_');
+        const dbField = opinionMapping[textPart];
+        if (dbField && fonte) {
+          fontiPerDatabase[dbField] = fonte;
+        }
+      });
+      
+      console.log('🔍 DEBUG - Opinion per database:', opinioniPerDatabase);
+      console.log('🔍 DEBUG - Fonti per database:', fontiPerDatabase);
+      
       const response = await apiRequest("PUT", `/api/users/${utenteId}/opinioni`, {
-        opinioni: opinions,
-        fonti: fonti
+        opinioni: opinioniPerDatabase,
+        fonti: fontiPerDatabase
       });
       
       if (response.ok) {
