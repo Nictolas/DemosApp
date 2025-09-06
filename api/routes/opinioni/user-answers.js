@@ -4,10 +4,10 @@ const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/opinioni/questions - Ottieni solo le domande delle opinioni (per EditOpinioniDialog)
-router.get('/questions', verifyToken, async (req, res) => {
+// GET /api/opinioni/profile - Ottieni solo le domande delle opinioni (per EditOpinioniDialog)
+router.get('/profile', verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/opinioni/questions - Richiesta domande opinioni');
+    console.log('🔍 GET /api/opinioni/profile - Richiesta domande opinioni');
     
     // Query per ottenere le domande delle opinioni dalla tabella opinioni
     const opinionQuery = `
@@ -37,89 +37,6 @@ router.get('/questions', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare domande opinioni'
-    });
-  }
-});
-
-// GET /api/opinioni/profile - Ottieni opinioni per profilo utente
-router.get('/profile', verifyToken, async (req, res) => {
-  try {
-    const userId = req.userId;
-    
-    // Query per ottenere le domande delle opinioni dalla tabella opinioni
-    const opinionQuery = `
-      SELECT DISTINCT o.gradi_opinione[1] as grado_primario, o.text
-      FROM opinioni o
-      ORDER BY o.gradi_opinione[1], o.text
-    `;
-    
-    const opinionResult = await pool.query(opinionQuery);
-    
-    // Formatta le domande per il frontend
-    const questions = opinionResult.rows.map(row => ({
-      id: `${row.grado_primario}_${row.text.replace(/\s+/g, '_')}`,
-      text: `${row.grado_primario}: ${row.text}`
-    }));
-    
-    // Query per ottenere le risposte dell'utente dalla tabella utenti - SENZA PREFISSI
-    const userQuery = `
-      SELECT 
-        -- Opinion nazionali/europee
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali (senza prefissi)
-        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
-        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
-        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
-        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
-        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
-        sicurezza_strade_scolastiche, sostegno_commercio_locale,
-        verde_pubblico_e_giardini,
-        -- Opinion regionali (senza prefissi)
-        nuovi_inceneritori, chiusura_ospedali_di_provincia,
-        -- Opinion nazionali/comunali (senza prefissi)
-        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
-        riduzione_parcheggi_a_pagamento
-      FROM users
-      WHERE id = $1
-    `;
-    
-    const userResult = await pool.query(userQuery, [userId]);
-    const userAnswers = userResult.rows[0] || {};
-    
-    // Formatta le opinioni per il frontend come fa l'endpoint principale
-    const formattedOpinions = questions.map(question => {
-      // Estrai l'ID dell'opinione dal formato "grado_text"
-      const opinionId = question.id.split('_').slice(1).join('_');
-      const userAnswer = userAnswers[opinionId];
-      
-      // Converti le risposte del database al formato frontend
-      let frontendAnswer = null;
-      if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
-      else if (userAnswer === 'No') frontendAnswer = 'Contrario';
-      else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
-      else if (userAnswer === 'Contrario') frontendAnswer = 'Contrario';
-      else if (userAnswer === 'Favorevole') frontendAnswer = 'Favorevole';
-      else if (userAnswer === null) frontendAnswer = 'Astenuto';
-      
-      return {
-        id: opinionId,
-        text: question.text.split(': ')[1], // Rimuovi il prefisso del grado
-        userAnswer: frontendAnswer
-      };
-    });
-
-    res.json({
-      success: true,
-      data: formattedOpinions
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare opinioni:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare opinioni'
     });
   }
 });
