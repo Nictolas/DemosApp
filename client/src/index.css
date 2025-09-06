@@ -383,6 +383,11 @@ body {
   max-height: calc(100vh - 7.5rem) !important;
 }
 
+/* Assicura che il contenuto della pagina menu abbia spazio sufficiente sopra la navbar */
+.menu-page .container {
+  padding-bottom: 140px !important; /* Spazio extra per il bordo della card */
+}
+
 /* Assicura che i pulsanti del menu non siano troppo alti */
 .menu-button {
   max-height: calc((100vh - 7.5rem - 200px) / 2) !important; /* Calcola altezza disponibile divisa per 2 righe */

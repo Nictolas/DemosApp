@@ -31,7 +31,7 @@ export default function Menu() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col" style={{ paddingBottom: '140px' }}>
           <Card className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
             <MenuHeader 
               isAdmin={isAdmin}
