@@ -4,6 +4,43 @@ const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/opinioni/questions - Ottieni solo le domande delle opinioni (per EditOpinioniDialog)
+router.get('/questions', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/opinioni/questions - Richiesta domande opinioni');
+    
+    // Query per ottenere le domande delle opinioni dalla tabella opinioni
+    const opinionQuery = `
+      SELECT DISTINCT o.gradi_opinione[1] as grado_primario, o.text
+      FROM opinioni o
+      ORDER BY o.gradi_opinione[1], o.text
+    `;
+    
+    const opinionResult = await pool.query(opinionQuery);
+    
+    // Formatta le domande per il frontend
+    const questions = opinionResult.rows.map(row => ({
+      id: `${row.grado_primario}_${row.text.replace(/\s+/g, '_')}`,
+      text: `${row.grado_primario}: ${row.text}`
+    }));
+    
+    console.log(`✅ Trovate ${questions.length} domande opinioni`);
+
+    res.json({
+      success: true,
+      data: {
+        questions: questions
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare domande opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare domande opinioni'
+    });
+  }
+});
+
 // GET /api/opinioni/profile - Ottieni opinioni per profilo utente
 router.get('/profile', verifyToken, async (req, res) => {
   try {
