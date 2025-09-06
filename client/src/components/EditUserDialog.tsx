@@ -40,7 +40,13 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
         throw new Error("Errore nel caricamento dei dati dell'utente");
       }
       const data = await response.json();
-      setUserData({ ...data, email: userEmail, uid: userUid });
+      console.log('🔍 DEBUG - Dati utente ricevuti:', data);
+      
+      if (data.success && data.user) {
+        setUserData({ ...data.user, email: userEmail, uid: userUid });
+      } else {
+        throw new Error("Formato dati non valido");
+      }
     } catch (err) {
       console.error("Errore:", err);
       setError(err instanceof Error ? err.message : "Errore sconosciuto");
@@ -68,44 +74,46 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+        <DialogHeader className="bg-white">
           <DialogTitle>Modifica Profilo Utente</DialogTitle>
           <DialogDescription>
             Aggiorna le informazioni del profilo per l'utente {userEmail}
           </DialogDescription>
         </DialogHeader>
         
-        {isLoading ? (
-          <div className="flex justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : error ? (
-          <div className="text-center text-red-500 p-4">
-            {error}
-            <div className="mt-4">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Chiudi
-              </Button>
+        <div className="bg-white">
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          </div>
-        ) : userData ? (
-          <EditProfileForm
-            userData={userData}
-            onProfileUpdated={handleProfileUpdated}
-            onCancel={() => onOpenChange(false)}
-            isAdmin={true}
-          />
-        ) : (
-          <div className="text-center p-4">
-            Nessuna informazione trovata per questo utente.
-            <DialogFooter className="mt-4">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Chiudi
-              </Button>
-            </DialogFooter>
-          </div>
-        )}
+          ) : error ? (
+            <div className="text-center text-red-500 p-4">
+              {error}
+              <div className="mt-4">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Chiudi
+                </Button>
+              </div>
+            </div>
+          ) : userData ? (
+            <EditProfileForm
+              userData={userData}
+              onProfileUpdated={handleProfileUpdated}
+              onCancel={() => onOpenChange(false)}
+              isAdmin={true}
+            />
+          ) : (
+            <div className="text-center p-4">
+              Nessuna informazione trovata per questo utente.
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Chiudi
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
