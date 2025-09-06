@@ -131,6 +131,7 @@ app.use('/api/amnistia', amnistiaRoutes);
 app.use('/api/capo-stato', capoStatoRoutes);
 app.use('/api/candidati', candidatiRoutes);
 app.use('/api/elezioni', elezioniRoutes);
+app.use('/api/elezioni-utente', elezioniRoutes);
 app.use('/api/ice', iceRoutes);
 app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
 app.use('/api/referendum', referendumRoutes);

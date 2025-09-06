@@ -1,20 +1,26 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { OpinioniDialogData, ProgrammaDialogData } from "../types";
 
 export const useElezioniActions = () => {
+  const [, setLocation] = useLocation();
   const [opinioniDialogData, setOpinioniDialogData] = useState<OpinioniDialogData | null>(null);
   const [programmaDialogData, setProgrammaDialogData] = useState<ProgrammaDialogData | null>(null);
 
-  const handleOpenOpinioniDialog = (utenteId: string, nome: string, cognome: string, avatarConfig?: string) => {
-    setOpinioniDialogData({ utenteId, nome, cognome, avatarConfig });
+  const handleNavigateToSelection = (categoriaId: string) => {
+    setLocation(`/scegli-candidato/${categoriaId}`);
+  };
+
+  const handleOpenOpinioniDialog = (utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string) => {
+    setOpinioniDialogData({ utenteId, nome, cognome, avatarConfig, categoria });
   };
 
   const handleCloseOpinioniDialog = () => {
     setOpinioniDialogData(null);
   };
 
-  const handleOpenProgrammaDialog = (utenteId: string, nome: string, cognome: string, avatarConfig?: string) => {
-    setProgrammaDialogData({ utenteId, nome, cognome, avatarConfig });
+  const handleOpenProgrammaDialog = (utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string) => {
+    setProgrammaDialogData({ utenteId, nome, cognome, avatarConfig, categoria });
   };
 
   const handleCloseProgrammaDialog = () => {
@@ -24,6 +30,7 @@ export const useElezioniActions = () => {
   return {
     opinioniDialogData,
     programmaDialogData,
+    handleNavigateToSelection,
     handleOpenOpinioniDialog,
     handleCloseOpinioniDialog,
     handleOpenProgrammaDialog,

@@ -7,32 +7,53 @@ import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
 import { useElezioniData } from "./hooks/useElezioniData";
 import { useElezioniActions } from "./hooks/useElezioniActions";
-import { useElezioniUtils } from "./hooks/useElezioniUtils";
-import { Header } from "./components/Header";
 import { CategoriaPrincipale } from "./components/CategoriaPrincipale";
-import { CategoriaSecondaria } from "./components/CategoriaSecondaria";
+import { CandidatoCard } from "./components/CandidatoCard";
+import { LoadingState } from "./components/LoadingState";
+import { ErrorState } from "./components/ErrorState";
 import { categorie, colorMap } from "./constants/categorie";
 
 export default function Elezioni() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   
-  const { userData, elezioni, candidatiDettagliati, loading } = useElezioniData(user);
+  const { data, isLoading, isError } = useElezioniData(user);
   const {
     opinioniDialogData,
     programmaDialogData,
+    handleNavigateToSelection,
     handleOpenOpinioniDialog,
     handleCloseOpinioniDialog,
     handleOpenProgrammaDialog,
     handleCloseProgrammaDialog
   } = useElezioniActions();
-  
-  const { getElectionForCategory, formatElectionDates } = useElezioniUtils();
 
-  if (!user && !isLoading) {
+  // Debug logging più dettagliato
+  console.log('🔍 DEBUG Elezioni - Valori singoli:');
+  console.log('  isAuthLoading:', isAuthLoading);
+  console.log('  user:', !!user);
+  console.log('  isLoading:', isLoading);
+  console.log('  isError:', isError);
+  console.log('  data:', data);
+  console.log('  data type:', typeof data);
+  console.log('  data keys:', data ? Object.keys(data) : 'data è null/undefined');
+  console.log('  candidati:', data?.candidati);
+  console.log('  idMap:', data?.idMap);
+  
+  // Log della condizione di rendering
+  const hasData = !!data;
+  // Rimuovo completamente i controlli hasCandidati e hasIdMap
+  // Le card devono essere sempre visibili per permettere la selezione
+  
+  console.log('🔍 DEBUG Rendering conditions:');
+  console.log('  hasData:', hasData);
+  console.log('  isLoading:', isLoading);
+  console.log('  isError:', isError);
+
+  if (!user && !isAuthLoading) {
     return <Redirect to="/auth" />;
   }
 
-  if (isLoading || loading) {
+  if (isAuthLoading || isLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -44,59 +65,72 @@ export default function Elezioni() {
     <PageTransition>
       <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
         <div className="container mx-auto px-4 py-8">
-          <Header />
-
-          {/* Card principale - Parlamento Europeo */}
-          <CategoriaPrincipale
-            categoria={categorie[0]}
-            userData={userData}
-            candidatiDettagliati={candidatiDettagliati}
-            elezione={getElectionForCategory(elezioni, categorie[0])}
-            dateString={formatElectionDates(getElectionForCategory(elezioni, categorie[0]))}
-            onOpenOpinioni={handleOpenOpinioniDialog}
-            onOpenProgramma={handleOpenProgrammaDialog}
-          />
-          
-          {/* Altre card in griglia 2x2 */}
-          <div className="grid grid-cols-2 gap-4 pb-2">
-            {categorie.slice(1).map((categoria) => {
-              const color = colorMap[categoria.color as keyof typeof colorMap];
-              const elezione = getElectionForCategory(elezioni, categoria);
-              const dateString = formatElectionDates(elezione);
-              
-              return (
-                <CategoriaSecondaria
-                  key={categoria.id}
-                  categoria={categoria}
-                  userData={userData}
-                  candidatiDettagliati={candidatiDettagliati}
-                  elezione={elezione}
-                  dateString={dateString}
-                  color={color}
-                  onOpenOpinioni={handleOpenOpinioniDialog}
-                  onOpenProgramma={handleOpenProgrammaDialog}
-                />
-              );
-            })}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Elezioni</h1>
+            <p className="text-gray-600">Scegli i tuoi candidati per le prossime elezioni</p>
           </div>
+
+          {isLoading ? (
+            <LoadingState />
+          ) : isError ? (
+            <ErrorState />
+          ) : (
+            <>
+              {/* Card Parlamento Europeo */}
+              {(() => {
+                const categoria = categorie[0];
+                console.log('🔍 DEBUG: Rendering categoria:', categoria.id, categoria.nome);
+                return (
+                  <CategoriaPrincipale
+                    key={categoria.id}
+                    categoria={categoria}
+                    data={data}
+                    onNavigate={handleNavigateToSelection}
+                    onOpenOpinioni={handleOpenOpinioniDialog}
+                  />
+                );
+              })()}
+              
+              {/* Altre card */}
+              <div className="grid grid-cols-2 gap-2">
+                {categorie.slice(1).map((categoria) => {
+                  return (
+                    <CandidatoCard
+                      key={categoria.id}
+                      categoria={categoria}
+                      data={data}
+                      onNavigate={handleNavigateToSelection}
+                      onOpenOpinioni={handleOpenOpinioniDialog}
+                    />
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
         
-        <ViewOpinioniDialog
-          open={!!opinioniDialogData}
-          onOpenChange={(open) => !open && handleCloseOpinioniDialog()}
-          utenteId={opinioniDialogData?.utenteId || ''}
-          nome={opinioniDialogData?.nome}
-          cognome={opinioniDialogData?.cognome}
-          avatarConfig={opinioniDialogData?.avatarConfig}
-        />
-        <ViewProgrammaDialog
-          open={!!programmaDialogData}
-          onOpenChange={(open) => !open && handleCloseProgrammaDialog()}
-          utenteId={programmaDialogData?.utenteId || ''}
-          nome={programmaDialogData?.nome}
-          cognome={programmaDialogData?.cognome}
-          avatarConfig={programmaDialogData?.avatarConfig}
-        />
+        {opinioniDialogData && (
+          <ViewOpinioniDialog
+            open={!!opinioniDialogData}
+            onOpenChange={(open) => !open && handleCloseOpinioniDialog()}
+            utenteId={opinioniDialogData?.utenteId || ''}
+            nome={opinioniDialogData?.nome}
+            cognome={opinioniDialogData?.cognome}
+            avatarConfig={opinioniDialogData?.avatarConfig}
+            categoria={opinioniDialogData?.categoria as any}
+          />
+        )}
+        {programmaDialogData && (
+          <ViewProgrammaDialog
+            open={!!programmaDialogData}
+            onOpenChange={(open) => !open && handleCloseProgrammaDialog()}
+            utenteId={programmaDialogData?.utenteId || ''}
+            nome={programmaDialogData?.nome}
+            cognome={programmaDialogData?.cognome}
+            avatarConfig={programmaDialogData?.avatarConfig}
+            categoria={programmaDialogData?.categoria as any}
+          />
+        )}
       </div>
     </PageTransition>
   );
