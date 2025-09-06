@@ -127,65 +127,89 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Opinion utente corrente:', userOpinions);
     
     // Funzione per calcolare le opinioni comuni tra utente e rappresentante
-    const calculateCommonOpinions = (userOpinions, candidateOpinions, grado) => {
+    // USA LA STESSA LOGICA DEL FRONTEND per evitare discrepanze
+    const calculateCommonOpinions = async (userOpinions, candidateOpinions, grado) => {
       let commonCount = 0;
       
       console.log('🔍 DEBUG calculateCommonOpinions - Inizio calcolo per candidato:', candidateOpinions.nome, candidateOpinions.cognome, 'grado:', grado);
       
-      // Definisci le opinioni per ogni grado
-      const opinioniPerGrado = {
-        'Europeo': [
-          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
-          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia'
-        ],
-        'Camera': [
-          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
-          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia'
-        ],
-        'Senato': [
-          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
-          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia'
-        ],
-        'Regionale': [
-          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
-          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia',
-          'nuovi_inceneritori', 'chiusura_ospedali_di_provincia'
-        ],
-        'Comunale': [
-          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia', 'eutanasia',
-          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo', 'case_chiuse', 'omobitransfobia',
-          'cassonetti_intelligenti_con_tessera', 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-          'divieto_di_nuovi_fast_food_nel_centro_storico', 'estensione_delle_zone_a_traffico_limitato',
-          'finanziamento_eventi_culturali_gratuiti', 'nuova_biblioteca_comunale',
-          'nuove_case_popolari', 'nuove_piste_ciclabili', 'nuovi_asili_nido_comunali',
-          'nuovo_stadio_comunale', 'parcheggi_gratuiti_per_residenti',
-          'potenziamento_trasporto_pubblico', 'riduzione_tasse_rifiuti',
-          'sicurezza_strade_scolastiche', 'sostegno_commercio_locale',
-          'verde_pubblico_e_giardini', 'raccolta_rifiuti_porta_a_porta', 
-          'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-          'sussidi_comunali_per_famiglie_numerose', 'videosorveglianza_in_spazi_pubblici',
-          'riduzione_parcheggi_a_pagamento'
-        ]
-      };
+      // Carica le opinioni dalla tabella opinioni per il grado specifico (come fa il frontend)
+      const gradoOpinionsQuery = `
+        SELECT o.id, o.text, o.gradi_opinione
+        FROM opinioni o
+        WHERE $1 = ANY(o.gradi_opinione)
+        ORDER BY o.text
+      `;
       
-      const opinioniDaControllare = opinioniPerGrado[grado] || opinioniPerGrado['Europeo'];
+      const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [grado]);
+      const gradoOpinions = gradoOpinionsResult.rows;
+      
+      console.log(`🔍 DEBUG calculateCommonOpinions - Opinion caricate dalla tabella opinioni per grado ${grado}:`, gradoOpinions.length);
+      
+      // Mappa delle opinioni ai campi del database (stessa del frontend)
+      const opinionMapping = {
+        'energia_nucleare': 'energia_nucleare',
+        'sperimentazione_animale': 'sperimentazione_animale',
+        'legalizzazione_canapa': 'legalizzazione_canapa',
+        'caccia': 'caccia',
+        'eutanasia': 'eutanasia',
+        'carne_coltivata': 'carne_coltivata',
+        'cittadina_animale': 'cittadina_animale',
+        'nato': 'nato',
+        'matrimonio_gay': 'matrimonio_gay',
+        'salario_minimo': 'salario_minimo',
+        'case_chiuse': 'case_chiuse',
+        'omobitransfobia': 'omobitransfobia',
+        'nuovi_inceneritori': 'nuovi_inceneritori',
+        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+        'nuove_case_popolari': 'nuove_case_popolari',
+        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+        'sostegno_commercio_locale': 'sostegno_commercio_locale',
+        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
+        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
+      };
       
       // Funzione per normalizzare le risposte al formato frontend
       const normalizeAnswer = (answer) => {
-        if (!answer) return null;
+        if (!answer || answer === null || answer === undefined) return 'Astenuto';
         if (answer === 'Sì') return 'Favorevole';
         if (answer === 'No') return 'Contrario';
         if (answer === 'Indeciso') return 'Indeciso';
         if (answer === 'Favorevole') return 'Favorevole';
         if (answer === 'Contrario') return 'Contrario';
-        return answer; // Mantieni il valore originale se non riconosciuto
+        if (answer === 'Astenuto') return 'Astenuto';
+        return 'Astenuto'; // Default per valori non riconosciuti
       };
       
-      console.log(`🔍 DEBUG calculateCommonOpinions - Opinion da controllare per grado ${grado}:`, opinioniDaControllare.length, opinioniDaControllare);
       console.log(`🔍 DEBUG calculateCommonOpinions - User opinions sample:`, Object.keys(userOpinions).slice(0, 5).map(key => `${key}: ${userOpinions[key]}`));
       console.log(`🔍 DEBUG calculateCommonOpinions - Candidate opinions sample:`, Object.keys(candidateOpinions).slice(0, 5).map(key => `${key}: ${candidateOpinions[key]}`));
       
-      opinioniDaControllare.forEach(fieldName => {
+      // Controlla ogni opinione dalla tabella opinioni
+      gradoOpinions.forEach(opinion => {
+        const opinionId = opinion.id;
+        const fieldName = opinionMapping[opinionId];
+        
+        if (!fieldName) {
+          console.log(`🔍 DEBUG calculateCommonOpinions - Campo non mappato per opinione: ${opinionId} (${opinion.text})`);
+          return;
+        }
+        
         const userAnswer = userOpinions[fieldName];
         const candidateAnswer = candidateOpinions[fieldName];
         
@@ -193,16 +217,18 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         const normalizedUserAnswer = normalizeAnswer(userAnswer);
         const normalizedCandidateAnswer = normalizeAnswer(candidateAnswer);
         
-        console.log(`🔍 DEBUG calculateCommonOpinions - ${fieldName}: user="${userAnswer}"->"${normalizedUserAnswer}", candidate="${candidateAnswer}"->"${normalizedCandidateAnswer}"`);
+        console.log(`🔍 DEBUG calculateCommonOpinions - ${opinion.text} (${fieldName}): user="${userAnswer}"->"${normalizedUserAnswer}", candidate="${candidateAnswer}"->"${normalizedCandidateAnswer}"`);
         
-        // Conta come opinione comune solo se entrambi hanno risposto e la risposta è identica
-        if (normalizedUserAnswer && normalizedCandidateAnswer && normalizedUserAnswer === normalizedCandidateAnswer) {
+        // Conta come opinione comune solo se entrambi hanno risposto con una posizione valida e la risposta è identica
+        if (normalizedUserAnswer && normalizedCandidateAnswer && 
+            normalizedUserAnswer !== 'Astenuto' && normalizedCandidateAnswer !== 'Astenuto' &&
+            normalizedUserAnswer === normalizedCandidateAnswer) {
           commonCount++;
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${fieldName} = "${normalizedUserAnswer}"`);
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${opinion.text} = "${normalizedUserAnswer}"`);
         } else if (normalizedUserAnswer && normalizedCandidateAnswer) {
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONI DIVERSE: ${fieldName} = user:"${normalizedUserAnswer}" vs candidate:"${normalizedCandidateAnswer}"`);
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONI DIVERSE: ${opinion.text} = user:"${normalizedUserAnswer}" vs candidate:"${normalizedCandidateAnswer}"`);
         } else {
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE NON VALIDA: ${fieldName} = user:"${normalizedUserAnswer}" candidate:"${normalizedCandidateAnswer}"`);
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE NON VALIDA: ${opinion.text} = user:"${normalizedUserAnswer}" candidate:"${normalizedCandidateAnswer}"`);
         }
       });
       
@@ -224,13 +250,13 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     let candidati = result.rows;
     
     // Calcola le opinioni comuni per ogni candidato e aggiungi il campo opinioni_comuni
-    candidati = candidati.map(candidato => {
-      const opinioniComuni = calculateCommonOpinions(userOpinions, candidato, grado);
+    candidati = await Promise.all(candidati.map(async (candidato) => {
+      const opinioniComuni = await calculateCommonOpinions(userOpinions, candidato, grado);
       return {
         ...candidato,
         opinioni_comuni: opinioniComuni
       };
-    });
+    }));
     
     // Ordina per opinioni comuni (decrescente) e poi per cognome
     candidati.sort((a, b) => {
