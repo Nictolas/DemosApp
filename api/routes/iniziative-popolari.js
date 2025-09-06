@@ -14,7 +14,7 @@ const pool = new Pool({
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM iniziative_popolari ORDER BY data_creazione DESC'
+      'SELECT * FROM iniziative_popolari ORDER BY created_at DESC'
     );
     
     res.json({
@@ -33,18 +33,21 @@ router.get('/', async (req, res) => {
 // POST /api/iniziative-popolari - Crea nuova iniziativa popolare
 router.post('/', async (req, res) => {
   try {
-    const { titolo, descrizione, promotore_id, obiettivi } = req.body;
+    const { nome, userId, dataInizio, dataFine, sitoWeb, status, quorum } = req.body;
     
-    if (!titolo || !descrizione || !promotore_id) {
+    if (!nome || !userId) {
       return res.status(400).json({
         success: false,
-        error: 'Titolo, descrizione e promotore sono obbligatori'
+        error: 'Nome e userId sono obbligatori'
       });
     }
     
+    // Genera un ID univoco per l'iniziativa
+    const iniziativaId = `iniziativa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const result = await pool.query(
-      'INSERT INTO iniziative_popolari (titolo, descrizione, promotore_id, obiettivi, data_creazione) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
-      [titolo, descrizione, promotore_id, obiettivi]
+      'INSERT INTO iniziative_popolari (id, userId, nome, dataInizio, dataFine, sitoWeb, status, quorum, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *',
+      [iniziativaId, userId, nome, dataInizio, dataFine, sitoWeb, status, quorum]
     );
     
     res.status(201).json({
