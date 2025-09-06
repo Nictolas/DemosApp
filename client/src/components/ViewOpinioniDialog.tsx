@@ -204,12 +204,28 @@ export function ViewOpinioniDialog({
     return { favorevoli, indecisi, contrari };
   }
 
-  // Funzione per determinare se due opinioni sono compatibili (come nel calcolo compatibilità)
+  // Funzione per determinare se due opinioni sono compatibili (stessa logica del backend)
   function isOpinioneComune(val1: string | undefined, val2: string | undefined) {
+    // Normalizza le risposte come fa il backend
+    const normalizeAnswer = (answer: string | undefined) => {
+      if (!answer || answer === null || answer === undefined) return 'Astenuto';
+      if (answer === 'Sì') return 'Favorevole';
+      if (answer === 'No') return 'Contrario';
+      if (answer === 'Indeciso') return 'Indeciso';
+      if (answer === 'Favorevole') return 'Favorevole';
+      if (answer === 'Contrario') return 'Contrario';
+      if (answer === 'Astenuto') return 'Astenuto';
+      return 'Astenuto';
+    };
+
+    const normalizedVal1 = normalizeAnswer(val1);
+    const normalizedVal2 = normalizeAnswer(val2);
+
+    // Conta come opinione comune solo se entrambi hanno risposto con una posizione valida e la risposta è identica
     return (
-      typeof val1 === 'string' && val1.trim() !== '' &&
-      typeof val2 === 'string' && val2.trim() !== '' &&
-      val1 === val2
+      normalizedVal1 && normalizedVal2 &&
+      normalizedVal1 !== 'Astenuto' && normalizedVal2 !== 'Astenuto' &&
+      normalizedVal1 === normalizedVal2
     );
   }
 
