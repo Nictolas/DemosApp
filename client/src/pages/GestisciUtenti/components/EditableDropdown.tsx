@@ -17,12 +17,12 @@ export const EditableDropdown: React.FC<EditableDropdownProps> = ({
   className = ""
 }) => {
   return (
-    <Select value={value || ""} onValueChange={(newValue) => onChange(newValue || null)}>
+    <Select value={value || "empty"} onValueChange={(newValue) => onChange(newValue === "empty" ? null : newValue)}>
       <SelectTrigger className={`w-full ${className}`}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="">{placeholder}</SelectItem>
+        <SelectItem value="empty">{placeholder}</SelectItem>
         {options.map((option) => (
           <SelectItem key={option} value={option}>
             {option}
