@@ -19,7 +19,7 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
 
 
   return (
-    <CardContent className="grid grid-cols-2 gap-3 p-4 flex-1 min-h-0">
+    <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
       {visibleItems.map((item) => (
         <MenuButton
           key={item.id}
@@ -30,6 +30,6 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
           onNavigate={onNavigate}
         />
       ))}
-    </CardContent>
+    </div>
   );
 };

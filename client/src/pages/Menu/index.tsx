@@ -31,17 +31,21 @@ export default function Menu() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col" style={{ paddingBottom: '140px' }}>
-          <Card className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
-            <MenuHeader 
-              isAdmin={isAdmin}
-              onAdminClick={() => setLocation("/gestisci")}
-            />
-            <MenuGrid 
-              hasAdvancedAccess={hasAdvancedAccess}
-              onNavigate={navigateWithButtonReset}
-            />
-          </Card>
+        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col" style={{ paddingBottom: '120px' }}>
+          <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
+            <Card className="w-full">
+              <MenuHeader 
+                isAdmin={isAdmin}
+                onAdminClick={() => setLocation("/gestisci")}
+              />
+            </Card>
+            <div className="mt-4">
+              <MenuGrid 
+                hasAdvancedAccess={hasAdvancedAccess}
+                onNavigate={navigateWithButtonReset}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
