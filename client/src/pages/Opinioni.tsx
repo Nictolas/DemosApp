@@ -104,7 +104,7 @@ export default function Opinioni() {
                     <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
                   </svg>
                   <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center h-full">
-                    <MessageSquare className="h-8 md:h-12 w-8 md:w-12 mb-2" style={{ color: color.icon }} />
+                    <MessageSquare className="h-12 md:h-16 w-12 md:w-16 mb-3" style={{ color: color.icon }} />
                     <div className="text-2xl md:text-4xl font-bold mb-4 text-center leading-tight whitespace-pre-line" style={{ color: color.text }}>
                       {categoria.nome}
                     </div>
