@@ -8,28 +8,19 @@ export const HIDDEN_COLUMNS = [
   'id', 'nome', 'cognome', 'name', 'password_hash', 'avatar_config', 'fonti_opinioni', 'firestore_uid',
   'created_at', 'updated_at',
   // Colonne di candidatura ed elezione (nascoste perché non necessarie per la gestione utenti)
-  'candidato_attivo', 'status_candidatura', 'grado_candidatura', 'paese_candidatura', 'regione_candidatura', 
+  'candidato_attivo', 'status_candidatura', 'paese_candidatura', 'regione_candidatura', 
   'provincia_candidatura', 'comune_candidatura', 'data_candidatura', 'note_candidatura',
-  'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione'
+  'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione'
 ];
 
-// Colonne forzate per candidatura ed elezione (rimosse perché nascoste)
+// Colonne forzate per candidatura ed elezione
 export const FORCED_COLUMNS = [
-  // Colonne rimosse perché nascoste nella gestione utenti:
-  // 'candidato_attivo', 'status_candidatura', 'grado_candidatura',
-  // 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura',
-  // 'data_candidatura', 'note_candidatura',
-  // 'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione'
+  'grado_candidatura', 'grado_elezione'
 ];
 
 // Colonne con priorità di ordinamento
 export const PRIORITY_COLUMNS = [
-  'nome_completo', 'email', 'ruolo', 'status'
-  // Colonne candidatura ed elezione rimosse perché nascoste:
-  // 'candidato_attivo', 'status_candidatura', 'grado_candidatura',
-  // 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura', 'comune_candidatura',
-  // 'data_candidatura', 'note_candidatura',
-  // 'grado_elezione', 'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione'
+  'nome_completo', 'email', 'ruolo', 'status', 'grado_candidatura', 'grado_elezione'
 ];
 
 export const USERS_PER_PAGE = 20;

@@ -300,6 +300,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel recuperare approfondimento:', error);
+    console.error('❌ Stack trace:', error.stack);
     
     // Se la tabella non esiste, restituisci dati di default
     if (error.code === '42P01') { // Tabella non esiste
@@ -315,9 +316,24 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
       });
     }
     
+    // Se la colonna non esiste, restituisci dati di default
+    if (error.code === '42703') { // Colonna non esiste
+      console.log('⚠️ Colonna non esiste nella tabella opinioni, restituisco dati di default');
+      return res.json({
+        success: true,
+        data: {
+          id: req.params.id,
+          text: 'Opinione non trovata',
+          approfondimento: '',
+          gradi_opinione: []
+        }
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare approfondimento'
+      error: 'Errore nel recuperare approfondimento',
+      details: error.message
     });
   }
 });
@@ -351,7 +367,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       // ID numerico
       updateQuery = `
         UPDATE opinioni 
-        SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
+        SET approfondimento = $1, gradi_opinione = $2
         WHERE id = $3
         RETURNING id, text, approfondimento, gradi_opinione
       `;
@@ -363,7 +379,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       
       updateQuery = `
         UPDATE opinioni 
-        SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
+        SET approfondimento = $1, gradi_opinione = $2
         WHERE LOWER(TRIM(text)) = LOWER(TRIM($3))
         RETURNING id, text, approfondimento, gradi_opinione
       `;
@@ -377,7 +393,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       // Fallback: prova a cercare per ID diretto
       const fallbackUpdateQuery = `
         UPDATE opinioni 
-        SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
+        SET approfondimento = $1, gradi_opinione = $2
         WHERE id = $3
         RETURNING id, text, approfondimento, gradi_opinione
       `;
@@ -406,9 +422,114 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel salvare approfondimento:', error);
+    console.error('❌ Stack trace:', error.stack);
+    
+    // Se la colonna non esiste, restituisci un errore specifico
+    if (error.code === '42703') { // Colonna non esiste
+      console.log('⚠️ Colonna non esiste nella tabella opinioni');
+      return res.status(500).json({
+        success: false,
+        error: 'Colonna mancante',
+        message: 'Le colonne approfondimento e gradi_opinione devono essere aggiunte alla tabella opinioni'
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      error: 'Errore nel salvare approfondimento'
+      error: 'Errore nel salvare approfondimento',
+      details: error.message
+    });
+  }
+});
+
+// ENDPOINT TEMPORANEO PER AGGIUNGERE LE COLONNE - RIMUOVERE DOPO L'USO
+router.post('/add-columns-temp', async (req, res) => {
+  try {
+    console.log('🔧 ENDPOINT TEMPORANEO - Aggiunta colonne opinioni');
+    
+    // Controlla se la tabella opinioni esiste
+    const checkTableQuery = `
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_name = 'opinioni'
+    `;
+    
+    const tableResult = await pool.query(checkTableQuery);
+    
+    if (tableResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tabella opinioni non esiste'
+      });
+    }
+    
+    console.log('✅ Tabella opinioni esiste');
+    
+    // Controlla le colonne esistenti
+    const columnsQuery = `
+      SELECT column_name, data_type
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni'
+      ORDER BY ordinal_position
+    `;
+    
+    const columnsResult = await pool.query(columnsQuery);
+    console.log('📋 Colonne esistenti:', columnsResult.rows.map(r => r.column_name));
+    
+    const addedColumns = [];
+    
+    // Aggiungi colonna approfondimento se non esiste
+    const hasApprofondimento = columnsResult.rows.some(row => row.column_name === 'approfondimento');
+    
+    if (!hasApprofondimento) {
+      console.log('➕ Aggiungo colonna approfondimento...');
+      await pool.query('ALTER TABLE opinioni ADD COLUMN approfondimento TEXT');
+      addedColumns.push('approfondimento');
+      console.log('✅ Colonna approfondimento aggiunta');
+    } else {
+      console.log('✅ Colonna approfondimento già esiste');
+    }
+    
+    // Verifica che gradi_opinione esista (dovrebbe già esserci)
+    const hasGradiOpinione = columnsResult.rows.some(row => row.column_name === 'gradi_opinione');
+    
+    if (!hasGradiOpinione) {
+      console.log('⚠️ Colonna gradi_opinione mancante, la aggiungo...');
+      await pool.query('ALTER TABLE opinioni ADD COLUMN gradi_opinione TEXT[]');
+      addedColumns.push('gradi_opinione');
+      console.log('✅ Colonna gradi_opinione aggiunta');
+    } else {
+      console.log('✅ Colonna gradi_opinione già esiste');
+    }
+    
+    // Verifica la struttura finale
+    const finalColumnsQuery = `
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name = 'opinioni'
+      ORDER BY ordinal_position
+    `;
+    
+    const finalResult = await pool.query(finalColumnsQuery);
+    
+    res.json({
+      success: true,
+      message: 'Colonne aggiunte con successo',
+      addedColumns: addedColumns,
+      finalStructure: finalResult.rows.map(row => ({
+        column_name: row.column_name,
+        data_type: row.data_type,
+        is_nullable: row.is_nullable,
+        column_default: row.column_default
+      }))
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiunta colonne opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiunta delle colonne',
+      details: error.message
     });
   }
 });
