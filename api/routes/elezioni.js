@@ -10,8 +10,8 @@ router.get('/prossime', async (req, res) => {
   try {
     const query = `
       SELECT * FROM elezioni 
-      WHERE data > NOW() 
-      ORDER BY data ASC 
+      WHERE created_at > NOW() 
+      ORDER BY created_at ASC 
       LIMIT 5
     `;
     
@@ -34,7 +34,7 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
       SELECT * FROM elezioni 
-      ORDER BY data DESC
+      ORDER BY created_at DESC
     `;
     
     const result = await pool.query(query);
@@ -62,8 +62,8 @@ router.get('/utente', verifyToken, async (req, res) => {
              CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END as ha_votato
       FROM elezioni e
       LEFT JOIN voti_elezioni v ON e.id = v.elezione_id AND v.user_id = $1
-      WHERE e.data > NOW()
-      ORDER BY e.data ASC
+      WHERE e.created_at > NOW()
+      ORDER BY e.created_at ASC
     `;
     
     const result = await pool.query(query, [userId]);
@@ -84,101 +84,11 @@ router.get('/utente', verifyToken, async (req, res) => {
 // GET /api/elezioni-utente - Endpoint per la pagina Elezioni (simile a rappresentanti)
 router.get('/elezioni-utente', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 GET /api/elezioni-utente - Richiesta candidati');
     const userId = req.userId;
+    console.log('🔍 DEBUG - userId:', userId);
     
-    console.log('🔍 DEBUG /api/elezioni-utente - Richiesta ricevuta:', { userId });
-    
-    // Query per ottenere utenti con ruolo "Candidato" o "Candidato Politico" dalla tabella users
-    // Filtra per grado_candidatura invece di grado_elezione
-    const query = `
-      SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        status,
-        avatar_config,
-        grado_candidatura,
-        regione_candidatura,
-        provincia_candidatura,
-        comune_candidatura,
-        grado_elezione,
-        regione_elezione,
-        provincia_elezione,
-        comune_elezione,
-        -- Opinion nazionali/europee
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali (senza prefissi)
-        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
-        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
-        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
-        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
-        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
-        sicurezza_strade_scolastiche, sostegno_commercio_locale,
-        verde_pubblico_e_giardini,
-        -- Opinion regionali (senza prefissi)
-        nuovi_inceneritori, chiusura_ospedali_di_provincia,
-        -- Opinion nazionali/comunali (senza prefissi)
-        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
-        riduzione_parcheggi_a_pagamento
-      FROM users
-      WHERE id != $1 
-        AND (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
-        AND status = 'active'
-      ORDER BY cognome, nome
-    `;
-    
-    const result = await pool.query(query, [userId]);
-    
-    console.log('🔍 DEBUG /api/elezioni-utente - Utenti trovati:', result.rows.length);
-    
-    // Processa i candidati per il frontend
-    let candidati = result.rows.map(candidato => {
-      let avatarConfig = candidato.avatar_config;
-      
-      // Se avatar_config è null o vuoto, crea una configurazione di default
-      if (!avatarConfig) {
-        const defaultConfig = {
-          style: 'adventurer',
-          seed: `${candidato.nome}-${candidato.cognome}`,
-          backgroundColor: ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf'],
-          backgroundType: 'gradientLinear',
-          backgroundRotation: 0,
-          scale: 100,
-          translateX: 0,
-          translateY: 0,
-          rotate: 0,
-          flip: false,
-          accessoriesProbability: 100,
-          clothingProbability: 100,
-          clothingColor: ['262e33', '65c9ff', '5199e4', '25557c', '000000', '3c4f5c', 'ae5d29', 'ca9077', 'd63384', 'f06292'],
-          eyesProbability: 100,
-          eyebrowsProbability: 100,
-          facialHairProbability: 100,
-          glassesProbability: 100,
-          hairProbability: 100,
-          hairColor: ['auburn', 'black', 'blonde', 'blondeGolden', 'brown', 'brownDark', 'gray', 'red', 'silverGray'],
-          mouthProbability: 100,
-          mustacheProbability: 100,
-          skinProbability: 100,
-          skinColor: ['edb98a', 'f8d25c', 'fd9841', 'f8d25c', 'd08b5b', 'ae5d29', '614335', 'fd9841'],
-          topProbability: 100,
-          topType: ['NoHair', 'Eyepatch', 'Hat', 'Hijab', 'Turban', 'WinterHat1', 'WinterHat2', 'WinterHat3', 'WinterHat4', 'LongHairBigHair', 'LongHairBob', 'LongHairBun', 'LongHairCurly', 'LongHairCurvy', 'LongHairDreads', 'LongHairFrida', 'LongHairFro', 'LongHairFroBand', 'LongHairNotTooLong', 'LongHairShavedSides', 'LongHairMiaWallace', 'LongHairStraight', 'LongHairStraight2', 'LongHairStraightStrand', 'ShortHairDreads01', 'ShortHairDreads02', 'ShortHairFrizzle', 'ShortHairShaggyMullet', 'ShortHairShortCurly', 'ShortHairShortFlat', 'ShortHairShortRound', 'ShortHairShortWaved', 'ShortHairSides', 'ShortHairTheCaesar', 'ShortHairTheCaesarSidePart']
-        };
-        avatarConfig = JSON.stringify(defaultConfig);
-      }
-      
-      return {
-        ...candidato,
-        avatar_config: avatarConfig
-      };
-    });
-    
-    // Ottieni i dati dell'utente corrente per i candidati selezionati
+    // Ottieni i candidati selezionati dall'utente
     const userQuery = `
       SELECT 
         candidato_europeo,
@@ -191,22 +101,77 @@ router.get('/elezioni-utente', verifyToken, async (req, res) => {
     `;
     
     const userResult = await pool.query(userQuery, [userId]);
-    const utente = userResult.rows[0] || {};
+    const user = userResult.rows[0] || {};
     
-    // Mappa i nomi delle colonne per mantenere compatibilità con il frontend
-    const utenteMapped = {
-      candidato_europeo: utente.candidato_europeo,
-      candidato_camera: utente.candidato_camera,
-      candidato_senato: utente.candidato_senato,
-      candidato_regione: utente.candidato_regionale, // Mappa il nome corretto
-      candidato_comune: utente.candidato_comune
+    console.log('🔍 DEBUG - Candidati selezionati dall\'utente:', user);
+    
+    // Ottieni i dettagli dei candidati selezionati
+    const candidatiIds = [
+      user.candidato_europeo,
+      user.candidato_camera,
+      user.candidato_senato,
+      user.candidato_regionale,
+      user.candidato_comune
+    ].filter(id => id); // Rimuovi valori null/undefined
+    
+    let candidatiDettagliati = {};
+    
+    if (candidatiIds.length > 0) {
+      const candidatiQuery = `
+        SELECT 
+          id,
+          nome,
+          cognome,
+          email,
+          ruolo,
+          status,
+          avatar_config,
+          grado_candidatura,
+          regione_candidatura,
+          provincia_candidatura,
+          comune_candidatura
+        FROM users
+        WHERE id = ANY($1)
+      `;
+      
+      const candidatiResult = await pool.query(candidatiQuery, [candidatiIds]);
+      
+      // Crea un oggetto con id come chiave
+      candidatiDettagliati = candidatiResult.rows.reduce((acc, candidato) => {
+        acc[candidato.id] = {
+          nome: candidato.nome,
+          cognome: candidato.cognome,
+          avatar_config: candidato.avatar_config
+        };
+        return acc;
+      }, {});
+    }
+    
+    console.log('🔍 DEBUG - Candidati dettagliati:', candidatiDettagliati);
+    
+    // Organizza i candidati per categoria (come fa rappresentanti)
+    const candidatiPerCategoria = {
+      europeo: user.candidato_europeo ? [candidatiDettagliati[user.candidato_europeo]] : [],
+      camera: user.candidato_camera ? [candidatiDettagliati[user.candidato_camera]] : [],
+      senato: user.candidato_senato ? [candidatiDettagliati[user.candidato_senato]] : [],
+      regione: user.candidato_regionale ? [candidatiDettagliati[user.candidato_regionale]] : [],
+      comune: user.candidato_comune ? [candidatiDettagliati[user.candidato_comune]] : []
+    };
+    
+    // Crea idMap per compatibilità con il frontend
+    const idMap = {
+      europeo: user.candidato_europeo || null,
+      camera: user.candidato_camera || null,
+      senato: user.candidato_senato || null,
+      regione: user.candidato_regionale || null,
+      comune: user.candidato_comune || null
     };
     
     res.json({
       success: true,
       data: {
-        candidati: candidati,
-        utente: utenteMapped
+        candidati: candidatiPerCategoria,
+        idMap: idMap
       }
     });
     
@@ -220,17 +185,17 @@ router.get('/elezioni-utente', verifyToken, async (req, res) => {
 });
 
 // POST /api/elezioni - Crea nuova elezione
-router.post('/', verifyToken, validateInput(['titolo', 'descrizione', 'data', 'tipo', 'candidati']), async (req, res) => {
+router.post('/', verifyToken, validateInput(['titolo', 'descrizione', 'tipo', 'candidati']), async (req, res) => {
   try {
-    const { titolo, descrizione, data, tipo, candidati } = req.body;
+    const { titolo, descrizione, tipo, candidati } = req.body;
     
     const query = `
-      INSERT INTO elezioni (titolo, descrizione, data, tipo, candidati, created_at)
-      VALUES ($1, $2, $3, $4, $5, NOW())
+      INSERT INTO elezioni (titolo, descrizione, tipo, candidati, created_at)
+      VALUES ($1, $2, $3, $4, NOW())
       RETURNING *
     `;
     
-    const result = await pool.query(query, [titolo, descrizione, data, tipo, JSON.stringify(candidati)]);
+    const result = await pool.query(query, [titolo, descrizione, tipo, JSON.stringify(candidati)]);
     
     res.json({
       success: true,
