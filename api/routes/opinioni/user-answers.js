@@ -247,22 +247,36 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
       params = [id];
     } else {
       // ID testuale (es. energia_nucleare)
+      const textToSearch = id.replace(/_/g, ' ');
+      console.log('🔍 DEBUG - Cercando opinione con testo:', textToSearch);
+      
       query = `
         SELECT id, text, approfondimento, gradi_opinione
         FROM opinioni 
-        WHERE text = $1
+        WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))
       `;
-      params = [id.replace(/_/g, ' ')];
+      params = [textToSearch];
     }
     
-    const result = await pool.query(query, params);
+    let result = await pool.query(query, params);
     
     if (result.rows.length === 0) {
-      console.log('⚠️ Opinione non trovata:', id);
-      return res.status(404).json({
-        success: false,
-        error: 'Opinione non trovata'
-      });
+      console.log('⚠️ Opinione non trovata con testo, provo con ID diretto:', id);
+      // Fallback: prova a cercare per ID diretto
+      const fallbackQuery = `
+        SELECT id, text, approfondimento, gradi_opinione
+        FROM opinioni 
+        WHERE id = $1
+      `;
+      result = await pool.query(fallbackQuery, [id]);
+      
+      if (result.rows.length === 0) {
+        console.log('⚠️ Opinione non trovata nemmeno per ID:', id);
+        return res.status(404).json({
+          success: false,
+          error: 'Opinione non trovata'
+        });
+      }
     }
     
     const opinione = result.rows[0];
@@ -344,22 +358,37 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       params = [approfondimento || '', gradi_opinione || [], id];
     } else {
       // ID testuale (es. energia_nucleare)
+      const textToSearch = id.replace(/_/g, ' ');
+      console.log('🔍 DEBUG - Aggiornando opinione con testo:', textToSearch);
+      
       updateQuery = `
         UPDATE opinioni 
         SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
-        WHERE text = $3
+        WHERE LOWER(TRIM(text)) = LOWER(TRIM($3))
         RETURNING id, text, approfondimento, gradi_opinione
       `;
-      params = [approfondimento || '', gradi_opinione || [], id.replace(/_/g, ' ')];
+      params = [approfondimento || '', gradi_opinione || [], textToSearch];
     }
     
-    const result = await pool.query(updateQuery, params);
+    let result = await pool.query(updateQuery, params);
     
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Opinione non trovata'
-      });
+      console.log('⚠️ Opinione non trovata con testo per update, provo con ID diretto:', id);
+      // Fallback: prova a cercare per ID diretto
+      const fallbackUpdateQuery = `
+        UPDATE opinioni 
+        SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
+        WHERE id = $3
+        RETURNING id, text, approfondimento, gradi_opinione
+      `;
+      result = await pool.query(fallbackUpdateQuery, [approfondimento || '', gradi_opinione || [], id]);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Opinione non trovata'
+        });
+      }
     }
     
     console.log('✅ Approfondimento salvato con successo per opinione:', id);
