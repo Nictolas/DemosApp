@@ -33,6 +33,13 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     Comunale: false
   });
 
+  const [approfondimentiPerGrado, setApprofondimentiPerGrado] = useState({
+    Europeo: '',
+    Nazionale: '',
+    Regionale: '',
+    Comunale: ''
+  });
+
   // Carica l'approfondimento esistente quando si apre il dialog
   useEffect(() => {
     if (open && opinione.id) {
@@ -58,9 +65,8 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
       
       if (response.ok) {
         const data = await response.json();
-        setApprofondimento(data.data.approfondimento || "");
         
-        // Carica anche i gradi della proposta
+        // Carica i gradi della proposta
         if (data.data.gradi_opinione && Array.isArray(data.data.gradi_opinione)) {
           const gradi = {
             Europeo: data.data.gradi_opinione.includes('Europeo'),
@@ -70,13 +76,68 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           };
           setGradiProposta(gradi);
         }
+        
+        // Separa l'approfondimento per grado se contiene sezioni
+        const approfondimentoGenerale = data.data.approfondimento || "";
+        let approfondimentiSeparati = {
+          Europeo: '',
+          Nazionale: '',
+          Regionale: '',
+          Comunale: ''
+        };
+        
+        // Se l'approfondimento contiene sezioni con ## Proposta, separale
+        if (approfondimentoGenerale.includes('## Proposta')) {
+          const sezioni = approfondimentoGenerale.split('## Proposta');
+          sezioni.forEach(sezione => {
+            if (sezione.trim()) {
+              const lines = sezione.trim().split('\n');
+              const titolo = lines[0].trim();
+              const contenuto = lines.slice(1).join('\n').trim();
+              
+              if (titolo.includes('Europeo')) {
+                approfondimentiSeparati.Europeo = contenuto;
+              } else if (titolo.includes('Nazionale')) {
+                approfondimentiSeparati.Nazionale = contenuto;
+              } else if (titolo.includes('Regionale')) {
+                approfondimentiSeparati.Regionale = contenuto;
+              } else if (titolo.includes('Comunale')) {
+                approfondimentiSeparati.Comunale = contenuto;
+              }
+            }
+          });
+        } else {
+          // Se non ci sono sezioni, metti l'approfondimento generale in tutti i gradi attivi
+          const gradiAttivi = data.data.gradi_opinione || [];
+          if (gradiAttivi.includes('Europeo')) approfondimentiSeparati.Europeo = approfondimentoGenerale;
+          if (gradiAttivi.includes('Nazionale')) approfondimentiSeparati.Nazionale = approfondimentoGenerale;
+          if (gradiAttivi.includes('Regionale')) approfondimentiSeparati.Regionale = approfondimentoGenerale;
+          if (gradiAttivi.includes('Comunale')) approfondimentiSeparati.Comunale = approfondimentoGenerale;
+        }
+        
+        setApprofondimentiPerGrado(approfondimentiSeparati);
+        
+        // Mantieni anche l'approfondimento generale per compatibilità
+        setApprofondimento(approfondimentoGenerale);
       } else {
         console.error('Errore nel caricamento dell\'approfondimento');
         setApprofondimento("");
+        setApprofondimentiPerGrado({
+          Europeo: '',
+          Nazionale: '',
+          Regionale: '',
+          Comunale: ''
+        });
       }
     } catch (error) {
       console.error('Errore nel caricamento dell\'approfondimento:', error);
       setApprofondimento("");
+      setApprofondimentiPerGrado({
+        Europeo: '',
+        Nazionale: '',
+        Regionale: '',
+        Comunale: ''
+      });
     } finally {
       setIsLoading(false);
     }
@@ -91,8 +152,14 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         .filter(([_, isSelected]) => isSelected)
         .map(([grado, _]) => grado);
       
+      // Combina tutti gli approfondimenti in un unico testo
+      const approfondimentoCombinato = Object.entries(approfondimentiPerGrado)
+        .filter(([grado, _]) => gradiProposta[grado as keyof typeof gradiProposta])
+        .map(([grado, testo]) => `## Proposta ${grado}\n\n${testo}`)
+        .join('\n\n');
+      
       const response = await apiRequest("PUT", `/api/opinioni/${opinione.id}/approfondimento`, {
-        approfondimento: approfondimento,
+        approfondimento: approfondimentoCombinato,
         gradi_opinione: gradiSelezionati
       });
       
@@ -151,77 +218,46 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden flex flex-col bg-white">
-          {/* Sezione Gradi Proposta */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Gradi della Proposta</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(gradiProposta).map(([grado, isSelected]) => (
-                <div key={grado} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`grado-${grado}`}
-                    checked={isSelected}
-                    onCheckedChange={(checked) => {
-                      setGradiProposta(prev => ({
-                        ...prev,
-                        [grado]: checked as boolean
-                      }));
-                    }}
-                  />
-                  <label
-                    htmlFor={`grado-${grado}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Proposta {grado}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Toolbar */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-2">
-              <Button
-                variant={previewMode ? "outline" : "default"}
-                size="sm"
-                onClick={() => setPreviewMode(false)}
-              >
-                <span>Modifica</span>
-              </Button>
-              <Button
-                variant={previewMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => setPreviewMode(true)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Anteprima
-              </Button>
-            </div>
-            
-            <div className="text-sm text-muted-foreground">
-              {approfondimento.length} caratteri
-            </div>
-          </div>
-
-          {/* Contenuto */}
+          {/* Contenuto - 4 Sezioni Separate */}
           <div className="flex-1 overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin" />
                 <span className="ml-2">Caricamento approfondimento...</span>
               </div>
-            ) : previewMode ? (
-              <div 
-                className="h-full overflow-y-auto p-4 border rounded-lg bg-white prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ 
-                  __html: approfondimento ? renderMarkdown(approfondimento) : '<p class="text-muted-foreground">Nessun contenuto da visualizzare</p>'
-                }}
-              />
             ) : (
-              <Textarea
-                value={approfondimento}
-                onChange={(e) => setApprofondimento(e.target.value)}
-                placeholder="Inserisci qui l'approfondimento per questa opinione...
+              <div className="h-full overflow-y-auto space-y-6">
+                {Object.entries(approfondimentiPerGrado).map(([grado, testo]) => (
+                  <div key={grado} className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`grado-${grado}`}
+                        checked={gradiProposta[grado as keyof typeof gradiProposta]}
+                        onCheckedChange={(checked) => {
+                          setGradiProposta(prev => ({
+                            ...prev,
+                            [grado]: checked as boolean
+                          }));
+                        }}
+                      />
+                      <label
+                        htmlFor={`grado-${grado}`}
+                        className="text-lg font-semibold text-gray-900"
+                      >
+                        Proposta {grado}
+                      </label>
+                    </div>
+                    
+                    <Textarea
+                      value={testo}
+                      onChange={(e) => {
+                        setApprofondimentiPerGrado(prev => ({
+                          ...prev,
+                          [grado]: e.target.value
+                        }));
+                      }}
+                      placeholder={`Inserisci qui l'approfondimento per la Proposta ${grado}...
 
 Esempi di formattazione Markdown:
 # Titolo principale
@@ -235,13 +271,17 @@ Esempi di formattazione Markdown:
 - Punto elenco 2
 
 Puoi aggiungere:
-- Contesto storico
+- Contesto specifico per ${grado}
 - Dati statistici
 - Pro e contro
 - Impatto sociale
-- Riferimenti normativi"
-                className="h-full resize-none bg-white"
-              />
+- Riferimenti normativi`}
+                      className="min-h-[200px] resize-none bg-white"
+                      disabled={!gradiProposta[grado as keyof typeof gradiProposta]}
+                    />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
