@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
 import { Opinione } from "../types";
 
 interface ApprofondimentoDialogProps {
@@ -20,6 +21,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   onOpenChange
 }) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [approfondimento, setApprofondimento] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -34,9 +36,20 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   // Carica l'approfondimento esistente quando si apre il dialog
   useEffect(() => {
     if (open && opinione.id) {
+      // Inizializza i gradi dall'opinione corrente
+      if (opinione.gradi_opinione && Array.isArray(opinione.gradi_opinione)) {
+        const gradi = {
+          Europeo: opinione.gradi_opinione.includes('Europeo'),
+          Nazionale: opinione.gradi_opinione.includes('Nazionale'),
+          Regionale: opinione.gradi_opinione.includes('Regionale'),
+          Comunale: opinione.gradi_opinione.includes('Comunale')
+        };
+        setGradiProposta(gradi);
+      }
+      
       loadApprofondimento();
     }
-  }, [open, opinione.id]);
+  }, [open, opinione.id, opinione.gradi_opinione]);
 
   const loadApprofondimento = async () => {
     try {
@@ -89,6 +102,10 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           description: "Approfondimento salvato con successo!",
           variant: "default",
         });
+        
+        // Invalida la cache per aggiornare la lista delle opinioni
+        queryClient.invalidateQueries({ queryKey: ['opinioni'] });
+        
         onOpenChange(false);
       } else {
         const data = await response.json();
@@ -121,7 +138,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col bg-white">
         <DialogHeader className="bg-white">
           <DialogTitle className="flex items-center gap-2">
             <span>Approfondimento: {opinione.text}</span>
