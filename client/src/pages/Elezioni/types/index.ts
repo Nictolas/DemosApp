@@ -1,26 +1,21 @@
-export interface Candidato {
+export interface CandidatoInfo {
   nome: string;
   cognome: string;
   avatar_config?: string;
 }
 
+export interface ElezioniData {
+  candidatiPerGrado: Record<string, any[]>; // Es: { Europeo: [...], Camera: [...] }
+  selectedEuropeanCandidateId: string | null;
+  // Legacy support
+  candidati?: Record<string, CandidatoInfo>; // Es: { europeo: {...}, camera: {...} }
+  idMap?: Record<string, string>; // Es: { europeo: 'uid123', camera: 'uid456' }
+}
+
 export interface Categoria {
   id: string;
   nome: string;
-  field: string;
   color: string;
-  tipoElezione: string;
-}
-
-export interface Elezione {
-  tipo: string;
-  dataInizio: string;
-  dataFine: string;
-  circa?: boolean;
-}
-
-export interface UserData {
-  [key: string]: any;
 }
 
 export interface OpinioniDialogData {
@@ -28,6 +23,7 @@ export interface OpinioniDialogData {
   nome: string;
   cognome: string;
   avatarConfig?: string;
+  categoria?: string;
 }
 
 export interface ProgrammaDialogData {
@@ -35,10 +31,5 @@ export interface ProgrammaDialogData {
   nome: string;
   cognome: string;
   avatarConfig?: string;
-}
-
-export interface ElezioniData {
-  utente: UserData;
-  elezioni: Elezione[];
-  candidati: Record<string, Candidato>;
+  categoria?: string;
 }
