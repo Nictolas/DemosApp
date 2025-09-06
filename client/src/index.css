@@ -369,10 +369,21 @@ body {
 
 /* Padding per le pagine con navbar fissa in basso */
 .page-with-navbar {
-  padding-bottom: 6rem !important; /* 96px per h-24 della navbar */
+  padding-bottom: 7.5rem !important; /* 120px per h-24 della navbar + padding */
 }
 
 /* Assicura che il contenuto non finisca dietro la navbar */
 .min-h-screen {
-  min-height: calc(100vh - 6rem) !important;
+  min-height: calc(100vh - 7.5rem) !important;
+}
+
+/* Layout specifico per la pagina menu */
+.menu-page {
+  min-height: calc(100vh - 7.5rem) !important;
+  max-height: calc(100vh - 7.5rem) !important;
+}
+
+/* Assicura che i pulsanti del menu non siano troppo alti */
+.menu-button {
+  max-height: calc((100vh - 7.5rem - 200px) / 2) !important; /* Calcola altezza disponibile divisa per 2 righe */
 }
