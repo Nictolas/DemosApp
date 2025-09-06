@@ -25,14 +25,14 @@ export default function Menu() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white select-none overflow-hidden page-with-navbar" style={{ paddingBottom: '120px' }}>
+    <div className="menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
       {isLoading || !user ? (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center flex-1">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="container mx-auto px-4 py-4 h-full flex flex-col">
-          <Card className="w-full max-w-4xl mx-auto flex-1 flex flex-col">
+        <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+          <Card className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
             <MenuHeader 
               isAdmin={isAdmin}
               onAdminClick={() => setLocation("/gestisci")}
