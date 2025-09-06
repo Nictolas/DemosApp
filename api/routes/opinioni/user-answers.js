@@ -235,13 +235,27 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
     const { id } = req.params;
     console.log('🔍 GET /api/opinioni/:id/approfondimento - Richiesta approfondimento per opinione:', id);
     
-    const query = `
-      SELECT id, text, approfondimento, gradi_opinione
-      FROM opinioni 
-      WHERE id = $1
-    `;
+    // Cerca per ID se è numerico, altrimenti cerca per text
+    let query, params;
+    if (/^\d+$/.test(id)) {
+      // ID numerico
+      query = `
+        SELECT id, text, approfondimento, gradi_opinione
+        FROM opinioni 
+        WHERE id = $1
+      `;
+      params = [id];
+    } else {
+      // ID testuale (es. energia_nucleare)
+      query = `
+        SELECT id, text, approfondimento, gradi_opinione
+        FROM opinioni 
+        WHERE text = $1
+      `;
+      params = [id.replace(/_/g, ' ')];
+    }
     
-    const result = await pool.query(query, [id]);
+    const result = await pool.query(query, params);
     
     if (result.rows.length === 0) {
       console.log('⚠️ Opinione non trovata:', id);
@@ -317,14 +331,29 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       });
     }
     
-    const updateQuery = `
-      UPDATE opinioni 
-      SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
-      WHERE id = $3
-      RETURNING id, text, approfondimento, gradi_opinione
-    `;
+    // Cerca per ID se è numerico, altrimenti cerca per text
+    let updateQuery, params;
+    if (/^\d+$/.test(id)) {
+      // ID numerico
+      updateQuery = `
+        UPDATE opinioni 
+        SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
+        WHERE id = $3
+        RETURNING id, text, approfondimento, gradi_opinione
+      `;
+      params = [approfondimento || '', gradi_opinione || [], id];
+    } else {
+      // ID testuale (es. energia_nucleare)
+      updateQuery = `
+        UPDATE opinioni 
+        SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
+        WHERE text = $3
+        RETURNING id, text, approfondimento, gradi_opinione
+      `;
+      params = [approfondimento || '', gradi_opinione || [], id.replace(/_/g, ' ')];
+    }
     
-    const result = await pool.query(updateQuery, [approfondimento || '', gradi_opinione || [], id]);
+    const result = await pool.query(updateQuery, params);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
