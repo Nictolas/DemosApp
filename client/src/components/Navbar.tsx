@@ -29,7 +29,7 @@ export default function Navbar() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-center items-center h-24 z-[9999] pt-3 pb-4 select-none px-4" style={{ boxShadow: '0 -1px 8px 0 rgba(0,0,0,0.03)' }}>
-      <div className="flex items-center justify-center gap-8 max-w-md">
+      <div className="flex items-center justify-center gap-12 max-w-lg">
         <Link href="/menu" className={getLinkClasses("/menu")} style={{marginTop: 0}}>
           <Home className={`h-7 w-7 mb-1 ${isActive("/menu") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/menu") ? "text-blue-600 font-semibold" : ""}`}>Menu</span>
