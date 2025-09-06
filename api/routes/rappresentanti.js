@@ -181,6 +181,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         return answer; // Mantieni il valore originale se non riconosciuto
       };
       
+      console.log(`🔍 DEBUG calculateCommonOpinions - Opinion da controllare per grado ${grado}:`, opinioniDaControllare.length, opinioniDaControllare);
+      console.log(`🔍 DEBUG calculateCommonOpinions - User opinions sample:`, Object.keys(userOpinions).slice(0, 5).map(key => `${key}: ${userOpinions[key]}`));
+      console.log(`🔍 DEBUG calculateCommonOpinions - Candidate opinions sample:`, Object.keys(candidateOpinions).slice(0, 5).map(key => `${key}: ${candidateOpinions[key]}`));
+      
       opinioniDaControllare.forEach(fieldName => {
         const userAnswer = userOpinions[fieldName];
         const candidateAnswer = candidateOpinions[fieldName];
@@ -195,6 +199,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         if (normalizedUserAnswer && normalizedCandidateAnswer && normalizedUserAnswer === normalizedCandidateAnswer) {
           commonCount++;
           console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${fieldName} = "${normalizedUserAnswer}"`);
+        } else if (normalizedUserAnswer && normalizedCandidateAnswer) {
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONI DIVERSE: ${fieldName} = user:"${normalizedUserAnswer}" vs candidate:"${normalizedCandidateAnswer}"`);
+        } else {
+          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE NON VALIDA: ${fieldName} = user:"${normalizedUserAnswer}" candidate:"${normalizedCandidateAnswer}"`);
         }
       });
       
