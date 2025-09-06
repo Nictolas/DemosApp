@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -23,6 +24,12 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [gradiProposta, setGradiProposta] = useState({
+    Europeo: false,
+    Nazionale: false,
+    Regionale: false,
+    Comunale: false
+  });
 
   // Carica l'approfondimento esistente quando si apre il dialog
   useEffect(() => {
@@ -39,6 +46,17 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
       if (response.ok) {
         const data = await response.json();
         setApprofondimento(data.data.approfondimento || "");
+        
+        // Carica anche i gradi della proposta
+        if (data.data.gradi_opinione && Array.isArray(data.data.gradi_opinione)) {
+          const gradi = {
+            Europeo: data.data.gradi_opinione.includes('Europeo'),
+            Nazionale: data.data.gradi_opinione.includes('Nazionale'),
+            Regionale: data.data.gradi_opinione.includes('Regionale'),
+            Comunale: data.data.gradi_opinione.includes('Comunale')
+          };
+          setGradiProposta(gradi);
+        }
       } else {
         console.error('Errore nel caricamento dell\'approfondimento');
         setApprofondimento("");
@@ -54,8 +72,15 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   const handleSave = async () => {
     try {
       setIsSaving(true);
+      
+      // Prepara i gradi selezionati
+      const gradiSelezionati = Object.entries(gradiProposta)
+        .filter(([_, isSelected]) => isSelected)
+        .map(([grado, _]) => grado);
+      
       const response = await apiRequest("PUT", `/api/opinioni/${opinione.id}/approfondimento`, {
-        approfondimento: approfondimento
+        approfondimento: approfondimento,
+        gradi_opinione: gradiSelezionati
       });
       
       if (response.ok) {
@@ -96,8 +121,8 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
+        <DialogHeader className="bg-white">
           <DialogTitle className="flex items-center gap-2">
             <span>Approfondimento: {opinione.text}</span>
             <span className="text-sm text-muted-foreground">({opinione.id})</span>
@@ -108,7 +133,34 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col bg-white">
+          {/* Sezione Gradi Proposta */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Gradi della Proposta</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.entries(gradiProposta).map(([grado, isSelected]) => (
+                <div key={grado} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`grado-${grado}`}
+                    checked={isSelected}
+                    onCheckedChange={(checked) => {
+                      setGradiProposta(prev => ({
+                        ...prev,
+                        [grado]: checked as boolean
+                      }));
+                    }}
+                  />
+                  <label
+                    htmlFor={`grado-${grado}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Proposta {grado}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex gap-2">
@@ -143,7 +195,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
               </div>
             ) : previewMode ? (
               <div 
-                className="h-full overflow-y-auto p-4 border rounded-lg bg-gray-50 prose prose-sm max-w-none"
+                className="h-full overflow-y-auto p-4 border rounded-lg bg-white prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ 
                   __html: approfondimento ? renderMarkdown(approfondimento) : '<p class="text-muted-foreground">Nessun contenuto da visualizzare</p>'
                 }}
@@ -171,14 +223,14 @@ Puoi aggiungere:
 - Pro e contro
 - Impatto sociale
 - Riferimenti normativi"
-                className="h-full resize-none"
+                className="h-full resize-none bg-white"
               />
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+        <div className="flex justify-end gap-2 mt-4 pt-4 border-t bg-white">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annulla
           </Button>

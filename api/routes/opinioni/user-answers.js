@@ -275,7 +275,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
 router.put('/:id/approfondimento', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { approfondimento } = req.body;
+    const { approfondimento, gradi_opinione } = req.body;
     
     console.log('💾 PUT /api/opinioni/:id/approfondimento - Salvataggio approfondimento per opinione:', id);
     
@@ -295,12 +295,12 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     
     const updateQuery = `
       UPDATE opinioni 
-      SET approfondimento = $1, updated_at = NOW()
-      WHERE id = $2
-      RETURNING id, text, approfondimento
+      SET approfondimento = $1, gradi_opinione = $2, updated_at = NOW()
+      WHERE id = $3
+      RETURNING id, text, approfondimento, gradi_opinione
     `;
     
-    const result = await pool.query(updateQuery, [approfondimento || '', id]);
+    const result = await pool.query(updateQuery, [approfondimento || '', gradi_opinione || [], id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -316,7 +316,8 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       data: {
         id: result.rows[0].id,
         text: result.rows[0].text,
-        approfondimento: result.rows[0].approfondimento
+        approfondimento: result.rows[0].approfondimento,
+        gradi_opinione: result.rows[0].gradi_opinione
       },
       message: 'Approfondimento salvato con successo'
     });
