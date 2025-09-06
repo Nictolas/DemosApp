@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
   try {
     // Query per ottenere le iniziative
     const iniziativeResult = await pool.query(
-      'SELECT id, nome, sitoWeb, quorum FROM iniziative_popolari ORDER BY created_at DESC'
+      'SELECT id, nome, sito_web as "sitoWeb", quorum FROM iniziative_popolari ORDER BY created_at DESC'
     );
     
     // Query per ottenere la classifica dei voti
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
         i.nome,
         COUNT(v.id) as voti
       FROM iniziative_popolari i
-      LEFT JOIN voti_iniziative_popolari v ON i.id = v.iniziativaId
+      LEFT JOIN voti_iniziative_popolari v ON i.id::text = v.iniziativa_id
       GROUP BY i.id, i.nome
       ORDER BY voti DESC, i.nome ASC
     `;
@@ -68,12 +68,12 @@ router.get('/', async (req, res) => {
 // POST /api/iniziative-popolari - Crea nuova iniziativa popolare
 router.post('/', async (req, res) => {
   try {
-    const { nome, userId, dataInizio, dataFine, sitoWeb, status, quorum } = req.body;
+    const { nome, userid, data_inizio, data_fine, sito_web, status, quorum } = req.body;
     
-    if (!nome || !userId) {
+    if (!nome || !userid) {
       return res.status(400).json({
         success: false,
-        error: 'Nome e userId sono obbligatori'
+        error: 'Nome e userid sono obbligatori'
       });
     }
     
@@ -81,8 +81,8 @@ router.post('/', async (req, res) => {
     const iniziativaId = `iniziativa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const result = await pool.query(
-      'INSERT INTO iniziative_popolari (id, userId, nome, dataInizio, dataFine, sitoWeb, status, quorum, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *',
-      [iniziativaId, userId, nome, dataInizio, dataFine, sitoWeb, status, quorum]
+      'INSERT INTO iniziative_popolari (id, userid, nome, data_inizio, data_fine, sito_web, status, quorum, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *',
+      [iniziativaId, userid, nome, data_inizio, data_fine, sito_web, status, quorum]
     );
     
     res.status(201).json({
