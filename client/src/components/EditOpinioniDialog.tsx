@@ -45,7 +45,7 @@ export function EditOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        const response = await fetch('/api/opinioni/profile');
+        const response = await fetch('/api/opinioni/questions');
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data && data.data.questions) {
