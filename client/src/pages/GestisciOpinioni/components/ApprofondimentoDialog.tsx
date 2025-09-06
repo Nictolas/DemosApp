@@ -85,6 +85,14 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
             Comunale: data.data.gradi_opinione.includes('Comunale')
           };
           setGradiProposta(gradi);
+        } else {
+          // Se non ci sono gradi specifici, inizializza tutto a false
+          setGradiProposta({
+            Europeo: false,
+            Nazionale: false,
+            Regionale: false,
+            Comunale: false
+          });
         }
         
         // Separa l'approfondimento per grado se contiene sezioni
@@ -243,8 +251,28 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
               </div>
             ) : (
               <div className="h-full overflow-y-auto space-y-6">
-                {Object.entries(approfondimentiPerGrado).map(([grado, testo]) => (
-                  <div key={grado} className="space-y-3">
+                {(() => {
+                  const gradiAttivi = Object.entries(approfondimentiPerGrado)
+                    .filter(([grado, _]) => {
+                      // In modalità readOnly, mostra solo i gradi spuntati
+                      if (readOnly) {
+                        return gradiProposta[grado as keyof typeof gradiProposta];
+                      }
+                      // In modalità admin, mostra tutti i gradi
+                      return true;
+                    });
+
+                  // Se in modalità readOnly e non ci sono gradi attivi, mostra un messaggio
+                  if (readOnly && gradiAttivi.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>Nessun approfondimento disponibile per questa opinione.</p>
+                      </div>
+                    );
+                  }
+
+                  return gradiAttivi.map(([grado, testo]) => (
+                    <div key={grado} className="space-y-3">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id={`grado-${grado}`}
@@ -300,7 +328,8 @@ Puoi aggiungere:
                       disabled={readOnly || !gradiProposta[grado as keyof typeof gradiProposta]}
                     />
                   </div>
-                ))}
+                ));
+                })()}
               </div>
             )}
           </div>
