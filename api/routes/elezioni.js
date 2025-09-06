@@ -10,8 +10,8 @@ router.get('/prossime', async (req, res) => {
   try {
     const query = `
       SELECT * FROM elezioni 
-      WHERE created_at > NOW() 
-      ORDER BY created_at ASC 
+      WHERE createdat > NOW() 
+      ORDER BY createdat ASC 
       LIMIT 5
     `;
     
@@ -34,7 +34,7 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
       SELECT * FROM elezioni 
-      ORDER BY created_at DESC
+      ORDER BY createdat DESC
     `;
     
     const result = await pool.query(query);
@@ -62,8 +62,8 @@ router.get('/utente', verifyToken, async (req, res) => {
              CASE WHEN v.user_id IS NOT NULL THEN true ELSE false END as ha_votato
       FROM elezioni e
       LEFT JOIN voti_elezioni v ON e.id = v.elezione_id AND v.user_id = $1
-      WHERE e.created_at > NOW()
-      ORDER BY e.created_at ASC
+      WHERE e.createdat > NOW()
+      ORDER BY e.createdat ASC
     `;
     
     const result = await pool.query(query, [userId]);
@@ -190,7 +190,7 @@ router.post('/', verifyToken, validateInput(['titolo', 'descrizione', 'tipo', 'c
     const { titolo, descrizione, tipo, candidati } = req.body;
     
     const query = `
-      INSERT INTO elezioni (titolo, descrizione, tipo, candidati, created_at)
+      INSERT INTO elezioni (titolo, descrizione, tipo, candidati, createdat)
       VALUES ($1, $2, $3, $4, NOW())
       RETURNING *
     `;
