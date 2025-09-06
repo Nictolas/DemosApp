@@ -38,10 +38,10 @@ router.get('/profile', verifyToken, async (req, res) => {
       });
     }
     
-    // Formatta le domande per il frontend
+    // Formatta le domande per il frontend - SENZA prefisso del grado
     const questions = opinionResult.rows.map(row => ({
-      id: `${row.grado_primario}_${row.text.replace(/\s+/g, '_')}`,
-      text: `${row.grado_primario}: ${row.text}`
+      id: row.text.replace(/\s+/g, '_'),
+      text: row.text
     }));
     
     console.log(`✅ Trovate ${questions.length} domande opinioni`);
