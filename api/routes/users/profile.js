@@ -362,6 +362,8 @@ router.get('/:userId/opinioni', verifyToken, async (req, res) => {
     // Estrai le fonti delle opinioni
     const fontiOpinioni = userOpinions.fonti_opinioni || {};
     console.log('🔍 DEBUG - Fonti opinioni per utente', userId, ':', fontiOpinioni);
+    console.log('🔍 DEBUG - Tipo fonti opinioni:', typeof fontiOpinioni);
+    console.log('🔍 DEBUG - Chiavi fonti opinioni:', Object.keys(fontiOpinioni));
     
     // Mappa delle opinioni ai campi del database - SENZA PREFISSI
     const opinionMapping = {

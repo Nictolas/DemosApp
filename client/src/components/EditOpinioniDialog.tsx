@@ -135,13 +135,19 @@ export function EditOpinioniDialog({
         
         if (data.success && data.data && data.data.fonti) {
           console.log('🔍 DEBUG - Fonti caricate:', data.data.fonti);
+          console.log('🔍 DEBUG - Tipo fonti:', typeof data.data.fonti);
+          console.log('🔍 DEBUG - Chiavi fonti:', Object.keys(data.data.fonti));
           
           // Mappa le fonti nel formato delle domande
           const fontiMap: Record<string, string> = {};
           if (data.data.opinioni) {
             data.data.opinioni.forEach((opinion: any) => {
               const questionId = opinion.text.replace(/\s+/g, '_');
-              const fonte = data.data.fonti[opinion.id];
+              console.log('🔍 DEBUG - Cercando fonte per questionId:', questionId);
+              console.log('🔍 DEBUG - Fonte disponibile:', data.data.fonti[questionId]);
+              
+              // Usa l'ID dell'opinione per cercare la fonte nel mapping
+              const fonte = data.data.fonti[questionId];
               if (fonte) {
                 fontiMap[questionId] = fonte;
                 console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
