@@ -56,7 +56,8 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
     // Query per gli utenti con paginazione
     let usersQuery = `
-      SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at
+      SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
+             grado_elezione, grado_candidatura
       FROM users 
       ${whereClause}
       ORDER BY created_at DESC
@@ -146,7 +147,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     const result = await pool.query(`
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
              genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
-             provincia_residenza, comune_residenza, avatar_config
+             provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura
       FROM users 
       WHERE id = $1
     `, [userId]);
