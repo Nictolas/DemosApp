@@ -52,9 +52,9 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
         <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
       </svg>
       <div className="relative z-10 flex flex-col items-center justify-center h-full">
-        <span className="relative flex items-center justify-center w-12 h-12 mb-2">
-          <Icon className="h-10 w-10 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-          <Icon className="h-6 w-6 relative z-10" style={{ color: color.icon }} />
+        <span className="relative flex items-center justify-center w-16 h-16 mb-3">
+          <Icon className="h-14 w-14 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+          <Icon className="h-10 w-10 relative z-10" style={{ color: color.icon }} />
         </span>
         <div className="text-gray-700 font-semibold text-3xl select-none">{label}</div>
       </div>
