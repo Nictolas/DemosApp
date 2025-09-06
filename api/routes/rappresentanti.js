@@ -22,7 +22,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       // Mappa i gradi dal frontend ai valori del database
       const gradoMapping = {
         'Europeo': 'Europeo',
-        'Nazionale': 'Europeo', // Per Camera e Senato usiamo Europeo come fallback
         'Camera': 'Camera',
         'Senato': 'Senato', 
         'Regionale': 'Regionale',
