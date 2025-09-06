@@ -99,9 +99,8 @@ export function EditOpinioniDialog({
           data.data.opinioni.forEach((opinion: any) => {
             console.log('🔍 DEBUG - Processando opinione:', opinion);
             if (opinion.userAnswer && opinion.userAnswer !== 'Astenuto') {
-              // Crea l'ID nel formato delle domande (grado_text)
-              const grado = opinion.grado && opinion.grado.length > 0 ? opinion.grado[0] : 'Nazionale';
-              const questionId = `${grado}_${opinion.text.replace(/\s+/g, '_')}`;
+              // Usa l'ID dell'opinione direttamente (senza prefisso del grado)
+              const questionId = opinion.text.replace(/\s+/g, '_');
               opinioniMap[questionId] = opinion.userAnswer;
               console.log('🔍 DEBUG - Mappatura creata:', { questionId, userAnswer: opinion.userAnswer });
             }
@@ -141,8 +140,7 @@ export function EditOpinioniDialog({
           const fontiMap: Record<string, string> = {};
           if (data.data.opinioni) {
             data.data.opinioni.forEach((opinion: any) => {
-              const grado = opinion.grado && opinion.grado.length > 0 ? opinion.grado[0] : 'Nazionale';
-              const questionId = `${grado}_${opinion.text.replace(/\s+/g, '_')}`;
+              const questionId = opinion.text.replace(/\s+/g, '_');
               const fonte = data.data.fonti[opinion.id];
               if (fonte) {
                 fontiMap[questionId] = fonte;
@@ -240,9 +238,8 @@ export function EditOpinioniDialog({
       
       // Converti le opinioni
       Object.entries(opinions).forEach(([questionId, answer]) => {
-        // Estrai il testo dell'opinione dall'ID della domanda (rimuovi il grado)
-        const textPart = questionId.split('_').slice(1).join('_');
-        const dbField = opinionMapping[textPart];
+        // L'ID della domanda è già nel formato corretto (senza prefisso del grado)
+        const dbField = opinionMapping[questionId];
         if (dbField) {
           // Converti le risposte al formato database
           let dbAnswer = answer;
@@ -256,8 +253,7 @@ export function EditOpinioniDialog({
       
       // Converti le fonti
       Object.entries(fonti).forEach(([questionId, fonte]) => {
-        const textPart = questionId.split('_').slice(1).join('_');
-        const dbField = opinionMapping[textPart];
+        const dbField = opinionMapping[questionId];
         if (dbField && fonte) {
           fontiPerDatabase[dbField] = fonte;
         }
