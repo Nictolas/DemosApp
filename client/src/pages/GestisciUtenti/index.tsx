@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
 import { Loader2, Users, AlertCircle } from "lucide-react";
@@ -16,6 +17,8 @@ import { PendingUsersTable } from "./components/PendingUsersTable";
 import { usePendingUserActions } from "./hooks/usePendingUserActions";
 import { Pagination } from "./components/Pagination";
 import { USERS_PER_PAGE } from "./constants";
+import { User } from "./types";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function GestisciUtenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -55,6 +58,10 @@ export default function GestisciUtenti() {
     rejectUser,
     isProcessing
   } = usePendingUserActions();
+
+  // Stato per gestire le modifiche inline
+  const [userChanges, setUserChanges] = useState<Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>>({});
+  const [hasChanges, setHasChanges] = useState(false);
 
   // Debug logging per capire il ruolo dell'utente
   useEffect(() => {
@@ -206,6 +213,59 @@ export default function GestisciUtenti() {
     rejectUser({ userId: user.id });
   };
 
+  // Funzioni per gestire le modifiche inline
+  const handleFieldChange = (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => {
+    setUserChanges(prev => {
+      const newChanges = {
+        ...prev,
+        [userId]: {
+          ...prev[userId],
+          [field]: value
+        }
+      };
+      
+      // Controlla se ci sono modifiche
+      const hasAnyChanges = Object.values(newChanges).some(change => 
+        change.grado_elezione !== undefined || change.grado_candidatura !== undefined
+      );
+      setHasChanges(hasAnyChanges);
+      
+      return newChanges;
+    });
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      const updates = Object.entries(userChanges).map(([userId, changes]) => ({
+        userId,
+        ...changes
+      }));
+
+      for (const update of updates) {
+        await apiRequest("PUT", `/api/users/${update.userId}`, update);
+      }
+
+      // Reset delle modifiche
+      setUserChanges({});
+      setHasChanges(false);
+      
+      // Refresh dei dati
+      queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+      
+      toast({
+        title: "Successo",
+        description: "Modifiche salvate con successo!",
+      });
+    } catch (error) {
+      console.error('Errore nel salvataggio:', error);
+      toast({
+        title: "Errore",
+        description: "Errore nel salvataggio delle modifiche",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-full p-6">
@@ -310,13 +370,24 @@ export default function GestisciUtenti() {
             {/* Tabella utenti attivi */}
             <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg w-full">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center text-2xl text-gray-800">
-                  <Users className="h-6 w-6 mr-3 text-blue-600" />
-                  Tutti gli Utenti
-                </CardTitle>
-                <CardDescription className="text-gray-600">
-                  Visualizza e gestisci tutti gli utenti della piattaforma (attivi, pending, ecc.)
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center text-2xl text-gray-800">
+                      <Users className="h-6 w-6 mr-3 text-blue-600" />
+                      Tutti gli Utenti
+                    </CardTitle>
+                    <CardDescription className="text-gray-600">
+                      Visualizza e gestisci tutti gli utenti della piattaforma (attivi, pending, ecc.)
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    onClick={handleSaveChanges}
+                    disabled={!hasChanges}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Salva Modifiche
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <UsersTable 
@@ -327,6 +398,8 @@ export default function GestisciUtenti() {
                   onEdit={handleEdit}
                   onEditOpinioni={handleEditOpinioni}
                   onDelete={handleDelete}
+                  userChanges={userChanges}
+                  onFieldChange={handleFieldChange}
                 />
                 
                 {/* Paginazione */}
