@@ -74,6 +74,7 @@ import OpinioniEuropee from "./pages/OpinioniEuropee";
 import ProponiReferendumAbrogativi from "./pages/ProponiReferendumAbrogativi";
 import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
 import ProponiICE from "./pages/ProponiICE";
+import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 
 // Hook per la navigazione touch
@@ -439,6 +440,13 @@ export default function App() {
               <Route path="/gestisci-opinioni">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/gestisci-opinioni" component={GestisciOpinioni} />
+                </PageTransition>
+              </Route>
+
+              {/* Route approfondimento (pubblica) */}
+              <Route path="/approfondimento">
+                <PageTransition location={location} type="fade-up">
+                  <Approfondimento />
                 </PageTransition>
               </Route>
 
