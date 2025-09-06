@@ -13,9 +13,21 @@ import { apiRequest } from "@/lib/queryClient";
 
 // Le domande ora sono dinamiche
 const options = [
-  { value: "Favorevole", color: "bg-green-100 border-green-500 hover:bg-green-200" },
-  { value: "Indeciso", color: "bg-yellow-100 border-yellow-500 hover:bg-yellow-200" },
-  { value: "Contrario", color: "bg-red-100 border-red-500 hover:bg-red-200" }
+  { 
+    value: "Favorevole", 
+    color: "bg-green-100 border-green-500 hover:bg-green-200",
+    selectedColor: "bg-green-600 border-green-700 text-white"
+  },
+  { 
+    value: "Indeciso", 
+    color: "bg-white border-yellow-500 hover:bg-yellow-50",
+    selectedColor: "bg-yellow-400 border-yellow-600 text-black"
+  },
+  { 
+    value: "Contrario", 
+    color: "bg-red-100 border-red-500 hover:bg-red-200",
+    selectedColor: "bg-red-600 border-red-700 text-white"
+  }
 ];
 
 interface EditOpinioniDialogProps {
@@ -144,10 +156,12 @@ export function EditOpinioniDialog({
             data.data.opinioni.forEach((opinion: any) => {
               const questionId = opinion.text.replace(/\s+/g, '_');
               console.log('🔍 DEBUG - Cercando fonte per questionId:', questionId);
-              console.log('🔍 DEBUG - Fonte disponibile:', data.data.fonti[questionId]);
+              console.log('🔍 DEBUG - Opinion ID:', opinion.id);
+              console.log('🔍 DEBUG - Fonte disponibile per ID:', data.data.fonti[opinion.id]);
+              console.log('🔍 DEBUG - Fonte disponibile per questionId:', data.data.fonti[questionId]);
               
-              // Usa l'ID dell'opinione per cercare la fonte nel mapping
-              const fonte = data.data.fonti[questionId];
+              // Prova prima con l'ID dell'opinione, poi con questionId
+              let fonte = data.data.fonti[opinion.id] || data.data.fonti[questionId];
               if (fonte) {
                 fontiMap[questionId] = fonte;
                 console.log('🔍 DEBUG - Fonte mappata:', { questionId, fonte });
@@ -337,10 +351,8 @@ export function EditOpinioniDialog({
                             onClick={() => handleOpinionChange(key, option.value)}
                             className={
                               "px-4 py-2 rounded-full border-2 font-semibold transition " +
-                              (option.color + " ") +
-                              (selected
-                                ? " text-white ring-2 ring-offset-2 "
-                                : " bg-white text-black opacity-80 hover:opacity-100 ")
+                              (selected ? option.selectedColor : option.color) +
+                              (selected ? " ring-2 ring-offset-2 " : " ")
                             }
                             style={{
                               borderColor: selected ? "#000" : undefined,
