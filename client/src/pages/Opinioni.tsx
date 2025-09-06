@@ -105,10 +105,10 @@ export default function Opinioni() {
                   </svg>
                   <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center h-full">
                     <MessageSquare className="h-8 md:h-12 w-8 md:w-12 mb-2" style={{ color: color.icon }} />
-                    <div className="text-lg md:text-2xl font-bold mb-1 text-center leading-tight whitespace-pre-line" style={{ color: color.text }}>
+                    <div className="text-2xl md:text-4xl font-bold mb-4 text-center leading-tight whitespace-pre-line" style={{ color: color.text }}>
                       {categoria.nome}
                     </div>
-                    <p className="text-base text-center" style={{ color: color.text }}>
+                    <p className="text-lg text-center" style={{ color: color.text }}>
                       {categoria.descrizione}
                     </p>
                   </div>
