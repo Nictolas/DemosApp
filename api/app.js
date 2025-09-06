@@ -135,6 +135,7 @@ app.use('/api/elezioni-utente', elezioniRoutes);
 app.use('/api/ice', iceRoutes);
 app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
 app.use('/api/referendum', referendumRoutes);
+app.use('/api/referendum-abrogativi', referendumRoutes);
 app.use('/api/comunicazioni', comunicazioniRoutes);
 app.use('/api/admin', adminRoutes);
 
