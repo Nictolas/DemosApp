@@ -140,30 +140,16 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
               </span>
               <div className="flex flex-wrap gap-2 mt-1">
                 {GRADI_OPINIONE.map(grado => (
-                  <label key={grado} className="flex items-center gap-1 text-xs">
-                    <input
-                      type="checkbox"
-                      checked={op.gradi_opinione?.includes(grado) || false}
-                      onChange={(e) => {
-                        const currentGradi = op.gradi_opinione || [];
-                        let newGradi;
-                        if (e.target.checked) {
-                          newGradi = [...currentGradi, grado];
-                        } else {
-                          newGradi = currentGradi.filter(g => g !== grado);
-                        }
-                        editMutation.mutate({ 
-                          id: op.id, 
-                          text: op.text, 
-                          gradi_opinione: newGradi 
-                        });
-                      }}
-                      className="w-3 h-3"
-                    />
-                    <span className={op.gradi_opinione?.includes(grado) ? "font-medium" : "text-muted-foreground"}>
-                      {grado}
-                    </span>
-                  </label>
+                  <span 
+                    key={grado} 
+                    className={`px-2 py-1 rounded-full text-xs ${
+                      op.gradi_opinione?.includes(grado) 
+                        ? "bg-blue-100 text-blue-800 font-medium" 
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {grado}
+                  </span>
                 ))}
               </div>
             </div>
