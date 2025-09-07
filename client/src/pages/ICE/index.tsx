@@ -1,6 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
+import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "./components/Header";
 import { CreateButton } from "./components/CreateButton";
 import { ICEForm } from "./components/ICEForm";
@@ -45,27 +46,31 @@ export default function ICE() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Header />
-      
-      <CreateButton onClick={showCreateForm} />
-      
-      {state.showForm && (
-        <ICEForm
-          onSubmit={handleCreate}
-          onCancel={hideCreateForm}
-          isLoading={addMutation.isPending}
-        />
-      )}
-      
-      <ICETable
-        listaICE={listaICE}
-        mieiVoti={mieiVoti}
-        isLoading={isLoading}
-        isError={isError}
-        onEdit={startEdit}
-        onDelete={handleDelete}
-        deleteMutation={deleteMutation}
-      />
+      <Card>
+        <CardContent className="p-6">
+          <Header />
+          
+          <CreateButton onClick={showCreateForm} />
+          
+          {state.showForm && (
+            <ICEForm
+              onSubmit={handleCreate}
+              onCancel={hideCreateForm}
+              isLoading={addMutation.isPending}
+            />
+          )}
+          
+          <ICETable
+            listaICE={listaICE}
+            mieiVoti={mieiVoti}
+            isLoading={isLoading}
+            isError={isError}
+            onEdit={startEdit}
+            onDelete={handleDelete}
+            deleteMutation={deleteMutation}
+          />
+        </CardContent>
+      </Card>
       
       <EditDialog
         ice={state.editICE}
