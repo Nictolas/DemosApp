@@ -16,42 +16,57 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     const { categoria } = req.params;
     const userId = req.userId;
 
+    // Lista dei ministeri validi
+    const ministeri = [
+      'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 
+      'cultura', 'sport'
+    ];
+
+    if (!ministeri.includes(categoria)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Categoria ministero non valida'
+      });
+    }
+
+    const tableName = `voti_ministro_${categoria}`;
+
     // Ottieni la classifica dei candidati per questo ministero
     const classificaQuery = `
       SELECT 
         nome_display as nome,
         COUNT(*) as voti
-      FROM voti_ministri 
-      WHERE categoria = $1
+      FROM ${tableName}
       GROUP BY nome_display
       ORDER BY voti DESC, nome_display ASC
     `;
 
-    const classificaResult = await pool.query(classificaQuery, [categoria]);
+    const classificaResult = await pool.query(classificaQuery);
 
     // Ottieni i voti dell'utente per questo ministero
     const mieiVotiQuery = `
       SELECT nome_display as nome
-      FROM voti_ministri 
-      WHERE userid = $1 AND categoria = $2
+      FROM ${tableName}
+      WHERE userid = $1
     `;
 
-    const mieiVotiResult = await pool.query(mieiVotiQuery, [userId, categoria]);
+    const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
     const mieiVoti = mieiVotiResult.rows.map(row => row.nome);
 
     // Controlla se l'utente è bloccato (può votare solo una volta a settimana)
     const bloccoQuery = `
       SELECT 
         CASE 
-          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true
+          WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
           ELSE false
         END as is_blocked,
-        MAX(timesta) + INTERVAL '7 days' as unlock_date
-      FROM voti_ministri 
-      WHERE userid = $1 AND categoria = $2
+        MAX(timestamp) + INTERVAL '7 days' as unlock_date
+      FROM ${tableName}
+      WHERE userid = $1
     `;
 
-    const bloccoResult = await pool.query(bloccoQuery, [userId, categoria]);
+    const bloccoResult = await pool.query(bloccoQuery, [userId]);
     const blocco = bloccoResult.rows[0] || { is_blocked: false, unlock_date: null };
 
     res.json({
@@ -79,6 +94,20 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
     const { voti } = req.body;
     const userId = req.userId;
 
+    // Lista dei ministeri validi
+    const ministeri = [
+      'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 
+      'cultura', 'sport'
+    ];
+
+    if (!ministeri.includes(categoria)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Categoria ministero non valida'
+      });
+    }
+
     if (!Array.isArray(voti)) {
       return res.status(400).json({
         success: false,
@@ -86,18 +115,20 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
       });
     }
 
+    const tableName = `voti_ministro_${categoria}`;
+
     // Controlla se l'utente è bloccato
     const bloccoQuery = `
       SELECT 
         CASE 
-          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true
+          WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
           ELSE false
         END as is_blocked
-      FROM voti_ministri 
-      WHERE userid = $1 AND categoria = $2
+      FROM ${tableName}
+      WHERE userid = $1
     `;
 
-    const bloccoResult = await pool.query(bloccoQuery, [userId, categoria]);
+    const bloccoResult = await pool.query(bloccoQuery, [userId]);
     const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
 
     if (isBlocked) {
@@ -114,8 +145,8 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
 
       // Elimina i voti esistenti per questo ministero
       await client.query(
-        'DELETE FROM voti_ministri WHERE userid = $1 AND categoria = $2',
-        [userId, categoria]
+        `DELETE FROM ${tableName} WHERE userid = $1`,
+        [userId]
       );
 
       // Inserisci i nuovi voti
@@ -127,9 +158,9 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
           ).join(' ');
 
           await client.query(
-            `INSERT INTO voti_ministri (id, userid, categoria, nome_ministro, nome_display, timesta) 
-             VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())`,
-            [userId, categoria, nomeKey, nomeDisplay]
+            `INSERT INTO ${tableName} (id, userid, nome_ministro, nome_display, timestamp) 
+             VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
+            [userId, nomeKey, nomeDisplay]
           );
         }
       }

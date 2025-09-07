@@ -16,68 +16,77 @@ router.get('/voti', verifyToken, async (req, res) => {
   try {
     const userId = req.userId;
 
-    // Ottieni le classifiche per tutti i ministeri
-    const classificaQuery = `
-      SELECT 
-        categoria,
-        nome_display as nome,
-        COUNT(*) as voti
-      FROM voti_ministri 
-      GROUP BY categoria, nome_display
-      ORDER BY categoria, voti DESC, nome_display ASC
-    `;
+    // Lista dei ministeri
+    const ministeri = [
+      'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 
+      'cultura', 'sport'
+    ];
 
-    const classificaResult = await pool.query(classificaQuery);
-    
-    // Raggruppa per categoria
     const classifiche = {};
-    classificaResult.rows.forEach(row => {
-      if (!classifiche[row.categoria]) {
-        classifiche[row.categoria] = [];
-      }
-      classifiche[row.categoria].push({
+    const mieiVoti = {};
+    let isBlocked = false;
+    let unlockDate = null;
+
+    // Per ogni ministero, ottieni classifiche e voti utente
+    for (const ministero of ministeri) {
+      const tableName = `voti_ministro_${ministero}`;
+      
+      // Classifica per questo ministero
+      const classificaQuery = `
+        SELECT 
+          nome_display as nome,
+          COUNT(*) as voti
+        FROM ${tableName}
+        GROUP BY nome_display
+        ORDER BY voti DESC, nome_display ASC
+      `;
+
+      const classificaResult = await pool.query(classificaQuery);
+      classifiche[ministero] = classificaResult.rows.map(row => ({
         nome: row.nome,
         voti: parseInt(row.voti)
-      });
-    });
+      }));
 
-    // Ottieni i voti dell'utente per tutti i ministeri
-    const mieiVotiQuery = `
-      SELECT categoria, nome_display as nome
-      FROM voti_ministri 
-      WHERE userid = $1
-    `;
+      // Voti dell'utente per questo ministero
+      const mieiVotiQuery = `
+        SELECT nome_display as nome
+        FROM ${tableName}
+        WHERE userid = $1
+        LIMIT 1
+      `;
 
-    const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-    const mieiVoti = {};
-    mieiVotiResult.rows.forEach(row => {
-      mieiVoti[row.categoria] = row.nome;
-    });
+      const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
+      if (mieiVotiResult.rows.length > 0) {
+        mieiVoti[ministero] = mieiVotiResult.rows[0].nome;
+      }
 
-    // Controlla se l'utente è bloccato (può votare solo una volta a settimana)
-    const bloccoQuery = `
-      SELECT 
-        categoria,
-        CASE 
-          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true
-          ELSE false
-        END as is_blocked,
-        MAX(timesta) + INTERVAL '7 days' as unlock_date
-      FROM voti_ministri 
-      WHERE userid = $1
-      GROUP BY categoria
-    `;
+      // Controlla blocco settimanale per questo ministero
+      const bloccoQuery = `
+        SELECT 
+          CASE 
+            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+            ELSE false
+          END as is_blocked,
+          MAX(timestamp) + INTERVAL '7 days' as unlock_date
+        FROM ${tableName}
+        WHERE userid = $1
+      `;
 
-    const bloccoResult = await pool.query(bloccoQuery, [userId]);
-    const blocco = {
-      isBlocked: bloccoResult.rows.some(row => row.is_blocked),
-      unlockDate: bloccoResult.rows.find(row => row.is_blocked)?.unlock_date
-    };
+      const bloccoResult = await pool.query(bloccoQuery, [userId]);
+      if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
+        isBlocked = true;
+        unlockDate = bloccoResult.rows[0].unlock_date;
+      }
+    }
 
     res.json({
       classifiche,
       mieiVoti,
-      blocco
+      blocco: {
+        isBlocked,
+        unlockDate
+      }
     });
 
   } catch (error) {
@@ -102,19 +111,33 @@ router.post('/vota', verifyToken, async (req, res) => {
       });
     }
 
-    // Controlla se l'utente è bloccato
-    const bloccoQuery = `
-      SELECT 
-        CASE 
-          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true
-          ELSE false
-        END as is_blocked
-      FROM voti_ministri 
-      WHERE userid = $1
-    `;
+    // Lista dei ministeri
+    const ministeri = [
+      'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 
+      'cultura', 'sport'
+    ];
 
-    const bloccoResult = await pool.query(bloccoQuery, [userId]);
-    const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
+    // Controlla se l'utente è bloccato per qualsiasi ministero
+    let isBlocked = false;
+    for (const ministero of ministeri) {
+      const tableName = `voti_ministro_${ministero}`;
+      const bloccoQuery = `
+        SELECT 
+          CASE 
+            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+            ELSE false
+          END as is_blocked
+        FROM ${tableName}
+        WHERE userid = $1
+      `;
+
+      const bloccoResult = await pool.query(bloccoQuery, [userId]);
+      if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
+        isBlocked = true;
+        break;
+      }
+    }
 
     if (isBlocked) {
       return res.status(403).json({
@@ -128,24 +151,28 @@ router.post('/vota', verifyToken, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Elimina tutti i voti esistenti dell'utente
-      await client.query(
-        'DELETE FROM voti_ministri WHERE userid = $1',
-        [userId]
-      );
+      // Elimina tutti i voti esistenti dell'utente da tutte le tabelle
+      for (const ministero of ministeri) {
+        const tableName = `voti_ministro_${ministero}`;
+        await client.query(
+          `DELETE FROM ${tableName} WHERE userid = $1`,
+          [userId]
+        );
+      }
 
-      // Inserisci i nuovi voti
+      // Inserisci i nuovi voti nelle tabelle appropriate
       for (const [categoria, nome] of Object.entries(voti)) {
-        if (nome && nome.trim()) {
+        if (nome && nome.trim() && ministeri.includes(categoria)) {
+          const tableName = `voti_ministro_${categoria}`;
           const nomeKey = nome.trim().toLowerCase();
           const nomeDisplay = nome.trim().split(' ').map(w => 
             w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
           ).join(' ');
 
           await client.query(
-            `INSERT INTO voti_ministri (id, userid, categoria, nome_ministro, nome_display, timesta) 
-             VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())`,
-            [userId, categoria, nomeKey, nomeDisplay]
+            `INSERT INTO ${tableName} (id, userid, nome_ministro, nome_display, timestamp) 
+             VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
+            [userId, nomeKey, nomeDisplay]
           );
         }
       }
