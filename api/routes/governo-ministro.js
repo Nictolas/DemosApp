@@ -33,7 +33,7 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     const mieiVotiQuery = `
       SELECT nome_display as nome
       FROM voti_ministri 
-      WHERE utente_id = $1 AND categoria = $2
+      WHERE userid = $1 AND categoria = $2
     `;
 
     const mieiVotiResult = await pool.query(mieiVotiQuery, [userId, categoria]);
@@ -43,12 +43,12 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     const bloccoQuery = `
       SELECT 
         CASE 
-          WHEN MAX(data_voto) > NOW() - INTERVAL '7 days' THEN true
+          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true
           ELSE false
         END as is_blocked,
-        MAX(data_voto) + INTERVAL '7 days' as unlock_date
+        MAX(timesta) + INTERVAL '7 days' as unlock_date
       FROM voti_ministri 
-      WHERE utente_id = $1 AND categoria = $2
+      WHERE userid = $1 AND categoria = $2
     `;
 
     const bloccoResult = await pool.query(bloccoQuery, [userId, categoria]);
@@ -90,11 +90,11 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
     const bloccoQuery = `
       SELECT 
         CASE 
-          WHEN MAX(data_voto) > NOW() - INTERVAL '7 days' THEN true
+          WHEN MAX(timesta) > NOW() - INTERVAL '7 days' THEN true
           ELSE false
         END as is_blocked
       FROM voti_ministri 
-      WHERE utente_id = $1 AND categoria = $2
+      WHERE userid = $1 AND categoria = $2
     `;
 
     const bloccoResult = await pool.query(bloccoQuery, [userId, categoria]);
@@ -114,7 +114,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
 
       // Elimina i voti esistenti per questo ministero
       await client.query(
-        'DELETE FROM voti_ministri WHERE utente_id = $1 AND categoria = $2',
+        'DELETE FROM voti_ministri WHERE userid = $1 AND categoria = $2',
         [userId, categoria]
       );
 
@@ -127,7 +127,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
           ).join(' ');
 
           await client.query(
-            `INSERT INTO voti_ministri (id, utente_id, categoria, nome_ministro, nome_display, data_voto) 
+            `INSERT INTO voti_ministri (id, userid, categoria, nome_ministro, nome_display, timesta) 
              VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())`,
             [userId, categoria, nomeKey, nomeDisplay]
           );
