@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { useProponiOpinioneData } from "./hooks/useProponiOpinioneData";
 import { useProponiOpinioneActions } from "./hooks/useProponiOpinioneActions";
 import { Header } from "./components/Header";
@@ -75,27 +76,31 @@ export default function ProponiOpinione() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
       <div className="container mx-auto max-w-4xl">
-        <Header />
-        
-        {loadingData ? (
-          <LoadingState />
-        ) : (
-          <div className="space-y-6">
-            <ProponiForm
-              testoInput={proponiOpinioneState.testoInput}
-              submitting={proponiOpinioneState.submitting}
-              onSubmit={handleProponiSubmit}
-              onInputChange={(value) => updateField('testoInput', value)}
-            />
+        <Card>
+          <CardContent className="p-6">
+            <Header />
+            
+            {loadingData ? (
+              <LoadingState />
+            ) : (
+              <div className="space-y-6">
+                <ProponiForm
+                  testoInput={proponiOpinioneState.testoInput}
+                  submitting={proponiOpinioneState.submitting}
+                  onSubmit={handleProponiSubmit}
+                  onInputChange={(value) => updateField('testoInput', value)}
+                />
 
-            <OpinioniList
-              opinioni={opinioni}
-              userVoti={userVoti}
-              isVoting={proponiOpinioneState.isVoting}
-              onVota={handleVotaOpinione}
-            />
-          </div>
-        )}
+                <OpinioniList
+                  opinioni={opinioni}
+                  userVoti={userVoti}
+                  isVoting={proponiOpinioneState.isVoting}
+                  onVota={handleVotaOpinione}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
