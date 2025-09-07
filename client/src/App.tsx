@@ -303,10 +303,10 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route elezioni */}
-              <Route path="/elezioni">
+              {/* Route candidati */}
+              <Route path="/candidati">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/elezioni" component={Elezioni} />
+                  <ProtectedRoute path="/candidati" component={Elezioni} />
                 </PageTransition>
               </Route>
 
@@ -520,10 +520,10 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route scegli candidato */}
-              <Route path="/scegli-candidato/:categoria">
+              {/* Route candidati categoria */}
+              <Route path="/candidati/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/scegli-candidato/:categoria" component={ScegliCandidato} />
+                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
                 </PageTransition>
               </Route>
 
