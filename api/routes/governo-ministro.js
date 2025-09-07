@@ -42,7 +42,9 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
       ORDER BY voti DESC, nome_display ASC
     `;
 
+    console.log(`🔍 DEBUG - Eseguendo query: ${classificaQuery}`);
     const classificaResult = await pool.query(classificaQuery);
+    console.log(`🔍 DEBUG - Risultato query raw:`, classificaResult.rows);
 
     // Ottieni i voti dell'utente per questo ministero
     const mieiVotiQuery = `
