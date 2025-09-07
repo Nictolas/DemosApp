@@ -59,19 +59,22 @@ export const MinisteroCard: React.FC<MinisteroCardProps> = ({
           {ministero.nome}
         </div>
         
-        {/* Il Più Votato */}
-        <div className="text-xs text-center mb-2">
-          <div className="font-semibold text-gray-600">Il Più Votato</div>
-          <div className="text-gray-800 font-medium">
-            {piuVotato ? `${piuVotato.nome} (${piuVotato.voti})` : 'Nessun voto'}
+        {/* Il Più Votato e Il Tuo Voto - Layout orizzontale */}
+        <div className="flex justify-between items-center w-full text-xs">
+          {/* Il Più Votato - Sinistra */}
+          <div className="text-left">
+            <div className="font-semibold text-gray-600">Il Più Votato</div>
+            <div className="text-gray-800 font-medium">
+              {piuVotato ? `${piuVotato.nome} (${piuVotato.voti})` : 'Nessun voto'}
+            </div>
           </div>
-        </div>
-        
-        {/* Il Tuo Voto */}
-        <div className="text-xs text-center">
-          <div className="font-semibold text-gray-600">Il Tuo Voto</div>
-          <div className="text-gray-800 font-medium">
-            {mioVoto ? mioVoto : 'Non votato'}
+          
+          {/* Il Tuo Voto - Destra */}
+          <div className="text-right">
+            <div className="font-semibold text-gray-600">Il Tuo Voto</div>
+            <div className="text-gray-800 font-medium">
+              {mioVoto ? mioVoto : 'Non votato'}
+            </div>
           </div>
         </div>
       </div>
