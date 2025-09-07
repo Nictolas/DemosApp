@@ -521,9 +521,9 @@ export default function App() {
               </Route>
 
               {/* Route scegli candidato */}
-              <Route path="/scegli-candidato">
+              <Route path="/scegli-candidato/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/scegli-candidato" component={ScegliCandidato} />
+                  <ProtectedRoute path="/scegli-candidato/:categoria" component={ScegliCandidato} />
                 </PageTransition>
               </Route>
 
