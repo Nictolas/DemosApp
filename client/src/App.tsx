@@ -46,6 +46,7 @@ import CapodiStato from "./pages/CapodiStato";
 import Amnistia from "./pages/Amnistia";
 import Grazia from "./pages/Grazia";
 import Governo from "./pages/Governo";
+import MinisteroPage from "./pages/Governo/[slug]";
 import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
 import IniziativePopolare from "./pages/IniziativePopolare";
@@ -391,6 +392,13 @@ export default function App() {
               <Route path="/governo">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/governo" component={Governo} />
+                </PageTransition>
+              </Route>
+
+              {/* Route ministeri specifici */}
+              <Route path="/governo/:slug">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/governo/:slug" component={MinisteroPage} />
                 </PageTransition>
               </Route>
 
