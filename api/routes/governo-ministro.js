@@ -73,6 +73,7 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     console.log(`📊 Classifiche: ${classificaResult.rows.length} candidati`);
     console.log(`👤 Miei voti: ${mieiVoti.length} voti utente`);
     console.log(`🔒 Blocco:`, { isBlocked: blocco.is_blocked, unlockDate: blocco.unlock_date });
+    console.log(`🔍 DEBUG - Dati classifiche:`, JSON.stringify(classificaResult.rows, null, 2));
 
     res.json({
       classifiche: classificaResult.rows,
