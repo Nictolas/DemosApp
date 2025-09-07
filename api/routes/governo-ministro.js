@@ -35,18 +35,18 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     // Ottieni la classifica dei candidati per questo ministero
     const classificaQuery = `
       SELECT 
-        nome as nome,
+        nome_display as nome,
         COUNT(*) as voti
       FROM ${tableName}
-      GROUP BY nome
-      ORDER BY voti DESC, nome ASC
+      GROUP BY nome_display
+      ORDER BY voti DESC, nome_display ASC
     `;
 
     const classificaResult = await pool.query(classificaQuery);
 
     // Ottieni i voti dell'utente per questo ministero
     const mieiVotiQuery = `
-      SELECT nome
+      SELECT nome_display as nome
       FROM ${tableName}
       WHERE userid = $1
     `;
