@@ -70,15 +70,30 @@ export default function MinisteroPage() {
             <ErrorState />
           ) : (
             <div className="space-y-6">
-              {/* DEBUG TEMPORANEO */}
-              <div className="bg-red-100 border-2 border-red-500 p-4 rounded-lg">
-                <h3 className="font-bold text-red-800">DEBUG:</h3>
-                <p>data: {data ? 'SÌ' : 'NO'}</p>
-                <p>classifiche: {data?.classifiche ? 'SÌ' : 'NO'}</p>
-                <p>classifiche.length: {data?.classifiche?.length || 0}</p>
-                <p>isLoading: {isLoading ? 'SÌ' : 'NO'}</p>
-                <p>isError: {isError ? 'SÌ' : 'NO'}</p>
-                <p>ministero: {ministero?.nome || 'NON TROVATO'}</p>
+              {/* TEST COMPONENTE SEMPLICE */}
+              <div className="bg-white p-6 rounded-lg shadow-lg">
+                <h2 className="text-2xl font-bold mb-4">Top 3 Candidati per {ministero?.nome}</h2>
+                {data?.classifiche?.map((candidato, index) => (
+                  <div key={candidato.nome} className="flex justify-between items-center p-3 border rounded mb-2">
+                    <span className="font-medium">{index + 1}. {candidato.nome}</span>
+                    <span className="bg-blue-100 px-2 py-1 rounded">{candidato.voti} voti</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* FORM VOTO SEMPLICE */}
+              <div className="bg-white p-6 rounded-lg shadow-lg">
+                <h2 className="text-2xl font-bold mb-4">Vota per {ministero?.nome}</h2>
+                <div className="space-y-3">
+                  <input 
+                    type="text" 
+                    placeholder="Inserisci nome candidato..." 
+                    className="w-full p-3 border rounded"
+                  />
+                  <button className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
+                    Salva Voto
+                  </button>
+                </div>
               </div>
 
               <TopTen
