@@ -13,10 +13,12 @@ export interface VotiData {
 }
 
 export interface Ministero {
-  title: string;
+  id: string;
+  nome: string;
   categoria: string;
   icon: any;
   color: string;
+  slug: string;
 }
 
 export interface GovernoState {
@@ -27,12 +29,8 @@ export interface GovernoState {
 
 export interface MinisteroCardProps {
   ministero: Ministero;
-  selectedVoti: { [categoria: string]: string };
-  expandedCategories: { [categoria: string]: boolean };
   data: VotiData | undefined;
-  onVotoChange: (categoria: string, nome: string) => void;
-  onVotoRemove: (categoria: string) => void;
-  onToggleExpansion: (categoria: string) => void;
+  onNavigate: (ministero: Ministero) => void;
 }
 
 export interface HeaderProps {
