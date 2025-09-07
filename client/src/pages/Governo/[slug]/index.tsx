@@ -33,6 +33,18 @@ export default function MinisteroPage() {
     saveVoti 
   } = useMinisteroActions(data);
 
+  // Debug logging
+  console.log('🔍 DEBUG Frontend - MinisteroPage render:', {
+    ministero: ministero?.categoria,
+    isLoading,
+    isError,
+    data: data ? {
+      classifiche: data.classifiche?.length || 0,
+      mieiVoti: data.mieiVoti?.length || 0,
+      blocco: data.blocco
+    } : null
+  });
+
   const handleSaveVoti = () => {
     saveVotiMutation.mutate(votingState.selectedVoti, {
       onSuccess: () => {
