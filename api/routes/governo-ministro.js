@@ -18,7 +18,7 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
 
     // Lista dei ministeri validi
     const ministeri = [
-      'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
       'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 
       'cultura', 'sport'
     ];
@@ -96,7 +96,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
 
     // Lista dei ministeri validi
     const ministeri = [
-      'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
       'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 
       'cultura', 'sport'
     ];
