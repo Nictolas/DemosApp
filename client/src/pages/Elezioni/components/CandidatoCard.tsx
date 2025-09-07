@@ -26,6 +26,7 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
+            <p className="text-xs text-blue-500 mt-1">Tocca per scegliere</p>
           </div>
         </div>
       );
@@ -83,7 +84,10 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
               {`${candidatoData.nome} ${candidatoData.cognome}`}
             </p>
           ) : (
-            <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
+            <div className="text-center">
+              <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
+              <p className="text-xs text-blue-500 mt-1">Tocca per scegliere</p>
+            </div>
           )}
         </div>
       </div>
