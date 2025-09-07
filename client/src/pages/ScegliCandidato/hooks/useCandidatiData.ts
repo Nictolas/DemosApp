@@ -17,7 +17,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
       setLoading(true);
       try {
         const grado = getTitolo(categoria);
-        const url = `/api/elezioni-utente/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
+        const url = `/api/candidati/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
         
         console.log('🔍 DEBUG Frontend - Chiamata API:', url);
         console.log('🔍 DEBUG Frontend - Categoria:', categoria);
