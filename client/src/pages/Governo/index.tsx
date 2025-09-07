@@ -32,14 +32,8 @@ export default function Governo() {
 
   return (
     <PageTransition>
-      <style jsx global>{`
-        body, html {
-          overflow: hidden !important;
-          touch-action: none !important;
-        }
-      `}</style>
-      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
-        <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
+        <div className="container mx-auto max-w-4xl">
           {isLoading ? (
             <LoadingState />
           ) : isError ? (
