@@ -238,7 +238,7 @@ router.get('/elezioni-utente/disponibili', verifyToken, async (req, res) => {
 });
 
 // GET /api/elezioni-utente - Endpoint per la pagina Elezioni (simile a rappresentanti)
-router.get('/elezioni-utente', verifyToken, async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/elezioni-utente - Richiesta candidati');
     const userId = req.userId;
