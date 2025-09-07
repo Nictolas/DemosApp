@@ -256,7 +256,9 @@ router.get('/', verifyToken, async (req, res) => {
       WHERE id = $1
     `;
     
+    console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
     const userResult = await pool.query(userQuery, [userId]);
+    console.log('🔍 DEBUG - Query completata, righe trovate:', userResult.rows.length);
     const user = userResult.rows[0] || {};
     
     console.log('🔍 DEBUG - Candidati selezionati dall\'utente:', user);
@@ -322,6 +324,10 @@ router.get('/', verifyToken, async (req, res) => {
       regione: user.candidato_regionale || null,
       comune: user.candidato_comune || null
     };
+    
+    console.log('🔍 DEBUG - Invio risposta finale:');
+    console.log('  candidatiPerCategoria:', JSON.stringify(candidatiPerCategoria, null, 2));
+    console.log('  idMap:', JSON.stringify(idMap, null, 2));
     
     res.json({
       success: true,
