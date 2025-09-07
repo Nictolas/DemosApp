@@ -8,7 +8,7 @@ export const useElezioniActions = () => {
   const [programmaDialogData, setProgrammaDialogData] = useState<ProgrammaDialogData | null>(null);
 
   const handleNavigateToSelection = (categoriaId: string) => {
-    setLocation(`/scegli-candidato/${categoriaId}`);
+    setLocation(`/candidati/${categoriaId}`);
   };
 
   const handleOpenOpinioniDialog = (utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string) => {

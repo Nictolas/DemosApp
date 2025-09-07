@@ -131,7 +131,7 @@ export default function Elezioni() {
             </div>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <Link to={`/scegli-candidato/${categoria.id}`}>Cambia candidato</Link>
+            <Link to={`/candidati/${categoria.id}`}>Cambia candidato</Link>
           </Button>
         </div>
       );
@@ -144,7 +144,7 @@ export default function Elezioni() {
         </div>
         <p className="text-gray-500 italic">Nessun candidato scelto</p>
         <Button variant="default" size="sm" asChild>
-          <Link to={`/scegli-candidato/${categoria.id}`}>Scegli Candidato</Link>
+          <Link to={`/candidati/${categoria.id}`}>Scegli Candidato</Link>
         </Button>
       </div>
     );
