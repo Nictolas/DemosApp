@@ -70,15 +70,15 @@ export default function MinisteroPage() {
             <ErrorState />
           ) : (
             <div className="space-y-6">
-              {/* Debug temporaneo */}
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <h3 className="font-semibold text-red-800 mb-2">Debug Dati:</h3>
-                <p className="text-sm text-red-700">
-                  data: {data ? 'Sì' : 'No'} | 
-                  data.classifiche: {data?.classifiche ? 'Sì' : 'No'} | 
-                  classifiche.length: {data?.classifiche?.length || 0} | 
-                  classifiche[0]: {data?.classifiche?.[0] ? JSON.stringify(data.classifiche[0]) : 'undefined'}
-                </p>
+              {/* DEBUG TEMPORANEO */}
+              <div className="bg-red-100 border-2 border-red-500 p-4 rounded-lg">
+                <h3 className="font-bold text-red-800">DEBUG:</h3>
+                <p>data: {data ? 'SÌ' : 'NO'}</p>
+                <p>classifiche: {data?.classifiche ? 'SÌ' : 'NO'}</p>
+                <p>classifiche.length: {data?.classifiche?.length || 0}</p>
+                <p>isLoading: {isLoading ? 'SÌ' : 'NO'}</p>
+                <p>isError: {isError ? 'SÌ' : 'NO'}</p>
+                <p>ministero: {ministero?.nome || 'NON TROVATO'}</p>
               </div>
 
               <TopTen
