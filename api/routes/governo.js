@@ -30,7 +30,7 @@ router.get('/voti', verifyToken, async (req, res) => {
 
     // Per ogni ministero, ottieni classifiche e voti utente
     for (const ministero of ministeri) {
-      const tableName = `voti_ministro_${ministero}`;
+      const tableName = `voti_${ministero}`;
       
       // Classifica per questo ministero
       const classificaQuery = `
@@ -121,7 +121,7 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Controlla se l'utente è bloccato per qualsiasi ministero
     let isBlocked = false;
     for (const ministero of ministeri) {
-      const tableName = `voti_ministro_${ministero}`;
+      const tableName = `voti_${ministero}`;
       const bloccoQuery = `
         SELECT 
           CASE 
@@ -153,7 +153,7 @@ router.post('/vota', verifyToken, async (req, res) => {
 
       // Elimina tutti i voti esistenti dell'utente da tutte le tabelle
       for (const ministero of ministeri) {
-        const tableName = `voti_ministro_${ministero}`;
+        const tableName = `voti_${ministero}`;
         await client.query(
           `DELETE FROM ${tableName} WHERE userid = $1`,
           [userId]
@@ -163,7 +163,7 @@ router.post('/vota', verifyToken, async (req, res) => {
       // Inserisci i nuovi voti nelle tabelle appropriate
       for (const [categoria, nome] of Object.entries(voti)) {
         if (nome && nome.trim() && ministeri.includes(categoria)) {
-          const tableName = `voti_ministro_${categoria}`;
+          const tableName = `voti_${categoria}`;
           const nomeKey = nome.trim().toLowerCase();
           const nomeDisplay = nome.trim().split(' ').map(w => 
             w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()

@@ -30,7 +30,7 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
       });
     }
 
-    const tableName = `voti_ministro_${categoria}`;
+    const tableName = `voti_${categoria}`;
 
     // Ottieni la classifica dei candidati per questo ministero
     const classificaQuery = `
@@ -115,7 +115,7 @@ router.post('/:categoria/vota', verifyToken, async (req, res) => {
       });
     }
 
-    const tableName = `voti_ministro_${categoria}`;
+    const tableName = `voti_${categoria}`;
 
     // Controlla se l'utente è bloccato
     const bloccoQuery = `
