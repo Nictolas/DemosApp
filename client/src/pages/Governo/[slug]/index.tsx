@@ -41,9 +41,15 @@ export default function MinisteroPage() {
     data: data ? {
       classifiche: data.classifiche?.length || 0,
       mieiVoti: data.mieiVoti?.length || 0,
-      blocco: data.blocco
+      blocco: data.blocco,
+      rawData: data
     } : null
   });
+
+  // Debug aggiuntivo per capire il problema
+  if (data && data.classifiche) {
+    console.log('🔍 DEBUG Frontend - Classifiche ricevute:', data.classifiche);
+  }
 
   const handleSaveVoti = () => {
     saveVotiMutation.mutate(votingState.selectedVoti, {
@@ -81,6 +87,18 @@ export default function MinisteroPage() {
             <ErrorState />
           ) : (
             <div className="space-y-6">
+              {/* Debug info temporaneo */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-800 mb-2">Debug Info:</h3>
+                <p className="text-sm text-blue-700">
+                  Ministero: {ministero?.categoria} | 
+                  Dati caricati: {data ? 'Sì' : 'No'} | 
+                  Classifiche: {data?.classifiche?.length || 0} | 
+                  Loading: {isLoading ? 'Sì' : 'No'} | 
+                  Error: {isError ? 'Sì' : 'No'}
+                </p>
+              </div>
+
               <TopTen
                 classifiche={data?.classifiche || []}
                 selectedVoti={votingState.selectedVoti}
