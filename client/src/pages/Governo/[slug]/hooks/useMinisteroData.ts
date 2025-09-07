@@ -13,7 +13,10 @@ export const useMinisteroData = (user: any, categoria?: string) => {
     queryFn: async () => {
       console.log('🔍 DEBUG Frontend - Chiamata API per categoria:', categoria);
       const response = await apiRequest("GET", `/api/governo/ministro/${categoria}/voti`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati del ministero.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Errore nel caricamento dei dati del ministero: ${response.status} - ${errorText}`);
+      }
       const result = await response.json();
       console.log('🔍 DEBUG Frontend - Risposta API ricevuta:', result);
       return result;
