@@ -19,14 +19,17 @@ export const useMinisteroData = (user: any, categoria?: string) => {
       }
       const result = await response.json();
       console.log('🔍 DEBUG Frontend - Risposta API ricevuta:', result);
+      console.log('🔍 DEBUG Frontend - result.classifiche:', result.classifiche);
+      console.log('🔍 DEBUG Frontend - typeof result.classifiche:', typeof result.classifiche);
+      console.log('🔍 DEBUG Frontend - Array.isArray(result.classifiche):', Array.isArray(result.classifiche));
       
       // Converti voti da stringa a numero
       const processedResult = {
         ...result,
-        classifiche: result.classifiche.map((c: any) => ({
+        classifiche: result.classifiche ? result.classifiche.map((c: any) => ({
           ...c,
           voti: parseInt(c.voti, 10)
-        }))
+        })) : []
       };
       
       console.log('🔍 DEBUG Frontend - Risposta API processata:', processedResult);
