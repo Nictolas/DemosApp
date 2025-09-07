@@ -32,6 +32,8 @@ router.get('/voti', verifyToken, async (req, res) => {
     for (const ministero of ministeri) {
       const tableName = `voti_${ministero}`;
       
+      console.log(`🔍 DEBUG - Processando ministero: ${ministero}, tabella: ${tableName}`);
+      
       // Classifica per questo ministero
       const classificaQuery = `
         SELECT 
@@ -42,11 +44,17 @@ router.get('/voti', verifyToken, async (req, res) => {
         ORDER BY voti DESC, nome_display ASC
       `;
 
-      const classificaResult = await pool.query(classificaQuery);
-      classifiche[ministero] = classificaResult.rows.map(row => ({
-        nome: row.nome,
-        voti: parseInt(row.voti)
-      }));
+      try {
+        const classificaResult = await pool.query(classificaQuery);
+        console.log(`✅ DEBUG - ${ministero}: ${classificaResult.rows.length} record trovati`);
+        classifiche[ministero] = classificaResult.rows.map(row => ({
+          nome: row.nome,
+          voti: parseInt(row.voti)
+        }));
+      } catch (error) {
+        console.error(`❌ DEBUG - Errore per ${ministero}:`, error.message);
+        classifiche[ministero] = [];
+      }
 
       // Voti dell'utente per questo ministero
       const mieiVotiQuery = `
@@ -79,6 +87,11 @@ router.get('/voti', verifyToken, async (req, res) => {
         unlockDate = bloccoResult.rows[0].unlock_date;
       }
     }
+
+    console.log('🔍 DEBUG - Risposta API governo/voti:');
+    console.log('📊 Classifiche:', Object.keys(classifiche).length, 'ministeri');
+    console.log('👤 Miei voti:', Object.keys(mieiVoti).length, 'voti utente');
+    console.log('🔒 Blocco:', { isBlocked, unlockDate });
 
     res.json({
       classifiche,

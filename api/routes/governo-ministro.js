@@ -69,6 +69,11 @@ router.get('/:categoria/voti', verifyToken, async (req, res) => {
     const bloccoResult = await pool.query(bloccoQuery, [userId]);
     const blocco = bloccoResult.rows[0] || { is_blocked: false, unlock_date: null };
 
+    console.log(`🔍 DEBUG - Risposta API ministero/${categoria}/voti:`);
+    console.log(`📊 Classifiche: ${classificaResult.rows.length} candidati`);
+    console.log(`👤 Miei voti: ${mieiVoti.length} voti utente`);
+    console.log(`🔒 Blocco:`, { isBlocked: blocco.is_blocked, unlockDate: blocco.unlock_date });
+
     res.json({
       classifiche: classificaResult.rows,
       mieiVoti,
