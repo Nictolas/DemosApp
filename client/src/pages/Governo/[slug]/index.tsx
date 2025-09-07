@@ -12,7 +12,7 @@ import { TopTen } from "./components/TopTen";
 import { VotingForm } from "./components/VotingForm";
 import { LoadingState } from "./components/LoadingState";
 import { ErrorState } from "./components/ErrorState";
-import { ministeri } from "../../constants/ministeri";
+import { ministeri } from "../constants/ministeri";
 
 export default function MinisteroPage() {
   const authReady = useAuthReady();
