@@ -19,7 +19,18 @@ export const useMinisteroData = (user: any, categoria?: string) => {
       }
       const result = await response.json();
       console.log('🔍 DEBUG Frontend - Risposta API ricevuta:', result);
-      return result;
+      
+      // Converti voti da stringa a numero
+      const processedResult = {
+        ...result,
+        classifiche: result.classifiche.map((c: any) => ({
+          ...c,
+          voti: parseInt(c.voti, 10)
+        }))
+      };
+      
+      console.log('🔍 DEBUG Frontend - Risposta API processata:', processedResult);
+      return processedResult;
     },
     enabled: !!user && !!categoria
   });
