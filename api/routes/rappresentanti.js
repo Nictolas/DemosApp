@@ -16,7 +16,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // Query per ottenere utenti con ruolo "Politico" o "Candidato Politico" dalla tabella users
     // Filtra per grado_elezione in base al parametro grado ricevuto
     let gradoFilter = '';
-    let queryParams = [userId];
+    let queryParams = [];
     
     if (grado) {
       // Mappa i gradi dal frontend ai valori del database
@@ -29,7 +29,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       };
       
       const mappedGrado = gradoMapping[grado] || grado;
-      gradoFilter = `AND grado_elezione = $2`;
+      gradoFilter = `AND grado_elezione = $1`;
       queryParams.push(mappedGrado);
     }
     
@@ -69,8 +69,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
         riduzione_parcheggi_a_pagamento
       FROM users
-      WHERE id != $1 
-        AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico')
+      WHERE (ruolo = 'Politico' OR ruolo = 'Candidato Politico')
         AND status = 'active'
         ${gradoFilter}
       ORDER BY cognome, nome
