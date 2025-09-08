@@ -130,17 +130,6 @@ export default function MinisteroPage() {
                         onClick={() => {
                           console.log('🔍 DEBUG: Input clicked!');
                         }}
-                        onFocus={() => {
-                          console.log('🔍 DEBUG: Input focused, setting showSuggestions to true');
-                          setVotingState(prev => ({ ...prev, showSuggestions: true }));
-                        }}
-                        onBlur={() => {
-                          console.log('🔍 DEBUG: Input blurred, keeping showSuggestions true if there is text');
-                          // Non nascondere i suggerimenti se c'è del testo nell'input
-                          if (!votingState.nomeInput.trim()) {
-                            setVotingState(prev => ({ ...prev, showSuggestions: false }));
-                          }
-                        }}
                         style={{
                           width: '100%',
                           padding: '16px 20px',
@@ -156,11 +145,18 @@ export default function MinisteroPage() {
                           fontWeight: '500'
                         }}
                         onFocus={(e) => {
+                          console.log('🔍 DEBUG: Input focused, setting showSuggestions to true');
+                          setVotingState(prev => ({ ...prev, showSuggestions: true }));
                           e.target.style.borderColor = '#3b82f6';
                           e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1)';
                           e.target.style.transform = 'translateY(-1px)';
                         }}
                         onBlur={(e) => {
+                          console.log('🔍 DEBUG: Input blurred, keeping showSuggestions true if there is text');
+                          // Non nascondere i suggerimenti se c'è del testo nell'input
+                          if (!votingState.nomeInput.trim()) {
+                            setVotingState(prev => ({ ...prev, showSuggestions: false }));
+                          }
                           e.target.style.borderColor = '#e2e8f0';
                           e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
                           e.target.style.transform = 'translateY(0)';

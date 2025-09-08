@@ -66,16 +66,16 @@ export default function Governo() {
                 />
               ))}
             </div>
-            
-            {/* Modal */}
-            {selectedMinistero && (
-              <MinisteroModal
-                ministero={selectedMinistero}
-                data={data}
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-              />
-            )}
+          )}
+          
+          {/* Modal */}
+          {selectedMinistero && (
+            <MinisteroModal
+              ministero={selectedMinistero}
+              data={data}
+              isOpen={isModalOpen}
+              onClose={handleCloseModal}
+            />
           )}
         </div>
       </div>
