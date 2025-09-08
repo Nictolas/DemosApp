@@ -311,9 +311,15 @@ export default function App() {
 
               {/* Route candidati categoria - DEVE VENIRE PRIMA di /candidati */}
               <Route path="/candidati/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
-                </PageTransition>
+                {(params) => {
+                  console.log('🔍 DEBUG App - Route /candidati/:categoria ATTIVATA con params:', params);
+                  console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', params.categoria);
+                  return (
+                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                      <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                    </PageTransition>
+                  );
+                }}
               </Route>
 
               {/* Route candidati */}
