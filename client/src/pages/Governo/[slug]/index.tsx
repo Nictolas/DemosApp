@@ -70,6 +70,15 @@ export default function MinisteroPage() {
             <ErrorState />
           ) : (
             <div className="space-y-6">
+              {/* DEBUG COMPONENT */}
+              <div className="bg-red-500 text-white p-4 rounded-lg">
+                <h2 className="text-xl font-bold">DEBUG - Dati ricevuti:</h2>
+                <p>Classifiche: {data?.classifiche?.length || 0}</p>
+                <p>Miei voti: {data?.mieiVoti?.length || 0}</p>
+                <p>Blocco: {data?.blocco?.isBlocked ? 'Sì' : 'No'}</p>
+                <pre className="text-xs mt-2">{JSON.stringify(data, null, 2)}</pre>
+              </div>
+
               <TopTen
                 classifiche={data?.classifiche || []}
                 selectedVoti={votingState.selectedVoti}
