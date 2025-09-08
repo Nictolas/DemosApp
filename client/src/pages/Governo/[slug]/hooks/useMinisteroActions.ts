@@ -9,7 +9,8 @@ export const useMinisteroActions = (data: MinisteroData | undefined) => {
     nomeInput: "",
     selectedVoti: [],
     showConfirmDialog: false,
-    showAllClassifica: false
+    showAllClassifica: false,
+    showSuggestions: false
   });
 
   // Effect per aggiornare selectedVoti quando i dati arrivano

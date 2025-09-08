@@ -17,6 +17,7 @@ export interface MinisteroVotingState {
   selectedVoti: string[];
   showConfirmDialog: boolean;
   showAllClassifica: boolean;
+  showSuggestions: boolean;
 }
 
 export interface HeaderProps {

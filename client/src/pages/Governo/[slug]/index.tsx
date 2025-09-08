@@ -118,47 +118,130 @@ export default function MinisteroPage() {
                   Esprimi la tua preferenza per questo ministero
                 </p>
                 
-                <form onSubmit={addNomeLocal} style={{display: 'flex', gap: '12px', marginBottom: '20px'}}>
-                  <input
-                    type="text"
-                    placeholder="Inserisci il nome del candidato..."
-                    value={votingState.nomeInput}
-                    onChange={(e) => updateField('nomeInput', e.target.value)}
-                    style={{
-                      flex: 1,
-                      padding: '16px 20px',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '16px',
-                      background: 'rgba(255,255,255,0.9)',
-                      color: '#333',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                      outline: 'none',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onFocus={(e) => e.target.style.background = 'white'}
-                    onBlur={(e) => e.target.style.background = 'rgba(255,255,255,0.9)'}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!votingState.nomeInput.trim()}
-                    style={{
-                      padding: '16px 24px',
-                      background: votingState.nomeInput.trim() ? 'linear-gradient(45deg, #ff6b6b, #ee5a24)' : 'rgba(255,255,255,0.3)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      cursor: votingState.nomeInput.trim() ? 'pointer' : 'not-allowed',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                      transition: 'all 0.3s ease',
-                      minWidth: '120px'
-                    }}
-                  >
-                    Aggiungi
-                  </button>
-                </form>
+                <div style={{position: 'relative', marginBottom: '20px'}}>
+                  <form onSubmit={addNomeLocal} style={{display: 'flex', gap: '12px'}}>
+                    <div style={{flex: 1, position: 'relative'}}>
+                      <input
+                        type="text"
+                        placeholder="Inserisci il nome del candidato..."
+                        value={votingState.nomeInput}
+                        onChange={(e) => updateField('nomeInput', e.target.value)}
+                        onFocus={() => updateField('showSuggestions', true)}
+                        onBlur={() => setTimeout(() => updateField('showSuggestions', false), 200)}
+                        style={{
+                          width: '100%',
+                          padding: '16px 20px',
+                          border: 'none',
+                          borderRadius: '12px',
+                          fontSize: '16px',
+                          background: 'rgba(255,255,255,0.9)',
+                          color: '#333',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          outline: 'none',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onFocus={(e) => e.target.style.background = 'white'}
+                        onBlur={(e) => e.target.style.background = 'rgba(255,255,255,0.9)'}
+                      />
+                      
+                      {/* SUGGERIMENTI AUTOCOMPLETE */}
+                      {votingState.showSuggestions && votingState.nomeInput.trim() && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: 'white',
+                          borderRadius: '12px',
+                          boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                          border: '1px solid rgba(0,0,0,0.1)',
+                          zIndex: 1000,
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                          marginTop: '4px'
+                        }}>
+                          {data?.classifiche
+                            ?.filter(candidato => 
+                              candidato.nome.toLowerCase().includes(votingState.nomeInput.toLowerCase())
+                            )
+                            .map((candidato, index) => (
+                              <div
+                                key={candidato.nome}
+                                onClick={() => {
+                                  updateField('nomeInput', candidato.nome);
+                                  updateField('showSuggestions', false);
+                                }}
+                                style={{
+                                  padding: '12px 20px',
+                                  cursor: 'pointer',
+                                  borderBottom: index < (data?.classifiche?.filter(c => 
+                                    c.nome.toLowerCase().includes(votingState.nomeInput.toLowerCase())
+                                  ).length || 0) - 1 ? '1px solid #f1f3f4' : 'none',
+                                  transition: 'all 0.2s ease',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center'
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                              >
+                                <span style={{
+                                  fontWeight: '500',
+                                  color: '#2d3748',
+                                  fontSize: '15px'
+                                }}>
+                                  {candidato.nome}
+                                </span>
+                                <span style={{
+                                  background: '#e2e8f0',
+                                  color: '#4a5568',
+                                  padding: '4px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '600'
+                                }}>
+                                  {candidato.voti} {candidato.voti === 1 ? 'voto' : 'voti'}
+                                </span>
+                              </div>
+                            ))}
+                          
+                          {data?.classifiche?.filter(candidato => 
+                            candidato.nome.toLowerCase().includes(votingState.nomeInput.toLowerCase())
+                          ).length === 0 && (
+                            <div style={{
+                              padding: '16px 20px',
+                              textAlign: 'center',
+                              color: '#718096',
+                              fontSize: '14px'
+                            }}>
+                              Nessun candidato trovato
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      disabled={!votingState.nomeInput.trim()}
+                      style={{
+                        padding: '16px 24px',
+                        background: votingState.nomeInput.trim() ? 'linear-gradient(45deg, #ff6b6b, #ee5a24)' : 'rgba(255,255,255,0.3)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        cursor: votingState.nomeInput.trim() ? 'pointer' : 'not-allowed',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                        transition: 'all 0.3s ease',
+                        minWidth: '120px'
+                      }}
+                    >
+                      Aggiungi
+                    </button>
+                  </form>
+                </div>
 
                 {votingState.selectedVoti.length > 0 && (
                   <div style={{marginBottom: '20px'}}>
