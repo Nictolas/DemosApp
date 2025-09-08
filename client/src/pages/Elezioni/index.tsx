@@ -14,6 +14,8 @@ import { ErrorState } from "./components/ErrorState";
 import { categorie, colorMap } from "./constants/categorie";
 
 export default function Elezioni() {
+  console.log('🔍 DEBUG Elezioni - Componente renderizzato');
+  
   const { user, isLoading: isAuthLoading } = useAuth();
   
   const { data, isLoading, isError } = useElezioniData(user);

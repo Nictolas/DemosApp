@@ -18,6 +18,8 @@ interface ScegliCandidatoProps {
 }
 
 export default function ScegliCandidato({ categoria }: ScegliCandidatoProps) {
+  console.log('🔍 DEBUG ScegliCandidato - Componente renderizzato con categoria:', categoria);
+  
   const { user, isLoading } = useAuth();
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();
