@@ -68,135 +68,321 @@ export default function MinisteroPage() {
         ) : isError ? (
           <ErrorState />
         ) : (
-          <div className="space-y-6">
-            {/* TEST HTML NATIVO */}
-            <div style={{backgroundColor: 'red', color: 'white', padding: '20px', borderRadius: '8px'}}>
-              <h2 style={{fontSize: '24px', fontWeight: 'bold'}}>TEST HTML NATIVO</h2>
-              <p>Se vedi questo, il rendering funziona!</p>
-              <p>Classifiche: {data?.classifiche?.length || 0}</p>
-              <p>Miei voti: {data?.mieiVoti?.length || 0}</p>
-              <p>Blocco: {data?.blocco?.isBlocked ? 'Sì' : 'No'}</p>
+          <div className="space-y-8">
+            {/* FORM VOTO - PRIMA SEZIONE */}
+            <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '32px',
+              borderRadius: '16px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Decorazione di sfondo */}
+              <div style={{
+                position: 'absolute',
+                top: '-50px',
+                right: '-50px',
+                width: '200px',
+                height: '200px',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '-30px',
+                left: '-30px',
+                width: '150px',
+                height: '150px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}></div>
+              
+              <div style={{position: 'relative', zIndex: 1}}>
+                <h2 style={{
+                  fontSize: '28px',
+                  fontWeight: '700',
+                  marginBottom: '8px',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}>
+                  Il Tuo Voto
+                </h2>
+                <p style={{
+                  fontSize: '16px',
+                  opacity: 0.9,
+                  marginBottom: '24px'
+                }}>
+                  Esprimi la tua preferenza per questo ministero
+                </p>
+                
+                <form onSubmit={addNomeLocal} style={{display: 'flex', gap: '12px', marginBottom: '20px'}}>
+                  <input
+                    type="text"
+                    placeholder="Inserisci il nome del candidato..."
+                    value={votingState.nomeInput}
+                    onChange={(e) => updateField('nomeInput', e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '16px 20px',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '16px',
+                      background: 'rgba(255,255,255,0.9)',
+                      color: '#333',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      outline: 'none',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onFocus={(e) => e.target.style.background = 'white'}
+                    onBlur={(e) => e.target.style.background = 'rgba(255,255,255,0.9)'}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!votingState.nomeInput.trim()}
+                    style={{
+                      padding: '16px 24px',
+                      background: votingState.nomeInput.trim() ? 'linear-gradient(45deg, #ff6b6b, #ee5a24)' : 'rgba(255,255,255,0.3)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: votingState.nomeInput.trim() ? 'pointer' : 'not-allowed',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                      transition: 'all 0.3s ease',
+                      minWidth: '120px'
+                    }}
+                  >
+                    Aggiungi
+                  </button>
+                </form>
+
+                {votingState.selectedVoti.length > 0 && (
+                  <div style={{marginBottom: '20px'}}>
+                    <h4 style={{
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      marginBottom: '12px',
+                      opacity: 0.9
+                    }}>
+                      Candidato selezionato:
+                    </h4>
+                    {votingState.selectedVoti.map((nome) => (
+                      <div key={nome} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '16px 20px',
+                        background: 'rgba(255,255,255,0.15)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '12px',
+                        backdropFilter: 'blur(10px)',
+                        marginBottom: '8px'
+                      }}>
+                        <span style={{fontWeight: '600', fontSize: '16px'}}>{nome}</span>
+                        <button
+                          onClick={() => removeLocal(nome)}
+                          style={{
+                            padding: '8px 16px',
+                            background: 'rgba(255,255,255,0.2)',
+                            color: 'white',
+                            border: '1px solid rgba(255,255,255,0.3)',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'}
+                          onMouseOut={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+                        >
+                          Rimuovi
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{
+                  paddingTop: '20px',
+                  borderTop: '1px solid rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  justifyContent: 'center'
+                }}>
+                  <button
+                    onClick={handleSaveVoti}
+                    disabled={votingState.selectedVoti.length === 0}
+                    style={{
+                      padding: '16px 32px',
+                      background: votingState.selectedVoti.length === 0 
+                        ? 'rgba(255,255,255,0.2)' 
+                        : 'linear-gradient(45deg, #00b894, #00a085)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: votingState.selectedVoti.length === 0 ? 'not-allowed' : 'pointer',
+                      fontSize: '18px',
+                      fontWeight: '700',
+                      boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
+                      transition: 'all 0.3s ease',
+                      minWidth: '160px'
+                    }}
+                  >
+                    Salva Voto
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* TOP 10 HTML NATIVO */}
-            <div style={{backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
-              <h2 style={{fontSize: '20px', fontWeight: 'bold', marginBottom: '16px'}}>Top 10 Candidati</h2>
-              {data?.classifiche?.length === 0 ? (
-                <p>Nessun voto ancora registrato per questo ministero.</p>
-              ) : (
+            {/* TOP 10 CANDIDATI - SECONDA SEZIONE */}
+            <div style={{
+              background: 'white',
+              padding: '32px',
+              borderRadius: '16px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(0,0,0,0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '24px',
+                paddingBottom: '16px',
+                borderBottom: '2px solid #f1f3f4'
+              }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  background: 'linear-gradient(135deg, #ffd700, #ffed4e)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '16px',
+                  boxShadow: '0 4px 12px rgba(255,215,0,0.3)'
+                }}>
+                  <span style={{fontSize: '24px'}}>🏆</span>
+                </div>
                 <div>
+                  <h2 style={{
+                    fontSize: '24px',
+                    fontWeight: '700',
+                    color: '#2d3748',
+                    margin: 0
+                  }}>
+                    Top 10 Candidati
+                  </h2>
+                  <p style={{
+                    fontSize: '14px',
+                    color: '#718096',
+                    margin: '4px 0 0 0'
+                  }}>
+                    Classifica aggiornata in tempo reale
+                  </p>
+                </div>
+              </div>
+
+              {data?.classifiche?.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: '#718096'
+                }}>
+                  <div style={{fontSize: '48px', marginBottom: '16px'}}>📊</div>
+                  <p style={{fontSize: '18px', margin: 0}}>
+                    Nessun voto ancora registrato per questo ministero.
+                  </p>
+                </div>
+              ) : (
+                <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
                   {data.classifiche.map((candidato, index) => (
                     <div key={candidato.nome} style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      padding: '12px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      marginBottom: '8px',
-                      backgroundColor: index < 3 ? '#fef3c7' : '#f3f4f6'
+                      padding: '20px 24px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      background: index < 3 
+                        ? 'linear-gradient(135deg, #fff7ed, #fed7aa)' 
+                        : '#f8fafc',
+                      borderColor: index < 3 ? '#fed7aa' : '#e2e8f0',
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
                     }}>
-                      <span style={{fontWeight: '500'}}>
-                        {index + 1}. {candidato.nome}
-                      </span>
-                      <span style={{
-                        backgroundColor: '#dbeafe',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '14px'
+                      {/* Posizione */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px'
                       }}>
-                        {candidato.voti} voti
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* FORM VOTO HTML NATIVO */}
-            <div style={{backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'}}>
-              <h2 style={{fontSize: '20px', fontWeight: 'bold', marginBottom: '16px'}}>I Tuoi Voti</h2>
-              <form onSubmit={addNomeLocal} style={{display: 'flex', gap: '8px', marginBottom: '16px'}}>
-                <input
-                  type="text"
-                  placeholder="Inserisci il nome del candidato..."
-                  value={votingState.nomeInput}
-                  onChange={(e) => updateField('nomeInput', e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    fontSize: '16px'
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={!votingState.nomeInput.trim()}
-                  style={{
-                    padding: '12px 16px',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '16px'
-                  }}
-                >
-                  Aggiungi
-                </button>
-              </form>
-
-              {votingState.selectedVoti.length > 0 && (
-                <div>
-                  <h4 style={{fontSize: '16px', fontWeight: '500', marginBottom: '8px'}}>Candidati selezionati:</h4>
-                  {votingState.selectedVoti.map((nome) => (
-                    <div key={nome} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '12px',
-                      backgroundColor: '#eff6ff',
-                      border: '1px solid #bfdbfe',
-                      borderRadius: '6px',
-                      marginBottom: '8px'
-                    }}>
-                      <span style={{fontWeight: '500'}}>{nome}</span>
-                      <button
-                        onClick={() => removeLocal(nome)}
-                        style={{
-                          padding: '4px 8px',
-                          backgroundColor: '#ef4444',
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          background: index < 3 
+                            ? 'linear-gradient(135deg, #ffd700, #ffed4e)' 
+                            : 'linear-gradient(135deg, #667eea, #764ba2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Rimuovi
-                      </button>
+                          fontWeight: '700',
+                          fontSize: '16px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                        }}>
+                          {index + 1}
+                        </div>
+                        <span style={{
+                          fontWeight: '600',
+                          fontSize: '18px',
+                          color: '#2d3748'
+                        }}>
+                          {candidato.nome}
+                        </span>
+                      </div>
+                      
+                      {/* Voti */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span style={{
+                          background: index < 3 
+                            ? 'linear-gradient(135deg, #ff6b6b, #ee5a24)' 
+                            : 'linear-gradient(135deg, #667eea, #764ba2)',
+                          color: 'white',
+                          padding: '8px 16px',
+                          borderRadius: '20px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                        }}>
+                          {candidato.voti} {candidato.voti === 1 ? 'voto' : 'voti'}
+                        </span>
+                        {index < 3 && (
+                          <span style={{fontSize: '20px'}}>
+                            {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
-
-              <div style={{marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e5e7eb'}}>
-                <button
-                  onClick={handleSaveVoti}
-                  disabled={votingState.selectedVoti.length === 0}
-                  style={{
-                    padding: '12px 24px',
-                    backgroundColor: votingState.selectedVoti.length === 0 ? '#9ca3af' : '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: votingState.selectedVoti.length === 0 ? 'not-allowed' : 'pointer',
-                    fontSize: '16px'
-                  }}
-                >
-                  Salva Voti
-                </button>
-              </div>
             </div>
           </div>
         )}
