@@ -69,22 +69,28 @@ router.get('/voti', verifyToken, async (req, res) => {
         mieiVoti[ministero] = mieiVotiResult.rows[0].nome;
       }
 
-      // Controlla blocco settimanale per questo ministero
-      const bloccoQuery = `
-        SELECT 
-          CASE 
-            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-            ELSE false
-          END as is_blocked,
-          MAX(timestamp) + INTERVAL '7 days' as unlock_date
-        FROM ${tableName}
-        WHERE userid = $1
-      `;
+      // Controlla blocco settimanale per questo ministero (Admin può sempre votare)
+      const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+      const userResult = await pool.query(userQuery, [userId]);
+      const userRole = userResult.rows[0]?.ruolo;
 
-      const bloccoResult = await pool.query(bloccoQuery, [userId]);
-      if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
-        isBlocked = true;
-        unlockDate = bloccoResult.rows[0].unlock_date;
+      if (userRole !== 'Admin') {
+        const bloccoQuery = `
+          SELECT 
+            CASE 
+              WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+              ELSE false
+            END as is_blocked,
+            MAX(timestamp) + INTERVAL '7 days' as unlock_date
+          FROM ${tableName}
+          WHERE userid = $1
+        `;
+
+        const bloccoResult = await pool.query(bloccoQuery, [userId]);
+        if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
+          isBlocked = true;
+          unlockDate = bloccoResult.rows[0].unlock_date;
+        }
       }
     }
 
@@ -131,32 +137,38 @@ router.post('/vota', verifyToken, async (req, res) => {
       'cultura', 'sport'
     ];
 
-    // Controlla se l'utente è bloccato per qualsiasi ministero
-    let isBlocked = false;
-    for (const ministero of ministeri) {
-      const tableName = `voti_${ministero}`;
-      const bloccoQuery = `
-        SELECT 
-          CASE 
-            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
-            ELSE false
-          END as is_blocked
-        FROM ${tableName}
-        WHERE userid = $1
-      `;
+    // Controlla se l'utente è bloccato (Admin può sempre votare)
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [userId]);
+    const userRole = userResult.rows[0]?.ruolo;
 
-      const bloccoResult = await pool.query(bloccoQuery, [userId]);
-      if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
-        isBlocked = true;
-        break;
+    if (userRole !== 'Admin') {
+      let isBlocked = false;
+      for (const ministero of ministeri) {
+        const tableName = `voti_${ministero}`;
+        const bloccoQuery = `
+          SELECT 
+            CASE 
+              WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+              ELSE false
+            END as is_blocked
+          FROM ${tableName}
+          WHERE userid = $1
+        `;
+
+        const bloccoResult = await pool.query(bloccoQuery, [userId]);
+        if (bloccoResult.rows.length > 0 && bloccoResult.rows[0].is_blocked) {
+          isBlocked = true;
+          break;
+        }
       }
-    }
 
-    if (isBlocked) {
-      return res.status(403).json({
-        success: false,
-        error: 'Non puoi modificare i voti più di una volta a settimana'
-      });
+      if (isBlocked) {
+        return res.status(403).json({
+          success: false,
+          error: 'Non puoi modificare i voti più di una volta a settimana'
+        });
+      }
     }
 
     // Inizia transazione
