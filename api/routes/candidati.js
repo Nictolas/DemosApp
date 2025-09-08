@@ -35,7 +35,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       };
       
       const mappedGrado = gradoMapping[grado] || grado;
-      gradoFilter = `AND grado_candidatura = $1`;
+      gradoFilter = ` AND grado_candidatura = $1`;
       queryParams.push(mappedGrado);
     }
     
@@ -75,8 +75,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
         riduzione_parcheggi_a_pagamento
       FROM users
-      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
-        ${gradoFilter}
+      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')${gradoFilter}
       ORDER BY cognome, nome
     `;
     
