@@ -25,6 +25,7 @@ export default function MinisteroPage() {
   const { data, isLoading, isError, saveVotiMutation } = useMinisteroData(user, ministero?.categoria);
   const { 
     votingState, 
+    setVotingState,
     updateField, 
     addNomeLocal, 
     removeLocal, 
@@ -128,11 +129,11 @@ export default function MinisteroPage() {
                         onChange={(e) => updateField('nomeInput', e.target.value)}
                         onFocus={() => {
                           console.log('🔍 DEBUG: Input focused, setting showSuggestions to true');
-                          updateField('showSuggestions', true);
+                          setVotingState(prev => ({ ...prev, showSuggestions: true }));
                         }}
                         onBlur={() => {
                           console.log('🔍 DEBUG: Input blurred, setting showSuggestions to false');
-                          setTimeout(() => updateField('showSuggestions', false), 200);
+                          setTimeout(() => setVotingState(prev => ({ ...prev, showSuggestions: false })), 200);
                         }}
                         style={{
                           width: '100%',
