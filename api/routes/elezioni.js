@@ -243,6 +243,7 @@ router.get('/', verifyToken, async (req, res) => {
     console.log('🔍 GET /api/elezioni-utente - Richiesta candidati');
     const userId = req.userId;
     console.log('🔍 DEBUG - userId:', userId);
+    console.log('🔍 DEBUG - userId type:', typeof userId);
     
     // Ottieni i candidati selezionati dall'utente
     const userQuery = `
@@ -257,8 +258,14 @@ router.get('/', verifyToken, async (req, res) => {
     `;
     
     console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
-    const userResult = await pool.query(userQuery, [userId]);
-    console.log('🔍 DEBUG - Query completata, righe trovate:', userResult.rows.length);
+    let userResult;
+    try {
+      userResult = await pool.query(userQuery, [userId]);
+      console.log('🔍 DEBUG - Query completata, righe trovate:', userResult.rows.length);
+    } catch (dbError) {
+      console.error('❌ Errore query database:', dbError);
+      throw dbError;
+    }
     const user = userResult.rows[0] || {};
     
     console.log('🔍 DEBUG - Candidati selezionati dall\'utente:', user);
