@@ -19,10 +19,9 @@ export const MinisteroCard: React.FC<MinisteroCardProps> = ({
 
   // Ottieni i dati per questo ministero
   const classifiche = data?.classifiche?.[ministero.categoria] || [];
-  const mieiVoti = data?.mieiVoti?.[ministero.categoria] || [];
+  const mioVoto = data?.mieiVoti?.[ministero.categoria];
   
   const piuVotato = classifiche.length > 0 ? classifiche[0] : null;
-  const mioVoto = mieiVoti.length > 0 ? mieiVoti[0] : null;
 
   return (
     <button
