@@ -32,6 +32,7 @@ export interface MinisteroCardProps {
   data: VotiData | undefined;
   onNavigate: (ministero: Ministero) => void;
   onOpenModal: (ministero: Ministero) => void;
+  isWide?: boolean;
 }
 
 export interface MinisteroModalProps {
