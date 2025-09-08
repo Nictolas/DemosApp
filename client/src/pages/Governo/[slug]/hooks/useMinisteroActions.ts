@@ -88,6 +88,7 @@ export const useMinisteroActions = (data: MinisteroData | undefined) => {
 
   return {
     votingState,
+    setVotingState,
     updateField,
     addNomeLocal,
     removeLocal,
