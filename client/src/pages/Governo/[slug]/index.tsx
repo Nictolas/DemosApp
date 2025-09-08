@@ -149,6 +149,27 @@ export default function MinisteroPage() {
                         nomeInput: votingState.nomeInput,
                         classifiche: data?.classifiche?.length
                       })}
+                      
+                      {/* DEBUG BOX */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'yellow',
+                        border: '2px solid red',
+                        padding: '10px',
+                        zIndex: 9999,
+                        fontSize: '12px'
+                      }}>
+                        <div>showSuggestions: {votingState.showSuggestions ? 'TRUE' : 'FALSE'}</div>
+                        <div>nomeInput: "{votingState.nomeInput}"</div>
+                        <div>classifiche: {data?.classifiche?.length || 0}</div>
+                        <div>candidatiFiltrati: {data?.classifiche?.filter(c => 
+                          c.nome.toLowerCase().includes(votingState.nomeInput.toLowerCase())
+                        ).length || 0}</div>
+                      </div>
+                      
                       {votingState.showSuggestions && votingState.nomeInput.trim() && (
                         <div style={{
                           position: 'absolute',
