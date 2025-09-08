@@ -309,23 +309,29 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati categoria - DEVE VENIRE PRIMA di /candidati */}
-              <Route path="/candidati/:categoria">
+              {/* Route candidati - gestisce sia /candidati che /candidati/:categoria */}
+              <Route path="/candidati/:categoria?">
                 {(params) => {
-                  console.log('🔍 DEBUG App - La Route /candidati/:categoria sta tentando di renderizzare ScegliCandidato per categoria:', params.categoria);
+                  console.log('🔍 DEBUG App - Route /candidati/:categoria? - params:', params);
+                  
+                  // Se c'è una categoria, renderizza ScegliCandidato
+                  if (params.categoria) {
+                    console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', params.categoria);
+                    return (
+                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                        <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                      </PageTransition>
+                    );
+                  }
+                  
+                  // Altrimenti renderizza Elezioni
+                  console.log('🔍 DEBUG App - Rendering Elezioni per /candidati');
                   return (
                     <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                      <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                      <ProtectedRoute path="/candidati" component={Elezioni} />
                     </PageTransition>
                   );
                 }}
-              </Route>
-
-              {/* Route candidati */}
-              <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati" component={Elezioni} />
-                </PageTransition>
               </Route>
 
               {/* Route eventi */}
