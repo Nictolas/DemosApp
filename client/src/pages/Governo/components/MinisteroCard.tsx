@@ -27,28 +27,25 @@ export const MinisteroCard: React.FC<MinisteroCardProps> = ({
   return (
     <button
       type="button"
-      className={`relative w-full h-full rounded-xl shadow-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-xl bg-white ${
+      className={`relative w-full h-full rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform ${
         isWide ? 'col-span-3' : ''
       }`}
       onClick={handleClick}
       onContextMenu={e => e.preventDefault()}
     >
-      {/* Barra obliqua colorata - esattamente come in Opinioni */}
-      <div 
-        className="absolute top-0 left-0 w-1/2 h-full"
-        style={{ 
-          backgroundColor: color.bg,
-          clipPath: 'polygon(0 0, 100% 0, 0 100%)'
-        }}
-      >
-        <div className="absolute top-3 left-3">
-          <IconComponent className={`${isWide ? 'h-6 w-6' : 'h-5 w-5'} text-white`} />
-        </div>
-      </div>
+      {/* SVG con poligoni - esattamente come in Vota */}
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
+        <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+      </svg>
       
-      {/* Parte bianca con testo */}
-      <div className="absolute bottom-0 right-0 w-1/2 h-full flex flex-col justify-center p-3">
-        <div className={`text-gray-800 font-bold leading-tight ${isWide ? 'text-sm' : 'text-xs'}`}>
+      {/* Contenuto */}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full">
+        <span className="relative flex items-center justify-center w-12 h-12 mb-2">
+          <IconComponent className={`h-10 w-10 text-white absolute`} style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+          <IconComponent className={`h-6 w-6 ${color.text} relative z-10`} />
+        </span>
+        <div className={`text-gray-700 font-semibold select-none ${isWide ? 'text-base' : 'text-sm'}`}>
           {ministero.nome}
         </div>
       </div>
