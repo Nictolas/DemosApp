@@ -59,8 +59,8 @@ export default function Governo() {
               <ErrorState />
             </div>
           ) : (
-            <div className="flex-1 p-4 overflow-hidden">
-              <div className="h-full grid grid-cols-3 gap-2 auto-rows-fr">
+            <div className="flex-1 p-3 overflow-hidden">
+              <div className="h-full grid grid-cols-3 gap-2 content-start">
                 {ministeri.map((ministero) => (
                   <MinisteroCard
                     key={ministero.id}
