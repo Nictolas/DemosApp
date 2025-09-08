@@ -127,6 +127,10 @@ export default function MinisteroPage() {
                         placeholder="Inserisci il nome del candidato..."
                         value={votingState.nomeInput}
                         onChange={(e) => updateField('nomeInput', e.target.value)}
+                        onClick={() => {
+                          console.log('🔍 DEBUG: Input clicked!');
+                          alert('CLICK DETECTED!');
+                        }}
                         onFocus={() => {
                           console.log('🔍 DEBUG: Input focused, setting showSuggestions to true');
                           alert('FOCUS DETECTED!');
@@ -137,20 +141,6 @@ export default function MinisteroPage() {
                           alert('BLUR DETECTED!');
                           setTimeout(() => setVotingState(prev => ({ ...prev, showSuggestions: false })), 200);
                         }}
-                        style={{
-                          width: '100%',
-                          padding: '16px 20px',
-                          border: 'none',
-                          borderRadius: '12px',
-                          fontSize: '16px',
-                          background: 'rgba(255,255,255,0.9)',
-                          color: '#333',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                          outline: 'none',
-                          transition: 'all 0.3s ease'
-                        }}
-                        onFocus={(e) => e.target.style.background = 'white'}
-                        onBlur={(e) => e.target.style.background = 'rgba(255,255,255,0.9)'}
                       />
                       
                       {/* SUGGERIMENTI AUTOCOMPLETE */}
