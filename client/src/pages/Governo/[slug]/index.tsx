@@ -141,6 +141,30 @@ export default function MinisteroPage() {
                             setVotingState(prev => ({ ...prev, showSuggestions: false }));
                           }
                         }}
+                        style={{
+                          width: '100%',
+                          padding: '16px 20px',
+                          border: '2px solid #e2e8f0',
+                          borderRadius: '12px',
+                          fontSize: '16px',
+                          background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                          color: '#1e293b',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                          outline: 'none',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
+                          fontWeight: '500'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#3b82f6';
+                          e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                          e.target.style.transform = 'translateY(-1px)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#e2e8f0';
+                          e.target.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+                          e.target.style.transform = 'translateY(0)';
+                        }}
                       />
                       
                       {/* SUGGERIMENTI AUTOCOMPLETE */}
@@ -157,14 +181,15 @@ export default function MinisteroPage() {
                           top: '100%',
                           left: 0,
                           right: 0,
-                          background: 'white',
+                          background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
                           borderRadius: '12px',
-                          boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-                          border: '1px solid rgba(0,0,0,0.1)',
+                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                          border: '1px solid rgba(59, 130, 246, 0.2)',
                           zIndex: 1000,
                           maxHeight: '200px',
                           overflowY: 'auto',
-                          marginTop: '4px'
+                          marginTop: '8px',
+                          backdropFilter: 'blur(10px)'
                         }}>
                           {data?.classifiche
                             ?.filter(candidato => 
@@ -178,18 +203,32 @@ export default function MinisteroPage() {
                                   updateField('showSuggestions', false);
                                 }}
                                 style={{
-                                  padding: '12px 20px',
+                                  padding: '16px 20px',
                                   cursor: 'pointer',
                                   borderBottom: index < (data?.classifiche?.filter(c => 
                                     c.nome.toLowerCase().includes(votingState.nomeInput.toLowerCase())
-                                  ).length || 0) - 1 ? '1px solid #f1f3f4' : 'none',
-                                  transition: 'all 0.2s ease',
+                                  ).length || 0) - 1 ? '1px solid rgba(59, 130, 246, 0.1)' : 'none',
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                   display: 'flex',
                                   justifyContent: 'space-between',
-                                  alignItems: 'center'
+                                  alignItems: 'center',
+                                  borderRadius: index === 0 ? '12px 12px 0 0' : index === (data?.classifiche?.filter(c => 
+                                    c.nome.toLowerCase().includes(votingState.nomeInput.toLowerCase())
+                                  ).length || 0) - 1 ? '0 0 12px 12px' : '0',
+                                  color: '#1e293b',
+                                  fontWeight: '500',
+                                  fontSize: '15px'
                                 }}
-                                onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
-                                onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+                                  e.currentTarget.style.color = 'white';
+                                  e.currentTarget.style.transform = 'translateX(4px)';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.color = '#1e293b';
+                                  e.currentTarget.style.transform = 'translateX(0)';
+                                }}
                               >
                                 <span style={{
                                   fontWeight: '500',
