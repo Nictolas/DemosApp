@@ -29,7 +29,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       };
       
       const mappedGrado = gradoMapping[grado] || grado;
-      gradoFilter = `AND grado_elezione = $1`;
+      gradoFilter = ` AND grado_elezione = $1`;
       queryParams.push(mappedGrado);
     }
     
