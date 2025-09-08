@@ -126,8 +126,14 @@ export default function MinisteroPage() {
                         placeholder="Inserisci il nome del candidato..."
                         value={votingState.nomeInput}
                         onChange={(e) => updateField('nomeInput', e.target.value)}
-                        onFocus={() => updateField('showSuggestions', true)}
-                        onBlur={() => setTimeout(() => updateField('showSuggestions', false), 200)}
+                        onFocus={() => {
+                          console.log('🔍 DEBUG: Input focused, setting showSuggestions to true');
+                          updateField('showSuggestions', true);
+                        }}
+                        onBlur={() => {
+                          console.log('🔍 DEBUG: Input blurred, setting showSuggestions to false');
+                          setTimeout(() => updateField('showSuggestions', false), 200);
+                        }}
                         style={{
                           width: '100%',
                           padding: '16px 20px',
@@ -144,26 +150,6 @@ export default function MinisteroPage() {
                         onBlur={(e) => e.target.style.background = 'rgba(255,255,255,0.9)'}
                       />
                       
-                      {/* DEBUG VISIVO */}
-                      {votingState.nomeInput.trim() && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          right: 0,
-                          background: 'red',
-                          color: 'white',
-                          padding: '8px',
-                          fontSize: '12px',
-                          zIndex: 9999,
-                          marginTop: '4px'
-                        }}>
-                          DEBUG: showSuggestions={votingState.showSuggestions ? 'true' : 'false'}, 
-                          input="{votingState.nomeInput}", 
-                          candidati={data?.classifiche?.length || 0}
-                        </div>
-                      )}
-
                       {/* SUGGERIMENTI AUTOCOMPLETE */}
                       {console.log('🔍 DEBUG Autocomplete:', {
                         showSuggestions: votingState.showSuggestions,
