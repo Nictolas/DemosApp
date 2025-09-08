@@ -51,9 +51,10 @@ export const useMinisteroActions = (data: MinisteroData | undefined) => {
       toast({ title: "Candidato già selezionato" });
       return;
     }
+    // Permetti solo un voto per utente
     setVotingState(prev => ({
       ...prev,
-      selectedVoti: [...prev.selectedVoti, nomePulito],
+      selectedVoti: [nomePulito], // Sostituisce sempre con il nuovo candidato
       nomeInput: ""
     }));
   };
@@ -71,8 +72,8 @@ export const useMinisteroActions = (data: MinisteroData | undefined) => {
     setVotingState(prev => ({
       ...prev,
       selectedVoti: prev.selectedVoti.includes(nome)
-        ? prev.selectedVoti.filter(n => n !== nome)
-        : [...prev.selectedVoti, nome]
+        ? [] // Rimuovi se già selezionato
+        : [nome] // Sostituisci con il nuovo candidato (un solo voto)
     }));
   };
 
