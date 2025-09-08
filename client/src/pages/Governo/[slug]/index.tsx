@@ -135,8 +135,11 @@ export default function MinisteroPage() {
                           setVotingState(prev => ({ ...prev, showSuggestions: true }));
                         }}
                         onBlur={() => {
-                          console.log('🔍 DEBUG: Input blurred, setting showSuggestions to false');
-                          setTimeout(() => setVotingState(prev => ({ ...prev, showSuggestions: false })), 200);
+                          console.log('🔍 DEBUG: Input blurred, keeping showSuggestions true if there is text');
+                          // Non nascondere i suggerimenti se c'è del testo nell'input
+                          if (!votingState.nomeInput.trim()) {
+                            setVotingState(prev => ({ ...prev, showSuggestions: false }));
+                          }
                         }}
                       />
                       
