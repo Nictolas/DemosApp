@@ -48,24 +48,30 @@ export default function Governo() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">
-        <div className="container mx-auto max-w-4xl">
+      <div className="h-screen bg-gradient-to-b from-background to-secondary/20 overflow-hidden page-with-navbar">
+        <div className="h-full flex flex-col">
           {isLoading ? (
-            <LoadingState />
+            <div className="flex-1 flex items-center justify-center">
+              <LoadingState />
+            </div>
           ) : isError ? (
-            <ErrorState />
+            <div className="flex-1 flex items-center justify-center">
+              <ErrorState />
+            </div>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {ministeri.map((ministero) => (
-                <MinisteroCard
-                  key={ministero.id}
-                  ministero={ministero}
-                  data={data}
-                  onNavigate={handleNavigateToMinistero}
-                  onOpenModal={handleOpenModal}
-                  isWide={ministero.id === "primo_ministro"}
-                />
-              ))}
+            <div className="flex-1 p-4 overflow-hidden">
+              <div className="h-full grid grid-cols-3 gap-2 auto-rows-fr">
+                {ministeri.map((ministero) => (
+                  <MinisteroCard
+                    key={ministero.id}
+                    ministero={ministero}
+                    data={data}
+                    onNavigate={handleNavigateToMinistero}
+                    onOpenModal={handleOpenModal}
+                    isWide={ministero.id === "primo_ministro"}
+                  />
+                ))}
+              </div>
             </div>
           )}
           

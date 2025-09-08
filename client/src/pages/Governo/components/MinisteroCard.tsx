@@ -27,18 +27,18 @@ export const MinisteroCard: React.FC<MinisteroCardProps> = ({
   return (
     <button
       type="button"
-      className={`relative w-full rounded-xl shadow-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-xl ${
-        isWide ? 'col-span-3 aspect-[3/1]' : 'aspect-square'
+      className={`relative w-full h-full rounded-xl shadow-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-xl ${
+        isWide ? 'col-span-3' : ''
       }`}
       onClick={handleClick}
       onContextMenu={e => e.preventDefault()}
     >
       <div 
-        className="absolute inset-0 flex flex-col items-center justify-center p-3"
+        className="absolute inset-0 flex flex-col items-center justify-center p-2"
         style={{ background: `linear-gradient(135deg, ${color.bg} 0%, ${color.bg}dd 100%)` }}
       >
-        <IconComponent className={`${isWide ? 'h-12 w-12' : 'h-8 w-8'} mb-2 text-white`} />
-        <div className={`text-white font-bold text-center leading-tight ${isWide ? 'text-lg' : 'text-sm'}`}>
+        <IconComponent className={`${isWide ? 'h-10 w-10' : 'h-6 w-6'} mb-1 text-white`} />
+        <div className={`text-white font-bold text-center leading-tight ${isWide ? 'text-base' : 'text-xs'}`}>
           {ministero.nome}
         </div>
       </div>
