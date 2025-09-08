@@ -63,6 +63,7 @@ export default function Governo() {
                   data={data}
                   onNavigate={handleNavigateToMinistero}
                   onOpenModal={handleOpenModal}
+                  isWide={ministero.id === "primo_ministro"}
                 />
               ))}
             </div>

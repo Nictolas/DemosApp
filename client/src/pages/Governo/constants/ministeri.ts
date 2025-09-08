@@ -92,15 +92,15 @@ export const ministeri = [
 ];
 
 export const colorMap = {
-  red: { bg: "#fef2f2", text: "#dc2626", icon: "#ef4444" },
-  blue: { bg: "#eff6ff", text: "#2563eb", icon: "#3b82f6" },
-  green: { bg: "#f0fdf4", text: "#16a34a", icon: "#22c55e" },
-  purple: { bg: "#faf5ff", text: "#9333ea", icon: "#a855f7" },
-  gray: { bg: "#f9fafb", text: "#6b7280", icon: "#9ca3af" },
-  yellow: { bg: "#fefce8", text: "#ca8a04", icon: "#eab308" },
-  orange: { bg: "#fff7ed", text: "#ea580c", icon: "#f97316" },
-  indigo: { bg: "#eef2ff", text: "#4338ca", icon: "#6366f1" },
-  pink: { bg: "#fdf2f8", text: "#db2777", icon: "#ec4899" },
-  teal: { bg: "#f0fdfa", text: "#0d9488", icon: "#14b8a6" },
-  lime: { bg: "#f7fee7", text: "#65a30d", icon: "#84cc16" }
+  red: { bg: "#ef4444", text: "#ffffff", icon: "#ffffff" },
+  blue: { bg: "#3b82f6", text: "#ffffff", icon: "#ffffff" },
+  green: { bg: "#22c55e", text: "#ffffff", icon: "#ffffff" },
+  purple: { bg: "#a855f7", text: "#ffffff", icon: "#ffffff" },
+  gray: { bg: "#6b7280", text: "#ffffff", icon: "#ffffff" },
+  yellow: { bg: "#eab308", text: "#ffffff", icon: "#ffffff" },
+  orange: { bg: "#f97316", text: "#ffffff", icon: "#ffffff" },
+  indigo: { bg: "#6366f1", text: "#ffffff", icon: "#ffffff" },
+  pink: { bg: "#ec4899", text: "#ffffff", icon: "#ffffff" },
+  teal: { bg: "#14b8a6", text: "#ffffff", icon: "#ffffff" },
+  lime: { bg: "#84cc16", text: "#ffffff", icon: "#ffffff" }
 };
