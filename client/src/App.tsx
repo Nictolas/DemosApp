@@ -35,7 +35,7 @@ import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
-import Elezioni from "./pages/Elezioni";
+import Candidati from "./pages/Candidati";
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
@@ -324,11 +324,11 @@ export default function App() {
                     );
                   }
                   
-                  // Altrimenti renderizza Elezioni
-                  console.log('🔍 DEBUG App - Rendering Elezioni per /candidati');
+                  // Altrimenti renderizza Candidati
+                  console.log('🔍 DEBUG App - Rendering Candidati per /candidati');
                   return (
                     <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                      <ProtectedRoute path="/candidati" component={Elezioni} />
+                      <ProtectedRoute path="/candidati" component={Candidati} />
                     </PageTransition>
                   );
                 }}
