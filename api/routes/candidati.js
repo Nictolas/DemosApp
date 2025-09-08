@@ -18,6 +18,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const userId = req.userId;
     
     console.log('🔍 DEBUG /api/candidati/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
+    console.log('🔍 DEBUG /api/candidati/disponibili - Query params:', req.query);
+    console.log('🔍 DEBUG /api/candidati/disponibili - Headers:', req.headers);
     
     // Query per ottenere utenti con ruolo "Candidato" o "Candidato Politico" dalla tabella users
     // Filtra per grado_candidatura in base al parametro grado ricevuto
@@ -148,6 +150,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       candidato_regione: utente.candidato_regionale, // Mappa il nome corretto
       candidato_comune: utente.candidato_comune
     };
+    
+    console.log('🔍 DEBUG /api/candidati/disponibili - Invio risposta:', {
+      candidatiCount: candidati.length,
+      utente: utenteMapped
+    });
     
     res.json({
       success: true,
