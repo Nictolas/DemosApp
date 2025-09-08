@@ -27,8 +27,8 @@ export const MinisteroCard: React.FC<MinisteroCardProps> = ({
   return (
     <button
       type="button"
-      className={`relative w-full rounded-xl shadow-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-xl bg-white ${
-        isWide ? 'col-span-3 aspect-[3/1]' : 'aspect-[4/3]'
+      className={`relative w-full h-full rounded-xl shadow-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-xl bg-white ${
+        isWide ? 'col-span-3' : ''
       }`}
       onClick={handleClick}
       onContextMenu={e => e.preventDefault()}
