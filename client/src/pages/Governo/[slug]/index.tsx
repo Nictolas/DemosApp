@@ -129,16 +129,13 @@ export default function MinisteroPage() {
                         onChange={(e) => updateField('nomeInput', e.target.value)}
                         onClick={() => {
                           console.log('🔍 DEBUG: Input clicked!');
-                          alert('CLICK DETECTED!');
                         }}
                         onFocus={() => {
                           console.log('🔍 DEBUG: Input focused, setting showSuggestions to true');
-                          alert('FOCUS DETECTED!');
                           setVotingState(prev => ({ ...prev, showSuggestions: true }));
                         }}
                         onBlur={() => {
                           console.log('🔍 DEBUG: Input blurred, setting showSuggestions to false');
-                          alert('BLUR DETECTED!');
                           setTimeout(() => setVotingState(prev => ({ ...prev, showSuggestions: false })), 200);
                         }}
                       />
