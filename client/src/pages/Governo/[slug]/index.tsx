@@ -144,7 +144,32 @@ export default function MinisteroPage() {
                         onBlur={(e) => e.target.style.background = 'rgba(255,255,255,0.9)'}
                       />
                       
+                      {/* DEBUG VISIVO */}
+                      {votingState.nomeInput.trim() && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: 'red',
+                          color: 'white',
+                          padding: '8px',
+                          fontSize: '12px',
+                          zIndex: 9999,
+                          marginTop: '4px'
+                        }}>
+                          DEBUG: showSuggestions={votingState.showSuggestions ? 'true' : 'false'}, 
+                          input="{votingState.nomeInput}", 
+                          candidati={data?.classifiche?.length || 0}
+                        </div>
+                      )}
+
                       {/* SUGGERIMENTI AUTOCOMPLETE */}
+                      {console.log('🔍 DEBUG Autocomplete:', {
+                        showSuggestions: votingState.showSuggestions,
+                        nomeInput: votingState.nomeInput,
+                        classifiche: data?.classifiche?.length
+                      })}
                       {votingState.showSuggestions && votingState.nomeInput.trim() && (
                         <div style={{
                           position: 'absolute',
