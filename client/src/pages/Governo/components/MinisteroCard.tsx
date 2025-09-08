@@ -6,13 +6,13 @@ import { MinisteroCardProps } from "../types";
 export const MinisteroCard: React.FC<MinisteroCardProps> = ({
   ministero,
   data,
-  onNavigate
+  onNavigate,
+  onOpenModal
 }) => {
-  const [, setLocation] = useLocation();
   const IconComponent = ministero.icon;
   
   const handleClick = () => {
-    setLocation(`/governo/${ministero.slug}`);
+    onOpenModal(ministero);
   };
 
   const color = colorMap[ministero.color as keyof typeof colorMap] || colorMap.blue;
@@ -26,55 +26,17 @@ export const MinisteroCard: React.FC<MinisteroCardProps> = ({
   return (
     <button
       type="button"
-      className="relative w-full h-60 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
-      onMouseDown={(e) => {
-        e.currentTarget.classList.add('scale-95', 'shadow-md');
-      }}
-      onMouseUp={(e) => {
-        e.currentTarget.classList.remove('scale-95', 'shadow-md');
-        setTimeout(handleClick, 100);
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.classList.remove('scale-95', 'shadow-md');
-      }}
-      onTouchStart={(e) => {
-        e.preventDefault();
-        e.currentTarget.classList.add('scale-95', 'shadow-md');
-      }}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        e.currentTarget.classList.remove('scale-95', 'shadow-md');
-        setTimeout(handleClick, 100);
-      }}
+      className="relative w-full aspect-square rounded-xl shadow-lg overflow-hidden cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-xl"
+      onClick={handleClick}
       onContextMenu={e => e.preventDefault()}
     >
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />
-        <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-      </svg>
-      <div className="relative z-10 p-4 flex flex-col items-center justify-center h-full">
-        <IconComponent className="h-8 w-8 mb-2" style={{ color: color.icon }} />
-        <div className="text-lg font-bold mb-3 text-center leading-tight" style={{ color: color.text }}>
+      <div 
+        className="absolute inset-0 flex flex-col items-center justify-center p-3"
+        style={{ background: `linear-gradient(135deg, ${color.bg} 0%, ${color.bg}dd 100%)` }}
+      >
+        <IconComponent className="h-8 w-8 mb-2 text-white" />
+        <div className="text-white font-bold text-sm text-center leading-tight">
           {ministero.nome}
-        </div>
-        
-        {/* Il Più Votato e Il Tuo Voto - Layout orizzontale */}
-        <div className="flex justify-between items-center w-full text-xs">
-          {/* Il Più Votato - Sinistra */}
-          <div className="text-left">
-            <div className="font-semibold text-gray-600">Il Più Votato</div>
-            <div className="text-gray-800 font-medium">
-              {piuVotato ? `${piuVotato.nome} (${piuVotato.voti})` : 'Nessun voto'}
-            </div>
-          </div>
-          
-          {/* Il Tuo Voto - Destra */}
-          <div className="text-right">
-            <div className="font-semibold text-gray-600">Il Tuo Voto</div>
-            <div className="text-gray-800 font-medium">
-              {mioVoto ? mioVoto : 'Non votato'}
-            </div>
-          </div>
         </div>
       </div>
     </button>
