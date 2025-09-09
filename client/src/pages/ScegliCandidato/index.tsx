@@ -14,10 +14,19 @@ import { LoadingStates } from "./components/LoadingStates";
 import { getTitolo } from "./utils/candidatoUtils";
 
 export default function ScegliCandidato() {
+  console.log('🔄 ScegliCandidato RENDER START');
+  
   const { categoria } = useParams<{ categoria: string }>();
+  console.log('🔄 ScegliCandidato - categoria:', categoria);
+  
   const { user, isLoading } = useAuth();
+  console.log('🔄 ScegliCandidato - useAuth result:', { user: !!user, isLoading });
+  
   const authReady = useAuthReady();
+  console.log('🔄 ScegliCandidato - authReady:', authReady);
+  
   const { token: fcmToken } = useFCM();
+  console.log('🔄 ScegliCandidato - fcmToken:', !!fcmToken);
 
   const { 
     candidati, 

@@ -3,9 +3,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { CandidatiData } from "../types";
 
 export const useCandidatiData = (user: any) => {
+  console.log('🔄 useCandidatiData CALLED with user:', !!user);
+  
   return useQuery<CandidatiData>({
     queryKey: ['candidatiData'],
     queryFn: async () => {
+      console.log('🔄 useCandidatiData queryFn EXECUTING');
       // Endpoint protetto: usa JWT per risalire all'utente corrente
       const response = await apiRequest("GET", `/api/candidati`);
       if (!response.ok) throw new Error("Errore nel caricamento dei candidati");
