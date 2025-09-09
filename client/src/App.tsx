@@ -309,23 +309,23 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - gestisce sia /candidati che /candidati/:categoria */}
-              <Route path="/candidati/:categoria?">
+              {/* Route candidati categoria - DEVE VENIRE PRIMA */}
+              <Route path="/candidati/:categoria">
                 {(params) => {
-                  console.log('🔍 DEBUG App - Route /candidati/:categoria? ATTIVATA con params:', params);
-                  
-                  // Se c'è una categoria, renderizza ScegliCandidato
-                  if (params.categoria) {
-                    console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', params.categoria);
-                    return (
-                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                        <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidato} />
-                      </PageTransition>
-                    );
-                  }
-                  
-                  // Altrimenti renderizza Elezioni
-                  console.log('🔍 DEBUG App - Rendering Elezioni per /candidati');
+                  console.log('🔍 DEBUG App - Route /candidati/:categoria ATTIVATA con params:', params);
+                  console.log('🔍 DEBUG App - Rendering SOLO ScegliCandidato per categoria:', params.categoria);
+                  return (
+                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                      <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidato} />
+                    </PageTransition>
+                  );
+                }}
+              </Route>
+
+              {/* Route candidati - solo per /candidati esatto */}
+              <Route path="/candidati">
+                {() => {
+                  console.log('🔍 DEBUG App - Route /candidati ATTIVATA - Rendering SOLO Elezioni');
                   return (
                     <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                       <ProtectedRoute path="/candidati" component={Elezioni} />
