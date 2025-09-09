@@ -310,18 +310,32 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati categoria specifica - DEVE VENIRE PRIMA */}
-              <Route path="/candidati/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
-                </PageTransition>
-              </Route>
-
-              {/* Route candidati - pagina per scegliere categoria (europeo, camera, senato, etc.) */}
-              <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati" component={Candidati} />
-                </PageTransition>
+              {/* Route candidati - gestione unificata */}
+              <Route path="/candidati/:categoria?">
+                {() => {
+                  const match = location.match(/^\/candidati\/(.+)$/);
+                  const hasCategoria = match && match[1];
+                  
+                  console.log('🔍 DEBUG App - Route candidati unificata');
+                  console.log('🔍 DEBUG App - hasCategoria:', hasCategoria);
+                  console.log('🔍 DEBUG App - match:', match);
+                  
+                  if (hasCategoria) {
+                    console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', hasCategoria);
+                    return (
+                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                        <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                      </PageTransition>
+                    );
+                  } else {
+                    console.log('🔍 DEBUG App - Rendering Candidati per selezione categoria');
+                    return (
+                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                        <ProtectedRoute path="/candidati" component={Candidati} />
+                      </PageTransition>
+                    );
+                  }
+                }}
               </Route>
 
               {/* Route eventi */}
