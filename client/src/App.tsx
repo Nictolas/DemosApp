@@ -289,9 +289,7 @@ export default function App() {
               {/* Route scegli rappresentante */}
               <Route path="/scegli-rappresentante/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute>
-                    <ScegliRappresentante />
-                  </ProtectedRoute>
+                  <ProtectedRoute path="/scegli-rappresentante/:categoria" component={ScegliRappresentante} />
                 </PageTransition>
               </Route>
 
