@@ -35,8 +35,7 @@ import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
-import Candidati from "./pages/Candidati";
-// Candidati è la pagina per scegliere le categorie di candidati
+// Candidati rimosso - usiamo solo ScegliCandidato
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
@@ -312,18 +311,16 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati per categoria - deve essere PRIMA di /candidati */}
+              {/* Route candidati - SOLO ScegliCandidato per tutto */}
               <Route path="/candidati/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
                 </PageTransition>
               </Route>
 
-              {/* Route candidati */}
+              {/* Route candidati - redirect a europeo */}
               <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati" component={Candidati} />
-                </PageTransition>
+                <Redirect to="/candidati/europeo" />
               </Route>
 
               {/* Route eventi */}
