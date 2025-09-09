@@ -2,7 +2,6 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
-import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useCandidatiData } from "./hooks/useCandidatiData";
 import { useCandidatiActions } from "./hooks/useCandidatiActions";
@@ -55,14 +54,13 @@ export default function Candidati() {
   }
 
   return (
-    <PageTransition>
+    <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
       <style jsx global>{`
         body, html {
           overflow: hidden !important;
           touch-action: none !important;
         }
       `}</style>
-                      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
         <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />
@@ -115,6 +113,5 @@ export default function Candidati() {
           />
         )}
       </div>
-    </PageTransition>
   );
 }
