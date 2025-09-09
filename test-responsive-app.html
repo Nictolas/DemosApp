@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test App Responsive Completa - DEMOS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Simulazione della navbar fissa */
+        .navbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px; /* h-24 + padding */
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 9999;
+            box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03);
+        }
+        
+        .navbar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            color: #6b7280;
+            text-decoration: none;
+        }
+        
+        .navbar-item.active {
+            color: #2563eb;
+            font-weight: 600;
+        }
+        
+        .navbar-icon {
+            width: 28px;
+            height: 28px;
+            margin-bottom: 4px;
+        }
+        
+        .navbar-text {
+            font-size: 12px;
+        }
+        
+        /* Layout delle pagine */
+        .page {
+            min-height: calc(100vh - 120px);
+            max-height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+            padding-bottom: 120px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+            padding-bottom: 120px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Stili per pulsanti del menu */
+        .menu-button {
+            height: calc((100vh - 7.5rem - 200px) / 2) !important;
+            min-height: 120px !important;
+            max-height: 200px !important;
+            position: relative;
+            width: 100%;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: none;
+            background: transparent;
+        }
+        
+        /* Stili per pulsanti delle opinioni */
+        .opinioni-button {
+            height: calc((100vh - 7.5rem - 200px) / 2) !important;
+            min-height: 120px !important;
+            max-height: 200px !important;
+            position: relative;
+            width: 100%;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: none;
+            background: transparent;
+        }
+        
+        /* Stili per card dei candidati */
+        .candidato-card {
+            height: calc((100vh - 7.5rem - 200px) / 2) !important;
+            min-height: 200px !important;
+            max-height: 300px !important;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        
+        /* Stili per card dei ministeri */
+        .ministero-card {
+            height: calc((100vh - 7.5rem - 100px) / 3) !important;
+            min-height: 120px !important;
+            max-height: 200px !important;
+            position: relative;
+            width: 100%;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: none;
+            background: transparent;
+        }
+        
+        .button-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .button-content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: white;
+        }
+        
+        .button-icon {
+            font-size: 3rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .button-label {
+            font-size: 1.875rem;
+            font-weight: 600;
+            user-select: none;
+        }
+        
+        /* Ottimizzazioni per schermi molto piccoli */
+        @media screen and (max-height: 600px) {
+            .menu-button,
+            .opinioni-button {
+                height: calc((100vh - 7.5rem - 150px) / 2) !important;
+                min-height: 100px !important;
+                max-height: 150px !important;
+            }
+            
+            .candidato-card {
+                height: calc((100vh - 7.5rem - 150px) / 2) !important;
+                min-height: 150px !important;
+                max-height: 200px !important;
+            }
+            
+            .ministero-card {
+                height: calc((100vh - 7.5rem - 80px) / 3) !important;
+                min-height: 100px !important;
+                max-height: 150px !important;
+            }
+        }
+        
+        /* Ottimizzazioni per schermi estremamente piccoli */
+        @media screen and (max-height: 500px) {
+            .menu-button,
+            .opinioni-button {
+                height: calc((100vh - 7.5rem - 120px) / 2) !important;
+                min-height: 80px !important;
+                max-height: 120px !important;
+            }
+            
+            .candidato-card {
+                height: calc((100vh - 7.5rem - 120px) / 2) !important;
+                min-height: 120px !important;
+                max-height: 150px !important;
+            }
+            
+            .ministero-card {
+                height: calc((100vh - 7.5rem - 60px) / 3) !important;
+                min-height: 80px !important;
+                max-height: 120px !important;
+            }
+            
+            .button-label {
+                font-size: 1.5rem !important;
+            }
+            
+            .button-icon {
+                font-size: 2rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+        }
+        
+        /* Info di debug */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 10000;
+            font-family: monospace;
+        }
+        
+        .test-controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 10000;
+        }
+        
+        .test-controls button {
+            margin: 2px;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            background: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        
+        .test-controls button:hover {
+            background: #f0f0f0;
+        }
+        
+        .test-controls button.active {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .page-selector {
+            margin-bottom: 10px;
+        }
+        
+        .page-selector button {
+            display: block;
+            width: 100%;
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">
+        <div>Viewport: <span id="viewport"></span></div>
+        <div>Available Height: <span id="availableHeight"></span></div>
+        <div>Menu Button: <span id="menuButtonHeight"></span></div>
+        <div>Candidato Card: <span id="candidatoCardHeight"></span></div>
+        <div>Ministero Card: <span id="ministeroCardHeight"></span></div>
+    </div>
+    
+    <div class="test-controls">
+        <div class="page-selector">
+            <button onclick="showPage('menu')" class="active" id="btn-menu">Menu</button>
+            <button onclick="showPage('opinioni')" id="btn-opinioni">Opinioni</button>
+            <button onclick="showPage('candidati')" id="btn-candidati">Candidati</button>
+            <button onclick="showPage('governo')" id="btn-governo">Governo</button>
+        </div>
+        <button onclick="simulateHeight(400)">400px</button>
+        <button onclick="simulateHeight(500)">500px</button>
+        <button onclick="simulateHeight(600)">600px</button>
+        <button onclick="simulateHeight(700)">700px</button>
+        <button onclick="simulateHeight(800)">800px</button>
+        <button onclick="resetHeight()">Reset</button>
+    </div>
+    
+    <!-- Pagina Menu -->
+    <div id="page-menu" class="page">
+        <div class="container">
+            <div class="card" style="background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); padding: 24px; margin-bottom: 16px;">
+                <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; margin: 0 auto 12px; background: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; font-weight: bold;">D</div>
+                    <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">Menu Principale</h1>
+                    <p style="color: #6b7280; font-size: 14px;">Test layout responsive con altezze relative</p>
+                </div>
+            </div>
+            <div style="margin-top: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <button class="menu-button">
+                        <div class="button-bg"></div>
+                        <div class="button-content">
+                            <div class="button-icon">📊</div>
+                            <div class="button-label">Elezioni</div>
+                        </div>
+                    </button>
+                    <button class="menu-button">
+                        <div class="button-bg"></div>
+                        <div class="button-content">
+                            <div class="button-icon">📢</div>
+                            <div class="button-label">Eventi</div>
+                        </div>
+                    </button>
+                    <button class="menu-button">
+                        <div class="button-bg"></div>
+                        <div class="button-content">
+                            <div class="button-icon">📄</div>
+                            <div class="button-label">Proponi</div>
+                        </div>
+                    </button>
+                    <button class="menu-button">
+                        <div class="button-bg"></div>
+                        <div class="button-content">
+                            <div class="button-icon">🗳️</div>
+                            <div class="button-label">Vota</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pagina Opinioni -->
+    <div id="page-opinioni" class="page" style="display: none;">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="font-size: 30px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">Le tue Opinioni</h1>
+                <p style="color: #6b7280;">Scegli la categoria di opinioni che vuoi esprimere</p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1;">
+                <button class="opinioni-button">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🏛️</div>
+                        <div class="button-label">Nazionali</div>
+                    </div>
+                </button>
+                <button class="opinioni-button">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🏘️</div>
+                        <div class="button-label">Regionali</div>
+                    </div>
+                </button>
+                <button class="opinioni-button">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #ede9fe 0%, #c4b5fd 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🏢</div>
+                        <div class="button-label">Comunali</div>
+                    </div>
+                </button>
+                <button class="opinioni-button">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🌍</div>
+                        <div class="button-label">Europee</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pagina Candidati -->
+    <div id="page-candidati" class="page" style="display: none;">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="font-size: 30px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">Scegli Candidato</h1>
+                <p style="color: #6b7280;">Seleziona il candidato che preferisci</p>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1;">
+                <div class="candidato-card">
+                    <div style="width: 60px; height: 60px; background: #e5e7eb; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">👤</div>
+                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">Mario Rossi</h3>
+                    <p style="color: #6b7280; margin-bottom: 16px;">Candidato</p>
+                    <button style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Seleziona</button>
+                </div>
+                <div class="candidato-card">
+                    <div style="width: 60px; height: 60px; background: #e5e7eb; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">👤</div>
+                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">Giulia Bianchi</h3>
+                    <p style="color: #6b7280; margin-bottom: 16px;">Candidata</p>
+                    <button style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Seleziona</button>
+                </div>
+                <div class="candidato-card">
+                    <div style="width: 60px; height: 60px; background: #e5e7eb; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">👤</div>
+                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">Luca Verdi</h3>
+                    <p style="color: #6b7280; margin-bottom: 16px;">Candidato</p>
+                    <button style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Seleziona</button>
+                </div>
+                <div class="candidato-card">
+                    <div style="width: 60px; height: 60px; background: #e5e7eb; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">👤</div>
+                    <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">Anna Neri</h3>
+                    <p style="color: #6b7280; margin-bottom: 16px;">Candidata</p>
+                    <button style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Seleziona</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pagina Governo -->
+    <div id="page-governo" class="page" style="display: none;">
+        <div class="container">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <h1 style="font-size: 30px; font-weight: bold; color: #1f2937; margin-bottom: 8px;">Governo</h1>
+                <p style="color: #6b7280;">Seleziona un ministero per votare</p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 1;">
+                <button class="ministero-card" style="grid-column: span 3;">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #fef3c7 0%, #fde047 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">👑</div>
+                        <div class="button-label">Primo Ministro</div>
+                    </div>
+                </button>
+                <button class="ministero-card">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🏛️</div>
+                        <div class="button-label">Interni</div>
+                    </div>
+                </button>
+                <button class="ministero-card">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">💰</div>
+                        <div class="button-label">Economia</div>
+                    </div>
+                </button>
+                <button class="ministero-card">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #ede9fe 0%, #c4b5fd 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🎓</div>
+                        <div class="button-label">Istruzione</div>
+                    </div>
+                </button>
+                <button class="ministero-card">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #fecaca 0%, #f87171 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🏥</div>
+                        <div class="button-label">Salute</div>
+                    </div>
+                </button>
+                <button class="ministero-card">
+                    <div class="button-bg" style="background: linear-gradient(135deg, #fef3c7 0%, #fde047 100%);"></div>
+                    <div class="button-content">
+                        <div class="button-icon">🌱</div>
+                        <div class="button-label">Ambiente</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Navbar simulata -->
+    <div class="navbar">
+        <a href="#" class="navbar-item active">
+            <div class="navbar-icon">🏠</div>
+            <div class="navbar-text">Home</div>
+        </a>
+        <a href="#" class="navbar-item">
+            <div class="navbar-icon">📊</div>
+            <div class="navbar-text">Elezioni</div>
+        </a>
+        <a href="#" class="navbar-item">
+            <div class="navbar-icon">👤</div>
+            <div class="navbar-text">Profilo</div>
+        </a>
+        <a href="#" class="navbar-item">
+            <div class="navbar-icon">⚙️</div>
+            <div class="navbar-text">Impostazioni</div>
+        </a>
+    </div>
+    
+    <script>
+        let currentPage = 'menu';
+        
+        function updateDebugInfo() {
+            const vh = window.innerHeight;
+            const availableHeight = vh - 120;
+            const menuButtonHeight = (availableHeight - 200) / 2;
+            const candidatoCardHeight = (availableHeight - 200) / 2;
+            const ministeroCardHeight = (availableHeight - 100) / 3;
+            
+            document.getElementById('viewport').textContent = `${window.innerWidth}x${vh}px`;
+            document.getElementById('availableHeight').textContent = `${availableHeight}px`;
+            document.getElementById('menuButtonHeight').textContent = `${Math.round(menuButtonHeight)}px`;
+            document.getElementById('candidatoCardHeight').textContent = `${Math.round(candidatoCardHeight)}px`;
+            document.getElementById('ministeroCardHeight').textContent = `${Math.round(ministeroCardHeight)}px`;
+        }
+        
+        function showPage(page) {
+            // Nascondi tutte le pagine
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            
+            // Mostra la pagina selezionata
+            document.getElementById(`page-${page}`).style.display = 'flex';
+            
+            // Aggiorna i pulsanti
+            document.querySelectorAll('.page-selector button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${page}`).classList.add('active');
+            
+            currentPage = page;
+        }
+        
+        function simulateHeight(height) {
+            document.body.style.height = height + 'px';
+            document.documentElement.style.height = height + 'px';
+            updateDebugInfo();
+        }
+        
+        function resetHeight() {
+            document.body.style.height = '';
+            document.documentElement.style.height = '';
+            updateDebugInfo();
+        }
+        
+        // Aggiorna le info di debug al caricamento e al resize
+        window.addEventListener('load', updateDebugInfo);
+        window.addEventListener('resize', updateDebugInfo);
+        
+        // Aggiorna periodicamente per mostrare i valori in tempo reale
+        setInterval(updateDebugInfo, 1000);
+    </script>
+</body>
+</html>

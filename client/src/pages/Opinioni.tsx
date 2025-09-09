@@ -53,7 +53,7 @@ export default function Opinioni() {
 
   return (
     <PageTransition>
-                          <div className="min-h-screen flex flex-col overflow-hidden select-none page-with-navbar" style={{ paddingBottom: '280px' }}>
+                          <div className="min-h-screen flex flex-col overflow-hidden select-none page-with-navbar" style={{ paddingBottom: 'calc(7.5rem + 2rem)' }}>
         <div className="container mx-auto px-4 py-6 flex flex-col h-full">
 
 
@@ -77,7 +77,7 @@ export default function Opinioni() {
                 <button
                   key={categoria.id}
                   type="button"
-                  className="relative w-full h-full min-h-80 rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+                  className="opinioni-button relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
                   onMouseDown={(e) => {
                     e.currentTarget.classList.add('scale-95', 'shadow-md');
                   }}

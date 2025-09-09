@@ -48,7 +48,7 @@ export default function Governo() {
 
   return (
     <PageTransition>
-      <div className="h-[calc(100vh-64px)] bg-gradient-to-b from-background to-secondary/20 overflow-hidden pt-4">
+      <div className="h-[calc(100vh-7.5rem)] bg-gradient-to-b from-background to-secondary/20 overflow-hidden pt-4">
         <div className="h-full flex flex-col">
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
