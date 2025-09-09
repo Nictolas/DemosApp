@@ -3,7 +3,7 @@ services:
   - type: web
     name: demos-backend
     env: node
-    buildCommand: npm ci --only=production
+    buildCommand: npm install
     startCommand: node index.js
     autoDeploy: true
     envVars:
