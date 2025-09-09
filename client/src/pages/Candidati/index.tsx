@@ -13,15 +13,21 @@ import { ErrorState } from "./components/ErrorState";
 import { categorie, colorMap } from "./constants/categorie";
 
 export default function Candidati() {
+  console.log('🔄 Candidati RENDER START');
+  
   const { user, isLoading: isAuthLoading } = useAuth();
+  console.log('🔄 Candidati - useAuth result:', { user: !!user, isAuthLoading });
   
   const { data, isLoading, isError } = useCandidatiData(user);
+  console.log('🔄 Candidati - useCandidatiData result:', { data: !!data, isLoading, isError });
+  
   const {
     opinioniDialogData,
     handleNavigateToSelection,
     handleOpenOpinioniDialog,
     handleCloseOpinioniDialog
   } = useCandidatiActions();
+  console.log('🔄 Candidati - useCandidatiActions result');
 
   // Debug logging più dettagliato
   console.log('🔍 DEBUG Candidati - Valori singoli:');

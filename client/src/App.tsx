@@ -290,17 +290,17 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - TEMPORANEE PER DEBUG */}
+              {/* Route candidati - USANDO COMPONENTI RAPPRESENTANTI */}
               <Route path="/test-candidati">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/test-candidati" component={Candidati} />
+                  <ProtectedRoute path="/test-candidati" component={Rappresentanti} />
                 </PageTransition>
               </Route>
 
-              {/* Route scegli candidato - TEMPORANEE PER DEBUG */}
+              {/* Route scegli candidato - USANDO COMPONENTI RAPPRESENTANTI */}
               <Route path="/test-candidati/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/test-candidati/:categoria" component={ScegliCandidato} />
+                  <ProtectedRoute path="/test-candidati/:categoria" component={ScegliRappresentante} />
                 </PageTransition>
               </Route>
 
