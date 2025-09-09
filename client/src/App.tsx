@@ -75,22 +75,6 @@ import Riscontro from "./pages/Riscontro";
 import OpinioniEuropee from "./pages/OpinioniEuropee";
 import ProponiReferendumAbrogativi from "./pages/ProponiReferendumAbrogativi";
 
-// Componente router per candidati
-function CandidatiRouter() {
-  const { categoria } = useParams<{ categoria?: string }>();
-  
-  console.log('🔍 DEBUG CandidatiRouter - categoria:', categoria);
-  
-  // Se c'è una categoria specifica, renderizza ScegliCandidato
-  if (categoria) {
-    console.log('🔍 DEBUG CandidatiRouter - Rendering ScegliCandidato per categoria:', categoria);
-    return <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />;
-  }
-  
-  // Altrimenti renderizza la pagina principale candidati
-  console.log('🔍 DEBUG CandidatiRouter - Rendering pagina principale candidati');
-  return <ProtectedRoute path="/candidati" component={Candidati} />;
-}
 import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
 import ProponiICE from "./pages/ProponiICE";
 import Approfondimento from "./pages/Approfondimento";
@@ -324,12 +308,19 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-                     {/* Route candidati - gestione unificata */}
-                     <Route path="/candidati/:categoria?">
-                       <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                         <CandidatiRouter />
-                       </PageTransition>
-                     </Route>
+              {/* Route candidati */}
+              <Route path="/candidati">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati" component={Candidati} />
+                </PageTransition>
+              </Route>
+
+              {/* Route scegli candidato */}
+              <Route path="/candidati/:categoria">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                </PageTransition>
+              </Route>
 
               {/* Route eventi */}
               <Route path="/eventi">
