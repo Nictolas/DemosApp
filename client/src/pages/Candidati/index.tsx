@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
-import { useCandidatiData } from "./hooks/useCandidatiData";
+import { useCandidatiSelezionatiData } from "./hooks/useCandidatiData";
 import { useCandidatiActions } from "./hooks/useCandidatiActions";
 import { CategoriaPrincipale } from "./components/CategoriaPrincipale";
 import { CandidatoCard } from "./components/CandidatoCard";
@@ -18,7 +18,7 @@ export default function Candidati() {
   
   const { user, isLoading: isAuthLoading } = useAuth();
   
-  const { data, isLoading, isError } = useCandidatiData(user);
+  const { data, isLoading, isError } = useCandidatiSelezionatiData(user);
   const {
     opinioniDialogData,
     programmaDialogData,
