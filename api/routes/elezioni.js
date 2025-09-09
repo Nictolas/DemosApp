@@ -278,8 +278,7 @@ router.get('/candidati', verifyToken, async (req, res) => {
       const candidatoId = user[campo];
       
       if (candidatoId) {
-        // Ottieni i dettagli del candidato
-        // Gestisce Firebase ID come stringhe
+        // Cerca il candidato selezionato tra tutti i candidati disponibili per quella categoria
         const candidatoQuery = `
           SELECT 
             id,
@@ -291,15 +290,21 @@ router.get('/candidati', verifyToken, async (req, res) => {
             avatar_config
           FROM users
           WHERE id::text = $1
+          AND ruolo IN ('Candidato', 'Candidato Politico')
+          AND grado_candidatura = $2
         `;
         
-        const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
+        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
+        const candidatoResult = await pool.query(candidatoQuery, [candidatoId, categoria]);
+        console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
         const candidato = candidatoResult.rows[0];
         
         if (candidato) {
           candidatiSelezionati[categoria] = [candidato];
           idMap[categoria] = candidatoId;
           console.log(`🔍 DEBUG Frontend - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
+        } else {
+          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
         }
       }
     }
