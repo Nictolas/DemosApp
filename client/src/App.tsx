@@ -239,7 +239,9 @@ export default function App() {
               {/* Route del profilo */}
               <Route path="/menu/profilo">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/menu/profilo" component={Profilo} />
+                  <ProtectedRoute>
+                    <Profilo />
+                  </ProtectedRoute>
                 </PageTransition>
               </Route>
 
@@ -259,7 +261,9 @@ export default function App() {
               {/* Route opinioni */}
               <Route path="/opinioni">
                 <PageTransition location={location} type="fade-side">
-                  <ProtectedRoute path="/opinioni" component={Opinioni} />
+                  <ProtectedRoute>
+                    <Opinioni />
+                  </ProtectedRoute>
                 </PageTransition>
               </Route>
 
@@ -284,7 +288,9 @@ export default function App() {
               {/* Route rappresentanti */}
               <Route path="/rappresentanti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/rappresentanti" component={Rappresentanti} />
+                  <ProtectedRoute>
+                    <Rappresentanti />
+                  </ProtectedRoute>
                 </PageTransition>
               </Route>
 
@@ -300,7 +306,9 @@ export default function App() {
               {/* Route notifiche */}
               <Route path="/notifiche">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/notifiche" component={Notifiche} />
+                  <ProtectedRoute>
+                    <Notifiche />
+                  </ProtectedRoute>
                 </PageTransition>
               </Route>
 
