@@ -14,52 +14,59 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
   const selezionaCandidato = async (candidatoId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
     
-    console.log('🔍 DEBUG - user object:', user);
-    console.log('🔍 DEBUG - user.uid:', user.uid);
-    console.log('🔍 DEBUG - user.id:', user.id);
+    console.log('🔍 DEBUG Candidati - user object:', user);
+    console.log('🔍 DEBUG Candidati - user.uid:', user.uid);
+    console.log('🔍 DEBUG Candidati - user.id:', user.id);
     
     setSelezionando(true);
     try {
       // Usa user.id invece di user.uid se uid è undefined
       const userId = user.uid || user.id;
-      console.log('🔍 DEBUG - userId finale:', userId);
+      console.log('🔍 DEBUG Candidati - userId da usare:', userId);
       
-      const fieldName = getFieldName(categoria);
-      console.log('🔍 DEBUG - fieldName:', fieldName);
+      const updateResponse = await apiRequest(
+        "PUT",
+        `/api/users/${userId}/seleziona-candidato`,
+        {
+          campo: getFieldName(categoria),
+          candidatoId: candidatoId,
+        }
+      );
+
+      if (!updateResponse.ok) {
+        throw new Error("Impossibile aggiornare la selezione.");
+      }
       
-      const response = await apiRequest("POST", "/api/users/update-candidato", {
-        userId: userId,
-        fieldName: fieldName,
-        candidatoId: candidatoId,
-        fcmToken: fcmToken
+      onSuccess(candidatoId);
+
+      // Invalida la query dei candidati per aggiornare la pagina candidati
+      await queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
+
+      // Gestione FCM
+      if (fcmToken) {
+        const topic = `sostenitori_candidato_${candidatoId}`;
+        await apiRequest(
+            "POST",
+            "/api/notifications/subscribe-topic",
+            { token: fcmToken, topic }
+        );
+        toast({
+            title: "Notifiche attivate",
+            description: `Riceverai notifiche push per questo candidato.`,
+            variant: "success"
+        });
+      }
+
+      toast({
+        title: "Successo",
+        description: "Candidato selezionato con successo!",
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Errore nella selezione del candidato");
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        onSuccess(candidatoId);
-        toast({
-          title: "Successo",
-          description: "Candidato selezionato con successo!",
-        });
-        
-        // Invalida la cache per aggiornare i dati
-        queryClient.invalidateQueries({ queryKey: ['elezioniData'] });
-        queryClient.invalidateQueries({ queryKey: ['candidati', categoria] });
-      } else {
-        throw new Error(result.error || "Errore nella selezione del candidato");
-      }
-
     } catch (error) {
-      console.error("Errore durante la selezione del candidato:", error);
+      console.error("Errore durante la selezione:", error);
       toast({
         title: "Errore",
-        description: error instanceof Error ? error.message : "Errore nella selezione del candidato",
+        description: "Impossibile selezionare il candidato.",
         variant: "destructive",
       });
     } finally {
@@ -67,8 +74,8 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
     }
   };
 
-  const openOpinioniDialog = (utenteId: string, nome: string, cognome: string, avatarConfig?: string) => {
-    setOpinioniDialogData({ utenteId, nome, cognome, avatarConfig });
+  const openOpinioniDialog = (data: OpinioniDialogData) => {
+    setOpinioniDialogData(data);
   };
 
   const closeOpinioniDialog = () => {
