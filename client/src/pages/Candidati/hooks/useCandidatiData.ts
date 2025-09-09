@@ -4,7 +4,7 @@ import { ElezioniData } from "../types";
 
 export const useCandidatiData = (user: any) => {
   return useQuery<ElezioniData>({
-    queryKey: ['elezioniData'],
+    queryKey: ['candidatiData'],
     queryFn: async () => {
       // Endpoint protetto: usa JWT per risalire all'utente corrente
       const response = await apiRequest("GET", `/api/elezioni-utente`);
