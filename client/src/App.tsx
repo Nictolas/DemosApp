@@ -290,19 +290,19 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - USANDO COMPONENTI RAPPRESENTANTI */}
-              <Route path="/test-candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/test-candidati" component={Rappresentanti} />
-                </PageTransition>
-              </Route>
+      {/* Route candidati-elezioni - USANDO COMPONENTI CANDIDATI */}
+      <Route path="/candidati-elezioni">
+        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+          <ProtectedRoute path="/candidati-elezioni" component={Candidati} />
+        </PageTransition>
+      </Route>
 
-              {/* Route scegli candidato - USANDO COMPONENTI RAPPRESENTANTI */}
-              <Route path="/test-candidati/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/test-candidati/:categoria" component={ScegliRappresentante} />
-                </PageTransition>
-              </Route>
+      {/* Route scegli candidato-elezioni - USANDO COMPONENTI CANDIDATI */}
+      <Route path="/candidati-elezioni/:categoria">
+        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+          <ProtectedRoute path="/candidati-elezioni/:categoria" component={ScegliCandidato} />
+        </PageTransition>
+      </Route>
 
               {/* Route candidati - DISABILITATE TEMPORANEAMENTE */}
               {/* <Route path="/candidati">
