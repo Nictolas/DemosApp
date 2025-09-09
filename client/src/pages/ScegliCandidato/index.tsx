@@ -14,10 +14,7 @@ import { LoadingStates } from "./components/LoadingStates";
 import { getTitolo } from "./utils/candidatoUtils";
 
 export default function ScegliCandidato() {
-  const params = useParams();
-  const categoria = params.categoria || '';
-  console.log('🔍 DEBUG ScegliCandidato - Componente renderizzato con categoria:', categoria);
-  
+  const { categoria } = useParams<{ categoria: string }>();
   const { user, isLoading } = useAuth();
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();

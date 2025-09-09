@@ -1,20 +1,21 @@
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-interface EmptyStateProps {
-  categoria: string;
-  getTitolo: () => string;
-}
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyStateProps } from "../types";
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ categoria, getTitolo }) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-center">Nessun candidato disponibile</CardTitle>
-        <CardDescription className="text-center">
-          Non ci sono candidati per {getTitolo().toLowerCase()} nella tua zona.
-        </CardDescription>
-      </CardHeader>
+    <Card className="p-8 text-center">
+      <CardContent>
+        <h2 className="text-xl font-semibold mb-4">Nessun candidato trovato</h2>
+        <p className="text-muted-foreground mb-4">
+          Non ci sono candidati disponibili per la categoria "{getTitolo()}" nella tua zona.
+        </p>
+        <Button asChild>
+          <Link to="/menu">Torna al Menu</Link>
+        </Button>
+      </CardContent>
     </Card>
   );
 };

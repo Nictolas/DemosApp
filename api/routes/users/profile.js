@@ -608,6 +608,66 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/users/:userId/seleziona-candidato - Seleziona candidato per categoria
+router.put('/:userId/seleziona-candidato', verifyToken, async (req, res) => {
+  try {
+    console.log('🎯 PUT /api/users/:userId/seleziona-candidato - Selezione candidato');
+    
+    const { userId } = req.params;
+    const { campo, candidatoId } = req.body;
+    const authenticatedUserId = req.userId; // ID dell'utente autenticato dal token
+    
+    console.log('🔍 DEBUG - userId dal parametro:', userId);
+    console.log('🔍 DEBUG - authenticatedUserId dal token:', authenticatedUserId);
+    console.log('🔍 DEBUG - campo:', campo);
+    console.log('🔍 DEBUG - candidatoId:', candidatoId);
+    
+    // Verifica che l'utente autenticato possa modificare questo profilo
+    if (authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Non autorizzato a modificare questo profilo'
+      });
+    }
+    
+    // Verifica che il campo sia valido
+    const validFields = ['candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'];
+    if (!validFields.includes(campo)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campo non valido'
+      });
+    }
+    
+    // Aggiorna il campo del candidato
+    const query = `UPDATE users SET ${campo} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
+    const result = await pool.query(query, [candidatoId, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    console.log('✅ Candidato selezionato con successo');
+    
+    res.json({
+      success: true,
+      message: 'Candidato selezionato con successo',
+      user: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella selezione candidato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile selezionare il candidato'
+    });
+  }
+});
+
 // POST /api/users/update-candidato - Aggiorna candidato selezionato
 router.post('/update-candidato', verifyToken, async (req, res) => {
   try {
