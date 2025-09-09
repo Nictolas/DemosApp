@@ -48,7 +48,7 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   };
 
   return (
-    <Card className={`transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}>
+    <Card className={`candidato-card transition-all duration-200 hover:shadow-lg ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}>
       <CardHeader className="text-center">
         <div className="flex justify-center mb-2">
           {renderAvatar()}

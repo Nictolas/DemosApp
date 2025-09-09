@@ -395,10 +395,54 @@ body {
   max-height: 200px !important; /* Altezza massima per evitare pulsanti troppo grandi */
 }
 
+/* Stili per pulsanti delle opinioni */
+.opinioni-button {
+  height: calc((100vh - 7.5rem - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+/* Stili per pagine di opinione con contenuto scrollabile */
+.opinioni-page {
+  min-height: calc(100vh - 7.5rem) !important;
+  max-height: calc(100vh - 7.5rem) !important;
+}
+
+.opinioni-page .container {
+  padding-bottom: calc(7.5rem + 2rem) !important;
+}
+
+/* Stili per card dei candidati */
+.candidato-card {
+  height: calc((100vh - 7.5rem - 200px) / 2) !important;
+  min-height: 200px !important;
+  max-height: 300px !important;
+}
+
+/* Stili per card dei ministeri */
+.ministero-card {
+  height: calc((100vh - 7.5rem - 100px) / 3) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
 /* Ottimizzazioni per schermi molto piccoli */
 @media screen and (max-height: 600px) {
-  .menu-button {
+  .menu-button,
+  .opinioni-button {
     height: calc((100vh - 7.5rem - 150px) / 2) !important;
+    min-height: 100px !important;
+    max-height: 150px !important;
+  }
+  
+  .candidato-card {
+    height: calc((100vh - 7.5rem - 150px) / 2) !important;
+    min-height: 150px !important;
+    max-height: 200px !important;
+  }
+  
+  .ministero-card {
+    height: calc((100vh - 7.5rem - 80px) / 3) !important;
     min-height: 100px !important;
     max-height: 150px !important;
   }
@@ -406,17 +450,34 @@ body {
 
 /* Ottimizzazioni per schermi estremamente piccoli */
 @media screen and (max-height: 500px) {
-  .menu-button {
+  .menu-button,
+  .opinioni-button {
     height: calc((100vh - 7.5rem - 120px) / 2) !important;
     min-height: 80px !important;
     max-height: 120px !important;
   }
   
-  .menu-button .text-3xl {
+  .candidato-card {
+    height: calc((100vh - 7.5rem - 120px) / 2) !important;
+    min-height: 120px !important;
+    max-height: 150px !important;
+  }
+  
+  .ministero-card {
+    height: calc((100vh - 7.5rem - 60px) / 3) !important;
+    min-height: 80px !important;
+    max-height: 120px !important;
+  }
+  
+  .menu-button .text-3xl,
+  .opinioni-button .text-2xl,
+  .opinioni-button .text-4xl {
     font-size: 1.5rem !important; /* Riduci la dimensione del testo */
   }
   
-  .menu-button .w-16.h-16 {
+  .menu-button .w-16.h-16,
+  .opinioni-button .h-12,
+  .opinioni-button .h-16 {
     width: 3rem !important;
     height: 3rem !important;
   }
@@ -431,3 +492,4 @@ body {
     width: 1.75rem !important;
   }
 }
+
