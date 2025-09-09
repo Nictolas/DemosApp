@@ -230,9 +230,7 @@ export default function App() {
               {/* Route del menu principale */}
               <Route path="/menu">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute>
-                    <Menu />
-                  </ProtectedRoute>
+                  <ProtectedRoute path="/menu" component={Menu} />
                 </PageTransition>
               </Route>
 
