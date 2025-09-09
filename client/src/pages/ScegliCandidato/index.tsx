@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useAuthReady } from "@/hooks/use-auth-ready";
-import { Redirect } from "wouter";
+import { Redirect, useParams } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useFCM } from "@/hooks/useFCM";
@@ -13,11 +13,9 @@ import { CandidatoCard } from "./components/CandidatoCard";
 import { LoadingStates } from "./components/LoadingStates";
 import { getTitolo } from "./utils/candidatoUtils";
 
-interface ScegliCandidatoProps {
-  categoria?: string;
-}
-
-export default function ScegliCandidato({ categoria }: ScegliCandidatoProps) {
+export default function ScegliCandidato() {
+  const params = useParams();
+  const categoria = params.categoria || '';
   console.log('🔍 DEBUG ScegliCandidato - Componente renderizzato con categoria:', categoria);
   
   const { user, isLoading } = useAuth();
