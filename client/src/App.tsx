@@ -290,6 +290,20 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+      {/* Route test - COPIA IDENTICA DI RAPPRESENTANTI */}
+      <Route path="/test">
+        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+          <ProtectedRoute path="/test" component={Rappresentanti} />
+        </PageTransition>
+      </Route>
+
+      {/* Route scegli test - COPIA IDENTICA DI SCEGLI RAPPRESENTANTE */}
+      <Route path="/test/:categoria">
+        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+          <ProtectedRoute path="/test/:categoria" component={ScegliRappresentante} />
+        </PageTransition>
+      </Route>
+
       {/* Route candidati-elezioni - USANDO COMPONENTI CANDIDATI */}
       <Route path="/candidati-elezioni">
         <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>

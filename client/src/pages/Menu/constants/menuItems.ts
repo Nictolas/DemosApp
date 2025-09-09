@@ -2,6 +2,16 @@ import { BarChart2, Megaphone, FileText, Vote } from "lucide-react";
 
 export const menuItems = [
   {
+    id: "test",
+    path: "/test",
+    icon: BarChart2,
+    label: "Test",
+    color: {
+      bg: "#f0f9ff",
+      icon: "#0284c7"
+    }
+  },
+  {
     id: "candidati",
     path: "/candidati-elezioni",
     icon: BarChart2,
