@@ -308,17 +308,17 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route scegli candidato - DEVE essere prima della route generica */}
+              <Route path="/candidati/:categoria">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                </PageTransition>
+              </Route>
+
               {/* Route candidati */}
               <Route path="/candidati">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/candidati" component={Candidati} />
-                </PageTransition>
-              </Route>
-
-              {/* Route scegli candidato */}
-              <Route path="/candidati/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
                 </PageTransition>
               </Route>
 
