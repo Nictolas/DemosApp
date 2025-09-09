@@ -19,12 +19,17 @@ export default function ScegliCandidato() {
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();
 
+  // Se non c'è categoria, redirect a europeo
+  if (!categoria) {
+    return <Redirect to="/candidati/europeo" />;
+  }
+
   const { 
     candidati, 
     loading, 
     candidatoSelezionato, 
     setCandidatoSelezionato 
-  } = useCandidatiData(user, categoria || '');
+  } = useCandidatiData(user, categoria);
 
   const {
     selezionando,
@@ -32,7 +37,7 @@ export default function ScegliCandidato() {
     selezionaCandidato,
     openOpinioniDialog,
     closeOpinioniDialog
-  } = useCandidatiActions(user, categoria || '', fcmToken);
+  } = useCandidatiActions(user, categoria, fcmToken);
 
   const handleSelezionaCandidato = (candidatoId: string) => {
     selezionaCandidato(candidatoId, setCandidatoSelezionato);

@@ -311,16 +311,18 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - SOLO ScegliCandidato per tutto */}
+              {/* Route candidati - USA RAPPRESENTANTI TEMPORANEAMENTE */}
               <Route path="/candidati/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                  <ProtectedRoute path="/candidati/:categoria" component={ScegliRappresentante} />
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - redirect a europeo */}
+              {/* Route candidati - USA RAPPRESENTANTI TEMPORANEAMENTE */}
               <Route path="/candidati">
-                <Redirect to="/candidati/europeo" />
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati" component={Rappresentanti} />
+                </PageTransition>
               </Route>
 
               {/* Route eventi */}
