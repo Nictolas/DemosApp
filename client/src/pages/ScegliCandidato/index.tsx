@@ -16,7 +16,6 @@ export default function ScegliCandidato() {
   const { categoria } = useParams<{ categoria: string }>();
   const { user, isLoading } = useAuth();
   
-  console.log('🔍 DEBUG ScegliCandidato - Componente renderizzato con categoria:', categoria);
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();
 

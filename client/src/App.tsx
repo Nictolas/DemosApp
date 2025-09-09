@@ -132,10 +132,7 @@ export default function App() {
   
   const [location] = useLocation();
   
-  // Debug logging per il routing
-  console.log('🔍 DEBUG App - Location corrente:', location);
-  console.log('🔍 DEBUG App - Match /candidati/:categoria:', location.match(/^\/candidati\/(.+)$/));
-  console.log('🔍 DEBUG App - Match /candidati:', location === '/candidati');
+  // Debug logging rimosso per evitare blocchi
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -14,11 +14,7 @@ import { ErrorState } from "./components/ErrorState";
 import { categorie, colorMap } from "./constants/categorie";
 
 export default function Candidati() {
-  console.log('🔍 DEBUG Candidati - Componente renderizzato');
-  
   const { user, isLoading: isAuthLoading } = useAuth();
-  
-  console.log('🔍 DEBUG Candidati - Rendering pagina principale candidati');
   
   const { data, isLoading, isError } = useCandidatiSelezionatiData(user);
   const {
@@ -31,27 +27,7 @@ export default function Candidati() {
     handleCloseProgrammaDialog
   } = useCandidatiActions();
 
-  // Debug logging più dettagliato
-  console.log('🔍 DEBUG Candidati - Valori singoli:');
-  console.log('  isAuthLoading:', isAuthLoading);
-  console.log('  user:', !!user);
-  console.log('  isLoading:', isLoading);
-  console.log('  isError:', isError);
-  console.log('  data:', data);
-  console.log('  data type:', typeof data);
-  console.log('  data keys:', data ? Object.keys(data) : 'data è null/undefined');
-  console.log('  candidati:', data?.candidati);
-  console.log('  idMap:', data?.idMap);
-  
-  // Log della condizione di rendering
   const hasData = !!data;
-  // Le card devono essere sempre visibili per permettere la selezione
-  
-  console.log('🔍 DEBUG Rendering conditions:');
-  console.log('  hasData:', hasData);
-  console.log('  isLoading:', isLoading);
-  console.log('  isError:', isError);
-  console.log('  Mostrando sempre le card per permettere selezione candidati');
 
   if (isAuthLoading) {
     return (
