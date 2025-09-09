@@ -279,7 +279,7 @@ router.get('/candidati', verifyToken, async (req, res) => {
       
       if (candidatoId) {
         // Ottieni i dettagli del candidato
-        // Gestisce sia UUID che Firebase ID (VARCHAR)
+        // Gestisce Firebase ID come stringhe
         const candidatoQuery = `
           SELECT 
             id,
@@ -290,7 +290,7 @@ router.get('/candidati', verifyToken, async (req, res) => {
             status,
             avatar_config
           FROM users
-          WHERE id = $1::text
+          WHERE id::text = $1
         `;
         
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
