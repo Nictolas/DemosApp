@@ -33,8 +33,6 @@ import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
 import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
-import Candidati from "./pages/Candidati";
-import ScegliCandidato from "./pages/ScegliCandidato";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
@@ -304,32 +302,7 @@ export default function App() {
         </PageTransition>
       </Route>
 
-      {/* Route candidati-elezioni - USANDO COMPONENTI CANDIDATI */}
-      <Route path="/candidati-elezioni">
-        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/candidati-elezioni" component={Candidati} />
-        </PageTransition>
-      </Route>
 
-      {/* Route scegli candidato-elezioni - USANDO COMPONENTI CANDIDATI */}
-      <Route path="/candidati-elezioni/:categoria">
-        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/candidati-elezioni/:categoria" component={ScegliCandidato} />
-        </PageTransition>
-      </Route>
-
-              {/* Route candidati - DISABILITATE TEMPORANEAMENTE */}
-              {/* <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati" component={Candidati} />
-                </PageTransition>
-              </Route>
-
-              <Route path="/candidati/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
-                </PageTransition>
-              </Route> */}
 
               {/* Route notifiche */}
               <Route path="/notifiche">
@@ -345,25 +318,6 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route scegli candidato - identica a rappresentanti */}
-              <Route path="/scegli-candidato/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/scegli-candidato/:categoria" component={ScegliCandidato} />
-                </PageTransition>
-              </Route>
-
-              {/* Route candidati - RIMOSSE DEFINITIVAMENTE */}
-              {/* <Route path="/candidati/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati/:categoria" component={ScegliRappresentante} />
-                </PageTransition>
-              </Route>
-
-              <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati" component={Rappresentanti} />
-                </PageTransition>
-              </Route> */}
 
               {/* Route eventi */}
               <Route path="/eventi">

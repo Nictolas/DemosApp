@@ -12,16 +12,6 @@ export const menuItems = [
     }
   },
   {
-    id: "candidati",
-    path: "/candidati-elezioni",
-    icon: BarChart2,
-    label: "Candidati",
-    color: {
-      bg: "#fef9c3",
-      icon: "#ca8a04"
-    }
-  },
-  {
     id: "eventi",
     path: "/eventi",
     icon: Megaphone,
