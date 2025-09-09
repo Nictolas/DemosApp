@@ -139,24 +139,21 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="App">
-        <Switch>
-          {/* Route di verifica email - fuori dall'AuthProvider */}
-          <Route path="/verifica-email">
-            <PageTransition location={location} type="fade-up">
-              <VerificaEmailStandalone />
-            </PageTransition>
-          </Route>
+        <AuthProvider>
+          <RegistrationProvider>
+            <Switch>
+              {/* Route di verifica email - fuori dall'AuthProvider */}
+              <Route path="/verifica-email">
+                <PageTransition location={location} type="fade-up">
+                  <VerificaEmailStandalone />
+                </PageTransition>
+              </Route>
 
-          <Route path="/conferma-email">
-            <PageTransition location={location} type="fade-up">
-              <ConfermaEmail />
-            </PageTransition>
-          </Route>
-
-          {/* Altre route dentro AuthProvider */}
-          <AuthProvider>
-            <RegistrationProvider>
-              <Switch>
+              <Route path="/conferma-email">
+                <PageTransition location={location} type="fade-up">
+                  <ConfermaEmail />
+                </PageTransition>
+              </Route>
                 {/* Route principale */}
                 <Route path="/">
                   <PageTransition location={location} type="fade-up" delay={100}>
@@ -614,8 +611,6 @@ export default function App() {
                   <ProtectedRoute path="/proponi-ice" component={ProponiICE} />
                 </PageTransition>
               </Route>
-              </Switch>
-
               {/* Navbar condizionale */}
               {location !== '/' && 
                !location.startsWith('/auth') && 
