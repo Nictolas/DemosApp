@@ -307,15 +307,8 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-                     {/* Route candidati - SOLO ScegliCandidato per tutte le categorie */}
-                     <Route path="/candidati/:categoria">
-                       <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                         <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
-                       </PageTransition>
-                     </Route>
-
-                     {/* Route candidati - pagina per scegliere categoria */}
-                     <Route path="/candidati">
+                     {/* Route candidati - gestione unificata */}
+                     <Route path="/candidati/:categoria?">
                        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                          <ProtectedRoute path="/candidati" component={Candidati} />
                        </PageTransition>
