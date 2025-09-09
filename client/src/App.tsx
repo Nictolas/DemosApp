@@ -290,19 +290,32 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati */}
-              <Route path="/candidati">
+              {/* Route candidati - TEMPORANEE PER DEBUG */}
+              <Route path="/test-candidati">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/test-candidati" component={Candidati} />
+                </PageTransition>
+              </Route>
+
+              {/* Route scegli candidato - TEMPORANEE PER DEBUG */}
+              <Route path="/test-candidati/:categoria">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/test-candidati/:categoria" component={ScegliCandidato} />
+                </PageTransition>
+              </Route>
+
+              {/* Route candidati - DISABILITATE TEMPORANEAMENTE */}
+              {/* <Route path="/candidati">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/candidati" component={Candidati} />
                 </PageTransition>
               </Route>
 
-              {/* Route scegli candidato */}
               <Route path="/candidati/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
                 </PageTransition>
-              </Route>
+              </Route> */}
 
               {/* Route notifiche */}
               <Route path="/notifiche">
