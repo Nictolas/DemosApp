@@ -35,7 +35,7 @@ import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
-// import Candidati from "./pages/Candidati"; // RIMOSSO TEMPORANEAMENTE
+import Candidati from "./pages/Candidati";
 // Candidati è la pagina per scegliere le categorie di candidati
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
@@ -314,9 +314,11 @@ export default function App() {
                        </PageTransition>
                      </Route>
 
-                     {/* Route candidati - redirect a europeo */}
+                     {/* Route candidati - pagina per scegliere categoria */}
                      <Route path="/candidati">
-                       <Redirect to="/candidati/europeo" />
+                       <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                         <ProtectedRoute path="/candidati" component={Candidati} />
+                       </PageTransition>
                      </Route>
 
               {/* Route eventi */}
