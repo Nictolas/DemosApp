@@ -58,60 +58,67 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   };
 
   return (
-    <div className={`relative w-full h-full min-h-72 rounded-2xl shadow-lg overflow-hidden transition-all duration-300 
-      ${isSelected ? 'ring-2 ring-blue-500 scale-105' : 'hover:scale-105'} 
-      ${isSelezionando ? 'opacity-75' : ''}`}
-      style={{ backgroundColor: colorMap.bg }}>
+    <div className={`relative w-full h-full min-h-72 rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${isSelected ? 'border-4 border-green-500' : 'border-2 border-transparent'}`}>
       
-      {/* Header con gradiente */}
-      <div className="h-20 flex items-center justify-center relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 opacity-90"></div>
-        <div className="relative z-10 text-center">
-          <h3 className="text-lg font-bold text-white">
-            {candidato.nome} {candidato.cognome}
-          </h3>
-          <p className="text-sm text-blue-100">{candidato.ruolo}</p>
-        </div>
-      </div>
+      {/* SVG con forme geometriche colorate come nella pagina opinioni */}
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polygon points="100,0 0,0 0,35 100,20" fill={colorMap.bg} />
+        <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+      </svg>
+      
+      {isSelected && <Badge className="absolute top-2 right-2 bg-green-500 z-20">Selezionato</Badge>}
 
-      {/* Avatar */}
-      <div className="flex justify-center -mt-10 relative z-20">
-        <div className="w-20 h-20 rounded-full border-4 border-white shadow-lg bg-white flex items-center justify-center overflow-hidden">
+      <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center h-full">
+        {/* Icona colorata come nella pagina opinioni */}
+        <Users className="h-8 md:h-10 w-8 md:w-10 mb-3" style={{ color: colorMap.icon }} />
+        
+        <div 
+          className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm cursor-pointer h-16 w-16 flex items-center justify-center bg-white mb-3"
+          onClick={handleViewOpinioni}
+        >
           {renderAvatar()}
         </div>
-      </div>
-
-      {/* Contenuto principale */}
-      <div className="p-4 pt-6 text-center">
-        <div className="mb-4">
-          <Badge variant="secondary" className="mb-2">
-            <Users className="w-3 h-3 mr-1" />
-            {candidato.opinioni_comuni} opinioni comuni
-          </Badge>
+        
+        <div className="text-center mb-3">
+          <p 
+            className="font-bold cursor-pointer hover:underline text-lg mb-1" 
+            style={{ color: colorMap.text }}
+            onClick={handleViewOpinioni}
+          >
+            {candidato.nome} {candidato.cognome}
+          </p>
+          <div className="flex justify-center">
+            <Badge 
+              variant="secondary" 
+              className="text-xs"
+              style={{ backgroundColor: colorMap.bg, color: colorMap.text }}
+            >
+              {candidato.opinioni_comuni} opinioni comuni
+            </Badge>
+          </div>
         </div>
-
-        {/* Pulsante azione */}
-        <Button
+        
+        <Button 
+          className="w-full" 
           onClick={() => onSeleziona(candidato.id)}
           disabled={isSelezionando || isSelected}
-          className={`w-full mb-3 ${
-            isSelected 
-              ? 'bg-green-600 hover:bg-green-700 text-white' 
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
-          }`}
+          style={{ 
+            backgroundColor: isSelected ? '#16a34a' : colorMap.button,
+            color: 'white'
+          }}
+          onMouseEnter={(e) => {
+            if (!isSelected && !isSelezionando) {
+              e.currentTarget.style.backgroundColor = colorMap.buttonHover;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isSelected && !isSelezionando) {
+              e.currentTarget.style.backgroundColor = colorMap.button;
+            }
+          }}
         >
           {renderButtonIcon()}
           {buttonContent.text}
-        </Button>
-
-        {/* Pulsante opinioni */}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleViewOpinioni}
-          className="w-full"
-        >
-          Vedi Opinioni
         </Button>
       </div>
     </div>

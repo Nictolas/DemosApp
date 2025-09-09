@@ -15,8 +15,6 @@ export const apiRequest = async (method: string, url: string, body?: any, custom
   
   // Usa token JWT dal localStorage invece di Firebase
   const token = localStorage.getItem('auth_token');
-  console.log('🔍 DEBUG apiRequest - Token presente:', !!token);
-  console.log('🔍 DEBUG apiRequest - Token value:', token ? token.substring(0, 20) + '...' : 'NULL');
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -28,8 +26,6 @@ export const apiRequest = async (method: string, url: string, body?: any, custom
   }
   
   const finalUrl = getApiUrl(url);
-  console.log('🔍 DEBUG apiRequest - Final URL:', finalUrl);
-  console.log('🔍 DEBUG apiRequest - Headers:', headers);
   
   return fetch(finalUrl, {
     method,
@@ -50,14 +46,12 @@ export const getQueryFn: <T>(options: {
     
     // Usa token JWT dal localStorage invece di Firebase
     const token = localStorage.getItem('auth_token');
-    console.log('🔍 DEBUG getQueryFn - Token presente:', !!token);
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
     const finalUrl = getApiUrl(queryKey[0] as string);
-    console.log('🔍 DEBUG getQueryFn - Final URL:', finalUrl);
     
     const res = await fetch(finalUrl, {
       headers,

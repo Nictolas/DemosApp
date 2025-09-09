@@ -14,15 +14,10 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
   const selezionaCandidato = async (candidatoId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
     
-    console.log('🔍 DEBUG Candidati - user object:', user);
-    console.log('🔍 DEBUG Candidati - user.uid:', user.uid);
-    console.log('🔍 DEBUG Candidati - user.id:', user.id);
-    
     setSelezionando(true);
     try {
       // Usa user.id invece di user.uid se uid è undefined
       const userId = user.uid || user.id;
-      console.log('🔍 DEBUG Candidati - userId da usare:', userId);
       
       const updateResponse = await apiRequest(
         "PUT",

@@ -19,10 +19,6 @@ export const useCandidatiData = (user: any, categoria: string) => {
         const grado = getTitolo(categoria);
         const url = `/api/candidati/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
         
-        console.log('🔍 DEBUG Frontend Candidati - Chiamata API:', url);
-        console.log('🔍 DEBUG Frontend Candidati - Categoria:', categoria);
-        console.log('🔍 DEBUG Frontend Candidati - Grado:', grado);
-        
         const response = await apiRequest("GET", url);
 
         if (!response.ok) {
@@ -31,16 +27,11 @@ export const useCandidatiData = (user: any, categoria: string) => {
         
         const result = await response.json();
         
-        console.log('🔍 DEBUG Frontend Candidati - Risposta API:', result);
-        
         if (!result.success) {
           throw new Error(result.error || "Errore nel caricamento dei dati");
         }
         
         const { candidati, utente } = result.data;
-        
-        console.log('🔍 DEBUG Frontend Candidati - Candidati ricevuti:', candidati?.length || 0);
-        console.log('🔍 DEBUG Frontend Candidati - Utente:', utente);
         
         setCandidatoSelezionato(utente[getFieldName(categoria)] || null);
         setCandidati(candidati || []);
