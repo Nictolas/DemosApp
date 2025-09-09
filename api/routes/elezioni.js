@@ -144,7 +144,7 @@ router.get('/elezioni-utente/disponibili', verifyToken, async (req, res) => {
         raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
         sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
         riduzione_parcheggi_a_pagamento
-      FROM utenti
+      FROM users
       WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
         ${gradoFilter}
       ORDER BY cognome, nome
@@ -204,7 +204,7 @@ router.get('/elezioni-utente/disponibili', verifyToken, async (req, res) => {
         candidato_senato,
         candidato_regionale,
         candidato_comune
-      FROM utenti
+      FROM users
       WHERE id = $1
     `;
     
@@ -252,7 +252,7 @@ router.get('/candidati', verifyToken, async (req, res) => {
         candidato_senato,
         candidato_regionale,
         candidato_comune
-      FROM utenti
+      FROM users
       WHERE id = $1
     `;
     
@@ -288,7 +288,7 @@ router.get('/candidati', verifyToken, async (req, res) => {
             ruolo,
             status,
             avatar_config
-          FROM utenti
+          FROM users
           WHERE id = $1
         `;
         
