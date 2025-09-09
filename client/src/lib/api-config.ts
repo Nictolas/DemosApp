@@ -4,12 +4,10 @@ declare const importMetaEnv: Record<string, string | undefined> & { VITE_API_BAS
 const resolveBaseUrl = (): string => {
   // Controlla se siamo in produzione (Render)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    console.log('Production detected, using Render API');
     return 'https://demos-c7k0.onrender.com/api';
   }
 
   // Sviluppo locale
-  console.log('Development detected, using localhost API');
   return 'http://localhost:3001/api';
 };
 
@@ -28,11 +26,7 @@ export const API_CONFIG = {
 
 // Helper per costruire URL completi
 export const getApiUrl = (endpoint: string) => {
-  console.log('getApiUrl called with endpoint:', endpoint);
-  console.log('window.location.hostname:', typeof window !== 'undefined' ? window.location.hostname : 'window not available');
-  
   const baseUrl = resolveBaseUrl();
-  console.log('baseUrl resolved to:', baseUrl);
   
   // Correggi il problema del double /api
   let cleanEndpoint = endpoint;
@@ -45,6 +39,5 @@ export const getApiUrl = (endpoint: string) => {
   }
   
   const url = `${baseUrl}${cleanEndpoint}`;
-  console.log('Final API URL:', url);
   return url;
 };
