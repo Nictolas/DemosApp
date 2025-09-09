@@ -5,23 +5,15 @@ import { Candidato, OpinioniDialogData } from "../types";
 import { getTitolo, getFieldName } from "../utils/candidatoUtils";
 
 export const useCandidatiData = (user: any, categoria: string) => {
-  console.log('🔄 ScegliCandidato useCandidatiData CALLED with user:', !!user, 'categoria:', categoria);
-  
   const { toast } = useToast();
   const [candidati, setCandidati] = useState<Candidato[]>([]);
   const [loading, setLoading] = useState(true);
   const [candidatoSelezionato, setCandidatoSelezionato] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🔄 ScegliCandidato useCandidatiData useEffect EXECUTING');
-    
     const fetchData = async () => {
-      if (!user) {
-        console.log('🔄 ScegliCandidato useCandidatiData - no user, returning');
-        return;
-      }
+      if (!user) return;
       
-      console.log('🔄 ScegliCandidato useCandidatiData - starting fetchData');
       setLoading(true);
       try {
         const grado = getTitolo(categoria);
