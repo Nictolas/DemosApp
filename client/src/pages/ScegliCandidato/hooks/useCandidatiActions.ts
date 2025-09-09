@@ -22,11 +22,6 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
     try {
       // Usa user.id invece di user.uid se uid è undefined
       const userId = user.uid || user.id;
-      
-      if (!userId) {
-        throw new Error("ID utente non trovato");
-      }
-      
       console.log('🔍 DEBUG - userId da usare:', userId);
       
       const updateResponse = await apiRequest(
@@ -49,7 +44,7 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
 
       // Gestione FCM
       if (fcmToken) {
-        const topic = `sostenitori_candidato_${candidatoId}`;
+        const topic = `sostenitori_politico_${candidatoId}`;
         await apiRequest(
             "POST",
             "/api/notifications/subscribe-topic",

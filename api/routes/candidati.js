@@ -1,15 +1,9 @@
 const express = require('express');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { validateInput } = require('../middleware/validation');
+const { pool } = require('../middleware/auth');
+
 const router = express.Router();
-const { Pool } = require('pg');
-const { verifyToken } = require('../middleware/auth');
-require('dotenv').config();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
-// ===== ENDPOINTS PER CANDIDATI =====
 
 // GET /api/candidati/disponibili - Ottieni candidati disponibili per grado e categoria
 router.get('/disponibili', verifyToken, async (req, res) => {
@@ -18,8 +12,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const userId = req.userId;
     
     console.log('🔍 DEBUG /api/candidati/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
-    console.log('🔍 DEBUG /api/candidati/disponibili - Query params:', req.query);
-    console.log('🔍 DEBUG /api/candidati/disponibili - Headers:', req.headers);
     
     // Query per ottenere utenti con ruolo "Candidato" o "Candidato Politico" dalla tabella users
     // Filtra per grado_candidatura in base al parametro grado ricevuto
@@ -77,7 +69,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
         riduzione_parcheggi_a_pagamento
       FROM users
-      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')${gradoFilter}
+      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
+        AND status = 'active'
+        ${gradoFilter}
       ORDER BY cognome, nome
     `;
     
@@ -85,21 +79,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     console.log('🔍 DEBUG /api/candidati/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/candidati/disponibili - Filtro applicato:', gradoFilter);
-    console.log('🔍 DEBUG /api/candidati/disponibili - Parametri query:', queryParams);
-    
-    // Log dei primi candidati trovati per debug
-    if (result.rows.length > 0) {
-      console.log('🔍 DEBUG /api/candidati/disponibili - Primi candidati:', result.rows.slice(0, 3).map(r => ({
-        id: r.id,
-        nome: r.nome,
-        cognome: r.cognome,
-        ruolo: r.ruolo,
-        grado_candidatura: r.grado_candidatura,
-        grado_elezione: r.grado_elezione
-      })));
-    } else {
-      console.log('❌ DEBUG /api/candidati/disponibili - Nessun candidato trovato');
-    }
     
     // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni
     const gradoOpinionsQuery = `
@@ -147,12 +126,13 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Opinion utente corrente:', userOpinions);
     
     // Funzione per calcolare le opinioni comuni tra utente e candidato
+    // USA LA STESSA LOGICA DEL FRONTEND per evitare discrepanze
     const calculateCommonOpinions = async (userOpinions, candidateOpinions, grado) => {
       let commonCount = 0;
       
       console.log('🔍 DEBUG calculateCommonOpinions - Inizio calcolo per candidato:', candidateOpinions.nome, candidateOpinions.cognome, 'grado:', grado);
       
-      // Carica le opinioni dalla tabella opinioni per il grado specifico
+      // Carica le opinioni dalla tabella opinioni per il grado specifico (come fa il frontend)
       const gradoOpinionsQuery = `
         SELECT o.id, o.text, o.gradi_opinione
         FROM opinioni o
@@ -165,7 +145,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       
       console.log(`🔍 DEBUG calculateCommonOpinions - Opinion caricate dalla tabella opinioni per grado ${grado}:`, gradoOpinions.length);
       
-      // Mappa delle opinioni ai campi del database
+      // Mappa delle opinioni ai campi del database (stessa del frontend)
       const opinionMapping = {
         'energia_nucleare': 'energia_nucleare',
         'sperimentazione_animale': 'sperimentazione_animale',
@@ -255,6 +235,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       return commonCount;
     };
     
+    // Debug: controlliamo quanti utenti hanno grado_candidatura = grado richiesto
+    const debugQuery = `SELECT COUNT(*) as count FROM users WHERE grado_candidatura = $1`;
+    const debugResult = await pool.query(debugQuery, [grado]);
+    console.log(`🔍 DEBUG /api/candidati/disponibili - Utenti con grado_candidatura ${grado}:`, debugResult.rows[0].count);
+    
+    // Debug: controlliamo quanti utenti hanno grado_candidatura = grado richiesto E ruolo corretto
+    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_candidatura = $1 AND (ruolo = 'Candidato' OR ruolo = 'Candidato Politico') AND status = 'active'`;
+    const debugResult2 = await pool.query(debugQuery2, [grado]);
+    console.log(`🔍 DEBUG /api/candidati/disponibili - Utenti con grado_candidatura ${grado} E ruolo corretto:`, debugResult2.rows[0].count);
+    
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
     
@@ -284,6 +274,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       cognome: c.cognome, 
       opinioni_comuni: c.opinioni_comuni 
     })));
+    
+    // Debug: vediamo alcuni esempi di utenti con grado_candidatura = grado richiesto
+    const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_candidatura, status, avatar_config FROM users WHERE grado_candidatura = $1 LIMIT 5`;
+    const debugResult3 = await pool.query(debugQuery3, [grado]);
+    console.log(`🔍 DEBUG /api/candidati/disponibili - Esempi utenti ${grado}:`, debugResult3.rows);
+    
+    // Debug: controlliamo se i candidati hanno avatar_config
+    console.log('🔍 DEBUG /api/candidati/disponibili - Primi 3 candidati con avatar_config:', 
+      candidati.slice(0, 3).map(c => ({ id: c.id, nome: c.nome, cognome: c.cognome, avatar_config: c.avatar_config }))
+    );
     
     // Assicurati che ogni candidato abbia un avatar_config valido
     candidati = candidati.map(candidato => {
@@ -402,11 +402,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       candidato_comune: utente.candidato_comune
     };
     
-    console.log('🔍 DEBUG /api/candidati/disponibili - Invio risposta:', {
-      candidatiCount: candidati.length,
-      utente: utenteMapped
-    });
-    
     res.json({
       success: true,
       data: {
@@ -424,7 +419,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/candidati - Ottieni candidati dell'utente (endpoint principale)
+// GET /api/candidati - Ottieni candidati dell'utente
 router.get('/', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/candidati - Richiesta candidati');
@@ -476,35 +471,35 @@ router.get('/', verifyToken, async (req, res) => {
             status,
             avatar_config
           FROM users
-          WHERE id::text = $1 OR firestore_uid = $1
+          WHERE id = $1
         `;
         
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
-        const candidato = candidatoResult.rows[0];
         
-        if (candidato) {
-          // Aggiungi alla mappa ID usando l'ID originale per la compatibilità
+        if (candidatoResult.rows.length > 0) {
+          const candidato = candidatoResult.rows[0];
+          candidatiSelezionati[categoria] = [candidato];
           idMap[candidatoId] = `${candidato.nome} ${candidato.cognome}`;
           
-          // Aggiungi alla categoria
-          if (!candidatiSelezionati[categoria]) {
-            candidatiSelezionati[categoria] = [];
-          }
-          candidatiSelezionati[categoria].push(candidato);
+          console.log(`🔍 DEBUG - Candidato ${categoria} trovato:`, candidato.nome, candidato.cognome);
+        } else {
+          console.log(`⚠️ DEBUG - Candidato ${categoria} con ID ${candidatoId} non trovato`);
         }
+      } else {
+        console.log(`ℹ️ DEBUG - Nessun candidato selezionato per ${categoria}`);
       }
     }
     
-    console.log('🔍 DEBUG Frontend - Candidati selezionati finali:', candidatiSelezionati);
+    console.log('🔍 DEBUG Frontend - Candidati selezionati:', candidatiSelezionati);
+    console.log('🔍 DEBUG Frontend - idMap:', idMap);
     
     res.json({
       success: true,
       data: {
         candidati: candidatiSelezionati,
-        idMap: idMap
+        idMap
       }
     });
-    
   } catch (error) {
     console.error('❌ Errore nel recuperare candidati:', error);
     res.status(500).json({
@@ -514,5 +509,65 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/candidati - Assegna candidato
+router.post('/', verifyToken, validateInput(['candidato_id', 'categoria_id']), async (req, res) => {
+  try {
+    const { candidato_id, categoria_id } = req.body;
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    
+    const query = `
+      INSERT INTO candidati (utente_id, candidato_id, categoria_id, created_at)
+      VALUES ($1, $2, $3, NOW())
+      RETURNING *
+    `;
+    
+    const result = await pool.query(query, [userId, candidato_id, categoria_id]);
+    
+    res.json({
+      success: true,
+      candidato: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'assegnazione candidato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'assegnazione candidato'
+    });
+  }
+});
+
+// DELETE /api/candidati/:id - Rimuovi candidato
+router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID candidato richiesto'
+      });
+    }
+    
+    const result = await pool.query('DELETE FROM candidati WHERE id = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Candidato non trovato'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Candidato rimosso'
+    });
+  } catch (error) {
+    console.error('❌ Errore nella rimozione candidato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nella rimozione candidato'
+    });
+  }
+});
 
 module.exports = router;

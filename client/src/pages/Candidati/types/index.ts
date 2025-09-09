@@ -4,14 +4,12 @@ export interface CandidatoInfo {
   avatar_config?: string;
 }
 
-export interface ElezioniData {
-  candidati: Record<string, CandidatoInfo>; // Es: { europeo: {...}, camera: {...} }
-  idMap: Record<string, string>; // Es: { europeo: 'uid123', camera: 'uid456' }
+export interface CandidatiData {
+  candidatiPerGrado: Record<string, any[]>; // Es: { Europeo: [...], Camera: [...] }
+  selectedEuropeanCandidateId: string | null;
   // Legacy support
-  candidatiPerCategoria?: Record<string, any[]>; // Es: { europeo: [...], camera: [...] }
-  utente?: Record<string, string | null>; // Es: { candidato_europeo: 'uid123', candidato_camera: 'uid456' }
-  candidatiPerGrado?: Record<string, any[]>; // Es: { Europeo: [...], Camera: [...] }
-  selectedEuropeanCandidateId?: string | null;
+  candidati?: Record<string, CandidatoInfo>; // Es: { europeo: {...}, camera: {...} }
+  idMap?: Record<string, string>; // Es: { europeo: 'uid123', camera: 'uid456' }
 }
 
 export interface Categoria {

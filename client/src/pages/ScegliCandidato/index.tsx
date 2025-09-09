@@ -2,7 +2,7 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect, useParams } from "wouter";
-// import { PageTransition } from "@/components/PageTransition"; // Rimosso per evitare doppio PageTransition
+import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useFCM } from "@/hooks/useFCM";
 import { useCandidatiData } from "./hooks/useCandidatiData";
@@ -19,17 +19,12 @@ export default function ScegliCandidato() {
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();
 
-  // Se non c'è categoria, redirect a europeo
-  if (!categoria) {
-    return <Redirect to="/candidati/europeo" />;
-  }
-
   const { 
     candidati, 
     loading, 
     candidatoSelezionato, 
     setCandidatoSelezionato 
-  } = useCandidatiData(user, categoria);
+  } = useCandidatiData(user, categoria || '');
 
   const {
     selezionando,
@@ -37,7 +32,7 @@ export default function ScegliCandidato() {
     selezionaCandidato,
     openOpinioniDialog,
     closeOpinioniDialog
-  } = useCandidatiActions(user, categoria, fcmToken);
+  } = useCandidatiActions(user, categoria || '', fcmToken);
 
   const handleSelezionaCandidato = (candidatoId: string) => {
     selezionaCandidato(candidatoId, setCandidatoSelezionato);
@@ -48,7 +43,8 @@ export default function ScegliCandidato() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
+    <PageTransition>
+      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
           <LoadingStates 
             authReady={authReady} 
@@ -86,6 +82,7 @@ export default function ScegliCandidato() {
             </div>
           )}
         </div>
-        </div>
+      </div>
+    </PageTransition>
   );
 }

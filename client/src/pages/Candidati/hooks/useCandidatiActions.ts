@@ -18,7 +18,6 @@ export const useCandidatiActions = () => {
     setOpinioniDialogData(null);
   };
 
-
   return {
     opinioniDialogData,
     handleNavigateToSelection,
