@@ -35,7 +35,8 @@ import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
-import Elezioni from "./pages/Elezioni";
+import Candidati from "./pages/Candidati";
+// Candidati è la pagina per scegliere le categorie di candidati
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
@@ -309,25 +310,18 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati categoria - SOLO per categorie specifiche */}
+              {/* Route candidati categoria specifica - DEVE VENIRE PRIMA */}
               <Route path="/candidati/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - redirect a /candidati/europeo */}
+              {/* Route candidati - pagina per scegliere categoria (europeo, camera, senato, etc.) */}
               <Route path="/candidati">
-                {() => {
-                  console.log('🔍 DEBUG App - Route /candidati ATTIVATA - Redirect a /candidati/europeo');
-                  // Usa navigate invece di window.location.href per evitare loop
-                  const navigate = (path: string) => {
-                    window.history.pushState({}, '', path);
-                    window.dispatchEvent(new PopStateEvent('popstate'));
-                  };
-                  navigate('/candidati/europeo');
-                  return null;
-                }}
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati" component={Candidati} />
+                </PageTransition>
               </Route>
 
               {/* Route eventi */}
