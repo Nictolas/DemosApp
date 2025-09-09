@@ -309,26 +309,14 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati categoria - DEVE VENIRE PRIMA */}
+              {/* Route candidati - SOLO per categorie specifiche */}
               <Route path="/candidati/:categoria">
                 {(params) => {
                   console.log('🔍 DEBUG App - Route /candidati/:categoria ATTIVATA con params:', params);
-                  console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', params.categoria);
+                  console.log('🔍 DEBUG App - Rendering SOLO ScegliCandidato per categoria:', params.categoria);
                   return (
                     <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                       <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidato} />
-                    </PageTransition>
-                  );
-                }}
-              </Route>
-
-              {/* Route candidati - renderizza Elezioni */}
-              <Route path="/candidati">
-                {() => {
-                  console.log('🔍 DEBUG App - Route /candidati ATTIVATA - Rendering Elezioni');
-                  return (
-                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                      <ProtectedRoute path="/candidati" component={Elezioni} />
                     </PageTransition>
                   );
                 }}
