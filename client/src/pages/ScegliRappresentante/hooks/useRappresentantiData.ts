@@ -49,13 +49,20 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           throw new Error(result.error || "Errore nel caricamento dei dati");
         }
         
-        const { candidati, utente } = result.data;
-        
-        console.log('🔍 DEBUG Frontend - Candidati ricevuti:', candidati?.length || 0);
-        console.log('🔍 DEBUG Frontend - Utente:', utente);
-        
-        setRappresentanteSelezionato(utente[getFieldName(categoria)] || null);
-        setRappresentanti(candidati || []);
+        if (isTestRoute) {
+          // Per le route test, i dati sono direttamente nell'array data
+          const candidati = result.data || [];
+          console.log('🔍 DEBUG Frontend - Candidati ricevuti (TEST):', candidati.length);
+          setRappresentanteSelezionato(null); // Nessun candidato selezionato per le route test
+          setRappresentanti(candidati);
+        } else {
+          // Per le route normali, i dati sono in { candidati, utente }
+          const { candidati, utente } = result.data;
+          console.log('🔍 DEBUG Frontend - Candidati ricevuti (NORMAL):', candidati?.length || 0);
+          console.log('🔍 DEBUG Frontend - Utente:', utente);
+          setRappresentanteSelezionato(utente?.[getFieldName(categoria)] || null);
+          setRappresentanti(candidati || []);
+        }
 
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);
