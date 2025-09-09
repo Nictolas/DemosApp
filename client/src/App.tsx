@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, Switch, useLocation } from "wouter";
+import { Route, Switch, useLocation, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth-neon";
@@ -35,7 +35,7 @@ import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
-import Candidati from "./pages/Candidati";
+// import Candidati from "./pages/Candidati"; // RIMOSSO TEMPORANEAMENTE
 // Candidati è la pagina per scegliere le categorie di candidati
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
@@ -311,33 +311,19 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-                     {/* Route candidati categoria specifica - DEVE VENIRE PRIMA */}
+                     {/* Route candidati - SOLO ScegliCandidato per tutte le categorie */}
                      <Route path="/candidati/:categoria">
-                       {() => {
-                         console.log('🔍 DEBUG App - Route /candidati/:categoria MATCHATA');
-                         return (
-                           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                             <ProtectedRoute>
-                               <ScegliCandidato />
-                             </ProtectedRoute>
-                           </PageTransition>
-                         );
-                       }}
+                       <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                         <ProtectedRoute>
+                           <ScegliCandidato />
+                         </ProtectedRoute>
+                       </PageTransition>
                      </Route>
 
-                     {/* Route candidati - pagina per scegliere categoria - TEMPORANEAMENTE DISABILITATA */}
-                     {/* <Route path="/candidati">
-                       {() => {
-                         console.log('🔍 DEBUG App - Route /candidati MATCHATA');
-                         return (
-                           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                             <ProtectedRoute>
-                               <Candidati />
-                             </ProtectedRoute>
-                           </PageTransition>
-                         );
-                       }}
-                     </Route> */}
+                     {/* Route candidati - redirect a europeo */}
+                     <Route path="/candidati">
+                       <Redirect to="/candidati/europeo" />
+                     </Route>
 
               {/* Route eventi */}
               <Route path="/eventi">
