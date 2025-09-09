@@ -310,31 +310,27 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - gestione unificata */}
-              <Route path="/candidati/:categoria?">
+              {/* Route candidati categoria specifica - DEVE VENIRE PRIMA */}
+              <Route path="/candidati/:categoria">
                 {() => {
-                  const match = location.match(/^\/candidati\/(.+)$/);
-                  const hasCategoria = match && match[1];
-                  
-                  console.log('🔍 DEBUG App - Route candidati unificata');
-                  console.log('🔍 DEBUG App - hasCategoria:', hasCategoria);
-                  console.log('🔍 DEBUG App - match:', match);
-                  
-                  if (hasCategoria) {
-                    console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', hasCategoria);
-                    return (
-                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                        <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
-                      </PageTransition>
-                    );
-                  } else {
-                    console.log('🔍 DEBUG App - Rendering Candidati per selezione categoria');
-                    return (
-                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                        <ProtectedRoute path="/candidati" component={Candidati} />
-                      </PageTransition>
-                    );
-                  }
+                  console.log('🔍 DEBUG App - Route /candidati/:categoria MATCHATA');
+                  return (
+                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                      <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                    </PageTransition>
+                  );
+                }}
+              </Route>
+
+              {/* Route candidati - pagina per scegliere categoria */}
+              <Route path="/candidati">
+                {() => {
+                  console.log('🔍 DEBUG App - Route /candidati MATCHATA');
+                  return (
+                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                      <ProtectedRoute path="/candidati" component={Candidati} />
+                    </PageTransition>
+                  );
                 }}
               </Route>
 
