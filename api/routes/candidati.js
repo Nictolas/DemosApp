@@ -84,6 +84,22 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const result = await pool.query(query, queryParams);
     
     console.log('🔍 DEBUG /api/candidati/disponibili - Utenti trovati:', result.rows.length);
+    console.log('🔍 DEBUG /api/candidati/disponibili - Filtro applicato:', gradoFilter);
+    console.log('🔍 DEBUG /api/candidati/disponibili - Parametri query:', queryParams);
+    
+    // Log dei primi candidati trovati per debug
+    if (result.rows.length > 0) {
+      console.log('🔍 DEBUG /api/candidati/disponibili - Primi candidati:', result.rows.slice(0, 3).map(r => ({
+        id: r.id,
+        nome: r.nome,
+        cognome: r.cognome,
+        ruolo: r.ruolo,
+        grado_candidatura: r.grado_candidatura,
+        grado_elezione: r.grado_elezione
+      })));
+    } else {
+      console.log('❌ DEBUG /api/candidati/disponibili - Nessun candidato trovato');
+    }
     
     // Processa i candidati per il frontend
     let candidati = result.rows.map(candidato => {
