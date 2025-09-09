@@ -312,12 +312,14 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati */}
-              <Route path="/candidati">
+              {/* TEST: Route temporanea per testare ScegliCandidato */}
+              <Route path="/test-candidati">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati" component={Candidati} />
+                  <ProtectedRoute path="/test-candidati" component={ScegliCandidato} />
                 </PageTransition>
               </Route>
+
+              {/* Route candidati - RIMOSSA TEMPORANEAMENTE PER TEST */}
 
               {/* Route eventi */}
               <Route path="/eventi">
