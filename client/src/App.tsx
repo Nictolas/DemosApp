@@ -311,31 +311,9 @@ export default function App() {
 
               {/* Route candidati categoria - SOLO per categorie specifiche */}
               <Route path="/candidati/:categoria">
-                {(params) => {
-                  console.log('🔍 DEBUG App - Route /candidati/:categoria ATTIVATA con params:', params);
-                  console.log('🔍 DEBUG App - Rendering SOLO ScegliCandidato per categoria:', params.categoria);
-                  console.log('🔍 DEBUG App - ScegliCandidato component:', ScegliCandidato);
-                  console.log('🔍 DEBUG App - About to render ScegliCandidato...');
-                  
-                  // Renderizza direttamente ScegliCandidato con i parametri
-                  const ScegliCandidatoWithParams = () => {
-                    console.log('🔍 DEBUG ScegliCandidatoWithParams - Rendering con categoria:', params.categoria);
-                    return <ScegliCandidato categoria={params.categoria} />;
-                  };
-                  
-                  try {
-                    const result = (
-                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                        <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidatoWithParams} />
-                      </PageTransition>
-                    );
-                    console.log('🔍 DEBUG App - ScegliCandidato rendered successfully:', result);
-                    return result;
-                  } catch (error) {
-                    console.error('❌ DEBUG App - Error rendering ScegliCandidato:', error);
-                    return <div>Error rendering ScegliCandidato: {error.message}</div>;
-                  }
-                }}
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                </PageTransition>
               </Route>
 
               {/* Route candidati - redirect a /candidati/europeo */}
