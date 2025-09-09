@@ -325,8 +325,8 @@ export default function App() {
                        }}
                      </Route>
 
-                     {/* Route candidati - pagina per scegliere categoria */}
-                     <Route path="/candidati">
+                     {/* Route candidati - pagina per scegliere categoria - TEMPORANEAMENTE DISABILITATA */}
+                     {/* <Route path="/candidati">
                        {() => {
                          console.log('🔍 DEBUG App - Route /candidati MATCHATA');
                          return (
@@ -337,7 +337,7 @@ export default function App() {
                            </PageTransition>
                          );
                        }}
-                     </Route>
+                     </Route> */}
 
               {/* Route eventi */}
               <Route path="/eventi">
