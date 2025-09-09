@@ -476,15 +476,15 @@ router.get('/', verifyToken, async (req, res) => {
             status,
             avatar_config
           FROM users
-          WHERE id = $1
+          WHERE id = $1 OR firebase_uid = $1
         `;
         
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
         const candidato = candidatoResult.rows[0];
         
         if (candidato) {
-          // Aggiungi alla mappa ID
-          idMap[candidato.id] = `${candidato.nome} ${candidato.cognome}`;
+          // Aggiungi alla mappa ID usando l'ID originale per la compatibilità
+          idMap[candidatoId] = `${candidato.nome} ${candidato.cognome}`;
           
           // Aggiungi alla categoria
           if (!candidatiSelezionati[categoria]) {
