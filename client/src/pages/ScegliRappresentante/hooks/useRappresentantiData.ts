@@ -3,12 +3,16 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Rappresentante, OpinioniDialogData } from "../types";
 import { getTitolo, getFieldName } from "../utils/rappresentanteUtils";
+import { useRoute } from "wouter";
 
 export const useRappresentantiData = (user: any, categoria: string) => {
   const { toast } = useToast();
   const [rappresentanti, setRappresentanti] = useState<Rappresentante[]>([]);
   const [loading, setLoading] = useState(true);
   const [rappresentanteSelezionato, setRappresentanteSelezionato] = useState<string | null>(null);
+  
+  // Detect if the current route is under /test
+  const [isTestRoute] = useRoute("/test/:categoria");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -16,12 +20,20 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       
       setLoading(true);
       try {
-        const grado = getTitolo(categoria);
-        const url = `/api/rappresentanti/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
+        let url = '';
+        if (isTestRoute) {
+          // Use the new API endpoint for test routes (candidati)
+          url = `/api/test/disponibili?grado_candidatura=${encodeURIComponent(categoria)}`;
+          console.log('🔍 DEBUG Frontend - Chiamata API TEST (candidati):', url);
+        } else {
+          // Use the existing API endpoint for regular rappresentanti routes
+          const grado = getTitolo(categoria);
+          url = `/api/rappresentanti/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
+          console.log('🔍 DEBUG Frontend - Chiamata API RAPPRESENTANTI:', url);
+        }
         
-        console.log('🔍 DEBUG Frontend - Chiamata API:', url);
         console.log('🔍 DEBUG Frontend - Categoria:', categoria);
-        console.log('🔍 DEBUG Frontend - Grado:', grado);
+        console.log('🔍 DEBUG Frontend - IsTestRoute:', isTestRoute);
         
         const response = await apiRequest("GET", url);
 

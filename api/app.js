@@ -25,6 +25,7 @@ const iniziativePopolariRoutes = require('./routes/iniziative-popolari');
 const referendumRoutes = require('./routes/referendum');
 const comunicazioniRoutes = require('./routes/comunicazioni');
 const adminRoutes = require('./routes/admin/database');
+const testRoutes = require('./routes/test');
 
 const app = express();
 
@@ -123,6 +124,7 @@ app.use('/api/referendum', referendumRoutes);
 app.use('/api/referendum-abrogativi', referendumRoutes);
 app.use('/api/comunicazioni', comunicazioniRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/test', testRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {
