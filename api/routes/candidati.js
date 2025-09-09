@@ -222,4 +222,92 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/candidati/tutti - Ottieni tutti i candidati disponibili per tutte le categorie
+router.get('/tutti', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    console.log('🔍 DEBUG /api/candidati/tutti - Richiesta ricevuta per userId:', userId);
+    
+    // Query per ottenere tutti i candidati disponibili raggruppati per categoria
+    const query = `
+      SELECT 
+        id,
+        nome,
+        cognome,
+        email,
+        ruolo,
+        status,
+        avatar_config,
+        grado_candidatura,
+        regione_candidatura,
+        provincia_candidatura,
+        comune_candidatura
+      FROM users
+      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
+        AND status = 'active'
+        AND grado_candidatura IS NOT NULL
+      ORDER BY grado_candidatura, cognome, nome
+    `;
+    
+    const result = await pool.query(query);
+    
+    console.log('🔍 DEBUG /api/candidati/tutti - Candidati trovati:', result.rows.length);
+    
+    // Raggruppa i candidati per categoria
+    const candidatiPerCategoria = {};
+    result.rows.forEach(candidato => {
+      const categoria = candidato.grado_candidatura.toLowerCase();
+      if (!candidatiPerCategoria[categoria]) {
+        candidatiPerCategoria[categoria] = [];
+      }
+      candidatiPerCategoria[categoria].push(candidato);
+    });
+    
+    // Ottieni i candidati selezionati dall'utente
+    const userQuery = `
+      SELECT 
+        candidato_europeo,
+        candidato_camera,
+        candidato_senato,
+        candidato_regionale,
+        candidato_comune
+      FROM users
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    const utente = userResult.rows[0] || {};
+    
+    // Mappa i nomi delle colonne per mantenere compatibilità con il frontend
+    const utenteMapped = {
+      candidato_europeo: utente.candidato_europeo,
+      candidato_camera: utente.candidato_camera,
+      candidato_senato: utente.candidato_senato,
+      candidato_regione: utente.candidato_regionale,
+      candidato_comune: utente.candidato_comune
+    };
+    
+    console.log('🔍 DEBUG /api/candidati/tutti - Invio risposta:', {
+      candidatiPerCategoria: Object.keys(candidatiPerCategoria),
+      utente: utenteMapped
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        candidatiPerCategoria,
+        utente: utenteMapped
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare tutti i candidati:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare tutti i candidati'
+    });
+  }
+});
+
 module.exports = router;
