@@ -476,7 +476,7 @@ router.get('/', verifyToken, async (req, res) => {
             status,
             avatar_config
           FROM users
-          WHERE id = $1 OR firebase_uid = $1
+          WHERE id = $1 OR firestore_uid = $1
         `;
         
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
