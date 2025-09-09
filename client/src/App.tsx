@@ -310,9 +310,7 @@ export default function App() {
                      {/* Route candidati - SOLO ScegliCandidato per tutte le categorie */}
                      <Route path="/candidati/:categoria">
                        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                         <ProtectedRoute>
-                           <ScegliCandidato />
-                         </ProtectedRoute>
+                         <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
                        </PageTransition>
                      </Route>
 
