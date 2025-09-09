@@ -43,24 +43,24 @@ export default function Candidati() {
   
   // Log della condizione di rendering
   const hasData = !!data;
-  // Rimuovo completamente i controlli hasCandidati e hasIdMap
   // Le card devono essere sempre visibili per permettere la selezione
   
   console.log('🔍 DEBUG Rendering conditions:');
   console.log('  hasData:', hasData);
   console.log('  isLoading:', isLoading);
   console.log('  isError:', isError);
+  console.log('  Mostrando sempre le card per permettere selezione candidati');
 
-  if (!user && !isAuthLoading) {
-    return <Redirect to="/auth" />;
-  }
-
-  if (isAuthLoading || isLoading) {
+  if (isAuthLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+  
+  if (!user) {
+    return <Redirect to="/auth" />;
   }
 
   return (
@@ -71,7 +71,7 @@ export default function Candidati() {
           touch-action: none !important;
         }
       `}</style>
-      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
+                      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
         <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />

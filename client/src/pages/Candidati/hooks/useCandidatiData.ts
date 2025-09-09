@@ -11,8 +11,11 @@ export const useCandidatiData = (user: any) => {
       if (!response.ok) throw new Error("Errore nel caricamento dei candidati per le elezioni");
       const result = await response.json();
       
+      console.log('🔍 DEBUG useCandidatiData - Risposta API:', result);
+      
       // Gestisce la nuova struttura dell'API
       if (result.success && result.data) {
+        console.log('🔍 DEBUG useCandidatiData - Dati ricevuti:', result.data);
         return result.data;
       }
       
@@ -23,7 +26,8 @@ export const useCandidatiData = (user: any) => {
         return { candidati, idMap };
       }
       
-      // Fallback per struttura vuota
+      // Fallback per struttura vuota - IMPORTANTE: restituisce sempre dati validi
+      console.log('🔍 DEBUG useCandidatiData - Usando fallback vuoto');
       return { candidati: {}, idMap: {} };
     },
     enabled: !!user,
