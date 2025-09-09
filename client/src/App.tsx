@@ -309,7 +309,7 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - SOLO per categorie specifiche */}
+              {/* Route candidati categoria - SOLO per categorie specifiche */}
               <Route path="/candidati/:categoria">
                 {(params) => {
                   console.log('🔍 DEBUG App - Route /candidati/:categoria ATTIVATA con params:', params);
@@ -319,6 +319,20 @@ export default function App() {
                       <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidato} />
                     </PageTransition>
                   );
+                }}
+              </Route>
+
+              {/* Route candidati - redirect a /candidati/europeo */}
+              <Route path="/candidati">
+                {() => {
+                  console.log('🔍 DEBUG App - Route /candidati ATTIVATA - Redirect a /candidati/europeo');
+                  // Usa navigate invece di window.location.href per evitare loop
+                  const navigate = (path: string) => {
+                    window.history.pushState({}, '', path);
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  };
+                  navigate('/candidati/europeo');
+                  return null;
                 }}
               </Route>
 
