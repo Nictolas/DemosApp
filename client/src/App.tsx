@@ -621,9 +621,9 @@ export default function App() {
                <Navbar />}
               
               <Toaster />
+            </Switch>
             </RegistrationProvider>
           </AuthProvider>
-        </Switch>
       </div>
     </QueryClientProvider>
   );
