@@ -237,13 +237,12 @@ router.get('/elezioni-utente/disponibili', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/elezioni-utente - Endpoint per la pagina Elezioni (simile a rappresentanti)
-router.get('/', verifyToken, async (req, res) => {
+// GET /api/elezioni-utente/candidati - Ottieni candidati dell'utente (endpoint principale)
+router.get('/candidati', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/elezioni-utente - Richiesta candidati');
     const userId = req.userId;
     console.log('🔍 DEBUG - userId:', userId);
-    console.log('🔍 DEBUG - userId type:', typeof userId);
     
     // Ottieni i candidati selezionati dall'utente
     const userQuery = `
@@ -257,101 +256,73 @@ router.get('/', verifyToken, async (req, res) => {
       WHERE id = $1
     `;
     
-    console.log('🔍 DEBUG - Eseguendo query per userId:', userId);
-    let userResult;
-    try {
-      userResult = await pool.query(userQuery, [userId]);
-      console.log('🔍 DEBUG - Query completata, righe trovate:', userResult.rows.length);
-    } catch (dbError) {
-      console.error('❌ Errore query database:', dbError);
-      throw dbError;
-    }
+    const userResult = await pool.query(userQuery, [userId]);
     const user = userResult.rows[0] || {};
     
-    console.log('🔍 DEBUG - Candidati selezionati dall\'utente:', user);
+    console.log('🔍 DEBUG Frontend - Utente candidati selezionati:', user);
     
     // Ottieni i dettagli dei candidati selezionati
-    const candidatiIds = [
-      user.candidato_europeo,
-      user.candidato_camera,
-      user.candidato_senato,
-      user.candidato_regionale,
-      user.candidato_comune
-    ].filter(id => id); // Rimuovi valori null/undefined
+    const candidatiSelezionati = {};
+    const idMap = {};
     
-    let candidatiDettagliati = {};
+    // Lista dei campi candidato
+    const campiCandidato = [
+      { campo: 'candidato_europeo', categoria: 'europeo' },
+      { campo: 'candidato_camera', categoria: 'camera' },
+      { campo: 'candidato_senato', categoria: 'senato' },
+      { campo: 'candidato_regionale', categoria: 'regione' },
+      { campo: 'candidato_comune', categoria: 'comune' }
+    ];
     
-    if (candidatiIds.length > 0) {
-      const candidatiQuery = `
-        SELECT 
-          id,
-          nome,
-          cognome,
-          email,
-          ruolo,
-          status,
-          avatar_config,
-          grado_candidatura,
-          regione_candidatura,
-          provincia_candidatura,
-          comune_candidatura
-        FROM users
-        WHERE id = ANY($1)
-      `;
+    for (const { campo, categoria } of campiCandidato) {
+      const candidatoId = user[campo];
       
-      const candidatiResult = await pool.query(candidatiQuery, [candidatiIds]);
-      
-      // Crea un oggetto con id come chiave
-      candidatiDettagliati = candidatiResult.rows.reduce((acc, candidato) => {
-        acc[candidato.id] = {
-          nome: candidato.nome,
-          cognome: candidato.cognome,
-          avatar_config: candidato.avatar_config
-        };
-        return acc;
-      }, {});
+      if (candidatoId) {
+        // Ottieni i dettagli del candidato
+        const candidatoQuery = `
+          SELECT 
+            id,
+            nome,
+            cognome,
+            email,
+            ruolo,
+            status,
+            avatar_config
+          FROM users
+          WHERE id = $1
+        `;
+        
+        const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
+        const candidato = candidatoResult.rows[0];
+        
+        if (candidato) {
+          candidatiSelezionati[categoria] = [candidato];
+          idMap[categoria] = candidatoId;
+          console.log(`🔍 DEBUG Frontend - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
+        }
+      }
     }
     
-    console.log('🔍 DEBUG - Candidati dettagliati:', candidatiDettagliati);
-    
-    // Organizza i candidati per categoria (come fa rappresentanti)
-    const candidatiPerCategoria = {
-      europeo: user.candidato_europeo ? [candidatiDettagliati[user.candidato_europeo]] : [],
-      camera: user.candidato_camera ? [candidatiDettagliati[user.candidato_camera]] : [],
-      senato: user.candidato_senato ? [candidatiDettagliati[user.candidato_senato]] : [],
-      regione: user.candidato_regionale ? [candidatiDettagliati[user.candidato_regionale]] : [],
-      comune: user.candidato_comune ? [candidatiDettagliati[user.candidato_comune]] : []
-    };
-    
-    // Crea idMap per compatibilità con il frontend
-    const idMap = {
-      europeo: user.candidato_europeo || null,
-      camera: user.candidato_camera || null,
-      senato: user.candidato_senato || null,
-      regione: user.candidato_regionale || null,
-      comune: user.candidato_comune || null
-    };
-    
-    console.log('🔍 DEBUG - Invio risposta finale:');
-    console.log('  candidatiPerCategoria:', JSON.stringify(candidatiPerCategoria, null, 2));
-    console.log('  idMap:', JSON.stringify(idMap, null, 2));
+    console.log('🔍 DEBUG Frontend - Candidati selezionati finali:', candidatiSelezionati);
+    console.log('🔍 DEBUG Frontend - ID Map finale:', idMap);
     
     res.json({
       success: true,
       data: {
-        candidati: candidatiPerCategoria,
+        candidati: candidatiSelezionati,
         idMap: idMap
       }
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare candidati per elezioni:', error);
+    console.error('❌ Errore nel recuperare candidati utente:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare candidati per elezioni'
+      error: 'Errore nel recuperare candidati utente'
     });
   }
 });
+
 
 // POST /api/elezioni - Crea nuova elezione
 router.post('/', verifyToken, validateInput(['titolo', 'descrizione', 'tipo', 'candidati']), async (req, res) => {
@@ -379,32 +350,5 @@ router.post('/', verifyToken, validateInput(['titolo', 'descrizione', 'tipo', 'c
   }
 });
 
-// GET /api/candidati - Ottieni candidati per grado e categoria
-router.get('/candidati', verifyToken, async (req, res) => {
-  try {
-    const { grado, categoria } = req.query;
-    
-    const query = `
-      SELECT c.*, u.nome, u.cognome
-      FROM candidati c
-      JOIN users u ON c.user_id = u.id
-      WHERE c.grado = $1 AND c.categoria = $2
-      ORDER BY u.nome, u.cognome
-    `;
-    
-    const result = await pool.query(query, [grado, categoria]);
-    
-    res.json({
-      success: true,
-      candidati: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recuperare candidati:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nel recuperare candidati'
-    });
-  }
-});
 
 module.exports = router;
