@@ -15,7 +15,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild', // Cambiato da 'terser' a 'esbuild' per evitare eval()
     rollupOptions: {
       output: {
         manualChunks: {

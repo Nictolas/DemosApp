@@ -20,6 +20,8 @@
 
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#1E1E1E" />
+    <!-- Content Security Policy per permettere eval() se necessario -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; font-src 'self' data:;">
     <!-- Google AdSense - RIMOSSO: Cookiebot scaduto -->
   </head>
   <body>
