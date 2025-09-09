@@ -7,7 +7,7 @@ export const useCandidatiData = (user: any) => {
     queryKey: ['candidatiData'],
     queryFn: async () => {
       // Endpoint protetto: usa JWT per risalire all'utente corrente
-      const response = await apiRequest("GET", `/api/elezioni-utente`);
+      const response = await apiRequest("GET", `/api/elezioni-utente/candidati`);
       if (!response.ok) throw new Error("Errore nel caricamento dei candidati per le elezioni");
       const result = await response.json();
       

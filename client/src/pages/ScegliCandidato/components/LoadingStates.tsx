@@ -12,12 +12,21 @@ export const LoadingStates: React.FC<LoadingStatesProps> = ({
   isLoading, 
   loading 
 }) => {
-  if (!authReady || isLoading || loading) {
+  if (!authReady || isLoading) {
     return (
-      <div className="flex items-center justify-center pt-16">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return null;
 };
