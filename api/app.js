@@ -51,36 +51,21 @@ app.head('/', (req, res) => {
   res.status(200).end();
 });
 
-// CORS - Configurazione robusta per produzione
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Permetti richieste senza origin (es. mobile apps, Postman)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'https://www.demos.community',
-      'https://demos.community',
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173'
-    ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log(`⚠️  CORS: Origin non autorizzata: ${origin}`);
-      callback(null, true); // Temporaneamente permetti tutto per debug
-    }
-  },
+// CORS - Configurazione semplificata per produzione
+app.use(cors({
+  origin: [
+    'https://www.demos.community',
+    'https://demos.community',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
-  optionsSuccessStatus: 200 // Per supportare browser legacy
-};
-
-app.use(cors(corsOptions));
+  optionsSuccessStatus: 200
+}));
 
 // Logging middleware
 app.use((req, res, next) => {
