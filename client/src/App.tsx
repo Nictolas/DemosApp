@@ -230,7 +230,9 @@ export default function App() {
               {/* Route del menu principale */}
               <Route path="/menu">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/menu" component={Menu} />
+                  <ProtectedRoute>
+                    <Menu />
+                  </ProtectedRoute>
                 </PageTransition>
               </Route>
 
@@ -289,7 +291,9 @@ export default function App() {
               {/* Route scegli rappresentante */}
               <Route path="/scegli-rappresentante/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/scegli-rappresentante/:categoria" component={ScegliRappresentante} />
+                  <ProtectedRoute>
+                    <ScegliRappresentante />
+                  </ProtectedRoute>
                 </PageTransition>
               </Route>
 
@@ -307,29 +311,33 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati categoria specifica - DEVE VENIRE PRIMA */}
-              <Route path="/candidati/:categoria">
-                {() => {
-                  console.log('🔍 DEBUG App - Route /candidati/:categoria MATCHATA');
-                  return (
-                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                      <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
-                    </PageTransition>
-                  );
-                }}
-              </Route>
+                     {/* Route candidati categoria specifica - DEVE VENIRE PRIMA */}
+                     <Route path="/candidati/:categoria">
+                       {() => {
+                         console.log('🔍 DEBUG App - Route /candidati/:categoria MATCHATA');
+                         return (
+                           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                             <ProtectedRoute>
+                               <ScegliCandidato />
+                             </ProtectedRoute>
+                           </PageTransition>
+                         );
+                       }}
+                     </Route>
 
-              {/* Route candidati - pagina per scegliere categoria */}
-              <Route path="/candidati">
-                {() => {
-                  console.log('🔍 DEBUG App - Route /candidati MATCHATA');
-                  return (
-                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                      <ProtectedRoute path="/candidati" component={Candidati} />
-                    </PageTransition>
-                  );
-                }}
-              </Route>
+                     {/* Route candidati - pagina per scegliere categoria */}
+                     <Route path="/candidati">
+                       {() => {
+                         console.log('🔍 DEBUG App - Route /candidati MATCHATA');
+                         return (
+                           <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                             <ProtectedRoute>
+                               <Candidati />
+                             </ProtectedRoute>
+                           </PageTransition>
+                         );
+                       }}
+                     </Route>
 
               {/* Route eventi */}
               <Route path="/eventi">

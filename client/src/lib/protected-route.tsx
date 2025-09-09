@@ -4,22 +4,20 @@ import { Redirect } from "wouter";
 import React from "react";
 
 export function ProtectedRoute({
-  path,
-  component: Component,
+  children,
 }: {
-  path: string;
-  component: React.ComponentType<any>;
+  children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuth();
 
   // === DEBUG LOGS ===
-  console.log('🔍 DEBUG ProtectedRoute - path prop:', path);
+  console.log('🔍 DEBUG ProtectedRoute - children:', !!children);
   console.log('🔍 DEBUG ProtectedRoute - user:', !!user);
   console.log('🔍 DEBUG ProtectedRoute - isLoading:', isLoading);
 
   // Mostra loader mentre carica l'autenticazione
   if (isLoading || typeof user === 'undefined') {
-    console.log('🔍 DEBUG ProtectedRoute - Mostrando loader per:', path);
+    console.log('🔍 DEBUG ProtectedRoute - Mostrando loader');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -29,7 +27,7 @@ export function ProtectedRoute({
 
   // Redirect se non autenticato
   if (!user) {
-    console.log('🔍 DEBUG ProtectedRoute - Redirect a /auth per:', path);
+    console.log('🔍 DEBUG ProtectedRoute - Redirect a /auth');
     return <Redirect to="/auth" />;
   }
 
@@ -45,7 +43,7 @@ export function ProtectedRoute({
     return null;
   }
 
-  // Renderizza il componente se autenticato e verificato
-  console.log('🔍 DEBUG ProtectedRoute - Rendering componente per:', path);
-  return <Component />;
+  // Renderizza i children se autenticato e verificato
+  console.log('🔍 DEBUG ProtectedRoute - Rendering children');
+  return <>{children}</>;
 }
