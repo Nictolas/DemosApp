@@ -12,19 +12,11 @@ import { CandidatoCard } from "./components/CandidatoCard";
 import { LoadingState } from "./components/LoadingState";
 import { ErrorState } from "./components/ErrorState";
 import { categorie, colorMap } from "./constants/categorie";
-import ScegliCandidato from "../ScegliCandidato";
 
 export default function Candidati() {
   console.log('🔍 DEBUG Candidati - Componente renderizzato');
   
-  const { categoria } = useParams<{ categoria?: string }>();
   const { user, isLoading: isAuthLoading } = useAuth();
-  
-  // Se c'è una categoria specifica, renderizza ScegliCandidato
-  if (categoria) {
-    console.log('🔍 DEBUG Candidati - Rendering ScegliCandidato per categoria:', categoria);
-    return <ScegliCandidato />;
-  }
   
   console.log('🔍 DEBUG Candidati - Rendering pagina principale candidati');
   
