@@ -161,13 +161,4 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server avviato sulla porta ${PORT}`);
-  console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 URL: http://localhost:${PORT}`);
-  console.log(`📊 Moduli caricati: health, email, database, compatibility, services, auth, users, opinioni, governo, rappresentanti, notifiche`);
-});
-
 module.exports = app;

@@ -1,12 +1,6 @@
 // File: api/middleware/auth.js
 const jwt = require('jsonwebtoken');
-const { Pool } = require('pg');
-
-// Configurazione database
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+const pool = require('../../server/config/database');
 
 // Middleware per verificare il token JWT
 const verifyToken = async (req, res, next) => {
