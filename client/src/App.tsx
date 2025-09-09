@@ -611,17 +611,18 @@ export default function App() {
                   <ProtectedRoute path="/proponi-ice" component={ProponiICE} />
                 </PageTransition>
               </Route>
-              {/* Navbar condizionale */}
-              {location !== '/' && 
-               !location.startsWith('/auth') && 
-               !location.startsWith('/reset-password') && 
-               !location.startsWith('/registrazione') && 
-               !location.startsWith('/verifica-email') && 
-               !location.startsWith('/conferma-email') && 
-               <Navbar />}
-              
-              <Toaster />
             </Switch>
+            
+            {/* Navbar condizionale */}
+            {location !== '/' && 
+             !location.startsWith('/auth') && 
+             !location.startsWith('/reset-password') && 
+             !location.startsWith('/registrazione') && 
+             !location.startsWith('/verifica-email') && 
+             !location.startsWith('/conferma-email') && 
+             <Navbar />}
+            
+            <Toaster />
             </RegistrationProvider>
           </AuthProvider>
       </div>
