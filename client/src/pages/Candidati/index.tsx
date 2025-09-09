@@ -16,17 +16,7 @@ export default function Candidati() {
   
   const { data, isLoading, isError } = useCandidatiData(user);
   
-  // Debug logging identico a Rappresentanti
-  console.log('🔍 DEBUG Candidati - Valori singoli:');
-  console.log('  isAuthLoading:', isAuthLoading);
-  console.log('  user:', !!user);
-  console.log('  isLoading:', isLoading);
-  console.log('  isError:', isError);
-  console.log('  data:', data);
-  console.log('  data type:', typeof data);
-  console.log('  data keys:', data ? Object.keys(data) : 'data è null/undefined');
-  console.log('  candidati:', data?.candidati);
-  console.log('  idMap:', data?.idMap);
+  // Debug logging rimosso per test
   const {
     opinioniDialogData,
     handleNavigateToSelection,
@@ -36,10 +26,7 @@ export default function Candidati() {
 
   const hasData = !!data;
   
-  // Log della condizione di rendering
-  console.log('🔍 DEBUG Rendering conditions:');
-  console.log('  hasData:', hasData);
-  console.log('  Mostrando sempre le card per permettere selezione candidati');
+  // Log della condizione di rendering rimosso per test
 
   if (isAuthLoading) {
     return (
@@ -71,7 +58,6 @@ export default function Candidati() {
               {/* Card Parlamento Europeo */}
               {(() => {
                 const categoria = categorie[0];
-                console.log('🔍 DEBUG: Rendering categoria:', categoria.id, categoria.nome);
                 return (
                   <CategoriaPrincipale
                     key={categoria.id}
