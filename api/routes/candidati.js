@@ -424,80 +424,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/candidati - Lista tutti i candidati dalla tabella users
+// GET /api/candidati - Ottieni candidati dell'utente (endpoint principale)
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        status,
-        grado_candidatura,
-        regione_candidatura,
-        provincia_candidatura,
-        comune_candidatura
-      FROM users
-      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
-      ORDER BY cognome, nome
-    `);
-    
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('❌ Errore nel recupero candidati:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server'
-    });
-  }
-});
-
-// GET /api/candidati/tutti - Ottieni tutti i candidati disponibili per tutte le categorie
-router.get('/tutti', verifyToken, async (req, res) => {
-  try {
+    console.log('🔍 GET /api/candidati - Richiesta candidati');
     const userId = req.userId;
-    
-    console.log('🔍 DEBUG /api/candidati/tutti - Richiesta ricevuta per userId:', userId);
-    
-    // Query per ottenere tutti i candidati disponibili raggruppati per categoria
-    const query = `
-      SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        status,
-        avatar_config,
-        grado_candidatura,
-        regione_candidatura,
-        provincia_candidatura,
-        comune_candidatura
-      FROM users
-      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
-        AND status = 'active'
-        AND grado_candidatura IS NOT NULL
-      ORDER BY grado_candidatura, cognome, nome
-    `;
-    
-    const result = await pool.query(query);
-    
-    console.log('🔍 DEBUG /api/candidati/tutti - Candidati trovati:', result.rows.length);
-    
-    // Raggruppa i candidati per categoria
-    const candidatiPerCategoria = {};
-    result.rows.forEach(candidato => {
-      const categoria = candidato.grado_candidatura.toLowerCase();
-      if (!candidatiPerCategoria[categoria]) {
-        candidatiPerCategoria[categoria] = [];
-      }
-      candidatiPerCategoria[categoria].push(candidato);
-    });
+    console.log('🔍 DEBUG - userId:', userId);
     
     // Ottieni i candidati selezionati dall'utente
     const userQuery = `
@@ -512,37 +444,75 @@ router.get('/tutti', verifyToken, async (req, res) => {
     `;
     
     const userResult = await pool.query(userQuery, [userId]);
-    const utente = userResult.rows[0] || {};
+    const user = userResult.rows[0] || {};
     
-    // Mappa i nomi delle colonne per mantenere compatibilità con il frontend
-    const utenteMapped = {
-      candidato_europeo: utente.candidato_europeo,
-      candidato_camera: utente.candidato_camera,
-      candidato_senato: utente.candidato_senato,
-      candidato_regione: utente.candidato_regionale,
-      candidato_comune: utente.candidato_comune
-    };
+    console.log('🔍 DEBUG Frontend - Utente candidati selezionati:', user);
     
-    console.log('🔍 DEBUG /api/candidati/tutti - Invio risposta:', {
-      candidatiPerCategoria: Object.keys(candidatiPerCategoria),
-      utente: utenteMapped
-    });
+    // Ottieni i dettagli dei candidati selezionati
+    const candidatiSelezionati = {};
+    const idMap = {};
+    
+    // Lista dei campi candidato
+    const campiCandidato = [
+      { campo: 'candidato_europeo', categoria: 'europeo' },
+      { campo: 'candidato_camera', categoria: 'camera' },
+      { campo: 'candidato_senato', categoria: 'senato' },
+      { campo: 'candidato_regionale', categoria: 'regione' },
+      { campo: 'candidato_comune', categoria: 'comune' }
+    ];
+    
+    for (const { campo, categoria } of campiCandidato) {
+      const candidatoId = user[campo];
+      
+      if (candidatoId) {
+        // Ottieni i dettagli del candidato
+        const candidatoQuery = `
+          SELECT 
+            id,
+            nome,
+            cognome,
+            email,
+            ruolo,
+            status,
+            avatar_config
+          FROM users
+          WHERE id = $1
+        `;
+        
+        const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
+        const candidato = candidatoResult.rows[0];
+        
+        if (candidato) {
+          // Aggiungi alla mappa ID
+          idMap[candidato.id] = `${candidato.nome} ${candidato.cognome}`;
+          
+          // Aggiungi alla categoria
+          if (!candidatiSelezionati[categoria]) {
+            candidatiSelezionati[categoria] = [];
+          }
+          candidatiSelezionati[categoria].push(candidato);
+        }
+      }
+    }
+    
+    console.log('🔍 DEBUG Frontend - Candidati selezionati finali:', candidatiSelezionati);
     
     res.json({
       success: true,
       data: {
-        candidatiPerCategoria,
-        utente: utenteMapped
+        candidati: candidatiSelezionati,
+        idMap: idMap
       }
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare tutti i candidati:', error);
+    console.error('❌ Errore nel recuperare candidati:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare tutti i candidati'
+      error: 'Errore nel recuperare candidati'
     });
   }
 });
+
 
 module.exports = router;
