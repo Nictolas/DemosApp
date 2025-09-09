@@ -2,7 +2,7 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useAuthReady } from "@/hooks/use-auth-ready";
 import { Redirect, useParams } from "wouter";
-import { PageTransition } from "@/components/PageTransition";
+// import { PageTransition } from "@/components/PageTransition"; // Rimosso per evitare doppio PageTransition
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useFCM } from "@/hooks/useFCM";
 import { useCandidatiData } from "./hooks/useCandidatiData";
@@ -43,8 +43,7 @@ export default function ScegliCandidato() {
   }
 
   return (
-    <PageTransition>
-      <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
+    <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
           <LoadingStates 
             authReady={authReady} 
@@ -82,7 +81,6 @@ export default function ScegliCandidato() {
             </div>
           )}
         </div>
-      </div>
-    </PageTransition>
+        </div>
   );
 }
