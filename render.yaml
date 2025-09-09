@@ -4,7 +4,7 @@ services:
     name: demos-backend
     env: node
     buildCommand: npm ci --only=production
-    startCommand: node api/index.js
+    startCommand: node index.js
     autoDeploy: true
     envVars:
       - key: NODE_ENV
