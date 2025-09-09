@@ -312,6 +312,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route candidati per categoria - deve essere PRIMA di /candidati */}
+              <Route path="/candidati/:categoria">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                </PageTransition>
+              </Route>
+
               {/* Route candidati */}
               <Route path="/candidati">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
