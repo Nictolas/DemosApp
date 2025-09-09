@@ -24,6 +24,14 @@ export interface OpinioniDialogData {
   avatarConfig?: string;
 }
 
+export interface ScegliCandidatoState {
+  candidati: Candidato[];
+  loading: boolean;
+  selezionando: boolean;
+  candidatoSelezionato: string | null;
+  opinioniDialogData: OpinioniDialogData | null;
+}
+
 export interface CandidatoCardProps {
   candidato: Candidato;
   isSelected: boolean;

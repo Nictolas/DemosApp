@@ -1,11 +1,10 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { Redirect, useParams } from "wouter";
+import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
-import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
-import { useCandidatiSelezionatiData } from "./hooks/useCandidatiData";
+import { useCandidatiData } from "./hooks/useCandidatiData";
 import { useCandidatiActions } from "./hooks/useCandidatiActions";
 import { CategoriaPrincipale } from "./components/CategoriaPrincipale";
 import { CandidatoCard } from "./components/CandidatoCard";
@@ -16,18 +15,32 @@ import { categorie, colorMap } from "./constants/categorie";
 export default function Candidati() {
   const { user, isLoading: isAuthLoading } = useAuth();
   
-  const { data, isLoading, isError } = useCandidatiSelezionatiData(user);
+  const { data, isLoading, isError } = useCandidatiData(user);
+  
+  // Debug logging identico a Rappresentanti
+  console.log('🔍 DEBUG Candidati - Valori singoli:');
+  console.log('  isAuthLoading:', isAuthLoading);
+  console.log('  user:', !!user);
+  console.log('  isLoading:', isLoading);
+  console.log('  isError:', isError);
+  console.log('  data:', data);
+  console.log('  data type:', typeof data);
+  console.log('  data keys:', data ? Object.keys(data) : 'data è null/undefined');
+  console.log('  candidati:', data?.candidati);
+  console.log('  idMap:', data?.idMap);
   const {
     opinioniDialogData,
-    programmaDialogData,
     handleNavigateToSelection,
     handleOpenOpinioniDialog,
-    handleCloseOpinioniDialog,
-    handleOpenProgrammaDialog,
-    handleCloseProgrammaDialog
+    handleCloseOpinioniDialog
   } = useCandidatiActions();
 
   const hasData = !!data;
+  
+  // Log della condizione di rendering
+  console.log('🔍 DEBUG Rendering conditions:');
+  console.log('  hasData:', hasData);
+  console.log('  Mostrando sempre le card per permettere selezione candidati');
 
   if (isAuthLoading) {
     return (
@@ -99,17 +112,6 @@ export default function Candidati() {
             cognome={opinioniDialogData?.cognome}
             avatarConfig={opinioniDialogData?.avatarConfig}
             categoria={opinioniDialogData?.categoria as any}
-          />
-        )}
-        {programmaDialogData && (
-          <ViewProgrammaDialog
-            open={!!programmaDialogData}
-            onOpenChange={(open) => !open && handleCloseProgrammaDialog()}
-            utenteId={programmaDialogData?.utenteId || ''}
-            nome={programmaDialogData?.nome}
-            cognome={programmaDialogData?.cognome}
-            avatarConfig={programmaDialogData?.avatarConfig}
-            categoria={programmaDialogData?.categoria as any}
           />
         )}
       </div>

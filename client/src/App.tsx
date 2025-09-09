@@ -284,7 +284,7 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route scegli rappresentante */}
+              {/* Route scegli rappresentante - identica a candidati */}
               <Route path="/scegli-rappresentante/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/scegli-rappresentante/:categoria" component={ScegliRappresentante} />
@@ -305,17 +305,10 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route scegli candidato - DEVE essere prima della route generica */}
-              <Route path="/candidati/:categoria">
+              {/* Route scegli candidato - identica a rappresentanti */}
+              <Route path="/scegli-candidato/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
-                </PageTransition>
-              </Route>
-
-              {/* TEST: Route temporanea per testare ScegliCandidato */}
-              <Route path="/test-candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/test-candidati" component={ScegliCandidato} />
+                  <ProtectedRoute path="/scegli-candidato/:categoria" component={ScegliCandidato} />
                 </PageTransition>
               </Route>
 
