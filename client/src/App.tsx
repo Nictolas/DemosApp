@@ -309,25 +309,28 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - gestisce TUTTO tramite redirect */}
-              <Route path="/candidati/:categoria?">
+              {/* Route candidati categoria - DEVE VENIRE PRIMA */}
+              <Route path="/candidati/:categoria">
                 {(params) => {
-                  console.log('🔍 DEBUG App - Route /candidati/:categoria? ATTIVATA con params:', params);
-                  
-                  // Se c'è una categoria, renderizza ScegliCandidato
-                  if (params.categoria) {
-                    console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', params.categoria);
-                    return (
-                      <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                        <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidato} />
-                      </PageTransition>
-                    );
-                  }
-                  
-                  // Se non c'è categoria, redirect a /candidati/europeo
-                  console.log('🔍 DEBUG App - Redirect da /candidati a /candidati/europeo');
-                  window.location.href = '/candidati/europeo';
-                  return null;
+                  console.log('🔍 DEBUG App - Route /candidati/:categoria ATTIVATA con params:', params);
+                  console.log('🔍 DEBUG App - Rendering ScegliCandidato per categoria:', params.categoria);
+                  return (
+                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                      <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidato} />
+                    </PageTransition>
+                  );
+                }}
+              </Route>
+
+              {/* Route candidati - renderizza Elezioni */}
+              <Route path="/candidati">
+                {() => {
+                  console.log('🔍 DEBUG App - Route /candidati ATTIVATA - Rendering Elezioni');
+                  return (
+                    <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                      <ProtectedRoute path="/candidati" component={Elezioni} />
+                    </PageTransition>
+                  );
                 }}
               </Route>
 
