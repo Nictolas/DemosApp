@@ -319,7 +319,12 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - RIMOSSA TEMPORANEAMENTE PER TEST */}
+              {/* Route candidati */}
+              <Route path="/candidati">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati" component={Candidati} />
+                </PageTransition>
+              </Route>
 
               {/* Route eventi */}
               <Route path="/eventi">
