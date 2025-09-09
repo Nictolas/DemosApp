@@ -317,10 +317,16 @@ export default function App() {
                   console.log('🔍 DEBUG App - ScegliCandidato component:', ScegliCandidato);
                   console.log('🔍 DEBUG App - About to render ScegliCandidato...');
                   
+                  // Renderizza direttamente ScegliCandidato con i parametri
+                  const ScegliCandidatoWithParams = () => {
+                    console.log('🔍 DEBUG ScegliCandidatoWithParams - Rendering con categoria:', params.categoria);
+                    return <ScegliCandidato categoria={params.categoria} />;
+                  };
+                  
                   try {
                     const result = (
                       <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                        <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidato} />
+                        <ProtectedRoute path={`/candidati/${params.categoria}`} component={ScegliCandidatoWithParams} />
                       </PageTransition>
                     );
                     console.log('🔍 DEBUG App - ScegliCandidato rendered successfully:', result);
