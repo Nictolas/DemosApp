@@ -16,6 +16,10 @@ export default function ScegliCandidato() {
   const { categoria } = useParams<{ categoria: string }>();
   const { user, isLoading } = useAuth();
   
+  // TEST: Hardcode categoria per test
+  const testCategoria = categoria || 'europeo';
+  console.log('🔍 TEST ScegliCandidato - categoria:', categoria, 'testCategoria:', testCategoria);
+  
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();
 
@@ -24,7 +28,7 @@ export default function ScegliCandidato() {
     loading, 
     candidatoSelezionato, 
     setCandidatoSelezionato 
-  } = useCandidatiData(user, categoria || '');
+  } = useCandidatiData(user, testCategoria);
 
   const {
     selezionando,
