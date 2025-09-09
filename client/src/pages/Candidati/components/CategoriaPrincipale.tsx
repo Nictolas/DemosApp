@@ -1,11 +1,11 @@
 import React from "react";
 import { User } from "lucide-react";
 import { CustomAvatar } from "@/components/CustomAvatar";
-import { ElezioniData, Categoria } from "../types";
+import { CandidatiData, Categoria } from "../types";
 
 interface CategoriaPrincipaleProps {
   categoria: Categoria;
-  data: ElezioniData | undefined;
+  data: CandidatiData | undefined;
   onNavigate: (categoriaId: string) => void;
   onOpenOpinioni: (utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string) => void;
 }
@@ -26,7 +26,6 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
-            <p className="text-xs text-blue-500 mt-1">Tocca per scegliere</p>
           </div>
         </div>
       );
@@ -88,10 +87,7 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
               {`${candidatoData.nome} ${candidatoData.cognome}`}
             </p>
           ) : (
-            <div className="text-center">
-              <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
-              <p className="text-xs text-blue-500 mt-1">Tocca per scegliere</p>
-            </div>
+            <p className="text-sm text-gray-500 italic">Nessuno scelto</p>
           )}
         </div>
       </div>

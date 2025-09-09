@@ -36,16 +36,16 @@ export interface CandidatoCardProps {
   candidato: Candidato;
   isSelected: boolean;
   isSelezionando: boolean;
-  onSeleziona: (candidatoId: string) => void;
+  onSeleziona: (id: string) => void;
   onViewOpinioni: (data: OpinioniDialogData) => void;
 }
 
-export interface HeaderProps {
+export interface EmptyStateProps {
   categoria: string;
   getTitolo: () => string;
 }
 
-export interface EmptyStateProps {
+export interface HeaderProps {
   categoria: string;
   getTitolo: () => string;
 }

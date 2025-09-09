@@ -33,9 +33,10 @@ import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
 import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
+import Candidati from "./pages/Candidati";
+import ScegliCandidato from "./pages/ScegliCandidato";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
-// Candidati rimosso - usiamo solo ScegliCandidato
 import Eventi from "./pages/Eventi";
 import Gestisci from "./pages/Gestisci";
 import Strumenti from "./pages/Strumenti";
@@ -65,7 +66,6 @@ import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
 import VotaReferendumAbrogativo from "./pages/VotaReferendumAbrogativo";
 import VotaICE from "./pages/VotaICE";
 import Votazione from "./pages/Votazione";
-import ScegliCandidato from "./pages/ScegliCandidato";
 import Sostenitori from "./pages/Sostenitori";
 import Comunica from "./pages/Comunica";
 import Evento from "./pages/Evento";
@@ -290,6 +290,20 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route candidati */}
+              <Route path="/candidati">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati" component={Candidati} />
+                </PageTransition>
+              </Route>
+
+              {/* Route scegli candidato */}
+              <Route path="/candidati/:categoria">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
+                </PageTransition>
+              </Route>
+
               {/* Route notifiche */}
               <Route path="/notifiche">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
@@ -311,7 +325,7 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route candidati - RIMOSSE TEMPORANEAMENTE PER TEST */}
+              {/* Route candidati - RIMOSSE DEFINITIVAMENTE */}
               {/* <Route path="/candidati/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/candidati/:categoria" component={ScegliRappresentante} />

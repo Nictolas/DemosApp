@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ElezioniData } from "../types";
+import { CandidatiData } from "../types";
 
 export const useCandidatiData = (user: any) => {
-  return useQuery<ElezioniData>({
+  return useQuery<CandidatiData>({
     queryKey: ['candidatiData'],
     queryFn: async () => {
-      // Endpoint principale per candidati (identico a rappresentanti)
+      // Endpoint protetto: usa JWT per risalire all'utente corrente
       const response = await apiRequest("GET", `/api/candidati`);
       if (!response.ok) throw new Error("Errore nel caricamento dei candidati");
       const result = await response.json();
@@ -16,7 +16,14 @@ export const useCandidatiData = (user: any) => {
         return result.data;
       }
       
-      // Fallback per struttura vuota - IMPORTANTE: restituisce sempre dati validi
+      // Fallback per struttura legacy
+      if (Array.isArray(result?.candidati)) {
+        const idMap: Record<string, string> = {};
+        const candidati: any = {};
+        return { candidati, idMap };
+      }
+      
+      // Fallback per struttura vuota
       return { candidati: {}, idMap: {} };
     },
     enabled: !!user,

@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
+import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useCandidatiData } from "./hooks/useCandidatiData";
 import { useCandidatiActions } from "./hooks/useCandidatiActions";
@@ -15,8 +16,6 @@ export default function Candidati() {
   const { user, isLoading: isAuthLoading } = useAuth();
   
   const { data, isLoading, isError } = useCandidatiData(user);
-  
-  // Debug logging rimosso per test
   const {
     opinioniDialogData,
     handleNavigateToSelection,
@@ -24,9 +23,26 @@ export default function Candidati() {
     handleCloseOpinioniDialog
   } = useCandidatiActions();
 
-  const hasData = !!data;
+  // Debug logging più dettagliato
+  console.log('🔍 DEBUG Candidati - Valori singoli:');
+  console.log('  isAuthLoading:', isAuthLoading);
+  console.log('  user:', !!user);
+  console.log('  isLoading:', isLoading);
+  console.log('  isError:', isError);
+  console.log('  data:', data);
+  console.log('  data type:', typeof data);
+  console.log('  data keys:', data ? Object.keys(data) : 'data è null/undefined');
+  console.log('  candidati:', data?.candidati);
+  console.log('  idMap:', data?.idMap);
   
-  // Log della condizione di rendering rimosso per test
+  // Log della condizione di rendering
+  const hasData = !!data;
+  // Rimuovo completamente i controlli hasCandidati e hasIdMap
+  // Le card devono essere sempre visibili per permettere la selezione
+  
+  console.log('🔍 DEBUG Rendering conditions:');
+  console.log('  hasData:', hasData);
+  console.log('  Mostrando sempre le card per permettere selezione candidati');
 
   if (isAuthLoading) {
     return (
@@ -41,13 +57,14 @@ export default function Candidati() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
+    <PageTransition>
       <style jsx global>{`
         body, html {
           overflow: hidden !important;
           touch-action: none !important;
         }
       `}</style>
+                      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
         <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />
@@ -58,6 +75,7 @@ export default function Candidati() {
               {/* Card Parlamento Europeo */}
               {(() => {
                 const categoria = categorie[0];
+                console.log('🔍 DEBUG: Rendering categoria:', categoria.id, categoria.nome);
                 return (
                   <CategoriaPrincipale
                     key={categoria.id}
@@ -99,5 +117,6 @@ export default function Candidati() {
           />
         )}
       </div>
+    </PageTransition>
   );
 }

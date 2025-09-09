@@ -6,7 +6,7 @@ export const ErrorState: React.FC = () => {
     <Card className="p-8 text-center">
       <CardContent>
         <h2 className="text-xl font-semibold text-red-600">Errore nel caricamento</h2>
-        <p>Impossibile caricare i tuoi candidati per le elezioni.</p>
+        <p>Impossibile caricare i tuoi candidati.</p>
       </CardContent>
     </Card>
   );
