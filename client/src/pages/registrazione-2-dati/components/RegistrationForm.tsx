@@ -34,8 +34,8 @@ export const RegistrationForm: React.FC = () => {
   };
 
   const handlePrevious = () => {
-    // Navigazione alla pagina precedente
-    window.history.back();
+    // Navigazione alla pagina precedente usando wouter invece di history.back()
+    navigate('/registrazione-nome');
   };
 
   const handleNext = async () => {
