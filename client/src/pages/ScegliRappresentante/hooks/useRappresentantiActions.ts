@@ -47,8 +47,10 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       if (isTestRoute) {
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'test'] });
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
+        await queryClient.invalidateQueries({ queryKey: ['user'] });
       } else {
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
+        await queryClient.invalidateQueries({ queryKey: ['user'] });
       }
 
       // Gestione FCM (solo per rappresentanti, non per test)
