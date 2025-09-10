@@ -3,29 +3,14 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 
 // Configurazione database diretta (senza dipendenze esterne)
-const pool = new Pool(
-  process.env.DATABASE_URL 
-    ? {
-        // Produzione: usa DATABASE_URL (formato standard per Render, Vercel, etc.)
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      }
-    : {
-        // Sviluppo: usa credenziali specifiche
-        user: process.env.DB_USER || 'xeadylil_Nicolas',
-        password: process.env.DB_PASSWORD || 'N1Nj6tAu789',
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || 5432,
-        database: process.env.DB_NAME || 'xeadylil_demos',
-        ssl: process.env.DB_SSL === 'true' || false,
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      }
-);
+const pool = new Pool({
+  // Usa sempre Neon per ora
+  connectionString: 'postgresql://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require',
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000, // Aumento timeout
+});
 
 // Middleware per verificare il token JWT
 const verifyToken = async (req, res, next) => {
