@@ -21,17 +21,17 @@ interface SondaggiData {
 export function useSondaggiData(filterPath?: string) {
   // Determina l'endpoint API in base al filtro
   const getApiEndpoint = () => {
-    if (!filterPath) return "/api/sondaggi/stats";
+    if (!filterPath) return "/api/sondaggi";
     
     const pathParts = filterPath.split('/');
     if (pathParts.length === 1) {
-      return `/api/sondaggi/stats/${pathParts[0]}`;
+      return `/api/sondaggi/${pathParts[0]}`;
     } else if (pathParts.length === 2) {
-      return `/api/sondaggi/stats/${pathParts[0]}/${pathParts[1]}`;
+      return `/api/sondaggi/${pathParts[0]}/${pathParts[1]}`;
     } else if (pathParts.length === 3) {
-      return `/api/sondaggi/stats/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
+      return `/api/sondaggi/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
     }
-    return "/api/sondaggi/stats";
+    return "/api/sondaggi";
   };
 
   // Query principale per statistiche sondaggi
@@ -66,7 +66,7 @@ export function useSondaggiData(filterPath?: string) {
       const response = await apiRequest("GET", endpoint);
       if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
       const result = await response.json();
-      return result.data;
+      return result.stats; // Cambiato da result.data a result.stats per coerenza con l'API
     },
   });
 

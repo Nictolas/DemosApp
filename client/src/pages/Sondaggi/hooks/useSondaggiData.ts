@@ -14,7 +14,7 @@ export const useSondaggiData = (): SondaggiState & {
   const { data: sondaggiData, isLoading: isSondaggiLoading, isError: isSondaggiError } = useQuery<SondaggiData>({
     queryKey: ['sondaggiStats'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/sondaggi/stats");
+      const response = await apiRequest("GET", "/api/sondaggi");
       if (!response.ok) throw new Error("Errore nel caricamento delle statistiche.");
       const result = await response.json();
       return result.data;
@@ -28,7 +28,7 @@ export const useSondaggiData = (): SondaggiState & {
       const response = await apiRequest("GET", "/api/sondaggi/genere");
       if (!response.ok) throw new Error("Errore nel caricamento statistiche genere.");
       const result = await response.json();
-      return result.data;
+      return result.stats; // Cambiato da result.data a result.stats per coerenza con l'API
     },
     enabled: !!user,
   });
