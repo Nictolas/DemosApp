@@ -114,7 +114,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig, isSaving =
   const glassesColors = [
     { name: "Nero", value: "#333333" },
     { name: "Marrone", value: "#8B4513" },
-    { name: "Blu Scuro", value: "#2C3E50" },
+    { name: "Blu", value: "#2C3E50" },
     { name: "Verde Scuro", value: "#2E7D32" },
     { name: "Rosso Scuro", value: "#8B0000" },
     { name: "Grigio", value: "#5D6D7E" }
