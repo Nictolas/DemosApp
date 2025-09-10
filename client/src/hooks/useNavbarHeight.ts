@@ -2,14 +2,22 @@ import { useEffect, useState } from 'react';
 
 export const useNavbarHeight = () => {
   const [navbarHeight, setNavbarHeight] = useState(96); // Default 6rem = 96px
+  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
+    // Rileva se è un dispositivo Android
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isAndroidDevice = userAgent.includes('android');
+    setIsAndroid(isAndroidDevice);
+
     const calculateNavbarHeight = () => {
       // Cerca l'elemento navbar
       const navbar = document.querySelector('nav[class*="fixed"]');
       if (navbar) {
         const height = navbar.getBoundingClientRect().height;
-        setNavbarHeight(height);
+        // Su Android aggiungi padding extra per compensare le differenze
+        const extraPadding = isAndroidDevice ? 32 : 0; // 32px extra per Android
+        setNavbarHeight(height + extraPadding);
       }
     };
 
@@ -28,7 +36,7 @@ export const useNavbarHeight = () => {
       window.removeEventListener('orientationchange', calculateNavbarHeight);
       clearTimeout(timeoutId);
     };
-  }, []);
+  }, [isAndroid]);
 
-  return navbarHeight;
+  return { navbarHeight, isAndroid };
 };

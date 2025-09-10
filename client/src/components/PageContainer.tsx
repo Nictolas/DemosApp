@@ -10,13 +10,15 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   children, 
   className = '' 
 }) => {
-  const navbarHeight = useNavbarHeight();
+  const { navbarHeight, isAndroid } = useNavbarHeight();
 
   return (
     <div 
       className={`page-with-navbar ${className}`}
       style={{
-        paddingBottom: `calc(${navbarHeight}px + env(safe-area-inset-bottom))`
+        paddingBottom: isAndroid 
+          ? `calc(${navbarHeight}px + 1rem)` 
+          : `calc(${navbarHeight}px + env(safe-area-inset-bottom))`
       }}
     >
       {children}
