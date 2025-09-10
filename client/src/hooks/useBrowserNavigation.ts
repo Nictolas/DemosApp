@@ -59,20 +59,45 @@ export function useBrowserNavigation() {
 
     // Gestione del tasto indietro della tastiera
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Backspace' && !event.target || 
-          (event.target as HTMLElement).tagName === 'BODY') {
-        // Preveni il comportamento predefinito del browser
-        event.preventDefault();
+      // Solo per Backspace e solo se non siamo in un input/textarea
+      if (event.key === 'Backspace') {
+        // Preveni navigazione multipla
+        if (isNavigating.current) {
+          console.log('⚠️ Navigation already in progress, skipping keydown');
+          return;
+        }
         
-        // Naviga alla pagina precedente logica
-        const currentPath = window.location.pathname;
-        const previousPath = getPreviousPath(currentPath);
+        const target = event.target as HTMLElement;
+        const isInputField = target && (
+          target.tagName === 'INPUT' || 
+          target.tagName === 'TEXTAREA' || 
+          target.contentEditable === 'true' ||
+          target.isContentEditable
+        );
         
-        if (previousPath) {
-          setLocation(previousPath);
-        } else {
-          // Fallback: vai al menu o alla home
-          setLocation('/menu');
+        // Solo se non siamo in un campo di input
+        if (!isInputField) {
+          // Preveni il comportamento predefinito del browser
+          event.preventDefault();
+          
+          // Imposta flag di navigazione
+          isNavigating.current = true;
+          
+          // Naviga alla pagina precedente logica
+          const currentPath = window.location.pathname;
+          const previousPath = getPreviousPath(currentPath);
+          
+          if (previousPath) {
+            setLocation(previousPath);
+          } else {
+            // Fallback: vai al menu o alla home
+            setLocation('/menu');
+          }
+          
+          // Reset del flag dopo un delay
+          setTimeout(() => {
+            isNavigating.current = false;
+          }, 1000);
         }
       }
     };
