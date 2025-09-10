@@ -8,18 +8,19 @@ export function SquareGlassesStyle({ glassesColor }: SquareGlassesStyleProps) {
   const defaultColor = glassesColor || "#333333";
   
   return (
-    <svg className="w-20 h-20" viewBox="0 0 300 300" fill="currentColor" style={{ width: '80px', height: '80px' }}>
-      {/* OCCHIALI QUADRATI - PATH ESATTI DELL'ANTEPRIMA AVATAR - SCALA AUMENTATA */}
+    <svg className="w-full h-full" viewBox="0 0 300 300" fill="currentColor">
+      {/* OCCHIALI QUADRATI - INGRANDITI MOLTO */}
       <g>
-        {/* Lente sinistra - path esatto dell'Anteprima Avatar */}
-        <rect x="109" y="109" width="32" height="32" fill="none" stroke={defaultColor} strokeWidth="3"/>
-        {/* Lente destra - path esatto dell'Anteprima Avatar */}
-        <rect x="159" y="109" width="32" height="32" fill="none" stroke={defaultColor} strokeWidth="3"/>
-        {/* Ponte centrale - path esatto dell'Anteprima Avatar */}
-        <path d="M141 125 L159 125" stroke={defaultColor} strokeWidth="3"/>
-        {/* Stanghette - path esatto dell'Anteprima Avatar */}
-        <path d="M95 125 L109 125" stroke={defaultColor} strokeWidth="3"/>
-        <path d="M191 125 L205 125" stroke={defaultColor} strokeWidth="3"/>
+        {/* Lente sinistra - MOLTO più grande */}
+        <rect x="65" y="115" width="70" height="70" fill="none" stroke={defaultColor} strokeWidth="8"/>
+        {/* Lente destra - MOLTO più grande */}
+        <rect x="165" y="115" width="70" height="70" fill="none" stroke={defaultColor} strokeWidth="8"/>
+        {/* Ponte naso - più spesso */}
+        <path d="M 135 150 L 165 150" stroke={defaultColor} strokeWidth="8"/>
+        {/* Tempie sinistra - più lunghe */}
+        <path d="M 35 150 L 15 150" stroke={defaultColor} strokeWidth="8"/>
+        {/* Tempie destra - più lunghe */}
+        <path d="M 235 150 L 255 150" stroke={defaultColor} strokeWidth="8"/>
       </g>
     </svg>
   );

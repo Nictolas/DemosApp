@@ -6,10 +6,10 @@ interface NoneGlassesStyleProps {
 
 export function NoneGlassesStyle({}: NoneGlassesStyleProps) {
   return (
-    <svg className="w-20 h-20" viewBox="0 0 300 300" fill="currentColor" style={{ width: '80px', height: '80px' }}>
-      {/* NESSUN OCCHIALE - X ICON */}
-      <g transform="translate(138,138)">
-        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="#9CA3AF"/>
+    <svg className="w-full h-full" viewBox="0 0 300 300" fill="currentColor">
+      {/* NESSUN OCCHIALE - X ICON INGRANDITA */}
+      <g transform="translate(100,100)">
+        <path d="M50 15L42.5 7.5 25 25 7.5 7.5 0 15 17.5 32.5 0 50 7.5 57.5 25 40 42.5 57.5 50 50 32.5 32.5z" fill="#9CA3AF" stroke="#9CA3AF" strokeWidth="2"/>
       </g>
     </svg>
   );

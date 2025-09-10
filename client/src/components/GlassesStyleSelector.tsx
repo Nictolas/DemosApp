@@ -32,7 +32,7 @@ export function GlassesStyleSelector({
   };
 
   return (
-    <div className="mb-6 glasses-style-selector">
+    <div className="mb-6">
       <h3 className="text-lg font-semibold mb-3 text-gray-800">Stile Occhiali</h3>
       <div className="grid grid-cols-4 gap-3">
         {glassesStyles.map((style) => (
@@ -43,7 +43,7 @@ export function GlassesStyleSelector({
               e.stopPropagation();
               handleStyleChange(style.id);
             }}
-            className={`w-24 h-24 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer ${
+            className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer ${
               selectedGlassesStyle === style.id
                 ? "border-blue-500 bg-blue-50 shadow-md"
                 : "border-gray-300 hover:border-gray-400"
