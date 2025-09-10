@@ -18,8 +18,7 @@ export function GlassesStyleSelector({
   onGlassesStyleChange,
   onGlassesColorChange 
 }: GlassesStyleSelectorProps) {
-  // FORZA SEMPRE IL COLORE NERO per visualizzare gli occhiali nel selettore
-  const displayColor = "#333333";
+  const displayColor = glassesColor;
   
   const glassesStyles = [
     { id: "none", component: <NoneGlassesStyle /> },
@@ -30,17 +29,12 @@ export function GlassesStyleSelector({
 
   const handleStyleChange = (style: string) => {
     onGlassesStyleChange(style);
-    
-    // SEMPRE imposta il colore di default "Nero" quando si seleziona uno stile
-    if (style !== "none" && onGlassesColorChange) {
-      onGlassesColorChange("#333333");
-    }
   };
 
   return (
     <div className="mb-6">
       <h3 className="text-lg font-semibold mb-3 text-gray-800">Stile Occhiali</h3>
-      <div className="grid grid-cols-4 gap-4 justify-items-center">
+      <div className="grid grid-cols-4 gap-3">
         {glassesStyles.map((style) => (
           <button
             key={style.id}
@@ -49,7 +43,7 @@ export function GlassesStyleSelector({
               e.stopPropagation();
               handleStyleChange(style.id);
             }}
-            className={`w-20 h-20 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer hover:scale-105 ${
+            className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer ${
               selectedGlassesStyle === style.id
                 ? "border-blue-500 bg-blue-50 shadow-md"
                 : "border-gray-300 hover:border-gray-400"
