@@ -4,32 +4,27 @@ export interface Candidato {
   cognome: string;
   email: string;
   ruolo: string;
+  status: string;
+  avatarConfig?: string;
   grado_candidatura?: string;
-  opinioni_comuni: number;
-  avatar_config?: string;
-  energia_nucleare?: string;
-  sperimentazione_animale?: string;
-  legalizzazione_canapa?: string;
-  caccia?: string;
-  paese_elezione?: string;
-  regione_elezione?: string;
-  provincia_elezione?: string;
-  comune_elezione?: string;
 }
 
 export interface OpinioniDialogData {
   utenteId: string;
-  nome: string;
-  cognome: string;
+  nome?: string;
+  cognome?: string;
   avatarConfig?: string;
+  categoria?: string;
 }
 
-export interface ScegliCandidatoState {
-  candidati: Candidato[];
-  loading: boolean;
-  selezionando: boolean;
-  candidatoSelezionato: string | null;
-  opinioniDialogData: OpinioniDialogData | null;
+export interface HeaderProps {
+  categoria: string;
+  getTitolo: () => string;
+}
+
+export interface EmptyStateProps {
+  categoria: string;
+  getTitolo: () => string;
 }
 
 export interface CandidatoCardProps {
@@ -38,14 +33,4 @@ export interface CandidatoCardProps {
   isSelezionando: boolean;
   onSeleziona: (id: string) => void;
   onViewOpinioni: (data: OpinioniDialogData) => void;
-}
-
-export interface EmptyStateProps {
-  categoria: string;
-  getTitolo: () => string;
-}
-
-export interface HeaderProps {
-  categoria: string;
-  getTitolo: () => string;
 }

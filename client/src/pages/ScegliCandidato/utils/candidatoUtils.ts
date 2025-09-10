@@ -11,44 +11,11 @@ export const getTitolo = (categoria: string): string => {
 
 export const getFieldName = (categoria: string): string => {
   switch (categoria) {
-    case "europeo": return "candidato_europeo";
-    case "camera": return "candidato_camera";
-    case "senato": return "candidato_senato";
-    case "regione": return "candidato_regionale";
-    case "comune": return "candidato_comune";
-    default: return "";
+    case "europeo": return "test_europeo";
+    case "camera": return "test_camera";
+    case "senato": return "test_senato";
+    case "regione": return "test_regionale";
+    case "comune": return "test_comune";
+    default: return "test_europeo";
   }
-};
-
-export const getAvatarContent = (avatarConfig: string | undefined) => {
-  if (!avatarConfig) return null;
-  
-  try {
-    // Gestisci il caso di doppia serializzazione JSON
-    let config;
-    if (typeof avatarConfig === 'string') {
-      // Prima prova a fare il parse diretto
-      config = JSON.parse(avatarConfig);
-      // Se il risultato è ancora una stringa, fai un secondo parse
-      if (typeof config === 'string') {
-        config = JSON.parse(config);
-      }
-    } else {
-      config = avatarConfig;
-    }
-    return config;
-  } catch (error) {
-    console.log('⚠️ Errore parsing avatar:', error);
-    return null;
-  }
-};
-
-export const getButtonContent = (isSelected: boolean, isSelezionando: boolean) => {
-  if (isSelezionando) {
-    return { icon: "loading", text: "Selezionando..." };
-  }
-  if (isSelected) {
-    return { icon: "check", text: "Scelto" };
-  }
-  return { icon: "thumbsup", text: "Scegli" };
 };

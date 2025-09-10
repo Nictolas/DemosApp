@@ -1,21 +1,16 @@
 import React from "react";
-import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { EmptyStateProps } from "../types";
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ categoria, getTitolo }) => {
   return (
-    <Card className="p-8 text-center">
-      <CardContent>
-        <h2 className="text-xl font-semibold mb-4">Nessun candidato trovato</h2>
-        <p className="text-muted-foreground mb-4">
-          Non ci sono candidati disponibili per la categoria "{getTitolo()}" nella tua zona.
+    <div className="flex-1 flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-6xl mb-4">📊</div>
+        <h2 className="text-xl font-semibold mb-2">Nessun candidato disponibile</h2>
+        <p className="text-gray-600">
+          Non ci sono candidati disponibili per la categoria {getTitolo()}.
         </p>
-        <Button asChild>
-          <Link to="/menu">Torna al Menu</Link>
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
