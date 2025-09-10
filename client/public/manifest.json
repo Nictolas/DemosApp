@@ -1,6 +1,6 @@
 {
   "name": "DEMOS",
-  "short_name": "DEMOS",
+  "short_name": "Demos",
   "description": "Piattaforma di democrazia partecipativa",
   "start_url": "/",
   "display": "standalone",
