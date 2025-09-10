@@ -8,18 +8,19 @@ export function AviatorGlassesStyle({ glassesColor }: AviatorGlassesStyleProps) 
   const defaultColor = glassesColor || "#333333";
   
   return (
-    <svg className="w-20 h-20" viewBox="0 0 300 300" fill="currentColor" style={{ width: '80px', height: '80px' }}>
-      {/* OCCHIALI AVIATOR - PATH ESATTI DELL'ANTEPRIMA AVATAR - SCALA AUMENTATA */}
+    <svg className="w-full h-full" viewBox="0 0 300 300" fill="currentColor">
+      {/* OCCHIALI AVIATOR - INGRANDITI MOLTO */}
       <g>
-        {/* Lente sinistra - path esatto dell'Anteprima Avatar */}
-        <ellipse cx="125" cy="125" rx="16" ry="12" fill="none" stroke={defaultColor} strokeWidth="3"/>
-        {/* Lente destra - path esatto dell'Anteprima Avatar */}
-        <ellipse cx="175" cy="125" rx="16" ry="12" fill="none" stroke={defaultColor} strokeWidth="3"/>
-        {/* Ponte centrale - path esatto dell'Anteprima Avatar */}
-        <path d="M141 125 L159 125" stroke={defaultColor} strokeWidth="3"/>
-        {/* Stanghette - path esatto dell'Anteprima Avatar */}
-        <path d="M95 125 L109 125" stroke={defaultColor} strokeWidth="3"/>
-        <path d="M191 125 L205 125" stroke={defaultColor} strokeWidth="3"/>
+        {/* Lente sinistra - MOLTO più grande */}
+        <ellipse cx="100" cy="150" rx="35" ry="25" fill="none" stroke={defaultColor} strokeWidth="8"/>
+        {/* Lente destra - MOLTO più grande */}
+        <ellipse cx="200" cy="150" rx="35" ry="25" fill="none" stroke={defaultColor} strokeWidth="8"/>
+        {/* Ponte naso - più spesso */}
+        <path d="M 135 150 L 165 150" stroke={defaultColor} strokeWidth="8"/>
+        {/* Tempie sinistra - più lunghe */}
+        <path d="M 65 150 L 45 150" stroke={defaultColor} strokeWidth="8"/>
+        {/* Tempie destra - più lunghe */}
+        <path d="M 235 150 L 255 150" stroke={defaultColor} strokeWidth="8"/>
       </g>
     </svg>
   );
