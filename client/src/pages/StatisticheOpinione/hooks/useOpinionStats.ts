@@ -3,9 +3,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { OpinionData } from "../types";
 
 export const useOpinionStats = (opinionId: string) => {
+  console.log('🔍 DEBUG useOpinionStats - opinionId ricevuto:', opinionId);
+  console.log('🔍 DEBUG useOpinionStats - opinionId valido:', !!opinionId);
+  
   return useQuery<OpinionData>({
     queryKey: ['opinioneStats', opinionId, window.location.pathname],
     queryFn: async () => {
+      console.log('🔍 DEBUG useOpinionStats - Inizio query per opinionId:', opinionId);
+      
       // Controlla se siamo in una pagina regionale
       const pathParts = window.location.pathname.split('/');
       let endpoint = `/api/opinioni/stats/${opinionId}`;
@@ -20,13 +25,24 @@ export const useOpinionStats = (opinionId: string) => {
         console.log('🔍 DEBUG StatisticheOpinione - Endpoint stats nazionale:', endpoint);
       }
       
+      console.log('🔍 DEBUG useOpinionStats - Chiamata API in corso...');
       const response = await apiRequest("GET", endpoint, null, {
         'Cache-Control': 'no-cache',
         'Pragma': 'no-cache'
       });
-      if (!response.ok) throw new Error("Errore nel caricamento statistiche.");
+      
+      console.log('🔍 DEBUG useOpinionStats - Response status:', response.status);
+      console.log('🔍 DEBUG useOpinionStats - Response ok:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔍 DEBUG useOpinionStats - Errore response:', errorText);
+        throw new Error(`Errore nel caricamento statistiche: ${response.status} - ${errorText}`);
+      }
+      
       const result = await response.json();
-      console.log('🔍 DEBUG StatisticheOpinione - Dati ricevuti:', result.data);
+      console.log('🔍 DEBUG StatisticheOpinione - Dati ricevuti:', result);
+      console.log('🔍 DEBUG StatisticheOpinione - Data:', result.data);
       return result.data;
     },
     enabled: !!opinionId,
