@@ -235,10 +235,10 @@ router.put('/me', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante per categoria
+// PUT /api/users/:userId/seleziona-rappresentante - Seleziona rappresentante o candidato per categoria
 router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) => {
   try {
-    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante');
+    console.log('🎯 PUT /api/users/:userId/seleziona-rappresentante - Selezione rappresentante/candidato');
     
     const { userId } = req.params;
     const { campo, rappresentanteId } = req.body;
@@ -258,7 +258,10 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
     }
     
     // Verifica che il campo sia valido
-    const validFields = ['rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune'];
+    const validFields = [
+      'rappresentante_europeo', 'rappresentante_camera', 'rappresentante_senato', 'rappresentante_regionale', 'rappresentante_comune',
+      'candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'
+    ];
     if (!validFields.includes(campo)) {
       return res.status(400).json({
         success: false,
@@ -277,16 +280,19 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
       });
     }
     
-    console.log('✅ Rappresentante selezionato con successo');
+    const isCandidato = campo.startsWith('candidato_');
+    const entityType = isCandidato ? 'Candidato' : 'Rappresentante';
+    
+    console.log(`✅ ${entityType} selezionato con successo`);
     
     res.json({
       success: true,
-      message: 'Rappresentante selezionato con successo',
+      message: `${entityType} selezionato con successo`,
       user: result.rows[0]
     });
     
   } catch (error) {
-    console.error('❌ Errore nella selezione rappresentante:', error);
+    console.error('❌ Errore nella selezione:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
