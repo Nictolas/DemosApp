@@ -4,13 +4,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { OpinioniDialogData } from "../types";
 import { getFieldName } from "../utils/rappresentanteUtils";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 
 export const useRappresentantiActions = (user: any, categoria: string, fcmToken: string | null) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selezionando, setSelezionando] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<OpinioniDialogData | null>(null);
+  const [, setLocation] = useLocation();
   
   // Detect if the current route is under /test
   const [isTestRoute] = useRoute("/test/:categoria");
@@ -72,6 +73,14 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         title: "Successo",
         description: isTestRoute ? "Candidato selezionato con successo!" : "Rappresentante selezionato con successo!",
       });
+
+      // Reindirizza automaticamente a /test dopo la selezione in modalità test
+      if (isTestRoute) {
+        console.log('🔄 DEBUG - Reindirizzamento a /test dopo selezione candidato');
+        setTimeout(() => {
+          setLocation('/test');
+        }, 1000); // Piccolo delay per permettere al toast di essere visibile
+      }
 
     } catch (error) {
       console.error("Errore durante la selezione:", error);
