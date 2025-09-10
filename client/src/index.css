@@ -412,6 +412,43 @@ body {
     min-height: 120px !important;
     max-height: 200px !important;
   }
+  
+  /* Stili per pagina rappresentanti */
+  .rappresentanti-page.android .container {
+    padding-bottom: calc(6rem + 3rem + 1rem) !important; /* Spazio extra per Android */
+  }
+  
+  .rappresentanti-page.android .rappresentante-card {
+    height: calc((100vh - 9rem - 200px) / 2) !important;
+    min-height: 120px !important;
+    max-height: 200px !important;
+  }
+  
+  /* Soluzione per evitare contenuto dietro la navbar */
+  .page-with-navbar {
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* Assicura che la navbar sia sempre sopra tutto */
+  nav[class*="fixed"] {
+    z-index: 9999 !important;
+    background: white !important;
+    box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
+  }
+  
+  /* Nasconde qualsiasi contenuto che potrebbe apparire dietro la navbar */
+  .page-with-navbar::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(6rem + env(safe-area-inset-bottom));
+    background: white;
+    z-index: 9998;
+    pointer-events: none;
+  }
 }
 
 /* Assicura che i pulsanti del menu si adattino dinamicamente all'altezza dello schermo */
