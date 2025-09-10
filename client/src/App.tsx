@@ -76,22 +76,31 @@ import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
 import ProponiICE from "./pages/ProponiICE";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
+import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 
-// Hook per la navigazione touch
+// Hook per la navigazione touch migliorato
 function useTouchNavigation() {
+  const [, setLocation] = useLocation();
+  
   React.useEffect(() => {
     let startX = 0;
     let startY = 0;
     let isScrolling = false;
+    let touchStartTime = 0;
+    let isNavigating = false;
 
     const handleTouchStart = (e: TouchEvent) => {
+      // Evita conflitti se già in navigazione
+      if (isNavigating) return;
+      
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       isScrolling = false;
+      touchStartTime = Date.now();
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!startX || !startY) return;
+      if (!startX || !startY || isNavigating) return;
 
       const currentX = e.touches[0].clientX;
       const currentY = e.touches[0].clientY;
@@ -103,29 +112,95 @@ function useTouchNavigation() {
         return;
       }
 
-      if (diffX > 50 && !isScrolling) {
+      // Swipe più sensibile ma con controlli aggiuntivi
+      if (diffX > 30 && !isScrolling) {
         const direction = startX > currentX ? 'right' : 'left';
+        const touchDuration = Date.now() - touchStartTime;
         
-        if (direction === 'right') {
-          // Swipe da sinistra a destra - vai indietro
-          window.history.back();
+        // Solo swipe veloci e da sinistra a destra
+        if (direction === 'right' && touchDuration < 500) {
+          // Preveni navigazione multipla
+          if (isNavigating) return;
+          isNavigating = true;
+          
+          // Naviga alla pagina precedente logica invece di usare history.back()
+          const currentPath = window.location.pathname;
+          const previousPath = getPreviousPath(currentPath);
+          
+          if (previousPath) {
+            setLocation(previousPath);
+          } else {
+            // Fallback: vai al menu
+            setLocation('/menu');
+          }
+          
+          // Reset dopo un breve delay
+          setTimeout(() => {
+            isNavigating = false;
+          }, 1000);
         }
       }
     };
 
+    const handleTouchEnd = () => {
+      // Reset dei valori
+      startX = 0;
+      startY = 0;
+      isScrolling = false;
+      touchStartTime = 0;
+    };
+
+    // Funzione helper per determinare il percorso precedente
+    const getPreviousPath = (currentPath: string): string | null => {
+      const pathMap: { [key: string]: string } = {
+        '/menu': '/',
+        '/profilo': '/menu',
+        '/opinioni': '/menu',
+        '/rappresentanti': '/menu',
+        '/governo': '/menu',
+        '/elezioni': '/menu',
+        '/ice': '/menu',
+        '/iniziative-popolari': '/menu',
+        '/referendum-abrogativi': '/menu',
+        '/grazia': '/menu',
+        '/amnistia': '/menu',
+        '/capo-stato': '/menu',
+        '/sondaggi': '/menu',
+        '/comunicazioni': '/menu',
+        '/eventi': '/menu',
+        '/notifiche': '/menu',
+        '/auth': '/',
+        '/registrazione-nome': '/auth',
+        '/registrazione-genere': '/registrazione-nome',
+        '/registrazione-cittadinanza': '/registrazione-genere',
+        '/registrazione-ruolo': '/registrazione-cittadinanza',
+        '/registrazione-2-dati': '/registrazione-ruolo',
+        '/registrazione-3-opinioni': '/registrazione-2-dati',
+        '/registrazione-4-avatar': '/registrazione-3-opinioni',
+        '/registrazione-5-conferma': '/registrazione-4-avatar'
+      };
+      
+      return pathMap[currentPath] || null;
+    };
+
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
     document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, []);
+  }, [setLocation]);
 }
 
 export default function App() {
   // Hook per la navigazione touch
   useTouchNavigation();
+  
+  // Hook per la navigazione del browser
+  useBrowserNavigation();
   
   const [location] = useLocation();
   

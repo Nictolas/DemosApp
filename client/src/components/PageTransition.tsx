@@ -103,11 +103,34 @@ export function PageTransition({
     return () => clearTimeout(hideTimer);
   }, [actualLocation, children, delay, showLoader, loaderDuration]);
 
+  // Gestione eventi di navigazione del browser
+  useEffect(() => {
+    const handlePopState = () => {
+      // Reset dello stato di transizione quando il browser naviga
+      isPending.current = false;
+      setIsVisible(true);
+      setShowLoaderState(false);
+    };
+
+    const handleBeforeUnload = () => {
+      // Reset dello stato prima di lasciare la pagina
+      isPending.current = false;
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   return (
     <>
       {showLoaderState && <LoaderComponent />}
       <div 
-        className={`${classes.base} ${isVisible ? classes.visible : classes.hidden}`}
+        className={`${classes.base} ${isVisible ? classes.visible : classes.hidden} navigation-safe`}
         aria-live="polite"
       >
         {content}
