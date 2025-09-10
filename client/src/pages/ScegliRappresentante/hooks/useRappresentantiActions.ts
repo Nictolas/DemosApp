@@ -53,8 +53,11 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         // Forza il refetch immediato
         await queryClient.refetchQueries({ queryKey: ['rappresentantiData', 'test'] });
       } else {
+        console.log('🔄 DEBUG - Invalidando query per modalità rappresentanti');
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
         await queryClient.invalidateQueries({ queryKey: ['user'] });
+        // Forza il refetch immediato
+        await queryClient.refetchQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
       }
 
       // Gestione FCM (solo per rappresentanti, non per test)
@@ -77,12 +80,13 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         description: isTestRoute ? "Candidato selezionato con successo!" : "Rappresentante selezionato con successo!",
       });
 
-      // Reindirizza automaticamente a /test dopo la selezione in modalità test
+      // Reindirizza automaticamente dopo la selezione
       if (isTestRoute) {
         console.log('🔄 DEBUG - Reindirizzamento a /test dopo selezione candidato');
-        setTimeout(() => {
-          setLocation('/test');
-        }, 2000); // Delay più lungo per permettere l'aggiornamento dei dati
+        setLocation('/test');
+      } else {
+        console.log('🔄 DEBUG - Reindirizzamento a /rappresentanti dopo selezione rappresentante');
+        setLocation('/rappresentanti');
       }
 
     } catch (error) {
