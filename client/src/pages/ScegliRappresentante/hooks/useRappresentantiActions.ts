@@ -46,7 +46,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       // Invalida le query appropriate in base alla modalità
       if (isTestRoute) {
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'test'] });
-        await queryClient.invalidateQueries({ queryKey: ['elezioni-candidati'] });
+        await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
       } else {
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
       }

@@ -19,6 +19,7 @@ export const useRappresentantiData = (user: any) => {
       if (result.success && result.data) {
         if (isTestRoute) {
           // Per le route test, i dati sono in { candidati, idMap }
+          console.log('🔍 DEBUG Frontend - Dati test ricevuti:', result.data);
           return {
             rappresentanti: result.data.candidati || {},
             idMap: result.data.idMap || {}
