@@ -86,43 +86,111 @@ router.get('/stats/:opinionId', verifyToken, async (req, res) => {
   try {
     const { opinionId } = req.params;
     
-    // Query per ottenere le statistiche generali
+    // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+    const opinionMapping = {
+      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
+      'energia_nucleare': 'energia_nucleare',
+      'sperimentazione_animale': 'sperimentazione_animale',
+      'legalizzazione_canapa': 'legalizzazione_canapa',
+      'caccia': 'caccia',
+      'eutanasia': 'eutanasia',
+      'carne_coltivata': 'carne_coltivata',
+      'cittadina_animale': 'cittadina_animale',
+      'nato': 'nato',
+      'matrimonio_gay': 'matrimonio_gay',
+      'salario_minimo': 'salario_minimo',
+      'case_chiuse': 'case_chiuse',
+      'omobitransfobia': 'omobitransfobia',
+      
+      // Opinion regionali/comunali (senza prefissi)
+      'nuovi_inceneritori': 'nuovi_inceneritori',
+      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+      
+      // Opinion comunali (senza prefissi)
+      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
+      
+      // Opinion nazionali/comunali (senza prefissi)
+      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+      'nuove_case_popolari': 'nuove_case_popolari',
+      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+      'sostegno_commercio_locale': 'sostegno_commercio_locale',
+      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
+    };
+
+    const columnName = opinionMapping[opinionId];
+    if (!columnName) {
+      return res.status(404).json({
+        success: false,
+        error: 'Opinione non trovata',
+        message: `L'opinione con ID '${opinionId}' non è supportata`
+      });
+    }
+
+    // Query per ottenere le statistiche dalla tabella users
     const statsQuery = `
       SELECT 
-        COUNT(*) as total_votes,
-        COUNT(CASE WHEN risposta = 'Sì' THEN 1 END) as si_votes,
-        COUNT(CASE WHEN risposta = 'No' THEN 1 END) as no_votes,
-        COUNT(CASE WHEN risposta = 'Indeciso' THEN 1 END) as indeciso_votes
-      FROM voti_opinioni
-      WHERE opinione_id = $1
+        COUNT(*) as totale_utenti,
+        COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+        COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+        COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+        COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
+      FROM users 
+      WHERE ${columnName} IS NOT NULL
     `;
     
-    const statsResult = await pool.query(statsQuery, [opinionId]);
+    const statsResult = await pool.query(statsQuery);
     const stats = statsResult.rows[0];
     
-    // Calcola le percentuali
-    const total = parseInt(stats.total_votes) || 0;
-    const percentages = {
-      si: total > 0 ? Math.round((parseInt(stats.si_votes) / total) * 100) : 0,
-      no: total > 0 ? Math.round((parseInt(stats.no_votes) / total) * 100) : 0,
-      indeciso: total > 0 ? Math.round((parseInt(stats.indeciso_votes) / total) * 100) : 0
-    };
+    // Query per ottenere il testo dell'opinione
+    const questionQuery = `
+      SELECT text
+      FROM opinioni
+      WHERE id = $1
+    `;
+    
+    const questionResult = await pool.query(questionQuery, [opinionId]);
+    const questionText = questionResult.rows[0]?.text || opinionId;
+    
+    const totaleUtenti = parseInt(stats.totale_utenti) || 0;
+    const favorevole = parseInt(stats.favorevole) || 0;
+    const contrario = parseInt(stats.contrario) || 0;
+    const indeciso = parseInt(stats.indeciso) || 0;
+    const astenuto = parseInt(stats.astenuto) || 0;
     
     res.json({
       success: true,
-      stats: {
-        total: total,
-        si: parseInt(stats.si_votes) || 0,
-        no: parseInt(stats.no_votes) || 0,
-        indeciso: parseInt(stats.indeciso_votes) || 0,
-        percentages: percentages
+      data: {
+        stats: {
+          favorevole,
+          contrario,
+          indeciso,
+          astenuto
+        },
+        questionText,
+        totaleUtenti
       }
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare statistiche opinione:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare statistiche opinione'
+      error: 'Errore nel recuperare statistiche opinione',
+      message: error.message
     });
   }
 });
