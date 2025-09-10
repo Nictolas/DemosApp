@@ -538,9 +538,9 @@ body {
     font-size: 1.5rem !important; /* Riduci la dimensione del testo */
   }
   
-  .menu-button .w-16.h-16,
-  .opinioni-button .h-12,
-  .opinioni-button .h-16 {
+  .menu-button .w-16.h-16:not(svg),
+  .opinioni-button .h-12:not(svg),
+  .opinioni-button .h-16:not(svg) {
     width: 3rem !important;
     height: 3rem !important;
   }
@@ -548,6 +548,18 @@ body {
   .menu-button .h-14.w-14 {
     height: 2.5rem !important;
     width: 2.5rem !important;
+  }
+  
+  /* Regola specifica per gli SVG degli occhiali nei pulsanti */
+  .glasses-style-selector svg {
+    width: 5rem !important;
+    height: 5rem !important;
+  }
+  
+  /* Regola per i pulsanti degli occhiali più grandi */
+  .glasses-style-selector button {
+    width: 5rem !important;
+    height: 5rem !important;
   }
   
   .menu-button .h-10.w-10 {
