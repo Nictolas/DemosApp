@@ -15,7 +15,7 @@ interface EditProfileFormProps {
 }
 
 export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin = false }: EditProfileFormProps) {
-  const { formData, isSubmitting, handleChange, handleSubmit } = useProfileForm(userData, onProfileUpdated);
+  const { formData, isSubmitting, handleChange, handleSubmit } = useProfileForm(userData, onProfileUpdated, isAdmin);
 
   // Determina se mostrare le sezioni in base al ruolo
   const shouldShowElectionSection = formData.ruolo === "Politico" || formData.ruolo === "Candidato Politico";

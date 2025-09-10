@@ -20,7 +20,8 @@ function normalizeDate(dateStr?: string): string {
 
 export function useProfileForm(
   userData: UserInfo & { uid: string },
-  onProfileUpdated: (updatedData: UserInfo) => void
+  onProfileUpdated: (updatedData: UserInfo) => void,
+  isAdmin: boolean = false
 ) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<UserInfo & { uid: string }>({
@@ -50,7 +51,8 @@ export function useProfileForm(
     setIsSubmitting(true);
 
     try {
-      const response = await apiRequest("PUT", "/api/users/me", formData);
+      const endpoint = isAdmin ? `/api/users/${userData.uid}` : "/api/users/me";
+      const response = await apiRequest("PUT", endpoint, formData);
       
       if (!response.ok) {
         const errorData = await response.json();

@@ -44,7 +44,7 @@ export function PersonalDataSection({ formData, onFieldChange }: PersonalDataSec
           <Input
             id="data_nascita"
             type="date"
-            value={formData.data_nascita || ""}
+            value={formData.data_nascita ? convertToDateInput(formData.data_nascita) : ""}
             onChange={(e) => onFieldChange("data_nascita", e.target.value)}
             required
           />
@@ -68,16 +68,60 @@ export function PersonalDataSection({ formData, onFieldChange }: PersonalDataSec
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="cittadinanza">Cittadinanza *</Label>
-        <Input
-          id="cittadinanza"
-          value={formData.cittadinanza || ""}
-          onChange={(e) => onFieldChange("cittadinanza", e.target.value)}
-          placeholder="Inserisci la cittadinanza"
-          required
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="ruolo">Ruolo *</Label>
+          <Select
+            value={formData.ruolo || ""}
+            onValueChange={(value) => onFieldChange("ruolo", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleziona il ruolo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="elettore">Elettore</SelectItem>
+              <SelectItem value="Politico">Politico</SelectItem>
+              <SelectItem value="Candidato">Candidato</SelectItem>
+              <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
+              <SelectItem value="Utente">Utente</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="cittadinanza">Cittadinanza *</Label>
+          <Input
+            id="cittadinanza"
+            value={formData.cittadinanza || ""}
+            onChange={(e) => onFieldChange("cittadinanza", e.target.value)}
+            placeholder="Inserisci la cittadinanza"
+            required
+          />
+        </div>
       </div>
     </div>
   );
+}
+
+// Funzione per convertire la data dal formato DD/MM/YYYY al formato YYYY-MM-DD per l'input date
+function convertToDateInput(dateStr: string): string {
+  if (!dateStr) return "";
+  
+  // Se è già nel formato YYYY-MM-DD, restituiscilo così com'è
+  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return dateStr;
+  }
+  
+  // Se è nel formato DD/MM/YYYY, convertilo
+  if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+    const [day, month, year] = dateStr.split('/');
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Se è una data ISO, estrai solo la parte YYYY-MM-DD
+  if (dateStr.includes('T')) {
+    return dateStr.split('T')[0];
+  }
+  
+  return "";
 }
