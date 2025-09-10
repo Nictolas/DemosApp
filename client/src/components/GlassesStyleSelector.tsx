@@ -40,12 +40,16 @@ export function GlassesStyleSelector({
   return (
     <div className="mb-6">
       <h3 className="text-lg font-semibold mb-3 text-gray-800">Stile Occhiali</h3>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-4 justify-items-center">
         {glassesStyles.map((style) => (
           <button
             key={style.id}
-            onClick={() => handleStyleChange(style.id)}
-            className={`w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleStyleChange(style.id);
+            }}
+            className={`w-20 h-20 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer hover:scale-105 ${
               selectedGlassesStyle === style.id
                 ? "border-blue-500 bg-blue-50 shadow-md"
                 : "border-gray-300 hover:border-gray-400"
@@ -54,6 +58,7 @@ export function GlassesStyleSelector({
                    style.id === "round" ? "Rotondi" :
                    style.id === "square" ? "Quadrati" :
                    "Aviator"}
+            type="button"
           >
             {style.component}
           </button>
