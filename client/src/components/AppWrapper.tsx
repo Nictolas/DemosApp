@@ -7,7 +7,7 @@ interface AppWrapperProps {
 }
 
 export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
-  const { isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [isAppReady, setIsAppReady] = useState(false);
   const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
@@ -21,18 +21,35 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     return () => clearTimeout(minTimer);
   }, []);
 
-  // Controlla se l'app è pronta (auth caricato + tempo minimo trascorso)
+  // Controlla se l'app è pronta (auth caricato + utente disponibile + tempo minimo trascorso)
   useEffect(() => {
+    console.log('🔍 AppWrapper - Stato attuale:', {
+      minSplashTimeElapsed,
+      isAuthLoading,
+      hasUser: !!user,
+      userEmail: user?.email
+    });
+
     if (minSplashTimeElapsed && !isAuthLoading) {
-      // Aspetta ancora un po' per assicurarsi che tutto sia caricato
-      const finalTimer = setTimeout(() => {
+      // Se l'utente è presente, l'app è pronta
+      if (user) {
+        console.log('✅ AppWrapper - Utente presente, nascondendo splash screen');
+        const finalTimer = setTimeout(() => {
+          setShowSplash(false);
+          setIsAppReady(true);
+        }, 500); // 500ms extra per transizione fluida
+
+        return () => clearTimeout(finalTimer);
+      }
+      // Se l'utente non è presente ma l'auth è finito, mostra l'app comunque
+      // (per gestire il caso di utenti non autenticati)
+      else {
+        console.log('⚠️ AppWrapper - Nessun utente ma auth finito, mostrando app');
         setShowSplash(false);
         setIsAppReady(true);
-      }, 500); // 500ms extra per transizione fluida
-
-      return () => clearTimeout(finalTimer);
+      }
     }
-  }, [minSplashTimeElapsed, isAuthLoading]);
+  }, [minSplashTimeElapsed, isAuthLoading, user]);
 
   // Timer di sicurezza (massimo 8 secondi)
   useEffect(() => {
