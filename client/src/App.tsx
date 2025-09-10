@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Route, Switch, useLocation, Redirect, useParams } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,7 +7,7 @@ import { RegistrationProvider } from "@/hooks/use-registration";
 import { queryClient } from "./lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
-import { SplashScreen } from "@/components/SplashScreen";
+import { AppWrapper } from "@/components/AppWrapper";
 
 // Import dei componenti principali
 import LandingPage from "./pages/LandingPage";
@@ -204,46 +204,15 @@ export default function App() {
   useBrowserNavigation();
   
   const [location] = useLocation();
-  const [showSplash, setShowSplash] = useState(true);
-  const [isAppReady, setIsAppReady] = useState(false);
   
   // Debug logging rimosso per evitare blocchi
-
-  // Gestione della splash screen
-  useEffect(() => {
-    // Mostra la splash screen solo al primo caricamento
-    const hasSeenSplash = sessionStorage.getItem('demos-splash-seen');
-    
-    if (hasSeenSplash) {
-      setShowSplash(false);
-      setIsAppReady(true);
-    } else {
-      // Imposta un timer di sicurezza per assicurarsi che l'app si carichi
-      const safetyTimer = setTimeout(() => {
-        setShowSplash(false);
-        setIsAppReady(true);
-      }, 4000); // 4 secondi massimo
-
-      return () => clearTimeout(safetyTimer);
-    }
-  }, []);
-
-  const handleSplashComplete = () => {
-    sessionStorage.setItem('demos-splash-seen', 'true');
-    setShowSplash(false);
-    setIsAppReady(true);
-  };
-
-  // Mostra la splash screen se necessario
-  if (showSplash) {
-    return <SplashScreen onComplete={handleSplashComplete} duration={2500} />;
-  }
 
   return (
     <QueryClientProvider client={queryClient}>
       <div className="App">
         <AuthProvider>
           <RegistrationProvider>
+            <AppWrapper>
             <Switch>
               {/* Route di verifica email - fuori dall'AuthProvider */}
               <Route path="/verifica-email">
@@ -719,8 +688,9 @@ export default function App() {
              <Navbar />}
             
             <Toaster />
-            </RegistrationProvider>
-          </AuthProvider>
+            </AppWrapper>
+          </RegistrationProvider>
+        </AuthProvider>
       </div>
     </QueryClientProvider>
   );
