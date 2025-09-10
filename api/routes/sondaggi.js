@@ -5,7 +5,7 @@ const { pool } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/sondaggi - Ottieni tutti i sondaggi (opinioni aggregate)
-router.get('/', verifyToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
