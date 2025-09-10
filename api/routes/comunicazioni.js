@@ -4,8 +4,12 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  // Usa sempre Neon per ora
+  connectionString: 'postgresql://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require',
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
 // ===== ENDPOINTS PER COMUNICAZIONI =====
@@ -53,6 +57,26 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nella creazione comunicazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// GET /api/ultima-comunicazione - Ultima comunicazione
+router.get('/ultima-comunicazione', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM comunicazioni ORDER BY data_creazione DESC LIMIT 1'
+    );
+    
+    res.json({
+      success: true,
+      data: result.rows[0] || null
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero ultima comunicazione:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
