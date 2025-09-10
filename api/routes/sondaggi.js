@@ -181,4 +181,165 @@ router.get('/genere', async (req, res) => {
   }
 });
 
+// GET /api/sondaggi/:regione - Statistiche per regione
+router.get('/:regione', async (req, res) => {
+  try {
+    const { regione } = req.params;
+    
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni 
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la regione
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      const opinionMapping = {
+        // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
+        'energia_nucleare': 'energia_nucleare',
+        'sperimentazione_animale': 'sperimentazione_animale',
+        'legalizzazione_canapa': 'legalizzazione_canapa',
+        'caccia': 'caccia',
+        'eutanasia': 'eutanasia',
+        'carne_coltivata': 'carne_coltivata',
+        'cittadina_animale': 'cittadina_animale',
+        'nato': 'nato',
+        'matrimonio_gay': 'matrimonio_gay',
+        'salario_minimo': 'salario_minimo',
+        'case_chiuse': 'case_chiuse',
+        'omobitransfobia': 'omobitransfobia',
+        
+        // Opinion regionali/comunali (senza prefissi)
+        'nuovi_inceneritori': 'nuovi_inceneritori',
+        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+        
+        // Opinion comunali (senza prefissi)
+        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
+        
+        // Opinion nazionali/comunali (senza prefissi)
+        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+        'nuove_case_popolari': 'nuove_case_popolari',
+        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+        'sostegno_commercio_locale': 'sostegno_commercio_locale',
+        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
+      };
+
+      const columnName = opinionMapping[questionId];
+      if (!columnName) {
+        console.log(`⚠️ DEBUG: ID opinione non mappato: ${questionId}`);
+        continue; // Salta questa opinione se non è mappata
+      }
+      
+      // Query per contare le risposte per questa opinione nella regione specifica
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_voti,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${columnName} IS NOT NULL 
+        AND regione = $1
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [regione]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in regione ${regione}:`, statsError.message);
+        // Se la colonna non esiste, salta questa opinione
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'regione',
+          value: regione
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi regionali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi regionali'
+    });
+  }
+});
+
+// GET /api/sondaggi/genere/:regione - Statistiche per genere per regione
+router.get('/genere/:regione', async (req, res) => {
+  try {
+    const { regione } = req.params;
+    
+    const query = `
+      SELECT 
+        genere,
+        COUNT(*) as totale
+      FROM users 
+      WHERE genere IS NOT NULL 
+      AND regione = $1
+      GROUP BY genere
+      ORDER BY totale DESC
+    `;
+    
+    const result = await pool.query(query, [regione]);
+    
+    res.json({
+      success: true,
+      stats: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare statistiche genere per regione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare statistiche genere per regione'
+    });
+  }
+});
+
 module.exports = router;
