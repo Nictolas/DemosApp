@@ -4,12 +4,16 @@ import { apiRequest } from "@/lib/queryClient";
 import { OpinioniDialogData } from "../types";
 import { getFieldName } from "../utils/rappresentanteUtils";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRoute } from "wouter";
 
 export const useRappresentantiActions = (user: any, categoria: string, fcmToken: string | null) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selezionando, setSelezionando] = useState(false);
   const [opinioniDialogData, setOpinioniDialogData] = useState<OpinioniDialogData | null>(null);
+  
+  // Detect if the current route is under /test
+  const [isTestRoute] = useRoute("/test/:categoria");
 
   const selezionaRappresentante = async (rappresentanteId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
@@ -28,7 +32,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         "PUT",
         `/api/users/${userId}/seleziona-rappresentante`,
         {
-          campo: getFieldName(categoria),
+          campo: getFieldName(categoria, isTestRoute),
           rappresentanteId: rappresentanteId,
         }
       );
@@ -39,11 +43,16 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
       
       onSuccess(rappresentanteId);
 
-      // Invalida la query dei rappresentanti per aggiornare la pagina rappresentanti
-      await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
+      // Invalida le query appropriate in base alla modalità
+      if (isTestRoute) {
+        await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'test'] });
+        await queryClient.invalidateQueries({ queryKey: ['elezioni-candidati'] });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
+      }
 
-      // Gestione FCM
-      if (fcmToken) {
+      // Gestione FCM (solo per rappresentanti, non per test)
+      if (fcmToken && !isTestRoute) {
         const topic = `sostenitori_politico_${rappresentanteId}`;
         await apiRequest(
             "POST",
@@ -59,14 +68,14 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
 
       toast({
         title: "Successo",
-        description: "Rappresentante selezionato con successo!",
+        description: isTestRoute ? "Candidato selezionato con successo!" : "Rappresentante selezionato con successo!",
       });
 
     } catch (error) {
       console.error("Errore durante la selezione:", error);
       toast({
         title: "Errore",
-        description: "Impossibile selezionare il rappresentante.",
+        description: isTestRoute ? "Impossibile selezionare il candidato." : "Impossibile selezionare il rappresentante.",
         variant: "destructive",
       });
     } finally {

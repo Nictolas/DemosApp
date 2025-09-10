@@ -56,14 +56,32 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           // Per le route test, i dati sono direttamente nell'array data
           const candidati = result.data || [];
           console.log('🔍 DEBUG Frontend - Candidati ricevuti (TEST):', candidati.length);
-          setRappresentanteSelezionato(null); // Nessun candidato selezionato per le route test
+          
+          // Per le route test, dobbiamo recuperare le selezioni esistenti
+          // Chiamiamo l'API per ottenere le selezioni di test dell'utente
+          try {
+            const selezioniResponse = await apiRequest("GET", `/api/elezioni/candidati`);
+            if (selezioniResponse.ok) {
+              const selezioniData = await selezioniResponse.json();
+              if (selezioniData.success) {
+                const { candidati: candidatiSelezionati } = selezioniData.data;
+                const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
+                setRappresentanteSelezionato(candidatoSelezionato?.id || null);
+                console.log('🔍 DEBUG Frontend - Candidato selezionato per test:', candidatoSelezionato);
+              }
+            }
+          } catch (error) {
+            console.log('⚠️ Errore nel recuperare selezioni test:', error);
+            setRappresentanteSelezionato(null);
+          }
+          
           setRappresentanti(candidati);
         } else {
           // Per le route normali, i dati sono in { candidati, utente }
           const { candidati, utente } = result.data;
           console.log('🔍 DEBUG Frontend - Candidati ricevuti (NORMAL):', candidati?.length || 0);
           console.log('🔍 DEBUG Frontend - Utente:', utente);
-          setRappresentanteSelezionato(utente?.[getFieldName(categoria)] || null);
+          setRappresentanteSelezionato(utente?.[getFieldName(categoria, isTestRoute)] || null);
           setRappresentanti(candidati || []);
         }
 
