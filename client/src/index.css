@@ -367,61 +367,61 @@ body {
   }
 }
 
-/* Padding per le pagine con navbar fissa in basso */
+/* Padding dinamico per le pagine con navbar fissa in basso */
 .page-with-navbar {
-  padding-bottom: 7.5rem !important; /* 120px per h-24 della navbar + padding */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important; /* 96px + safe area per dispositivi con notch */
 }
 
 /* Assicura che il contenuto non finisca dietro la navbar */
 .min-h-screen {
-  min-height: calc(100vh - 7.5rem) !important;
+  min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
 }
 
-/* Layout specifico per la pagina menu */
+/* Layout specifico per la pagina menu con padding dinamico */
 .menu-page {
-  min-height: calc(100vh - 7.5rem) !important;
-  max-height: calc(100vh - 7.5rem) !important;
+  min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
 }
 
 /* Assicura che il contenuto della pagina menu abbia spazio sufficiente sopra la navbar */
 .menu-page .container {
-  padding-bottom: 120px !important; /* Spazio per la navbar */
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 1rem) !important; /* Spazio dinamico per la navbar */
 }
 
 /* Assicura che i pulsanti del menu si adattino dinamicamente all'altezza dello schermo */
 .menu-button {
-  height: calc((100vh - 7.5rem - 200px) / 2) !important; /* Calcola altezza disponibile divisa per 2 righe */
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important; /* Calcola altezza disponibile divisa per 2 righe */
   min-height: 120px !important; /* Altezza minima per garantire usabilità */
   max-height: 200px !important; /* Altezza massima per evitare pulsanti troppo grandi */
 }
 
 /* Stili per pulsanti delle opinioni */
 .opinioni-button {
-  height: calc((100vh - 7.5rem - 200px) / 2) !important;
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
   min-height: 120px !important;
   max-height: 200px !important;
 }
 
 /* Stili per pagine di opinione con contenuto scrollabile */
 .opinioni-page {
-  min-height: calc(100vh - 7.5rem) !important;
-  max-height: calc(100vh - 7.5rem) !important;
+  min-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
+  max-height: calc(100vh - 6rem - env(safe-area-inset-bottom)) !important;
 }
 
 .opinioni-page .container {
-  padding-bottom: calc(7.5rem + 2rem) !important;
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important;
 }
 
 /* Stili per card dei candidati */
 .candidato-card {
-  height: calc((100vh - 7.5rem - 200px) / 2) !important;
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
   min-height: 200px !important;
   max-height: 300px !important;
 }
 
 /* Stili per card dei ministeri */
 .ministero-card {
-  height: calc((100vh - 7.5rem - 100px) / 3) !important;
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 100px) / 3) !important;
   min-height: 120px !important;
   max-height: 200px !important;
 }
@@ -430,19 +430,19 @@ body {
 @media screen and (max-height: 600px) {
   .menu-button,
   .opinioni-button {
-    height: calc((100vh - 7.5rem - 150px) / 2) !important;
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 150px) / 2) !important;
     min-height: 100px !important;
     max-height: 150px !important;
   }
   
   .candidato-card {
-    height: calc((100vh - 7.5rem - 150px) / 2) !important;
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 150px) / 2) !important;
     min-height: 150px !important;
     max-height: 200px !important;
   }
   
   .ministero-card {
-    height: calc((100vh - 7.5rem - 80px) / 3) !important;
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 80px) / 3) !important;
     min-height: 100px !important;
     max-height: 150px !important;
   }
@@ -452,19 +452,19 @@ body {
 @media screen and (max-height: 500px) {
   .menu-button,
   .opinioni-button {
-    height: calc((100vh - 7.5rem - 120px) / 2) !important;
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 120px) / 2) !important;
     min-height: 80px !important;
     max-height: 120px !important;
   }
   
   .candidato-card {
-    height: calc((100vh - 7.5rem - 120px) / 2) !important;
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 120px) / 2) !important;
     min-height: 120px !important;
     max-height: 150px !important;
   }
   
   .ministero-card {
-    height: calc((100vh - 7.5rem - 60px) / 3) !important;
+    height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 60px) / 3) !important;
     min-height: 80px !important;
     max-height: 120px !important;
   }
