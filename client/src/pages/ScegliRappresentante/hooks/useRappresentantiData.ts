@@ -57,23 +57,11 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           const candidati = result.data || [];
           console.log('🔍 DEBUG Frontend - Candidati ricevuti (TEST):', candidati.length);
           
-          // Per le route test, dobbiamo recuperare le selezioni esistenti
-          // Chiamiamo l'API per ottenere le selezioni di test dell'utente
-          try {
-            const selezioniResponse = await apiRequest("GET", `/api/elezioni/candidati`);
-            if (selezioniResponse.ok) {
-              const selezioniData = await selezioniResponse.json();
-              if (selezioniData.success) {
-                const { candidati: candidatiSelezionati } = selezioniData.data;
-                const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
-                setRappresentanteSelezionato(candidatoSelezionato?.id || null);
-                console.log('🔍 DEBUG Frontend - Candidato selezionato per test:', candidatoSelezionato);
-              }
-            }
-          } catch (error) {
-            console.log('⚠️ Errore nel recuperare selezioni test:', error);
-            setRappresentanteSelezionato(null);
-          }
+          // Per le route test, recuperiamo le selezioni esistenti dall'oggetto user
+          // che contiene i campi candidato_*
+          const candidatoSelezionatoId = user[getFieldName(categoria, true)];
+          console.log('🔍 DEBUG Frontend - Candidato selezionato per test (da user):', candidatoSelezionatoId);
+          setRappresentanteSelezionato(candidatoSelezionatoId || null);
           
           setRappresentanti(candidati);
         } else {
