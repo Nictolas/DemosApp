@@ -17,8 +17,8 @@ export function SquareGlassesStyle({ glassesColor }: SquareGlassesStyleProps) {
         <rect x="165" y="115" width="70" height="70" fill="none" stroke={defaultColor} strokeWidth="8"/>
         {/* Ponte naso - più spesso */}
         <path d="M 135 150 L 165 150" stroke={defaultColor} strokeWidth="8"/>
-        {/* Tempie sinistra - più lunghe */}
-        <path d="M 35 150 L 15 150" stroke={defaultColor} strokeWidth="8"/>
+        {/* Tempie sinistra - più lunghe e collegate */}
+        <path d="M 65 150 L 35 150" stroke={defaultColor} strokeWidth="8"/>
         {/* Tempie destra - più lunghe */}
         <path d="M 235 150 L 255 150" stroke={defaultColor} strokeWidth="8"/>
       </g>
