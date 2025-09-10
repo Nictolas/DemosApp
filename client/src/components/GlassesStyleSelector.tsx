@@ -43,7 +43,7 @@ export function GlassesStyleSelector({
               e.stopPropagation();
               handleStyleChange(style.id);
             }}
-            className={`w-20 h-20 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer ${
+            className={`w-24 h-24 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer ${
               selectedGlassesStyle === style.id
                 ? "border-blue-500 bg-blue-50 shadow-md"
                 : "border-gray-300 hover:border-gray-400"
