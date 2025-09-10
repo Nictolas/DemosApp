@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
+import { PageContainer } from "@/components/PageContainer";
 import { useRappresentantiData } from "./hooks/useRappresentantiData";
 import { useRappresentantiActions } from "./hooks/useRappresentantiActions";
 import { CategoriaPrincipale } from "./components/CategoriaPrincipale";
@@ -14,6 +15,7 @@ import { categorie, colorMap } from "./constants/categorie";
 
 export default function Rappresentanti() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const [isAndroid, setIsAndroid] = useState(false);
   
   const { data, isLoading, isError } = useRappresentantiData(user);
   const {
@@ -22,6 +24,12 @@ export default function Rappresentanti() {
     handleOpenOpinioniDialog,
     handleCloseOpinioniDialog
   } = useRappresentantiActions();
+
+  // Rileva se è un dispositivo Android
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    setIsAndroid(userAgent.includes('android'));
+  }, []);
 
   // Debug logging più dettagliato
   console.log('🔍 DEBUG Rappresentanti - Valori singoli:');
@@ -58,13 +66,7 @@ export default function Rappresentanti() {
 
   return (
     <PageTransition>
-      <style jsx global>{`
-        body, html {
-          overflow: hidden !important;
-          touch-action: none !important;
-        }
-      `}</style>
-                      <div className="h-screen flex flex-col overflow-hidden select-none overflow-x-hidden overflow-y-hidden touch-pan-x-none touch-pan-y-none" style={{ paddingBottom: '120px' }}>
+      <PageContainer className={`rappresentanti-page flex flex-col overflow-hidden select-none ${isAndroid ? 'android' : ''}`}>
         <div className="container mx-auto px-4 pt-4 overflow-hidden max-w-full h-full">
           {isLoading ? (
             <LoadingState />
@@ -116,7 +118,7 @@ export default function Rappresentanti() {
             categoria={opinioniDialogData?.categoria as any}
           />
         )}
-      </div>
+      </PageContainer>
     </PageTransition>
   );
 }
