@@ -15,21 +15,21 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
   const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
   const [userStable, setUserStable] = useState(false);
 
-  // Timer minimo per la splash screen (4 secondi - aumentato)
+  // Timer minimo per la splash screen (5 secondi - aumentato ulteriormente)
   useEffect(() => {
     const minTimer = setTimeout(() => {
       setMinSplashTimeElapsed(true);
-    }, 4000);
+    }, 5000);
 
     return () => clearTimeout(minTimer);
   }, []);
 
-  // Controlla che l'utente sia stabile (non cambi per almeno 1 secondo)
+  // Controlla che l'utente sia stabile (non cambi per almeno 2 secondi)
   useEffect(() => {
     if (user) {
       const stabilityTimer = setTimeout(() => {
         setUserStable(true);
-      }, 1000);
+      }, 2000);
 
       return () => clearTimeout(stabilityTimer);
     } else {
@@ -55,7 +55,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
         const finalTimer = setTimeout(() => {
           setShowSplash(false);
           setIsAppReady(true);
-        }, 800); // 800ms extra per transizione fluida
+        }, 1200); // 1200ms extra per transizione fluida
 
         return () => clearTimeout(finalTimer);
       }
@@ -69,12 +69,12 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     }
   }, [minSplashTimeElapsed, isAuthLoading, user, userStable, isMenuReady]);
 
-  // Timer di sicurezza (massimo 8 secondi)
+  // Timer di sicurezza (massimo 12 secondi)
   useEffect(() => {
     const safetyTimer = setTimeout(() => {
       setShowSplash(false);
       setIsAppReady(true);
-    }, 8000);
+    }, 12000);
 
     return () => clearTimeout(safetyTimer);
   }, []);
@@ -89,7 +89,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
 
   // Mostra la splash screen se necessario
   if (showSplash) {
-    return <SplashScreen onComplete={handleSplashComplete} duration={5000} />;
+    return <SplashScreen onComplete={handleSplashComplete} duration={6000} />;
   }
 
   // Mostra l'app quando è pronta
