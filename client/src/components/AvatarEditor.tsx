@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { HairStyleSelector } from "@/components/HairStyleSelector";
@@ -29,6 +30,7 @@ interface AvatarConfig {
 interface AvatarEditorProps {
   onSave: (config: AvatarConfig) => void;
   initialConfig?: AvatarConfig;
+  isSaving?: boolean;
 }
 
 const defaultConfig: AvatarConfig = {
@@ -46,7 +48,7 @@ const defaultConfig: AvatarConfig = {
   glassesColor: "#333333"
 };
 
-export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEditorProps) {
+export function AvatarEditor({ onSave, initialConfig = defaultConfig, isSaving = false }: AvatarEditorProps) {
   // Normalizza la configurazione iniziale assicurandoci che tutti i campi siano definiti
   const normalizedInitialConfig = {
     ...defaultConfig,
@@ -56,6 +58,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
   };
   
   const [config, setConfig] = useState<AvatarConfig>(normalizedInitialConfig);
+
 
 
 
@@ -282,8 +285,16 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig }: AvatarEd
           onClick={() => onSave(config)} 
           className="w-full"
           size="lg"
+          disabled={isSaving}
         >
-          Salva Avatar
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Salvando...
+            </>
+          ) : (
+            "Salva Avatar"
+          )}
         </Button>
       </div>
     </div>

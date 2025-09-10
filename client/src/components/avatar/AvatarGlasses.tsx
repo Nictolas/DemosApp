@@ -64,7 +64,7 @@ export function AvatarGlasses({ glassesStyle, glassesColor = "#333333" }: Avatar
   };
 
   return (
-    <g style={{ zIndex: 10 }}>
+    <g>
       {renderGlasses()}
     </g>
   );
