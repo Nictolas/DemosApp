@@ -54,7 +54,7 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig, isSaving =
     ...defaultConfig,
     ...initialConfig,
     glassesStyle: initialConfig.glassesStyle || "none",
-    glassesColor: "#333333" // SEMPRE nero di default
+    glassesColor: initialConfig.glassesColor || "#333333"
   };
   
   const [config, setConfig] = useState<AvatarConfig>(normalizedInitialConfig);
@@ -62,10 +62,6 @@ export function AvatarEditor({ onSave, initialConfig = defaultConfig, isSaving =
 
 
 
-  // FORZA SEMPRE il colore degli occhiali al default "Nero" solo al mount
-  useEffect(() => {
-    setConfig(prev => ({ ...prev, glassesColor: "#333333" }));
-  }, []); // Solo al mount
 
 
 
