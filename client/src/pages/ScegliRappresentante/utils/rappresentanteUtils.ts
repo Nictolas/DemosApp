@@ -9,14 +9,27 @@ export const getTitolo = (categoria: string): string => {
   }
 };
 
-export const getFieldName = (categoria: string): string => {
-  switch (categoria) {
-    case "europeo": return "rappresentante_europeo";
-    case "camera": return "rappresentante_camera";
-    case "senato": return "rappresentante_senato";
-    case "regione": return "rappresentante_regionale";
-    case "comune": return "rappresentante_comune";
-    default: return "";
+export const getFieldName = (categoria: string, isTestMode: boolean = false): string => {
+  if (isTestMode) {
+    // Per le selezioni di test, usa i campi candidato_*
+    switch (categoria) {
+      case "europeo": return "candidato_europeo";
+      case "camera": return "candidato_camera";
+      case "senato": return "candidato_senato";
+      case "regione": return "candidato_regionale";
+      case "comune": return "candidato_comune";
+      default: return "";
+    }
+  } else {
+    // Per le selezioni di rappresentanti, usa i campi rappresentante_*
+    switch (categoria) {
+      case "europeo": return "rappresentante_europeo";
+      case "camera": return "rappresentante_camera";
+      case "senato": return "rappresentante_senato";
+      case "regione": return "rappresentante_regionale";
+      case "comune": return "rappresentante_comune";
+      default: return "";
+    }
   }
 };
 

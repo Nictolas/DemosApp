@@ -1,26 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { RappresentantiData } from "../types";
+import { useRoute } from "wouter";
 
 export const useRappresentantiData = (user: any) => {
+  const [isTestRoute] = useRoute("/test*");
+  
   return useQuery<RappresentantiData>({
-    queryKey: ['rappresentantiData'],
+    queryKey: ['rappresentantiData', isTestRoute ? 'test' : 'rappresentanti'],
     queryFn: async () => {
-      // Endpoint protetto: usa JWT per risalire all'utente corrente
-      const response = await apiRequest("GET", `/api/rappresentanti`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei rappresentanti");
+      // Scegli l'endpoint corretto in base alla modalità
+      const endpoint = isTestRoute ? `/api/elezioni/candidati` : `/api/rappresentanti`;
+      const response = await apiRequest("GET", endpoint);
+      if (!response.ok) throw new Error("Errore nel caricamento dei dati");
       const result = await response.json();
       
-      // Gestisce la nuova struttura dell'API
+      // Gestisce la struttura dell'API in base alla modalità
       if (result.success && result.data) {
-        return result.data;
-      }
-      
-      // Fallback per struttura legacy
-      if (Array.isArray(result?.candidati)) {
-        const idMap: Record<string, string> = {};
-        const rappresentanti: any = {};
-        return { rappresentanti, idMap };
+        if (isTestRoute) {
+          // Per le route test, i dati sono in { candidati, idMap }
+          return {
+            rappresentanti: result.data.candidati || {},
+            idMap: result.data.idMap || {}
+          };
+        } else {
+          // Per le route normali, i dati sono in { rappresentanti, idMap }
+          return result.data;
+        }
       }
       
       // Fallback per struttura vuota
