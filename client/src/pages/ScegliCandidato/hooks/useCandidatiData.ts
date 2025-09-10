@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Candidato, OpinioniDialogData } from "../types";
-import { getTitolo, getFieldName } from "../utils/candidatoUtils";
+import { getFieldName } from "../utils/candidatoUtils";
 
 export const useCandidatiData = (user: any, categoria: string) => {
   const { toast } = useToast();
@@ -16,34 +16,26 @@ export const useCandidatiData = (user: any, categoria: string) => {
       
       setLoading(true);
       try {
-        const grado = getTitolo(categoria);
-        const url = `/api/candidati/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
+        console.log('🔍 DEBUG Frontend - Fetching candidati per categoria:', categoria);
         
-        console.log('🔍 DEBUG Frontend - Chiamata API:', url);
-        console.log('🔍 DEBUG Frontend - Categoria:', categoria);
-        console.log('🔍 DEBUG Frontend - Grado:', grado);
-        
-        const response = await apiRequest("GET", url);
+        const result = await apiRequest(
+          "GET",
+          `/api/test/disponibili?grado_candidatura=${categoria}`
+        );
 
-        if (!response.ok) {
-          throw new Error("Errore nel caricamento dei dati dal server.");
+        if (!result.ok) {
+          throw new Error("Impossibile caricare i candidati.");
         }
-        
-        const result = await response.json();
-        
-        console.log('🔍 DEBUG Frontend - Risposta API:', result);
-        
-        if (!result.success) {
-          throw new Error(result.error || "Errore nel caricamento dei dati");
+
+        const data = await result.json();
+        console.log('🔍 DEBUG Frontend - Risultato API candidati:', data);
+
+        if (data.success) {
+          const candidati = data.data || [];
+          console.log('🔍 DEBUG Frontend - Candidati ricevuti (TEST):', candidati.length);
+          setCandidatoSelezionato(null); // Nessun candidato selezionato per le route test
+          setCandidati(candidati);
         }
-        
-        const { candidati, utente } = result.data;
-        
-        console.log('🔍 DEBUG Frontend - Candidati ricevuti:', candidati?.length || 0);
-        console.log('🔍 DEBUG Frontend - Utente:', utente);
-        
-        setCandidatoSelezionato(utente[getFieldName(categoria)] || null);
-        setCandidati(candidati || []);
 
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);

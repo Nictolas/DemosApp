@@ -33,6 +33,8 @@ import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
 import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
+import Test from "./pages/Test";
+import ScegliCandidato from "./pages/ScegliCandidato";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
@@ -288,17 +290,17 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-      {/* Route test - COPIA IDENTICA DI RAPPRESENTANTI */}
+      {/* Route test - PAGINA SEPARATA PER TEST */}
       <Route path="/test">
         <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/test" component={Rappresentanti} />
+          <ProtectedRoute path="/test" component={Test} />
         </PageTransition>
       </Route>
 
-      {/* Route scegli test - COPIA IDENTICA DI SCEGLI RAPPRESENTANTE */}
+      {/* Route scegli test - PAGINA SEPARATA PER SCEGLI CANDIDATO */}
       <Route path="/test/:categoria">
         <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/test/:categoria" component={ScegliRappresentante} />
+          <ProtectedRoute path="/test/:categoria" component={ScegliCandidato} />
         </PageTransition>
       </Route>
 

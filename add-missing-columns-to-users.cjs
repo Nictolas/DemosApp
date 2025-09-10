@@ -56,7 +56,12 @@ async function addMissingColumnsToUsers() {
       { name: 'case_chiuse', type: 'TEXT' },
       { name: 'eutanasia', type: 'TEXT' },
       { name: 'omobitransfobia', type: 'TEXT' },
-      { name: 'avatar_config', type: 'TEXT' }
+      { name: 'avatar_config', type: 'TEXT' },
+      { name: 'test_europeo', type: 'VARCHAR(255)' },
+      { name: 'test_camera', type: 'VARCHAR(255)' },
+      { name: 'test_senato', type: 'VARCHAR(255)' },
+      { name: 'test_regionale', type: 'VARCHAR(255)' },
+      { name: 'test_comune', type: 'VARCHAR(255)' }
     ];
     
     // 3. AGGIUNGI LE COLONNE MANCANTI

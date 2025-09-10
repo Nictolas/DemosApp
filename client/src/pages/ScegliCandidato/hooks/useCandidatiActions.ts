@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { OpinioniDialogData } from "../types";
 import { getFieldName } from "../utils/candidatoUtils";
-import { useQueryClient } from "@tanstack/react-query";
 
 export const useCandidatiActions = (user: any, categoria: string, fcmToken: string | null) => {
   const { toast } = useToast();
@@ -15,7 +15,6 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
     if (!user) return;
     
     console.log('🔍 DEBUG - user object:', user);
-    console.log('🔍 DEBUG - user.uid:', user.uid);
     console.log('🔍 DEBUG - user.id:', user.id);
     
     setSelezionando(true);
@@ -26,7 +25,7 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
       
       const updateResponse = await apiRequest(
         "PUT",
-        `/api/users/${userId}/seleziona-candidato`,
+        `/api/test/seleziona-candidato`,
         {
           campo: getFieldName(categoria),
           candidatoId: candidatoId,
@@ -39,23 +38,8 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
       
       onSuccess(candidatoId);
 
-      // Invalida la query dei candidati per aggiornare la pagina candidati
-      await queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
-
-      // Gestione FCM
-      if (fcmToken) {
-        const topic = `sostenitori_politico_${candidatoId}`;
-        await apiRequest(
-            "POST",
-            "/api/notifications/subscribe-topic",
-            { token: fcmToken, topic }
-        );
-        toast({
-            title: "Notifiche attivate",
-            description: `Riceverai notifiche push per questo candidato.`,
-            variant: "success"
-        });
-      }
+      // Invalida la query dei candidati per aggiornare la pagina test
+      await queryClient.invalidateQueries({ queryKey: ['testSelezioni'] });
 
       toast({
         title: "Successo",

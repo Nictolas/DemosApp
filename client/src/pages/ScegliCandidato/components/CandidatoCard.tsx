@@ -1,10 +1,9 @@
 import React from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CustomAvatar } from "@/components/CustomAvatar";
-import { Loader2, Check, User, ThumbsUp, Users } from "lucide-react";
+import { Eye, Check } from "lucide-react";
 import { CandidatoCardProps } from "../types";
-import { getAvatarContent, getButtonContent } from "../utils/candidatoUtils";
 
 export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   candidato,
@@ -13,114 +12,73 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   onSeleziona,
   onViewOpinioni
 }) => {
-  const buttonContent = getButtonContent(isSelected, isSelezionando);
-  const avatarConfig = getAvatarContent(candidato.avatar_config);
+  const handleSeleziona = () => {
+    onSeleziona(candidato.id);
+  };
 
   const handleViewOpinioni = () => {
     onViewOpinioni({
       utenteId: candidato.id,
       nome: candidato.nome,
       cognome: candidato.cognome,
-      avatarConfig: candidato.avatar_config
+      avatarConfig: candidato.avatarConfig,
+      categoria: candidato.grado_candidatura
     });
   };
 
-  const renderAvatar = () => {
-    if (avatarConfig) {
-      return (
-        <CustomAvatar 
-          config={avatarConfig}
-          size={80}
-          className="w-full h-full"
-        />
-      );
-    }
-    return <User className="h-10 w-10 text-gray-400" />;
-  };
-
-  const renderButtonIcon = () => {
-    if (isSelezionando) {
-      return <Loader2 className="mr-2 h-4 w-4 animate-spin" />;
-    }
-    if (isSelected) {
-      return <Check className="mr-2 h-4 w-4" />;
-    }
-    return <ThumbsUp className="mr-2 h-4 w-4" />;
-  };
-
-  // Colori per l'estetica europea (blu)
-  const colorMap = { 
-    bg: "#dbeafe", 
-    text: "#1e40af", 
-    icon: "#2563eb",
-    button: "#2563eb",
-    buttonHover: "#1d4ed8"
-  };
-
   return (
-    <div className={`relative w-full h-full min-h-72 rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ${isSelected ? 'border-4 border-green-500' : 'border-2 border-transparent'}`}>
-      
-      {/* SVG con forme geometriche colorate come nella pagina opinioni */}
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <polygon points="100,0 0,0 0,35 100,20" fill={colorMap.bg} />
-        <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-      </svg>
-      
-      {isSelected && <Badge className="absolute top-2 right-2 bg-green-500 z-20">Selezionato</Badge>}
-
-      <div className="relative z-10 p-4 md:p-6 flex flex-col items-center justify-center h-full">
-        {/* Icona colorata come nella pagina opinioni */}
-        <Users className="h-8 md:h-10 w-8 md:w-10 mb-3" style={{ color: colorMap.icon }} />
-        
-        <div 
-          className="rounded-full overflow-hidden border-2 border-gray-300 shadow-sm cursor-pointer h-16 w-16 flex items-center justify-center bg-white mb-3"
-          onClick={handleViewOpinioni}
-        >
-          {renderAvatar()}
+    <Card className={`p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
+      isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+    }`}>
+      <div className="flex flex-col items-center text-center space-y-3">
+        {/* Avatar */}
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl font-bold">
+          {candidato.nome?.charAt(0) || 'C'}
         </div>
         
-        <div className="text-center mb-3">
-          <p 
-            className="font-bold cursor-pointer hover:underline text-lg mb-1" 
-            style={{ color: colorMap.text }}
-            onClick={handleViewOpinioni}
-          >
+        {/* Nome e cognome */}
+        <div>
+          <h3 className="font-semibold text-lg">
             {candidato.nome} {candidato.cognome}
-          </p>
-          <div className="flex justify-center">
-            <Badge 
-              variant="secondary" 
-              className="text-xs"
-              style={{ backgroundColor: colorMap.bg, color: colorMap.text }}
-            >
-              {candidato.opinioni_comuni} opinioni comuni
-            </Badge>
-          </div>
+          </h3>
+          <p className="text-sm text-gray-600">{candidato.email}</p>
         </div>
         
-        <Button 
-          className="w-full" 
-          onClick={() => onSeleziona(candidato.id)}
-          disabled={isSelezionando || isSelected}
-          style={{ 
-            backgroundColor: isSelected ? '#16a34a' : colorMap.button,
-            color: 'white'
-          }}
-          onMouseEnter={(e) => {
-            if (!isSelected && !isSelezionando) {
-              e.currentTarget.style.backgroundColor = colorMap.buttonHover;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isSelected && !isSelezionando) {
-              e.currentTarget.style.backgroundColor = colorMap.button;
-            }
-          }}
-        >
-          {renderButtonIcon()}
-          {buttonContent.text}
-        </Button>
+        {/* Ruolo */}
+        <Badge variant="secondary" className="text-xs">
+          {candidato.ruolo}
+        </Badge>
+        
+        {/* Pulsanti */}
+        <div className="flex space-x-2 w-full">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleViewOpinioni}
+            className="flex-1"
+          >
+            <Eye className="w-4 h-4 mr-1" />
+            Opinioni
+          </Button>
+          
+          <Button
+            onClick={handleSeleziona}
+            disabled={isSelezionando || isSelected}
+            className={`flex-1 ${
+              isSelected ? 'bg-green-500 hover:bg-green-600' : ''
+            }`}
+          >
+            {isSelected ? (
+              <>
+                <Check className="w-4 h-4 mr-1" />
+                Selezionato
+              </>
+            ) : (
+              'Scegli'
+            )}
+          </Button>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 };
