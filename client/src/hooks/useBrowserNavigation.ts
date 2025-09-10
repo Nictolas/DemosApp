@@ -35,7 +35,17 @@ export function useBrowserNavigation() {
 
       // Forza un re-render per assicurarsi che le transizioni funzionino
       setTimeout(() => {
+        console.log('🔄 Dispatching force-rerender event');
         window.dispatchEvent(new Event('force-rerender'));
+        
+        // Forza anche un aggiornamento della location per wouter
+        const currentPath = window.location.pathname;
+        console.log('📍 Current path after navigation:', currentPath);
+        
+        // Piccolo delay per assicurarsi che wouter abbia aggiornato la location
+        setTimeout(() => {
+          window.dispatchEvent(new Event('force-rerender'));
+        }, 50);
       }, 100);
     };
 

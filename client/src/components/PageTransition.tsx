@@ -103,28 +103,56 @@ export function PageTransition({
     return () => clearTimeout(hideTimer);
   }, [actualLocation, children, delay, showLoader, loaderDuration]);
 
-  // Gestione eventi di navigazione del browser
+  // Fallback per assicurarsi che il contenuto sia sempre visibile
   useEffect(() => {
-    const handlePopState = () => {
-      // Reset dello stato di transizione quando il browser naviga
-      isPending.current = false;
-      setIsVisible(true);
-      setShowLoaderState(false);
-    };
+    const fallbackTimer = setTimeout(() => {
+      if (!isVisible && !isPending.current) {
+        console.log('🔄 Fallback: forcing content visibility');
+        setContent(children);
+        setIsVisible(true);
+        setShowLoaderState(false);
+      }
+    }, 2000); // 2 secondi di timeout
 
+    return () => clearTimeout(fallbackTimer);
+  }, [isVisible, children]);
+
+  // Gestione eventi di navigazione del browser - solo per reset di emergenza
+  useEffect(() => {
     const handleBeforeUnload = () => {
       // Reset dello stato prima di lasciare la pagina
       isPending.current = false;
     };
 
-    window.addEventListener('popstate', handlePopState);
+    // Listener per forzare il re-render quando necessario
+    const handleForceRerender = () => {
+      console.log('🔄 Force rerender event received in PageTransition');
+      // Forza un aggiornamento del contenuto
+      setContent(children);
+      setIsVisible(true);
+      isPending.current = false;
+      setShowLoaderState(false);
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('force-rerender', handleForceRerender);
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('force-rerender', handleForceRerender);
     };
-  }, []);
+  }, [children]);
+
+  // Debug logging per capire lo stato
+  useEffect(() => {
+    console.log('🔍 PageTransition state:', {
+      isVisible,
+      isPending: isPending.current,
+      showLoader: showLoaderState,
+      hasContent: !!content,
+      actualLocation
+    });
+  }, [isVisible, showLoaderState, content, actualLocation]);
 
   return (
     <>
@@ -132,6 +160,10 @@ export function PageTransition({
       <div 
         className={`${classes.base} ${isVisible ? classes.visible : classes.hidden} navigation-safe`}
         aria-live="polite"
+        style={{
+          // Debug: mostra un bordo rosso se il contenuto non è visibile
+          border: !isVisible ? '2px solid red' : 'none'
+        }}
       >
         {content}
       </div>
