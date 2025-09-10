@@ -43,6 +43,16 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
       console.log('🔍 DEBUG - Dati utente ricevuti:', data);
       
       if (data.success && data.user) {
+        console.log('🔍 DEBUG - Dati utente specifici:', {
+          id: data.user.id,
+          nome: data.user.nome,
+          cognome: data.user.cognome,
+          email: data.user.email,
+          genere: data.user.genere,
+          ruolo: data.user.ruolo,
+          data_nascita: data.user.data_nascita,
+          cittadinanza: data.user.cittadinanza
+        });
         setUserData({ ...data.user, email: userEmail, uid: userUid });
       } else {
         throw new Error("Formato dati non valido");

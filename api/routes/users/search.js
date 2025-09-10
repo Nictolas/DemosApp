@@ -167,6 +167,16 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     const user = result.rows[0];
     
     console.log('✅ Utente trovato:', user.email);
+    console.log('🔍 DEBUG - Dati utente completi:', {
+      id: user.id,
+      nome: user.nome,
+      cognome: user.cognome,
+      email: user.email,
+      genere: user.genere,
+      ruolo: user.ruolo,
+      data_nascita: user.data_nascita,
+      cittadinanza: user.cittadinanza
+    });
     
     // Formatta la data di nascita per il frontend (formato europeo DD/MM/YYYY)
     let dataNascitaFormattata = null;
@@ -175,13 +185,29 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
     }
     
-    res.json({
+    const responseData = {
       success: true,
       user: {
         ...user,
         data_nascita: dataNascitaFormattata
       }
+    };
+    
+    console.log('🔍 DEBUG - Dati di risposta:', {
+      success: responseData.success,
+      user: {
+        id: responseData.user.id,
+        nome: responseData.user.nome,
+        cognome: responseData.user.cognome,
+        email: responseData.user.email,
+        genere: responseData.user.genere,
+        ruolo: responseData.user.ruolo,
+        data_nascita: responseData.user.data_nascita,
+        cittadinanza: responseData.user.cittadinanza
+      }
     });
+    
+    res.json(responseData);
     
   } catch (error) {
     console.error('❌ Errore nel recupero utente specifico:', error);
