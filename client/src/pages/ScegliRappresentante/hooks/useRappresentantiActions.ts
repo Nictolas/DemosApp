@@ -46,9 +46,12 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
 
       // Invalida le query appropriate in base alla modalità
       if (isTestRoute) {
+        console.log('🔄 DEBUG - Invalidando query per modalità test');
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'test'] });
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData'] });
         await queryClient.invalidateQueries({ queryKey: ['user'] });
+        // Forza il refetch immediato
+        await queryClient.refetchQueries({ queryKey: ['rappresentantiData', 'test'] });
       } else {
         await queryClient.invalidateQueries({ queryKey: ['rappresentantiData', 'rappresentanti'] });
         await queryClient.invalidateQueries({ queryKey: ['user'] });
@@ -79,7 +82,7 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
         console.log('🔄 DEBUG - Reindirizzamento a /test dopo selezione candidato');
         setTimeout(() => {
           setLocation('/test');
-        }, 1000); // Piccolo delay per permettere al toast di essere visibile
+        }, 2000); // Delay più lungo per permettere l'aggiornamento dei dati
       }
 
     } catch (error) {
