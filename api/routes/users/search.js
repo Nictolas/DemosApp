@@ -147,7 +147,9 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     const result = await pool.query(`
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
              genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
-             provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura
+             provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura,
+             paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
+             paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura
       FROM users 
       WHERE id = $1
     `, [userId]);
@@ -166,9 +168,19 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     console.log('✅ Utente trovato:', user.email);
     
+    // Formatta la data di nascita per il frontend (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (user.data_nascita) {
+      const data = new Date(user.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
     res.json({
       success: true,
-      user: user
+      user: {
+        ...user,
+        data_nascita: dataNascitaFormattata
+      }
     });
     
   } catch (error) {
@@ -195,7 +207,11 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     
     // Lista dei campi consentiti per l'aggiornamento
     const allowedFields = [
-      'grado_elezione', 'grado_candidatura'
+      'nome', 'cognome', 'genere', 'data_nascita', 'cittadinanza', 'ruolo',
+      'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
+      'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
+      'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
+      'comune_candidatura', 'grado_candidatura'
     ];
     
     // Filtra solo i campi consentiti
@@ -230,10 +246,20 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
     const updatedUser = result.rows[0];
     console.log('✅ Utente aggiornato:', updatedUser.email);
     
+    // Formatta la data di nascita per la risposta (formato europeo DD/MM/YYYY)
+    let dataNascitaFormattata = null;
+    if (updatedUser.data_nascita) {
+      const data = new Date(updatedUser.data_nascita);
+      dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+    }
+    
     res.json({
       success: true,
       message: 'Utente aggiornato con successo',
-      user: updatedUser
+      user: {
+        ...updatedUser,
+        data_nascita: dataNascitaFormattata
+      }
     });
     
   } catch (error) {
