@@ -267,14 +267,14 @@ router.get('/candidati', verifyToken, async (req, res) => {
     
     // Lista dei campi candidato
     const campiCandidato = [
-      { campo: 'candidato_europeo', categoria: 'europeo' },
-      { campo: 'candidato_camera', categoria: 'camera' },
-      { campo: 'candidato_senato', categoria: 'senato' },
-      { campo: 'candidato_regionale', categoria: 'regione' },
-      { campo: 'candidato_comune', categoria: 'comune' }
+      { campo: 'candidato_europeo', categoria: 'europeo', grado: 'Europeo' },
+      { campo: 'candidato_camera', categoria: 'camera', grado: 'Camera' },
+      { campo: 'candidato_senato', categoria: 'senato', grado: 'Senato' },
+      { campo: 'candidato_regionale', categoria: 'regione', grado: 'Regionale' },
+      { campo: 'candidato_comune', categoria: 'comune', grado: 'Comunale' }
     ];
     
-    for (const { campo, categoria } of campiCandidato) {
+    for (const { campo, categoria, grado } of campiCandidato) {
       const candidatoId = user[campo];
       
       if (candidatoId) {
@@ -294,8 +294,8 @@ router.get('/candidati', verifyToken, async (req, res) => {
           AND grado_candidatura = $2
         `;
         
-        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
-        const candidatoResult = await pool.query(candidatoQuery, [candidatoId, categoria]);
+        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria} (grado: ${grado})`);
+        const candidatoResult = await pool.query(candidatoQuery, [candidatoId, grado]);
         console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
         const candidato = candidatoResult.rows[0];
         
@@ -304,7 +304,7 @@ router.get('/candidati', verifyToken, async (req, res) => {
           idMap[categoria] = candidatoId;
           console.log(`🔍 DEBUG Frontend - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
         } else {
-          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
+          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e grado: ${grado}`);
         }
       }
     }
