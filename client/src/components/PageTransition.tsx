@@ -143,16 +143,16 @@ export function PageTransition({
     };
   }, [children]);
 
-  // Debug logging per capire lo stato
-  useEffect(() => {
-    console.log('🔍 PageTransition state:', {
-      isVisible,
-      isPending: isPending.current,
-      showLoader: showLoaderState,
-      hasContent: !!content,
-      actualLocation
-    });
-  }, [isVisible, showLoaderState, content, actualLocation]);
+  // Debug logging solo quando necessario (rimosso per evitare loop infiniti)
+  // useEffect(() => {
+  //   console.log('🔍 PageTransition state:', {
+  //     isVisible,
+  //     isPending: isPending.current,
+  //     showLoader: showLoaderState,
+  //     hasContent: !!content,
+  //     actualLocation
+  //   });
+  // }, [isVisible, showLoaderState, content, actualLocation]);
 
   return (
     <>
@@ -160,10 +160,6 @@ export function PageTransition({
       <div 
         className={`${classes.base} ${isVisible ? classes.visible : classes.hidden} navigation-safe`}
         aria-live="polite"
-        style={{
-          // Debug: mostra un bordo rosso se il contenuto non è visibile
-          border: !isVisible ? '2px solid red' : 'none'
-        }}
       >
         {content}
       </div>
