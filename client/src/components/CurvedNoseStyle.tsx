@@ -7,9 +7,9 @@ interface CurvedNoseStyleProps {
 export function CurvedNoseStyle({ skinColor }: CurvedNoseStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* NASO CURVO - SPOSTATO PIÙ IN ALTO E A SINISTRA */}
-      <g transform="translate(130,130) scale(0.8,0.8)">
-        <path d="M 145 135 Q 150 145 155 135" stroke="#000" strokeWidth="3" fill="none" />
+      {/* NASO CURVO - CENTRATO NEL PULSANTE */}
+      <g transform="translate(150,150)">
+        <path d="M -5 0 Q 0 8 5 0" stroke="#000" strokeWidth="3" fill="none" />
       </g>
     </svg>
   );
