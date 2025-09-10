@@ -8,7 +8,7 @@ export function SquareGlassesStyle({ glassesColor }: SquareGlassesStyleProps) {
   const defaultColor = glassesColor || "#333333";
   
   return (
-    <svg className="w-28 h-28" viewBox="0 0 300 300" fill="currentColor">
+    <svg className="w-36 h-36" viewBox="0 0 300 300" fill="currentColor">
       {/* OCCHIALI QUADRATI - PATH ESATTI DELL'ANTEPRIMA AVATAR - SCALA AUMENTATA */}
       <g>
         {/* Lente sinistra - path esatto dell'Anteprima Avatar */}
