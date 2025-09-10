@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Redirect } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -13,6 +13,13 @@ export default function Menu() {
   const { user, isLoading, isAdmin, hasAdvancedAccess } = useMenuData();
   const { navigateWithButtonReset, setLocation } = useMenuActions();
   const queryClient = useQueryClient();
+  const [isAndroid, setIsAndroid] = useState(false);
+
+  // Rileva se è un dispositivo Android
+  useEffect(() => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    setIsAndroid(userAgent.includes('android'));
+  }, []);
 
   // Forza il refetch dei dati utente quando il componente viene montato
   useEffect(() => {
@@ -26,7 +33,7 @@ export default function Menu() {
   }
 
   return (
-    <PageContainer className="menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
+    <PageContainer className={`menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none ${isAndroid ? 'android' : ''}`}>
       {isLoading || !user ? (
         <div className="flex items-center justify-center flex-1">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
