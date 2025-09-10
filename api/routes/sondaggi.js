@@ -12,7 +12,6 @@ router.get('/', async (req, res) => {
       SELECT id, text
       FROM opinioni 
       ORDER BY text
-      LIMIT 10
     `;
     
     const questionsResult = await pool.query(questionsQuery);
