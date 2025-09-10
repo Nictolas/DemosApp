@@ -23,8 +23,11 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         let url = '';
         if (isTestRoute) {
           // Use the new API endpoint for test routes (candidati)
-          url = `/api/test/disponibili?grado_candidatura=${encodeURIComponent(categoria)}`;
+          // Mappa la categoria al grado_candidatura corretto
+          const gradoCandidatura = getTitolo(categoria);
+          url = `/api/test/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
           console.log('🔍 DEBUG Frontend - Chiamata API TEST (candidati):', url);
+          console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
         } else {
           // Use the existing API endpoint for regular rappresentanti routes
           const grado = getTitolo(categoria);
