@@ -46,6 +46,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onContextMenu={handleContextMenu}
+      data-testid="menu-button"
     >
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <polygon points="100,0 0,0 0,35 100,20" fill={color.bg} />

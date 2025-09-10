@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth-neon';
-import { useMenuReady } from '@/hooks/useMenuReady';
+import { useMenuRendered } from '@/hooks/useMenuRendered';
 import { SplashScreen } from './SplashScreen';
 
 interface AppWrapperProps {
@@ -9,7 +9,7 @@ interface AppWrapperProps {
 
 export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const isMenuReady = useMenuReady();
+  const isMenuRendered = useMenuRendered();
   const [showSplash, setShowSplash] = useState(true);
   const [isAppReady, setIsAppReady] = useState(false);
   const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
@@ -37,7 +37,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     }
   }, [user]);
 
-  // Controlla se l'app è pronta (auth caricato + utente stabile + menu pronto + tempo minimo trascorso)
+  // Controlla se l'app è pronta (auth caricato + utente stabile + menu renderizzato + tempo minimo trascorso)
   useEffect(() => {
     console.log('🔍 AppWrapper - Stato attuale:', {
       minSplashTimeElapsed,
@@ -45,17 +45,17 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
       hasUser: !!user,
       userEmail: user?.email,
       userStable,
-      isMenuReady
+      isMenuRendered
     });
 
-    if (minSplashTimeElapsed && !isAuthLoading && userStable && isMenuReady) {
-      // Se l'utente è presente, stabile e il menu è pronto, l'app è pronta
+    if (minSplashTimeElapsed && !isAuthLoading && userStable && isMenuRendered) {
+      // Se l'utente è presente, stabile e il menu è renderizzato, l'app è pronta
       if (user) {
-        console.log('✅ AppWrapper - Tutto pronto, nascondendo splash screen');
+        console.log('✅ AppWrapper - Menu renderizzato, nascondendo splash screen');
         const finalTimer = setTimeout(() => {
           setShowSplash(false);
           setIsAppReady(true);
-        }, 1200); // 1200ms extra per transizione fluida
+        }, 500); // 500ms extra per transizione fluida
 
         return () => clearTimeout(finalTimer);
       }
@@ -67,7 +67,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
         setIsAppReady(true);
       }
     }
-  }, [minSplashTimeElapsed, isAuthLoading, user, userStable, isMenuReady]);
+  }, [minSplashTimeElapsed, isAuthLoading, user, userStable, isMenuRendered]);
 
   // Timer di sicurezza (massimo 12 secondi)
   useEffect(() => {
@@ -81,7 +81,7 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
 
   const handleSplashComplete = () => {
     // Solo se l'app è pronta, completa la splash screen
-    if (minSplashTimeElapsed && !isAuthLoading && userStable && isMenuReady) {
+    if (minSplashTimeElapsed && !isAuthLoading && userStable && isMenuRendered) {
       setShowSplash(false);
       setIsAppReady(true);
     }
