@@ -7,9 +7,9 @@ interface ButtonNoseStyleProps {
 export function ButtonNoseStyle({ skinColor }: ButtonNoseStyleProps) {
   return (
     <svg className="w-12 h-12" viewBox="0 0 300 300" fill="currentColor">
-      {/* NASO A BOTTONE - CENTRATO NEL PULSANTE */}
+      {/* NASO A BOTTONE - CENTRATO E INGRANDITO */}
       <g transform="translate(150,150)">
-        <circle cx="0" cy="0" r="4" fill={skinColor} stroke="#000" strokeWidth="2" />
+        <circle cx="0" cy="0" r="8" fill={skinColor} stroke="#000" strokeWidth="4" />
       </g>
     </svg>
   );
