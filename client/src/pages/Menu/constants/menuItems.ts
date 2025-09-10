@@ -5,10 +5,10 @@ export const menuItems = [
     id: "test",
     path: "/test",
     icon: BarChart2,
-    label: "Test",
+    label: "Candidati",
     color: {
-      bg: "#f0f9ff",
-      icon: "#0284c7"
+      bg: "#fef3c7",
+      icon: "#d97706"
     }
   },
   {
