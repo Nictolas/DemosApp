@@ -30,8 +30,8 @@ export default function Sondaggi() {
   const totalVotes = calculateTotalVotes(sondaggiData?.stats);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar">
-      <div className="container mx-auto max-w-7xl p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar overflow-y-auto">
+      <div className="w-full px-4 lg:px-8 py-6">
         <Header />
 
         {/* Loading e Error States */}
