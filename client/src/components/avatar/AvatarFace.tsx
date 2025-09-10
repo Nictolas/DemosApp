@@ -15,9 +15,9 @@ export function AvatarFace({ skinColor, noseStyle }: AvatarFaceProps) {
       case "pointed":
         return <path d="M 148 133 L 150 140 L 152 133" stroke="#000" strokeWidth="2" fill="none" />;
       case "button":
-        return <circle cx="150" cy="143" r="8" fill={skinColor} stroke="#000" strokeWidth="3" />;
+        return <circle cx="150" cy="143" r="15" fill={skinColor} stroke="#000" strokeWidth="4" />;
       case "arrow":
-        return <path d="M 150 135 L 140 140 L 150 145" stroke="#000" strokeWidth="3" fill="none" />;
+        return <path d="M 145 130 L 130 140 L 145 150" stroke="#000" strokeWidth="5" fill="none" />;
       case "broad":
         return <path d="M 140 143 Q 150 148 160 143" stroke="#000" strokeWidth="4" fill="none" />;
       case "curved":
