@@ -10,7 +10,7 @@ export const useMenuReady = () => {
       // Aspetta che il DOM sia completamente renderizzato
       const timer = setTimeout(() => {
         setIsMenuReady(true);
-      }, 500);
+      }, 1500);
 
       return () => clearTimeout(timer);
     } else {
