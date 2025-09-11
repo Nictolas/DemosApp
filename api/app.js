@@ -30,9 +30,11 @@ const testRoutes = require('./routes/test');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
 const auditDashboardRoutes = require('./routes/admin/audit-dashboard');
 const dataRetentionRoutes = require('./routes/admin/data-retention');
+const violationRoutes = require('./routes/admin/violations');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
 const auditManager = require('./services/auditManager');
 const dataRetentionJob = require('./jobs/dataRetentionJob');
+const violationMonitoringJob = require('./jobs/violationMonitoringJob');
 
 const app = express();
 
@@ -143,6 +145,9 @@ app.use('/api/admin/audit-dashboard', auditDashboardRoutes);
 // Route per data retention
 app.use('/api/admin/data-retention', dataRetentionRoutes);
 
+// Route per violazioni e notifiche
+app.use('/api/admin/violations', violationRoutes);
+
 // Gestione errori 404
 app.use('*', (req, res) => {
   console.log(`❌ Route non trovata: ${req.method} ${req.originalUrl}`);
@@ -169,6 +174,11 @@ auditManager.start();
 // Avvia job di data retention (solo se abilitato)
 if (process.env.ENABLE_DATA_RETENTION === 'true') {
   dataRetentionJob.start();
+}
+
+// Avvia job di monitoraggio violazioni (solo se abilitato)
+if (process.env.ENABLE_VIOLATION_MONITORING === 'true') {
+  violationMonitoringJob.start();
 }
 
 module.exports = app;
