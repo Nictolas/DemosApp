@@ -32,11 +32,25 @@ const auditDashboardRoutes = require('./routes/admin/audit-dashboard');
 const dataRetentionRoutes = require('./routes/admin/data-retention');
 const violationRoutes = require('./routes/admin/violations');
 const backupRoutes = require('./routes/admin/backup');
+const rateLimitingRoutes = require('./routes/admin/rate-limiting');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
 const auditManager = require('./services/auditManager');
 const dataRetentionJob = require('./jobs/dataRetentionJob');
 const violationMonitoringJob = require('./jobs/violationMonitoringJob');
 const backupJob = require('./jobs/backupJob');
+
+// Import rate limiting middleware
+const {
+  generalLimiter,
+  authLimiter,
+  registrationLimiter,
+  passwordResetLimiter,
+  adminLimiter,
+  userLimiter,
+  speedLimiter,
+  uploadLimiter,
+  publicLimiter
+} = require('./middleware/rateLimiting');
 
 const app = express();
 
@@ -49,6 +63,10 @@ app.use((req, res, next) => {
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// RATE LIMITING - Applica limiti generali
+app.use(generalLimiter);
+app.use(speedLimiter);
 
 // Route di base per evitare errori "Route non trovata"
 app.get('/', (req, res) => {
@@ -115,20 +133,20 @@ app.use('/api', compatibilityRoutes);
 // Route per servizi
 app.use('/api', servicesRoutes);
 
-// Route modulari
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/opinioni', opinioniRoutes);
-app.use('/api/governo', governoRoutes);
-app.use('/api/governo/ministro', governoMinistroRoutes);
-app.use('/api/rappresentanti', rappresentantiRoutes);
-app.use('/api/notifiche', notificheRoutes);
-app.use('/api/eventi', eventiRoutes);
-app.use('/api/grazia', graziaRoutes);
-app.use('/api/amnistia', amnistiaRoutes);
-app.use('/api/capo-stato', capoStatoRoutes);
-app.use('/api/elezioni', elezioniRoutes);
-app.use('/api/elezioni-utente', elezioniRoutes);
+// Route modulari con rate limiting specifico
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/users', userLimiter, userRoutes);
+app.use('/api/opinioni', userLimiter, opinioniRoutes);
+app.use('/api/governo', publicLimiter, governoRoutes);
+app.use('/api/governo/ministro', publicLimiter, governoMinistroRoutes);
+app.use('/api/rappresentanti', publicLimiter, rappresentantiRoutes);
+app.use('/api/notifiche', userLimiter, notificheRoutes);
+app.use('/api/eventi', publicLimiter, eventiRoutes);
+app.use('/api/grazia', publicLimiter, graziaRoutes);
+app.use('/api/amnistia', publicLimiter, amnistiaRoutes);
+app.use('/api/capo-stato', publicLimiter, capoStatoRoutes);
+app.use('/api/elezioni', publicLimiter, elezioniRoutes);
+app.use('/api/elezioni-utente', publicLimiter, elezioniRoutes);
 app.use('/api/ice', iceRoutes);
 app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
 app.use('/api/referendum', referendumRoutes);
@@ -139,19 +157,22 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/test', testRoutes);
 
 // Route per diritti GDPR
-app.use('/api/user', gdprRightsRoutes);
+app.use('/api/user', userLimiter, gdprRightsRoutes);
 
 // Route per dashboard audit
-app.use('/api/admin/audit-dashboard', auditDashboardRoutes);
+app.use('/api/admin/audit-dashboard', adminLimiter, auditDashboardRoutes);
 
 // Route per data retention
-app.use('/api/admin/data-retention', dataRetentionRoutes);
+app.use('/api/admin/data-retention', adminLimiter, dataRetentionRoutes);
 
 // Route per violazioni e notifiche
-app.use('/api/admin/violations', violationRoutes);
+app.use('/api/admin/violations', adminLimiter, violationRoutes);
 
 // Route per backup e recovery
-app.use('/api/admin/backup', backupRoutes);
+app.use('/api/admin/backup', adminLimiter, backupRoutes);
+
+// Route per rate limiting dashboard
+app.use('/api/admin/rate-limiting', adminLimiter, rateLimitingRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {

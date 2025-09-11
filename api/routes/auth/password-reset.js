@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../../middleware/auth');
 const { validateInput, validateEmail } = require('../../middleware/validation');
+const { passwordResetLimiter } = require('../../middleware/rateLimiting');
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ try {
 }
 
 // POST /api/auth/forgot-password - Richiesta reset password
-router.post('/forgot-password', validateInput(['email']), validateEmail, async (req, res) => {
+router.post('/forgot-password', passwordResetLimiter, validateInput(['email']), validateEmail, async (req, res) => {
   try {
     const { email } = req.body;
     
@@ -110,7 +111,7 @@ router.post('/forgot-password', validateInput(['email']), validateEmail, async (
 });
 
 // POST /api/auth/reset-password - Reset password con token
-router.post('/reset-password', validateInput(['token', 'newPassword']), async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, validateInput(['token', 'newPassword']), async (req, res) => {
   try {
     const { token, newPassword } = req.body;
     

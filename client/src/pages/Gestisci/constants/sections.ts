@@ -1,4 +1,4 @@
-import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive } from "lucide-react";
+import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive, Zap } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -173,14 +173,24 @@ export const gestisciSections: GestisciSection[] = [
     route: "/legal-documents",
     buttonText: "Gestisci Documenti Legali"
   },
-  {
-    id: "backup-recovery",
-    title: "Backup e Recovery",
-    description: "Gestisci backup automatici e manuali del database per continuità operativa",
-    icon: HardDrive,
-    color: "text-indigo-600 group-hover:text-indigo-800",
-    buttonColor: "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
-    route: "/backup-dashboard",
-    buttonText: "Gestisci Backup"
-  }
+    {
+      id: "backup-recovery",
+      title: "Backup e Recovery",
+      description: "Gestisci backup automatici e manuali del database per continuità operativa",
+      icon: HardDrive,
+      color: "text-indigo-600 group-hover:text-indigo-800",
+      buttonColor: "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
+      route: "/backup-dashboard",
+      buttonText: "Gestisci Backup"
+    },
+    {
+      id: "rate-limiting",
+      title: "Rate Limiting",
+      description: "Monitora e gestisci le violazioni di rate limiting per la sicurezza dell'API",
+      icon: Zap,
+      color: "text-yellow-600 group-hover:text-yellow-800",
+      buttonColor: "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700",
+      route: "/rate-limiting-dashboard",
+      buttonText: "Monitora Rate Limiting"
+    }
 ];
