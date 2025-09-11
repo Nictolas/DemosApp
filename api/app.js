@@ -31,6 +31,9 @@ const sondaggiRoutes = require('./routes/sondaggi');
 const adminRoutes = require('./routes/admin/database');
 const testRoutes = require('./routes/test');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
+const downloadDataRoutes = require('./routes/user/download-data');
+const deleteAccountRoutes = require('./routes/user/delete-account');
+const privacySettingsRoutes = require('./routes/user/privacy-settings');
 const auditDashboardRoutes = require('./routes/admin/audit-dashboard');
 const dataRetentionRoutes = require('./routes/admin/data-retention');
 const violationRoutes = require('./routes/admin/violations');
@@ -172,6 +175,15 @@ app.use('/api/test', testRoutes);
 
 // Route per diritti GDPR
 app.use('/api/user', userLimiter, gdprRightsRoutes);
+
+// Route per download dati
+app.use('/api/user/download-data', userLimiter, downloadDataRoutes);
+
+// Route per cancellazione account
+app.use('/api/user/delete-account', userLimiter, deleteAccountRoutes);
+
+// Route per impostazioni privacy
+app.use('/api/user/privacy-settings', userLimiter, privacySettingsRoutes);
 
 // Route per dashboard audit
 app.use('/api/admin/audit-dashboard', adminLimiter, auditDashboardRoutes);

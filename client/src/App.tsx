@@ -27,6 +27,9 @@ import ConfermaEmail from "./pages/ConfermaEmail";
 import Menu from "./pages/Menu";
 import Profilo from "./pages/Profilo";
 import Impostazioni from "./pages/Impostazioni";
+import ScaricaDati from "./pages/Impostazioni/ScaricaDati";
+import CancellaAccount from "./pages/Impostazioni/CancellaAccount";
+import GestionePrivacy from "./pages/Impostazioni/GestionePrivacy";
 import Opinioni from "./pages/Opinioni";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
 import OpinioniRegionali from "./pages/OpinioniRegionali";
@@ -516,6 +519,25 @@ export default function App() {
               <Route path="/impostazioni">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/impostazioni" component={Impostazioni} />
+                </PageTransition>
+              </Route>
+
+              {/* Route sottopagine impostazioni */}
+              <Route path="/impostazioni/scarica-dati">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/impostazioni/scarica-dati" component={ScaricaDati} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/impostazioni/cancella-account">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/impostazioni/cancella-account" component={CancellaAccount} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/impostazioni/gestione-privacy">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/impostazioni/gestione-privacy" component={GestionePrivacy} />
                 </PageTransition>
               </Route>
 
