@@ -27,6 +27,7 @@ const comunicazioniRoutes = require('./routes/comunicazioni');
 const sondaggiRoutes = require('./routes/sondaggi');
 const adminRoutes = require('./routes/admin/database');
 const testRoutes = require('./routes/test');
+const gdprRightsRoutes = require('./routes/user/gdpr-rights');
 
 const app = express();
 
@@ -127,6 +128,9 @@ app.use('/api/comunicazioni', comunicazioniRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/test', testRoutes);
+
+// Route per diritti GDPR
+app.use('/api/user', gdprRightsRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {

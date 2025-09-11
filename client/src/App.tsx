@@ -77,6 +77,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
 import SecurityMeasures from "./pages/SecurityMeasures";
+import GDPRRights from "./pages/GDPRRights";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -270,6 +271,12 @@ export default function App() {
                 <Route path="/security-measures">
                   <PageTransition location={location} type="fade-up">
                     <SecurityMeasures />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/gdpr-rights">
+                  <PageTransition location={location} type="fade-up">
+                    <GDPRRights />
                   </PageTransition>
                 </Route>
 
