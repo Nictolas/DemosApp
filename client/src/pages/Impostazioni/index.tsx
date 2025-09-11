@@ -10,7 +10,6 @@ import { SecuritySection } from "./components/SecuritySection";
 import { LinksSection } from "./components/LinksSection";
 import { LogoutSection } from "./components/LogoutSection";
 import { LogoutDialog } from "./components/LogoutDialog";
-import GDPRSection from "./components/GDPRSection";
 
 export default function Impostazioni() {
   const { user, isLoading } = useAuth();
@@ -60,8 +59,6 @@ export default function Impostazioni() {
             onSubmit={passwordChange.handleChangePassword}
           />
 
-          {/* Sezione Diritti GDPR */}
-          <GDPRSection />
 
           {/* Sezione Collegamenti */}
           <LinksSection />

@@ -32,6 +32,7 @@ import CancellaAccount from "./pages/Impostazioni/CancellaAccount";
 import GestionePrivacy from "./pages/Impostazioni/GestionePrivacy";
 import LimitazioneTrattamento from "./pages/Impostazioni/LimitazioneTrattamento";
 import OpposizioneTrattamento from "./pages/Impostazioni/OpposizioneTrattamento";
+import GDPR from "./pages/GDPR";
 import Opinioni from "./pages/Opinioni";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
 import OpinioniRegionali from "./pages/OpinioniRegionali";
@@ -555,6 +556,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route GDPR */}
+              <Route path="/gdpr">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gdpr" component={GDPR} />
+                </PageTransition>
+              </Route>
+
               {/* Route sondaggi */}
               <Route path="/sondaggi">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
@@ -819,6 +827,7 @@ export default function App() {
              !location.startsWith('/privacy-policy') && 
              !location.startsWith('/terms-of-service') && 
              !location.startsWith('/cookie-policy') && 
+             location !== '/gdpr' &&
              <Navbar />}
             
             <Toaster />
