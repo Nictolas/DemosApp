@@ -1,0 +1,239 @@
+import pool from '../config/database.js';
+
+class AuditService {
+  /**
+   * Registra un'azione nell'audit log
+   * @param {Object} params - Parametri dell'azione
+   * @param {string} params.userId - ID utente
+   * @param {string} params.action - Tipo di azione (DATA_ACCESS, DATA_MODIFY, DATA_DELETE, CONSENT_CHANGE, etc.)
+   * @param {string} params.resource - Risorsa interessata (users, votes, opinions, etc.)
+   * @param {string} params.resourceId - ID specifico della risorsa
+   * @param {Object} params.details - Dettagli aggiuntivi
+   * @param {string} params.ipAddress - Indirizzo IP
+   * @param {string} params.userAgent - User Agent
+   * @param {boolean} params.success - Se l'azione è riuscita
+   * @param {string} params.errorMessage - Messaggio di errore se presente
+   */
+  static async logAction({
+    userId,
+    action,
+    resource,
+    resourceId = null,
+    details = {},
+    ipAddress = null,
+    userAgent = null,
+    success = true,
+    errorMessage = null
+  }) {
+    try {
+      const query = `
+        INSERT INTO audit_logs (
+          user_id, action, resource, resource_id, details, 
+          ip_address, user_agent, success, error_message
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, timestamp
+      `;
+      
+      const values = [
+        userId,
+        action,
+        resource,
+        resourceId,
+        JSON.stringify(details),
+        ipAddress,
+        userAgent,
+        success,
+        errorMessage
+      ];
+
+      const result = await pool.query(query, values);
+      
+      console.log(`📝 Audit log creato: ${action} su ${resource} per utente ${userId}`);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Errore nel logging audit:', error);
+      // Non lanciare errore per non bloccare l'operazione principale
+      return null;
+    }
+  }
+
+  /**
+   * Ottiene i log di audit per un utente
+   * @param {string} userId - ID utente
+   * @param {Object} filters - Filtri opzionali
+   * @param {string} filters.action - Filtra per tipo di azione
+   * @param {string} filters.resource - Filtra per risorsa
+   * @param {Date} filters.fromDate - Data inizio
+   * @param {Date} filters.toDate - Data fine
+   * @param {number} filters.limit - Limite risultati
+   * @param {number} filters.offset - Offset per paginazione
+   */
+  static async getUserAuditLogs(userId, filters = {}) {
+    try {
+      let query = `
+        SELECT id, action, resource, resource_id, details, 
+               ip_address, user_agent, timestamp, success, error_message
+        FROM audit_logs 
+        WHERE user_id = $1
+      `;
+      
+      const values = [userId];
+      let paramCount = 1;
+
+      // Aggiungi filtri
+      if (filters.action) {
+        paramCount++;
+        query += ` AND action = $${paramCount}`;
+        values.push(filters.action);
+      }
+
+      if (filters.resource) {
+        paramCount++;
+        query += ` AND resource = $${paramCount}`;
+        values.push(filters.resource);
+      }
+
+      if (filters.fromDate) {
+        paramCount++;
+        query += ` AND timestamp >= $${paramCount}`;
+        values.push(filters.fromDate);
+      }
+
+      if (filters.toDate) {
+        paramCount++;
+        query += ` AND timestamp <= $${paramCount}`;
+        values.push(filters.toDate);
+      }
+
+      query += ` ORDER BY timestamp DESC`;
+
+      if (filters.limit) {
+        paramCount++;
+        query += ` LIMIT $${paramCount}`;
+        values.push(filters.limit);
+      }
+
+      if (filters.offset) {
+        paramCount++;
+        query += ` OFFSET $${paramCount}`;
+        values.push(filters.offset);
+      }
+
+      const result = await pool.query(query, values);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Errore nel recupero audit logs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottiene statistiche di audit per un utente
+   * @param {string} userId - ID utente
+   */
+  static async getUserAuditStats(userId) {
+    try {
+      const query = `
+        SELECT 
+          action,
+          COUNT(*) as count,
+          COUNT(CASE WHEN success = true THEN 1 END) as success_count,
+          COUNT(CASE WHEN success = false THEN 1 END) as error_count,
+          MIN(timestamp) as first_action,
+          MAX(timestamp) as last_action
+        FROM audit_logs 
+        WHERE user_id = $1
+        GROUP BY action
+        ORDER BY count DESC
+      `;
+      
+      const result = await pool.query(query, [userId]);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Errore nel recupero statistiche audit:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Pulisce i log di audit più vecchi di X giorni
+   * @param {number} daysToKeep - Giorni da mantenere
+   */
+  static async cleanupOldLogs(daysToKeep = 365) {
+    try {
+      const query = `
+        DELETE FROM audit_logs 
+        WHERE timestamp < NOW() - INTERVAL '${daysToKeep} days'
+      `;
+      
+      const result = await pool.query(query);
+      console.log(`🧹 Puliti ${result.rowCount} log di audit più vecchi di ${daysToKeep} giorni`);
+      return result.rowCount;
+    } catch (error) {
+      console.error('❌ Errore nella pulizia audit logs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifica se un utente ha limitazioni di trattamento
+   * @param {string} userId - ID utente
+   */
+  static async hasProcessingLimits(userId) {
+    try {
+      const query = `
+        SELECT processing_limited, limited_categories, reason
+        FROM data_processing_limits 
+        WHERE user_id = $1
+      `;
+      
+      const result = await pool.query(query, [userId]);
+      return result.rows[0] || { processing_limited: false, limited_categories: [], reason: null };
+    } catch (error) {
+      console.error('❌ Errore nel controllo limitazioni trattamento:', error);
+      return { processing_limited: false, limited_categories: [], reason: null };
+    }
+  }
+
+  /**
+   * Imposta limitazioni di trattamento per un utente
+   * @param {string} userId - ID utente
+   * @param {boolean} limited - Se limitare il trattamento
+   * @param {Array} categories - Categorie da limitare
+   * @param {string} reason - Motivo della limitazione
+   */
+  static async setProcessingLimits(userId, limited, categories = [], reason = null) {
+    try {
+      const query = `
+        INSERT INTO data_processing_limits (user_id, processing_limited, limited_categories, reason)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          processing_limited = EXCLUDED.processing_limited,
+          limited_categories = EXCLUDED.limited_categories,
+          reason = EXCLUDED.reason,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+      `;
+      
+      const result = await pool.query(query, [userId, limited, categories, reason]);
+      
+      // Log dell'azione
+      await this.logAction({
+        userId,
+        action: limited ? 'PROCESSING_LIMITED' : 'PROCESSING_UNLIMITED',
+        resource: 'data_processing_limits',
+        resourceId: result.rows[0].id,
+        details: { limited, categories, reason },
+        success: true
+      });
+      
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Errore nell\'impostazione limitazioni trattamento:', error);
+      throw error;
+    }
+  }
+}
+
+export default AuditService;

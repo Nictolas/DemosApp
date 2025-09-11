@@ -1,4 +1,4 @@
-import { BarChart2, Megaphone, FileText, Vote } from "lucide-react";
+import { BarChart2, Megaphone, FileText, Vote, Shield } from "lucide-react";
 
 export const menuItems = [
   {
@@ -39,6 +39,16 @@ export const menuItems = [
     color: {
       bg: "#dcfce7",
       icon: "#16a34a"
+    }
+  },
+  {
+    id: "gdpr-rights",
+    path: "/gdpr-rights",
+    icon: Shield,
+    label: "Diritti GDPR",
+    color: {
+      bg: "#fef2f2",
+      icon: "#dc2626"
     }
   }
 ];
