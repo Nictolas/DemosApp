@@ -40,11 +40,6 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
     <button
       type="button"
       className="menu-button relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
-      style={{
-        border: '2px solid blue',
-        minHeight: '100px',
-        backgroundColor: 'rgba(0,0,255,0.1)'
-      }}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
