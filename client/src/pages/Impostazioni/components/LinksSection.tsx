@@ -21,12 +21,6 @@ export const LinksSection: React.FC = () => {
           </Button>
         </Link>
         
-        <Link href="/gdpr-rights">
-          <Button variant="outline" className="w-full justify-start">
-            <Shield className="h-4 w-4 mr-2" />
-            Diritti GDPR
-          </Button>
-        </Link>
         <Link href="/data-retention">
           <Button variant="outline" className="w-full justify-start">
             <Database className="h-4 w-4 mr-2" />
