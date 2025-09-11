@@ -15,33 +15,13 @@ export const LinksSection: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Sezione Gestione Dati */}
+        {/* Sezione GDPR */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">Gestione Dati</h4>
-          <Link href="/impostazioni/scarica-dati">
+          <h4 className="text-sm font-medium text-muted-foreground">Diritti GDPR</h4>
+          <Link href="/gdpr">
             <Button variant="outline" className="w-full justify-start">
-              <Download className="h-4 w-4 mr-2" />
-              Scarica i Tuoi Dati
-            </Button>
-          </Link>
-          
-          <Link href="/impostazioni/gestione-privacy">
-            <Button variant="outline" className="w-full justify-start">
-              <Settings className="h-4 w-4 mr-2" />
-              Gestione Privacy
-            </Button>
-          </Link>
-        </div>
-
-        <Separator />
-
-        {/* Sezione Account */}
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">Account</h4>
-          <Link href="/impostazioni/cancella-account">
-            <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Cancella Account
+              <Shield className="h-4 w-4 mr-2" />
+              Diritti GDPR
             </Button>
           </Link>
         </div>
