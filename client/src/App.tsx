@@ -7,7 +7,6 @@ import { RegistrationProvider } from "@/hooks/use-registration";
 import { queryClient } from "./lib/queryClient";
 import { PageTransition } from "@/components/PageTransition";
 import { ProtectedRoute } from "@/lib/protected-route";
-import { AppWrapper } from "@/components/AppWrapper";
 
 // Import dei componenti principali
 import LandingPage from "./pages/LandingPage";
@@ -212,7 +211,6 @@ export default function App() {
       <div className="App">
         <AuthProvider>
           <RegistrationProvider>
-            <AppWrapper>
             <Switch>
               {/* Route di verifica email - fuori dall'AuthProvider */}
               <Route path="/verifica-email">
@@ -688,7 +686,6 @@ export default function App() {
              <Navbar />}
             
             <Toaster />
-            </AppWrapper>
           </RegistrationProvider>
         </AuthProvider>
       </div>
