@@ -48,23 +48,10 @@ export const LinksSection: React.FC = () => {
 
         <Separator className="bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
 
-        {/* Sezione Documenti */}
+        {/* Sezione Informazioni */}
         <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Documenti</h4>
+          <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Informazioni</h4>
           <div className="grid gap-3">
-            <Link href="/privacy-policy">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start h-12 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transition-all duration-300 group"
-              >
-                <div className="h-6 w-6 rounded-md bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                  <FileText className="h-3 w-3 text-white" />
-                </div>
-                <span className="font-medium">Privacy Policy</span>
-              </Button>
-            </Link>
-            
-            
             <Link href="/informazioni">
               <Button 
                 variant="outline" 
