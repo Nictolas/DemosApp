@@ -30,6 +30,8 @@ import Impostazioni from "./pages/Impostazioni";
 import ScaricaDati from "./pages/Impostazioni/ScaricaDati";
 import CancellaAccount from "./pages/Impostazioni/CancellaAccount";
 import GestionePrivacy from "./pages/Impostazioni/GestionePrivacy";
+import LimitazioneTrattamento from "./pages/Impostazioni/LimitazioneTrattamento";
+import OpposizioneTrattamento from "./pages/Impostazioni/OpposizioneTrattamento";
 import Opinioni from "./pages/Opinioni";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
 import OpinioniRegionali from "./pages/OpinioniRegionali";
@@ -538,6 +540,18 @@ export default function App() {
               <Route path="/impostazioni/gestione-privacy">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/impostazioni/gestione-privacy" component={GestionePrivacy} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/impostazioni/limitazione-trattamento">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/impostazioni/limitazione-trattamento" component={LimitazioneTrattamento} />
+                </PageTransition>
+              </Route>
+
+              <Route path="/impostazioni/opposizione-trattamento">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/impostazioni/opposizione-trattamento" component={OpposizioneTrattamento} />
                 </PageTransition>
               </Route>
 
