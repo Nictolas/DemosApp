@@ -116,7 +116,7 @@ const ViolationsDashboard: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl pt-20">
+    <div className="container mx-auto px-4 py-8 max-w-6xl pt-20 bg-white min-h-screen">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Dashboard Violazioni
