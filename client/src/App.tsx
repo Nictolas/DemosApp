@@ -79,6 +79,9 @@ import CookiePolicy from "./pages/CookiePolicy";
 import SecurityMeasures from "./pages/SecurityMeasures";
 import GDPRRights from "./pages/GDPRRights";
 import DataRetention from "./pages/DataRetention";
+import ViolationsDashboard from "./pages/ViolationsDashboard";
+import SecurityDashboard from "./pages/SecurityDashboard";
+import LegalDocuments from "./pages/LegalDocuments";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -283,6 +286,21 @@ export default function App() {
                 <Route path="/data-retention">
                   <PageTransition location={location} type="fade-up">
                     <DataRetention />
+                  </PageTransition>
+                </Route>
+                <Route path="/violations-dashboard">
+                  <PageTransition location={location} type="fade-up">
+                    <ViolationsDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/security-dashboard">
+                  <PageTransition location={location} type="fade-up">
+                    <SecurityDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/legal-documents">
+                  <PageTransition location={location} type="fade-up">
+                    <LegalDocuments />
                   </PageTransition>
                 </Route>
 

@@ -1,4 +1,4 @@
-import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3 } from "lucide-react";
+import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -111,5 +111,66 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-blue-600 hover:bg-blue-700",
     route: "/statistiche-utenti",
     buttonText: "Visualizza Statistiche Utenti"
+  },
+  // Sezioni Sicurezza e Conformità GDPR
+  {
+    id: "audit-logs",
+    title: "Audit Logs",
+    description: "Monitora e gestisci i log di audit per la sicurezza e conformità",
+    icon: Shield,
+    color: "text-red-600 group-hover:text-red-700",
+    buttonColor: "bg-red-600 hover:bg-red-700",
+    route: "/audit-dashboard",
+    buttonText: "Gestisci Audit Logs"
+  },
+  {
+    id: "data-retention",
+    title: "Data Retention",
+    description: "Gestisci la cancellazione automatica dei dati scaduti secondo GDPR",
+    icon: Database,
+    color: "text-orange-600 group-hover:text-orange-700",
+    buttonColor: "bg-orange-600 hover:bg-orange-700",
+    route: "/data-retention",
+    buttonText: "Gestisci Data Retention"
+  },
+  {
+    id: "violations",
+    title: "Monitoraggio Violazioni",
+    description: "Rileva e gestisci violazioni di sicurezza e conformità GDPR",
+    icon: AlertTriangle,
+    color: "text-yellow-600 group-hover:text-yellow-700",
+    buttonColor: "bg-yellow-600 hover:bg-yellow-700",
+    route: "/violations-dashboard",
+    buttonText: "Monitora Violazioni"
+  },
+  {
+    id: "gdpr-rights",
+    title: "Diritti GDPR",
+    description: "Gestisci i diritti degli utenti secondo il GDPR (accesso, cancellazione, etc.)",
+    icon: Lock,
+    color: "text-green-600 group-hover:text-green-700",
+    buttonColor: "bg-green-600 hover:bg-green-700",
+    route: "/gdpr-rights",
+    buttonText: "Gestisci Diritti GDPR"
+  },
+  {
+    id: "security-dashboard",
+    title: "Dashboard Sicurezza",
+    description: "Panoramica completa dello stato di sicurezza del sistema",
+    icon: Eye,
+    color: "text-purple-600 group-hover:text-purple-700",
+    buttonColor: "bg-purple-600 hover:bg-purple-700",
+    route: "/security-dashboard",
+    buttonText: "Dashboard Sicurezza"
+  },
+  {
+    id: "legal-documents",
+    title: "Documenti Legali",
+    description: "Gestisci Privacy Policy, Termini di Servizio e Cookie Policy",
+    icon: FileText,
+    color: "text-indigo-600 group-hover:text-indigo-700",
+    buttonColor: "bg-indigo-600 hover:bg-indigo-700",
+    route: "/legal-documents",
+    buttonText: "Gestisci Documenti Legali"
   }
 ];
