@@ -147,17 +147,6 @@ export const SecuritySection: React.FC<SecuritySectionProps> = ({
             </form>
           </div>
         )}
-        
-        <Button 
-          variant="outline" 
-          className="w-full h-12 rounded-xl border-2 border-red-200 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 hover:border-red-300 hover:shadow-lg transition-all duration-300 group"
-          onClick={() => showMigrationMessage("Eliminazione account")}
-        >
-          <div className="h-6 w-6 rounded-md bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-            <Shield className="h-3 w-3 text-white" />
-          </div>
-          <span className="font-semibold text-red-700">Elimina Account</span>
-        </Button>
       </CardContent>
     </Card>
   );
