@@ -86,6 +86,7 @@ import BackupDashboard from "./pages/BackupDashboard";
 import RateLimitingDashboard from "./pages/RateLimitingDashboard";
 import ValidationDashboard from "./pages/ValidationDashboard";
 import LoggingDashboard from "./pages/LoggingDashboard";
+import MonitoringDashboard from "./pages/MonitoringDashboard";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -325,6 +326,11 @@ export default function App() {
                 <Route path="/logging-dashboard">
                   <PageTransition location={location} type="fade-up">
                     <LoggingDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/monitoring-dashboard">
+                  <PageTransition location={location} type="fade-up">
+                    <MonitoringDashboard />
                   </PageTransition>
                 </Route>
 
