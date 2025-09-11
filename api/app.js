@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { helmetConfig, securityMiddleware, securityLogger } = require('./middleware/security');
 
 // Import moduli
 const healthRoutes = require('./routes/health');
@@ -33,6 +34,7 @@ const dataRetentionRoutes = require('./routes/admin/data-retention');
 const violationRoutes = require('./routes/admin/violations');
 const backupRoutes = require('./routes/admin/backup');
 const rateLimitingRoutes = require('./routes/admin/rate-limiting');
+const validationRoutes = require('./routes/admin/validation');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
 const auditManager = require('./services/auditManager');
 const dataRetentionJob = require('./jobs/dataRetentionJob');
@@ -59,6 +61,11 @@ app.use((req, res, next) => {
   console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
   next();
 });
+
+// Middleware di sicurezza
+app.use(helmetConfig);
+app.use(securityMiddleware);
+app.use(securityLogger);
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
@@ -173,6 +180,9 @@ app.use('/api/admin/backup', adminLimiter, backupRoutes);
 
 // Route per rate limiting dashboard
 app.use('/api/admin/rate-limiting', adminLimiter, rateLimitingRoutes);
+
+// Route per validation dashboard
+app.use('/api/admin/validation', adminLimiter, validationRoutes);
 
 // Gestione errori 404
 app.use('*', (req, res) => {

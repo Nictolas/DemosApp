@@ -5,6 +5,8 @@ const { pool } = require('../../middleware/auth');
 const { validateInput, validateEmail } = require('../../middleware/validation');
 const { authAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { registrationLimiter } = require('../../middleware/rateLimiting');
+const { validators, sanitizeInput } = require('../../middleware/inputValidation');
+const ValidationService = require('../../services/validationService');
 
 const router = express.Router();
 
@@ -24,13 +26,47 @@ try {
 }
 
 // POST /api/auth/register - Registrazione nuovo utente
-router.post('/register', registrationLimiter, validateInput(['email', 'password', 'nome', 'cognome']), validateEmail, authAuditMiddleware, async (req, res) => {
+router.post('/register', 
+  registrationLimiter, 
+  validateInput(validators.registration), 
+  sanitizeInput(['nome', 'cognome', 'cittadinanza']),
+  authAuditMiddleware, 
+  async (req, res) => {
   try {
     console.log('✅ DEBUG: Richiesta /api/auth/register ricevuta!');
     console.log('✅ DEBUG: Headers:', req.headers);
     console.log('✅ DEBUG: Body:', req.body);
     
-    const { email, password, nome, cognome, codice_fiscale, privacy_policy_consent, terms_of_service_consent, cookie_policy_consent } = req.body;
+    // Validazione avanzata con ValidationService
+    const validationRules = {
+      email: { type: 'email', required: true },
+      password: { type: 'password', required: true },
+      nome: { required: true },
+      cognome: { required: true },
+      codice_fiscale: { type: 'codiceFiscale', required: false },
+      data_nascita: { type: 'dataNascita', required: false }
+    };
+    
+    const validation = await ValidationService.validateAndSanitizeInput(req.body, validationRules);
+    
+    if (!validation.isValid) {
+      // Log tentativo di validazione fallito
+      await ValidationService.logValidationFailure(
+        req.ip,
+        req.get('User-Agent'),
+        '/api/auth/register',
+        validation.errors,
+        req.body
+      );
+      
+      return res.status(400).json({
+        success: false,
+        error: 'Dati di input non validi',
+        details: validation.errors
+      });
+    }
+    
+    const { email, password, nome, cognome, codice_fiscale, privacy_policy_consent, terms_of_service_consent, cookie_policy_consent } = validation.sanitizedInput;
     
     // Estrai tutti i dati dal body
     const { 
