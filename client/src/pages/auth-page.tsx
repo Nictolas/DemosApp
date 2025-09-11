@@ -726,7 +726,7 @@ export default function AuthPage() {
         <p className="text-sm text-gray-500 mb-3">
           Continuando, accetti i nostri documenti legali:
         </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-3 text-xs">
+        <div className="flex flex-col items-center gap-2 text-xs">
           <Link 
             href="/privacy-policy" 
             className="text-blue-600 hover:text-blue-800 underline"
