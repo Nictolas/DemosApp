@@ -1,15 +1,14 @@
-import express from 'express';
-import { verifyToken } from '../../middleware/auth.js';
-import { validateInput, sanitizeInput } from '../../middleware/validation.js';
-import pool from '../../config/database.js';
-import AuditService from '../../services/auditService.js';
-import { v4 as uuidv4 } from 'uuid';
+const express = require('express');
+const { verifyToken } = require('../../middleware/auth');
+const { validateInput } = require('../../middleware/validation');
+const { pool } = require('../../middleware/auth');
+const AuditService = require('../../services/auditService');
+const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
 
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
-router.use(sanitizeInput);
 
 /**
  * GET /api/user/data-export
@@ -558,4 +557,4 @@ router.get('/rights-requests', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

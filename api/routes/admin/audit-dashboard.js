@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
-const { validateInput, sanitizeInput } = require('../../middleware/validation');
+const { validateInput } = require('../../middleware/validation');
 const AuditService = require('../../services/auditService');
 const { pool } = require('../../middleware/auth');
 
@@ -9,7 +9,6 @@ const router = express.Router();
 // Middleware per tutti gli endpoint
 router.use(verifyToken);
 router.use(requireAdmin);
-router.use(sanitizeInput);
 
 /**
  * GET /api/admin/audit-dashboard/stats
