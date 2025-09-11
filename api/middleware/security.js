@@ -1,32 +1,44 @@
 // File: api/middleware/security.js
-const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-// Configurazione Helmet per sicurezza headers
-const helmetConfig = helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      scriptSrc: ["'self'"],
-      connectSrc: ["'self'", "https://api.demos.community"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: []
-    }
-  },
-  crossOriginEmbedderPolicy: false,
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  },
-  noSniff: true,
-  xssFilter: true,
-  referrerPolicy: { policy: "strict-origin-when-cross-origin" }
-});
+// Middleware per headers di sicurezza (sostituisce Helmet)
+const securityHeaders = (req, res, next) => {
+  // Content Security Policy
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self'; " +
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: https:; " +
+    "script-src 'self'; " +
+    "connect-src 'self' https://api.demos.community; " +
+    "frame-src 'none'; " +
+    "object-src 'none'; " +
+    "upgrade-insecure-requests"
+  );
+  
+  // X-Frame-Options
+  res.setHeader('X-Frame-Options', 'DENY');
+  
+  // X-Content-Type-Options
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  
+  // X-XSS-Protection
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  // Referrer-Policy
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // Strict-Transport-Security
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  
+  // X-Permitted-Cross-Domain-Policies
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  
+  // Permissions-Policy
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  
+  next();
+};
 
 // Rate limiting per sicurezza
 const securityLimiter = rateLimit({
@@ -281,7 +293,7 @@ const securityLogger = (req, res, next) => {
 };
 
 module.exports = {
-  helmetConfig,
+  securityHeaders,
   securityLimiter,
   securityMiddleware,
   securityLogger
