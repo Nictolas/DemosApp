@@ -21,8 +21,8 @@ export default function Gestisci() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
-      <div className="w-full max-w-none xl:max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 page-with-navbar">
+      <div className="w-full px-4 py-6 space-y-8">
         <Header />
         <Title />
         <SectionsGrid />
