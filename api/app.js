@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { helmetConfig, securityMiddleware, securityLogger } = require('./middleware/security');
+const { securityHeaders, securityMiddleware, securityLogger } = require('./middleware/security');
 
 // Import moduli
 const healthRoutes = require('./routes/health');
@@ -63,7 +63,7 @@ app.use((req, res, next) => {
 });
 
 // Middleware di sicurezza
-app.use(helmetConfig);
+app.use(securityHeaders);
 app.use(securityMiddleware);
 app.use(securityLogger);
 
