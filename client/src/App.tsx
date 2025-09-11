@@ -71,9 +71,9 @@ import Programma from "./pages/Programma";
 import Riscontro from "./pages/Riscontro";
 import OpinioniEuropee from "./pages/OpinioniEuropee";
 import ProponiReferendumAbrogativi from "./pages/ProponiReferendumAbrogativi";
-
 import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
 import ProponiICE from "./pages/ProponiICE";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -243,6 +243,12 @@ export default function App() {
                 <Route path="/auth">
                   <PageTransition location={location} type="fade-up">
                     <AuthPage />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/privacy-policy">
+                  <PageTransition location={location} type="fade-up">
+                    <PrivacyPolicy />
                   </PageTransition>
                 </Route>
 
