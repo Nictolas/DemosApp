@@ -29,7 +29,8 @@ const adminRoutes = require('./routes/admin/database');
 const testRoutes = require('./routes/test');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
 const auditDashboardRoutes = require('./routes/admin/audit-dashboard');
-const { startAuditJobs } = require('./jobs/auditCleanup');
+// const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
+const auditManager = require('./services/auditManager');
 
 const app = express();
 
@@ -157,9 +158,7 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Avvia job di audit logging in produzione
-if (process.env.NODE_ENV === 'production') {
-  startAuditJobs();
-}
+// Avvia sistema di audit logging
+auditManager.start();
 
 module.exports = app;
