@@ -8,7 +8,6 @@ import { useLogout } from "./hooks/useLogout";
 import { Header } from "./components/Header";
 import { SecuritySection } from "./components/SecuritySection";
 import { LinksSection } from "./components/LinksSection";
-import { LogoutSection } from "./components/LogoutSection";
 import { LogoutDialog } from "./components/LogoutDialog";
 
 export default function Impostazioni() {
@@ -63,13 +62,8 @@ export default function Impostazioni() {
 
           {/* Sezione Collegamenti */}
           <div className="transform hover:scale-[1.02] transition-all duration-300">
-            <LinksSection />
-          </div>
-
-          {/* Sezione Logout */}
-          <div className="transform hover:scale-[1.02] transition-all duration-300">
-            <LogoutSection
-              isLoggingOut={logout.state.isLoggingOut}
+            <LinksSection 
+              onShowPasswordForm={passwordChange.showForm}
               onLogout={logout.showLogoutDialog}
             />
           </div>
