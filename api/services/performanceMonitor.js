@@ -228,6 +228,17 @@ class PerformanceMonitor {
   // Metriche errori
   async getErrorMetrics() {
     try {
+      // Verifica se la tabella esiste
+      const tableExists = await this.checkTableExists();
+      if (!tableExists) {
+        return {
+          timestamp: new Date().toISOString(),
+          errorsLastHour: 0,
+          warningsLastHour: 0,
+          totalIssues: 0
+        };
+      }
+
       // Conta errori recenti dal logging centralizzato
       const query = `
         SELECT 
@@ -255,8 +266,28 @@ class PerformanceMonitor {
       console.error('❌ Errore metriche errori:', error);
       return {
         timestamp: new Date().toISOString(),
-        error: error.message
+        errorsLastHour: 0,
+        warningsLastHour: 0,
+        totalIssues: 0
       };
+    }
+  }
+
+  async checkTableExists() {
+    try {
+      const { pool } = require('../middleware/auth');
+      const query = `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'centralized_logs'
+        );
+      `;
+      const result = await pool.query(query);
+      return result.rows[0].exists;
+    } catch (error) {
+      console.error('❌ Errore verifica tabella centralized_logs:', error);
+      return false;
     }
   }
 
