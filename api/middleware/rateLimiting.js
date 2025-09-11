@@ -1,0 +1,200 @@
+// File: api/middleware/rateLimiting.js
+const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
+
+// Configurazione generale per tutte le API
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuti
+  max: 100, // Limite di 100 richieste per IP per finestra
+  message: {
+    success: false,
+    error: 'Troppe richieste',
+    message: 'Hai superato il limite di richieste. Riprova tra 15 minuti.',
+    retryAfter: 15 * 60 // secondi
+  },
+  standardHeaders: true, // Restituisce rate limit info negli headers
+  legacyHeaders: false, // Disabilita X-RateLimit-* headers
+  handler: (req, res) => {
+    console.log(`🚨 RATE LIMIT: IP ${req.ip} ha superato il limite generale`);
+    res.status(429).json({
+      success: false,
+      error: 'Troppe richieste',
+      message: 'Hai superato il limite di richieste. Riprova tra 15 minuti.',
+      retryAfter: 15 * 60
+    });
+  }
+});
+
+// Rate limiting per autenticazione (più restrittivo)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuti
+  max: 5, // Solo 5 tentativi di login per IP
+  message: {
+    success: false,
+    error: 'Troppi tentativi di accesso',
+    message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
+    retryAfter: 15 * 60
+  },
+  skipSuccessfulRequests: true, // Non conta i login riusciti
+  handler: (req, res) => {
+    console.log(`🚨 AUTH RATE LIMIT: IP ${req.ip} ha superato il limite di autenticazione`);
+    res.status(429).json({
+      success: false,
+      error: 'Troppi tentativi di accesso',
+      message: 'Hai superato il limite di tentativi di accesso. Riprova tra 15 minuti.',
+      retryAfter: 15 * 60
+    });
+  }
+});
+
+// Rate limiting per registrazione (molto restrittivo)
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 ora
+  max: 3, // Solo 3 registrazioni per IP all'ora
+  message: {
+    success: false,
+    error: 'Troppe registrazioni',
+    message: 'Hai superato il limite di registrazioni. Riprova tra 1 ora.',
+    retryAfter: 60 * 60
+  },
+  handler: (req, res) => {
+    console.log(`🚨 REGISTRATION RATE LIMIT: IP ${req.ip} ha superato il limite di registrazione`);
+    res.status(429).json({
+      success: false,
+      error: 'Troppe registrazioni',
+      message: 'Hai superato il limite di registrazioni. Riprova tra 1 ora.',
+      retryAfter: 60 * 60
+    });
+  }
+});
+
+// Rate limiting per password reset (molto restrittivo)
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 ora
+  max: 3, // Solo 3 richieste di reset per IP all'ora
+  message: {
+    success: false,
+    error: 'Troppe richieste di reset password',
+    message: 'Hai superato il limite di richieste di reset. Riprova tra 1 ora.',
+    retryAfter: 60 * 60
+  },
+  handler: (req, res) => {
+    console.log(`🚨 PASSWORD RESET RATE LIMIT: IP ${req.ip} ha superato il limite di reset password`);
+    res.status(429).json({
+      success: false,
+      error: 'Troppe richieste di reset password',
+      message: 'Hai superato il limite di richieste di reset. Riprova tra 1 ora.',
+      retryAfter: 60 * 60
+    });
+  }
+});
+
+// Rate limiting per API admin (moderato)
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuti
+  max: 200, // 200 richieste per admin per finestra
+  message: {
+    success: false,
+    error: 'Limite admin superato',
+    message: 'Hai superato il limite di richieste admin. Riprova tra 15 minuti.',
+    retryAfter: 15 * 60
+  },
+  handler: (req, res) => {
+    console.log(`🚨 ADMIN RATE LIMIT: Admin ${req.userId} ha superato il limite admin`);
+    res.status(429).json({
+      success: false,
+      error: 'Limite admin superato',
+      message: 'Hai superato il limite di richieste admin. Riprova tra 15 minuti.',
+      retryAfter: 15 * 60
+    });
+  }
+});
+
+// Rate limiting per API utente (moderato)
+const userLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuti
+  max: 50, // 50 richieste per utente per finestra
+  message: {
+    success: false,
+    error: 'Limite utente superato',
+    message: 'Hai superato il limite di richieste utente. Riprova tra 15 minuti.',
+    retryAfter: 15 * 60
+  },
+  handler: (req, res) => {
+    console.log(`🚨 USER RATE LIMIT: Utente ${req.userId} ha superato il limite utente`);
+    res.status(429).json({
+      success: false,
+      error: 'Limite utente superato',
+      message: 'Hai superato il limite di richieste utente. Riprova tra 15 minuti.',
+      retryAfter: 15 * 60
+    });
+  }
+});
+
+// Slow down per richieste sospette
+const speedLimiter = slowDown({
+  windowMs: 15 * 60 * 1000, // 15 minuti
+  delayAfter: 50, // Inizia a rallentare dopo 50 richieste
+  delayMs: (used, req) => {
+    const delayAfter = req.slowDown.limit;
+    return (used - delayAfter) * 500;
+  },
+  maxDelayMs: 20000, // Massimo 20 secondi di delay
+  handler: (req, res) => {
+    console.log(`🐌 SPEED LIMIT: IP ${req.ip} sta facendo troppe richieste, rallentando...`);
+  }
+});
+
+// Rate limiting per upload file
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 ora
+  max: 10, // Solo 10 upload per IP all'ora
+  message: {
+    success: false,
+    error: 'Limite upload superato',
+    message: 'Hai superato il limite di upload. Riprova tra 1 ora.',
+    retryAfter: 60 * 60
+  },
+  handler: (req, res) => {
+    console.log(`🚨 UPLOAD RATE LIMIT: IP ${req.ip} ha superato il limite di upload`);
+    res.status(429).json({
+      success: false,
+      error: 'Limite upload superato',
+      message: 'Hai superato il limite di upload. Riprova tra 1 ora.',
+      retryAfter: 60 * 60
+    });
+  }
+});
+
+// Rate limiting per API pubbliche (meno restrittivo)
+const publicLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minuti
+  max: 30, // 30 richieste per IP per finestra
+  message: {
+    success: false,
+    error: 'Limite API pubblica superato',
+    message: 'Hai superato il limite di richieste API pubbliche. Riprova tra 15 minuti.',
+    retryAfter: 15 * 60
+  },
+  handler: (req, res) => {
+    console.log(`🚨 PUBLIC API RATE LIMIT: IP ${req.ip} ha superato il limite API pubbliche`);
+    res.status(429).json({
+      success: false,
+      error: 'Limite API pubblica superato',
+      message: 'Hai superato il limite di richieste API pubbliche. Riprova tra 15 minuti.',
+      retryAfter: 15 * 60
+    });
+  }
+});
+
+module.exports = {
+  generalLimiter,
+  authLimiter,
+  registrationLimiter,
+  passwordResetLimiter,
+  adminLimiter,
+  userLimiter,
+  speedLimiter,
+  uploadLimiter,
+  publicLimiter
+};

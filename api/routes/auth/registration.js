@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../../middleware/auth');
 const { validateInput, validateEmail } = require('../../middleware/validation');
 const { authAuditMiddleware } = require('../../middleware/auditMiddleware');
+const { registrationLimiter } = require('../../middleware/rateLimiting');
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ try {
 }
 
 // POST /api/auth/register - Registrazione nuovo utente
-router.post('/register', validateInput(['email', 'password', 'nome', 'cognome']), validateEmail, authAuditMiddleware, async (req, res) => {
+router.post('/register', registrationLimiter, validateInput(['email', 'password', 'nome', 'cognome']), validateEmail, authAuditMiddleware, async (req, res) => {
   try {
     console.log('✅ DEBUG: Richiesta /api/auth/register ricevuta!');
     console.log('✅ DEBUG: Headers:', req.headers);
