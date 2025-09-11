@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 export default function PrivacyPolicy() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-center mb-4">
             Informativa sulla Privacy
