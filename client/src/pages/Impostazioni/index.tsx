@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react";
 import { usePasswordChange } from "./hooks/usePasswordChange";
 import { useLogout } from "./hooks/useLogout";
 import { Header } from "./components/Header";
-import { SecuritySection } from "./components/SecuritySection";
 import { LinksSection } from "./components/LinksSection";
 import { LogoutDialog } from "./components/LogoutDialog";
 
@@ -47,9 +46,9 @@ export default function Impostazioni() {
         <Header />
 
         <div className="grid gap-8">
-          {/* Sezione Sicurezza */}
+          {/* Sezione Unica con 4 Pulsanti */}
           <div className="transform hover:scale-[1.02] transition-all duration-300">
-            <SecuritySection
+            <LinksSection 
               formData={passwordChange.formData}
               isChangingPassword={passwordChange.state.isChangingPassword}
               showChangePassword={passwordChange.state.showChangePassword}
@@ -57,13 +56,6 @@ export default function Impostazioni() {
               onShowForm={passwordChange.showForm}
               onHideForm={passwordChange.hideForm}
               onSubmit={passwordChange.handleChangePassword}
-            />
-          </div>
-
-          {/* Sezione Collegamenti */}
-          <div className="transform hover:scale-[1.02] transition-all duration-300">
-            <LinksSection 
-              onShowPasswordForm={passwordChange.showForm}
               onLogout={logout.showLogoutDialog}
             />
           </div>
