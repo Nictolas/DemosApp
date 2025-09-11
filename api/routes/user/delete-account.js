@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../../middleware/auth');
+const { verifyToken } = require('../../middleware/auth');
 const { auditLog } = require('../../services/auditService');
 const db = require('../../config/db');
 const bcrypt = require('bcryptjs');
@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
  * @desc Cancella definitivamente l'account dell'utente
  * @access Private
  */
-router.delete('/', authenticateToken, async (req, res) => {
+router.delete('/', verifyToken, async (req, res) => {
   const client = await db.connect();
   
   try {
