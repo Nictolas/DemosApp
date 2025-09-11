@@ -4,13 +4,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Shield, Database, Download, Trash2, Settings, User, Lock, LogOut } from "lucide-react";
+import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
-  onShowPasswordForm: () => void;
+  formData: ChangePasswordForm;
+  isChangingPassword: boolean;
+  showChangePassword: boolean;
+  onUpdateField: (field: keyof ChangePasswordForm, value: string) => void;
+  onShowForm: () => void;
+  onHideForm: () => void;
+  onSubmit: (e: React.FormEvent) => void;
   onLogout: () => void;
 }
 
-export const LinksSection: React.FC<LinksSectionProps> = ({ onShowPasswordForm, onLogout }) => {
+export const LinksSection: React.FC<LinksSectionProps> = ({ 
+  formData,
+  isChangingPassword,
+  showChangePassword,
+  onUpdateField,
+  onShowForm,
+  onHideForm,
+  onSubmit,
+  onLogout 
+}) => {
   return (
     <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 backdrop-blur-sm">
       {/* Decorative background */}
@@ -20,14 +36,14 @@ export const LinksSection: React.FC<LinksSectionProps> = ({ onShowPasswordForm, 
       <CardHeader className="relative">
         <CardTitle className="flex items-center gap-3 text-2xl font-bold">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-            <FileText className="h-5 w-5 text-white" />
+            <Settings className="h-5 w-5 text-white" />
           </div>
           <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-            Collegamenti
+            Impostazioni
           </span>
         </CardTitle>
         <CardDescription className="text-gray-600 text-base">
-          Accedi alle funzionalità e documenti della piattaforma
+          Gestisci il tuo account e le preferenze
         </CardDescription>
       </CardHeader>
       
@@ -70,7 +86,7 @@ export const LinksSection: React.FC<LinksSectionProps> = ({ onShowPasswordForm, 
           <Button 
             variant="outline" 
             className="w-full justify-start h-20 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 hover:border-purple-300 hover:shadow-lg transition-all duration-300 group"
-            onClick={onShowPasswordForm}
+            onClick={onShowForm}
           >
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
               <Lock className="h-5 w-5 text-white" />
@@ -96,6 +112,76 @@ export const LinksSection: React.FC<LinksSectionProps> = ({ onShowPasswordForm, 
             </div>
           </Button>
         </div>
+
+        {/* Form Cambio Password */}
+        {showChangePassword && (
+          <div className="mt-6 p-6 rounded-2xl bg-gradient-to-br from-gray-50 to-blue-50/50 border border-gray-200">
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Password attuale</label>
+                <input
+                  type="password"
+                  placeholder="Inserisci la password attuale"
+                  value={formData.currentPassword}
+                  onChange={e => onUpdateField('currentPassword', e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Nuova password</label>
+                <input
+                  type="password"
+                  placeholder="Inserisci la nuova password"
+                  value={formData.newPassword}
+                  onChange={e => onUpdateField('newPassword', e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Conferma nuova password</label>
+                <input
+                  type="password"
+                  placeholder="Conferma la nuova password"
+                  value={formData.confirmPassword}
+                  onChange={e => onUpdateField('confirmPassword', e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 bg-white"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <Button 
+                  type="submit" 
+                  className="flex-1 h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300"
+                  disabled={isChangingPassword}
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Aggiornamento...
+                    </>
+                  ) : (
+                    "Aggiorna Password"
+                  )}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={onHideForm}
+                  className="h-12 px-6 rounded-xl border-2 border-gray-300 hover:border-gray-400 transition-all duration-300"
+                >
+                  Annulla
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
 
       </CardContent>
     </Card>
