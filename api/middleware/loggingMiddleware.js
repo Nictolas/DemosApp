@@ -1,11 +1,11 @@
 // File: api/middleware/loggingMiddleware.js
 const logger = require('../services/centralizedLogger');
-const { v4: uuidv4 } = require('crypto');
+const crypto = require('crypto');
 
 // Middleware per logging richieste HTTP
 const requestLoggingMiddleware = (req, res, next) => {
   const startTime = Date.now();
-  const requestId = uuidv4();
+  const requestId = crypto.randomUUID();
   
   // Aggiungi ID richiesta al request
   req.id = requestId;
