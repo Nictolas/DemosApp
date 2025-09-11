@@ -1,4 +1,4 @@
-import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive, Zap, CheckCircle } from "lucide-react";
+import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive, Zap, CheckCircle, FileSearch } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -202,5 +202,15 @@ export const gestisciSections: GestisciSection[] = [
       buttonColor: "bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700",
       route: "/validation-dashboard",
       buttonText: "Monitora Validazione"
+    },
+    {
+      id: "logging",
+      title: "Logging Centralizzato",
+      description: "Monitora e gestisci tutti i log dell'applicazione in un sistema unificato",
+      icon: FileSearch,
+      color: "text-cyan-600 group-hover:text-cyan-800",
+      buttonColor: "bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700",
+      route: "/logging-dashboard",
+      buttonText: "Gestisci Logging"
     }
 ];

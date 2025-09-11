@@ -85,6 +85,7 @@ import LegalDocuments from "./pages/LegalDocuments";
 import BackupDashboard from "./pages/BackupDashboard";
 import RateLimitingDashboard from "./pages/RateLimitingDashboard";
 import ValidationDashboard from "./pages/ValidationDashboard";
+import LoggingDashboard from "./pages/LoggingDashboard";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -319,6 +320,11 @@ export default function App() {
                 <Route path="/validation-dashboard">
                   <PageTransition location={location} type="fade-up">
                     <ValidationDashboard />
+                  </PageTransition>
+                </Route>
+                <Route path="/logging-dashboard">
+                  <PageTransition location={location} type="fade-up">
+                    <LoggingDashboard />
                   </PageTransition>
                 </Route>
 
