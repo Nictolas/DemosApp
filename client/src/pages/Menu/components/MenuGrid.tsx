@@ -21,7 +21,11 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
 
 
   return (
-    <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+    <div className="grid grid-cols-2 gap-3 flex-1 min-h-0" style={{ 
+      border: '2px solid red', 
+      minHeight: '200px',
+      backgroundColor: 'rgba(255,0,0,0.1)'
+    }}>
       {visibleItems.map((item) => (
         <MenuButton
           key={item.id}
