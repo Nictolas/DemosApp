@@ -74,6 +74,9 @@ import ProponiReferendumAbrogativi from "./pages/ProponiReferendumAbrogativi";
 import ProponiIniziativaPopolare from "./pages/ProponiIniziativaPopolare";
 import ProponiICE from "./pages/ProponiICE";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
+import SecurityMeasures from "./pages/SecurityMeasures";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -249,6 +252,24 @@ export default function App() {
                 <Route path="/privacy-policy">
                   <PageTransition location={location} type="fade-up">
                     <PrivacyPolicy />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/terms-of-service">
+                  <PageTransition location={location} type="fade-up">
+                    <TermsOfService />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/cookie-policy">
+                  <PageTransition location={location} type="fade-up">
+                    <CookiePolicy />
+                  </PageTransition>
+                </Route>
+
+                <Route path="/security-measures">
+                  <PageTransition location={location} type="fade-up">
+                    <SecurityMeasures />
                   </PageTransition>
                 </Route>
 

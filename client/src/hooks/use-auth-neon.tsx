@@ -31,6 +31,9 @@ interface RegisterData {
   name?: string;  // Campo opzionale per compatibilità
   nome?: string;  // Campo italiano per compatibilità
   cognome?: string; // Campo italiano per compatibilità
+  privacy_policy_consent?: boolean;
+  terms_of_service_consent?: boolean;
+  cookie_policy_consent?: boolean;
 }
 
 interface ForgotPasswordData {

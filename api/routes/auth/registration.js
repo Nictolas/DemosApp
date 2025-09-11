@@ -28,7 +28,7 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     console.log('✅ DEBUG: Headers:', req.headers);
     console.log('✅ DEBUG: Body:', req.body);
     
-    const { email, password, nome, cognome, codice_fiscale } = req.body;
+    const { email, password, nome, cognome, codice_fiscale, privacy_policy_consent, terms_of_service_consent, cookie_policy_consent } = req.body;
     
     // Estrai tutti i dati dal body
     const { 
@@ -73,6 +73,14 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
     
     console.log('📝 Tentativo registrazione per:', email);
     console.log('📊 Dati ricevuti:', JSON.stringify(req.body, null, 2));
+    
+    // Verifica consensi obbligatori
+    if (!privacy_policy_consent || !terms_of_service_consent || !cookie_policy_consent) {
+      return res.status(400).json({
+        success: false,
+        error: 'È necessario accettare tutti i consensi obbligatori per procedere con la registrazione'
+      });
+    }
     
     // Verifica se l'email è già registrata
     const existingUserQuery = 'SELECT id FROM users WHERE email = $1';
@@ -139,7 +147,13 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       paese_candidatura || null,
       regione_candidatura || null,
       provincia_candidatura || null,
-      comune_candidatura || null
+      comune_candidatura || null,
+      privacy_policy_consent || false,
+      terms_of_service_consent || false,
+      cookie_policy_consent || false,
+      new Date().toISOString(),
+      req.ip || req.connection.remoteAddress || null,
+      req.get('User-Agent') || null
     ];
     
     console.log('🔍 Parametri query:', queryParams.length);
@@ -150,8 +164,10 @@ router.post('/register', validateInput(['email', 'password', 'nome', 'cognome'])
       INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, status, email_verification_token, 
                         genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
                         grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
-                        grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, NOW())
+                        grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+                        privacy_policy_consent, terms_of_service_consent, cookie_policy_consent, consent_timestamp, 
+                        consent_ip_address, consent_user_agent, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, NOW())
       RETURNING id, nome, cognome, email, ruolo, codice_fiscale, status
     `;
     
