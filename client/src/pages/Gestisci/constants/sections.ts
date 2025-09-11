@@ -1,4 +1,4 @@
-import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive, Zap } from "lucide-react";
+import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive, Zap, CheckCircle } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -192,5 +192,15 @@ export const gestisciSections: GestisciSection[] = [
       buttonColor: "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700",
       route: "/rate-limiting-dashboard",
       buttonText: "Monitora Rate Limiting"
+    },
+    {
+      id: "validation",
+      title: "Validazione Input",
+      description: "Monitora e gestisci i fallimenti di validazione per la sicurezza dell'applicazione",
+      icon: CheckCircle,
+      color: "text-teal-600 group-hover:text-teal-800",
+      buttonColor: "bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700",
+      route: "/validation-dashboard",
+      buttonText: "Monitora Validazione"
     }
 ];
