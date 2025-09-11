@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../../middleware/auth');
-const { validateInput } = require('../../middleware/validation');
 const { auditLog } = require('../../services/auditService');
 const db = require('../../config/db');
 const bcrypt = require('bcryptjs');
@@ -12,7 +11,7 @@ const bcrypt = require('bcryptjs');
  * @access Private
  */
 router.delete('/', authenticateToken, async (req, res) => {
-  const client = await db.getClient();
+  const client = await db.connect();
   
   try {
     const userId = req.user.id;
@@ -36,7 +35,7 @@ router.delete('/', authenticateToken, async (req, res) => {
     await client.query('BEGIN');
 
     // Verifica la password
-    const userQuery = 'SELECT password FROM users WHERE id = $1';
+    const userQuery = 'SELECT password_hash FROM users WHERE id = $1';
     const userResult = await client.query(userQuery, [userId]);
     
     if (userResult.rows.length === 0) {
@@ -47,7 +46,7 @@ router.delete('/', authenticateToken, async (req, res) => {
       });
     }
 
-    const isValidPassword = await bcrypt.compare(password, userResult.rows[0].password);
+    const isValidPassword = await bcrypt.compare(password, userResult.rows[0].password_hash);
     if (!isValidPassword) {
       await client.query('ROLLBACK');
       return res.status(401).json({

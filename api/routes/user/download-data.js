@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../../middleware/auth');
-const { validateInput } = require('../../middleware/validation');
 const { auditLog } = require('../../services/auditService');
 const db = require('../../config/db');
 
@@ -30,10 +29,8 @@ router.get('/', authenticateToken, async (req, res) => {
     if (type === 'profile' || type === 'complete') {
       const profileQuery = `
         SELECT 
-          id, email, nome, cognome, data_nascita, sesso, 
-          codice_fiscale, telefono, indirizzo, comune, 
-          provincia, cap, regione, grado_istruzione, 
-          professione, stato_civile, figli, created_at, updated_at
+          id, email, nome, cognome, data_nascita, genere, 
+          codice_fiscale, created_at, updated_at
         FROM users 
         WHERE id = $1
       `;
