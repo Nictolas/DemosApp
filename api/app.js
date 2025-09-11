@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { securityHeaders, securityMiddleware, securityLogger } = require('./middleware/security');
+const { requestLoggingMiddleware, errorLoggingMiddleware } = require('./middleware/loggingMiddleware');
+const logger = require('./services/centralizedLogger');
 
 // Import moduli
 const healthRoutes = require('./routes/health');
@@ -35,6 +37,7 @@ const violationRoutes = require('./routes/admin/violations');
 const backupRoutes = require('./routes/admin/backup');
 const rateLimitingRoutes = require('./routes/admin/rate-limiting');
 const validationRoutes = require('./routes/admin/validation');
+const loggingRoutes = require('./routes/admin/logging');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
 const auditManager = require('./services/auditManager');
 const dataRetentionJob = require('./jobs/dataRetentionJob');
@@ -66,6 +69,9 @@ app.use((req, res, next) => {
 app.use(securityHeaders);
 app.use(securityMiddleware);
 app.use(securityLogger);
+
+// Middleware di logging centralizzato
+app.use(requestLoggingMiddleware);
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
@@ -184,6 +190,9 @@ app.use('/api/admin/rate-limiting', adminLimiter, rateLimitingRoutes);
 // Route per validation dashboard
 app.use('/api/admin/validation', adminLimiter, validationRoutes);
 
+// Route per logging centralizzato
+app.use('/api/admin/logging', adminLimiter, loggingRoutes);
+
 // Gestione errori 404
 app.use('*', (req, res) => {
   console.log(`❌ Route non trovata: ${req.method} ${req.originalUrl}`);
@@ -197,6 +206,16 @@ app.use('*', (req, res) => {
 // Middleware gestione errori globale
 app.use((error, req, res, next) => {
   console.error('💥 Errore globale:', error);
+  
+  // Log dell'errore con il sistema centralizzato
+  logger.logError(error, req, {
+    globalError: true,
+    endpoint: req.originalUrl,
+    method: req.method
+  }).catch(logError => {
+    console.error('❌ Errore logging errore globale:', logError);
+  });
+  
   res.status(500).json({
     success: false,
     error: 'Errore interno del server',
