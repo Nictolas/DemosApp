@@ -5,7 +5,7 @@ const { pool } = require('../../middleware/auth');
 const { validateInput, validateEmail } = require('../../middleware/validation');
 const { authAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { registrationLimiter } = require('../../middleware/rateLimiting');
-const { validators, sanitizeInput } = require('../../middleware/inputValidation');
+const { validationRules, sanitizeInput } = require('../../middleware/inputValidation');
 const ValidationService = require('../../services/validationService');
 
 const router = express.Router();
@@ -28,7 +28,7 @@ try {
 // POST /api/auth/register - Registrazione nuovo utente
 router.post('/register', 
   registrationLimiter, 
-  validateInput(validators.registration), 
+  validateInput(validationRules.registration), 
   sanitizeInput(['nome', 'cognome', 'cittadinanza']),
   authAuditMiddleware, 
   async (req, res) => {

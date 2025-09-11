@@ -1,200 +1,287 @@
 // File: api/middleware/inputValidation.js
-const Joi = require('joi');
-const validator = require('validator');
-const xss = require('xss');
-const sanitizeHtml = require('sanitize-html');
+// Validazione nativa senza dipendenze esterne
 
-// Schemi di validazione per diversi tipi di input
-const validationSchemas = {
+// Funzioni di validazione native
+const validators = {
   // Validazione email
-  email: Joi.string()
-    .email({ minDomainSegments: 2, tlds: { allow: ['com', 'it', 'org', 'net', 'eu'] } })
-    .max(255)
-    .required()
-    .messages({
-      'string.email': 'Email non valida',
-      'string.max': 'Email troppo lunga',
-      'any.required': 'Email richiesta'
-    }),
+  email: (value) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!value || typeof value !== 'string') {
+      return { isValid: false, error: 'Email richiesta' };
+    }
+    if (value.length > 255) {
+      return { isValid: false, error: 'Email troppo lunga' };
+    }
+    if (!emailRegex.test(value)) {
+      return { isValid: false, error: 'Email non valida' };
+    }
+    return { isValid: true, value: value.toLowerCase().trim() };
+  },
 
   // Validazione password
-  password: Joi.string()
-    .min(8)
-    .max(128)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .required()
-    .messages({
-      'string.min': 'Password deve essere almeno 8 caratteri',
-      'string.max': 'Password troppo lunga',
-      'string.pattern.base': 'Password deve contenere: maiuscola, minuscola, numero e carattere speciale',
-      'any.required': 'Password richiesta'
-    }),
+  password: (value) => {
+    if (!value || typeof value !== 'string') {
+      return { isValid: false, error: 'Password richiesta' };
+    }
+    if (value.length < 8) {
+      return { isValid: false, error: 'Password deve essere almeno 8 caratteri' };
+    }
+    if (value.length > 128) {
+      return { isValid: false, error: 'Password troppo lunga' };
+    }
+    if (!/[a-z]/.test(value)) {
+      return { isValid: false, error: 'Password deve contenere almeno una lettera minuscola' };
+    }
+    if (!/[A-Z]/.test(value)) {
+      return { isValid: false, error: 'Password deve contenere almeno una lettera maiuscola' };
+    }
+    if (!/[0-9]/.test(value)) {
+      return { isValid: false, error: 'Password deve contenere almeno un numero' };
+    }
+    if (!/[@$!%*?&]/.test(value)) {
+      return { isValid: false, error: 'Password deve contenere almeno un carattere speciale (@$!%*?&)' };
+    }
+    return { isValid: true, value };
+  },
 
-  // Validazione nome
-  nome: Joi.string()
-    .min(2)
-    .max(50)
-    .pattern(/^[a-zA-ZÀ-ÿ\s'-]+$/)
-    .required()
-    .messages({
-      'string.min': 'Nome deve essere almeno 2 caratteri',
-      'string.max': 'Nome troppo lungo',
-      'string.pattern.base': 'Nome può contenere solo lettere, spazi, apostrofi e trattini',
-      'any.required': 'Nome richiesto'
-    }),
-
-  // Validazione cognome
-  cognome: Joi.string()
-    .min(2)
-    .max(50)
-    .pattern(/^[a-zA-ZÀ-ÿ\s'-]+$/)
-    .required()
-    .messages({
-      'string.min': 'Cognome deve essere almeno 2 caratteri',
-      'string.max': 'Cognome troppo lungo',
-      'string.pattern.base': 'Cognome può contenere solo lettere, spazi, apostrofi e trattini',
-      'any.required': 'Cognome richiesto'
-    }),
+  // Validazione nome/cognome
+  name: (value, fieldName = 'Nome') => {
+    if (!value || typeof value !== 'string') {
+      return { isValid: false, error: `${fieldName} richiesto` };
+    }
+    if (value.length < 2) {
+      return { isValid: false, error: `${fieldName} deve essere almeno 2 caratteri` };
+    }
+    if (value.length > 50) {
+      return { isValid: false, error: `${fieldName} troppo lungo` };
+    }
+    const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+    if (!nameRegex.test(value)) {
+      return { isValid: false, error: `${fieldName} può contenere solo lettere, spazi, apostrofi e trattini` };
+    }
+    return { isValid: true, value: value.trim() };
+  },
 
   // Validazione codice fiscale
-  codiceFiscale: Joi.string()
-    .length(16)
-    .pattern(/^[A-Z0-9]{16}$/)
-    .optional()
-    .messages({
-      'string.length': 'Codice fiscale deve essere di 16 caratteri',
-      'string.pattern.base': 'Codice fiscale non valido'
-    }),
+  codiceFiscale: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    if (typeof value !== 'string') {
+      return { isValid: false, error: 'Codice fiscale deve essere una stringa' };
+    }
+    const cf = value.toUpperCase().trim();
+    if (cf.length !== 16) {
+      return { isValid: false, error: 'Codice fiscale deve essere di 16 caratteri' };
+    }
+    const cfRegex = /^[A-Z0-9]{16}$/;
+    if (!cfRegex.test(cf)) {
+      return { isValid: false, error: 'Codice fiscale contiene caratteri non validi' };
+    }
+    return { isValid: true, value: cf };
+  },
 
   // Validazione data di nascita
-  dataNascita: Joi.string()
-    .pattern(/^\d{2}\/\d{2}\/\d{4}$/)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Data di nascita deve essere nel formato DD/MM/YYYY'
-    }),
+  dataNascita: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    if (typeof value !== 'string') {
+      return { isValid: false, error: 'Data di nascita deve essere una stringa' };
+    }
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const match = value.match(dateRegex);
+    if (!match) {
+      return { isValid: false, error: 'Data di nascita deve essere nel formato DD/MM/YYYY' };
+    }
+    
+    const [, day, month, year] = match;
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    
+    if (yearNum < 1900 || yearNum > new Date().getFullYear()) {
+      return { isValid: false, error: 'Anno di nascita non valido' };
+    }
+    if (monthNum < 1 || monthNum > 12) {
+      return { isValid: false, error: 'Mese di nascita non valido' };
+    }
+    if (dayNum < 1 || dayNum > 31) {
+      return { isValid: false, error: 'Giorno di nascita non valido' };
+    }
+    
+    const date = new Date(yearNum, monthNum - 1, dayNum);
+    if (date.getDate() !== dayNum || date.getMonth() !== monthNum - 1 || date.getFullYear() !== yearNum) {
+      return { isValid: false, error: 'Data di nascita non valida' };
+    }
+    
+    if (date > new Date()) {
+      return { isValid: false, error: 'Data di nascita non può essere nel futuro' };
+    }
+    
+    const age = new Date().getFullYear() - yearNum;
+    if (age < 13) {
+      return { isValid: false, error: 'Devi avere almeno 13 anni per registrarti' };
+    }
+    
+    return { isValid: true, value };
+  },
 
   // Validazione genere
-  genere: Joi.string()
-    .valid('M', 'F', 'Altro')
-    .optional()
-    .messages({
-      'any.only': 'Genere deve essere M, F o Altro'
-    }),
-
-  // Validazione cittadinanza
-  cittadinanza: Joi.string()
-    .min(2)
-    .max(50)
-    .pattern(/^[a-zA-ZÀ-ÿ\s'-]+$/)
-    .optional()
-    .messages({
-      'string.min': 'Cittadinanza deve essere almeno 2 caratteri',
-      'string.max': 'Cittadinanza troppo lunga',
-      'string.pattern.base': 'Cittadinanza può contenere solo lettere, spazi, apostrofi e trattini'
-    }),
+  genere: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    const validGenres = ['M', 'F', 'Altro'];
+    if (!validGenres.includes(value)) {
+      return { isValid: false, error: 'Genere deve essere M, F o Altro' };
+    }
+    return { isValid: true, value };
+  },
 
   // Validazione telefono
-  telefono: Joi.string()
-    .pattern(/^[\+]?[0-9\s\-\(\)]{7,20}$/)
-    .optional()
-    .messages({
-      'string.pattern.base': 'Numero di telefono non valido'
-    }),
+  telefono: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    const phoneRegex = /^[\+]?[0-9\s\-\(\)]{7,20}$/;
+    if (!phoneRegex.test(value)) {
+      return { isValid: false, error: 'Numero di telefono non valido' };
+    }
+    return { isValid: true, value: value.trim() };
+  },
 
   // Validazione URL
-  url: Joi.string()
-    .uri({ scheme: ['http', 'https'] })
-    .max(2048)
-    .optional()
-    .messages({
-      'string.uri': 'URL non valido',
-      'string.max': 'URL troppo lungo'
-    }),
+  url: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    try {
+      const url = new URL(value);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return { isValid: false, error: 'URL deve iniziare con http:// o https://' };
+      }
+      if (value.length > 2048) {
+        return { isValid: false, error: 'URL troppo lungo' };
+      }
+      return { isValid: true, value };
+    } catch {
+      return { isValid: false, error: 'URL non valido' };
+    }
+  },
 
   // Validazione testo generico
-  testo: Joi.string()
-    .max(10000)
-    .optional()
-    .messages({
-      'string.max': 'Testo troppo lungo'
-    }),
+  text: (value, maxLength = 10000) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    if (typeof value !== 'string') {
+      return { isValid: false, error: 'Testo deve essere una stringa' };
+    }
+    if (value.length > maxLength) {
+      return { isValid: false, error: `Testo troppo lungo (massimo ${maxLength} caratteri)` };
+    }
+    return { isValid: true, value: value.trim() };
+  },
 
   // Validazione ID
-  id: Joi.string()
-    .pattern(/^[a-zA-Z0-9\-_]+$/)
-    .max(255)
-    .required()
-    .messages({
-      'string.pattern.base': 'ID non valido',
-      'string.max': 'ID troppo lungo',
-      'any.required': 'ID richiesto'
-    }),
-
-  // Validazione UUID
-  uuid: Joi.string()
-    .uuid()
-    .required()
-    .messages({
-      'string.guid': 'UUID non valido',
-      'any.required': 'UUID richiesto'
-    }),
+  id: (value) => {
+    if (!value || typeof value !== 'string') {
+      return { isValid: false, error: 'ID richiesto' };
+    }
+    if (value.length > 255) {
+      return { isValid: false, error: 'ID troppo lungo' };
+    }
+    const idRegex = /^[a-zA-Z0-9\-_]+$/;
+    if (!idRegex.test(value)) {
+      return { isValid: false, error: 'ID contiene caratteri non validi' };
+    }
+    return { isValid: true, value };
+  },
 
   // Validazione numero intero
-  integer: Joi.number()
-    .integer()
-    .min(0)
-    .max(2147483647)
-    .required()
-    .messages({
-      'number.base': 'Deve essere un numero',
-      'number.integer': 'Deve essere un numero intero',
-      'number.min': 'Deve essere maggiore o uguale a 0',
-      'number.max': 'Numero troppo grande',
-      'any.required': 'Numero richiesto'
-    }),
+  integer: (value, min = 0, max = 2147483647) => {
+    if (value === undefined || value === null) {
+      return { isValid: false, error: 'Numero richiesto' };
+    }
+    const num = parseInt(value, 10);
+    if (isNaN(num)) {
+      return { isValid: false, error: 'Deve essere un numero' };
+    }
+    if (num < min) {
+      return { isValid: false, error: `Deve essere maggiore o uguale a ${min}` };
+    }
+    if (num > max) {
+      return { isValid: false, error: `Deve essere minore o uguale a ${max}` };
+    }
+    return { isValid: true, value: num };
+  },
 
   // Validazione booleano
-  boolean: Joi.boolean()
-    .required()
-    .messages({
-      'boolean.base': 'Deve essere true o false',
-      'any.required': 'Valore booleano richiesto'
-    })
+  boolean: (value) => {
+    if (typeof value === 'boolean') {
+      return { isValid: true, value };
+    }
+    if (typeof value === 'string') {
+      const lowerValue = value.toLowerCase();
+      if (lowerValue === 'true' || lowerValue === '1') {
+        return { isValid: true, value: true };
+      }
+      if (lowerValue === 'false' || lowerValue === '0') {
+        return { isValid: true, value: false };
+      }
+    }
+    return { isValid: false, error: 'Deve essere true o false' };
+  }
 };
 
-// Funzioni di sanitizzazione
+// Funzioni di sanitizzazione native
 const sanitizers = {
-  // Sanitizza HTML
+  // Sanitizza HTML (rimuove tag pericolosi)
   html: (input) => {
     if (typeof input !== 'string') return input;
-    return sanitizeHtml(input, {
-      allowedTags: ['b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li'],
-      allowedAttributes: {},
-      disallowedTagsMode: 'discard'
-    });
+    return input
+      .replace(/<script[^>]*>.*?<\/script>/gi, '')
+      .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '')
+      .replace(/<object[^>]*>.*?<\/object>/gi, '')
+      .replace(/<embed[^>]*>.*?<\/embed>/gi, '')
+      .replace(/<link[^>]*>.*?<\/link>/gi, '')
+      .replace(/<meta[^>]*>.*?<\/meta>/gi, '')
+      .replace(/<style[^>]*>.*?<\/style>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/vbscript:/gi, '')
+      .replace(/onload\s*=/gi, '')
+      .replace(/onerror\s*=/gi, '')
+      .replace(/onclick\s*=/gi, '')
+      .replace(/onmouseover\s*=/gi, '');
   },
 
   // Sanitizza testo semplice
   text: (input) => {
     if (typeof input !== 'string') return input;
-    return xss(input, {
-      whiteList: {},
-      stripIgnoreTag: true,
-      stripIgnoreTagBody: ['script']
-    });
+    return input
+      .replace(/[<>\"'&]/g, (match) => {
+        const escapeMap = {
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#x27;',
+          '&': '&amp;'
+        };
+        return escapeMap[match] || match;
+      });
   },
 
   // Sanitizza email
   email: (input) => {
     if (typeof input !== 'string') return input;
-    return validator.normalizeEmail(input, { gmail_remove_dots: false });
+    return input.toLowerCase().trim();
   },
 
   // Sanitizza URL
   url: (input) => {
     if (typeof input !== 'string') return input;
-    return validator.escape(input);
+    return input.replace(/[<>\"'&]/g, '');
   },
 
   // Sanitizza numero
@@ -218,32 +305,50 @@ const sanitizers = {
 };
 
 // Middleware di validazione generico
-const validateInput = (schema) => {
+const validateInput = (rules) => {
   return (req, res, next) => {
     try {
-      const { error, value } = schema.validate(req.body, { 
-        abortEarly: false,
-        stripUnknown: true,
-        allowUnknown: false
-      });
+      const errors = [];
+      const sanitizedData = {};
 
-      if (error) {
-        const errorMessages = error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message
-        }));
-
-        console.log('❌ VALIDATION ERROR:', errorMessages);
+      // Valida ogni campo secondo le regole
+      for (const [field, rule] of Object.entries(rules)) {
+        const value = req.body[field];
         
+        if (rule.required && (value === undefined || value === null || value === '')) {
+          errors.push({ field, message: `${field} è richiesto` });
+          continue;
+        }
+
+        if (value !== undefined && value !== null && value !== '') {
+          const validator = validators[rule.type];
+          if (validator) {
+            const result = validator(value, rule.min, rule.max);
+            if (!result.isValid) {
+              errors.push({ field, message: result.error });
+            } else {
+              sanitizedData[field] = result.value;
+            }
+          } else {
+            // Se non c'è validatore specifico, sanitizza il testo
+            sanitizedData[field] = sanitizers.text(value);
+          }
+        } else if (!rule.required) {
+          sanitizedData[field] = null;
+        }
+      }
+
+      if (errors.length > 0) {
+        console.log('❌ VALIDATION ERROR:', errors);
         return res.status(400).json({
           success: false,
           error: 'Dati di input non validi',
-          details: errorMessages
+          details: errors
         });
       }
 
-      // Sostituisci req.body con i dati validati
-      req.body = value;
+      // Sostituisci req.body con i dati validati e sanitizzati
+      req.body = { ...req.body, ...sanitizedData };
       next();
     } catch (err) {
       console.error('❌ Errore validazione input:', err);
@@ -285,102 +390,96 @@ const sanitizeInput = (fields) => {
 };
 
 // Validatori specifici per endpoint comuni
-const validators = {
+const validationRules = {
   // Validazione registrazione utente
-  registration: Joi.object({
-    email: validationSchemas.email,
-    password: validationSchemas.password,
-    nome: validationSchemas.nome,
-    cognome: validationSchemas.cognome,
-    data_nascita: validationSchemas.dataNascita,
-    genere: validationSchemas.genere,
-    cittadinanza: validationSchemas.cittadinanza,
-    codice_fiscale: validationSchemas.codiceFiscale,
-    telefono: validationSchemas.telefono
-  }),
+  registration: {
+    email: { type: 'email', required: true },
+    password: { type: 'password', required: true },
+    nome: { type: 'name', required: true },
+    cognome: { type: 'name', required: true },
+    data_nascita: { type: 'dataNascita', required: false },
+    genere: { type: 'genere', required: false },
+    cittadinanza: { type: 'name', required: false },
+    codice_fiscale: { type: 'codiceFiscale', required: false },
+    telefono: { type: 'telefono', required: false }
+  },
 
   // Validazione login
-  login: Joi.object({
-    email: validationSchemas.email,
-    password: Joi.string().required().messages({
-      'any.required': 'Password richiesta'
-    })
-  }),
+  login: {
+    email: { type: 'email', required: true },
+    password: { type: 'text', required: true }
+  },
 
   // Validazione reset password
-  resetPassword: Joi.object({
-    email: validationSchemas.email
-  }),
+  resetPassword: {
+    email: { type: 'email', required: true }
+  },
 
   // Validazione nuova password
-  newPassword: Joi.object({
-    token: Joi.string().required().messages({
-      'any.required': 'Token richiesto'
-    }),
-    newPassword: validationSchemas.password
-  }),
+  newPassword: {
+    token: { type: 'text', required: true },
+    newPassword: { type: 'password', required: true }
+  },
 
   // Validazione profilo utente
-  userProfile: Joi.object({
-    nome: validationSchemas.nome,
-    cognome: validationSchemas.cognome,
-    data_nascita: validationSchemas.dataNascita,
-    genere: validationSchemas.genere,
-    cittadinanza: validationSchemas.cittadinanza,
-    telefono: validationSchemas.telefono
-  }),
+  userProfile: {
+    nome: { type: 'name', required: true },
+    cognome: { type: 'name', required: true },
+    data_nascita: { type: 'dataNascita', required: false },
+    genere: { type: 'genere', required: false },
+    cittadinanza: { type: 'name', required: false },
+    telefono: { type: 'telefono', required: false }
+  },
 
   // Validazione opinioni
-  opinion: Joi.object({
-    titolo: Joi.string().min(5).max(200).required().messages({
-      'string.min': 'Titolo deve essere almeno 5 caratteri',
-      'string.max': 'Titolo troppo lungo',
-      'any.required': 'Titolo richiesto'
-    }),
-    contenuto: Joi.string().min(10).max(5000).required().messages({
-      'string.min': 'Contenuto deve essere almeno 10 caratteri',
-      'string.max': 'Contenuto troppo lungo',
-      'any.required': 'Contenuto richiesto'
-    }),
-    categoria: Joi.string().valid('politica', 'economia', 'sociale', 'ambiente', 'altro').required().messages({
-      'any.only': 'Categoria non valida',
-      'any.required': 'Categoria richiesta'
-    })
-  }),
-
-  // Validazione parametri URL
-  urlParams: Joi.object({
-    id: validationSchemas.id,
-    page: Joi.number().integer().min(1).max(1000).optional(),
-    limit: Joi.number().integer().min(1).max(100).optional(),
-    sort: Joi.string().valid('asc', 'desc').optional(),
-    search: Joi.string().max(100).optional()
-  })
+  opinion: {
+    titolo: { type: 'text', required: true, maxLength: 200 },
+    contenuto: { type: 'text', required: true, maxLength: 5000 },
+    categoria: { type: 'text', required: true }
+  }
 };
 
 // Funzione per validare parametri URL
-const validateParams = (schema) => {
+const validateParams = (rules) => {
   return (req, res, next) => {
     try {
-      const { error, value } = schema.validate(req.params, { 
-        abortEarly: false,
-        stripUnknown: true
-      });
+      const errors = [];
+      const sanitizedParams = {};
 
-      if (error) {
-        const errorMessages = error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message
-        }));
+      for (const [field, rule] of Object.entries(rules)) {
+        const value = req.params[field];
+        
+        if (rule.required && (value === undefined || value === null || value === '')) {
+          errors.push({ field, message: `${field} è richiesto` });
+          continue;
+        }
 
+        if (value !== undefined && value !== null && value !== '') {
+          const validator = validators[rule.type];
+          if (validator) {
+            const result = validator(value, rule.min, rule.max);
+            if (!result.isValid) {
+              errors.push({ field, message: result.error });
+            } else {
+              sanitizedParams[field] = result.value;
+            }
+          } else {
+            sanitizedParams[field] = sanitizers.text(value);
+          }
+        } else if (!rule.required) {
+          sanitizedParams[field] = null;
+        }
+      }
+
+      if (errors.length > 0) {
         return res.status(400).json({
           success: false,
           error: 'Parametri URL non validi',
-          details: errorMessages
+          details: errors
         });
       }
 
-      req.params = value;
+      req.params = { ...req.params, ...sanitizedParams };
       next();
     } catch (err) {
       console.error('❌ Errore validazione parametri:', err);
@@ -393,28 +492,46 @@ const validateParams = (schema) => {
 };
 
 // Funzione per validare query parameters
-const validateQuery = (schema) => {
+const validateQuery = (rules) => {
   return (req, res, next) => {
     try {
-      const { error, value } = schema.validate(req.query, { 
-        abortEarly: false,
-        stripUnknown: true
-      });
+      const errors = [];
+      const sanitizedQuery = {};
 
-      if (error) {
-        const errorMessages = error.details.map(detail => ({
-          field: detail.path.join('.'),
-          message: detail.message
-        }));
+      for (const [field, rule] of Object.entries(rules)) {
+        const value = req.query[field];
+        
+        if (rule.required && (value === undefined || value === null || value === '')) {
+          errors.push({ field, message: `${field} è richiesto` });
+          continue;
+        }
 
+        if (value !== undefined && value !== null && value !== '') {
+          const validator = validators[rule.type];
+          if (validator) {
+            const result = validator(value, rule.min, rule.max);
+            if (!result.isValid) {
+              errors.push({ field, message: result.error });
+            } else {
+              sanitizedQuery[field] = result.value;
+            }
+          } else {
+            sanitizedQuery[field] = sanitizers.text(value);
+          }
+        } else if (!rule.required) {
+          sanitizedQuery[field] = null;
+        }
+      }
+
+      if (errors.length > 0) {
         return res.status(400).json({
           success: false,
           error: 'Parametri query non validi',
-          details: errorMessages
+          details: errors
         });
       }
 
-      req.query = value;
+      req.query = { ...req.query, ...sanitizedQuery };
       next();
     } catch (err) {
       console.error('❌ Errore validazione query:', err);
@@ -427,11 +544,11 @@ const validateQuery = (schema) => {
 };
 
 module.exports = {
-  validationSchemas,
+  validators,
   sanitizers,
   validateInput,
   sanitizeInput,
-  validators,
+  validationRules,
   validateParams,
   validateQuery
 };
