@@ -1,6 +1,5 @@
 // File: api/middleware/rateLimiting.js
 const rateLimit = require('express-rate-limit');
-const slowDown = require('express-slow-down');
 
 // Configurazione generale per tutte le API
 const generalLimiter = rateLimit({
@@ -131,17 +130,24 @@ const userLimiter = rateLimit({
   }
 });
 
-// Slow down per richieste sospette
-const speedLimiter = slowDown({
+// Rate limiting per richieste sospette (sostituisce slow-down)
+const speedLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  delayAfter: 50, // Inizia a rallentare dopo 50 richieste
-  delayMs: (used, req) => {
-    const delayAfter = req.slowDown.limit;
-    return (used - delayAfter) * 500;
+  max: 50, // Limite più basso per richieste sospette
+  message: {
+    success: false,
+    error: 'Troppe richieste sospette',
+    message: 'Hai superato il limite di richieste. Riprova tra 15 minuti.',
+    retryAfter: 15 * 60
   },
-  maxDelayMs: 20000, // Massimo 20 secondi di delay
   handler: (req, res) => {
-    console.log(`🐌 SPEED LIMIT: IP ${req.ip} sta facendo troppe richieste, rallentando...`);
+    console.log(`🐌 SPEED LIMIT: IP ${req.ip} sta facendo troppe richieste sospette`);
+    res.status(429).json({
+      success: false,
+      error: 'Troppe richieste sospette',
+      message: 'Hai superato il limite di richieste. Riprova tra 15 minuti.',
+      retryAfter: 15 * 60
+    });
   }
 });
 
