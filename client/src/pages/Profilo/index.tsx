@@ -209,6 +209,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
