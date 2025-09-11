@@ -46,7 +46,20 @@ export default function Menu() {
     const timer = setTimeout(checkDOM, 1000);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [user, hasAdvancedAccess]);
+
+  // Forza re-render quando l'utente è disponibile
+  useEffect(() => {
+    if (user && !isLoading) {
+      console.log('🔄 Menu - Utente disponibile, forzando re-render');
+      // Forza un re-render del componente
+      const timer = setTimeout(() => {
+        console.log('🔄 Menu - Re-render completato');
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user, isLoading]);
 
   // Rileva se è un dispositivo Android
   useEffect(() => {
@@ -71,12 +84,14 @@ export default function Menu() {
         <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
           <Card className="w-full">
             <MenuHeader 
+              key={`header-${user?.email || 'no-user'}`}
               isAdmin={isAdmin}
               onAdminClick={() => setLocation("/gestisci")}
             />
           </Card>
           <div className="mt-4">
             <MenuGrid 
+              key={`grid-${user?.email || 'no-user'}-${hasAdvancedAccess}`}
               hasAdvancedAccess={hasAdvancedAccess}
               onNavigate={navigateWithButtonReset}
             />
