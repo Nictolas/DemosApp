@@ -128,7 +128,7 @@ const DataRetention: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-6xl pt-20">
+      <div className="container mx-auto px-4 py-8 max-w-6xl pt-20 bg-white min-h-screen">
         <div className="flex items-center justify-center h-64">
           <RefreshCw className="h-8 w-8 animate-spin" />
           <span className="ml-2">Caricamento...</span>
@@ -138,7 +138,7 @@ const DataRetention: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl pt-20">
+    <div className="container mx-auto px-4 py-8 max-w-6xl pt-20 bg-white min-h-screen">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Gestione Data Retention
