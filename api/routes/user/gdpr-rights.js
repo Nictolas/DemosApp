@@ -3,7 +3,8 @@ const { verifyToken } = require('../../middleware/auth');
 const { validateInput } = require('../../middleware/validation');
 const { pool } = require('../../middleware/auth');
 const AuditService = require('../../services/auditService');
-const { v4: uuidv4 } = require('uuid');
+// Usa crypto nativo invece di uuid
+const crypto = require('crypto');
 
 const router = express.Router();
 
