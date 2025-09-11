@@ -77,7 +77,7 @@ import ProponiICE from "./pages/ProponiICE";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
-import { AutoRedirectToMenu } from "./components/AutoRedirectToMenu";
+import { LandingPageWithRedirect } from "./components/LandingPageWithRedirect";
 
 // Hook per la navigazione touch migliorato
 function useTouchNavigation() {
@@ -231,16 +231,9 @@ export default function App() {
                   <ConfermaEmail />
                 </PageTransition>
               </Route>
-                {/* Route principale */}
+                {/* Route principale - Redirect automatico se autenticato */}
                 <Route path="/">
-                  <PageTransition location={location} type="fade-up" delay={100}>
-                    <LandingPage />
-                  </PageTransition>
-                </Route>
-
-                {/* Redirect automatico da / a /menu se autenticato */}
-                <Route path="/">
-                  <AutoRedirectToMenu />
+                  <LandingPageWithRedirect />
                 </Route>
 
                 {/* Route di autenticazione */}
