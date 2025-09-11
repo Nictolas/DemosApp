@@ -3,9 +3,14 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Shield, Database, Download, Trash2, Settings } from "lucide-react";
+import { FileText, Shield, Database, Download, Trash2, Settings, User, Lock, LogOut } from "lucide-react";
 
-export const LinksSection: React.FC = () => {
+interface LinksSectionProps {
+  onShowPasswordForm: () => void;
+  onLogout: () => void;
+}
+
+export const LinksSection: React.FC<LinksSectionProps> = ({ onShowPasswordForm, onLogout }) => {
   return (
     <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 backdrop-blur-sm">
       {/* Decorative background */}
@@ -27,44 +32,71 @@ export const LinksSection: React.FC = () => {
       </CardHeader>
       
       <CardContent className="relative space-y-6">
-        {/* Sezione GDPR */}
-        <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Diritti GDPR</h4>
+        {/* Layout 2x2 per i 4 pulsanti rimanenti */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* GDPR */}
           <Link href="/gdpr">
             <Button 
               variant="outline" 
-              className="w-full justify-start h-14 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group"
+              className="w-full justify-start h-20 rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group"
             >
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                <Shield className="h-4 w-4 text-white" />
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <Shield className="h-5 w-5 text-white" />
               </div>
               <div className="text-left">
-                <div className="font-semibold text-gray-900">Diritti GDPR</div>
-                <div className="text-sm text-gray-600">Gestisci i tuoi diritti sulla protezione dati</div>
+                <div className="font-semibold text-gray-900">GDPR</div>
+                <div className="text-xs text-gray-600">Diritti e gestione dati</div>
               </div>
             </Button>
           </Link>
+
+          {/* Modifica Profilo */}
+          <Link href="/menu/profilo">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-20 rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 hover:border-green-300 hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <User className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-900">Profilo</div>
+                <div className="text-xs text-gray-600">Modifica informazioni</div>
+              </div>
+            </Button>
+          </Link>
+
+          {/* Cambia Password */}
+          <Button 
+            variant="outline" 
+            className="w-full justify-start h-20 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 hover:border-purple-300 hover:shadow-lg transition-all duration-300 group"
+            onClick={onShowPasswordForm}
+          >
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+              <Lock className="h-5 w-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="font-semibold text-gray-900">Password</div>
+              <div className="text-xs text-gray-600">Cambia credenziali</div>
+            </div>
+          </Button>
+
+          {/* Logout */}
+          <Button 
+            variant="outline" 
+            className="w-full justify-start h-20 rounded-xl border-2 border-red-200 bg-gradient-to-r from-red-50 to-pink-50 hover:from-red-100 hover:to-pink-100 hover:border-red-300 hover:shadow-lg transition-all duration-300 group"
+            onClick={onLogout}
+          >
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+              <LogOut className="h-5 w-5 text-white" />
+            </div>
+            <div className="text-left">
+              <div className="font-semibold text-gray-900">Logout</div>
+              <div className="text-xs text-gray-600">Esci dall'account</div>
+            </div>
+          </Button>
         </div>
 
-        <Separator className="bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-
-        {/* Sezione Informazioni */}
-        <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Informazioni</h4>
-          <div className="grid gap-3">
-            <Link href="/informazioni">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start h-12 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transition-all duration-300 group"
-              >
-                <div className="h-6 w-6 rounded-md bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                  <FileText className="h-3 w-3 text-white" />
-                </div>
-                <span className="font-medium">Informazioni</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
