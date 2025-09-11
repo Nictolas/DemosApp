@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function CookiePolicy() {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="container mx-auto px-4 py-8 max-w-4xl pt-20">
       <Card className="bg-white">
         <CardHeader>
           <CardTitle className="text-3xl font-bold text-center mb-4">
