@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText } from "lucide-react";
+import { FileText, Shield } from "lucide-react";
 
 export const LinksSection: React.FC = () => {
   return (
@@ -18,6 +18,13 @@ export const LinksSection: React.FC = () => {
           <Button variant="outline" className="w-full justify-start">
             <FileText className="h-4 w-4 mr-2" />
             Privacy Policy
+          </Button>
+        </Link>
+        
+        <Link href="/gdpr-rights">
+          <Button variant="outline" className="w-full justify-start">
+            <Shield className="h-4 w-4 mr-2" />
+            Diritti GDPR
           </Button>
         </Link>
         
