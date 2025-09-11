@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../../middleware/auth');
 const { validateInput, validateEmail } = require('../../middleware/validation');
+const { authAuditMiddleware } = require('../../middleware/auditMiddleware');
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ try {
 }
 
 // POST /api/auth/register - Registrazione nuovo utente
-router.post('/register', validateInput(['email', 'password', 'nome', 'cognome']), validateEmail, async (req, res) => {
+router.post('/register', validateInput(['email', 'password', 'nome', 'cognome']), validateEmail, authAuditMiddleware, async (req, res) => {
   try {
     console.log('✅ DEBUG: Richiesta /api/auth/register ricevuta!');
     console.log('✅ DEBUG: Headers:', req.headers);
