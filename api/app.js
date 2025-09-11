@@ -38,6 +38,7 @@ const backupRoutes = require('./routes/admin/backup');
 const rateLimitingRoutes = require('./routes/admin/rate-limiting');
 const validationRoutes = require('./routes/admin/validation');
 const loggingRoutes = require('./routes/admin/logging');
+const monitoringRoutes = require('./routes/admin/monitoring');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
 const auditManager = require('./services/auditManager');
 const dataRetentionJob = require('./jobs/dataRetentionJob');
@@ -193,6 +194,9 @@ app.use('/api/admin/validation', adminLimiter, validationRoutes);
 // Route per logging centralizzato
 app.use('/api/admin/logging', adminLimiter, loggingRoutes);
 
+// Route per monitoraggio performance e salute
+app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
+
 // Gestione errori 404
 app.use('*', (req, res) => {
   console.log(`❌ Route non trovata: ${req.method} ${req.originalUrl}`);
@@ -225,6 +229,10 @@ app.use((error, req, res, next) => {
 
 // Avvia sistema di audit logging
 auditManager.start();
+
+// Avvia sistema di monitoraggio performance
+const performanceMonitor = require('./services/performanceMonitor');
+performanceMonitor.start(30000); // 30 secondi
 
 // Avvia job di data retention (solo se abilitato)
 if (process.env.ENABLE_DATA_RETENTION === 'true') {
