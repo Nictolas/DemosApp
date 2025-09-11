@@ -234,6 +234,56 @@ class AuditService {
       throw error;
     }
   }
+
+  /**
+   * Rileva attività sospette
+   */
+  static async detectSuspiciousActivity(days = 7) {
+    try {
+      const query = `
+        SELECT 
+          user_id,
+          ip_address,
+          COUNT(*) as action_count,
+          COUNT(CASE WHEN success = false THEN 1 END) as failed_count
+        FROM audit_logs 
+        WHERE timestamp >= NOW() - INTERVAL '${days} days'
+        GROUP BY user_id, ip_address
+        HAVING COUNT(*) > 50 OR COUNT(CASE WHEN success = false THEN 1 END) > 10
+        ORDER BY action_count DESC
+      `;
+      
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Errore nel rilevamento attività sospette:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ottiene statistiche generali
+   */
+  static async getAuditStats(days = 30) {
+    try {
+      const query = `
+        SELECT 
+          COUNT(*) as total_actions,
+          COUNT(CASE WHEN success = true THEN 1 END) as successful_actions,
+          COUNT(CASE WHEN success = false THEN 1 END) as failed_actions,
+          COUNT(DISTINCT user_id) as unique_users,
+          COUNT(DISTINCT action) as unique_actions
+        FROM audit_logs 
+        WHERE timestamp >= NOW() - INTERVAL '${days} days'
+      `;
+      
+      const result = await pool.query(query);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Errore nel recupero statistiche:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = AuditService;
