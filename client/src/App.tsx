@@ -204,7 +204,13 @@ export default function App() {
   
   const [location] = useLocation();
   
-  // Debug logging rimosso per evitare blocchi
+  // Debug logging per vedere quale route è attiva
+  console.log('🔍 App - Location attuale:', location);
+  
+  // Debug per vedere se c'è un redirect
+  useEffect(() => {
+    console.log('🔄 App - Location cambiata a:', location);
+  }, [location]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -299,6 +305,7 @@ export default function App() {
 
               {/* Route del menu principale */}
               <Route path="/menu">
+                {console.log('🎯 App - Route /menu matchata!')}
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/menu" component={Menu} />
                 </PageTransition>
