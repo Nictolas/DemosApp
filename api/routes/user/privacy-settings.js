@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../../middleware/auth');
+const { verifyToken } = require('../../middleware/auth');
 const { auditLog } = require('../../services/auditService');
 const db = require('../../config/db');
 
@@ -9,7 +9,7 @@ const db = require('../../config/db');
  * @desc Ottieni le impostazioni privacy dell'utente
  * @access Private
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -63,7 +63,7 @@ router.get('/', authenticateToken, async (req, res) => {
  * @desc Aggiorna le impostazioni privacy dell'utente
  * @access Private
  */
-router.put('/', authenticateToken, async (req, res) => {
+router.put('/', verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const settings = req.body;
