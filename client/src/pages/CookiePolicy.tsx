@@ -198,12 +198,12 @@ export default function CookiePolicy() {
             <p className="text-gray-700 mb-3">
               Puoi disabilitare i cookie tramite le impostazioni del browser:
             </p>
-            <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-              <li><strong>Chrome:</strong> Impostazioni > Privacy e sicurezza > Cookie</li>
-              <li><strong>Firefox:</strong> Opzioni > Privacy e sicurezza > Cookie</li>
-              <li><strong>Safari:</strong> Preferenze > Privacy > Cookie</li>
-              <li><strong>Edge:</strong> Impostazioni > Cookie e autorizzazioni sito</li>
-            </ul>
+              <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+                <li><strong>Chrome:</strong> Impostazioni → Privacy e sicurezza → Cookie</li>
+                <li><strong>Firefox:</strong> Opzioni → Privacy e sicurezza → Cookie</li>
+                <li><strong>Safari:</strong> Preferenze → Privacy → Cookie</li>
+                <li><strong>Edge:</strong> Impostazioni → Cookie e autorizzazioni sito</li>
+              </ul>
 
             <h3 className="text-xl font-medium mb-2">5.2 Limitazioni</h3>
             <p className="text-gray-700">

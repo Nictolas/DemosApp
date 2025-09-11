@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
-import { Redirect } from "wouter";
+import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -190,7 +190,7 @@ export default function AuthPage() {
     if (emailStatus === 'idle') {
       await checkEmailIntelligently(data.email);
       // Aspetta un momento per il controllo
-      setTimeout(() => {
+      setTimeout(async () => {
         if (emailStatus === 'duplicate') {
           toast({
             title: "Email già registrata",
