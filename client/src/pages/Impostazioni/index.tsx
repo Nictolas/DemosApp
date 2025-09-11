@@ -43,31 +43,36 @@ export default function Impostazioni() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 page-with-navbar">
       <div className="container mx-auto px-4 py-8">
         <Header />
 
-        <div className="grid gap-6">
+        <div className="grid gap-8">
           {/* Sezione Sicurezza */}
-          <SecuritySection
-            formData={passwordChange.formData}
-            isChangingPassword={passwordChange.state.isChangingPassword}
-            showChangePassword={passwordChange.state.showChangePassword}
-            onUpdateField={passwordChange.updateFormField}
-            onShowForm={passwordChange.showForm}
-            onHideForm={passwordChange.hideForm}
-            onSubmit={passwordChange.handleChangePassword}
-          />
-
+          <div className="transform hover:scale-[1.02] transition-all duration-300">
+            <SecuritySection
+              formData={passwordChange.formData}
+              isChangingPassword={passwordChange.state.isChangingPassword}
+              showChangePassword={passwordChange.state.showChangePassword}
+              onUpdateField={passwordChange.updateFormField}
+              onShowForm={passwordChange.showForm}
+              onHideForm={passwordChange.hideForm}
+              onSubmit={passwordChange.handleChangePassword}
+            />
+          </div>
 
           {/* Sezione Collegamenti */}
-          <LinksSection />
+          <div className="transform hover:scale-[1.02] transition-all duration-300">
+            <LinksSection />
+          </div>
 
           {/* Sezione Logout */}
-          <LogoutSection
-            isLoggingOut={logout.state.isLoggingOut}
-            onLogout={logout.showLogoutDialog}
-          />
+          <div className="transform hover:scale-[1.02] transition-all duration-300">
+            <LogoutSection
+              isLoggingOut={logout.state.isLoggingOut}
+              onLogout={logout.showLogoutDialog}
+            />
+          </div>
         </div>
       </div>
 
