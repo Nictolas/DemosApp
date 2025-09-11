@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import './auth-page.css';
@@ -22,6 +23,15 @@ const registerSchema = z.object({
   email: z.string().email("Inserisci un'email valida").min(3, "L'email deve contenere almeno 3 caratteri"),
   password: z.string().min(6, "La password deve contenere almeno 6 caratteri"),
   confirmPassword: z.string(),
+  privacyPolicyConsent: z.boolean().refine((val) => val === true, {
+    message: "Devi accettare la Privacy Policy per continuare",
+  }),
+  termsOfServiceConsent: z.boolean().refine((val) => val === true, {
+    message: "Devi accettare i Termini di Servizio per continuare",
+  }),
+  cookiePolicyConsent: z.boolean().refine((val) => val === true, {
+    message: "Devi accettare la Cookie Policy per continuare",
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Le password non corrispondono",
   path: ["confirmPassword"],
@@ -70,6 +80,9 @@ export default function AuthPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      privacyPolicyConsent: false,
+      termsOfServiceConsent: false,
+      cookiePolicyConsent: false,
     },
   });
 
@@ -143,7 +156,7 @@ export default function AuthPage() {
     setEmailCheckTimeout(timeout);
   };
 
-  // Gestione del submit per la registrazione (solo credenziali base)
+  // Gestione del submit per la registrazione con consensi
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     // Verifica che l'email sia disponibile prima di procedere
     if (emailStatus === 'duplicate') {
@@ -186,18 +199,96 @@ export default function AuthPage() {
           });
           return;
         }
-        // Se l'email è disponibile, procedi
-        localStorage.setItem("registrazione_email", data.email);
-        localStorage.setItem("registrazione_password", data.password);
-        window.location.href = "/registrazione-codice-fiscale";
+        // Se l'email è disponibile, invia i consensi al backend
+        try {
+          const consentData = {
+            email: data.email,
+            password: data.password,
+            privacy_policy_consent: data.privacyPolicyConsent,
+            terms_of_service_consent: data.termsOfServiceConsent,
+            cookie_policy_consent: data.cookiePolicyConsent
+          };
+          
+          const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(consentData),
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // Salva i dati per il flusso di registrazione
+            localStorage.setItem("registrazione_email", data.email);
+            localStorage.setItem("registrazione_password", data.password);
+            localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
+            localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
+            localStorage.setItem("registrazione_cookie_consent", data.cookiePolicyConsent.toString());
+            localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
+            window.location.href = "/registrazione-codice-fiscale";
+          } else {
+            toast({
+              title: "Errore registrazione",
+              description: result.error || "Errore durante la registrazione",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          toast({
+            title: "Errore di connessione",
+            description: "Impossibile connettersi al server. Riprova più tardi.",
+            variant: "destructive",
+          });
+        }
       }, 1000);
       return;
     }
 
-    // Email disponibile, salva i dati e procedi
-    localStorage.setItem("registrazione_email", data.email);
-    localStorage.setItem("registrazione_password", data.password);
-    window.location.href = "/registrazione-codice-fiscale";
+    // Email disponibile, invia i consensi al backend
+    try {
+      const consentData = {
+        email: data.email,
+        password: data.password,
+        privacy_policy_consent: data.privacyPolicyConsent,
+        terms_of_service_consent: data.termsOfServiceConsent,
+        cookie_policy_consent: data.cookiePolicyConsent
+      };
+      
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(consentData),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Salva i dati per il flusso di registrazione
+        localStorage.setItem("registrazione_email", data.email);
+        localStorage.setItem("registrazione_password", data.password);
+        localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
+        localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
+        localStorage.setItem("registrazione_cookie_consent", data.cookiePolicyConsent.toString());
+        localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
+        window.location.href = "/registrazione-codice-fiscale";
+      } else {
+        toast({
+          title: "Errore registrazione",
+          description: result.error || "Errore durante la registrazione",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Errore di connessione",
+        description: "Impossibile connettersi al server. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Gestione del submit per il reset password
@@ -469,6 +560,98 @@ export default function AuthPage() {
                       </FormItem>
                     )}
                   />
+
+                  {/* Sezione Consensi Legali */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <h4 className="text-sm font-medium text-gray-700">Consensi Obbligatori</h4>
+                    
+                    <FormField
+                      control={registerForm.control}
+                      name="privacyPolicyConsent"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="text-sm text-gray-700">
+                              Accetto la{" "}
+                              <Link 
+                                href="/privacy-policy" 
+                                className="text-blue-600 hover:text-blue-800 underline"
+                                target="_blank"
+                              >
+                                Privacy Policy
+                              </Link>
+                              {" "}e il trattamento dei miei dati personali
+                            </FormLabel>
+                            <FormMessage />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="termsOfServiceConsent"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="text-sm text-gray-700">
+                              Accetto i{" "}
+                              <Link 
+                                href="/terms-of-service" 
+                                className="text-blue-600 hover:text-blue-800 underline"
+                                target="_blank"
+                              >
+                                Termini di Servizio
+                              </Link>
+                              {" "}e le condizioni d'uso della piattaforma
+                            </FormLabel>
+                            <FormMessage />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="cookiePolicyConsent"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="text-sm text-gray-700">
+                              Accetto la{" "}
+                              <Link 
+                                href="/cookie-policy" 
+                                className="text-blue-600 hover:text-blue-800 underline"
+                                target="_blank"
+                              >
+                                Cookie Policy
+                              </Link>
+                              {" "}e l'utilizzo dei cookie necessari
+                            </FormLabel>
+                            <FormMessage />
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
                   <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
                     {registerMutation.isPending ? (
@@ -538,17 +721,31 @@ export default function AuthPage() {
         </CardContent>
       </Card>
 
-      {/* Footer con Privacy Policy */}
+      {/* Footer con documenti legali */}
       <div className="mt-8 text-center">
-        <p className="text-sm text-gray-500">
-          Continuando, accetti la nostra{" "}
+        <p className="text-sm text-gray-500 mb-2">
+          Continuando, accetti i nostri documenti legali:
+        </p>
+        <div className="flex flex-wrap justify-center gap-4 text-xs">
           <Link 
             href="/privacy-policy" 
             className="text-blue-600 hover:text-blue-800 underline"
           >
             Privacy Policy
           </Link>
-        </p>
+          <Link 
+            href="/terms-of-service" 
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            Termini di Servizio
+          </Link>
+          <Link 
+            href="/cookie-policy" 
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            Cookie Policy
+          </Link>
+        </div>
       </div>
 
     </div>

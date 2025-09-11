@@ -143,12 +143,24 @@ export default function LandingPage() {
             <div className="text-center md:text-left">
               <p className="text-base text-gray-500">&copy; 2023 DEMOS. Tutti i diritti riservati.</p>
             </div>
-            <div className="mt-4 md:mt-0 text-center md:text-right">
+            <div className="mt-4 md:mt-0 text-center md:text-right space-x-4">
               <Link 
                 href="/privacy-policy" 
                 className="text-sm text-gray-500 hover:text-gray-700 underline"
               >
                 Privacy Policy
+              </Link>
+              <Link 
+                href="/terms-of-service" 
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Termini di Servizio
+              </Link>
+              <Link 
+                href="/cookie-policy" 
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Cookie Policy
               </Link>
             </div>
           </div>
