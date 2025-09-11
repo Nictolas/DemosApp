@@ -80,6 +80,13 @@ class CentralizedLogger {
     if (!this.logToDatabase) return;
 
     try {
+      // Verifica se la tabella esiste prima di scrivere
+      const tableExists = await this.checkTableExists();
+      if (!tableExists) {
+        console.warn('⚠️ Tabella centralized_logs non esiste, salto scrittura database');
+        return;
+      }
+
       const logEntry = this.formatMessage(level, message, meta);
       
       const query = `
@@ -108,6 +115,24 @@ class CentralizedLogger {
       await pool.query(query, values);
     } catch (error) {
       console.error('❌ Errore scrittura log su database:', error);
+    }
+  }
+
+  async checkTableExists() {
+    try {
+      const { pool } = require('../middleware/auth');
+      const query = `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'centralized_logs'
+        );
+      `;
+      const result = await pool.query(query);
+      return result.rows[0].exists;
+    } catch (error) {
+      console.error('❌ Errore verifica tabella centralized_logs:', error);
+      return false;
     }
   }
 
