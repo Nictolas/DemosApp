@@ -728,7 +728,7 @@ export default function AuthPage() {
         </p>
       </div>
       
-      <div className="flex flex-col items-center gap-3 text-xs">
+      <div className="flex flex-col items-center gap-3 text-xs mt-4">
         <Link 
           href="/privacy-policy" 
           className="text-blue-600 hover:text-blue-800 underline"
