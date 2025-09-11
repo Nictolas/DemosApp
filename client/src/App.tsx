@@ -719,6 +719,9 @@ export default function App() {
              !location.startsWith('/registrazione') && 
              !location.startsWith('/verifica-email') && 
              !location.startsWith('/conferma-email') && 
+             !location.startsWith('/privacy-policy') && 
+             !location.startsWith('/terms-of-service') && 
+             !location.startsWith('/cookie-policy') && 
              <Navbar />}
             
             <Toaster />
