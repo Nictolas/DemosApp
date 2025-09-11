@@ -1,4 +1,4 @@
-import pool from '../config/database.js';
+const { pool } = require('../middleware/auth');
 
 class AuditService {
   /**
@@ -236,4 +236,4 @@ class AuditService {
   }
 }
 
-export default AuditService;
+module.exports = AuditService;

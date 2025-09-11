@@ -1,8 +1,8 @@
-import express from 'express';
-import { verifyToken, requireAdmin } from '../../middleware/auth.js';
-import { validateInput, sanitizeInput } from '../../middleware/validation.js';
-import AuditService from '../../services/auditService.js';
-import pool from '../../config/database.js';
+const express = require('express');
+const { verifyToken, requireAdmin } = require('../../middleware/auth');
+const { validateInput, sanitizeInput } = require('../../middleware/validation');
+const AuditService = require('../../services/auditService');
+const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
@@ -359,4 +359,4 @@ router.post('/cleanup', async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -1,5 +1,5 @@
-import cron from 'node-cron';
-import AuditService from '../services/auditService.js';
+const cron = require('node-cron');
+const AuditService = require('../services/auditService');
 
 /**
  * Job automatico per la pulizia dei log di audit
@@ -124,7 +124,7 @@ const dailyStatsJob = cron.schedule('0 6 * * *', async () => {
 /**
  * Avvia tutti i job
  */
-export const startAuditJobs = () => {
+const startAuditJobs = () => {
   console.log('🚀 Avvio job di audit logging...');
   
   auditCleanupJob.start();
@@ -137,7 +137,7 @@ export const startAuditJobs = () => {
 /**
  * Ferma tutti i job
  */
-export const stopAuditJobs = () => {
+const stopAuditJobs = () => {
   console.log('🛑 Arresto job di audit logging...');
   
   auditCleanupJob.stop();
@@ -147,7 +147,7 @@ export const stopAuditJobs = () => {
   console.log('✅ Job di audit logging fermati');
 };
 
-export default {
+module.exports = {
   startAuditJobs,
   stopAuditJobs,
   auditCleanupJob,

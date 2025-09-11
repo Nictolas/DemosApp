@@ -1,4 +1,4 @@
-import AuditService from '../services/auditService.js';
+const AuditService = require('../services/auditService');
 
 /**
  * Middleware per logging automatico delle operazioni sui dati
@@ -8,7 +8,7 @@ import AuditService from '../services/auditService.js';
  * @param {Function} options.getResourceId - Funzione per estrarre l'ID della risorsa dalla richiesta
  * @param {Function} options.getDetails - Funzione per estrarre dettagli aggiuntivi dalla richiesta
  */
-export const auditMiddleware = (options = {}) => {
+const auditMiddleware = (options = {}) => {
   return async (req, res, next) => {
     const originalSend = res.send;
     const originalJson = res.json;
@@ -124,7 +124,7 @@ export const auditMiddleware = (options = {}) => {
 /**
  * Middleware specifico per operazioni sui dati utente
  */
-export const userDataAuditMiddleware = auditMiddleware({
+const userDataAuditMiddleware = auditMiddleware({
   resource: 'users',
   getResourceId: (req) => req.params.userId || req.params.id || req.userId,
   getDetails: (req) => ({
@@ -137,7 +137,7 @@ export const userDataAuditMiddleware = auditMiddleware({
 /**
  * Middleware specifico per operazioni sui voti
  */
-export const voteDataAuditMiddleware = auditMiddleware({
+const voteDataAuditMiddleware = auditMiddleware({
   resource: 'votes',
   getResourceId: (req) => req.params.voteId || req.params.id,
   getDetails: (req) => ({
@@ -149,7 +149,7 @@ export const voteDataAuditMiddleware = auditMiddleware({
 /**
  * Middleware specifico per operazioni sulle opinioni
  */
-export const opinionDataAuditMiddleware = auditMiddleware({
+const opinionDataAuditMiddleware = auditMiddleware({
   resource: 'opinions',
   getResourceId: (req) => req.params.opinioneId || req.params.id,
   getDetails: (req) => ({
@@ -161,7 +161,7 @@ export const opinionDataAuditMiddleware = auditMiddleware({
 /**
  * Middleware specifico per operazioni sui rappresentanti
  */
-export const representativeDataAuditMiddleware = auditMiddleware({
+const representativeDataAuditMiddleware = auditMiddleware({
   resource: 'representatives',
   getResourceId: (req) => req.params.representativeId || req.params.id,
   getDetails: (req) => ({
@@ -173,7 +173,7 @@ export const representativeDataAuditMiddleware = auditMiddleware({
 /**
  * Middleware per operazioni di amministrazione
  */
-export const adminAuditMiddleware = auditMiddleware({
+const adminAuditMiddleware = auditMiddleware({
   resource: 'admin',
   action: 'ADMIN_OPERATION',
   getResourceId: (req) => req.params.id || req.userId,
@@ -187,7 +187,7 @@ export const adminAuditMiddleware = auditMiddleware({
 /**
  * Middleware per operazioni di autenticazione
  */
-export const authAuditMiddleware = auditMiddleware({
+const authAuditMiddleware = auditMiddleware({
   resource: 'authentication',
   action: 'AUTH_OPERATION',
   getResourceId: (req) => req.userId || 'anonymous',
@@ -198,7 +198,7 @@ export const authAuditMiddleware = auditMiddleware({
   })
 });
 
-export default {
+module.exports = {
   auditMiddleware,
   userDataAuditMiddleware,
   voteDataAuditMiddleware,
