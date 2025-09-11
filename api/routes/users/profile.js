@@ -1,10 +1,11 @@
 const express = require('express');
 const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
+const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
 
 const router = express.Router();
 
 // GET /api/users/me - Ottieni profilo utente autenticato
-router.get('/me', verifyToken, async (req, res) => {
+router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
     console.log('🔍 GET /api/users/me - Richiesta profilo utente');
     
@@ -93,7 +94,7 @@ router.get('/me', verifyToken, async (req, res) => {
 });
 
 // POST /api/users/me/avatar - Aggiorna configurazione avatar
-router.post('/me/avatar', verifyToken, async (req, res) => {
+router.post('/me/avatar', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
     const { avatar_config } = req.body;
@@ -138,7 +139,7 @@ router.post('/me/avatar', verifyToken, async (req, res) => {
 });
 
 // PUT /api/users/me - Aggiorna profilo utente autenticato
-router.put('/me', verifyToken, async (req, res) => {
+router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
     console.log('✏️ PUT /api/users/me - Aggiornamento profilo utente');
     
@@ -302,7 +303,7 @@ router.put('/:userId/seleziona-rappresentante', verifyToken, async (req, res) =>
 
 
 // GET /api/users/:userId/opinioni - Ottieni opinioni di un utente specifico
-router.get('/:userId/opinioni', verifyToken, async (req, res) => {
+router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req, res) => {
   try {
     console.log('🔍 GET /api/users/:userId/opinioni - Richiesta opinioni utente');
     

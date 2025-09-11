@@ -28,6 +28,8 @@ const sondaggiRoutes = require('./routes/sondaggi');
 const adminRoutes = require('./routes/admin/database');
 const testRoutes = require('./routes/test');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
+const auditDashboardRoutes = require('./routes/admin/audit-dashboard');
+const { startAuditJobs } = require('./jobs/auditCleanup');
 
 const app = express();
 
@@ -132,6 +134,9 @@ app.use('/api/test', testRoutes);
 // Route per diritti GDPR
 app.use('/api/user', gdprRightsRoutes);
 
+// Route per dashboard audit
+app.use('/api/admin/audit-dashboard', auditDashboardRoutes);
+
 // Gestione errori 404
 app.use('*', (req, res) => {
   console.log(`❌ Route non trovata: ${req.method} ${req.originalUrl}`);
@@ -151,5 +156,10 @@ app.use((error, req, res, next) => {
     message: 'Si è verificato un errore imprevisto'
   });
 });
+
+// Avvia job di audit logging in produzione
+if (process.env.NODE_ENV === 'production') {
+  startAuditJobs();
+}
 
 module.exports = app;

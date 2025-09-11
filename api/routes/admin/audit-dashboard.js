@@ -1,0 +1,362 @@
+import express from 'express';
+import { verifyToken, requireAdmin } from '../../middleware/auth.js';
+import { validateInput, sanitizeInput } from '../../middleware/validation.js';
+import AuditService from '../../services/auditService.js';
+import pool from '../../config/database.js';
+
+const router = express.Router();
+
+// Middleware per tutti gli endpoint
+router.use(verifyToken);
+router.use(requireAdmin);
+router.use(sanitizeInput);
+
+/**
+ * GET /api/admin/audit-dashboard/stats
+ * Ottiene statistiche generali degli audit logs
+ */
+router.get('/stats', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    
+    // Statistiche generali
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_actions,
+        COUNT(CASE WHEN success = true THEN 1 END) as successful_actions,
+        COUNT(CASE WHEN success = false THEN 1 END) as failed_actions,
+        COUNT(DISTINCT user_id) as unique_users,
+        COUNT(DISTINCT action) as unique_actions,
+        COUNT(DISTINCT resource) as unique_resources
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+    `;
+    
+    const statsResult = await pool.query(statsQuery);
+    const stats = statsResult.rows[0];
+    
+    // Top azioni
+    const topActionsQuery = `
+      SELECT action, COUNT(*) as count
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+      GROUP BY action
+      ORDER BY count DESC
+      LIMIT 10
+    `;
+    
+    const topActionsResult = await pool.query(topActionsQuery);
+    
+    // Top risorse
+    const topResourcesQuery = `
+      SELECT resource, COUNT(*) as count
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+      GROUP BY resource
+      ORDER BY count DESC
+      LIMIT 10
+    `;
+    
+    const topResourcesResult = await pool.query(topResourcesQuery);
+    
+    // Top utenti
+    const topUsersQuery = `
+      SELECT user_id, COUNT(*) as count
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+      GROUP BY user_id
+      ORDER BY count DESC
+      LIMIT 10
+    `;
+    
+    const topUsersResult = await pool.query(topUsersQuery);
+    
+    // Attività per giorno
+    const dailyActivityQuery = `
+      SELECT 
+        DATE(timestamp) as date,
+        COUNT(*) as actions,
+        COUNT(CASE WHEN success = true THEN 1 END) as successful,
+        COUNT(CASE WHEN success = false THEN 1 END) as failed
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+      GROUP BY DATE(timestamp)
+      ORDER BY date DESC
+    `;
+    
+    const dailyActivityResult = await pool.query(dailyActivityQuery);
+    
+    res.json({
+      success: true,
+      data: {
+        period_days: parseInt(days),
+        general_stats: stats,
+        top_actions: topActionsResult.rows,
+        top_resources: topResourcesResult.rows,
+        top_users: topUsersResult.rows,
+        daily_activity: dailyActivityResult.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero statistiche audit:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/audit-dashboard/logs
+ * Ottiene i log di audit con filtri
+ */
+router.get('/logs', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      user_id, 
+      action, 
+      resource, 
+      success, 
+      from_date, 
+      to_date,
+      search 
+    } = req.query;
+    
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    let query = `
+      SELECT id, user_id, action, resource, resource_id, details, 
+             ip_address, user_agent, timestamp, success, error_message
+      FROM audit_logs 
+      WHERE 1=1
+    `;
+    
+    const values = [];
+    let paramCount = 0;
+    
+    // Aggiungi filtri
+    if (user_id) {
+      paramCount++;
+      query += ` AND user_id = $${paramCount}`;
+      values.push(user_id);
+    }
+    
+    if (action) {
+      paramCount++;
+      query += ` AND action = $${paramCount}`;
+      values.push(action);
+    }
+    
+    if (resource) {
+      paramCount++;
+      query += ` AND resource = $${paramCount}`;
+      values.push(resource);
+    }
+    
+    if (success !== undefined) {
+      paramCount++;
+      query += ` AND success = $${paramCount}`;
+      values.push(success === 'true');
+    }
+    
+    if (from_date) {
+      paramCount++;
+      query += ` AND timestamp >= $${paramCount}`;
+      values.push(from_date);
+    }
+    
+    if (to_date) {
+      paramCount++;
+      query += ` AND timestamp <= $${paramCount}`;
+      values.push(to_date);
+    }
+    
+    if (search) {
+      paramCount++;
+      query += ` AND (user_id ILIKE $${paramCount} OR action ILIKE $${paramCount} OR resource ILIKE $${paramCount} OR error_message ILIKE $${paramCount})`;
+      values.push(`%${search}%`);
+    }
+    
+    // Conteggio totale per paginazione
+    const countQuery = query.replace(
+      'SELECT id, user_id, action, resource, resource_id, details, ip_address, user_agent, timestamp, success, error_message',
+      'SELECT COUNT(*)'
+    );
+    
+    const countResult = await pool.query(countQuery, values);
+    const totalCount = parseInt(countResult.rows[0].count);
+    
+    // Query principale con paginazione
+    query += ` ORDER BY timestamp DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    values.push(parseInt(limit), offset);
+    
+    const result = await pool.query(query, values);
+    
+    res.json({
+      success: true,
+      data: {
+        logs: result.rows,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalCount,
+          pages: Math.ceil(totalCount / parseInt(limit))
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero log audit:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/audit-dashboard/user/:userId
+ * Ottiene i log di audit per un utente specifico
+ */
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { days = 30 } = req.query;
+    
+    const logs = await AuditService.getUserAuditLogs(userId, {
+      fromDate: new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000),
+      limit: 100
+    });
+    
+    const stats = await AuditService.getUserAuditStats(userId);
+    
+    res.json({
+      success: true,
+      data: {
+        user_id: userId,
+        period_days: parseInt(days),
+        logs,
+        stats
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero log utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/audit-dashboard/suspicious
+ * Rileva attività sospette
+ */
+router.get('/suspicious', async (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    
+    // Trova utenti con molte azioni fallite
+    const failedActionsQuery = `
+      SELECT user_id, COUNT(*) as failed_count
+      FROM audit_logs 
+      WHERE success = false 
+        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+      GROUP BY user_id
+      HAVING COUNT(*) > 10
+      ORDER BY failed_count DESC
+    `;
+    
+    const failedActionsResult = await pool.query(failedActionsQuery);
+    
+    // Trova utenti con molte azioni in poco tempo
+    const rapidActionsQuery = `
+      SELECT user_id, COUNT(*) as action_count
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      GROUP BY user_id
+      HAVING COUNT(*) > 50
+      ORDER BY action_count DESC
+    `;
+    
+    const rapidActionsResult = await pool.query(rapidActionsQuery);
+    
+    // Trova accessi da IP sospetti (molti utenti diversi)
+    const suspiciousIPsQuery = `
+      SELECT ip_address, COUNT(DISTINCT user_id) as unique_users, COUNT(*) as total_actions
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+        AND ip_address IS NOT NULL
+      GROUP BY ip_address
+      HAVING COUNT(DISTINCT user_id) > 5
+      ORDER BY unique_users DESC, total_actions DESC
+    `;
+    
+    const suspiciousIPsResult = await pool.query(suspiciousIPsQuery);
+    
+    // Trova tentativi di accesso a dati di altri utenti
+    const unauthorizedAccessQuery = `
+      SELECT user_id, resource, resource_id, COUNT(*) as access_count
+      FROM audit_logs 
+      WHERE action = 'DATA_ACCESS' 
+        AND resource = 'users'
+        AND resource_id IS NOT NULL
+        AND resource_id != user_id
+        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+      GROUP BY user_id, resource, resource_id
+      HAVING COUNT(*) > 3
+      ORDER BY access_count DESC
+    `;
+    
+    const unauthorizedAccessResult = await pool.query(unauthorizedAccessQuery);
+    
+    res.json({
+      success: true,
+      data: {
+        period_days: parseInt(days),
+        failed_actions: failedActionsResult.rows,
+        rapid_actions: rapidActionsResult.rows,
+        suspicious_ips: suspiciousIPsResult.rows,
+        unauthorized_access: unauthorizedAccessResult.rows
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel rilevamento attività sospette:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+/**
+ * POST /api/admin/audit-dashboard/cleanup
+ * Pulisce i log di audit vecchi
+ */
+router.post('/cleanup', async (req, res) => {
+  try {
+    const { daysToKeep = 365 } = req.body;
+    
+    const deletedCount = await AuditService.cleanupOldLogs(parseInt(daysToKeep));
+    
+    res.json({
+      success: true,
+      message: `Puliti ${deletedCount} log di audit più vecchi di ${daysToKeep} giorni`,
+      deleted_count: deletedCount
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella pulizia log audit:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+export default router;
