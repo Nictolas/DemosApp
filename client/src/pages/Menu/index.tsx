@@ -23,6 +23,31 @@ export default function Menu() {
     userEmail: user?.email
   });
 
+  // Debug DOM - Controlla se gli elementi sono nel DOM
+  useEffect(() => {
+    const checkDOM = () => {
+      const menuTitle = document.querySelector('[data-testid="menu-title"]');
+      const menuButtons = document.querySelectorAll('[data-testid="menu-button"]');
+      const menuLogo = document.querySelector('[data-testid="menu-logo"]');
+      
+      console.log('🔍 DOM Check - Elementi trovati:', {
+        menuTitle: !!menuTitle,
+        menuButtons: menuButtons.length,
+        menuLogo: !!menuLogo,
+        menuTitleText: menuTitle?.textContent,
+        menuButtonsText: Array.from(menuButtons).map(btn => btn.textContent)
+      });
+    };
+
+    // Controlla immediatamente
+    checkDOM();
+    
+    // Controlla dopo un delay
+    const timer = setTimeout(checkDOM, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // Rileva se è un dispositivo Android
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
