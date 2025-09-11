@@ -1,4 +1,4 @@
-import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText } from "lucide-react";
+import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -172,5 +172,15 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700",
     route: "/legal-documents",
     buttonText: "Gestisci Documenti Legali"
+  },
+  {
+    id: "backup-recovery",
+    title: "Backup e Recovery",
+    description: "Gestisci backup automatici e manuali del database per continuità operativa",
+    icon: HardDrive,
+    color: "text-indigo-600 group-hover:text-indigo-800",
+    buttonColor: "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
+    route: "/backup-dashboard",
+    buttonText: "Gestisci Backup"
   }
 ];

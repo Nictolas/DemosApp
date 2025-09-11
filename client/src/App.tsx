@@ -82,6 +82,7 @@ import DataRetention from "./pages/DataRetention";
 import ViolationsDashboard from "./pages/ViolationsDashboard";
 import SecurityDashboard from "./pages/SecurityDashboard";
 import LegalDocuments from "./pages/LegalDocuments";
+import BackupDashboard from "./pages/BackupDashboard";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -301,6 +302,11 @@ export default function App() {
                 <Route path="/legal-documents">
                   <PageTransition location={location} type="fade-up">
                     <LegalDocuments />
+                  </PageTransition>
+                </Route>
+                <Route path="/backup-dashboard">
+                  <PageTransition location={location} type="fade-up">
+                    <BackupDashboard />
                   </PageTransition>
                 </Route>
 
