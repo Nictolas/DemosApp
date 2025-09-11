@@ -721,33 +721,6 @@ export default function AuthPage() {
         </CardContent>
       </Card>
 
-      {/* Footer con documenti legali */}
-      <div className="mt-8 text-center">
-        <p className="text-sm text-gray-500 mb-4">
-          Continuando, accetti i nostri documenti legali:
-        </p>
-        
-        <div className="flex flex-col items-center gap-3 text-xs">
-          <Link 
-            href="/privacy-policy" 
-            className="text-blue-600 hover:text-blue-800 underline"
-          >
-            Privacy Policy
-          </Link>
-          <Link 
-            href="/terms-of-service" 
-            className="text-blue-600 hover:text-blue-800 underline"
-          >
-            Termini di Servizio
-          </Link>
-          <Link 
-            href="/cookie-policy" 
-            className="text-blue-600 hover:text-blue-800 underline"
-          >
-            Cookie Policy
-          </Link>
-        </div>
-      </div>
 
     </div>
   );
