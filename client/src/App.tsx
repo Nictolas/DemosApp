@@ -78,6 +78,7 @@ import TermsOfService from "./pages/TermsOfService";
 import CookiePolicy from "./pages/CookiePolicy";
 import SecurityMeasures from "./pages/SecurityMeasures";
 import GDPRRights from "./pages/GDPRRights";
+import DataRetention from "./pages/DataRetention";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -277,6 +278,11 @@ export default function App() {
                 <Route path="/gdpr-rights">
                   <PageTransition location={location} type="fade-up">
                     <GDPRRights />
+                  </PageTransition>
+                </Route>
+                <Route path="/data-retention">
+                  <PageTransition location={location} type="fade-up">
+                    <DataRetention />
                   </PageTransition>
                 </Route>
 
