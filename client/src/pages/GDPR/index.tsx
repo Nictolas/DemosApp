@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Shield, Download, Trash2, Settings, FileText, Info } from "lucide-react";
+import { Loader2, Shield, Download, Trash2, Settings, FileText, Info, Database } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function GDPR() {
@@ -161,6 +161,47 @@ export default function GDPR() {
           </CardContent>
         </Card>
 
+        {/* Sezione Documenti */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Documenti Legali
+            </CardTitle>
+            <CardDescription>
+              Consulta i documenti relativi alla protezione dei dati
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button 
+              onClick={() => setLocation('/privacy-policy')}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Privacy Policy
+            </Button>
+            
+            <Button 
+              onClick={() => setLocation('/data-retention')}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Data Retention
+            </Button>
+            
+            <Button 
+              onClick={() => setLocation('/informazioni')}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Informazioni
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Informazioni Legali */}
         <Card>
           <CardHeader>
@@ -198,7 +239,7 @@ export default function GDPR() {
               
               <div className="border-t pt-3">
                 <p className="text-blue-700">
-                  Per ulteriori informazioni, consulta la nostra <a href="/privacy-policy" className="underline">Privacy Policy</a>.
+                  Per ulteriori informazioni, consulta i documenti legali nella sezione sopra.
                 </p>
               </div>
             </div>

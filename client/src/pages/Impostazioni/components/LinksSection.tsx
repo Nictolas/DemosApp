@@ -64,20 +64,6 @@ export const LinksSection: React.FC = () => {
               </Button>
             </Link>
             
-            <Link href="/data-retention">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start h-12 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transition-all duration-300 group"
-              >
-                <div className="h-6 w-6 rounded-md bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                  <Database className="h-3 w-3 text-white" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium">Data Retention</div>
-                  <div className="text-xs text-gray-500">Tempi di conservazione dati</div>
-                </div>
-              </Button>
-            </Link>
             
             <Link href="/informazioni">
               <Button 
