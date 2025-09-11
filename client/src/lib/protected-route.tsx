@@ -20,8 +20,8 @@ export function ProtectedRoute({
     userStatus: user?.status
   });
 
-  // Mostra loader mentre carica l'autenticazione
-  if (isLoading || typeof user === 'undefined') {
+  // Mostra loader mentre carica l'autenticazione (solo se non siamo sul menu)
+  if ((isLoading || typeof user === 'undefined') && path !== '/menu') {
     console.log('⏳ ProtectedRoute - Mostrando loader per:', path);
     return (
       <div className="flex items-center justify-center min-h-screen">

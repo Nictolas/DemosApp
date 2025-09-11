@@ -314,7 +314,7 @@ export default function App() {
               {/* Route del menu principale */}
               <Route path="/menu">
                 {console.log('🎯 App - Route /menu matchata!')}
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/menu" component={Menu} />
                 </PageTransition>
               </Route>
