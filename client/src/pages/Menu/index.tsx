@@ -14,6 +14,15 @@ export default function Menu() {
   const queryClient = useQueryClient();
   const [isAndroid, setIsAndroid] = useState(false);
 
+  // Debug logging
+  console.log('🔍 Menu Component - Stato attuale:', {
+    user: !!user,
+    isLoading,
+    isAdmin,
+    hasAdvancedAccess,
+    userEmail: user?.email
+  });
+
   // Rileva se è un dispositivo Android
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();

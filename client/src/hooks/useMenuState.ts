@@ -16,14 +16,23 @@ export const useMenuState = () => {
       console.log('🔍 useMenuState - Inizio controllo stato Menu per /menu');
       console.log('🔍 useMenuState - Stato auth:', { user: !!user, isLoading });
 
-      // Se l'utente è disponibile e l'auth non sta caricando, il menu è pronto
-      if (user && !isLoading) {
+      // Aspetta che l'auth sia completato E che l'utente sia disponibile
+      if (!isLoading && user) {
         console.log('✅ useMenuState - Menu pronto: utente disponibile e auth completato');
-        setIsMenuReady(true);
+        // Aggiungi un piccolo delay per assicurarsi che il componente sia renderizzato
+        const timer = setTimeout(() => {
+          setIsMenuReady(true);
+        }, 500);
+        
+        return () => clearTimeout(timer);
       } else if (!isLoading && !user) {
         // Se l'auth è finito ma non c'è utente, il menu è comunque pronto (per utenti non autenticati)
         console.log('⚠️ useMenuState - Menu pronto: auth completato ma nessun utente');
-        setIsMenuReady(true);
+        const timer = setTimeout(() => {
+          setIsMenuReady(true);
+        }, 500);
+        
+        return () => clearTimeout(timer);
       }
     } else {
       // If not on /menu, ensure it's false
