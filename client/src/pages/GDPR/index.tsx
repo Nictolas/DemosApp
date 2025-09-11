@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Shield, Download, Trash2, Settings, FileText, Info } from "lucide-react";
 import { useLocation } from "wouter";
 
