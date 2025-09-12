@@ -4,9 +4,10 @@ import { UserInfo } from "@/types/profile";
 
 interface ProfileRepresentativesProps {
   userInfo: UserInfo | null;
+  rappresentantiDetails?: Record<string, any>;
 }
 
-export function ProfileRepresentatives({ userInfo }: ProfileRepresentativesProps) {
+export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: ProfileRepresentativesProps) {
   const [representativeNames, setRepresentativeNames] = useState<Record<string, string>>({});
   const [representativeAvatars, setRepresentativeAvatars] = useState<Record<string, any>>({});
 
@@ -16,16 +17,37 @@ export function ProfileRepresentatives({ userInfo }: ProfileRepresentativesProps
       rappresentante_camera: userInfo.rappresentante_camera,
       rappresentante_senato: userInfo.rappresentante_senato,
       rappresentante_regionale: userInfo.rappresentante_regionale,
-      rappresentante_comunale: userInfo.rappresentante_comunale,
+      rappresentante_comune: userInfo.rappresentante_comune,
     };
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
     
-    // Per ora, mostra solo i nomi se sono presenti nei dati utente
-    // In futuro potremmo implementare una chiamata API per ottenere i dettagli completi
+    // Mappa delle categorie per i dettagli
+    const categoryMap: Record<string, string> = {
+      'rappresentante_europeo': 'europeo',
+      'rappresentante_camera': 'camera',
+      'rappresentante_senato': 'senato',
+      'rappresentante_regionale': 'regionale',
+      'rappresentante_comune': 'comune'
+    };
+    
     for (const [key, value] of Object.entries(representatives)) {
       if (value && typeof value === 'string') {
-        names[key] = value; // Usa direttamente il valore se è già un nome
+        // Cerca nei dettagli completi
+        const category = categoryMap[key];
+        if (rappresentantiDetails && rappresentantiDetails[category] && rappresentantiDetails[category].length > 0) {
+          const representative = rappresentantiDetails[category][0];
+          names[key] = `${representative.nome} ${representative.cognome}`;
+          if (representative.avatar_config) {
+            try {
+              avatars[key] = JSON.parse(representative.avatar_config);
+            } catch (e) {
+              avatars[key] = null;
+            }
+          }
+        } else {
+          names[key] = value; // Usa l'ID se non troviamo i dettagli
+        }
       } else {
         names[key] = "Non selezionato";
       }
@@ -39,7 +61,7 @@ export function ProfileRepresentatives({ userInfo }: ProfileRepresentativesProps
     if (userInfo) {
       fetchRepresentativeNames(userInfo);
     }
-  }, [userInfo]);
+  }, [userInfo, rappresentantiDetails]);
 
   if (!userInfo) return null;
 

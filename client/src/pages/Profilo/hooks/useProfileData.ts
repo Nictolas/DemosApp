@@ -17,6 +17,8 @@ export const useProfileData = (userId?: string) => {
   const [avatarConfig, setAvatarConfig] = useState<any>(null);
   const [governoIdeale, setGovernoIdeale] = useState<Record<string, string>>({});
   const [opinionQuestions, setOpinionQuestions] = useState<OpinionQuestion[]>([]);
+  const [rappresentantiDetails, setRappresentantiDetails] = useState<Record<string, any>>({});
+  const [candidatiDetails, setCandidatiDetails] = useState<Record<string, any>>({});
 
   /**
    * Funzione unificata per caricare tutti i dati del profilo
@@ -30,6 +32,11 @@ export const useProfileData = (userId?: string) => {
     try {
       console.log('🔍 DEBUG Profilo - Iniziando caricamento dati profilo...');
       console.log('🔍 DEBUG Profilo - userId passato:', userId);
+      console.log('🔍 DEBUG Profilo - user.id:', user.id);
+      
+      // Determina l'ID dell'utente da utilizzare
+      const targetUserId = userId || user.id;
+      console.log('🔍 DEBUG Profilo - targetUserId:', targetUserId);
       
       // 1. Carica dati utente
       console.log('🔍 DEBUG Profilo - Caricando dati utente...');
@@ -132,6 +139,53 @@ export const useProfileData = (userId?: string) => {
         setAvatarConfig(null);
       }
       
+      // 6. Carica dettagli rappresentanti (solo se abbiamo un targetUserId)
+      if (targetUserId) {
+        console.log('🔍 DEBUG Profilo - Caricando dettagli rappresentanti per userId:', targetUserId);
+        try {
+          const rappresentantiResponse = await apiRequest("GET", "/api/rappresentanti");
+          console.log('🔍 DEBUG Profilo - Status rappresentanti response:', rappresentantiResponse.status);
+          if (rappresentantiResponse.ok) {
+            const rappresentantiResult = await rappresentantiResponse.json();
+            console.log('🔍 DEBUG Profilo - Risposta rappresentanti:', rappresentantiResult);
+            if (rappresentantiResult.success && rappresentantiResult.data) {
+              setRappresentantiDetails(rappresentantiResult.data.rappresentanti || {});
+              console.log('✅ DEBUG Profilo - Rappresentanti caricati:', rappresentantiResult.data.rappresentanti);
+            } else {
+              console.warn('⚠️ DEBUG Profilo - Risposta rappresentanti non valida:', rappresentantiResult);
+            }
+          } else {
+            console.error('❌ DEBUG Profilo - Errore HTTP rappresentanti:', rappresentantiResponse.status);
+          }
+        } catch (rappresentantiError) {
+          console.warn('⚠️ DEBUG Profilo - Errore nel caricamento rappresentanti:', rappresentantiError);
+        }
+        
+        // 7. Carica dettagli candidati
+        console.log('🔍 DEBUG Profilo - Caricando dettagli candidati per userId:', targetUserId);
+        try {
+          const candidatiResponse = await apiRequest("GET", "/api/elezioni-utente/candidati");
+          console.log('🔍 DEBUG Profilo - Status candidati response:', candidatiResponse.status);
+          if (candidatiResponse.ok) {
+            const candidatiResult = await candidatiResponse.json();
+            console.log('🔍 DEBUG Profilo - Risposta candidati:', candidatiResult);
+            if (candidatiResult.success && candidatiResult.data) {
+              setCandidatiDetails(candidatiResult.data.candidati || {});
+              console.log('✅ DEBUG Profilo - Candidati caricati:', candidatiResult.data.candidati);
+            } else {
+              console.warn('⚠️ DEBUG Profilo - Risposta candidati non valida:', candidatiResult);
+            }
+          } else {
+            console.error('❌ DEBUG Profilo - Errore HTTP candidati:', candidatiResponse.status);
+          }
+        } catch (candidatiError) {
+          console.warn('⚠️ DEBUG Profilo - Errore nel caricamento candidati:', candidatiError);
+        }
+      } else {
+        console.warn('⚠️ DEBUG Profilo - Nessun targetUserId disponibile per caricare rappresentanti e candidati');
+        console.warn('⚠️ DEBUG Profilo - userId:', userId, 'user.id:', user?.id);
+      }
+      
       console.log('✅ DEBUG Profilo - Caricamento completato con successo');
       
     } catch (error) {
@@ -147,7 +201,7 @@ export const useProfileData = (userId?: string) => {
     if (authReady && user && !isLoading) {
       fetchAllProfileData();
     }
-  }, [authReady, user, isLoading]);
+  }, [authReady, user, isLoading, userId]);
 
   return {
     // Stati
@@ -158,6 +212,8 @@ export const useProfileData = (userId?: string) => {
     avatarConfig,
     governoIdeale,
     opinionQuestions,
+    rappresentantiDetails,
+    candidatiDetails,
     
     // Azioni
     setUserInfo,
@@ -167,6 +223,8 @@ export const useProfileData = (userId?: string) => {
     setAvatarConfig,
     setGovernoIdeale,
     setOpinionQuestions,
+    setRappresentantiDetails,
+    setCandidatiDetails,
     fetchAllProfileData,
     
     // Stati di caricamento

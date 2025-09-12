@@ -41,6 +41,8 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
     avatarConfig,
     governoIdeale,
     opinionQuestions,
+    rappresentantiDetails,
+    candidatiDetails,
     fetchAllProfileData,
     isLoading,
     authReady
@@ -171,7 +173,10 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
                   <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-400/20 to-cyan-500/20 rounded-full translate-y-12 -translate-x-12"></div>
                   <div className="relative p-8">
-                    <ProfileRepresentatives userInfo={userInfo} />
+                    <ProfileRepresentatives 
+                      userInfo={userInfo} 
+                      rappresentantiDetails={rappresentantiDetails}
+                    />
                   </div>
                 </div>
               </div>
@@ -184,7 +189,10 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
                   <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-400/20 to-red-500/20 rounded-full translate-y-12 -translate-x-12"></div>
                   <div className="relative p-8">
-                    <ProfileCandidates userInfo={userInfo} />
+                    <ProfileCandidates 
+                      userInfo={userInfo} 
+                      candidatiDetails={candidatiDetails}
+                    />
                   </div>
                 </div>
               </div>
