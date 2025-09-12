@@ -21,8 +21,10 @@ const eventoSchema = z.object({
   provincia_evento: z.string().min(1, "La provincia è obbligatoria"),
   comune_evento: z.string().min(1, "Il comune è obbligatorio"),
   indirizzo_evento: z.string().optional(),
-  giorno_evento: z.string().min(1, "Il giorno è obbligatorio"),
-  orario_evento: z.string().min(1, "L'orario è obbligatorio"),
+  giorno_inizio: z.string().min(1, "Il giorno di inizio è obbligatorio"),
+  giorno_fine: z.string().optional(),
+  orario_inizio: z.string().optional(),
+  orario_fine: z.string().optional(),
 });
 
 type EventoFormData = z.infer<typeof eventoSchema>;
@@ -41,8 +43,10 @@ export default function Evento() {
       provincia_evento: "",
       comune_evento: "",
       indirizzo_evento: "",
-      giorno_evento: "",
-      orario_evento: "",
+      giorno_inizio: "",
+      giorno_fine: "",
+      orario_inizio: "",
+      orario_fine: "",
     },
   });
 
@@ -322,41 +326,81 @@ export default function Evento() {
                   )}
                 />
 
-                <FormField
-                  control={eventoForm.control}
-                  name="giorno_evento"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Giorno</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          {...field}
-                          disabled={submitEvento.isPending}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={eventoForm.control}
+                    name="giorno_inizio"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Giorno di Inizio</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            {...field}
+                            disabled={submitEvento.isPending}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={eventoForm.control}
-                  name="orario_evento"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Orario</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          {...field}
-                          disabled={submitEvento.isPending}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={eventoForm.control}
+                    name="giorno_fine"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Giorno di Fine (opzionale)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="date"
+                            {...field}
+                            disabled={submitEvento.isPending}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={eventoForm.control}
+                    name="orario_inizio"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Orario di Inizio (opzionale)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            {...field}
+                            disabled={submitEvento.isPending}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={eventoForm.control}
+                    name="orario_fine"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Orario di Fine (opzionale)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            {...field}
+                            disabled={submitEvento.isPending}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
 
                 <Button 

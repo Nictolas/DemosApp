@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
     }
     
     const result = await pool.query(
-      'SELECT id, nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore, created_at FROM eventi ORDER BY created_at ASC'
+      'SELECT id, nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore, created_at FROM eventi ORDER BY giorno_inizio ASC, created_at ASC'
     );
     
     console.log('📊 Eventi trovati:', result.rows.length);
@@ -57,7 +57,20 @@ router.get('/', async (req, res) => {
 // POST /api/eventi - Crea nuovo evento
 router.post('/', async (req, res) => {
   try {
-    const { nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore } = req.body;
+    const { 
+      nome_evento, 
+      tipologia_evento, 
+      paese_evento, 
+      regione_evento, 
+      provincia_evento, 
+      comune_evento, 
+      indirizzo_evento, 
+      giorno_inizio,
+      giorno_fine,
+      orario_inizio,
+      orario_fine,
+      organizzatore 
+    } = req.body;
     
     if (!nome_evento || !tipologia_evento) {
       return res.status(400).json({
@@ -67,8 +80,8 @@ router.post('/', async (req, res) => {
     }
     
     const result = await pool.query(
-      'INSERT INTO eventi (nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, orario_evento, organizzatore]
+      'INSERT INTO eventi (nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
+      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore]
     );
     
     res.status(201).json({
