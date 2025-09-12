@@ -147,7 +147,9 @@ export const useProfileData = (userId?: string) => {
           console.log('🔍 DEBUG Profilo - Status rappresentanti response:', rappresentantiResponse.status);
           if (rappresentantiResponse.ok) {
             const rappresentantiResult = await rappresentantiResponse.json();
-            console.log('🔍 DEBUG Profilo - Risposta rappresentanti:', rappresentantiResult);
+            console.log('🔍 DEBUG Profilo - Risposta rappresentanti RAW:', JSON.stringify(rappresentantiResult, null, 2));
+            console.log('🔍 DEBUG Profilo - rappresentantiResult.data:', rappresentantiResult.data);
+            console.log('🔍 DEBUG Profilo - typeof rappresentantiResult.data:', typeof rappresentantiResult.data);
             if (rappresentantiResult.success && rappresentantiResult.data) {
               setRappresentantiDetails(rappresentantiResult.data.rappresentanti || {});
               console.log('✅ DEBUG Profilo - Rappresentanti caricati:', rappresentantiResult.data.rappresentanti);
@@ -168,7 +170,9 @@ export const useProfileData = (userId?: string) => {
           console.log('🔍 DEBUG Profilo - Status candidati response:', candidatiResponse.status);
           if (candidatiResponse.ok) {
             const candidatiResult = await candidatiResponse.json();
-            console.log('🔍 DEBUG Profilo - Risposta candidati:', candidatiResult);
+            console.log('🔍 DEBUG Profilo - Risposta candidati RAW:', JSON.stringify(candidatiResult, null, 2));
+            console.log('🔍 DEBUG Profilo - candidatiResult.data:', candidatiResult.data);
+            console.log('🔍 DEBUG Profilo - typeof candidatiResult.data:', typeof candidatiResult.data);
             if (candidatiResult.success && candidatiResult.data) {
               setCandidatiDetails(candidatiResult.data.candidati || {});
               console.log('✅ DEBUG Profilo - Candidati caricati:', candidatiResult.data.candidati);
