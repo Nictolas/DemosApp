@@ -171,13 +171,28 @@ export default function Evento() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tipologia Evento</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Es: Assemblea, Conferenza, Incontro"
-                          {...field}
-                          disabled={submitEvento.isPending}
-                        />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona tipologia evento" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Assemblea">Assemblea</SelectItem>
+                          <SelectItem value="Conferenza">Conferenza</SelectItem>
+                          <SelectItem value="Incontro">Incontro</SelectItem>
+                          <SelectItem value="Seminario">Seminario</SelectItem>
+                          <SelectItem value="Workshop">Workshop</SelectItem>
+                          <SelectItem value="Manifestazione">Manifestazione</SelectItem>
+                          <SelectItem value="Comizio">Comizio</SelectItem>
+                          <SelectItem value="Dibattito">Dibattito</SelectItem>
+                          <SelectItem value="Presentazione">Presentazione</SelectItem>
+                          <SelectItem value="Riunione">Riunione</SelectItem>
+                          {user?.role === 'Admin' || user?.ruolo === 'Admin' ? (
+                            <SelectItem value="Elezioni">Elezioni</SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
