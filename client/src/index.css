@@ -622,18 +622,7 @@ body {
     box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
   }
   
-  /* Nasconde qualsiasi contenuto che potrebbe apparire dietro la navbar */
-  .page-with-navbar::after {
-    content: '';
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(6rem + env(safe-area-inset-bottom));
-    background: white;
-    z-index: 9998;
-    pointer-events: none;
-  }
+  /* Rimosso pseudo-elemento che creava spazio bianco sopra la navbar */
 }
 
 /* Assicura che i pulsanti del menu si adattino dinamicamente all'altezza dello schermo */
