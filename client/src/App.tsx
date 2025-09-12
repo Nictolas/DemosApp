@@ -33,6 +33,7 @@ import GestionePrivacy from "./pages/Impostazioni/GestionePrivacy";
 import LimitazioneTrattamento from "./pages/Impostazioni/LimitazioneTrattamento";
 import OpposizioneTrattamento from "./pages/Impostazioni/OpposizioneTrattamento";
 import GDPR from "./pages/GDPR";
+import StoricoRichieste from "./pages/GDPR/StoricoRichieste";
 import Opinioni from "./pages/Opinioni";
 import OpinioniNazionali from "./pages/OpinioniNazionali";
 import OpinioniRegionali from "./pages/OpinioniRegionali";
@@ -566,6 +567,13 @@ export default function App() {
               <Route path="/gdpr">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/gdpr" component={GDPR} />
+                </PageTransition>
+              </Route>
+
+              {/* Route Storico Richieste GDPR */}
+              <Route path="/gdpr/storico-richieste">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/gdpr/storico-richieste" component={StoricoRichieste} />
                 </PageTransition>
               </Route>
 

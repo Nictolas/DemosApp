@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Shield, Download, Trash2, Settings, FileText, Database } from "lucide-react";
+import { Loader2, Shield, FileText } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function GDPR() {
@@ -69,135 +69,30 @@ export default function GDPR() {
           <Shield className="h-4 w-4" />
           <AlertDescription>
             <strong>Regolamento Generale sulla Protezione dei Dati (GDPR):</strong> Hai il diritto 
-            di controllare come vengono utilizzati i tuoi dati personali. Utilizza le funzionalità 
-            qui sotto per esercitare i tuoi diritti.
+            di controllare come vengono utilizzati i tuoi dati personali. Visualizza qui sotto 
+            lo storico delle tue richieste relative ai diritti GDPR.
           </AlertDescription>
         </Alert>
 
-        {/* Sezione Gestione Dati */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Gestione Dati
-            </CardTitle>
-            <CardDescription>
-              Controlla e gestisci i tuoi dati personali
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button 
-              onClick={() => setLocation('/impostazioni/scarica-dati')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Scarica i Tuoi Dati
-            </Button>
-            
-            <Button 
-              onClick={() => setLocation('/impostazioni/gestione-privacy')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Gestione Privacy
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Sezione Diritti Specifici GDPR */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              Diritti Specifici GDPR
-            </CardTitle>
-            <CardDescription>
-              Esercita i tuoi diritti specifici secondo il GDPR
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button 
-              onClick={() => setLocation('/impostazioni/limitazione-trattamento')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <Shield className="h-4 w-4 mr-2" />
-              Limitazione Trattamento (Art. 18)
-            </Button>
-            
-            <Button 
-              onClick={() => setLocation('/impostazioni/opposizione-trattamento')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Opposizione Trattamento (Art. 21)
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Sezione Account */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5" />
-              Account
-            </CardTitle>
-            <CardDescription>
-              Gestisci il tuo account e i dati associati
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              onClick={() => setLocation('/impostazioni/cancella-account')}
-              variant="outline"
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Cancella Account
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Sezione Documenti */}
+        {/* Sezione Storico Richieste */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Documenti Legali
+              Storico Richieste
             </CardTitle>
             <CardDescription>
-              Consulta i documenti relativi alla protezione dei dati
+              Visualizza tutte le tue richieste relative ai diritti GDPR
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent>
             <Button 
-              onClick={() => setLocation('/privacy-policy')}
+              onClick={() => setLocation('/gdpr/storico-richieste')}
               variant="outline"
               className="w-full justify-start"
             >
               <FileText className="h-4 w-4 mr-2" />
-              Privacy Policy
-            </Button>
-            
-            <Button 
-              onClick={() => setLocation('/data-retention')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <Database className="h-4 w-4 mr-2" />
-              Data Retention
-            </Button>
-            
-            <Button 
-              onClick={() => setLocation('/informazioni')}
-              variant="outline"
-              className="w-full justify-start"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Informazioni
+              Visualizza Storico Richieste
             </Button>
           </CardContent>
         </Card>
