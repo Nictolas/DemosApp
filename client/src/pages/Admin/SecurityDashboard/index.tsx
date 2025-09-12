@@ -54,13 +54,14 @@ export default function SecurityDashboard() {
       });
 
       if (statsResponse.success) {
+        const stats = statsResponse.data.general_stats;
         setSecurityStats({
-          totalViolations: statsResponse.data.totalViolations || 0,
-          criticalIssues: statsResponse.data.criticalIssues || 0,
-          rateLimitViolations: statsResponse.data.rateLimitViolations || 0,
-          validationFailures: statsResponse.data.validationFailures || 0,
-          auditLogs: statsResponse.data.totalLogs || 0,
-          systemHealth: statsResponse.data.systemHealth || 0
+          totalViolations: stats.failed_actions || 0,
+          criticalIssues: stats.failed_actions || 0,
+          rateLimitViolations: 0, // Non disponibile nell'API attuale
+          validationFailures: 0, // Non disponibile nell'API attuale
+          auditLogs: stats.total_actions || 0,
+          systemHealth: stats.total_actions > 0 ? Math.round((stats.successful_actions / stats.total_actions) * 100) : 0
         });
       }
 
@@ -73,7 +74,7 @@ export default function SecurityDashboard() {
       });
 
       if (violationsResponse.success) {
-        setRecentViolations(violationsResponse.data || []);
+        setRecentViolations(violationsResponse.data.violations || []);
       }
 
       // Carica audit logs
@@ -85,7 +86,13 @@ export default function SecurityDashboard() {
       });
 
       if (logsResponse.success) {
-        setAuditLogs(logsResponse.data || []);
+        setAuditLogs(logsResponse.data.logs.map((log: any) => ({
+          id: log.id,
+          action: log.action,
+          user: log.user_id,
+          timestamp: new Date(log.timestamp).toLocaleString('it-IT'),
+          status: log.success ? 'Success' : 'Failed'
+        })) || []);
       }
 
       // Carica metriche performance
@@ -97,7 +104,7 @@ export default function SecurityDashboard() {
       });
 
       if (performanceResponse.success) {
-        setPerformanceMetrics(performanceResponse.data || []);
+        setPerformanceMetrics(performanceResponse.data.performance || []);
       }
 
     } catch (err) {
