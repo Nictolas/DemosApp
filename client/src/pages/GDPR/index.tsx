@@ -66,7 +66,7 @@ export default function GDPR() {
 
         {/* Informazioni Generali */}
         <Alert className="mb-6">
-          <Info className="h-4 w-4" />
+          <Shield className="h-4 w-4" />
           <AlertDescription>
             <strong>Regolamento Generale sulla Protezione dei Dati (GDPR):</strong> Hai il diritto 
             di controllare come vengono utilizzati i tuoi dati personali. Utilizza le funzionalità 
