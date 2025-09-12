@@ -8,6 +8,7 @@ import { useLogout } from "./hooks/useLogout";
 import { Header } from "./components/Header";
 import { LinksSection } from "./components/LinksSection";
 import { LogoutDialog } from "./components/LogoutDialog";
+import { PageContainer } from "@/components/PageContainer";
 
 export default function Impostazioni() {
   const { user, isLoading } = useAuth();
@@ -16,15 +17,15 @@ export default function Impostazioni() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      </PageContainer>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -36,12 +37,12 @@ export default function Impostazioni() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 page-with-navbar">
+    <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8">
         <Header />
 
@@ -68,6 +69,6 @@ export default function Impostazioni() {
         onOpenChange={logout.state.showLogoutDialog ? logout.hideLogoutDialog : logout.showLogoutDialog}
         onConfirm={logout.handleLogout}
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Shield, Download, Trash2, Settings, FileText, Database } from "lucide-react";
 import { useLocation } from "wouter";
+import { PageContainer } from "@/components/PageContainer";
 
 export default function GDPR() {
   const { user, isLoading } = useAuth();
@@ -12,15 +13,15 @@ export default function GDPR() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      </PageContainer>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <PageContainer className="bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Accesso Richiesto</CardTitle>
@@ -32,12 +33,12 @@ export default function GDPR() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white page-with-navbar">
+    <PageContainer className="bg-gradient-to-b from-blue-50 to-white">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -194,6 +195,6 @@ export default function GDPR() {
         </Card>
 
       </div>
-    </div>
+    </PageContainer>
   );
 }
