@@ -10,6 +10,7 @@ import { PreferenzeNotifiche } from "./components/PreferenzeNotifiche";
 import { ListaNotifiche } from "./components/ListaNotifiche";
 import { LoadingStates } from "./components/LoadingStates";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { PageContainer } from "@/components/PageContainer";
 
 export default function Notifiche() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -33,7 +34,7 @@ export default function Notifiche() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 page-with-navbar">
+    <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-4xl mx-auto">
         <LoadingStates isAuthLoading={isAuthLoading} />
         
@@ -60,6 +61,6 @@ export default function Notifiche() {
         open={confirmDialog.open} 
         onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })} 
       />
-    </div>
+    </PageContainer>
   );
 }

@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle, ThumbsUp, ThumbsDown, MessageSquare, Megaphone, Calendar, BookOpen, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { PageContainer } from "@/components/PageContainer";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -202,7 +203,7 @@ export default function Strumenti() {
   // Show loading while user data is being fetched
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+      <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center">
             <div className="text-center">
@@ -211,7 +212,7 @@ export default function Strumenti() {
             </div>
           </div>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -230,7 +231,7 @@ export default function Strumenti() {
   // Blocca completamente l'accesso per utenti "Elettore"
   if (!hasAdvancedAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+      <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -266,14 +267,14 @@ export default function Strumenti() {
             </AlertDescription>
           </Alert>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   // Pulsante Riscontro per Politico/Candidato Politico/Admin
   // Mostra in alto nella pagina
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 page-with-navbar">
+    <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Pulsante Riscontro */}
         {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
@@ -502,6 +503,6 @@ export default function Strumenti() {
           </Card>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EditProfileForm } from "@/components/EditProfileForm";
 import { ProfileRepresentatives } from "@/components/ProfileRepresentatives";
 import { ProfileCandidates } from "@/components/ProfileCandidates";
+import { PageContainer } from "@/components/PageContainer";
 
 // Componenti modulari
 import { ProfileLoadingStates } from "./components/ProfileLoadingStates";
@@ -86,7 +87,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 page-with-navbar">
+    <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="container mx-auto max-w-6xl px-4 py-8">
         {/* Header decorativo */}
         <div className="relative mb-12">
@@ -219,6 +220,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
