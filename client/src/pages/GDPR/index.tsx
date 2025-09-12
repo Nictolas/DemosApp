@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Shield, Download, Trash2, Settings, FileText, Info, Database } from "lucide-react";
+import { Loader2, Shield, Download, Trash2, Settings, FileText, Database } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function GDPR() {
@@ -202,49 +202,6 @@ export default function GDPR() {
           </CardContent>
         </Card>
 
-        {/* Informazioni Legali */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Info className="h-5 w-5" />
-              Informazioni sui Diritti GDPR
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-muted-foreground space-y-3">
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">Diritto di Accesso (Art. 15 GDPR)</h4>
-                <p>Hai il diritto di ottenere una copia dei tuoi dati personali e informazioni su come vengono utilizzati.</p>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">Diritto di Cancellazione (Art. 17 GDPR)</h4>
-                <p>Hai il diritto di richiedere la cancellazione dei tuoi dati personali in determinate circostanze.</p>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">Diritto di Limitazione (Art. 18 GDPR)</h4>
-                <p>Hai il diritto di limitare il trattamento dei tuoi dati personali in determinate circostanze.</p>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">Diritto di Opposizione (Art. 21 GDPR)</h4>
-                <p>Hai il diritto di opporti al trattamento dei tuoi dati personali per motivi legittimi.</p>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold text-foreground mb-2">Diritto di Portabilità (Art. 20 GDPR)</h4>
-                <p>Hai il diritto di ricevere i tuoi dati in un formato strutturato e leggibile.</p>
-              </div>
-              
-              <div className="border-t pt-3">
-                <p className="text-blue-700">
-                  Per ulteriori informazioni, consulta i documenti legali nella sezione sopra.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
