@@ -1,4 +1,4 @@
-import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Database, AlertTriangle, Lock, Eye, FileText, HardDrive, Zap, CheckCircle, FileSearch, Activity } from "lucide-react";
+import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -112,66 +112,26 @@ export const gestisciSections: GestisciSection[] = [
     route: "/statistiche-utenti",
     buttonText: "Visualizza Statistiche Utenti"
   },
-  // Sezioni Sicurezza e Conformità GDPR
+  // Sezioni consolidate
   {
-    id: "audit-logs",
-    title: "Audit Logs",
-    description: "Monitora e gestisci i log di audit per la sicurezza e conformità",
+    id: "security-dashboard-consolidated",
+    title: "Dashboard Sicurezza e Monitoraggio",
+    description: "Panoramica completa di sicurezza, audit logs, violazioni, rate limiting, validazione e performance",
     icon: Shield,
-    color: "text-red-600 group-hover:text-red-800",
-    buttonColor: "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700",
-    route: "/audit-dashboard",
-    buttonText: "Gestisci Audit Logs"
+    color: "text-blue-600 group-hover:text-blue-800",
+    buttonColor: "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700",
+    route: "/admin/security-dashboard",
+    buttonText: "Apri Dashboard Sicurezza"
   },
   {
-    id: "data-retention",
-    title: "Data Retention",
-    description: "Gestisci la cancellazione automatica dei dati scaduti secondo GDPR",
-    icon: Database,
-    color: "text-rose-600 group-hover:text-rose-800",
-    buttonColor: "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700",
-    route: "/data-retention",
-    buttonText: "Gestisci Data Retention"
-  },
-  {
-    id: "violations",
-    title: "Monitoraggio Violazioni",
-    description: "Rileva e gestisci violazioni di sicurezza e conformità GDPR",
-    icon: AlertTriangle,
-    color: "text-yellow-600 group-hover:text-yellow-800",
-    buttonColor: "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700",
-    route: "/violations-dashboard",
-    buttonText: "Monitora Violazioni"
-  },
-  {
-    id: "gdpr-rights",
-    title: "Diritti GDPR",
-    description: "Gestisci i diritti degli utenti secondo il GDPR (accesso, cancellazione, etc.)",
+    id: "gdpr-legal-consolidated",
+    title: "Gestione GDPR e Legale",
+    description: "Gestisci diritti GDPR, data retention e documenti legali in un'unica interfaccia",
     icon: Lock,
     color: "text-green-600 group-hover:text-green-800",
-    buttonColor: "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700",
-    route: "/gdpr-rights",
-    buttonText: "Gestisci Diritti GDPR"
-  },
-  {
-    id: "security-dashboard",
-    title: "Dashboard Sicurezza",
-    description: "Panoramica completa dello stato di sicurezza del sistema",
-    icon: Eye,
-    color: "text-slate-600 group-hover:text-slate-800",
-    buttonColor: "bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700",
-    route: "/security-dashboard",
-    buttonText: "Dashboard Sicurezza"
-  },
-  {
-    id: "legal-documents",
-    title: "Documenti Legali",
-    description: "Gestisci Privacy Policy, Termini di Servizio e Cookie Policy",
-    icon: FileText,
-    color: "text-slate-600 group-hover:text-slate-800",
-    buttonColor: "bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700",
-    route: "/legal-documents",
-    buttonText: "Gestisci Documenti Legali"
+    buttonColor: "bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700",
+    route: "/admin/gdpr-legal",
+    buttonText: "Apri Gestione GDPR"
   },
     {
       id: "backup-recovery",
@@ -183,44 +143,4 @@ export const gestisciSections: GestisciSection[] = [
       route: "/backup-dashboard",
       buttonText: "Gestisci Backup"
     },
-    {
-      id: "rate-limiting",
-      title: "Rate Limiting",
-      description: "Monitora e gestisci le violazioni di rate limiting per la sicurezza dell'API",
-      icon: Zap,
-      color: "text-yellow-600 group-hover:text-yellow-800",
-      buttonColor: "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700",
-      route: "/rate-limiting-dashboard",
-      buttonText: "Monitora Rate Limiting"
-    },
-    {
-      id: "validation",
-      title: "Validazione Input",
-      description: "Monitora e gestisci i fallimenti di validazione per la sicurezza dell'applicazione",
-      icon: CheckCircle,
-      color: "text-teal-600 group-hover:text-teal-800",
-      buttonColor: "bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700",
-      route: "/validation-dashboard",
-      buttonText: "Monitora Validazione"
-    },
-    {
-      id: "logging",
-      title: "Logging Centralizzato",
-      description: "Monitora e gestisci tutti i log dell'applicazione in un sistema unificato",
-      icon: FileSearch,
-      color: "text-cyan-600 group-hover:text-cyan-800",
-      buttonColor: "bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700",
-      route: "/logging-dashboard",
-      buttonText: "Gestisci Logging"
-    },
-    {
-      id: "monitoring",
-      title: "Monitoraggio Performance",
-      description: "Monitora performance, salute del sistema e rileva problemi proattivamente",
-      icon: Activity,
-      color: "text-emerald-600 group-hover:text-emerald-800",
-      buttonColor: "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700",
-      route: "/monitoring-dashboard",
-      buttonText: "Monitora Sistema"
-    }
 ];
