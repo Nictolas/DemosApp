@@ -207,6 +207,74 @@ export default function AuditDashboard() {
           </p>
         </div>
 
+        {/* Istruzioni */}
+        <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <Activity className="h-5 w-5" />
+              Come utilizzare la Dashboard Audit
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Statistiche Generali
+                </h3>
+                <ul className="text-sm text-blue-600 space-y-1">
+                  <li>• <strong>Totale Azioni:</strong> Numero totale di azioni registrate</li>
+                  <li>• <strong>Azioni Riuscite:</strong> Percentuale di successo delle operazioni</li>
+                  <li>• <strong>Azioni Fallite:</strong> Errori e problemi rilevati</li>
+                  <li>• <strong>Utenti Attivi:</strong> Numero di utenti unici che hanno effettuato azioni</li>
+                </ul>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filtri e Ricerca
+                </h3>
+                <ul className="text-sm text-blue-600 space-y-1">
+                  <li>• <strong>Periodo:</strong> Seleziona l'intervallo di tempo (7/30/90 giorni)</li>
+                  <li>• <strong>Azione:</strong> Filtra per tipo di azione specifica</li>
+                  <li>• <strong>Risorsa:</strong> Filtra per risorsa coinvolta</li>
+                  <li>• <strong>Stato:</strong> Mostra solo successi, errori o tutti</li>
+                  <li>• <strong>Ricerca:</strong> Cerca testo nei log di audit</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div className="bg-white/50 rounded-lg p-3">
+                <h4 className="font-semibold text-blue-700 mb-1">Top Azioni</h4>
+                <p className="text-xs text-blue-600">Le azioni più frequenti nel sistema</p>
+              </div>
+              <div className="bg-white/50 rounded-lg p-3">
+                <h4 className="font-semibold text-blue-700 mb-1">Top Risorse</h4>
+                <p className="text-xs text-blue-600">Le risorse più accessate dagli utenti</p>
+              </div>
+              <div className="bg-white/50 rounded-lg p-3">
+                <h4 className="font-semibold text-blue-700 mb-1">Top Utenti</h4>
+                <p className="text-xs text-blue-600">Gli utenti più attivi nel sistema</p>
+              </div>
+            </div>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-yellow-800 text-sm">Nota Importante</h4>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Questa dashboard è riservata agli amministratori. I dati mostrati sono sensibili e 
+                    devono essere utilizzati solo per scopi di monitoraggio e sicurezza del sistema.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {error && (
           <Alert className="mb-6 border-red-200 bg-red-50">
             <AlertTriangle className="h-4 w-4" />
