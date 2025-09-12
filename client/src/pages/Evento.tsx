@@ -28,9 +28,9 @@ const eventoSchema = z.object({
 }).refine((data) => {
   // Se la tipologia NON è "Elezioni", allora regione, provincia e comune sono obbligatori
   if (data.tipologia_evento !== "Elezioni") {
-    return data.regione_evento && data.regione_evento.length > 0 &&
-           data.provincia_evento && data.provincia_evento.length > 0 &&
-           data.comune_evento && data.comune_evento.length > 0;
+    return data.regione_evento && data.regione_evento.trim().length > 0 &&
+           data.provincia_evento && data.provincia_evento.trim().length > 0 &&
+           data.comune_evento && data.comune_evento.trim().length > 0;
   }
   return true;
 }, {
@@ -120,13 +120,20 @@ export default function Evento() {
         organizzatore: user?.nome && user?.cognome ? `${user.nome} ${user.cognome}` : user?.email || "Utente"
       };
       
+      console.log('📤 Invio dati evento:', dataWithOrganizzatore);
+      
       const response = await fetch("/api/eventi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataWithOrganizzatore),
       });
+      
+      console.log('📥 Risposta server:', response.status, response.statusText);
+      
       if (!response.ok) {
-        throw new Error("Errore nell'invio del evento");
+        const errorData = await response.json();
+        console.error('❌ Errore server:', errorData);
+        throw new Error(errorData.error || "Errore nell'invio del evento");
       }
       return response.json();
     },
