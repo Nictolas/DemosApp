@@ -5,6 +5,12 @@ const rateLimit = require('express-rate-limit');
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 100, // Limite di 100 richieste per IP per finestra
+  // Escludi localhost in sviluppo
+  skip: (req) => {
+    const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+    return isLocalhost && isDevelopment;
+  },
   message: {
     success: false,
     error: 'Troppe richieste',
@@ -28,6 +34,12 @@ const generalLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 5, // Solo 5 tentativi di login per IP
+  // Escludi localhost in sviluppo
+  skip: (req) => {
+    const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+    return isLocalhost && isDevelopment;
+  },
   message: {
     success: false,
     error: 'Troppi tentativi di accesso',
@@ -134,6 +146,12 @@ const userLimiter = rateLimit({
 const speedLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 50, // Limite più basso per richieste sospette
+  // Escludi localhost e IP di sviluppo
+  skip: (req) => {
+    const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
+    return isLocalhost && isDevelopment;
+  },
   message: {
     success: false,
     error: 'Troppe richieste sospette',
