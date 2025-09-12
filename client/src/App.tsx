@@ -94,6 +94,8 @@ import ValidationDashboard from "./pages/ValidationDashboard";
 import LoggingDashboard from "./pages/LoggingDashboard";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import AuditDashboard from "./pages/AuditDashboard";
+import SecurityDashboard from "./pages/Admin/SecurityDashboard";
+import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -343,6 +345,20 @@ export default function App() {
                 <Route path="/audit-dashboard">
                   <PageTransition location={location} type="fade-up">
                     <AuditDashboard />
+                  </PageTransition>
+                </Route>
+
+                {/* Route per Dashboard Sicurezza e Monitoraggio */}
+                <Route path="/admin/security-dashboard">
+                  <PageTransition location={location} type="fade-up">
+                    <SecurityDashboard />
+                  </PageTransition>
+                </Route>
+
+                {/* Route per Gestione GDPR e Legale */}
+                <Route path="/admin/gdpr-legal">
+                  <PageTransition location={location} type="fade-up">
+                    <GDPRLegalManagement />
                   </PageTransition>
                 </Route>
 

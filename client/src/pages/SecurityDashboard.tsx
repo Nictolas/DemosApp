@@ -379,59 +379,74 @@ const SecurityDashboard: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Navigation Links */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <FileText className="h-5 w-5 mr-2" />
-            Strumenti di Gestione
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Consolidated Management Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Dashboard Sicurezza e Monitoraggio */}
+        <Card className="hover:shadow-lg transition-shadow bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Shield className="h-5 w-5 mr-2 text-blue-600" />
+              Dashboard Sicurezza e Monitoraggio
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              Panoramica completa di sicurezza, audit logs, violazioni, rate limiting, validazione e performance
+            </p>
+          </CardHeader>
+          <CardContent>
             <Button 
-              onClick={() => window.open('/audit-dashboard', '_blank')}
-              variant="outline"
-              className="justify-start"
+              onClick={() => window.open('/admin/security-dashboard', '_blank')}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
-              <Shield className="h-4 w-4 mr-2" />
-              Audit Logs
+              <Activity className="h-4 w-4 mr-2" />
+              Apri Dashboard Sicurezza
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Gestione GDPR e Legale */}
+        <Card className="hover:shadow-lg transition-shadow bg-gradient-to-br from-green-50 to-blue-50 border-green-200">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Shield className="h-5 w-5 mr-2 text-green-600" />
+              Gestione GDPR e Legale
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              Gestisci diritti GDPR, data retention e documenti legali in un'unica interfaccia
+            </p>
+          </CardHeader>
+          <CardContent>
             <Button 
-              onClick={() => window.open('/data-retention', '_blank')}
-              variant="outline"
-              className="justify-start"
+              onClick={() => window.open('/admin/gdpr-legal', '_blank')}
+              className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Apri Gestione GDPR
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Backup e Recovery */}
+        <Card className="hover:shadow-lg transition-shadow bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-200">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Database className="h-5 w-5 mr-2 text-indigo-600" />
+              Backup e Recovery
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              Gestisci backup automatici e manuali del database per continuità operativa
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={() => window.open('/admin/backup', '_blank')}
+              className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700"
             >
               <Database className="h-4 w-4 mr-2" />
-              Data Retention
+              Gestisci Backup
             </Button>
-            <Button 
-              onClick={() => window.open('/violations-dashboard', '_blank')}
-              variant="outline"
-              className="justify-start"
-            >
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Violazioni
-            </Button>
-            <Button 
-              onClick={() => window.open('/gdpr-rights', '_blank')}
-              variant="outline"
-              className="justify-start"
-            >
-              <Lock className="h-4 w-4 mr-2" />
-              Diritti GDPR
-            </Button>
-            <Button 
-              onClick={() => window.open('/gestisci', '_blank')}
-              variant="outline"
-              className="justify-start"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Gestione Generale
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Info Section */}
       <Card className="mt-6">
