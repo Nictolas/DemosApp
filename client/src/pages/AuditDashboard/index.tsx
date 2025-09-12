@@ -80,7 +80,7 @@ export default function AuditDashboard() {
     search: '',
     action: '',
     resource: '',
-    success: '',
+    success: 'all',
     user_id: ''
   });
 
@@ -112,7 +112,7 @@ export default function AuditDashboard() {
           search: filters.search || undefined,
           action: filters.action || undefined,
           resource: filters.resource || undefined,
-          success: filters.success || undefined,
+          success: filters.success === 'all' ? undefined : filters.success || undefined,
           user_id: filters.user_id || undefined
         }
       });
@@ -312,7 +312,7 @@ export default function AuditDashboard() {
                     <SelectValue placeholder="Tutti" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tutti</SelectItem>
+                    <SelectItem value="all">Tutti</SelectItem>
                     <SelectItem value="true">Solo successi</SelectItem>
                     <SelectItem value="false">Solo errori</SelectItem>
                   </SelectContent>
