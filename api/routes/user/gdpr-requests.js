@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../../middleware/auth');
-const db = require('../../config/database');
+const { pool } = require('../../config/db');
 
 // GET /api/user/gdpr-requests - Recupera le richieste GDPR dell'utente
 router.get('/', verifyToken, async (req, res) => {
@@ -10,7 +10,7 @@ router.get('/', verifyToken, async (req, res) => {
     
     // Per ora restituiamo un array vuoto dato che non abbiamo ancora implementato
     // la tabella per le richieste GDPR. In futuro si può implementare:
-    // const result = await db.query(
+    // const result = await pool.query(
     //   'SELECT * FROM gdpr_requests WHERE user_id = $1 ORDER BY data_richiesta DESC',
     //   [userId]
     // );
@@ -45,7 +45,7 @@ router.post('/', verifyToken, async (req, res) => {
     
     // Per ora restituiamo successo senza salvare nel database
     // In futuro si può implementare:
-    // const result = await db.query(
+    // const result = await pool.query(
     //   'INSERT INTO gdpr_requests (user_id, tipo, dettagli, stato, data_richiesta) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
     //   [userId, tipo, dettagli || '', 'pending']
     // );
