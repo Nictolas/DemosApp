@@ -275,7 +275,7 @@ export default function Strumenti() {
   // Mostra in alto nella pagina
   return (
     <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto h-full flex flex-col space-y-6">
         {/* Pulsante Riscontro */}
         {/* RIMOSSO: Pulsante Riscontro per Politico/Candidato Politico/Admin */}
         {/* Header */}
@@ -295,7 +295,7 @@ export default function Strumenti() {
         </Card>
 
         {/* Pulsanti Navigazione - Nuova estetica */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="flex-1 grid grid-cols-2 gap-6">
           {/* Votazione (solo per ruoli avanzati) */}
           <button
             type="button"

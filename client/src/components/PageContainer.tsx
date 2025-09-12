@@ -18,14 +18,16 @@ export const PageContainer: React.FC<PageContainerProps> = ({
 
   return (
     <div 
-      className={`page-with-navbar ${className}`}
+      className={`min-h-screen page-with-navbar flex flex-col ${className}`}
       style={{
         paddingBottom: isAndroid 
-          ? `calc(${navbarHeight}px + 3rem)` 
-          : `calc(${navbarHeight}px + env(safe-area-inset-bottom))`
+          ? `calc(${navbarHeight}px + 2rem)` 
+          : `calc(${navbarHeight}px + 1rem + env(safe-area-inset-bottom))`
       }}
     >
-      {children}
+      <div className="flex-1">
+        {children}
+      </div>
     </div>
   );
 };
