@@ -2,7 +2,18 @@
  * Utility per le richieste API
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Configurazione API che rispetta l'ambiente
+const resolveBaseUrl = (): string => {
+  // Controlla se siamo in produzione (Render)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return 'https://demos-c7k0.onrender.com/api';
+  }
+
+  // Sviluppo locale
+  return 'http://localhost:3001/api';
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || resolveBaseUrl();
 
 interface ApiResponse<T = any> {
   success: boolean;
