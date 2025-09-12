@@ -334,6 +334,118 @@ router.get('/suspicious', async (req, res) => {
 });
 
 /**
+ * GET /api/admin/audit-dashboard/violations
+ * Ottiene violazioni di sicurezza recenti
+ */
+router.get('/violations', async (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    
+    // Violazioni di sicurezza
+    const violationsQuery = `
+      SELECT 
+        id,
+        user_id,
+        action,
+        resource,
+        details,
+        timestamp,
+        CASE 
+          WHEN action LIKE '%FAILED%' OR action LIKE '%ERROR%' THEN 'Critical'
+          WHEN action LIKE '%WARNING%' THEN 'High'
+          ELSE 'Medium'
+        END as severity
+      FROM audit_logs 
+      WHERE success = false 
+        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+        AND (action LIKE '%SECURITY%' OR action LIKE '%AUTH%' OR action LIKE '%PERMISSION%')
+      ORDER BY timestamp DESC
+      LIMIT 20
+    `;
+    
+    const violationsResult = await pool.query(violationsQuery);
+    
+    // Conteggio violazioni per tipo
+    const violationStatsQuery = `
+      SELECT 
+        COUNT(*) as total_violations,
+        COUNT(CASE WHEN action LIKE '%FAILED%' OR action LIKE '%ERROR%' THEN 1 END) as critical_issues,
+        COUNT(CASE WHEN action LIKE '%WARNING%' THEN 1 END) as high_issues,
+        COUNT(CASE WHEN action LIKE '%SECURITY%' THEN 1 END) as security_violations
+      FROM audit_logs 
+      WHERE success = false 
+        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+    `;
+    
+    const statsResult = await pool.query(violationStatsQuery);
+    
+    res.json({
+      success: true,
+      data: {
+        violations: violationsResult.rows.map(v => ({
+          id: v.id,
+          type: v.action,
+          user: v.user_id,
+          timestamp: new Date(v.timestamp).toLocaleString('it-IT'),
+          severity: v.severity
+        })),
+        stats: statsResult.rows[0]
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero violazioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+/**
+ * GET /api/admin/audit-dashboard/performance
+ * Ottiene metriche di performance del sistema
+ */
+router.get('/performance', async (req, res) => {
+  try {
+    // Metriche di performance simulate (in un sistema reale verrebbero da monitoring tools)
+    const performanceData = [
+      { name: 'Response Time', value: '245ms', status: 'good' },
+      { name: 'CPU Usage', value: '45%', status: 'good' },
+      { name: 'Memory Usage', value: '67%', status: 'warning' },
+      { name: 'Database Connections', value: '23/100', status: 'good' }
+    ];
+    
+    // Statistiche di logging
+    const loggingStatsQuery = `
+      SELECT 
+        COUNT(*) as total_logs,
+        COUNT(CASE WHEN success = true THEN 1 END) as successful_logs,
+        COUNT(CASE WHEN success = false THEN 1 END) as error_logs,
+        COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 day' THEN 1 END) as today_logs
+      FROM audit_logs
+    `;
+    
+    const loggingResult = await pool.query(loggingStatsQuery);
+    
+    res.json({
+      success: true,
+      data: {
+        performance: performanceData,
+        logging: loggingResult.rows[0]
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero performance:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+/**
  * POST /api/admin/audit-dashboard/cleanup
  * Pulisce i log di audit vecchi
  */
