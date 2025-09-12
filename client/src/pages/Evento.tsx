@@ -17,14 +17,25 @@ const eventoSchema = z.object({
   nome_evento: z.string().min(1, "Il nome dell'evento è obbligatorio"),
   tipologia_evento: z.string().min(1, "La tipologia è obbligatoria"),
   paese_evento: z.string().min(1, "Il paese è obbligatorio"),
-  regione_evento: z.string().min(1, "La regione è obbligatoria"),
-  provincia_evento: z.string().min(1, "La provincia è obbligatoria"),
-  comune_evento: z.string().min(1, "Il comune è obbligatorio"),
+  regione_evento: z.string().optional(),
+  provincia_evento: z.string().optional(),
+  comune_evento: z.string().optional(),
   indirizzo_evento: z.string().optional(),
   giorno_inizio: z.string().min(1, "Il giorno di inizio è obbligatorio"),
   giorno_fine: z.string().optional(),
   orario_inizio: z.string().optional(),
   orario_fine: z.string().optional(),
+}).refine((data) => {
+  // Se la tipologia NON è "Elezioni", allora regione, provincia e comune sono obbligatori
+  if (data.tipologia_evento !== "Elezioni") {
+    return data.regione_evento && data.regione_evento.length > 0 &&
+           data.provincia_evento && data.provincia_evento.length > 0 &&
+           data.comune_evento && data.comune_evento.length > 0;
+  }
+  return true;
+}, {
+  message: "Regione, provincia e comune sono obbligatori per questa tipologia di evento",
+  path: ["regione_evento"]
 });
 
 type EventoFormData = z.infer<typeof eventoSchema>;
@@ -75,6 +86,7 @@ export default function Evento() {
   const watchPaeseEvento = eventoForm.watch("paese_evento");
   const watchRegioneEvento = eventoForm.watch("regione_evento");
   const watchProvinciaEvento = eventoForm.watch("provincia_evento");
+  const watchTipologiaEvento = eventoForm.watch("tipologia_evento");
 
   // Reset dei campi dipendenti quando cambia il paese
   React.useEffect(() => {
@@ -233,11 +245,13 @@ export default function Evento() {
                   name="regione_evento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Regione</FormLabel>
+                      <FormLabel>
+                        Regione {watchTipologiaEvento !== "Elezioni" && <span className="text-red-500">*</span>}
+                      </FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Seleziona regione" />
+                            <SelectValue placeholder={watchTipologiaEvento === "Elezioni" ? "Seleziona regione (opzionale)" : "Seleziona regione"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -258,21 +272,30 @@ export default function Evento() {
                   name="provincia_evento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Provincia</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!watchRegioneEvento}>
+                      <FormLabel>
+                        Provincia {watchTipologiaEvento !== "Elezioni" && <span className="text-red-500">*</span>}
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={watchTipologiaEvento !== "Elezioni" && !watchRegioneEvento}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Seleziona provincia" />
+                            <SelectValue placeholder={watchTipologiaEvento === "Elezioni" ? "Seleziona provincia (opzionale)" : "Seleziona provincia"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {watchRegioneEvento && ITALY_DATA.Italia.regioni
-                            .find(r => r.nome === watchRegioneEvento)
-                            ?.province.map((provincia) => (
-                              <SelectItem key={provincia.nome} value={provincia.nome}>
-                                {provincia.nome}
-                              </SelectItem>
-                            ))}
+                          {watchTipologiaEvento === "Elezioni" 
+                            ? ITALY_DATA.Italia.regioni.flatMap(regione => regione.province).map((provincia) => (
+                                <SelectItem key={provincia.nome} value={provincia.nome}>
+                                  {provincia.nome}
+                                </SelectItem>
+                              ))
+                            : watchRegioneEvento && ITALY_DATA.Italia.regioni
+                              .find(r => r.nome === watchRegioneEvento)
+                              ?.province.map((provincia) => (
+                                <SelectItem key={provincia.nome} value={provincia.nome}>
+                                  {provincia.nome}
+                                </SelectItem>
+                              ))
+                          }
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -285,22 +308,35 @@ export default function Evento() {
                   name="comune_evento"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Comune</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!watchProvinciaEvento}>
+                      <FormLabel>
+                        Comune {watchTipologiaEvento !== "Elezioni" && <span className="text-red-500">*</span>}
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={watchTipologiaEvento !== "Elezioni" && !watchProvinciaEvento}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Seleziona comune" />
+                            <SelectValue placeholder={watchTipologiaEvento === "Elezioni" ? "Seleziona comune (opzionale)" : "Seleziona comune"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {watchProvinciaEvento && watchRegioneEvento && ITALY_DATA.Italia.regioni
-                            .find(r => r.nome === watchRegioneEvento)
-                            ?.province.find(p => p.nome === watchProvinciaEvento)
-                            ?.comuni.map((comune) => (
-                              <SelectItem key={comune} value={comune}>
-                                {comune}
-                              </SelectItem>
-                            ))}
+                          {watchTipologiaEvento === "Elezioni"
+                            ? ITALY_DATA.Italia.regioni.flatMap(regione => 
+                                regione.province.flatMap(provincia => 
+                                  provincia.comuni.map(comune => ({ comune, regione: regione.nome, provincia: provincia.nome }))
+                                )
+                              ).map(({ comune, regione, provincia }) => (
+                                <SelectItem key={`${regione}-${provincia}-${comune}`} value={comune}>
+                                  {comune} ({provincia}, {regione})
+                                </SelectItem>
+                              ))
+                            : watchProvinciaEvento && watchRegioneEvento && ITALY_DATA.Italia.regioni
+                              .find(r => r.nome === watchRegioneEvento)
+                              ?.province.find(p => p.nome === watchProvinciaEvento)
+                              ?.comuni.map((comune) => (
+                                <SelectItem key={comune} value={comune}>
+                                  {comune}
+                                </SelectItem>
+                              ))
+                          }
                         </SelectContent>
                       </Select>
                       <FormMessage />
