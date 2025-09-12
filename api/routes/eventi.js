@@ -57,6 +57,8 @@ router.get('/', async (req, res) => {
 // POST /api/eventi - Crea nuovo evento
 router.post('/', async (req, res) => {
   try {
+    console.log('📤 POST /api/eventi - Dati ricevuti:', JSON.stringify(req.body, null, 2));
+    
     const { 
       nome_evento, 
       tipologia_evento, 
@@ -73,16 +75,40 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     if (!nome_evento || !tipologia_evento) {
+      console.log('❌ Validazione fallita: nome_evento o tipologia_evento mancanti');
       return res.status(400).json({
         success: false,
         error: 'Nome evento e tipologia sono obbligatori'
       });
     }
     
+    // Converti stringhe vuote in null per i campi opzionali
+    const giornoInizio = giorno_inizio && giorno_inizio.trim() !== '' ? giorno_inizio : null;
+    const giornoFine = giorno_fine && giorno_fine.trim() !== '' ? giorno_fine : null;
+    const orarioInizio = orario_inizio && orario_inizio.trim() !== '' ? orario_inizio : null;
+    const orarioFine = orario_fine && orario_fine.trim() !== '' ? orario_fine : null;
+    
+    console.log('🔍 Parametri per la query (dopo conversione):', {
+      nome_evento,
+      tipologia_evento,
+      paese_evento,
+      regione_evento,
+      provincia_evento,
+      comune_evento,
+      indirizzo_evento,
+      giorno_inizio: giornoInizio,
+      giorno_fine: giornoFine,
+      orario_inizio: orarioInizio,
+      orario_fine: orarioFine,
+      organizzatore
+    });
+    
     const result = await pool.query(
       'INSERT INTO eventi (nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
-      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore]
+      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giornoInizio, giornoFine, orarioInizio, orarioFine, organizzatore]
     );
+    
+    console.log('✅ Evento creato con successo:', result.rows[0]);
     
     res.status(201).json({
       success: true,
@@ -90,9 +116,11 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nella creazione evento:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: error.message
     });
   }
 });
