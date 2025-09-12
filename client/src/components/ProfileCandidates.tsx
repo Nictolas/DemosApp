@@ -4,9 +4,10 @@ import { UserInfo } from "@/types/profile";
 
 interface ProfileCandidatesProps {
   userInfo: UserInfo | null;
+  candidatiDetails?: Record<string, any>;
 }
 
-export function ProfileCandidates({ userInfo }: ProfileCandidatesProps) {
+export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandidatesProps) {
   const [candidateNames, setCandidateNames] = useState<Record<string, string>>({});
   const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
 
@@ -15,17 +16,38 @@ export function ProfileCandidates({ userInfo }: ProfileCandidatesProps) {
       candidato_europeo: userInfo.candidato_europeo,
       candidato_camera: userInfo.candidato_camera,
       candidato_senato: userInfo.candidato_senato,
-      candidato_regionale: userInfo.candidato_regione,
-      candidato_comunale: userInfo.candidato_comune,
+      candidato_regionale: userInfo.candidato_regionale,
+      candidato_comune: userInfo.candidato_comune,
     };
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
     
-    // Per ora, mostra solo i nomi se sono presenti nei dati utente
-    // In futuro potremmo implementare una chiamata API per ottenere i dettagli completi
+    // Mappa delle categorie per i dettagli
+    const categoryMap: Record<string, string> = {
+      'candidato_europeo': 'europeo',
+      'candidato_camera': 'camera',
+      'candidato_senato': 'senato',
+      'candidato_regionale': 'regionale',
+      'candidato_comune': 'comune'
+    };
+    
     for (const [key, value] of Object.entries(candidates)) {
       if (value && typeof value === 'string') {
-        names[key] = value; // Usa direttamente il valore se è già un nome
+        // Cerca nei dettagli completi
+        const category = categoryMap[key];
+        if (candidatiDetails && candidatiDetails[category] && candidatiDetails[category].length > 0) {
+          const candidate = candidatiDetails[category][0];
+          names[key] = `${candidate.nome} ${candidate.cognome}`;
+          if (candidate.avatar_config) {
+            try {
+              avatars[key] = JSON.parse(candidate.avatar_config);
+            } catch (e) {
+              avatars[key] = null;
+            }
+          }
+        } else {
+          names[key] = value; // Usa l'ID se non troviamo i dettagli
+        }
       } else {
         names[key] = "Non selezionato";
       }
@@ -39,7 +61,7 @@ export function ProfileCandidates({ userInfo }: ProfileCandidatesProps) {
     if (userInfo) {
       fetchCandidateNames(userInfo);
     }
-  }, [userInfo]);
+  }, [userInfo, candidatiDetails]);
 
   if (!userInfo) return null;
 
