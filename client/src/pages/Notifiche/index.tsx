@@ -35,25 +35,27 @@ export default function Notifiche() {
 
   return (
     <PageContainer className="bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto h-full flex flex-col">
         <LoadingStates isAuthLoading={isAuthLoading} />
         
         <Header />
 
-        <PreferenzeNotifiche
-          fcmToken={fcmToken}
-          fcmError={fcmError}
-          permission={permission}
-          onSwitch={handleSwitch}
-        />
+        <div className="flex-1 space-y-4">
+          <PreferenzeNotifiche
+            fcmToken={fcmToken}
+            fcmError={fcmError}
+            permission={permission}
+            onSwitch={handleSwitch}
+          />
 
-        <ListaNotifiche
-          data={data}
-          isLoading={isLoading}
-          error={error}
-          onMarkAsRead={handleMarkAsRead}
-          isPending={markAsReadMutation.isPending}
-        />
+          <ListaNotifiche
+            data={data}
+            isLoading={isLoading}
+            error={error}
+            onMarkAsRead={handleMarkAsRead}
+            isPending={markAsReadMutation.isPending}
+          />
+        </div>
       </div>
 
       {/* Dialog di conferma */}

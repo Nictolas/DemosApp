@@ -43,22 +43,24 @@ export default function Impostazioni() {
 
   return (
     <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 h-full flex flex-col">
         <Header />
 
-        <div className="grid gap-8">
-          {/* Sezione Unica con 4 Pulsanti */}
-          <div className="transform hover:scale-[1.02] transition-all duration-300">
-            <LinksSection 
-              formData={passwordChange.formData}
-              isChangingPassword={passwordChange.state.isChangingPassword}
-              showChangePassword={passwordChange.state.showChangePassword}
-              onUpdateField={passwordChange.updateFormField}
-              onShowForm={passwordChange.showForm}
-              onHideForm={passwordChange.hideForm}
-              onSubmit={passwordChange.handleChangePassword}
-              onLogout={logout.showLogoutDialog}
-            />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="grid gap-8 w-full max-w-2xl">
+            {/* Sezione Unica con 4 Pulsanti */}
+            <div className="transform hover:scale-[1.02] transition-all duration-300">
+              <LinksSection 
+                formData={passwordChange.formData}
+                isChangingPassword={passwordChange.state.isChangingPassword}
+                showChangePassword={passwordChange.state.showChangePassword}
+                onUpdateField={passwordChange.updateFormField}
+                onShowForm={passwordChange.showForm}
+                onHideForm={passwordChange.hideForm}
+                onSubmit={passwordChange.handleChangePassword}
+                onLogout={logout.showLogoutDialog}
+              />
+            </div>
           </div>
         </div>
       </div>
