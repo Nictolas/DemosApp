@@ -607,7 +607,7 @@ export default function Eventi() {
                   <FormItem>
                     <FormLabel>Giorno di Inizio *</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" {...field} />
+                      <Input type="datetime-local" step="86400" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -622,7 +622,7 @@ export default function Eventi() {
                   <FormItem>
                     <FormLabel>Giorno di Fine</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" {...field} />
+                      <Input type="datetime-local" step="86400" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -638,7 +638,7 @@ export default function Eventi() {
                     <FormItem>
                       <FormLabel>Orario di Inizio</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <Input type="time" step="60" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -655,7 +655,7 @@ export default function Eventi() {
                     <FormItem>
                       <FormLabel>Orario di Fine</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <Input type="time" step="60" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

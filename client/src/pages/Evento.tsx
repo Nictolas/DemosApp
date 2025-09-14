@@ -379,9 +379,10 @@ export default function Evento() {
                         <FormLabel>Giorno di Inizio</FormLabel>
                         <FormControl>
                           <Input
-                            type="date"
+                            type="datetime-local"
                             {...field}
                             disabled={submitEvento.isPending}
+                            step="86400"
                           />
                         </FormControl>
                         <FormMessage />
@@ -397,9 +398,10 @@ export default function Evento() {
                         <FormLabel>Giorno di Fine (opzionale)</FormLabel>
                         <FormControl>
                           <Input
-                            type="date"
+                            type="datetime-local"
                             {...field}
                             disabled={submitEvento.isPending}
+                            step="86400"
                           />
                         </FormControl>
                         <FormMessage />
@@ -418,6 +420,7 @@ export default function Evento() {
                         <FormControl>
                           <Input
                             type="time"
+                            step="60"
                             {...field}
                             disabled={submitEvento.isPending}
                           />
@@ -436,6 +439,7 @@ export default function Evento() {
                         <FormControl>
                           <Input
                             type="time"
+                            step="60"
                             {...field}
                             disabled={submitEvento.isPending}
                           />
