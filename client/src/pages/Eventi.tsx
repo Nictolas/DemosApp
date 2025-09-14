@@ -84,7 +84,7 @@ export default function Eventi() {
     
     // For non-admin users, filter "Elezioni" events by region
     if (evento.tipologia_evento === 'Elezioni') {
-      return evento.regione_evento === user?.regione;
+      return evento.regione_evento === user?.regione_residenza;
     }
     
     // Show all other event types
