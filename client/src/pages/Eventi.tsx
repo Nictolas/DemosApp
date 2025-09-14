@@ -51,11 +51,22 @@ export default function Eventi() {
             </div>
           ) : eventi.length > 0 ? (
             eventi.map((evento: any) => (
-              <div key={evento.id} className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
+              <div key={evento.id} className={`rounded-xl shadow-lg border p-6 hover:shadow-xl transition-shadow ${
+                evento.tipologia_evento === 'Elezioni' 
+                  ? 'bg-yellow-50 border-yellow-200 shadow-yellow-100' 
+                  : 'bg-white border-gray-100'
+              }`}>
                                             {/* Nome Evento */}
-                            <h3 className="text-xl font-bold text-gray-900 mb-3">
-                              {evento.nome_evento}
-                            </h3>
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="text-xl font-bold text-gray-900">
+                                {evento.nome_evento}
+                              </h3>
+                              {evento.tipologia_evento === 'Elezioni' && (
+                                <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                  Elezioni
+                                </span>
+                              )}
+                            </div>
                             
                             {/* Organizzatore */}
                             <div className="mb-3">
