@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Calendar, Clock, MapPin, Trash2 } from "lucide-react";
+import apiRequest from "@/lib/api-request";
 
 // Helper functions per formattare date e orari
 const formatDate = (dateString: string | null) => {
@@ -42,22 +43,19 @@ export default function Eventi() {
     }
 
     try {
-      const response = await fetch(`/api/eventi/${eventId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
+      console.log('🗑️ Tentativo eliminazione evento:', eventId);
+      const response = await apiRequest.delete(`/eventi/${eventId}`);
+      console.log('✅ Risposta eliminazione:', response);
+      
+      if (response.success) {
         // Refresh the eventi list
         refetch();
         alert('Evento eliminato con successo!');
       } else {
-        throw new Error('Errore nell\'eliminazione dell\'evento');
+        throw new Error(response.error || 'Errore nell\'eliminazione dell\'evento');
       }
     } catch (error) {
-      console.error('Errore:', error);
+      console.error('❌ Errore eliminazione:', error);
       alert('Errore nell\'eliminazione dell\'evento');
     }
   };
