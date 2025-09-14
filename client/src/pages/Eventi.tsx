@@ -607,7 +607,11 @@ export default function Eventi() {
                   <FormItem>
                     <FormLabel>Giorno di Inizio *</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" step="1" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        className="[&::-webkit-datetime-edit]:!flex [&::-webkit-datetime-edit-fields-wrapper]:!flex [&::-webkit-datetime-edit-text]:!hidden [&::-webkit-datetime-edit-month-field]:!flex [&::-webkit-datetime-edit-day-field]:!flex [&::-webkit-datetime-edit-year-field]:!flex"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -622,7 +626,11 @@ export default function Eventi() {
                   <FormItem>
                     <FormLabel>Giorno di Fine</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" step="1" {...field} />
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        className="[&::-webkit-datetime-edit]:!flex [&::-webkit-datetime-edit-fields-wrapper]:!flex [&::-webkit-datetime-edit-text]:!hidden [&::-webkit-datetime-edit-month-field]:!flex [&::-webkit-datetime-edit-day-field]:!flex [&::-webkit-datetime-edit-year-field]:!flex"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

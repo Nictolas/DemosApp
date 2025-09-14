@@ -379,10 +379,10 @@ export default function Evento() {
                         <FormLabel>Giorno di Inizio</FormLabel>
                         <FormControl>
                           <Input
-                            type="datetime-local"
+                            type="date"
                             {...field}
                             disabled={submitEvento.isPending}
-                            step="1"
+                            className="[&::-webkit-datetime-edit]:!flex [&::-webkit-datetime-edit-fields-wrapper]:!flex [&::-webkit-datetime-edit-text]:!hidden [&::-webkit-datetime-edit-month-field]:!flex [&::-webkit-datetime-edit-day-field]:!flex [&::-webkit-datetime-edit-year-field]:!flex"
                           />
                         </FormControl>
                         <FormMessage />
@@ -398,10 +398,10 @@ export default function Evento() {
                         <FormLabel>Giorno di Fine (opzionale)</FormLabel>
                         <FormControl>
                           <Input
-                            type="datetime-local"
+                            type="date"
                             {...field}
                             disabled={submitEvento.isPending}
-                            step="1"
+                            className="[&::-webkit-datetime-edit]:!flex [&::-webkit-datetime-edit-fields-wrapper]:!flex [&::-webkit-datetime-edit-text]:!hidden [&::-webkit-datetime-edit-month-field]:!flex [&::-webkit-datetime-edit-day-field]:!flex [&::-webkit-datetime-edit-year-field]:!flex"
                           />
                         </FormControl>
                         <FormMessage />
