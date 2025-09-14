@@ -446,7 +446,6 @@ export default function Evento() {
                   />
                 </div>
 
-
                 <Button 
                   type="submit" 
                   className="w-full" 
