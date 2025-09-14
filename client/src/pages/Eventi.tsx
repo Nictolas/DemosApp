@@ -2,7 +2,23 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Calendar } from "lucide-react";
+import { Loader2, Calendar, Clock, MapPin } from "lucide-react";
+
+// Helper functions per formattare date e orari
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  return date.toLocaleDateString('it-IT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
+const formatTime = (timeString: string | null) => {
+  if (!timeString) return null;
+  return timeString;
+};
 
 export default function Eventi() {
   const { user, isLoading } = useAuth();
@@ -75,22 +91,83 @@ export default function Eventi() {
                               </span>
                             </div>
                             
-                            {/* Luogo */}
-                            <div className="mb-3">
-                              <span className="text-gray-600">
-                                {evento.comune_evento && evento.indirizzo_evento 
-                                  ? `${evento.comune_evento}, ${evento.indirizzo_evento}`
-                                  : evento.comune_evento || 'Luogo non specificato'
-                                }
-                              </span>
-                            </div>
+                            {/* Luogo - Solo per eventi non "Elezioni" */}
+                            {evento.tipologia_evento !== 'Elezioni' && (
+                              <div className="mb-3 flex items-center">
+                                <MapPin className="h-4 w-4 text-gray-500 mr-2" />
+                                <span className="text-gray-600">
+                                  {evento.comune_evento && evento.indirizzo_evento 
+                                    ? `${evento.comune_evento}, ${evento.indirizzo_evento}`
+                                    : evento.comune_evento || 'Luogo non specificato'
+                                  }
+                                </span>
+                              </div>
+                            )}
                             
-                            {/* Giorno - Orario */}
-                            <div>
-                              <span className="text-gray-600">
-                                {evento.orario_evento || 'Orario non specificato'}
-                              </span>
-                            </div>
+                            {/* Date e Orari - Solo per eventi non "Elezioni" */}
+                            {evento.tipologia_evento !== 'Elezioni' && (
+                              <div className="space-y-2">
+                                {/* Giorno di Inizio */}
+                                {evento.giorno_inizio && (
+                                  <div className="flex items-center">
+                                    <Calendar className="h-4 w-4 text-gray-500 mr-2" />
+                                    <span className="text-gray-600">
+                                      Inizio: {formatDate(evento.giorno_inizio)}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Giorno di Fine */}
+                                {evento.giorno_fine && (
+                                  <div className="flex items-center">
+                                    <Calendar className="h-4 w-4 text-gray-500 mr-2" />
+                                    <span className="text-gray-600">
+                                      Fine: {formatDate(evento.giorno_fine)}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Orario di Inizio */}
+                                {evento.orario_inizio && (
+                                  <div className="flex items-center">
+                                    <Clock className="h-4 w-4 text-gray-500 mr-2" />
+                                    <span className="text-gray-600">
+                                      Orario inizio: {formatTime(evento.orario_inizio)}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Orario di Fine */}
+                                {evento.orario_fine && (
+                                  <div className="flex items-center">
+                                    <Clock className="h-4 w-4 text-gray-500 mr-2" />
+                                    <span className="text-gray-600">
+                                      Orario fine: {formatTime(evento.orario_fine)}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Fallback per orario_evento se non ci sono i nuovi campi */}
+                                {!evento.giorno_inizio && !evento.orario_inizio && evento.orario_evento && (
+                                  <div className="flex items-center">
+                                    <Clock className="h-4 w-4 text-gray-500 mr-2" />
+                                    <span className="text-gray-600">
+                                      {evento.orario_evento}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Per eventi "Elezioni" - Solo data di inizio se disponibile */}
+                            {evento.tipologia_evento === 'Elezioni' && evento.giorno_inizio && (
+                              <div className="flex items-center">
+                                <Calendar className="h-4 w-4 text-yellow-600 mr-2" />
+                                <span className="text-gray-700 font-medium">
+                                  Data: {formatDate(evento.giorno_inizio)}
+                                </span>
+                              </div>
+                            )}
               </div>
             ))
           ) : (
