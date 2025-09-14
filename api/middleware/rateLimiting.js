@@ -5,6 +5,8 @@ const rateLimit = require('express-rate-limit');
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 100, // Limite di 100 richieste per IP per finestra
+  // Gestisci proxy e X-Forwarded-For
+  trustProxy: true,
   // Escludi localhost in sviluppo
   skip: (req) => {
     const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
@@ -34,6 +36,7 @@ const generalLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 5, // Solo 5 tentativi di login per IP
+  trustProxy: true,
   // Escludi localhost in sviluppo
   skip: (req) => {
     const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
@@ -62,6 +65,7 @@ const authLimiter = rateLimit({
 const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 ora
   max: 3, // Solo 3 registrazioni per IP all'ora
+  trustProxy: true,
   message: {
     success: false,
     error: 'Troppe registrazioni',
@@ -83,6 +87,7 @@ const registrationLimiter = rateLimit({
 const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 ora
   max: 3, // Solo 3 richieste di reset per IP all'ora
+  trustProxy: true,
   message: {
     success: false,
     error: 'Troppe richieste di reset password',
@@ -104,6 +109,7 @@ const passwordResetLimiter = rateLimit({
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 200, // 200 richieste per admin per finestra
+  trustProxy: true,
   message: {
     success: false,
     error: 'Limite admin superato',
@@ -125,6 +131,7 @@ const adminLimiter = rateLimit({
 const userLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 50, // 50 richieste per utente per finestra
+  trustProxy: true,
   message: {
     success: false,
     error: 'Limite utente superato',
@@ -146,6 +153,7 @@ const userLimiter = rateLimit({
 const speedLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 50, // Limite più basso per richieste sospette
+  trustProxy: true,
   // Escludi localhost e IP di sviluppo
   skip: (req) => {
     const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
@@ -173,6 +181,7 @@ const speedLimiter = rateLimit({
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 ora
   max: 10, // Solo 10 upload per IP all'ora
+  trustProxy: true,
   message: {
     success: false,
     error: 'Limite upload superato',
@@ -194,6 +203,7 @@ const uploadLimiter = rateLimit({
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
   max: 30, // 30 richieste per IP per finestra
+  trustProxy: true,
   message: {
     success: false,
     error: 'Limite API pubblica superato',

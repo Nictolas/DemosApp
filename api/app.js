@@ -64,6 +64,9 @@ const {
 
 const app = express();
 
+// Configurazione per proxy (necessario per rate limiting in produzione)
+app.set('trust proxy', true);
+
 // DEBUG: Middleware di logging universale per catturare TUTTE le richieste
 app.use((req, res, next) => {
   console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
