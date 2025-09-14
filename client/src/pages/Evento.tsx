@@ -263,11 +263,11 @@ export default function Evento() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ITALY_DATA.Italia.regioni.map((regione) => (
+                          {ITALY_DATA?.Italia?.regioni?.map((regione) => (
                             <SelectItem key={regione.nome} value={regione.nome}>
                               {regione.nome}
                             </SelectItem>
-                          ))}
+                          )) || []}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -291,18 +291,18 @@ export default function Evento() {
                         </FormControl>
                         <SelectContent>
                           {watchTipologiaEvento === "Elezioni" 
-                            ? ITALY_DATA.Italia.regioni.flatMap(regione => regione.province).map((provincia) => (
+                            ? ITALY_DATA?.Italia?.regioni?.flatMap(regione => regione.province).map((provincia) => (
                                 <SelectItem key={provincia.nome} value={provincia.nome}>
                                   {provincia.nome}
                                 </SelectItem>
-                              ))
-                            : watchRegioneEvento && ITALY_DATA.Italia.regioni
-                              .find(r => r.nome === watchRegioneEvento)
-                              ?.province.map((provincia) => (
+                              )) || []
+                            : watchRegioneEvento && ITALY_DATA?.Italia?.regioni
+                              ?.find(r => r.nome === watchRegioneEvento)
+                              ?.province?.map((provincia) => (
                                 <SelectItem key={provincia.nome} value={provincia.nome}>
                                   {provincia.nome}
                                 </SelectItem>
-                              ))
+                              )) || []
                           }
                         </SelectContent>
                       </Select>
@@ -327,7 +327,7 @@ export default function Evento() {
                         </FormControl>
                         <SelectContent>
                           {watchTipologiaEvento === "Elezioni"
-                            ? ITALY_DATA.Italia.regioni.flatMap(regione => 
+                            ? ITALY_DATA?.Italia?.regioni?.flatMap(regione => 
                                 regione.province.flatMap(provincia => 
                                   provincia.comuni.map(comune => ({ comune, regione: regione.nome, provincia: provincia.nome }))
                                 )
@@ -335,15 +335,15 @@ export default function Evento() {
                                 <SelectItem key={`${regione}-${provincia}-${comune}`} value={comune}>
                                   {comune} ({provincia}, {regione})
                                 </SelectItem>
-                              ))
-                            : watchProvinciaEvento && watchRegioneEvento && ITALY_DATA.Italia.regioni
-                              .find(r => r.nome === watchRegioneEvento)
-                              ?.province.find(p => p.nome === watchProvinciaEvento)
-                              ?.comuni.map((comune) => (
+                              )) || []
+                            : watchProvinciaEvento && watchRegioneEvento && ITALY_DATA?.Italia?.regioni
+                              ?.find(r => r.nome === watchRegioneEvento)
+                              ?.province?.find(p => p.nome === watchProvinciaEvento)
+                              ?.comuni?.map((comune) => (
                                 <SelectItem key={comune} value={comune}>
                                   {comune}
                                 </SelectItem>
-                              ))
+                              )) || []
                           }
                         </SelectContent>
                       </Select>
