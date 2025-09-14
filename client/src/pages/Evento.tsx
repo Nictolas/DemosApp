@@ -382,7 +382,7 @@ export default function Evento() {
                             type="datetime-local"
                             {...field}
                             disabled={submitEvento.isPending}
-                            step="86400"
+                            step="1"
                           />
                         </FormControl>
                         <FormMessage />
@@ -401,7 +401,7 @@ export default function Evento() {
                             type="datetime-local"
                             {...field}
                             disabled={submitEvento.isPending}
-                            step="86400"
+                            step="1"
                           />
                         </FormControl>
                         <FormMessage />
