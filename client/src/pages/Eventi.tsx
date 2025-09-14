@@ -419,7 +419,7 @@ export default function Eventi() {
 
       {/* Modal per modificare evento */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">
               Modifica Evento
@@ -506,11 +506,11 @@ export default function Eventi() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ITALY_DATA.regioni.map((regione) => (
+                          {ITALY_DATA?.Italia?.regioni?.map((regione) => (
                             <SelectItem key={regione.nome} value={regione.nome}>
                               {regione.nome}
                             </SelectItem>
-                          ))}
+                          )) || []}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -535,13 +535,13 @@ export default function Eventi() {
                         </FormControl>
                         <SelectContent>
                           {watchTipologiaEvento !== "Elezioni" && editForm.watch("regione_evento") && 
-                            ITALY_DATA.regioni
-                              .find(r => r.nome === editForm.watch("regione_evento"))
-                              ?.province.map((provincia) => (
+                            ITALY_DATA?.Italia?.regioni
+                              ?.find(r => r.nome === editForm.watch("regione_evento"))
+                              ?.province?.map((provincia) => (
                                 <SelectItem key={provincia.nome} value={provincia.nome}>
                                   {provincia.nome}
                                 </SelectItem>
-                              ))}
+                              )) || []}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -566,14 +566,14 @@ export default function Eventi() {
                         </FormControl>
                         <SelectContent>
                           {watchTipologiaEvento !== "Elezioni" && editForm.watch("provincia_evento") && 
-                            ITALY_DATA.regioni
-                              .find(r => r.nome === editForm.watch("regione_evento"))
-                              ?.province.find(p => p.nome === editForm.watch("provincia_evento"))
-                              ?.comuni.map((comune) => (
-                                <SelectItem key={comune.nome} value={comune.nome}>
-                                  {comune.nome}
+                            ITALY_DATA?.Italia?.regioni
+                              ?.find(r => r.nome === editForm.watch("regione_evento"))
+                              ?.province?.find(p => p.nome === editForm.watch("provincia_evento"))
+                              ?.comuni?.map((comune) => (
+                                <SelectItem key={comune} value={comune}>
+                                  {comune}
                                 </SelectItem>
-                              ))}
+                              )) || []}
                         </SelectContent>
                       </Select>
                       <FormMessage />
