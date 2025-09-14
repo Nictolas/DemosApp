@@ -269,7 +269,10 @@ export default function Eventi() {
               }`}>
                                             {/* Nome Evento */}
                             <div className="flex items-center justify-between mb-3">
-                              <h3 className="text-xl font-bold text-gray-900">
+                              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                {evento.tipologia_evento === 'Elezioni' && (
+                                  <span className="text-2xl">🗳️</span>
+                                )}
                                 {evento.nome_evento}
                               </h3>
                               <div className="flex items-center gap-2">
