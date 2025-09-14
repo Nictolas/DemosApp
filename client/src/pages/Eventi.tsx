@@ -2,7 +2,7 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Calendar, Clock, MapPin } from "lucide-react";
+import { Loader2, Calendar, Clock, MapPin, Trash2 } from "lucide-react";
 
 // Helper functions per formattare date e orari
 const formatDate = (dateString: string | null) => {
@@ -23,14 +23,44 @@ const formatTime = (timeString: string | null) => {
 export default function Eventi() {
   const { user, isLoading } = useAuth();
 
+  // Check if user is admin
+  const isAdmin = user?.role === 'Admin' || user?.ruolo === 'Admin';
+
   // Fetch eventi data from API
-  const { data: eventiResponse, isLoading: eventiLoading } = useQuery<any>({
+  const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({
     queryKey: ["/api/eventi"],
     enabled: !!user,
   });
 
   // Extract eventi array from API response
   const eventi = eventiResponse?.data || [];
+
+  // Function to delete event
+  const deleteEvent = async (eventId: string) => {
+    if (!confirm('Sei sicuro di voler eliminare questo evento?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/eventi/${eventId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Refresh the eventi list
+        refetch();
+        alert('Evento eliminato con successo!');
+      } else {
+        throw new Error('Errore nell\'eliminazione dell\'evento');
+      }
+    } catch (error) {
+      console.error('Errore:', error);
+      alert('Errore nell\'eliminazione dell\'evento');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -77,19 +107,32 @@ export default function Eventi() {
                               <h3 className="text-xl font-bold text-gray-900">
                                 {evento.nome_evento}
                               </h3>
-                              {evento.tipologia_evento === 'Elezioni' && (
-                                <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">
-                                  Elezioni
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {evento.tipologia_evento === 'Elezioni' && (
+                                  <span className="bg-yellow-200 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                    Elezioni
+                                  </span>
+                                )}
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => deleteEvent(evento.id)}
+                                    className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                                    title="Elimina evento"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             
-                            {/* Organizzatore */}
-                            <div className="mb-3">
-                              <span className="text-gray-700 font-medium">
-                                {evento.organizzatore || 'Organizzatore non specificato'}
-                              </span>
-                            </div>
+                            {/* Organizzatore - Solo per eventi non "Elezioni" */}
+                            {evento.tipologia_evento !== 'Elezioni' && (
+                              <div className="mb-3">
+                                <span className="text-gray-700 font-medium">
+                                  {evento.organizzatore || 'Organizzatore non specificato'}
+                                </span>
+                              </div>
+                            )}
                             
                             {/* Luogo - Solo per eventi non "Elezioni" */}
                             {evento.tipologia_evento !== 'Elezioni' && (

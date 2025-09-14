@@ -125,4 +125,48 @@ router.post('/', async (req, res) => {
   }
 });
 
+// DELETE /api/eventi/:id - Elimina evento
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🗑️ DELETE /api/eventi - Eliminazione evento:', id);
+    
+    // Verifica che l'ID sia valido
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID evento richiesto'
+      });
+    }
+
+    // Elimina l'evento
+    const result = await pool.query(
+      'DELETE FROM eventi WHERE id = $1',
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Evento non trovato'
+      });
+    }
+
+    console.log('✅ Evento eliminato con successo:', id);
+    
+    res.json({
+      success: true,
+      message: 'Evento eliminato con successo'
+    });
+
+  } catch (error) {
+    console.error('❌ Errore eliminazione evento:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
