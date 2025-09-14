@@ -43,7 +43,7 @@ type EventoFormData = z.infer<typeof eventoSchema>;
 export default function Evento() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
-  const [, setLocation] = useRouter();
+  const router = useRouter();
 
   const eventoForm = useForm<EventoFormData>({
     resolver: zodResolver(eventoSchema),
@@ -145,7 +145,7 @@ export default function Evento() {
       });
       eventoForm.reset();
       // Redirect alla pagina strumenti
-      setLocation("/strumenti");
+      router.push("/strumenti");
     },
     onError: (error: any) => {
       toast({
