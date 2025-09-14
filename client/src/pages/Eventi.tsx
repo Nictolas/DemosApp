@@ -379,13 +379,26 @@ export default function Eventi() {
                               </div>
                             )}
                             
-                            {/* Per eventi "Elezioni" - Solo data di inizio se disponibile */}
+                            {/* Per eventi "Elezioni" - Mostra date disponibili */}
                             {evento.tipologia_evento === 'Elezioni' && evento.giorno_inizio && (
-                              <div className="flex items-center">
-                                <Calendar className="h-4 w-4 text-yellow-600 mr-2" />
-                                <span className="text-gray-700 font-medium">
-                                  Data: {formatDate(evento.giorno_inizio)}
-                                </span>
+                              <div className="space-y-2">
+                                {/* Data di Inizio */}
+                                <div className="flex items-center">
+                                  <Calendar className="h-4 w-4 text-yellow-600 mr-2" />
+                                  <span className="text-gray-700 font-medium">
+                                    {evento.giorno_fine ? 'Inizio: ' : 'Data: '}{formatDate(evento.giorno_inizio)}
+                                  </span>
+                                </div>
+                                
+                                {/* Data di Fine - Solo se disponibile */}
+                                {evento.giorno_fine && (
+                                  <div className="flex items-center">
+                                    <Calendar className="h-4 w-4 text-yellow-600 mr-2" />
+                                    <span className="text-gray-700 font-medium">
+                                      Fine: {formatDate(evento.giorno_fine)}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             )}
               </div>
