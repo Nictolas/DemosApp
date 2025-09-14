@@ -33,8 +33,24 @@ export default function Eventi() {
     enabled: !!user,
   });
 
-  // Extract eventi array from API response
-  const eventi = eventiResponse?.data || [];
+  // Extract eventi array from API response and filter by region for non-admin users
+  const allEventi = eventiResponse?.data || [];
+  
+  // Filter eventi based on user role and region
+  const eventi = allEventi.filter((evento: any) => {
+    // Admin can see all events
+    if (isAdmin) {
+      return true;
+    }
+    
+    // For non-admin users, filter "Elezioni" events by region
+    if (evento.tipologia_evento === 'Elezioni') {
+      return evento.regione_evento === user?.regione;
+    }
+    
+    // Show all other event types
+    return true;
+  });
 
   // Function to delete event
   const deleteEvent = async (eventId: string) => {
@@ -84,6 +100,11 @@ export default function Eventi() {
           <p className="text-lg text-gray-600">
             Calendario degli eventi organizzati dai tuoi rappresentanti e candidati
           </p>
+          {!isAdmin && (
+            <p className="text-sm text-blue-600 mt-2">
+              ℹ️ Gli eventi "Elezioni" vengono mostrati solo per la tua regione
+            </p>
+          )}
         </div>
 
         {/* Schede Eventi */}
@@ -215,6 +236,11 @@ export default function Eventi() {
             <div className="text-center py-12 text-gray-500">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>Nessun evento programmato al momento.</p>
+              {!isAdmin && (
+                <p className="text-sm text-gray-400 mt-2">
+                  Gli eventi "Elezioni" vengono mostrati solo per la tua regione ({user?.regione || 'non specificata'}).
+                </p>
+              )}
             </div>
           )}
         </div>
