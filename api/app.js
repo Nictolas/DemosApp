@@ -65,7 +65,12 @@ const {
 const app = express();
 
 // Configurazione per proxy (necessario per rate limiting in produzione)
-app.set('trust proxy', true);
+// In produzione, fidati solo dei proxy di Render
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1); // Fidati solo del primo proxy (Render)
+} else {
+  app.set('trust proxy', true); // In sviluppo, fidati di tutti i proxy
+}
 
 // DEBUG: Middleware di logging universale per catturare TUTTE le richieste
 app.use((req, res, next) => {

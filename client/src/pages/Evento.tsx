@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation } from "@tanstack/react-query";
 import { Redirect, useRouter } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
+import apiRequest from "@/lib/api-request";
 
 const eventoSchema = z.object({
   nome_evento: z.string().min(1, "Il nome dell'evento è obbligatorio"),
@@ -123,20 +124,15 @@ export default function Evento() {
       
       console.log('📤 Invio dati evento:', dataWithOrganizzatore);
       
-      const response = await fetch("/api/eventi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataWithOrganizzatore),
-      });
+      const response = await apiRequest.post("/eventi", dataWithOrganizzatore);
       
-      console.log('📥 Risposta server:', response.status, response.statusText);
+      console.log('📥 Risposta server:', response);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Errore server:', errorData);
-        throw new Error(errorData.error || "Errore nell'invio del evento");
+      if (!response.success) {
+        console.error('❌ Errore server:', response);
+        throw new Error(response.error || "Errore nell'invio del evento");
       }
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       toast({
