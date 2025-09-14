@@ -137,13 +137,13 @@ export default function Evento() {
     onSuccess: (data) => {
       console.log('✅ onSuccess chiamato con dati:', data);
       toast({
-        title: "Evento programmato",
-        description: "Il tuo evento è stato programmato con successo.",
+        title: "Evento Salvato",
+        description: "Il tuo evento è stato salvato con successo.",
       });
       eventoForm.reset();
-      // Redirect alla pagina strumenti
-      console.log('🔄 Tentativo redirect a /strumenti');
-      router.push("/strumenti");
+      // Redirect alla pagina eventi
+      console.log('🔄 Tentativo redirect a /eventi');
+      router.push("/eventi");
     },
     onError: (error: any) => {
       toast({
