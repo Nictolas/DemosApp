@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation } from "@tanstack/react-query";
-import { Redirect } from "wouter";
+import { Redirect, useRouter } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
 
 const eventoSchema = z.object({
@@ -43,6 +43,7 @@ type EventoFormData = z.infer<typeof eventoSchema>;
 export default function Evento() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useRouter();
 
   const eventoForm = useForm<EventoFormData>({
     resolver: zodResolver(eventoSchema),
@@ -143,6 +144,8 @@ export default function Evento() {
         description: "Il tuo evento è stato programmato con successo.",
       });
       eventoForm.reset();
+      // Redirect alla pagina strumenti
+      setLocation("/strumenti");
     },
     onError: (error: any) => {
       toast({
