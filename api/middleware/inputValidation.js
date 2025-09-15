@@ -23,23 +23,11 @@ const validators = {
     if (!value || typeof value !== 'string') {
       return { isValid: false, error: 'Password richiesta' };
     }
-    if (value.length < 8) {
-      return { isValid: false, error: 'Password deve essere almeno 8 caratteri' };
+    if (value.length < 6) {
+      return { isValid: false, error: 'Password deve essere almeno 6 caratteri' };
     }
     if (value.length > 128) {
       return { isValid: false, error: 'Password troppo lunga' };
-    }
-    if (!/[a-z]/.test(value)) {
-      return { isValid: false, error: 'Password deve contenere almeno una lettera minuscola' };
-    }
-    if (!/[A-Z]/.test(value)) {
-      return { isValid: false, error: 'Password deve contenere almeno una lettera maiuscola' };
-    }
-    if (!/[0-9]/.test(value)) {
-      return { isValid: false, error: 'Password deve contenere almeno un numero' };
-    }
-    if (!/[@$!%*?&]/.test(value)) {
-      return { isValid: false, error: 'Password deve contenere almeno un carattere speciale (@$!%*?&)' };
     }
     return { isValid: true, value };
   },
