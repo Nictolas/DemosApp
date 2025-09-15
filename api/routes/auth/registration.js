@@ -41,8 +41,8 @@ router.post('/register',
     const validationRules = {
       email: { type: 'email', required: true },
       password: { type: 'password', required: true },
-      nome: { required: true },
-      cognome: { required: true },
+      nome: { required: false }, // Opzionale nella fase iniziale
+      cognome: { required: false }, // Opzionale nella fase iniziale
       codice_fiscale: { type: 'codiceFiscale', required: false },
       data_nascita: { type: 'dataNascita', required: false }
     };
@@ -67,6 +67,10 @@ router.post('/register',
     }
     
     const { email, password, nome, cognome, codice_fiscale, privacy_policy_consent, terms_of_service_consent, cookie_policy_consent } = validation.sanitizedInput;
+    
+    // Se nome e cognome non sono presenti, usa valori di default temporanei
+    const finalNome = nome || 'Temporaneo';
+    const finalCognome = cognome || 'Utente';
     
     // Estrai tutti i dati dal body
     const { 
@@ -161,8 +165,8 @@ router.post('/register',
     
     // Debug: verifica i parametri che verranno passati alla query
     const queryParams = [
-      nome, 
-      cognome, 
+      finalNome, 
+      finalCognome, 
       email.toLowerCase(), 
       passwordHash, 
       ruolo || 'Elettore',
