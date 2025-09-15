@@ -139,9 +139,10 @@ class ValidationService {
         if (value && rules.type) {
           switch (rules.type) {
             case 'email':
-              const emailValidation = await this.validateUniqueEmail(value);
-              if (!emailValidation.isValid) {
-                validationErrors.push(emailValidation.error);
+              // Per la registrazione, valida solo il formato, non l'unicità
+              const emailFormatValidation = validators.email(value);
+              if (!emailFormatValidation.isValid) {
+                validationErrors.push(emailFormatValidation.error);
               }
               break;
               
