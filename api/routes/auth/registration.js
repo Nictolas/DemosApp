@@ -49,11 +49,7 @@ router.post('/register',
     
     const validation = await ValidationService.validateAndSanitizeInput(req.body, validationRules);
     
-    console.log('🔍 DEBUG Validation result:', validation);
-    
     if (!validation.isValid) {
-      console.log('❌ DEBUG Validation errors:', validation.errors);
-      
       // Log tentativo di validazione fallito
       await ValidationService.logValidationFailure(
         req.ip,

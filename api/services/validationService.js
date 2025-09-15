@@ -124,19 +124,14 @@ class ValidationService {
   // Valida e sanitizza input completo
   static async validateAndSanitizeInput(input, validationRules) {
     try {
-      console.log('🔍 ValidationService - Input ricevuto:', input);
-      console.log('🔍 ValidationService - Regole validazione:', validationRules);
-      
       const sanitizedInput = this.sanitizeInput(input);
       const validationErrors = [];
       
       // Applica regole di validazione
       for (const [field, rules] of Object.entries(validationRules)) {
         const value = sanitizedInput[field];
-        console.log(`🔍 ValidationService - Validando campo ${field}:`, { value, rules });
         
         if (rules.required && (!value || value === '')) {
-          console.log(`❌ ValidationService - Campo ${field} mancante o vuoto`);
           validationErrors.push(`${field} è richiesto`);
           continue;
         }
@@ -146,9 +141,7 @@ class ValidationService {
             case 'email':
               // Per la registrazione, valida solo il formato, non l'unicità
               const emailFormatValidation = validators.email(value);
-              console.log(`🔍 ValidationService - Validazione email per ${field}:`, emailFormatValidation);
               if (!emailFormatValidation.isValid) {
-                console.log(`❌ ValidationService - Errore validazione email:`, emailFormatValidation.error);
                 validationErrors.push(emailFormatValidation.error);
               }
               break;
@@ -169,9 +162,7 @@ class ValidationService {
               
             case 'password':
               const passwordValidation = this.validatePasswordStrength(value);
-              console.log(`🔍 ValidationService - Validazione password per ${field}:`, passwordValidation);
               if (!passwordValidation.isValid) {
-                console.log(`❌ ValidationService - Errore validazione password:`, passwordValidation);
                 if (passwordValidation.errors) {
                   validationErrors.push(...passwordValidation.errors);
                 } else {
