@@ -24,7 +24,13 @@ const ConfermaEmail: React.FC = () => {
         const token = urlParams.get('token');
         const email = urlParams.get('email');
         
+        console.log('🔍 URL completo:', location.href);
+        console.log('🔍 Search params:', location.search);
+        console.log('🔍 Token estratto:', token);
+        console.log('🔍 Email estratta:', email);
+        
         if (!token) {
+          console.error('❌ Token non trovato nell\'URL');
           setVerificationResult({
             success: false,
             message: 'Token di verifica non trovato. Il link potrebbe essere non valido.'
@@ -34,6 +40,7 @@ const ConfermaEmail: React.FC = () => {
         }
 
         // Chiama l'API per verificare l'email
+        console.log('📡 Invio richiesta verifica email...');
         const response = await fetch('https://demos-c7k0.onrender.com/api/auth/verify-email', {
           method: 'POST',
           headers: {
@@ -42,7 +49,9 @@ const ConfermaEmail: React.FC = () => {
           body: JSON.stringify({ token }),
         });
 
+        console.log('📡 Risposta ricevuta:', response.status, response.statusText);
         const result = await response.json();
+        console.log('📊 Risultato verifica:', result);
 
         if (response.ok && result.success) {
           setVerificationResult({

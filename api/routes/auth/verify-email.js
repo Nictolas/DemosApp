@@ -11,7 +11,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 router.post('/verify-email', async (req, res) => {
   try {
     console.log('✅ DEBUG: Richiesta verifica email ricevuta!');
+    console.log('✅ DEBUG: Headers:', req.headers);
     console.log('✅ DEBUG: Body:', req.body);
+    console.log('✅ DEBUG: Query:', req.query);
     
     const { token } = req.body;
     
