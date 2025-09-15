@@ -63,6 +63,11 @@ export default function RegistrazioneRuolo() {
       const regioneResidenza = localStorage.getItem("registrazione_regione_residenza");
       const provinciaResidenza = localStorage.getItem("registrazione_provincia_residenza");
       const comuneResidenza = localStorage.getItem("registrazione_comune_residenza");
+      
+      // Recupera i consensi dal localStorage
+      const privacyPolicyConsent = localStorage.getItem("registrazione_privacy_consent") === "true";
+      const termsOfServiceConsent = localStorage.getItem("registrazione_terms_consent") === "true";
+      const cookiePolicyConsent = localStorage.getItem("registrazione_cookie_consent") === "true";
 
       // Salva i dati del ruolo
       localStorage.setItem("registrazione_ruolo", selectedRuolo);
@@ -101,7 +106,10 @@ export default function RegistrazioneRuolo() {
         paese_candidatura: paeseCandidatura,
         regione_candidatura: regioneCandidatura,
         provincia_candidatura: provinciaCandidatura,
-        comune_candidatura: comuneCandidatura
+        comune_candidatura: comuneCandidatura,
+        privacy_policy_consent: privacyPolicyConsent,
+        terms_of_service_consent: termsOfServiceConsent,
+        cookie_policy_consent: cookiePolicyConsent
       };
 
       // Debug: verifica i dati che verranno inviati
@@ -110,7 +118,10 @@ export default function RegistrazioneRuolo() {
         email: !!email,
         password: !!password,
         nome: !!nome,
-        cognome: !!cognome
+        cognome: !!cognome,
+        privacy_policy_consent: privacyPolicyConsent,
+        terms_of_service_consent: termsOfServiceConsent,
+        cookie_policy_consent: cookiePolicyConsent
       });
 
       // Chiama l'API di registrazione (che ha il controllo email duplicata)
