@@ -254,15 +254,33 @@ router.post('/register',
       });
     }
     
-  } catch (error) {
-    console.error('❌ Errore nella registrazione:', error);
-    console.error('❌ Stack trace:', error.stack);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella registrazione',
-      message: error.message
-    });
-  }
+    } catch (error) {
+      console.error('❌ Errore nella registrazione:', error);
+      console.error('❌ Stack trace:', error.stack);
+      
+      // Gestione specifica per errori di constraint di unicità
+      if (error.code === '23505') {
+        if (error.constraint === 'users_email_key') {
+          return res.status(400).json({
+            success: false,
+            error: 'Email già registrata',
+            message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
+          });
+        } else if (error.constraint === 'users_codice_fiscale_key') {
+          return res.status(400).json({
+            success: false,
+            error: 'Codice fiscale già registrato',
+            message: 'Un account con questo codice fiscale esiste già.'
+          });
+        }
+      }
+      
+      res.status(500).json({
+        success: false,
+        error: 'Errore nella registrazione',
+        message: error.message
+      });
+    }
 });
 
 module.exports = router;
