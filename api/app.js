@@ -124,6 +124,15 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
+// Gestione esplicita delle richieste OPTIONS per CORS
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
+});
+
 // Logging middleware
 app.use((req, res, next) => {
   console.log(`📡 ${req.method} ${req.path} - ${new Date().toISOString()}`);
