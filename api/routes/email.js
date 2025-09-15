@@ -52,14 +52,22 @@ router.post('/check-email', async (req, res) => {
     client.release();
 
     // Controlla se l'email esiste nella tabella users
+    console.log('🔍 Query email:', email.toLowerCase());
     const result = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
+      'SELECT id, email FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
     const exists = result.rows.length > 0;
     console.log('📊 Email trovata nel database:', exists, 'Righe:', result.rows.length);
     console.log('📊 Query result:', result.rows);
+    
+    // Debug aggiuntivo: controlla tutte le email simili
+    const similarEmails = await pool.query(
+      'SELECT id, email FROM users WHERE email ILIKE $1',
+      [`%${email.split('@')[0]}%`]
+    );
+    console.log('📊 Email simili trovate:', similarEmails.rows);
 
     const response = { exists };
     console.log('📤 Invio risposta:', response);
