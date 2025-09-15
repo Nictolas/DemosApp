@@ -222,46 +222,22 @@ export default function AuthPage() {
       return;
     }
 
-    // Email disponibile, invia i consensi al backend
+    // Email disponibile, salva i dati nel localStorage per la registrazione finale
     try {
-      const consentData = {
-        email: data.email,
-        password: data.password,
-        privacy_policy_consent: data.privacyPolicyConsent,
-        terms_of_service_consent: data.termsOfServiceConsent,
-        cookie_policy_consent: data.cookiePolicyConsent
-      };
+      // Salva i dati per il flusso di registrazione (NON registrare ancora)
+      localStorage.setItem("registrazione_email", data.email);
+      localStorage.setItem("registrazione_password", data.password);
+      localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
+      localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
+      localStorage.setItem("registrazione_cookie_consent", data.cookiePolicyConsent.toString());
+      localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
       
-      const response = await fetch('https://demos-c7k0.onrender.com/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(consentData),
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        // Salva i dati per il flusso di registrazione
-        localStorage.setItem("registrazione_email", data.email);
-        localStorage.setItem("registrazione_password", data.password);
-        localStorage.setItem("registrazione_privacy_consent", data.privacyPolicyConsent.toString());
-        localStorage.setItem("registrazione_terms_consent", data.termsOfServiceConsent.toString());
-        localStorage.setItem("registrazione_cookie_consent", data.cookiePolicyConsent.toString());
-        localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
-        window.location.href = "/registrazione-codice-fiscale";
-      } else {
-        toast({
-          title: "Errore registrazione",
-          description: result.error || "Errore durante la registrazione",
-          variant: "destructive",
-        });
-      }
+      // Vai alla fase successiva senza registrare l'utente
+      window.location.href = "/registrazione-codice-fiscale";
     } catch (error) {
       toast({
         title: "Errore di connessione",
-        description: "Impossibile connettersi al server. Riprova più tardi.",
+        description: "Impossibile salvare i dati. Riprova più tardi.",
         variant: "destructive",
       });
     }
