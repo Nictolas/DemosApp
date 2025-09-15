@@ -12,11 +12,15 @@ const ConfermaEmail: React.FC = () => {
     message: string;
     userEmail?: string;
   } | null>(null);
+  const [hasVerified, setHasVerified] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const location = useLocation();
 
   useEffect(() => {
+    // Evita esecuzioni multiple
+    if (hasVerified) return;
+    
     const verifyEmail = async () => {
       try {
         // Estrai token e email dai parametri URL usando window.location
@@ -83,11 +87,12 @@ const ConfermaEmail: React.FC = () => {
         });
       } finally {
         setIsLoading(false);
+        setHasVerified(true);
       }
     };
 
     verifyEmail();
-  }, [location, toast]);
+  }, [location, toast, hasVerified]);
 
   const handleGoHome = () => {
     router.push('/');
