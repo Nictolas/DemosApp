@@ -209,7 +209,7 @@ export default function AuthPage() {
             cookie_policy_consent: data.cookiePolicyConsent
           };
           
-          const response = await fetch('/api/auth/register', {
+          const response = await fetch('https://demos-c7k0.onrender.com/api/auth/register', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -256,7 +256,7 @@ export default function AuthPage() {
         cookie_policy_consent: data.cookiePolicyConsent
       };
       
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('https://demos-c7k0.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
