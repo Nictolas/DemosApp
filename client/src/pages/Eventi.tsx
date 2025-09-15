@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { ITALY_DATA } from "@/data/italyData";
+import DatePicker from "@/components/DatePicker";
 
 // Schema di validazione per il form di modifica
 const eventoSchema = z.object({
@@ -607,10 +608,9 @@ export default function Eventi() {
                   <FormItem>
                     <FormLabel>Giorno di Inizio *</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field} 
-                        className="[&::-webkit-datetime-edit]:!flex [&::-webkit-datetime-edit-fields-wrapper]:!flex [&::-webkit-datetime-edit-text]:!hidden [&::-webkit-datetime-edit-month-field]:!flex [&::-webkit-datetime-edit-day-field]:!flex [&::-webkit-datetime-edit-year-field]:!flex"
+                      <DatePicker
+                        value={field.value || ''}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
@@ -626,10 +626,9 @@ export default function Eventi() {
                   <FormItem>
                     <FormLabel>Giorno di Fine</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field} 
-                        className="[&::-webkit-datetime-edit]:!flex [&::-webkit-datetime-edit-fields-wrapper]:!flex [&::-webkit-datetime-edit-text]:!hidden [&::-webkit-datetime-edit-month-field]:!flex [&::-webkit-datetime-edit-day-field]:!flex [&::-webkit-datetime-edit-year-field]:!flex"
+                      <DatePicker
+                        value={field.value || ''}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
