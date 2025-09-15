@@ -124,17 +124,7 @@ router.post('/register',
       });
     }
     
-    // Verifica se l'email è già registrata
-    const existingUserQuery = 'SELECT id FROM users WHERE email = $1';
-    const existingUserResult = await pool.query(existingUserQuery, [email.toLowerCase()]);
-    
-    if (existingUserResult.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email già registrata',
-        message: 'Un account con questa email esiste già'
-      });
-    }
+    // L'unicità dell'email viene già verificata dal frontend tramite /api/check-email
     
     // Verifica se il codice fiscale è già registrato (se fornito)
     if (codice_fiscale) {
