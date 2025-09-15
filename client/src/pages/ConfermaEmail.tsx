@@ -3,7 +3,7 @@ import { useLocation, useRouter } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Home, LogIn, AlertCircle } from 'lucide-react';
+import { CheckCircle, LogIn, AlertCircle } from 'lucide-react';
 
 const ConfermaEmail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -94,16 +94,8 @@ const ConfermaEmail: React.FC = () => {
     verifyEmail();
   }, [location, toast, hasVerified]);
 
-  const handleGoHome = () => {
-    router.push('/');
-  };
-
   const handleGoToLogin = () => {
-    router.push('/auth');
-  };
-
-  const handleGoToMenu = () => {
-    router.push('/menu');
+    window.location.href = 'https://www.demos.community/auth';
   };
 
   if (isLoading) {
@@ -217,56 +209,13 @@ const ConfermaEmail: React.FC = () => {
             )}
 
             <div className="space-y-4">
-              {verificationResult?.success ? (
-                <>
-                  <Button
-                    onClick={handleGoToMenu}
-                    className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    <CheckCircle className="w-5 h-5 mr-3" />
-                    Vai al Menu
-                  </Button>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      onClick={handleGoToLogin}
-                      variant="outline"
-                      className="h-12 border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 transition-all duration-200"
-                    >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Accedi
-                    </Button>
-                    
-                    <Button
-                      onClick={handleGoHome}
-                      variant="outline"
-                      className="h-12 border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                    >
-                      <Home className="w-4 h-4 mr-2" />
-                      Homepage
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Button
-                    onClick={handleGoToLogin}
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    <LogIn className="w-5 h-5 mr-3" />
-                    Prova ad Accedere
-                  </Button>
-                  
-                  <Button
-                    onClick={handleGoHome}
-                    variant="outline"
-                    className="w-full h-12 border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                  >
-                    <Home className="w-4 h-4 mr-2" />
-                    Torna alla Homepage
-                  </Button>
-                </>
-              )}
+              <Button
+                onClick={handleGoToLogin}
+                className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <LogIn className="w-5 h-5 mr-3" />
+                Accedi
+              </Button>
             </div>
           </CardContent>
         </Card>
