@@ -3,18 +3,21 @@ const rateLimit = require('express-rate-limit');
 
 // Middleware per headers di sicurezza (sostituisce Helmet)
 const securityHeaders = (req, res, next) => {
-  // Content Security Policy
-  res.setHeader('Content-Security-Policy', 
-    "default-src 'self'; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
-    "img-src 'self' data: https:; " +
-    "script-src 'self'; " +
-    "connect-src 'self' https://api.demos.community; " +
-    "frame-src 'none'; " +
-    "object-src 'none'; " +
-    "upgrade-insecure-requests"
-  );
+  // Non applicare CSP alle richieste API
+  if (!req.path.startsWith('/api/')) {
+    // Content Security Policy
+    res.setHeader('Content-Security-Policy', 
+      "default-src 'self'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "img-src 'self' data: https:; " +
+      "script-src 'self'; " +
+      "connect-src 'self' https://api.demos.community https://demos-c7k0.onrender.com; " +
+      "frame-src 'none'; " +
+      "object-src 'none'; " +
+      "upgrade-insecure-requests"
+    );
+  }
   
   // X-Frame-Options
   res.setHeader('X-Frame-Options', 'DENY');
