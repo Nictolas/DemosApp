@@ -19,13 +19,13 @@ const ConfermaEmail: React.FC = () => {
   useEffect(() => {
     const verifyEmail = async () => {
       try {
-        // Estrai token e email dai parametri URL
-        const urlParams = new URLSearchParams(location.search);
+        // Estrai token e email dai parametri URL usando window.location
+        const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         const email = urlParams.get('email');
         
-        console.log('🔍 URL completo:', location.href);
-        console.log('🔍 Search params:', location.search);
+        console.log('🔍 URL completo:', window.location.href);
+        console.log('🔍 Search params:', window.location.search);
         console.log('🔍 Token estratto:', token);
         console.log('🔍 Email estratta:', email);
         
