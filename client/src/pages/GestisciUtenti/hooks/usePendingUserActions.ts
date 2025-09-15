@@ -56,8 +56,8 @@ export const usePendingUserActions = () => {
     },
     onSuccess: (data) => {
       toast({
-        title: "Utente rifiutato",
-        description: `L'utente ${data.user.email} è stato rifiutato`,
+        title: "Utente eliminato",
+        description: `L'utente ${data.user.email} è stato rifiutato e eliminato completamente dal database`,
         variant: "default"
       });
       

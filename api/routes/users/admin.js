@@ -105,21 +105,21 @@ router.post('/reject', verifyToken, requireAdmin, async (req, res) => {
       });
     }
     
-    // Rifiuta l'utente
-    const result = await pool.query(
-      'UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, status',
-      ['rejected', userId]
+    // Elimina completamente l'utente rifiutato
+    const deleteResult = await pool.query(
+      'DELETE FROM users WHERE id = $1 RETURNING id, email',
+      [userId]
     );
     
-    console.log('❌ Utente rifiutato:', user.email, 'Motivo:', reason || 'Nessun motivo specificato');
+    console.log('🗑️ Utente eliminato completamente:', user.email, 'Motivo:', reason || 'Nessun motivo specificato');
     
     res.json({
       success: true,
-      message: 'Utente rifiutato con successo',
+      message: 'Utente rifiutato e eliminato completamente dal database',
       user: {
-        id: result.rows[0].id,
-        email: result.rows[0].email,
-        status: result.rows[0].status
+        id: deleteResult.rows[0].id,
+        email: deleteResult.rows[0].email,
+        status: 'deleted'
       },
       reason: reason || 'Nessun motivo specificato'
     });
