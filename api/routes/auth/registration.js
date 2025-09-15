@@ -28,7 +28,7 @@ try {
 // POST /api/auth/register - Registrazione nuovo utente
 router.post('/register', 
   registrationLimiter, 
-  validateInput(validationRules.registration), 
+  validateInput(['email', 'password', 'privacy_policy_consent', 'terms_of_service_consent', 'cookie_policy_consent']), 
   sanitizeInput(['nome', 'cognome', 'cittadinanza']),
   authAuditMiddleware, 
   async (req, res) => {
