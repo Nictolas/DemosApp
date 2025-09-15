@@ -75,9 +75,9 @@ router.post('/verify-email', async (req, res) => {
       });
     }
     
-    // Aggiorna lo status dell'utente a verified
+    // Aggiorna lo status dell'utente a approved
     const updateQuery = 'UPDATE users SET status = $1, email_verified_at = NOW() WHERE id = $2 RETURNING id, email, status';
-    const updateResult = await pool.query(updateQuery, ['verified', user.id]);
+    const updateResult = await pool.query(updateQuery, ['approved', user.id]);
     
     console.log('✅ Utente verificato:', updateResult.rows[0]);
     
