@@ -59,6 +59,7 @@ router.post('/check-email', async (req, res) => {
 
     const exists = result.rows.length > 0;
     console.log('📊 Email trovata nel database:', exists, 'Righe:', result.rows.length);
+    console.log('📊 Query result:', result.rows);
 
     const response = { exists };
     console.log('📤 Invio risposta:', response);

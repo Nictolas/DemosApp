@@ -124,7 +124,26 @@ export default function RegistrazioneRuolo() {
         cookie_policy_consent: cookiePolicyConsent
       });
 
-      // Chiama l'API di registrazione (che ha il controllo email duplicata)
+      // Controllo email duplicata prima della registrazione
+      console.log('🔍 Controllo email duplicata:', email);
+      const emailCheckResponse = await fetch('https://demos-c7k0.onrender.com/api/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+
+      if (!emailCheckResponse.ok) {
+        throw new Error(`Errore controllo email: ${emailCheckResponse.status}`);
+      }
+
+      const emailCheckResult = await emailCheckResponse.json();
+      console.log('📊 Risultato controllo email:', emailCheckResult);
+
+      if (emailCheckResult.exists) {
+        throw new Error('Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.');
+      }
+
+      // Chiama l'API di registrazione
       const response = await fetch('https://demos-c7k0.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
