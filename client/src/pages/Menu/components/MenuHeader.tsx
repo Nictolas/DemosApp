@@ -10,7 +10,7 @@ export const MenuHeader: React.FC<MenuHeaderProps> = ({
   isAdmin,
   onAdminClick
 }) => {
-  console.log('🔍 MenuHeader - Rendering con isAdmin:', isAdmin);
+  // Debug logging rimosso per evitare re-render
   
   return (
     <CardHeader className="text-center flex-shrink-0 pt-6 pb-4">
