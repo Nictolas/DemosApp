@@ -1,12 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-require('dotenv').config();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+const { pool } = require('../config/db'); // Usa la stessa configurazione degli altri endpoint
 
 // ===== ENDPOINTS PER NOTIFICHE =====
 
@@ -24,87 +18,32 @@ router.get('/', async (req, res) => {
       });
     }
     
-    // Recupera notifiche tradizionali
-    const notificheResult = await pool.query(
-      'SELECT * FROM notifiche_utente WHERE utente_id = $1 ORDER BY data_creazione DESC',
-      [user_id]
-    );
+    // Versione di test: restituisce solo le comunicazioni Demos
+    const comunicazioniResult = await pool.query(`
+      SELECT
+        c.*
+      FROM comunicazioni c
+      WHERE c.tipo = 'demos_notification'
+      ORDER BY c.data_creazione DESC
+      LIMIT 10
+    `);
     
-  // Recupera comunicazioni (votazioni) per mostrare come notifiche
-  const comunicazioniResult = await pool.query(`
-    SELECT
-      c.*,
-      u.nome,
-      u.cognome,
-      u.ruolo,
-      'comunicazione' as tipo_notifica,
-      c.data_creazione as data_creazione
-    FROM comunicazioni c
-    JOIN utenti u ON c.id_utente = u.id
-    WHERE c.id_utente != $1
-    ORDER BY c.data_creazione DESC
-    LIMIT 50
-  `, [user_id]);
-
-  // Recupera notifiche di Demos dalla tabella comunicazioni (vanno a tutti gli utenti)
-  const demosNotificationsResult = await pool.query(`
-    SELECT
-      c.*,
-      'demos_notification' as tipo_notifica,
-      c.data_creazione as data_creazione
-    FROM comunicazioni c
-    WHERE c.tipo = 'demos_notification'
-    ORDER BY c.data_creazione DESC
-    LIMIT 20
-  `);
+    const comunicazioni = comunicazioniResult.rows.map(c => ({
+      id: c.id,
+      titolo: c.titolo,
+      messaggio: c.testo || c.commento || 'Nessun messaggio',
+      data_creazione: c.data_creazione,
+      tipo_notifica: 'demos_notification',
+      status: 'non_letta',
+      priorita: 'alta',
+      commento: c.commento
+    }));
     
-  // Combina notifiche e comunicazioni
-  const notifiche = notificheResult.rows.map(n => ({
-    ...n,
-    tipo_notifica: 'notifica'
-  }));
-
-  const comunicazioni = comunicazioniResult.rows.map(c => ({
-    id: c.id,
-    titolo: c.titolo,
-    messaggio: c.testo,
-    data_creazione: c.data_creazione,
-    tipo_notifica: 'comunicazione',
-    autore: {
-      nome: c.nome,
-      cognome: c.cognome,
-      ruolo: c.ruolo
-    },
-    voto_dato: c.voto_dato,
-    vincitore: c.vincitore,
-    commento: c.commento
-  }));
-
-  const demosNotifications = demosNotificationsResult.rows.map(c => ({
-    id: c.id,
-    titolo: c.titolo,
-    messaggio: c.testo,
-    data_creazione: c.data_creazione,
-    tipo_notifica: 'demos_notification',
-    status: 'non_letta',
-    priorita: 'alta',
-    commento: c.commento
-  }));
-
-  // Ordina per data di creazione
-  const allItems = [...notifiche, ...comunicazioni, ...demosNotifications]
-    .sort((a, b) => new Date(b.data_creazione) - new Date(a.data_creazione));
-    
-    console.log('🔍 DEBUG: Notifiche trovate:', {
-      notifiche: notifiche.length,
-      comunicazioni: comunicazioni.length,
-      demosNotifications: demosNotifications.length,
-      total: allItems.length
-    });
+    console.log('🔍 DEBUG: Comunicazioni Demos trovate:', comunicazioni.length);
     
     res.json({
       success: true,
-      notifiche: allItems
+      notifiche: comunicazioni
     });
   } catch (error) {
     console.error('❌ Errore nel recupero notifiche:', error);
