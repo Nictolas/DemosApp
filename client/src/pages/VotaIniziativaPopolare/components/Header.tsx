@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
             Iniziative Popolari
           </CardTitle>
           <CardDescription className="text-lg">
-            Vota per le iniziative popolari che preferisci
+            In questa pagina puoi votare le iniziative popolari che hanno già raggiunto il quorum e sono in lista d'attesa per essere esaminate dal Parlamento. Puoi votare quelle che secondo te dovrebbero avere la priorità.
           </CardDescription>
         </CardHeader>
       </Card>
