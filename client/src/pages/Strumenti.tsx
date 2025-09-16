@@ -222,11 +222,7 @@ export default function Strumenti() {
   const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
 
   // Debug logging
-  console.log('🔍 DEBUG Strumenti - user object:', user);
-  console.log('🔍 DEBUG Strumenti - user.ruolo:', user?.ruolo);
-  console.log('🔍 DEBUG Strumenti - user.role:', user?.role);
-  console.log('🔍 DEBUG Strumenti - userRole:', userRole);
-  console.log('🔍 DEBUG Strumenti - hasAdvancedAccess:', hasAdvancedAccess);
+  // Debug logging rimosso per evitare re-render
 
   // Blocca completamente l'accesso per utenti "Elettore"
   if (!hasAdvancedAccess) {

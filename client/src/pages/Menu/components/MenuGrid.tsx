@@ -17,7 +17,7 @@ export const MenuGrid: React.FC<MenuGridProps> = ({
     !item.requiresAdvancedAccess || hasAdvancedAccess
   );
 
-  console.log('🔍 MenuGrid - Rendering con hasAdvancedAccess:', hasAdvancedAccess, 'visibleItems:', visibleItems.length);
+  // Debug logging rimosso per evitare re-render
 
 
   return (

@@ -14,14 +14,7 @@ export default function Menu() {
   const queryClient = useQueryClient();
   const [isAndroid, setIsAndroid] = useState(false);
 
-  // Debug logging
-  console.log('🔍 Menu Component - Stato attuale:', {
-    user: !!user,
-    isLoading,
-    isAdmin,
-    hasAdvancedAccess,
-    userEmail: user?.email
-  });
+  // Debug logging rimosso per evitare re-render
 
   // Debug DOM - Controlla se gli elementi sono nel DOM
   useEffect(() => {

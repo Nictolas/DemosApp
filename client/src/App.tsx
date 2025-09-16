@@ -227,13 +227,7 @@ export default function App() {
   
   const [location] = useLocation();
   
-  // Debug logging per vedere quale route è attiva
-  console.log('🔍 App - Location attuale:', location);
-  
-  // Debug per vedere se c'è un redirect
-  useEffect(() => {
-    console.log('🔄 App - Location cambiata a:', location);
-  }, [location]);
+  // Debug logging rimosso per evitare re-render
 
   return (
     <QueryClientProvider client={queryClient}>
