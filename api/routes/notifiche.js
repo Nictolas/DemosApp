@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../config/db'); // Usa la stessa configurazione degli altri endpoint
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+  // Usa sempre Neon per ora
+  connectionString: 'postgresql://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require',
+  ssl: { rejectUnauthorized: false },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+}); // Usa la stessa configurazione degli altri endpoint
 
 // ===== ENDPOINTS PER NOTIFICHE =====
 
