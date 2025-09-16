@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -22,7 +22,16 @@ const comunicaSchema = z.object({
   vincitore: z.enum(["Approvata", "Respinta"]),
 });
 
+const comunicaVotiSchema = z.object({
+  titolo: z.string().min(1, "Il titolo è obbligatorio"),
+  voti: z.array(z.object({
+    nome: z.string().min(1, "Il nome è obbligatorio"),
+    voto: z.enum(["Favorevole", "Contrario", "Astenuto"]),
+  })).min(1, "Deve essere presente almeno un voto"),
+});
+
 type ComunicaFormData = z.infer<typeof comunicaSchema>;
+type ComunicaVotiFormData = z.infer<typeof comunicaVotiSchema>;
 
 interface ExistingComunicazione {
   titolo: string;
@@ -30,16 +39,63 @@ interface ExistingComunicazione {
   zona: string;
 }
 
+interface VotoEntry {
+  id: string;
+  nome: string;
+  voto: "Favorevole" | "Contrario" | "Astenuto";
+}
+
 export default function Votazione() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [existingComunicazione, setExistingComunicazione] = useState<ExistingComunicazione | null>(null);
+  
+  // Stato per la sezione "Comunica Voti"
+  const [votiEntries, setVotiEntries] = useState<VotoEntry[]>([
+    { id: "1", nome: "", voto: "Favorevole" }
+  ]);
+  const [titoloVotazione, setTitoloVotazione] = useState("");
 
   const form = useForm<ComunicaFormData>({
     resolver: zodResolver(comunicaSchema),
     defaultValues: { titolo: "", commento: "" },
   });
+
+  // Funzioni per gestire i voti
+  const addVotoEntry = () => {
+    const newId = (votiEntries.length + 1).toString();
+    setVotiEntries([...votiEntries, { id: newId, nome: "", voto: "Favorevole" }]);
+  };
+
+  const removeVotoEntry = (id: string) => {
+    if (votiEntries.length > 1) {
+      setVotiEntries(votiEntries.filter(entry => entry.id !== id));
+    }
+  };
+
+  const updateVotoEntry = (id: string, field: keyof VotoEntry, value: string) => {
+    setVotiEntries(votiEntries.map(entry => 
+      entry.id === id ? { ...entry, [field]: value } : entry
+    ));
+  };
+
+  // Calcolo automatico del risultato
+  const calculateResult = () => {
+    const favorevoli = votiEntries.filter(entry => entry.voto === "Favorevole" && entry.nome.trim()).length;
+    const contrari = votiEntries.filter(entry => entry.voto === "Contrario" && entry.nome.trim()).length;
+    const astenuti = votiEntries.filter(entry => entry.voto === "Astenuto" && entry.nome.trim()).length;
+    
+    return {
+      favorevoli,
+      contrari,
+      astenuti,
+      totale: favorevoli + contrari + astenuti,
+      risultato: favorevoli > contrari ? "Approvata" : contrari > favorevoli ? "Respinta" : "Pareggio"
+    };
+  };
+
+  const result = calculateResult();
 
   // 1. Caricamento dati utente con React Query (già presente e corretto)
   const { data: userData, isLoading: isLoadingUser } = useQuery({
@@ -89,6 +145,8 @@ export default function Votazione() {
 
   const userRole = userData?.ruolo;
   const isAllowed = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
+  const canComunicaVoti = userRole === "Admin" || userRole === "Istituzione";
+  
   if (userData && !isAllowed) {
     return (
       <div className="min-h-screen container mx-auto p-4 flex items-center justify-center">
@@ -170,6 +228,142 @@ export default function Votazione() {
             </Form>
           </CardContent>
         </Card>
+
+        {/* Sezione Comunica Voti - Solo per Admin e Istituzione */}
+        {canComunicaVoti && (
+          <Card className="max-w-4xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+                <Calculator className="h-6 w-6" />
+                Comunica Voti
+              </CardTitle>
+              <CardDescription className="text-center">
+                Registra i voti di una votazione e calcola automaticamente il risultato.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Titolo della votazione */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Titolo della votazione *</label>
+                <Input
+                  placeholder="Es: Approvazione legge..."
+                  value={titoloVotazione}
+                  onChange={(e) => setTitoloVotazione(e.target.value)}
+                />
+              </div>
+
+              {/* Lista voti */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Voti registrati</label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addVotoEntry}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Aggiungi voto
+                  </Button>
+                </div>
+
+                {votiEntries.map((entry, index) => (
+                  <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs text-gray-600">Nome</label>
+                        <Input
+                          placeholder="Inserisci nome"
+                          value={entry.nome}
+                          onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600">Voto</label>
+                        <Select
+                          value={entry.voto}
+                          onValueChange={(value) => updateVotoEntry(entry.id, "voto", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Favorevole">Favorevole</SelectItem>
+                            <SelectItem value="Contrario">Contrario</SelectItem>
+                            <SelectItem value="Astenuto">Astenuto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    {votiEntries.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeVotoEntry(entry.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Risultato della votazione */}
+              {result.totale > 0 && (
+                <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4 text-center">Risultato della votazione</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div className="bg-green-100 p-3 rounded">
+                      <div className="text-2xl font-bold text-green-700">{result.favorevoli}</div>
+                      <div className="text-sm text-green-600">Favorevoli</div>
+                    </div>
+                    <div className="bg-red-100 p-3 rounded">
+                      <div className="text-2xl font-bold text-red-700">{result.contrari}</div>
+                      <div className="text-sm text-red-600">Contrari</div>
+                    </div>
+                    <div className="bg-gray-100 p-3 rounded">
+                      <div className="text-2xl font-bold text-gray-700">{result.astenuti}</div>
+                      <div className="text-sm text-gray-600">Astenuti</div>
+                    </div>
+                    <div className="bg-blue-100 p-3 rounded">
+                      <div className="text-2xl font-bold text-blue-700">{result.totale}</div>
+                      <div className="text-sm text-blue-600">Totale</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-center">
+                    <div className="text-lg font-semibold">
+                      Risultato: <span className={`font-bold ${
+                        result.risultato === "Approvata" ? "text-green-600" : 
+                        result.risultato === "Respinta" ? "text-red-600" : 
+                        "text-gray-600"
+                      }`}>
+                        {result.risultato}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Pulsante salva */}
+              <Button
+                className="w-full"
+                disabled={!titoloVotazione.trim() || result.totale === 0}
+                onClick={() => {
+                  // Qui potresti aggiungere la logica per salvare i voti
+                  toast({
+                    title: "Voti registrati",
+                    description: `Votazione "${titoloVotazione}" registrata con ${result.totale} voti. Risultato: ${result.risultato}`,
+                  });
+                }}
+              >
+                Salva Votazione
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
