@@ -29,10 +29,18 @@ export default function Notifiche() {
       );
       
       if (unreadNotifications.length > 0) {
-        // Marca tutte le notifiche non lette come lette
-        unreadNotifications.forEach(notifica => {
-          markAsReadMutation.mutate(notifica.id);
-        });
+        console.log('🔄 Marcatura automatica di', unreadNotifications.length, 'notifiche come lette');
+        // Marca tutte le notifiche non lette come lette in sequenza
+        const markAllAsRead = async () => {
+          for (const notifica of unreadNotifications) {
+            try {
+              await markAsReadMutation.mutateAsync(notifica.id);
+            } catch (error) {
+              console.error('Errore nel marcare notifica come letta:', error);
+            }
+          }
+        };
+        markAllAsRead();
       }
     }
   }, [data?.notifiche, markAsReadMutation]);

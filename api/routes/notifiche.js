@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
       messaggio: c.testo || c.commento || 'Nessun messaggio',
       data_creazione: c.data_creazione,
       tipo_notifica: 'demos_notification',
-      status: 'non_letta',
+      status: c.status || 'non_letta', // Usa lo status dal database
       priorita: 'alta',
       commento: c.commento
     }));
@@ -77,6 +77,42 @@ router.get('/', async (req, res) => {
       success: false,
       error: 'Errore interno del server',
       details: error.message
+    });
+  }
+});
+
+// PUT /api/notifiche/:id/read - Marca notifica come letta
+router.put('/:id/read', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('📖 Marcatura notifica come letta:', id);
+    
+    // Aggiorna lo status della notifica a 'letta'
+    const result = await pool.query(
+      'UPDATE comunicazioni SET status = $1 WHERE id = $2 RETURNING *',
+      ['letta', id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Notifica non trovata'
+      });
+    }
+    
+    console.log('✅ Notifica marcata come letta:', id);
+    
+    res.json({
+      success: true,
+      message: 'Notifica marcata come letta',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel marcare notifica come letta:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
     });
   }
 });
