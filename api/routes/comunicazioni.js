@@ -141,6 +141,31 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Gestione speciale per notifiche di Demos
+    if (tipo === 'demos_notification') {
+      const testo = `Notifica Demos: ${commento || ''}`;
+      
+      // Crea comunicazione per l'admin
+      const result = await pool.query(
+        `INSERT INTO comunicazioni (
+          id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
+          data_creazione, likes, dislikes, punti_trasparenza, tipo
+        ) VALUES (
+          gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
+        ) RETURNING *`,
+        [id_utente, titolo, testo, zona || 'Generale', null, null, commento || '', tipo]
+      );
+
+      // Invia notifica a TUTTI gli utenti
+      await notifyAllUsers(titolo, commento || '');
+
+      return res.status(201).json({
+        success: true,
+        data: result.rows[0],
+        message: 'Notifica Demos inviata a tutti gli utenti'
+      });
+    }
+
     // Per "Nuova Comunicazione Votazione", controlla se esiste già una comunicazione per questo utente
     const existingComunicazione = await pool.query(
       'SELECT id FROM comunicazioni WHERE id_utente = $1 AND tipo = $2 ORDER BY data_creazione DESC LIMIT 1',
@@ -243,6 +268,54 @@ async function notifySostenitori(utenteId, titolo, comunicazione) {
     console.log(`✅ Notifiche inviate a ${sostenitoriResult.rows.length} sostenitori`);
   } catch (error) {
     console.error('❌ Errore nell\'invio notifiche ai sostenitori:', error);
+  }
+}
+
+// Funzione per notificare tutti gli utenti (per notifiche Demos)
+async function notifyAllUsers(titolo, commento) {
+  try {
+    // Recupera tutti gli utenti attivi
+    const utentiResult = await pool.query(
+      'SELECT id FROM utenti WHERE status = $1 OR status IS NULL',
+      ['active']
+    );
+
+    if (utentiResult.rows.length === 0) return;
+
+    // Crea notifiche per ogni utente
+    const notifiche = utentiResult.rows.map(utente => ({
+      utente_id: utente.id,
+      titolo: `Notifica Demos: ${titolo}`,
+      messaggio: commento,
+      tipo: 'demos_notification',
+      priorita: 'alta'
+    }));
+
+    // Inserisci le notifiche in batch per performance
+    const batchSize = 100;
+    for (let i = 0; i < notifiche.length; i += batchSize) {
+      const batch = notifiche.slice(i, i + batchSize);
+      const values = batch.map((notifica, index) => {
+        const baseIndex = i + index;
+        return `(gen_random_uuid()::text, $${baseIndex * 4 + 1}, $${baseIndex * 4 + 2}, $${baseIndex * 4 + 3}, $${baseIndex * 4 + 4}, NOW())`;
+      }).join(', ');
+      
+      const params = batch.flatMap(notifica => [
+        notifica.utente_id, 
+        notifica.titolo, 
+        notifica.messaggio, 
+        notifica.tipo
+      ]);
+
+      await pool.query(
+        `INSERT INTO notifiche_utente (id, utente_id, titolo, messaggio, tipo, data_creazione) VALUES ${values}`,
+        params
+      );
+    }
+
+    console.log(`✅ Notifiche Demos inviate a ${utentiResult.rows.length} utenti`);
+  } catch (error) {
+    console.error('❌ Errore nell\'invio notifiche Demos:', error);
   }
 }
 

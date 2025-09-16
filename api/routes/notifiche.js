@@ -28,47 +28,69 @@ router.get('/', async (req, res) => {
       [user_id]
     );
     
-    // Recupera comunicazioni (votazioni) per mostrare come notifiche
-    const comunicazioniResult = await pool.query(`
-      SELECT 
-        c.*,
-        u.nome,
-        u.cognome,
-        u.ruolo,
-        'comunicazione' as tipo_notifica,
-        c.data_creazione as data_creazione
-      FROM comunicazioni c
-      JOIN utenti u ON c.id_utente = u.id
-      WHERE c.id_utente != $1
-      ORDER BY c.data_creazione DESC
-      LIMIT 50
-    `, [user_id]);
+  // Recupera comunicazioni (votazioni) per mostrare come notifiche
+  const comunicazioniResult = await pool.query(`
+    SELECT
+      c.*,
+      u.nome,
+      u.cognome,
+      u.ruolo,
+      'comunicazione' as tipo_notifica,
+      c.data_creazione as data_creazione
+    FROM comunicazioni c
+    JOIN utenti u ON c.id_utente = u.id
+    WHERE c.id_utente != $1
+    ORDER BY c.data_creazione DESC
+    LIMIT 50
+  `, [user_id]);
+
+  // Recupera notifiche di Demos (vanno a tutti gli utenti)
+  const demosNotificationsResult = await pool.query(`
+    SELECT
+      n.*,
+      'demos_notification' as tipo_notifica,
+      n.data_creazione as data_creazione
+    FROM notifiche_utente n
+    WHERE n.utente_id = $1 AND n.tipo = 'demos_notification'
+    ORDER BY n.data_creazione DESC
+    LIMIT 20
+  `, [user_id]);
     
-    // Combina notifiche e comunicazioni
-    const notifiche = notificheResult.rows.map(n => ({
-      ...n,
-      tipo_notifica: 'notifica'
-    }));
-    
-    const comunicazioni = comunicazioniResult.rows.map(c => ({
-      id: c.id,
-      titolo: c.titolo,
-      messaggio: c.testo,
-      data_creazione: c.data_creazione,
-      tipo_notifica: 'comunicazione',
-      autore: {
-        nome: c.nome,
-        cognome: c.cognome,
-        ruolo: c.ruolo
-      },
-      voto_dato: c.voto_dato,
-      vincitore: c.vincitore,
-      commento: c.commento
-    }));
-    
-    // Ordina per data di creazione
-    const allItems = [...notifiche, ...comunicazioni]
-      .sort((a, b) => new Date(b.data_creazione) - new Date(a.data_creazione));
+  // Combina notifiche e comunicazioni
+  const notifiche = notificheResult.rows.map(n => ({
+    ...n,
+    tipo_notifica: 'notifica'
+  }));
+
+  const comunicazioni = comunicazioniResult.rows.map(c => ({
+    id: c.id,
+    titolo: c.titolo,
+    messaggio: c.testo,
+    data_creazione: c.data_creazione,
+    tipo_notifica: 'comunicazione',
+    autore: {
+      nome: c.nome,
+      cognome: c.cognome,
+      ruolo: c.ruolo
+    },
+    voto_dato: c.voto_dato,
+    vincitore: c.vincitore,
+    commento: c.commento
+  }));
+
+  const demosNotifications = demosNotificationsResult.rows.map(n => ({
+    id: n.id,
+    titolo: n.titolo,
+    messaggio: n.messaggio,
+    data_creazione: n.data_creazione,
+    tipo_notifica: 'demos_notification',
+    status: n.status || 'non_letta',
+    priorita: n.priorita || 'alta'
+  }));
+
+  // Ordina per data di creazione
+  const allItems = [...notifiche, ...comunicazioni, ...demosNotifications]
+    .sort((a, b) => new Date(b.data_creazione) - new Date(a.data_creazione));
     
     res.json({
       success: true,

@@ -93,11 +93,16 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                 {notifica.priorita}
               </Badge>
             )}
-            {notifica.tipo_notifica === 'comunicazione' && (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                Comunicazione Votazione
-              </Badge>
-            )}
+                   {notifica.tipo_notifica === 'comunicazione' && (
+                     <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                       Comunicazione Votazione
+                     </Badge>
+                   )}
+                   {notifica.tipo_notifica === 'demos_notification' && (
+                     <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                       Notifica Demos
+                     </Badge>
+                   )}
           </div>
           
           <p className="text-gray-700 mb-3">
