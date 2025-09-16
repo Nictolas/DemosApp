@@ -179,7 +179,7 @@ app.use('/api/opinioni', userLimiter, opinioniRoutes);
 app.use('/api/governo', publicLimiter, governoRoutes);
 app.use('/api/governo/ministro', publicLimiter, governoMinistroRoutes);
 app.use('/api/rappresentanti', publicLimiter, rappresentantiRoutes);
-app.use('/api/notifiche', userLimiter, notificheRoutes);
+app.use('/api/notifiche', publicLimiter, notificheRoutes);
 app.use('/api/eventi', publicLimiter, eventiRoutes);
 app.use('/api/grazia', publicLimiter, graziaRoutes);
 app.use('/api/amnistia', publicLimiter, amnistiaRoutes);

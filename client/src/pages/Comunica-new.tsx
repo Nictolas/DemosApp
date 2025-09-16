@@ -20,7 +20,7 @@ export default function Comunica() {
   const { data: ultimaComunicazione } = useQuery({
     queryKey: ["/api/ultima-comunicazione"],
     queryFn: async () => {
-      const response = await apiRequest("GET", '/api/ultima-comunicazione');
+      const response = await apiRequest("GET", '/api/comunicazioni/ultima-comunicazione');
       if (!response.ok) {
         if (response.status === 404) return null; // No previous communication
         throw new Error('Failed to fetch last communication');
