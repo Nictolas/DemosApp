@@ -114,4 +114,59 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/iniziative-popolari/vota - Salva i voti dell'utente
+router.post('/vota', verifyToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const userId = req.user.id;
+    const { voti } = req.body;
+    
+    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Utente:', userId);
+    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Voti da salvare:', voti);
+    
+    if (!Array.isArray(voti)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Formato voti non valido'
+      });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Prima cancella tutti i voti esistenti dell'utente
+    await client.query(
+      'DELETE FROM voti_iniziative_popolari WHERE userid = $1',
+      [userId]
+    );
+    
+    // Poi inserisce i nuovi voti
+    for (const iniziativaId of voti) {
+      await client.query(
+        'INSERT INTO voti_iniziative_popolari (userid, iniziativa_id, timestamp, created_at, updated_at) VALUES ($1, $2, NOW(), NOW(), NOW())',
+        [userId, iniziativaId]
+      );
+    }
+    
+    await client.query('COMMIT');
+    
+    console.log('✅ DEBUG /api/iniziative-popolari/vota - Voti salvati con successo');
+    
+    res.json({
+      success: true,
+      message: 'Voti salvati con successo'
+    });
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('❌ Errore nel salvataggio voti iniziative popolari:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

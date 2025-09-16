@@ -7,7 +7,6 @@ import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeVoting } from "./hooks/useIniziativeVoting";
 import { Header } from "./components/Header";
 import { UserPreferences } from "./components/UserPreferences";
-import { IniziativeTable } from "./components/IniziativeTable";
 import { IniziativeRanking } from "./components/IniziativeRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -67,14 +66,6 @@ export default function VotaIniziativaPopolare() {
               onRemoveVoto={toggleSelezione}
             />
 
-            {/* Tabella delle iniziative */}
-            <IniziativeTable
-              iniziative={data?.iniziative || []}
-              selectedVoti={selectedVoti}
-              onToggleSelezione={toggleSelezione}
-              isBlocked={data?.blocco?.isBlocked || false}
-              isPending={saveVotiMutation.isPending}
-            />
 
             {/* Classifica */}
             <IniziativeRanking
@@ -92,6 +83,7 @@ export default function VotaIniziativaPopolare() {
               isPending={saveVotiMutation.isPending}
               votiCambiati={votiCambiati}
               isBlocked={data?.blocco?.isBlocked || false}
+              userRole={user?.ruolo || user?.role}
             />
           </div>
         )}
