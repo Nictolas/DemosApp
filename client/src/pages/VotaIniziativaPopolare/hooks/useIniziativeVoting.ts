@@ -20,7 +20,11 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
-    mutationFn: (voti: string[]) => apiRequest("POST", "/api/iniziative-popolari/vota", { voti }),
+    mutationFn: (voti: string[]) => {
+      console.log('🔍 DEBUG Frontend - Voti da inviare:', voti);
+      console.log('🔍 DEBUG Frontend - Dati iniziative disponibili:', data?.iniziative.map(i => ({ id: i.id, nome: i.nome })));
+      return apiRequest("POST", "/api/iniziative-popolari/vota", { voti });
+    },
     onSuccess: () => {
       toast({ 
         title: "Preferenze salvate", 
