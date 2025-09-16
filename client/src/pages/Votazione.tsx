@@ -8,10 +8,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -243,6 +244,7 @@ export default function Votazione() {
   const isAllowed = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
   const canComunicaVoti = userRole === "Admin" || userRole === "Istituzione";
   const canSendDemosNotifications = userRole === "Admin";
+  const isAdmin = userRole === "Admin";
   
   if (userData && !isAllowed) {
     return (
@@ -256,243 +258,289 @@ export default function Votazione() {
     );
   }
 
+  // Componente per Nuova Comunicazione Votazione
+  const NuovaComunicazioneCard = () => (
+    <Card className="w-full bg-white">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+          <Vote className="h-6 w-6" />
+          Nuova Comunicazione Votazione
+        </CardTitle>
+        <CardDescription className="text-center">Condividi i dettagli di una votazione con i tuoi elettori.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {existingComunicazione && (
+          <Alert>
+            <CheckCircle className="h-4 w-4" />
+            <AlertTitle>Votazione già comunicata</AlertTitle>
+            <AlertDescription>
+              Questa votazione è già stata registrata per la tua zona. Puoi comunque aggiungere il tuo voto.
+              <br /><strong>Risultato registrato:</strong> {existingComunicazione.vincitore}
+            </AlertDescription>
+          </Alert>
+        )}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit((data) => submitComunicazione.mutate(data))} className="space-y-4">
+            <FormField control={form.control} name="titolo" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Titolo della votazione *</FormLabel>
+                <FormControl><Input placeholder="Es: Approvazione legge..." {...field} onChange={(e) => { field.onChange(e); checkDuplicateMutation.mutate(e.target.value); }} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="voto_dato" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Il tuo voto *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Seleziona il tuo voto" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="Favorevole">Favorevole</SelectItem>
+                    <SelectItem value="Contrario">Contrario</SelectItem>
+                    <SelectItem value="Astenuto">Astenuto</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="commento" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Commento (opzionale, max 20 caratteri)</FormLabel>
+                <FormControl><Input {...field} maxLength={20} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="vincitore" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Risultato della votazione *</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value} disabled={!!existingComunicazione}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Seleziona il risultato" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="Approvata">Approvata</SelectItem>
+                    <SelectItem value="Respinta">Respinta</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <Button type="submit" className="w-full" disabled={submitComunicazione.isPending || checkDuplicateMutation.isPending}>
+              {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+
+  // Componente per Comunica Voti
+  const ComunicaVotiCard = () => (
+    <Card className="w-full bg-white">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+          <Calculator className="h-6 w-6" />
+          Comunica Voti
+        </CardTitle>
+        <CardDescription className="text-center">
+          Registra i voti di una votazione e calcola automaticamente il risultato.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Titolo della votazione */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Titolo della votazione *</label>
+          <Input
+            placeholder="Es: Approvazione legge..."
+            value={titoloVotazione}
+            onChange={(e) => setTitoloVotazione(e.target.value)}
+          />
+        </div>
+
+        {/* Lista voti */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Voti registrati</label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addVotoEntry}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Aggiungi voto
+            </Button>
+          </div>
+
+          {votiEntries.map((entry, index) => (
+            <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-600">Nome</label>
+                  <Input
+                    placeholder="Inserisci nome"
+                    value={entry.nome}
+                    onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600">Voto</label>
+                  <Select
+                    value={entry.voto}
+                    onValueChange={(value) => updateVotoEntry(entry.id, "voto", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Favorevole">Favorevole</SelectItem>
+                      <SelectItem value="Contrario">Contrario</SelectItem>
+                      <SelectItem value="Astenuto">Astenuto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {votiEntries.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeVotoEntry(entry.id)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Risultato della votazione */}
+        {result.totale > 0 && (
+          <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 text-center">Risultato della votazione</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="bg-green-100 p-3 rounded">
+                <div className="text-2xl font-bold text-green-700">{result.favorevoli}</div>
+                <div className="text-sm text-green-600">Favorevoli</div>
+              </div>
+              <div className="bg-red-100 p-3 rounded">
+                <div className="text-2xl font-bold text-red-700">{result.contrari}</div>
+                <div className="text-sm text-red-600">Contrari</div>
+              </div>
+              <div className="bg-gray-100 p-3 rounded">
+                <div className="text-2xl font-bold text-gray-700">{result.astenuti}</div>
+                <div className="text-sm text-gray-600">Astenuti</div>
+              </div>
+              <div className="bg-blue-100 p-3 rounded">
+                <div className="text-2xl font-bold text-blue-700">{result.totale}</div>
+                <div className="text-sm text-blue-600">Totale</div>
+              </div>
+            </div>
+            <div className="mt-4 text-center">
+              <div className="text-lg font-semibold">
+                Risultato: <span className={`font-bold ${
+                  result.risultato === "Approvata" ? "text-green-600" :
+                  result.risultato === "Respinta" ? "text-red-600" :
+                  "text-gray-600"
+                }`}>
+                  {result.risultato}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pulsante salva */}
+        <Button
+          className="w-full"
+          disabled={!titoloVotazione.trim() || result.totale === 0 || submitComunicaVoti.isPending}
+          onClick={() => submitComunicaVoti.mutate()}
+        >
+          {submitComunicaVoti.isPending ? "Salvataggio in corso..." : "Salva Votazione"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  // Componente per Notifiche di Demos
+  const NotificheDemosCard = () => (
+    <Card className="w-full bg-white">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+          <Bell className="h-6 w-6" />
+          Notifiche di Demos
+        </CardTitle>
+        <CardDescription className="text-center">
+          Invia notifiche a tutti gli utenti dell'applicazione.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <Form {...demosForm}>
+          <form onSubmit={demosForm.handleSubmit((data) => submitDemosNotification.mutate(data))} className="space-y-4">
+            <FormField control={demosForm.control} name="titolo" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Titolo della notifica *</FormLabel>
+                <FormControl><Input placeholder="Es: Aggiornamento importante..." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={demosForm.control} name="commento" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Commento *</FormLabel>
+                <FormControl><Input placeholder="Inserisci il messaggio per tutti gli utenti..." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <Button type="submit" className="w-full" disabled={submitDemosNotification.isPending}>
+              {submitDemosNotification.isPending ? "Invio in corso..." : "Invia Notifica a Tutti"}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
-      <div className="container mx-auto px-4 py-8 pb-24 space-y-6">
-        <Card className="w-full bg-white">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Nuova Comunicazione Votazione</CardTitle>
-            <CardDescription className="text-center">Condividi i dettagli di una votazione con i tuoi elettori.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {existingComunicazione && (
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertTitle>Votazione già comunicata</AlertTitle>
-                <AlertDescription>
-                  Questa votazione è già stata registrata per la tua zona. Puoi comunque aggiungere il tuo voto.
-                  <br /><strong>Risultato registrato:</strong> {existingComunicazione.vincitore}
-                </AlertDescription>
-              </Alert>
-            )}
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit((data) => submitComunicazione.mutate(data))} className="space-y-4">
-                <FormField control={form.control} name="titolo" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Titolo della votazione *</FormLabel>
-                    <FormControl><Input placeholder="Es: Approvazione legge..." {...field} onChange={(e) => { field.onChange(e); checkDuplicateMutation.mutate(e.target.value); }} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="voto_dato" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Il tuo voto *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Seleziona il tuo voto" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="Favorevole">Favorevole</SelectItem>
-                        <SelectItem value="Contrario">Contrario</SelectItem>
-                        <SelectItem value="Astenuto">Astenuto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="commento" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Commento (opzionale, max 20 caratteri)</FormLabel>
-                    <FormControl><Input {...field} maxLength={20} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="vincitore" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Risultato della votazione *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!!existingComunicazione}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Seleziona il risultato" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="Approvata">Approvata</SelectItem>
-                        <SelectItem value="Respinta">Respinta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <Button type="submit" className="w-full" disabled={submitComunicazione.isPending || checkDuplicateMutation.isPending}>
-                  {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-
-               {/* Sezione Comunica Voti - Solo per Admin e Istituzione */}
-               {canComunicaVoti && (
-                 <Card className="w-full bg-white">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-                <Calculator className="h-6 w-6" />
+      <div className="container mx-auto px-4 py-8 pb-24">
+        {isAdmin ? (
+          // Admin vede le 3 schede
+          <Tabs defaultValue="comunicazione" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="comunicazione" className="flex items-center gap-2">
+                <Vote className="h-4 w-4" />
+                Comunicazione
+              </TabsTrigger>
+              <TabsTrigger value="comunica-voti" className="flex items-center gap-2">
+                <Calculator className="h-4 w-4" />
                 Comunica Voti
-              </CardTitle>
-              <CardDescription className="text-center">
-                Registra i voti di una votazione e calcola automaticamente il risultato.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Titolo della votazione */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Titolo della votazione *</label>
-                <Input
-                  placeholder="Es: Approvazione legge..."
-                  value={titoloVotazione}
-                  onChange={(e) => setTitoloVotazione(e.target.value)}
-                />
-              </div>
-
-              {/* Lista voti */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Voti registrati</label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addVotoEntry}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Aggiungi voto
-                  </Button>
-                </div>
-
-                {votiEntries.map((entry, index) => (
-                  <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs text-gray-600">Nome</label>
-                        <Input
-                          placeholder="Inserisci nome"
-                          value={entry.nome}
-                          onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-600">Voto</label>
-                        <Select
-                          value={entry.voto}
-                          onValueChange={(value) => updateVotoEntry(entry.id, "voto", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Favorevole">Favorevole</SelectItem>
-                            <SelectItem value="Contrario">Contrario</SelectItem>
-                            <SelectItem value="Astenuto">Astenuto</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    {votiEntries.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeVotoEntry(entry.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Risultato della votazione */}
-              {result.totale > 0 && (
-                <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-4 text-center">Risultato della votazione</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div className="bg-green-100 p-3 rounded">
-                      <div className="text-2xl font-bold text-green-700">{result.favorevoli}</div>
-                      <div className="text-sm text-green-600">Favorevoli</div>
-                    </div>
-                    <div className="bg-red-100 p-3 rounded">
-                      <div className="text-2xl font-bold text-red-700">{result.contrari}</div>
-                      <div className="text-sm text-red-600">Contrari</div>
-                    </div>
-                    <div className="bg-gray-100 p-3 rounded">
-                      <div className="text-2xl font-bold text-gray-700">{result.astenuti}</div>
-                      <div className="text-sm text-gray-600">Astenuti</div>
-                    </div>
-                    <div className="bg-blue-100 p-3 rounded">
-                      <div className="text-2xl font-bold text-blue-700">{result.totale}</div>
-                      <div className="text-sm text-blue-600">Totale</div>
-                    </div>
-                  </div>
-                  <div className="mt-4 text-center">
-                    <div className="text-lg font-semibold">
-                      Risultato: <span className={`font-bold ${
-                        result.risultato === "Approvata" ? "text-green-600" : 
-                        result.risultato === "Respinta" ? "text-red-600" : 
-                        "text-gray-600"
-                      }`}>
-                        {result.risultato}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Pulsante salva */}
-              <Button
-                className="w-full"
-                disabled={!titoloVotazione.trim() || result.totale === 0 || submitComunicaVoti.isPending}
-                onClick={() => submitComunicaVoti.mutate()}
-              >
-                {submitComunicaVoti.isPending ? "Salvataggio in corso..." : "Salva Votazione"}
-              </Button>
-            </CardContent>
-          </Card>
-               )}
-
-               {/* Sezione Notifiche di Demos - Solo per Admin */}
-               {canSendDemosNotifications && (
-                 <Card className="w-full bg-white">
-                   <CardHeader>
-                     <CardTitle className="text-2xl font-bold text-center">
-                       Notifiche di Demos
-                     </CardTitle>
-                     <CardDescription className="text-center">
-                       Invia notifiche a tutti gli utenti dell'applicazione.
-                     </CardDescription>
-                   </CardHeader>
-                   <CardContent className="space-y-6">
-                     <Form {...demosForm}>
-                       <form onSubmit={demosForm.handleSubmit((data) => submitDemosNotification.mutate(data))} className="space-y-4">
-                         <FormField control={demosForm.control} name="titolo" render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Titolo della notifica *</FormLabel>
-                             <FormControl><Input placeholder="Es: Aggiornamento importante..." {...field} /></FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )} />
-                         <FormField control={demosForm.control} name="commento" render={({ field }) => (
-                           <FormItem>
-                             <FormLabel>Commento *</FormLabel>
-                             <FormControl><Input placeholder="Inserisci il messaggio per tutti gli utenti..." {...field} /></FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )} />
-                         <Button type="submit" className="w-full" disabled={submitDemosNotification.isPending}>
-                           {submitDemosNotification.isPending ? "Invio in corso..." : "Invia Notifica a Tutti"}
-                         </Button>
-                       </form>
-                     </Form>
-                   </CardContent>
-                 </Card>
-               )}
-             </div>
-           </div>
-         );
+              </TabsTrigger>
+              <TabsTrigger value="notifiche-demos" className="flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Notifiche Demos
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="comunicazione" className="mt-6">
+              <NuovaComunicazioneCard />
+            </TabsContent>
+            
+            <TabsContent value="comunica-voti" className="mt-6">
+              <ComunicaVotiCard />
+            </TabsContent>
+            
+            <TabsContent value="notifiche-demos" className="mt-6">
+              <NotificheDemosCard />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          // Altri utenti vedono solo i riquadri che possono usare
+          <div className="space-y-6">
+            {isAllowed && <NuovaComunicazioneCard />}
+            {canComunicaVoti && <ComunicaVotiCard />}
+            {canSendDemosNotifications && <NotificheDemosCard />}
+          </div>
+        )}
+      </div>
+    </div>
+  );
        }
