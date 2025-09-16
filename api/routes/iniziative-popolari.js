@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { verifyToken } = require('../middleware/auth');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -11,8 +12,11 @@ const pool = new Pool({
 // ===== ENDPOINTS PER INIZIATIVE POPOLARI =====
 
 // GET /api/iniziative-popolari - Lista iniziative popolari con classifica voti
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
+    const userId = req.user.id;
+    console.log('🔍 DEBUG /api/iniziative-popolari - Utente autenticato:', userId);
+    
     // Query per ottenere le iniziative
     const iniziativeResult = await pool.query(
       'SELECT id, nome, sito_web as "sitoWeb", quorum FROM iniziative_popolari ORDER BY created_at DESC'
@@ -22,27 +26,39 @@ router.get('/', async (req, res) => {
     const classificaQuery = `
       SELECT 
         i.nome,
+        i.sito_web as "sitoWeb",
         COUNT(v.id) as voti
       FROM iniziative_popolari i
       LEFT JOIN voti_iniziative_popolari v ON i.id::text = v.iniziativa_id
-      GROUP BY i.id, i.nome
+      GROUP BY i.id, i.nome, i.sito_web
       ORDER BY voti DESC, i.nome ASC
     `;
     
     const classificaResult = await pool.query(classificaQuery);
     
+    // Query per ottenere i voti dell'utente corrente
+    const mieiVotiQuery = `
+      SELECT iniziativa_id 
+      FROM voti_iniziative_popolari 
+      WHERE userid = $1
+    `;
+    
+    const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
+    const mieiVoti = mieiVotiResult.rows.map(row => row.iniziativa_id);
+    
     console.log('🔍 DEBUG /api/iniziative-popolari - Iniziative trovate:', iniziativeResult.rows.length);
     console.log('🔍 DEBUG /api/iniziative-popolari - Classifica trovata:', classificaResult.rows.length);
+    console.log('🔍 DEBUG /api/iniziative-popolari - Voti utente trovati:', mieiVoti.length);
     
     // Processa la classifica per il frontend
     const classifica = classificaResult.rows.map(item => ({
       nome: item.nome,
+      sitoWeb: item.sitoWeb,
       voti: parseInt(item.voti)
     }));
     
-    // Per ora, restituiamo dati mock per mieiVoti e blocco
-    // TODO: Implementare la logica per ottenere i voti dell'utente corrente
-    const mieiVoti = []; // Array vuoto per ora
+    // Per ora, restituiamo dati mock per blocco
+    // TODO: Implementare la logica per il blocco
     const blocco = {
       isBlocked: false,
       unlockDate: null

@@ -78,7 +78,19 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-800 text-lg group-hover:text-yellow-800 transition-colors duration-300">
-                      {item.nome}
+                      {item.sitoWeb ? (
+                        <a 
+                          href={item.sitoWeb} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="hover:text-yellow-600 hover:underline transition-colors duration-300"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {item.nome}
+                        </a>
+                      ) : (
+                        item.nome
+                      )}
                     </h4>
                     <p className="text-sm text-gray-600 flex items-center">
                       <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
@@ -146,7 +158,19 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                         </div>
                         <div>
                           <h4 className="font-bold text-gray-800 text-lg group-hover:text-indigo-800 transition-colors duration-300">
-                            {item.nome}
+                            {item.sitoWeb ? (
+                              <a 
+                                href={item.sitoWeb} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="hover:text-indigo-600 hover:underline transition-colors duration-300"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {item.nome}
+                              </a>
+                            ) : (
+                              item.nome
+                            )}
                           </h4>
                           <p className="text-sm text-gray-600 flex items-center">
                             <Trophy className="h-4 w-4 mr-2 text-blue-500" />

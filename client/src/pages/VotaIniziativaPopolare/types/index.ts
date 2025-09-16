@@ -7,6 +7,7 @@ export interface Iniziativa {
 
 export interface Classifica {
   nome: string;
+  sitoWeb?: string;
   voti: number;
 }
 
