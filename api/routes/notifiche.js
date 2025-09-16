@@ -47,9 +47,26 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recupero notifiche:', error);
+    
+    // Se è un errore di connessione database, restituisci un messaggio più specifico
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      return res.status(500).json({
+        success: false,
+        error: 'Errore connessione database',
+        details: 'Il server non riesce a connettersi al database. Controllare la configurazione DATABASE_URL su Render.',
+        debug: {
+          code: error.code,
+          message: error.message,
+          database_url_present: !!process.env.DATABASE_URL,
+          db_host: process.env.DB_HOST
+        }
+      });
+    }
+    
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: error.message
     });
   }
 });
