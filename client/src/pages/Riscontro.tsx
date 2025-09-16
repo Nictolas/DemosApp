@@ -22,7 +22,7 @@ export default function Riscontro() {
     queryKey: ['ultimaComunicazione', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const response = await apiRequest("GET", `/api/ultima-comunicazione?user_id=${user.id}`);
+      const response = await apiRequest("GET", `/api/comunicazioni/ultima-comunicazione?user_id=${user.id}`);
       if (response.status === 404) return null; // Nessuna comunicazione trovata
       if (!response.ok) throw new Error('Errore nel caricamento della comunicazione');
       const result = await response.json();
