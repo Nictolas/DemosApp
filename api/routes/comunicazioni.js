@@ -34,20 +34,20 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/comunicazioni - Crea nuova comunicazione
+// POST /api/comunicazioni - Crea o aggiorna comunicazione
 router.post('/', async (req, res) => {
   try {
-    const { 
-      titolo, 
-      voto_dato, 
-      commento, 
-      vincitore, 
-      zona, 
-      id_utente, 
+    const {
+      titolo,
+      voto_dato,
+      commento,
+      vincitore,
+      zona,
+      id_utente,
       tipo = 'votazione',
       voti // Array di voti per "Comunica Voti"
     } = req.body;
-    
+
     if (!titolo || !id_utente) {
       return res.status(400).json({
         success: false,
@@ -55,61 +55,196 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Se ci sono voti multipli (Comunica Voti), salva una riga per ogni voto
+    // Se ci sono voti multipli (Comunica Voti), gestisci ogni voto
     if (voti && Array.isArray(voti) && voti.length > 0) {
       const comunicazioni = [];
-      
+
       for (const voto of voti) {
         if (!voto.nome || !voto.voto) continue;
-        
-        const testo = `Il voto di ${voto.nome}: ${voto.voto}`;
-        const titoloCompleto = `${titolo} - ${voto.nome}`;
-        
-        const result = await pool.query(
-          `INSERT INTO comunicazioni (
-            id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento, 
-            data_creazione, likes, dislikes, punti_trasparenza
-          ) VALUES (
-            gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3
-          ) RETURNING *`,
-          [id_utente, titoloCompleto, testo, zona || 'Generale', voto.voto, vincitore, commento || '']
+
+        // Cerca l'utente Politico/Candidato Politico per nome
+        const utenteResult = await pool.query(
+          `SELECT id, nome, cognome, ruolo FROM utenti 
+           WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
+           AND ruolo IN ('Politico', 'Candidato Politico')
+           LIMIT 1`,
+          [`%${voto.nome}%`]
         );
-        
-        comunicazioni.push(result.rows[0]);
+
+        if (utenteResult.rows.length === 0) {
+          console.log(`⚠️ Utente non trovato per: ${voto.nome}`);
+          continue;
+        }
+
+        const utentePolitico = utenteResult.rows[0];
+        const testo = `Il voto di ${utentePolitico.nome} ${utentePolitico.cognome}: ${voto.voto}`;
+        const titoloCompleto = `${titolo} - ${utentePolitico.nome} ${utentePolitico.cognome}`;
+
+        // Controlla se esiste già una comunicazione per questo utente politico
+        const existingComunicazione = await pool.query(
+          'SELECT id FROM comunicazioni WHERE id_utente = $1 AND tipo = $2 ORDER BY data_creazione DESC LIMIT 1',
+          [utentePolitico.id, 'comunica_voti']
+        );
+
+        if (existingComunicazione.rows.length > 0) {
+          // Aggiorna comunicazione esistente
+          const comunicazioneId = existingComunicazione.rows[0].id;
+          
+          // Reset like/dislike
+          await pool.query(
+            'DELETE FROM reazioni WHERE comunicazione_id = $1',
+            [comunicazioneId]
+          );
+
+          const result = await pool.query(
+            `UPDATE comunicazioni SET 
+              titolo = $1, 
+              testo = $2, 
+              voto_dato = $3, 
+              vincitore = $4, 
+              commento = $5,
+              data_creazione = NOW(),
+              likes = 0,
+              dislikes = 0
+            WHERE id = $6 
+            RETURNING *`,
+            [titoloCompleto, testo, voto.voto, vincitore, commento || '', comunicazioneId]
+          );
+
+          comunicazioni.push(result.rows[0]);
+
+          // Invia notifica ai sostenitori
+          await notifySostenitori(utentePolitico.id, titoloCompleto, result.rows[0]);
+        } else {
+          // Crea nuova comunicazione
+          const result = await pool.query(
+            `INSERT INTO comunicazioni (
+              id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
+              data_creazione, likes, dislikes, punti_trasparenza, tipo
+            ) VALUES (
+              gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
+            ) RETURNING *`,
+            [utentePolitico.id, titoloCompleto, testo, zona || 'Generale', voto.voto, vincitore, commento || '', 'comunica_voti']
+          );
+
+          comunicazioni.push(result.rows[0]);
+
+          // Invia notifica ai sostenitori
+          await notifySostenitori(utentePolitico.id, titoloCompleto, result.rows[0]);
+        }
       }
-      
+
       return res.status(201).json({
         success: true,
         data: comunicazioni,
         message: `${comunicazioni.length} voti salvati con successo`
       });
     }
-    
-    // Salvataggio singolo (Nuova Comunicazione Votazione)
-    const testo = `Voto: ${voto_dato || 'Non specificato'}${commento ? ` - Commento: ${commento}` : ''}`;
-    
-    const result = await pool.query(
-      `INSERT INTO comunicazioni (
-        id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento, 
-        data_creazione, likes, dislikes, punti_trasparenza
-      ) VALUES (
-        gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3
-      ) RETURNING *`,
-      [id_utente, titolo, testo, zona || 'Generale', voto_dato, vincitore, commento || '']
+
+    // Per "Nuova Comunicazione Votazione", controlla se esiste già una comunicazione per questo utente
+    const existingComunicazione = await pool.query(
+      'SELECT id FROM comunicazioni WHERE id_utente = $1 AND tipo = $2 ORDER BY data_creazione DESC LIMIT 1',
+      [id_utente, tipo]
     );
-    
-    res.status(201).json({
-      success: true,
-      data: result.rows[0]
-    });
+
+    const testo = `Voto: ${voto_dato || 'Non specificato'}${commento ? ` - Commento: ${commento}` : ''}`;
+
+    if (existingComunicazione.rows.length > 0) {
+      // Aggiorna comunicazione esistente
+      const comunicazioneId = existingComunicazione.rows[0].id;
+      
+      // Reset like/dislike
+      await pool.query(
+        'DELETE FROM reazioni WHERE comunicazione_id = $1',
+        [comunicazioneId]
+      );
+
+      const result = await pool.query(
+        `UPDATE comunicazioni SET 
+          titolo = $1, 
+          testo = $2, 
+          voto_dato = $3, 
+          vincitore = $4, 
+          commento = $5,
+          data_creazione = NOW(),
+          likes = 0,
+          dislikes = 0
+        WHERE id = $6 
+        RETURNING *`,
+        [titolo, testo, voto_dato, vincitore, commento || '', comunicazioneId]
+      );
+
+      // Invia notifica ai sostenitori
+      await notifySostenitori(id_utente, titolo, result.rows[0]);
+
+      res.status(200).json({
+        success: true,
+        data: result.rows[0],
+        message: 'Comunicazione aggiornata con successo'
+      });
+    } else {
+      // Crea nuova comunicazione
+      const result = await pool.query(
+        `INSERT INTO comunicazioni (
+          id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
+          data_creazione, likes, dislikes, punti_trasparenza, tipo
+        ) VALUES (
+          gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
+        ) RETURNING *`,
+        [id_utente, titolo, testo, zona || 'Generale', voto_dato, vincitore, commento || '', tipo]
+      );
+
+      // Invia notifica ai sostenitori
+      await notifySostenitori(id_utente, titolo, result.rows[0]);
+
+      res.status(201).json({
+        success: true,
+        data: result.rows[0]
+      });
+    }
   } catch (error) {
-    console.error('❌ Errore nella creazione comunicazione:', error);
+    console.error('❌ Errore nella creazione/aggiornamento comunicazione:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
     });
   }
 });
+
+// Funzione per notificare i sostenitori
+async function notifySostenitori(utenteId, titolo, comunicazione) {
+  try {
+    // Recupera i sostenitori dell'utente
+    const sostenitoriResult = await pool.query(
+      'SELECT utente_id FROM sostenitori WHERE sostenuto_id = $1',
+      [utenteId]
+    );
+
+    if (sostenitoriResult.rows.length === 0) return;
+
+    // Crea notifiche per ogni sostenitore
+    const notifiche = sostenitoriResult.rows.map(sostenitore => ({
+      utente_id: sostenitore.utente_id,
+      titolo: `Nuova comunicazione da ${comunicazione.titolo}`,
+      messaggio: `Il tuo sostenuto ha pubblicato una nuova comunicazione: "${titolo}"`,
+      tipo: 'comunicazione_aggiornata',
+      priorita: 'media'
+    }));
+
+    // Inserisci le notifiche
+    for (const notifica of notifiche) {
+      await pool.query(
+        `INSERT INTO notifiche_utente (id, utente_id, titolo, messaggio, tipo, priorita, data_creazione)
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW())`,
+        [notifica.utente_id, notifica.titolo, notifica.messaggio, notifica.tipo, notifica.priorita]
+      );
+    }
+
+    console.log(`✅ Notifiche inviate a ${sostenitoriResult.rows.length} sostenitori`);
+  } catch (error) {
+    console.error('❌ Errore nell\'invio notifiche ai sostenitori:', error);
+  }
+}
 
 // GET /api/ultima-comunicazione - Ultima comunicazione dell'utente
 router.get('/ultima-comunicazione', async (req, res) => {
