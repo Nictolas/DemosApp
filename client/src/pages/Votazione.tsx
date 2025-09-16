@@ -252,8 +252,8 @@ export default function Votazione() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
+      <div className="container mx-auto px-4 py-8 pb-24 space-y-6">
         <Card className="w-full bg-white">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Nuova Comunicazione Votazione</CardTitle>
