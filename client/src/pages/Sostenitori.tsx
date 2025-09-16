@@ -41,7 +41,7 @@ export default function Sostenitori() {
     queryKey: ['sostenitoriData', user?.uid],
     queryFn: async () => {
       if (!user?.uid) throw new Error("Utente non autenticato");
-      const response = await apiRequest("GET", `/api/sostenitori`);
+      const response = await apiRequest("GET", `/api/sostenitori?sostenuto_id=${user.uid}`);
       if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori");
       return response.json();
     },
