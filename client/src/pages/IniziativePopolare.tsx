@@ -8,6 +8,7 @@ import { Loader2, ExternalLink, ArrowLeft, Check, Hourglass, X as XIcon, Trash2 
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { AdminIniziativeManager } from "./VotaIniziativaPopolare/components/AdminIniziativeManager";
 
 interface Iniziativa {
   id: string;
@@ -69,13 +70,19 @@ export default function IniziativePopolare() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
       <div className="container mx-auto px-4 py-8 space-y-6">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
-        <Card className="w-full max-w-6xl mx-auto">
+        <Card className="w-full max-w-6xl mx-auto bg-white">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold">Iniziative Popolari</CardTitle>
             <CardDescription>Consulta le iniziative popolari disponibili per la votazione.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Card>
+            {/* Sezione Admin - Gestisci Iniziative Popolari */}
+            <AdminIniziativeManager 
+              userRole={user?.ruolo || user?.role} 
+              userEmail={user?.email}
+            />
+            
+            <Card className="bg-white">
               <CardHeader><CardTitle>Iniziative Popolari</CardTitle></CardHeader>
               <CardContent>
                 {isLoading ? <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
