@@ -145,16 +145,50 @@ router.post('/', async (req, res) => {
     if (tipo === 'demos_notification') {
       const testo = `Notifica Demos: ${commento || ''}`;
       
-      // Crea comunicazione per l'admin
-      const result = await pool.query(
-        `INSERT INTO comunicazioni (
-          id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
-          data_creazione, likes, dislikes, punti_trasparenza, tipo
-        ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
-        ) RETURNING *`,
-        [id_utente, titolo, testo, zona || 'Generale', null, null, commento || '', tipo]
+      // Controlla se esiste già una notifica Demos e la sovrascrivi
+      const existingDemosNotification = await pool.query(
+        'SELECT id FROM comunicazioni WHERE tipo = $1 ORDER BY data_creazione DESC LIMIT 1',
+        ['demos_notification']
       );
+
+      let result;
+      if (existingDemosNotification.rows.length > 0) {
+        // Aggiorna notifica esistente
+        const comunicazioneId = existingDemosNotification.rows[0].id;
+        
+        // Reset like/dislike
+        await pool.query(
+          'DELETE FROM reazioni WHERE comunicazione_id = $1',
+          [comunicazioneId]
+        );
+
+        result = await pool.query(
+          `UPDATE comunicazioni SET
+            id_utente = $1,
+            titolo = $2,
+            testo = $3,
+            zona = $4,
+            commento = $5,
+            data_creazione = NOW(),
+            likes = 0,
+            dislikes = 0,
+            punti_trasparenza = 0
+          WHERE id = $6
+          RETURNING *`,
+          [id_utente, titolo, testo, zona || 'Generale', commento || '', comunicazioneId]
+        );
+      } else {
+        // Crea nuova notifica Demos
+        result = await pool.query(
+          `INSERT INTO comunicazioni (
+            id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
+            data_creazione, likes, dislikes, punti_trasparenza, tipo
+          ) VALUES (
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 0, $8
+          ) RETURNING *`,
+          [id_utente, titolo, testo, zona || 'Generale', null, null, commento || '', tipo]
+        );
+      }
 
       // Invia notifica a TUTTI gli utenti
       await notifyAllUsers(titolo, commento || '');

@@ -157,7 +157,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </span>
           </div>
 
-          {/* Pulsanti like/dislike per comunicazioni */}
+          {/* Pulsanti like/dislike per comunicazioni (non per notifiche Demos) */}
           {notifica.tipo_notifica === 'comunicazione' && user?.uid && (
             <div className="mt-4 flex items-center gap-2">
               <Button
