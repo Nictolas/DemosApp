@@ -22,11 +22,11 @@ export default function Riscontro() {
     queryKey: ['ultimaComunicazione', user?.uid],
     queryFn: async () => {
       if (!user?.uid) return null;
-      // Usiamo l'endpoint che già esiste per le notifiche, o ne creiamo uno apposito
-      const response = await apiRequest("GET", `/api/comunicazioni/ultima`);
+      const response = await apiRequest("GET", `/api/ultima-comunicazione?user_id=${user.uid}`);
       if (response.status === 404) return null; // Nessuna comunicazione trovata
       if (!response.ok) throw new Error('Errore nel caricamento della comunicazione');
-      return response.json();
+      const result = await response.json();
+      return result.data;
     },
     enabled: !!user, // Esegui solo se l'utente è loggato
   });
@@ -58,7 +58,7 @@ export default function Riscontro() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 page-with-navbar">
       <div className="container mx-auto max-w-2xl">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
-        <Card>
+        <Card className="bg-white">
           <CardHeader>
             <CardTitle>Riscontro sull'ultima comunicazione</CardTitle>
             <CardDescription>Visualizza i like e i dislike ricevuti per la tua ultima votazione comunicata.</CardDescription>
