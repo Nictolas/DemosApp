@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useFCM } from "@/hooks/useFCM";
@@ -8,7 +8,6 @@ import { useNotifichePrefs } from "./hooks/useNotifichePrefs";
 import { Header } from "./components/Header";
 import { ListaNotifiche } from "./components/ListaNotifiche";
 import { LoadingStates } from "./components/LoadingStates";
-import { ConfirmDialog } from "./components/ConfirmDialog";
 import { PageContainer } from "@/components/PageContainer";
 
 export default function Notifiche() {
@@ -18,15 +17,26 @@ export default function Notifiche() {
   // Blocca lo scroll della pagina
   useNoScroll(true);
 
-  const [skipConfirm, setSkipConfirm] = useState(() => localStorage.getItem("skipLikeDislikeConfirm") === "true");
-  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; notificaId: string | null; action: string | null; }>({ open: false, notificaId: null, action: null });
 
   const { data, isLoading, error, markAsReadMutation } = useNotificheData(user);
   const { handleSwitch } = useNotifichePrefs();
 
-  const handleMarkAsRead = (notificaId: string) => {
-    markAsReadMutation.mutate(notificaId);
-  };
+  // Marca automaticamente tutte le notifiche come lette quando si visita la pagina
+  useEffect(() => {
+    if (data?.notifiche && data.notifiche.length > 0) {
+      const unreadNotifications = data.notifiche.filter(notifica => 
+        notifica.status === 'non_letta' || notifica.status === 'unread'
+      );
+      
+      if (unreadNotifications.length > 0) {
+        // Marca tutte le notifiche non lette come lette
+        unreadNotifications.forEach(notifica => {
+          markAsReadMutation.mutate(notifica.id);
+        });
+      }
+    }
+  }, [data?.notifiche, markAsReadMutation]);
+
   
   if (!user) {
     return <Redirect to="/auth" />;
@@ -44,8 +54,6 @@ export default function Notifiche() {
             data={data}
             isLoading={isLoading}
             error={error}
-            onMarkAsRead={handleMarkAsRead}
-            isPending={markAsReadMutation.isPending}
             fcmToken={fcmToken}
             fcmError={fcmError}
             permission={permission}
@@ -54,11 +62,6 @@ export default function Notifiche() {
         </div>
       </div>
 
-      {/* Dialog di conferma */}
-      <ConfirmDialog 
-        open={confirmDialog.open} 
-        onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })} 
-      />
     </PageContainer>
   );
 }
