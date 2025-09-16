@@ -40,8 +40,6 @@ export interface ConfirmDialogState {
 
 export interface NotificaItemProps {
   notifica: Notifica;
-  onMarkAsRead: (id: string) => void;
-  isPending: boolean;
 }
 
 export interface PreferenzeNotificheProps {

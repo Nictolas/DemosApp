@@ -10,8 +10,6 @@ interface ListaNotificheProps {
   data: NotificheData | undefined;
   isLoading: boolean;
   error: any;
-  onMarkAsRead: (id: string) => void;
-  isPending: boolean;
   fcmToken: string | null;
   fcmError: Error | null;
   permission: NotificationPermission | null;
@@ -22,8 +20,6 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   data,
   isLoading,
   error,
-  onMarkAsRead,
-  isPending,
   fcmToken,
   fcmError,
   permission,
@@ -71,8 +67,6 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
               <NotificaItem
                 key={notifica.id}
                 notifica={notifica}
-                onMarkAsRead={onMarkAsRead}
-                isPending={isPending}
               />
             ))}
           </div>

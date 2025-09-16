@@ -17,9 +17,7 @@ import {
 } from "../utils/notificheUtils";
 
 export const NotificaItem: React.FC<NotificaItemProps> = ({
-  notifica,
-  onMarkAsRead,
-  isPending
+  notifica
 }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -184,20 +182,6 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           )}
         </div>
         
-        {notifica.status === 'non_letta' && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onMarkAsRead(notifica.id)}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              'Segna come letta'
-            )}
-          </Button>
-        )}
       </div>
     </div>
   );
