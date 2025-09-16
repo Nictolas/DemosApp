@@ -19,10 +19,10 @@ export default function Riscontro() {
 
   // 1. Caricamento dati con React Query
   const { data: comunicazione, isLoading, isError } = useQuery<UltimaComunicazione | null>({
-    queryKey: ['ultimaComunicazione', user?.uid],
+    queryKey: ['ultimaComunicazione', user?.id],
     queryFn: async () => {
-      if (!user?.uid) return null;
-      const response = await apiRequest("GET", `/api/ultima-comunicazione?user_id=${user.uid}`);
+      if (!user?.id) return null;
+      const response = await apiRequest("GET", `/api/ultima-comunicazione?user_id=${user.id}`);
       if (response.status === 404) return null; // Nessuna comunicazione trovata
       if (!response.ok) throw new Error('Errore nel caricamento della comunicazione');
       const result = await response.json();

@@ -32,7 +32,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
     mutationFn: async (tipo: 'like' | 'dislike') => {
       const response = await apiRequest("POST", "/api/reazioni-comunicazioni", {
         comunicazione_id: notifica.id,
-        utente_id: user?.uid,
+        utente_id: user?.id,
         tipo
       });
       if (!response.ok) throw new Error("Errore nella reazione");
@@ -72,7 +72,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   });
 
   const handleReaction = (tipo: 'like' | 'dislike') => {
-    if (!user?.uid || notifica.tipo_notifica !== 'comunicazione') return;
+    if (!user?.id || notifica.tipo_notifica !== 'comunicazione') return;
     reactionMutation.mutate(tipo);
   };
   return (
@@ -158,7 +158,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           </div>
 
           {/* Pulsanti like/dislike per comunicazioni (non per notifiche Demos) */}
-          {notifica.tipo_notifica === 'comunicazione' && user?.uid && (
+          {notifica.tipo_notifica === 'comunicazione' && user?.id && (
             <div className="mt-4 flex items-center gap-2">
               <Button
                 variant={userReaction === 'like' ? 'default' : 'outline'}

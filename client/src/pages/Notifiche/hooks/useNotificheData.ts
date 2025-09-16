@@ -9,9 +9,9 @@ export const useNotificheData = (user: any) => {
 
   // Query per caricare le notifiche
   const { data, isLoading, error } = useQuery<NotificheData>({
-    queryKey: ['notifiche', user?.uid],
+    queryKey: ['notifiche', user?.id],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/notifiche?user_id=${user?.uid}`);
+      const response = await apiRequest("GET", `/api/notifiche?user_id=${user?.id}`);
       if (!response.ok) throw new Error("Errore nel caricamento delle notifiche.");
       return response.json();
     },
