@@ -13,7 +13,7 @@ export const PreferenzeNotifiche: React.FC<PreferenzeNotificheProps> = ({
   onSwitch
 }) => {
   return (
-    <Card className="mb-8">
+    <Card className="mb-8 bg-white">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-5 w-5" />
