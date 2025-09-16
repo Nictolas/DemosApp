@@ -10,6 +10,7 @@ import { UserPreferences } from "./components/UserPreferences";
 import { IniziativeRanking } from "./components/IniziativeRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { CreateIniziativaForm } from "./components/CreateIniziativaForm";
 
 export default function VotaIniziativaPopolare() {
   const authReady = useAuthReady();
@@ -59,13 +60,15 @@ export default function VotaIniziativaPopolare() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Modulo per creare nuove iniziative */}
+            <CreateIniziativaForm />
+
             {/* Le tue preferenze */}
             <UserPreferences
               selectedVoti={selectedVoti}
               iniziative={data?.iniziative || []}
               onRemoveVoto={toggleSelezione}
             />
-
 
             {/* Classifica */}
             <IniziativeRanking

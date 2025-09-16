@@ -232,4 +232,165 @@ router.get('/debug', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/iniziative-popolari/richiesta - Crea richiesta di nuova iniziativa popolare
+router.post('/richiesta', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { nome, sito_web, descrizione, data_inizio, data_fine, userid, status, quorum } = req.body;
+    
+    console.log('🔍 DEBUG /api/iniziative-popolari/richiesta - Utente:', userId);
+    console.log('🔍 DEBUG /api/iniziative-popolari/richiesta - Dati ricevuti:', req.body);
+    
+    if (!nome || !userid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome e userid sono obbligatori'
+      });
+    }
+    
+    // Genera un ID univoco per la richiesta
+    const richiestaId = `richiesta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const result = await pool.query(
+      'INSERT INTO iniziative_popolari (id, userid, nome, data_inizio, data_fine, sito_web, status, quorum, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *',
+      [richiestaId, userid, nome, data_inizio, data_fine, sito_web, status || 'pending', quorum || 'ok']
+    );
+    
+    console.log('✅ DEBUG /api/iniziative-popolari/richiesta - Richiesta creata:', result.rows[0].id);
+    
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nella creazione richiesta iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// GET /api/iniziative-popolari/richieste - Lista richieste di iniziative popolari (solo per Admin)
+router.get('/richieste', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    console.log('🔍 DEBUG /api/iniziative-popolari/richieste - Utente:', userId, 'Ruolo:', userRole);
+    
+    // Solo gli Admin possono vedere le richieste
+    if (userRole !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato'
+      });
+    }
+    
+    // Query per ottenere le richieste pending
+    const richiesteResult = await pool.query(
+      'SELECT id, nome, data_inizio as "dataInizio", data_fine as "dataFine", sito_web as "sitoWeb", status, created_at FROM iniziative_popolari WHERE status = $1 ORDER BY created_at DESC',
+      ['pending']
+    );
+    
+    console.log('🔍 DEBUG /api/iniziative-popolari/richieste - Richieste trovate:', richiesteResult.rows.length);
+    
+    res.json(richiesteResult.rows);
+  } catch (error) {
+    console.error('❌ Errore nel recupero richieste iniziative popolari:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/iniziative-popolari/:id/accetta - Accetta richiesta iniziativa popolare
+router.post('/:id/accetta', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { id } = req.params;
+    
+    console.log('🔍 DEBUG /api/iniziative-popolari/accetta - Utente:', userId, 'Ruolo:', userRole, 'ID:', id);
+    
+    // Solo gli Admin possono accettare richieste
+    if (userRole !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato'
+      });
+    }
+    
+    const result = await pool.query(
+      'UPDATE iniziative_popolari SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      ['approved', id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Richiesta non trovata'
+      });
+    }
+    
+    console.log('✅ DEBUG /api/iniziative-popolari/accetta - Richiesta accettata:', id);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'accettazione richiesta iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/iniziative-popolari/:id/rifiuta - Rifiuta richiesta iniziativa popolare
+router.post('/:id/rifiuta', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { id } = req.params;
+    
+    console.log('🔍 DEBUG /api/iniziative-popolari/rifiuta - Utente:', userId, 'Ruolo:', userRole, 'ID:', id);
+    
+    // Solo gli Admin possono rifiutare richieste
+    if (userRole !== 'Admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato'
+      });
+    }
+    
+    const result = await pool.query(
+      'UPDATE iniziative_popolari SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      ['rejected', id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Richiesta non trovata'
+      });
+    }
+    
+    console.log('✅ DEBUG /api/iniziative-popolari/rifiuta - Richiesta rifiutata:', id);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nel rifiuto richiesta iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;
