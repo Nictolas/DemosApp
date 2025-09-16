@@ -21,7 +21,7 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   isPending
 }) => {
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="h-5 w-5" />
