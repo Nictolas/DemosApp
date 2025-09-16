@@ -62,7 +62,10 @@ export default function VotaIniziativaPopolare() {
         ) : (
           <div className="space-y-6">
             {/* Sezione Admin - Gestisci Iniziative Popolari */}
-            <AdminIniziativeManager userRole={user?.ruolo || user?.role} />
+            <AdminIniziativeManager 
+              userRole={user?.ruolo || user?.role} 
+              userEmail={user?.email}
+            />
 
             {/* Modulo per creare nuove iniziative */}
             <CreateIniziativaForm />
