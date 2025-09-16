@@ -117,6 +117,42 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
+// PUT /api/notifiche/mark-all-read - Marca tutte le notifiche come lette
+router.put('/mark-all-read', async (req, res) => {
+  try {
+    const { notifica_ids } = req.body;
+    
+    if (!notifica_ids || !Array.isArray(notifica_ids) || notifica_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Array di ID notifiche richiesto'
+      });
+    }
+    
+    console.log('📖 Marcatura di', notifica_ids.length, 'notifiche come lette');
+    
+    // Aggiorna tutte le notifiche in una singola query
+    const result = await pool.query(
+      'UPDATE comunicazioni SET status = $1 WHERE id = ANY($2) RETURNING *',
+      ['letta', notifica_ids]
+    );
+    
+    console.log('✅ Notifiche marcate come lette:', result.rows.length);
+    
+    res.json({
+      success: true,
+      message: `${result.rows.length} notifiche marcate come lette`,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('❌ Errore nel marcare notifiche come lette:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 // POST /api/notifiche - Crea nuova notifica
 router.post('/', async (req, res) => {
   try {

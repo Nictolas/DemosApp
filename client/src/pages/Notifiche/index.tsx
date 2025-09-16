@@ -9,41 +9,55 @@ import { Header } from "./components/Header";
 import { ListaNotifiche } from "./components/ListaNotifiche";
 import { LoadingStates } from "./components/LoadingStates";
 import { PageContainer } from "@/components/PageContainer";
+import { apiRequest } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Notifiche() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { token: fcmToken, error: fcmError, permission } = useFCM();
+  const queryClient = useQueryClient();
+  const [hasMarkedAsRead, setHasMarkedAsRead] = useState(false);
   
   // Blocca lo scroll della pagina
   useNoScroll(true);
 
-
   const { data, isLoading, error, markAsReadMutation } = useNotificheData(user);
   const { handleSwitch } = useNotifichePrefs();
 
-  // Marca automaticamente tutte le notifiche come lette quando si visita la pagina
+  // Marca automaticamente tutte le notifiche come lette quando si visita la pagina (solo una volta)
   useEffect(() => {
-    if (data?.notifiche && data.notifiche.length > 0) {
+    if (data?.notifiche && data.notifiche.length > 0 && !hasMarkedAsRead) {
       const unreadNotifications = data.notifiche.filter(notifica => 
         notifica.status === 'non_letta' || notifica.status === 'unread'
       );
       
       if (unreadNotifications.length > 0) {
         console.log('🔄 Marcatura automatica di', unreadNotifications.length, 'notifiche come lette');
-        // Marca tutte le notifiche non lette come lette in sequenza
+        setHasMarkedAsRead(true); // Imposta il flag per evitare loop
+        
+        // Marca tutte le notifiche come lette in una singola operazione
         const markAllAsRead = async () => {
-          for (const notifica of unreadNotifications) {
-            try {
-              await markAsReadMutation.mutateAsync(notifica.id);
-            } catch (error) {
-              console.error('Errore nel marcare notifica come letta:', error);
+          try {
+            // Invia una richiesta per marcare tutte le notifiche come lette
+            const response = await apiRequest("PUT", "/api/notifiche/mark-all-read", {
+              notifica_ids: unreadNotifications.map(n => n.id)
+            });
+            
+            if (response.ok) {
+              console.log('✅ Tutte le notifiche marcate come lette');
+              // Invalida la query per aggiornare i dati
+              queryClient.invalidateQueries({ queryKey: ['notifiche'] });
+              queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
             }
+          } catch (error) {
+            console.error('Errore nel marcare notifiche come lette:', error);
           }
         };
+        
         markAllAsRead();
       }
     }
-  }, [data?.notifiche, markAsReadMutation]);
+  }, [data?.notifiche, hasMarkedAsRead, queryClient]); // Aggiunto hasMarkedAsRead e queryClient
 
   
   if (!user) {
