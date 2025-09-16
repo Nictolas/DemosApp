@@ -80,11 +80,12 @@ export default function Votazione() {
     defaultValues: { titolo: "", commento: "" },
   });
 
-  // Funzione per controllare duplicati solo al blur
+  // Funzione per controllare duplicati solo al blur (temporaneamente disabilitata per debug)
   const handleTitoloBlur = useCallback((value: string) => {
-    if (value.trim()) {
-      checkDuplicateMutation.mutate(value);
-    }
+    // Temporaneamente disabilitato per debug focus
+    // if (value.trim()) {
+    //   checkDuplicateMutation.mutate(value);
+    // }
   }, []);
 
 
@@ -106,8 +107,8 @@ export default function Votazione() {
     ));
   };
 
-  // Calcolo automatico del risultato
-  const calculateResult = () => {
+  // Calcolo automatico del risultato - memoizzato per evitare re-render
+  const result = React.useMemo(() => {
     const favorevoli = votiEntries.filter(entry => entry.voto === "Favorevole" && entry.nome.trim()).length;
     const contrari = votiEntries.filter(entry => entry.voto === "Contrario" && entry.nome.trim()).length;
     const astenuti = votiEntries.filter(entry => entry.voto === "Astenuto" && entry.nome.trim()).length;
@@ -119,9 +120,7 @@ export default function Votazione() {
       totale: favorevoli + contrari + astenuti,
       risultato: favorevoli > contrari ? "Approvata" : contrari > favorevoli ? "Respinta" : "Pareggio"
     };
-  };
-
-  const result = calculateResult();
+  }, [votiEntries]);
 
   // Mutazione per salvare i voti della sezione "Comunica Voti"
   const submitComunicaVoti = useMutation({
@@ -210,7 +209,7 @@ export default function Votazione() {
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },
-    enabled: !!user,
+    enabled: false, // Disabilitato per debug focus
   });
 
   // 2. Controllo duplicati tramite API (usando una mutazione per la flessibilità)
