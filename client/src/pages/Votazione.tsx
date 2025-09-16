@@ -97,6 +97,47 @@ export default function Votazione() {
 
   const result = calculateResult();
 
+  // Mutazione per salvare i voti della sezione "Comunica Voti"
+  const submitComunicaVoti = useMutation({
+    mutationFn: async () => {
+      if (!titoloVotazione.trim() || result.totale === 0) {
+        throw new Error("Titolo e almeno un voto sono obbligatori");
+      }
+
+      const comunicazioneData = {
+        titolo: titoloVotazione,
+        vincitore: result.risultato,
+        zona: "Generale",
+        id_utente: user?.uid,
+        tipo: "comunica_voti",
+        voti: votiEntries.filter(entry => entry.nome.trim()).map(entry => ({
+          nome: entry.nome,
+          voto: entry.voto
+        }))
+      };
+
+      return apiRequest("POST", "/api/comunicazioni", comunicazioneData);
+    },
+    onSuccess: async (response) => {
+      const data = await response.json();
+      toast({ 
+        title: "Voti salvati", 
+        description: `Votazione "${titoloVotazione}" registrata con ${result.totale} voti. Risultato: ${result.risultato}` 
+      });
+      
+      // Reset del form
+      setTitoloVotazione("");
+      setVotiEntries([{ id: "1", nome: "", voto: "Favorevole" }]);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Errore", 
+        description: error.message || "Errore nel salvataggio dei voti.", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   // 1. Caricamento dati utente con React Query (già presente e corretto)
   const { data: userData, isLoading: isLoadingUser } = useQuery({
     queryKey: ["userData", user?.uid],
@@ -126,7 +167,18 @@ export default function Votazione() {
 
   // 3. Submit comunicazione tramite API (già presente, solo ripulito)
   const submitComunicazione = useMutation({
-    mutationFn: (data: ComunicaFormData) => apiRequest("POST", "/api/comunicazioni", data),
+    mutationFn: (data: ComunicaFormData) => {
+      const comunicazioneData = {
+        titolo: data.titolo,
+        voto_dato: data.voto_dato,
+        commento: data.commento,
+        vincitore: data.vincitore,
+        zona: "Generale", // Puoi personalizzare questo
+        id_utente: user?.uid,
+        tipo: "votazione"
+      };
+      return apiRequest("POST", "/api/comunicazioni", comunicazioneData);
+    },
     onSuccess: () => {
       toast({ title: "Comunicazione inviata", description: "La tua comunicazione è stata registrata." });
       form.reset();
@@ -145,8 +197,7 @@ export default function Votazione() {
 
   const userRole = userData?.ruolo;
   const isAllowed = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
-  // Temporaneamente abilitato per test - da ripristinare: userRole === "Admin" || userRole === "Istituzione"
-  const canComunicaVoti = true; // userRole === "Admin" || userRole === "Istituzione";
+  const canComunicaVoti = userRole === "Admin" || userRole === "Istituzione";
   
   if (userData && !isAllowed) {
     return (
@@ -163,7 +214,7 @@ export default function Votazione() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <Card className="max-w-2xl mx-auto">
+        <Card className="max-w-2xl mx-auto bg-white">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Nuova Comunicazione Votazione</CardTitle>
             <CardDescription className="text-center">Condividi i dettagli di una votazione con i tuoi elettori.</CardDescription>
@@ -232,7 +283,7 @@ export default function Votazione() {
 
         {/* Sezione Comunica Voti - Solo per Admin e Istituzione */}
         {canComunicaVoti && (
-          <Card className="max-w-4xl mx-auto">
+          <Card className="max-w-4xl mx-auto bg-white">
             <CardHeader>
               <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
                 <Calculator className="h-6 w-6" />
@@ -351,16 +402,10 @@ export default function Votazione() {
               {/* Pulsante salva */}
               <Button
                 className="w-full"
-                disabled={!titoloVotazione.trim() || result.totale === 0}
-                onClick={() => {
-                  // Qui potresti aggiungere la logica per salvare i voti
-                  toast({
-                    title: "Voti registrati",
-                    description: `Votazione "${titoloVotazione}" registrata con ${result.totale} voti. Risultato: ${result.risultato}`,
-                  });
-                }}
+                disabled={!titoloVotazione.trim() || result.totale === 0 || submitComunicaVoti.isPending}
+                onClick={() => submitComunicaVoti.mutate()}
               >
-                Salva Votazione
+                {submitComunicaVoti.isPending ? "Salvataggio in corso..." : "Salva Votazione"}
               </Button>
             </CardContent>
           </Card>

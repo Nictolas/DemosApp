@@ -37,18 +37,65 @@ router.get('/', async (req, res) => {
 // POST /api/comunicazioni - Crea nuova comunicazione
 router.post('/', async (req, res) => {
   try {
-    const { titolo, contenuto, autore_id, tipo } = req.body;
+    const { 
+      titolo, 
+      voto_dato, 
+      commento, 
+      vincitore, 
+      zona, 
+      id_utente, 
+      tipo = 'votazione',
+      voti // Array di voti per "Comunica Voti"
+    } = req.body;
     
-    if (!titolo || !contenuto || !autore_id) {
+    if (!titolo || !id_utente) {
       return res.status(400).json({
         success: false,
-        error: 'Titolo, contenuto e autore sono obbligatori'
+        error: 'Titolo e ID utente sono obbligatori'
+      });
+    }
+
+    // Se ci sono voti multipli (Comunica Voti), salva una riga per ogni voto
+    if (voti && Array.isArray(voti) && voti.length > 0) {
+      const comunicazioni = [];
+      
+      for (const voto of voti) {
+        if (!voto.nome || !voto.voto) continue;
+        
+        const testo = `Il voto di ${voto.nome}: ${voto.voto}`;
+        const titoloCompleto = `${titolo} - ${voto.nome}`;
+        
+        const result = await pool.query(
+          `INSERT INTO comunicazioni (
+            id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento, 
+            data_creazione, likes, dislikes, punti_trasparenza
+          ) VALUES (
+            gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3
+          ) RETURNING *`,
+          [id_utente, titoloCompleto, testo, zona || 'Generale', voto.voto, vincitore, commento || '']
+        );
+        
+        comunicazioni.push(result.rows[0]);
+      }
+      
+      return res.status(201).json({
+        success: true,
+        data: comunicazioni,
+        message: `${comunicazioni.length} voti salvati con successo`
       });
     }
     
+    // Salvataggio singolo (Nuova Comunicazione Votazione)
+    const testo = `Voto: ${voto_dato || 'Non specificato'}${commento ? ` - Commento: ${commento}` : ''}`;
+    
     const result = await pool.query(
-      'INSERT INTO comunicazioni (titolo, contenuto, autore_id, tipo, data_creazione) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
-      [titolo, contenuto, autore_id, tipo]
+      `INSERT INTO comunicazioni (
+        id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento, 
+        data_creazione, likes, dislikes, punti_trasparenza
+      ) VALUES (
+        gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3
+      ) RETURNING *`,
+      [id_utente, titolo, testo, zona || 'Generale', voto_dato, vincitore, commento || '']
     );
     
     res.status(201).json({
