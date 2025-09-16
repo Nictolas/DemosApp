@@ -254,7 +254,7 @@ export default function Votazione() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <Card className="max-w-2xl mx-auto bg-white">
+        <Card className="w-full bg-white">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-center">Nuova Comunicazione Votazione</CardTitle>
             <CardDescription className="text-center">Condividi i dettagli di una votazione con i tuoi elettori.</CardDescription>
@@ -321,9 +321,9 @@ export default function Votazione() {
           </CardContent>
         </Card>
 
-        {/* Sezione Comunica Voti - Solo per Admin e Istituzione */}
-        {canComunicaVoti && (
-          <Card className="max-w-4xl mx-auto bg-white">
+               {/* Sezione Comunica Voti - Solo per Admin e Istituzione */}
+               {canComunicaVoti && (
+                 <Card className="w-full bg-white">
             <CardHeader>
               <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
                 <Calculator className="h-6 w-6" />
@@ -453,7 +453,7 @@ export default function Votazione() {
 
                {/* Sezione Notifiche di Demos - Solo per Admin */}
                {canSendDemosNotifications && (
-                 <Card className="max-w-2xl mx-auto bg-white">
+                 <Card className="w-full bg-white">
                    <CardHeader>
                      <CardTitle className="text-2xl font-bold text-center">
                        Notifiche di Demos
