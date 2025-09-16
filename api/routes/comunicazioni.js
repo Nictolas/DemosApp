@@ -122,7 +122,7 @@ router.post('/', async (req, res) => {
               id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
               data_creazione, likes, dislikes, punti_trasparenza, tipo
             ) VALUES (
-              gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
+              gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
             ) RETURNING *`,
             [utentePolitico.id, titoloCompleto, testo, zona || 'Generale', voto.voto, vincitore, commento || '', 'comunica_voti']
           );
@@ -151,7 +151,7 @@ router.post('/', async (req, res) => {
           id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
           data_creazione, likes, dislikes, punti_trasparenza, tipo
         ) VALUES (
-          gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
         ) RETURNING *`,
         [id_utente, titolo, testo, zona || 'Generale', null, null, commento || '', tipo]
       );
@@ -214,7 +214,7 @@ router.post('/', async (req, res) => {
           id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
           data_creazione, likes, dislikes, punti_trasparenza, tipo
         ) VALUES (
-          gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
         ) RETURNING *`,
         [id_utente, titolo, testo, zona || 'Generale', voto_dato, vincitore, commento || '', tipo]
       );
@@ -260,7 +260,7 @@ async function notifySostenitori(utenteId, titolo, comunicazione) {
     for (const notifica of notifiche) {
       await pool.query(
         `INSERT INTO notifiche_utente (id, utente_id, titolo, messaggio, tipo, priorita, data_creazione)
-         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, NOW())`,
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())`,
         [notifica.utente_id, notifica.titolo, notifica.messaggio, notifica.tipo, notifica.priorita]
       );
     }
@@ -297,7 +297,7 @@ async function notifyAllUsers(titolo, commento) {
       const batch = notifiche.slice(i, i + batchSize);
       const values = batch.map((notifica, index) => {
         const baseIndex = i + index;
-        return `(gen_random_uuid()::text, $${baseIndex * 4 + 1}, $${baseIndex * 4 + 2}, $${baseIndex * 4 + 3}, $${baseIndex * 4 + 4}, NOW())`;
+        return `(gen_random_uuid(), $${baseIndex * 4 + 1}, $${baseIndex * 4 + 2}, $${baseIndex * 4 + 3}, $${baseIndex * 4 + 4}, NOW())`;
       }).join(', ');
       
       const params = batch.flatMap(notifica => [
