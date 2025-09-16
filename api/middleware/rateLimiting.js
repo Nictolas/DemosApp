@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 // Configurazione generale per tutte le API
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 100, // Limite di 100 richieste per IP per finestra
+  max: 1000, // Aumentato temporaneamente a 1000 richieste per IP per finestra
   // Gestisci proxy in modo più sicuro
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : true,
   // Escludi localhost in sviluppo
