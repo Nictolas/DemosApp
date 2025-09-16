@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Bell } from "lucide-react";
 import { NotificheData } from "../types";
 import { NotificaItem } from "./NotificaItem";
+import { PreferenzeModal } from "./PreferenzeModal";
 
 interface ListaNotificheProps {
   data: NotificheData | undefined;
@@ -11,6 +12,10 @@ interface ListaNotificheProps {
   error: any;
   onMarkAsRead: (id: string) => void;
   isPending: boolean;
+  fcmToken: string | null;
+  fcmError: Error | null;
+  permission: NotificationPermission | null;
+  onSwitch: (type: 'inApp' | 'push') => void;
 }
 
 export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
@@ -18,15 +23,27 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   isLoading,
   error,
   onMarkAsRead,
-  isPending
+  isPending,
+  fcmToken,
+  fcmError,
+  permission,
+  onSwitch
 }) => {
   return (
     <Card className="bg-white">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bell className="h-5 w-5" />
-          Le tue Notifiche
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            <CardTitle>Le tue Notifiche</CardTitle>
+          </div>
+          <PreferenzeModal
+            fcmToken={fcmToken}
+            fcmError={fcmError}
+            permission={permission}
+            onSwitch={onSwitch}
+          />
+        </div>
         <CardDescription>
           {data?.notifiche?.length || 0} notifiche totali
         </CardDescription>

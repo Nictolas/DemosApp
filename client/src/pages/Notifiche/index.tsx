@@ -6,7 +6,6 @@ import { useNoScroll } from "@/hooks/useNoScroll";
 import { useNotificheData } from "./hooks/useNotificheData";
 import { useNotifichePrefs } from "./hooks/useNotifichePrefs";
 import { Header } from "./components/Header";
-import { PreferenzeNotifiche } from "./components/PreferenzeNotifiche";
 import { ListaNotifiche } from "./components/ListaNotifiche";
 import { LoadingStates } from "./components/LoadingStates";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -40,20 +39,17 @@ export default function Notifiche() {
         
         <Header />
 
-        <div className="flex-1 space-y-4">
-          <PreferenzeNotifiche
-            fcmToken={fcmToken}
-            fcmError={fcmError}
-            permission={permission}
-            onSwitch={handleSwitch}
-          />
-
+        <div className="flex-1">
           <ListaNotifiche
             data={data}
             isLoading={isLoading}
             error={error}
             onMarkAsRead={handleMarkAsRead}
             isPending={markAsReadMutation.isPending}
+            fcmToken={fcmToken}
+            fcmError={fcmError}
+            permission={permission}
+            onSwitch={handleSwitch}
           />
         </div>
       </div>
