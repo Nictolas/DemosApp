@@ -49,6 +49,12 @@ router.get('/', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/iniziative-popolari - Iniziative trovate:', iniziativeResult.rows.length);
     console.log('🔍 DEBUG /api/iniziative-popolari - Classifica trovata:', classificaResult.rows.length);
     console.log('🔍 DEBUG /api/iniziative-popolari - Voti utente trovati:', mieiVoti.length);
+    console.log('🔍 DEBUG /api/iniziative-popolari - ID iniziative disponibili:', iniziativeResult.rows.map(i => i.id));
+    
+    // Debug per verificare la struttura delle tabelle
+    const votiEsistentiQuery = 'SELECT DISTINCT iniziativa_id FROM voti_iniziative_popolari LIMIT 5';
+    const votiEsistentiResult = await pool.query(votiEsistentiQuery);
+    console.log('🔍 DEBUG /api/iniziative-popolari - ID voti esistenti nella tabella:', votiEsistentiResult.rows.map(v => v.iniziativa_id));
     
     // Processa la classifica per il frontend
     const classifica = classificaResult.rows.map(item => ({
@@ -125,10 +131,26 @@ router.post('/vota', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/iniziative-popolari/vota - Utente:', userId);
     console.log('🔍 DEBUG /api/iniziative-popolari/vota - Voti da salvare:', voti);
     
+    // Verifica che gli ID delle iniziative esistano
+    const iniziativeCheckQuery = 'SELECT id FROM iniziative_popolari WHERE id = ANY($1)';
+    const iniziativeCheckResult = await client.query(iniziativeCheckQuery, [voti]);
+    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative trovate nel DB:', iniziativeCheckResult.rows.map(i => i.id));
+    console.log('🔍 DEBUG /api/iniziative-popolari/vota - Iniziative richieste:', voti);
+    
     if (!Array.isArray(voti)) {
       return res.status(400).json({
         success: false,
         error: 'Formato voti non valido'
+      });
+    }
+    
+    // Verifica che tutti gli ID delle iniziative esistano
+    if (iniziativeCheckResult.rows.length !== voti.length) {
+      const missingIds = voti.filter(id => !iniziativeCheckResult.rows.some(row => row.id === id));
+      console.error('❌ DEBUG /api/iniziative-popolari/vota - ID iniziative non trovati:', missingIds);
+      return res.status(400).json({
+        success: false,
+        error: `Alcune iniziative non esistono: ${missingIds.join(', ')}`
       });
     }
     
@@ -166,6 +188,47 @@ router.post('/vota', verifyToken, async (req, res) => {
     });
   } finally {
     client.release();
+  }
+});
+
+// GET /api/iniziative-popolari/debug - Debug per verificare la struttura delle tabelle
+router.get('/debug', verifyToken, async (req, res) => {
+  try {
+    // Query per vedere la struttura delle iniziative
+    const iniziativeQuery = 'SELECT id, nome FROM iniziative_popolari ORDER BY created_at DESC LIMIT 10';
+    const iniziativeResult = await pool.query(iniziativeQuery);
+    
+    // Query per vedere i voti esistenti
+    const votiQuery = 'SELECT DISTINCT iniziativa_id FROM voti_iniziative_popolari LIMIT 10';
+    const votiResult = await pool.query(votiQuery);
+    
+    // Query per vedere se ci sono corrispondenze
+    const corrispondenzeQuery = `
+      SELECT 
+        i.id as iniziativa_id,
+        i.nome,
+        COUNT(v.id) as voti_count
+      FROM iniziative_popolari i
+      LEFT JOIN voti_iniziative_popolari v ON i.id::text = v.iniziativa_id
+      GROUP BY i.id, i.nome
+      ORDER BY voti_count DESC
+    `;
+    const corrispondenzeResult = await pool.query(corrispondenzeQuery);
+    
+    res.json({
+      success: true,
+      debug: {
+        iniziative: iniziativeResult.rows,
+        voti_esistenti: votiResult.rows,
+        corrispondenze: corrispondenzeResult.rows
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel debug iniziative popolari:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
   }
 });
 
