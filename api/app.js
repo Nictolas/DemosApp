@@ -95,24 +95,7 @@ app.use(requestLoggingMiddleware);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// RATE LIMITING - Applica limiti generali
-app.use(generalLimiter);
-app.use(speedLimiter);
-
-// Route di base per evitare errori "Route non trovata"
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Demos API Server', 
-    status: 'running',
-    timestamp: new Date().toISOString()
-  });
-});
-
-app.head('/', (req, res) => {
-  res.status(200).end();
-});
-
-// CORS - Configurazione semplificata per produzione
+// CORS - DEVE essere PRIMA del rate limiting
 app.use(cors({
   origin: [
     'https://www.demos.community',
@@ -136,6 +119,24 @@ app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.status(200).end();
 });
+
+// RATE LIMITING - Applica limiti generali DOPO il CORS
+app.use(generalLimiter);
+app.use(speedLimiter);
+
+// Route di base per evitare errori "Route non trovata"
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Demos API Server', 
+    status: 'running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.head('/', (req, res) => {
+  res.status(200).end();
+});
+
 
 // Logging middleware
 app.use((req, res, next) => {
