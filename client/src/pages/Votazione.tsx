@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -52,6 +52,23 @@ interface VotoEntry {
   voto: "Favorevole" | "Contrario" | "Astenuto";
 }
 
+// Hook per debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function Votazione() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
@@ -64,6 +81,10 @@ export default function Votazione() {
     { id: "1", nome: "", voto: "Favorevole" }
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
+  
+  // Stato per il titolo con debounce per evitare troppe chiamate API
+  const [titoloValue, setTitoloValue] = useState("");
+  const debouncedTitolo = useDebounce(titoloValue, 500);
 
   const form = useForm<ComunicaFormData>({
     resolver: zodResolver(comunicaSchema),
@@ -74,6 +95,23 @@ export default function Votazione() {
     resolver: zodResolver(demosNotificationSchema),
     defaultValues: { titolo: "", commento: "" },
   });
+
+  // Effetto per controllare duplicati solo quando il titolo debounced cambia
+  React.useEffect(() => {
+    if (debouncedTitolo.trim()) {
+      checkDuplicateMutation.mutate(debouncedTitolo);
+    }
+  }, [debouncedTitolo]);
+
+  // Sincronizza il valore del form con lo stato locale
+  React.useEffect(() => {
+    const subscription = form.watch((value) => {
+      if (value.titolo !== titoloValue) {
+        setTitoloValue(value.titolo || "");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, titoloValue]);
 
   // Funzioni per gestire i voti
   const addVotoEntry = () => {
@@ -291,7 +329,17 @@ export default function Votazione() {
             <FormField control={form.control} name="titolo" render={({ field }) => (
               <FormItem>
                 <FormLabel>Titolo della votazione *</FormLabel>
-                <FormControl><Input placeholder="Es: Approvazione legge..." {...field} onChange={(e) => { field.onChange(e); checkDuplicateMutation.mutate(e.target.value); }} /></FormControl>
+                <FormControl>
+                  <Input 
+                    placeholder="Es: Approvazione legge..." 
+                    {...field} 
+                    value={titoloValue}
+                    onChange={(e) => { 
+                      field.onChange(e); 
+                      setTitoloValue(e.target.value);
+                    }} 
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )} />
