@@ -37,7 +37,14 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows
+      supporters: result.rows,
+      stats: {
+        totalSupporters: result.rows.length,
+        genderDistribution: { Maschio: 0, Femmina: 0, Altro: 0 },
+        locationDistribution: {},
+        averageAge: 0,
+        ageDistribution: {}
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recupero sostenitori:', error);
