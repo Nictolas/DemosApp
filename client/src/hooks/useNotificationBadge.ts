@@ -17,9 +17,9 @@ export const useNotificationBadge = () => {
         const data = await response.json();
         const notifiche = data.notifiche || [];
         
-        // Conta solo le notifiche non lette
+        // Conta solo le notifiche non lette (status !== 'letta')
         const unreadNotifications = notifiche.filter((notifica: any) => 
-          notifica.status === 'non_letta' || notifica.status === 'unread'
+          notifica.status !== 'letta'
         );
         
         console.log('🔔 Badge notifiche aggiornato:', unreadNotifications.length, 'non lette');
@@ -30,7 +30,7 @@ export const useNotificationBadge = () => {
       }
     },
     enabled: !!user,
-    refetchInterval: 10000, // Aggiorna ogni 10 secondi (più frequente)
+    refetchInterval: 10000, // Aggiorna ogni 10 secondi
     staleTime: 5000, // Considera i dati obsoleti dopo 5 secondi
     refetchOnWindowFocus: true, // Aggiorna quando si torna alla finestra
   });
