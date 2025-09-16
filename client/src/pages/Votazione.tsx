@@ -145,7 +145,8 @@ export default function Votazione() {
 
   const userRole = userData?.ruolo;
   const isAllowed = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
-  const canComunicaVoti = userRole === "Admin" || userRole === "Istituzione";
+  // Temporaneamente abilitato per test - da ripristinare: userRole === "Admin" || userRole === "Istituzione"
+  const canComunicaVoti = true; // userRole === "Admin" || userRole === "Istituzione";
   
   if (userData && !isAllowed) {
     return (
