@@ -66,22 +66,27 @@ export default function Votazione() {
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
   
+  // Stato per test input isolato
+  const [testTitolo, setTestTitolo] = useState("");
 
   const form = useForm<ComunicaFormData>({
     resolver: zodResolver(comunicaSchema),
     defaultValues: { titolo: "", commento: "" },
+    mode: "onChange", // Aggiunto per debug
   });
 
   const demosForm = useForm<DemosNotificationFormData>({
     resolver: zodResolver(demosNotificationSchema),
     defaultValues: { titolo: "", commento: "" },
+    mode: "onChange", // Aggiunto per debug
   });
 
-  // Funzione per controllare duplicati solo al blur
+  // Funzione per controllare duplicati solo al blur (temporaneamente disabilitata per debug)
   const handleTitoloBlur = useCallback((value: string) => {
-    if (value.trim()) {
-      checkDuplicateMutation.mutate(value);
-    }
+    // Temporaneamente disabilitato per debug
+    // if (value.trim()) {
+    //   checkDuplicateMutation.mutate(value);
+    // }
   }, []);
 
 
@@ -198,7 +203,7 @@ export default function Votazione() {
     },
   });
 
-  // 1. Caricamento dati utente con React Query (già presente e corretto)
+  // 1. Caricamento dati utente con React Query (temporaneamente disabilitato per debug)
   const { data: userData, isLoading: isLoadingUser } = useQuery({
     queryKey: ["userData", user?.id],
     queryFn: async () => {
@@ -207,7 +212,7 @@ export default function Votazione() {
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },
-    enabled: !!user,
+    enabled: false, // Disabilitato temporaneamente per debug
   });
 
   // 2. Controllo duplicati tramite API (usando una mutazione per la flessibilità)
@@ -296,6 +301,20 @@ export default function Votazione() {
             </AlertDescription>
           </Alert>
         )}
+        
+        {/* Input di test isolato */}
+        <div className="mb-4 p-4 border border-red-500 bg-red-50">
+          <label className="block text-sm font-medium mb-2">TEST INPUT (senza form):</label>
+          <input 
+            type="text" 
+            value={testTitolo}
+            onChange={(e) => setTestTitolo(e.target.value)}
+            placeholder="Digita qui per testare..."
+            className="w-full p-2 border border-gray-300 rounded"
+          />
+          <p className="text-sm text-gray-600 mt-1">Valore: {testTitolo}</p>
+        </div>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit((data) => submitComunicazione.mutate(data))} className="space-y-4">
             <FormField control={form.control} name="titolo" render={({ field }) => (
@@ -304,11 +323,11 @@ export default function Votazione() {
                 <FormControl>
                   <Input 
                     placeholder="Es: Approvazione legge..." 
-                    {...field}
-                    onBlur={(e) => { 
-                      field.onBlur(e); 
-                      handleTitoloBlur(e.target.value);
-                    }} 
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
                   />
                 </FormControl>
                 <FormMessage />
