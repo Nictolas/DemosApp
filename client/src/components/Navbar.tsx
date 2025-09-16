@@ -1,10 +1,12 @@
 import { Home, MessageSquare, Users, Settings, Bell, Megaphone } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
+import { useNotificationBadge } from "@/hooks/useNotificationBadge";
 
 export default function Navbar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { unreadCount } = useNotificationBadge();
 
   // Funzione per determinare se un link è attivo
   const isActive = (path: string) => {
@@ -43,7 +45,14 @@ export default function Navbar() {
           <span className={`text-xs hidden md:block ${isActive("/rappresentanti") ? "text-blue-600 font-semibold" : ""}`}>Rappresentanti</span>
         </Link>
         <Link href="/notifiche" className={getLinkClasses("/notifiche")} style={{marginTop: 0}}>
-          <Bell className={`h-7 w-7 mb-1 ${isActive("/notifiche") ? "drop-shadow-lg text-blue-600" : ""}`} />
+          <div className="relative">
+            <Bell className={`h-7 w-7 mb-1 ${isActive("/notifiche") ? "drop-shadow-lg text-blue-600" : ""}`} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 font-bold shadow-lg animate-pulse">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </div>
           <span className={`text-xs hidden md:block ${isActive("/notifiche") ? "text-blue-600 font-semibold" : ""}`}>Notifiche</span>
         </Link>
         {hasAdvancedAccess && (

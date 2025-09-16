@@ -28,6 +28,7 @@ export const useNotificheData = (user: any) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifiche'] });
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
       toast({ title: "Notifica segnata come letta" });
     },
     onError: (error: any) => {
