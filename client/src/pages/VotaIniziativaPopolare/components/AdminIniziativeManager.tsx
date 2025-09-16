@@ -17,14 +17,31 @@ interface IniziativaRequest {
 
 interface AdminIniziativeManagerProps {
   userRole?: string;
+  userEmail?: string;
 }
 
-export function AdminIniziativeManager({ userRole }: AdminIniziativeManagerProps) {
+export function AdminIniziativeManager({ userRole, userEmail }: AdminIniziativeManagerProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   // Solo gli Admin possono vedere questo componente
-  if (userRole !== 'Admin') {
+  // Controlla tutti i possibili formati del ruolo Admin
+  const isAdminByRole = userRole === 'Admin' || 
+                        userRole === 'admin' || 
+                        userRole === 'ADMIN' ||
+                        userRole?.toLowerCase() === 'admin';
+  
+  // Lista degli Admin noti per fallback
+  const knownAdmins = [
+    'nicolasmicheletti90@gmail.com',
+    'admin@demos.community'
+  ];
+  
+  const isAdminByEmail = userEmail && knownAdmins.includes(userEmail);
+  
+  const isAdmin = isAdminByRole || isAdminByEmail;
+  
+  if (!isAdmin) {
     return null;
   }
 
@@ -61,7 +78,7 @@ export function AdminIniziativeManager({ userRole }: AdminIniziativeManagerProps
   });
 
   return (
-    <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
+    <Card className="border-2 border-amber-200 bg-white">
       <CardHeader className="text-center">
         <CardTitle className="flex items-center gap-2 justify-center text-xl text-amber-800">
           <Users className="h-5 w-5" /> Gestisci Iniziative Popolari
