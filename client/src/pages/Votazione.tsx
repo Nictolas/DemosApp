@@ -119,7 +119,7 @@ export default function Votazione() {
         titolo: titoloVotazione,
         vincitore: result.risultato,
         zona: "Generale",
-        id_utente: user?.uid,
+        id_utente: user?.id,
         tipo: "comunica_voti",
         voti: votiEntries.filter(entry => entry.nome.trim()).map(entry => ({
           nome: entry.nome,
@@ -152,13 +152,18 @@ export default function Votazione() {
   // Mutazione per le notifiche di Demos
   const submitDemosNotification = useMutation({
     mutationFn: (data: DemosNotificationFormData) => {
+      if (!user?.id) {
+        throw new Error('ID utente non disponibile. Riprova tra qualche secondo.');
+      }
+      
       const comunicazioneData = {
         titolo: data.titolo,
         commento: data.commento,
         zona: "Generale",
-        id_utente: user?.uid,
+        id_utente: user.id,
         tipo: "demos_notification"
       };
+      
       return apiRequest("POST", "/api/comunicazioni", comunicazioneData);
     },
     onSuccess: () => {
@@ -179,10 +184,10 @@ export default function Votazione() {
 
   // 1. Caricamento dati utente con React Query (già presente e corretto)
   const { data: userData, isLoading: isLoadingUser } = useQuery({
-    queryKey: ["userData", user?.uid],
+    queryKey: ["userData", user?.id],
     queryFn: async () => {
-      if (!user?.uid) return null;
-      const response = await apiRequest("GET", `/api/users/${user.uid}`);
+      if (!user?.id) return null;
+      const response = await apiRequest("GET", `/api/users/${user.id}`);
       if (!response.ok) throw new Error('Failed to fetch user data');
       return response.json();
     },
@@ -213,7 +218,7 @@ export default function Votazione() {
         commento: data.commento,
         vincitore: data.vincitore,
         zona: "Generale", // Puoi personalizzare questo
-        id_utente: user?.uid,
+        id_utente: user?.id,
         tipo: "votazione"
       };
       return apiRequest("POST", "/api/comunicazioni", comunicazioneData);
