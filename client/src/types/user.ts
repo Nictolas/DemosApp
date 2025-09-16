@@ -1,3 +1,12 @@
+// Definizione dei ruoli utente disponibili
+export type UserRole = 
+  | "Admin" 
+  | "Politico" 
+  | "Candidato Politico" 
+  | "Istituzione" 
+  | "Cittadino" 
+  | "Rappresentante";
+
 // Definizione condivisa del tipo UserInfo
 export type UserInfo = {
   id?: string;
@@ -6,7 +15,7 @@ export type UserInfo = {
   data_nascita: string;
   genere: string;
   cittadinanza: string;
-  ruolo: string;
+  ruolo: UserRole;
   paese_residenza: string;
   regione_residenza: string;
   provincia_residenza: string;

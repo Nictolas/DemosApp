@@ -3,7 +3,7 @@ export type User = {
   nome: string;
   cognome: string;
   email: string;
-  ruolo: string;
+  ruolo: "Admin" | "Politico" | "Candidato Politico" | "Istituzione" | "Cittadino" | "Rappresentante";
   status: 'pending' | 'active' | 'rejected';
   // Aggiungo tutte le altre colonne possibili
   [key: string]: any; // Per permettere colonne dinamiche

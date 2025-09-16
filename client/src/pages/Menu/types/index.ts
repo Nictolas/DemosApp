@@ -1,6 +1,6 @@
 export interface User {
-  role?: string;
-  ruolo?: string;
+  role?: "Admin" | "Politico" | "Candidato Politico" | "Istituzione" | "Cittadino" | "Rappresentante";
+  ruolo?: "Admin" | "Politico" | "Candidato Politico" | "Istituzione" | "Cittadino" | "Rappresentante";
   [key: string]: any;
 }
 
