@@ -15,6 +15,8 @@ router.get('/', async (req, res) => {
   try {
     const { user_id } = req.query;
     
+    console.log('🔍 DEBUG: Recupero notifiche per user_id:', user_id);
+    
     if (!user_id) {
       return res.status(400).json({
         success: false,
@@ -44,17 +46,17 @@ router.get('/', async (req, res) => {
     LIMIT 50
   `, [user_id]);
 
-  // Recupera notifiche di Demos (vanno a tutti gli utenti)
+  // Recupera notifiche di Demos dalla tabella comunicazioni (vanno a tutti gli utenti)
   const demosNotificationsResult = await pool.query(`
     SELECT
-      n.*,
+      c.*,
       'demos_notification' as tipo_notifica,
-      n.data_creazione as data_creazione
-    FROM notifiche_utente n
-    WHERE n.utente_id = $1 AND n.tipo = 'demos_notification'
-    ORDER BY n.data_creazione DESC
+      c.data_creazione as data_creazione
+    FROM comunicazioni c
+    WHERE c.tipo = 'demos_notification'
+    ORDER BY c.data_creazione DESC
     LIMIT 20
-  `, [user_id]);
+  `);
     
   // Combina notifiche e comunicazioni
   const notifiche = notificheResult.rows.map(n => ({
@@ -78,19 +80,27 @@ router.get('/', async (req, res) => {
     commento: c.commento
   }));
 
-  const demosNotifications = demosNotificationsResult.rows.map(n => ({
-    id: n.id,
-    titolo: n.titolo,
-    messaggio: n.messaggio,
-    data_creazione: n.data_creazione,
+  const demosNotifications = demosNotificationsResult.rows.map(c => ({
+    id: c.id,
+    titolo: c.titolo,
+    messaggio: c.testo,
+    data_creazione: c.data_creazione,
     tipo_notifica: 'demos_notification',
-    status: n.status || 'non_letta',
-    priorita: n.priorita || 'alta'
+    status: 'non_letta',
+    priorita: 'alta',
+    commento: c.commento
   }));
 
   // Ordina per data di creazione
   const allItems = [...notifiche, ...comunicazioni, ...demosNotifications]
     .sort((a, b) => new Date(b.data_creazione) - new Date(a.data_creazione));
+    
+    console.log('🔍 DEBUG: Notifiche trovate:', {
+      notifiche: notifiche.length,
+      comunicazioni: comunicazioni.length,
+      demosNotifications: demosNotifications.length,
+      total: allItems.length
+    });
     
     res.json({
       success: true,
