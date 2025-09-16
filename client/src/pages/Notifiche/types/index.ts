@@ -9,6 +9,16 @@ export interface Notifica {
   data_creazione?: string;
   data_lettura?: string;
   priorita?: string;
+  // Nuove proprietà per comunicazioni
+  tipo_notifica?: 'notifica' | 'comunicazione';
+  autore?: {
+    nome: string;
+    cognome: string;
+    ruolo: string;
+  };
+  voto_dato?: 'Favorevole' | 'Contrario' | 'Astenuto';
+  vincitore?: 'Approvata' | 'Respinta' | 'Pareggio';
+  commento?: string;
 }
 
 export interface NotificheData {

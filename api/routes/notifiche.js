@@ -10,7 +10,7 @@ const pool = new Pool({
 
 // ===== ENDPOINTS PER NOTIFICHE =====
 
-// GET /api/notifiche - Lista notifiche per utente
+// GET /api/notifiche - Lista notifiche per utente (include comunicazioni)
 router.get('/', async (req, res) => {
   try {
     const { user_id } = req.query;
@@ -22,14 +22,57 @@ router.get('/', async (req, res) => {
       });
     }
     
-    const result = await pool.query(
-      'SELECT * FROM notifiche WHERE user_id = $1 ORDER BY data_creazione DESC',
+    // Recupera notifiche tradizionali
+    const notificheResult = await pool.query(
+      'SELECT * FROM notifiche_utente WHERE utente_id = $1 ORDER BY data_creazione DESC',
       [user_id]
     );
     
+    // Recupera comunicazioni (votazioni) per mostrare come notifiche
+    const comunicazioniResult = await pool.query(`
+      SELECT 
+        c.*,
+        u.nome,
+        u.cognome,
+        u.ruolo,
+        'comunicazione' as tipo_notifica,
+        c.data_creazione as data_creazione
+      FROM comunicazioni c
+      JOIN utenti u ON c.id_utente = u.id
+      WHERE c.id_utente != $1
+      ORDER BY c.data_creazione DESC
+      LIMIT 50
+    `, [user_id]);
+    
+    // Combina notifiche e comunicazioni
+    const notifiche = notificheResult.rows.map(n => ({
+      ...n,
+      tipo_notifica: 'notifica'
+    }));
+    
+    const comunicazioni = comunicazioniResult.rows.map(c => ({
+      id: c.id,
+      titolo: c.titolo,
+      messaggio: c.testo,
+      data_creazione: c.data_creazione,
+      tipo_notifica: 'comunicazione',
+      autore: {
+        nome: c.nome,
+        cognome: c.cognome,
+        ruolo: c.ruolo
+      },
+      voto_dato: c.voto_dato,
+      vincitore: c.vincitore,
+      commento: c.commento
+    }));
+    
+    // Ordina per data di creazione
+    const allItems = [...notifiche, ...comunicazioni]
+      .sort((a, b) => new Date(b.data_creazione) - new Date(a.data_creazione));
+    
     res.json({
       success: true,
-      data: result.rows
+      notifiche: allItems
     });
   } catch (error) {
     console.error('❌ Errore nel recupero notifiche:', error);
