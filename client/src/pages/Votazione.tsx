@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -56,6 +56,7 @@ export default function Votazione() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [existingComunicazione, setExistingComunicazione] = useState<ExistingComunicazione | null>(null);
   
   // Stato per la sezione "Comunica Voti"
@@ -140,6 +141,7 @@ export default function Votazione() {
       // Reset del form
       setTitoloVotazione("");
       setVotiEntries([{ id: "1", nome: "", voto: "Favorevole" }]);
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
     },
     onError: (error: any) => {
       toast({
@@ -173,6 +175,7 @@ export default function Votazione() {
         description: "La notifica di Demos è stata inviata a tutti gli utenti." 
       });
       demosForm.reset();
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
     },
     onError: (error: any) => {
       toast({ 
@@ -228,6 +231,7 @@ export default function Votazione() {
       toast({ title: "Comunicazione inviata", description: "La tua comunicazione è stata registrata." });
       form.reset();
       setExistingComunicazione(null);
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
       setTimeout(() => setLocation("/menu"), 1000);
     },
     onError: (error: any) => {
