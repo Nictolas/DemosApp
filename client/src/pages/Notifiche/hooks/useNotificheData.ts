@@ -22,7 +22,7 @@ export const useNotificheData = (user: any) => {
   // Mutazione per segnare notifica come letta
   const markAsReadMutation = useMutation({
     mutationFn: async (notificaId: string) => {
-      const response = await apiRequest("PUT", `/api/notifiche/${notificaId}/read`);
+      const response = await apiRequest("PUT", `/api/notifiche/${notificaId}/read?user_id=${user?.id}`);
       if (!response.ok) throw new Error("Errore nell'aggiornamento notifica.");
       return response.json();
     },

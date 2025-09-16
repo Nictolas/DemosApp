@@ -22,6 +22,7 @@ export const useNotificationBadge = () => {
           notifica.status === 'non_letta' || notifica.status === 'unread'
         );
         
+        console.log('🔔 Badge notifiche aggiornato:', unreadNotifications.length, 'non lette');
         return unreadNotifications.length;
       } catch (error) {
         console.error('Errore nel recupero notifiche per badge:', error);
@@ -29,8 +30,9 @@ export const useNotificationBadge = () => {
       }
     },
     enabled: !!user,
-    refetchInterval: 30000, // Aggiorna ogni 30 secondi
-    staleTime: 10000, // Considera i dati obsoleti dopo 10 secondi
+    refetchInterval: 10000, // Aggiorna ogni 10 secondi (più frequente)
+    staleTime: 5000, // Considera i dati obsoleti dopo 5 secondi
+    refetchOnWindowFocus: true, // Aggiorna quando si torna alla finestra
   });
 
   return {

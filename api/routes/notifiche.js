@@ -28,15 +28,18 @@ router.get('/', async (req, res) => {
       });
     }
     
-    // Versione di test: restituisce solo le comunicazioni Demos
+    // Recupera le comunicazioni con lo status specifico per l'utente
     const comunicazioniResult = await pool.query(`
       SELECT
-        c.*
+        c.*,
+        nu.status as user_status,
+        nu.data_lettura
       FROM comunicazioni c
+      LEFT JOIN notifiche_utente nu ON c.id = nu.comunicazione_id AND nu.utente_id = $1
       WHERE c.tipo = 'demos_notification'
       ORDER BY c.data_creazione DESC
       LIMIT 10
-    `);
+    `, [user_id]);
     
     const comunicazioni = comunicazioniResult.rows.map(c => ({
       id: c.id,
@@ -44,9 +47,10 @@ router.get('/', async (req, res) => {
       messaggio: c.testo || c.commento || 'Nessun messaggio',
       data_creazione: c.data_creazione,
       tipo_notifica: 'demos_notification',
-      status: c.status || 'non_letta', // Usa lo status dal database
+      status: c.user_status || 'non_letta', // Usa lo status specifico per l'utente
       priorita: 'alta',
-      commento: c.commento
+      commento: c.commento,
+      data_lettura: c.data_lettura
     }));
     
     console.log('🔍 DEBUG: Comunicazioni Demos trovate:', comunicazioni.length);
@@ -81,27 +85,37 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PUT /api/notifiche/:id/read - Marca notifica come letta
+// PUT /api/notifiche/:id/read - Marca notifica come letta per l'utente specifico
 router.put('/:id/read', async (req, res) => {
   try {
     const { id } = req.params;
+    const { user_id } = req.query;
     
-    console.log('📖 Marcatura notifica come letta:', id);
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
     
-    // Aggiorna lo status della notifica a 'letta'
-    const result = await pool.query(
-      'UPDATE comunicazioni SET status = $1 WHERE id = $2 RETURNING *',
-      ['letta', id]
-    );
+    console.log('📖 Marcatura notifica come letta per utente:', user_id, 'comunicazione:', id);
+    
+    // Aggiorna lo status della notifica per l'utente specifico
+    const result = await pool.query(`
+      UPDATE notifiche_utente 
+      SET status = 'letta', data_lettura = NOW()
+      WHERE comunicazione_id = $1 AND utente_id = $2
+      RETURNING *
+    `, [id, user_id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Notifica non trovata'
+        error: 'Notifica non trovata per questo utente'
       });
     }
     
-    console.log('✅ Notifica marcata come letta:', id);
+    console.log('✅ Notifica marcata come letta per utente:', user_id);
     
     res.json({
       success: true,
@@ -117,10 +131,10 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
-// PUT /api/notifiche/mark-all-read - Marca tutte le notifiche come lette
+// PUT /api/notifiche/mark-all-read - Marca tutte le notifiche come lette per l'utente specifico
 router.put('/mark-all-read', async (req, res) => {
   try {
-    const { notifica_ids } = req.body;
+    const { notifica_ids, user_id } = req.body;
     
     if (!notifica_ids || !Array.isArray(notifica_ids) || notifica_ids.length === 0) {
       return res.status(400).json({
@@ -129,15 +143,24 @@ router.put('/mark-all-read', async (req, res) => {
       });
     }
     
-    console.log('📖 Marcatura di', notifica_ids.length, 'notifiche come lette');
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
     
-    // Aggiorna tutte le notifiche in una singola query
-    const result = await pool.query(
-      'UPDATE comunicazioni SET status = $1 WHERE id = ANY($2) RETURNING *',
-      ['letta', notifica_ids]
-    );
+    console.log('📖 Marcatura di', notifica_ids.length, 'notifiche come lette per utente:', user_id);
     
-    console.log('✅ Notifiche marcate come lette:', result.rows.length);
+    // Aggiorna tutte le notifiche per l'utente specifico
+    const result = await pool.query(`
+      UPDATE notifiche_utente 
+      SET status = 'letta', data_lettura = NOW()
+      WHERE comunicazione_id = ANY($1) AND utente_id = $2
+      RETURNING *
+    `, [notifica_ids, user_id]);
+    
+    console.log('✅ Notifiche marcate come lette per utente:', result.rows.length);
     
     res.json({
       success: true,
