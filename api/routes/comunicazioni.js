@@ -111,16 +111,42 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/ultima-comunicazione - Ultima comunicazione
+// GET /api/ultima-comunicazione - Ultima comunicazione dell'utente
 router.get('/ultima-comunicazione', async (req, res) => {
   try {
+    const { user_id } = req.query;
+    
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID utente richiesto'
+      });
+    }
+    
     const result = await pool.query(
-      'SELECT * FROM comunicazioni ORDER BY data_creazione DESC LIMIT 1'
+      `SELECT 
+        c.*,
+        COALESCE(SUM(CASE WHEN r.tipo = 'like' THEN 1 ELSE 0 END), 0) as likes,
+        COALESCE(SUM(CASE WHEN r.tipo = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes
+      FROM comunicazioni c
+      LEFT JOIN reazioni r ON c.id = r.comunicazione_id
+      WHERE c.id_utente = $1
+      GROUP BY c.id
+      ORDER BY c.data_creazione DESC
+      LIMIT 1`,
+      [user_id]
     );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Nessuna comunicazione trovata'
+      });
+    }
     
     res.json({
       success: true,
-      data: result.rows[0] || null
+      data: result.rows[0]
     });
   } catch (error) {
     console.error('❌ Errore nel recupero ultima comunicazione:', error);

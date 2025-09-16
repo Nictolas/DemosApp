@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth-neon";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { NotificaItemProps } from "../types";
 import { 
   getStatusColor, 
@@ -18,6 +21,60 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   onMarkAsRead,
   isPending
 }) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [userReaction, setUserReaction] = useState<string | null>(null);
+  const [likes, setLikes] = useState(0);
+  const [dislikes, setDislikes] = useState(0);
+
+  // Mutazione per gestire like/dislike
+  const reactionMutation = useMutation({
+    mutationFn: async (tipo: 'like' | 'dislike') => {
+      const response = await apiRequest("POST", "/api/reazioni-comunicazioni", {
+        comunicazione_id: notifica.id,
+        utente_id: user?.uid,
+        tipo
+      });
+      if (!response.ok) throw new Error("Errore nella reazione");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Aggiorna lo stato locale
+      if (data.action === 'added') {
+        setUserReaction(data.data.tipo);
+        if (data.data.tipo === 'like') {
+          setLikes(prev => prev + 1);
+        } else {
+          setDislikes(prev => prev + 1);
+        }
+      } else if (data.action === 'removed') {
+        setUserReaction(null);
+        if (userReaction === 'like') {
+          setLikes(prev => Math.max(0, prev - 1));
+        } else {
+          setDislikes(prev => Math.max(0, prev - 1));
+        }
+      } else if (data.action === 'updated') {
+        // Cambia da like a dislike o viceversa
+        if (userReaction === 'like') {
+          setLikes(prev => Math.max(0, prev - 1));
+          setDislikes(prev => prev + 1);
+        } else {
+          setDislikes(prev => Math.max(0, prev - 1));
+          setLikes(prev => prev + 1);
+        }
+        setUserReaction(data.data.tipo);
+      }
+    },
+    onError: (error) => {
+      console.error("Errore nella reazione:", error);
+    }
+  });
+
+  const handleReaction = (tipo: 'like' | 'dislike') => {
+    if (!user?.uid || notifica.tipo_notifica !== 'comunicazione') return;
+    reactionMutation.mutate(tipo);
+  };
   return (
     <div
       className={`p-4 rounded-lg border ${getNotificaBackground(notifica.status)}`}
@@ -94,6 +151,32 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               {formatDate(notifica.created_at || notifica.data_creazione || '')}
             </span>
           </div>
+
+          {/* Pulsanti like/dislike per comunicazioni */}
+          {notifica.tipo_notifica === 'comunicazione' && user?.uid && (
+            <div className="mt-4 flex items-center gap-2">
+              <Button
+                variant={userReaction === 'like' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleReaction('like')}
+                disabled={reactionMutation.isPending}
+                className="flex items-center gap-1"
+              >
+                <ThumbsUp className="h-4 w-4" />
+                {likes}
+              </Button>
+              <Button
+                variant={userReaction === 'dislike' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleReaction('dislike')}
+                disabled={reactionMutation.isPending}
+                className="flex items-center gap-1"
+              >
+                <ThumbsDown className="h-4 w-4" />
+                {dislikes}
+              </Button>
+            </div>
+          )}
         </div>
         
         {notifica.status === 'non_letta' && (
