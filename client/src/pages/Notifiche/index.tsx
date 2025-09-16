@@ -40,7 +40,8 @@ export default function Notifiche() {
           try {
             // Invia una richiesta per marcare tutte le notifiche come lette
             const response = await apiRequest("PUT", "/api/notifiche/mark-all-read", {
-              notifica_ids: unreadNotifications.map(n => n.id)
+              notifica_ids: unreadNotifications.map(n => n.id),
+              user_id: user?.id
             });
             
             if (response.ok) {

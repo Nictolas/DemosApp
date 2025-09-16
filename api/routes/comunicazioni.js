@@ -12,6 +12,65 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
+// Funzione per creare record in notifiche_utente per tutti gli utenti attivi
+async function createNotificheUtente(comunicazioneId) {
+  try {
+    console.log('📝 Creazione record notifiche_utente per comunicazione:', comunicazioneId);
+    
+    // Trova tutti gli utenti attivi
+    const utenti = await pool.query('SELECT id FROM users WHERE status = $1', ['active']);
+    
+    // Crea un record per ogni utente
+    for (const utente of utenti.rows) {
+      await pool.query(`
+        INSERT INTO notifiche_utente (utente_id, comunicazione_id, status)
+        VALUES ($1, $2, 'non_letta')
+        ON CONFLICT (utente_id, comunicazione_id) DO NOTHING
+      `, [utente.id, comunicazioneId]);
+    }
+    
+    console.log(`✅ Creati record notifiche_utente per ${utenti.rows.length} utenti`);
+  } catch (error) {
+    console.error('❌ Errore nella creazione record notifiche_utente:', error);
+  }
+}
+
+// Funzione per aggiornare record in notifiche_utente (reset status a non_letta)
+async function updateNotificheUtente(comunicazioneId) {
+  try {
+    console.log('🔄 Aggiornamento record notifiche_utente per comunicazione:', comunicazioneId);
+    
+    // Reset tutti i record esistenti a 'non_letta'
+    await pool.query(`
+      UPDATE notifiche_utente 
+      SET status = 'non_letta', data_lettura = NULL
+      WHERE comunicazione_id = $1
+    `, [comunicazioneId]);
+    
+    // Crea record per nuovi utenti attivi che non hanno ancora il record
+    const utenti = await pool.query(`
+      SELECT u.id 
+      FROM users u 
+      WHERE u.status = 'active' 
+      AND NOT EXISTS (
+        SELECT 1 FROM notifiche_utente nu 
+        WHERE nu.utente_id = u.id AND nu.comunicazione_id = $1
+      )
+    `, [comunicazioneId]);
+    
+    for (const utente of utenti.rows) {
+      await pool.query(`
+        INSERT INTO notifiche_utente (utente_id, comunicazione_id, status)
+        VALUES ($1, $2, 'non_letta')
+      `, [utente.id, comunicazioneId]);
+    }
+    
+    console.log(`✅ Aggiornati record notifiche_utente per comunicazione ${comunicazioneId}`);
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento record notifiche_utente:', error);
+  }
+}
+
 // ===== ENDPOINTS PER COMUNICAZIONI =====
 
 // GET /api/comunicazioni - Lista comunicazioni
@@ -227,7 +286,8 @@ router.post('/', async (req, res) => {
           commento = $5,
           data_creazione = NOW(),
           likes = 0,
-          dislikes = 0
+          dislikes = 0,
+          status = 'non_letta'
         WHERE id = $6 
         RETURNING *`,
         [titolo, testo, voto_dato, vincitore, commento || '', comunicazioneId]
@@ -235,6 +295,9 @@ router.post('/', async (req, res) => {
 
       // Invia notifica ai sostenitori
       await notifySostenitori(id_utente, titolo, result.rows[0]);
+
+      // Aggiorna i record in notifiche_utente per tutti gli utenti attivi
+      await updateNotificheUtente(comunicazioneId);
 
       res.status(200).json({
         success: true,
@@ -246,15 +309,18 @@ router.post('/', async (req, res) => {
       const result = await pool.query(
         `INSERT INTO comunicazioni (
           id, id_utente, titolo, testo, zona, voto_dato, vincitore, commento,
-          data_creazione, likes, dislikes, punti_trasparenza, tipo
+          data_creazione, likes, dislikes, punti_trasparenza, tipo, status
         ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), 0, 0, 3, $8, 'non_letta'
         ) RETURNING *`,
         [id_utente, titolo, testo, zona || 'Generale', voto_dato, vincitore, commento || '', tipo]
       );
 
       // Invia notifica ai sostenitori
       await notifySostenitori(id_utente, titolo, result.rows[0]);
+
+      // Crea record in notifiche_utente per tutti gli utenti attivi
+      await createNotificheUtente(result.rows[0].id);
 
       res.status(201).json({
         success: true,

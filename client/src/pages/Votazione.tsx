@@ -141,6 +141,7 @@ export default function Votazione() {
       // Reset del form
       setTitoloVotazione("");
       setVotiEntries([{ id: "1", nome: "", voto: "Favorevole" }]);
+      console.log('🔄 Invalidando notificationBadge dopo invio comunica voti');
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
     },
     onError: (error: any) => {
@@ -175,6 +176,7 @@ export default function Votazione() {
         description: "La notifica di Demos è stata inviata a tutti gli utenti." 
       });
       demosForm.reset();
+      console.log('🔄 Invalidando notificationBadge dopo invio notifica Demos');
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
     },
     onError: (error: any) => {
@@ -231,6 +233,7 @@ export default function Votazione() {
       toast({ title: "Comunicazione inviata", description: "La tua comunicazione è stata registrata." });
       form.reset();
       setExistingComunicazione(null);
+      console.log('🔄 Invalidando notificationBadge dopo invio comunicazione');
       queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
       setTimeout(() => setLocation("/menu"), 1000);
     },
