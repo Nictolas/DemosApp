@@ -37,8 +37,6 @@ router.get('/', async (req, res) => {
 // POST /api/comunicazioni - Crea o aggiorna comunicazione
 router.post('/', async (req, res) => {
   try {
-    console.log('🔍 DEBUG: Request body ricevuto:', JSON.stringify(req.body, null, 2));
-    
     const {
       titolo,
       voto_dato,
@@ -50,19 +48,7 @@ router.post('/', async (req, res) => {
       voti // Array di voti per "Comunica Voti"
     } = req.body;
 
-    console.log('🔍 DEBUG: Parametri estratti:', {
-      titolo,
-      voto_dato,
-      commento,
-      vincitore,
-      zona,
-      id_utente,
-      tipo,
-      voti
-    });
-
     if (!titolo || !id_utente) {
-      console.log('❌ DEBUG: Validazione fallita - titolo:', titolo, 'id_utente:', id_utente);
       return res.status(400).json({
         success: false,
         error: 'Titolo e ID utente sono obbligatori'
@@ -157,11 +143,7 @@ router.post('/', async (req, res) => {
 
     // Gestione speciale per notifiche di Demos
     if (tipo === 'demos_notification') {
-      console.log('🔍 DEBUG: Gestione notifica Demos - titolo:', titolo, 'commento:', commento);
-      
       const testo = `Notifica Demos: ${commento || ''}`;
-      
-      console.log('🔍 DEBUG: Testo generato:', testo);
       
       // Crea comunicazione per l'admin
       const result = await pool.query(
@@ -173,8 +155,6 @@ router.post('/', async (req, res) => {
         ) RETURNING *`,
         [id_utente, titolo, testo, zona || 'Generale', null, null, commento || '', tipo]
       );
-
-      console.log('✅ DEBUG: Comunicazione creata con ID:', result.rows[0].id);
 
       // Invia notifica a TUTTI gli utenti
       await notifyAllUsers(titolo, commento || '');
