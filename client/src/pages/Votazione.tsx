@@ -30,8 +30,14 @@ const comunicaVotiSchema = z.object({
   })).min(1, "Deve essere presente almeno un voto"),
 });
 
+const demosNotificationSchema = z.object({
+  titolo: z.string().min(1, "Il titolo è obbligatorio"),
+  commento: z.string().min(1, "Il commento è obbligatorio"),
+});
+
 type ComunicaFormData = z.infer<typeof comunicaSchema>;
 type ComunicaVotiFormData = z.infer<typeof comunicaVotiSchema>;
+type DemosNotificationFormData = z.infer<typeof demosNotificationSchema>;
 
 interface ExistingComunicazione {
   titolo: string;
@@ -59,6 +65,11 @@ export default function Votazione() {
 
   const form = useForm<ComunicaFormData>({
     resolver: zodResolver(comunicaSchema),
+    defaultValues: { titolo: "", commento: "" },
+  });
+
+  const demosForm = useForm<DemosNotificationFormData>({
+    resolver: zodResolver(demosNotificationSchema),
     defaultValues: { titolo: "", commento: "" },
   });
 
@@ -120,19 +131,47 @@ export default function Votazione() {
     },
     onSuccess: async (response) => {
       const data = await response.json();
-      toast({ 
-        title: "Voti salvati", 
-        description: `Votazione "${titoloVotazione}" registrata con ${result.totale} voti. Risultato: ${result.risultato}` 
+      toast({
+        title: "Voti salvati",
+        description: `Votazione "${titoloVotazione}" registrata con ${result.totale} voti. Risultato: ${result.risultato}`
       });
-      
+
       // Reset del form
       setTitoloVotazione("");
       setVotiEntries([{ id: "1", nome: "", voto: "Favorevole" }]);
     },
     onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nel salvataggio dei voti.",
+        variant: "destructive"
+      });
+    },
+  });
+
+  // Mutazione per le notifiche di Demos
+  const submitDemosNotification = useMutation({
+    mutationFn: (data: DemosNotificationFormData) => {
+      const comunicazioneData = {
+        titolo: data.titolo,
+        commento: data.commento,
+        zona: "Generale",
+        id_utente: user?.uid,
+        tipo: "demos_notification"
+      };
+      return apiRequest("POST", "/api/comunicazioni", comunicazioneData);
+    },
+    onSuccess: () => {
+      toast({ 
+        title: "Notifica inviata", 
+        description: "La notifica di Demos è stata inviata a tutti gli utenti." 
+      });
+      demosForm.reset();
+    },
+    onError: (error: any) => {
       toast({ 
         title: "Errore", 
-        description: error.message || "Errore nel salvataggio dei voti.", 
+        description: error.message || "Invio fallito.", 
         variant: "destructive" 
       });
     },
@@ -195,9 +234,10 @@ export default function Votazione() {
   }
   if (!user) return <Redirect to="/auth" />;
 
-  const userRole = userData?.ruolo;
+  const userRole = userData?.ruolo || user?.ruolo;
   const isAllowed = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
   const canComunicaVoti = userRole === "Admin" || userRole === "Istituzione";
+  const canSendDemosNotifications = userRole === "Admin";
   
   if (userData && !isAllowed) {
     return (
@@ -409,8 +449,45 @@ export default function Votazione() {
               </Button>
             </CardContent>
           </Card>
-        )}
-      </div>
-    </div>
-  );
-}
+               )}
+
+               {/* Sezione Notifiche di Demos - Solo per Admin */}
+               {canSendDemosNotifications && (
+                 <Card className="max-w-2xl mx-auto bg-white">
+                   <CardHeader>
+                     <CardTitle className="text-2xl font-bold text-center">
+                       Notifiche di Demos
+                     </CardTitle>
+                     <CardDescription className="text-center">
+                       Invia notifiche a tutti gli utenti dell'applicazione.
+                     </CardDescription>
+                   </CardHeader>
+                   <CardContent className="space-y-6">
+                     <Form {...demosForm}>
+                       <form onSubmit={demosForm.handleSubmit((data) => submitDemosNotification.mutate(data))} className="space-y-4">
+                         <FormField control={demosForm.control} name="titolo" render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Titolo della notifica *</FormLabel>
+                             <FormControl><Input placeholder="Es: Aggiornamento importante..." {...field} /></FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )} />
+                         <FormField control={demosForm.control} name="commento" render={({ field }) => (
+                           <FormItem>
+                             <FormLabel>Commento *</FormLabel>
+                             <FormControl><Input placeholder="Inserisci il messaggio per tutti gli utenti..." {...field} /></FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )} />
+                         <Button type="submit" className="w-full" disabled={submitDemosNotification.isPending}>
+                           {submitDemosNotification.isPending ? "Invio in corso..." : "Invia Notifica a Tutti"}
+                         </Button>
+                       </form>
+                     </Form>
+                   </CardContent>
+                 </Card>
+               )}
+             </div>
+           </div>
+         );
+       }
