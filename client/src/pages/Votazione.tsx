@@ -52,22 +52,6 @@ interface VotoEntry {
   voto: "Favorevole" | "Contrario" | "Astenuto";
 }
 
-// Hook per debounce
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
 
 export default function Votazione() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -82,9 +66,6 @@ export default function Votazione() {
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
   
-  // Stato per il titolo con debounce per evitare troppe chiamate API
-  const [titoloValue, setTitoloValue] = useState("");
-  const debouncedTitolo = useDebounce(titoloValue, 500);
 
   const form = useForm<ComunicaFormData>({
     resolver: zodResolver(comunicaSchema),
@@ -96,22 +77,13 @@ export default function Votazione() {
     defaultValues: { titolo: "", commento: "" },
   });
 
-  // Effetto per controllare duplicati solo quando il titolo debounced cambia
-  React.useEffect(() => {
-    if (debouncedTitolo.trim()) {
-      checkDuplicateMutation.mutate(debouncedTitolo);
+  // Funzione per controllare duplicati solo al blur
+  const handleTitoloBlur = useCallback((value: string) => {
+    if (value.trim()) {
+      checkDuplicateMutation.mutate(value);
     }
-  }, [debouncedTitolo]);
+  }, []);
 
-  // Sincronizza il valore del form con lo stato locale
-  React.useEffect(() => {
-    const subscription = form.watch((value) => {
-      if (value.titolo !== titoloValue) {
-        setTitoloValue(value.titolo || "");
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [form, titoloValue]);
 
   // Funzioni per gestire i voti
   const addVotoEntry = () => {
@@ -332,11 +304,10 @@ export default function Votazione() {
                 <FormControl>
                   <Input 
                     placeholder="Es: Approvazione legge..." 
-                    {...field} 
-                    value={titoloValue}
-                    onChange={(e) => { 
-                      field.onChange(e); 
-                      setTitoloValue(e.target.value);
+                    {...field}
+                    onBlur={(e) => { 
+                      field.onBlur(e); 
+                      handleTitoloBlur(e.target.value);
                     }} 
                   />
                 </FormControl>
