@@ -66,17 +66,18 @@ export default function Votazione() {
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
   
+  // Stato per input manuale (test)
+  const [manualTitolo, setManualTitolo] = useState("");
+  
 
   const form = useForm<ComunicaFormData>({
-    resolver: zodResolver(comunicaSchema),
+    // resolver: zodResolver(comunicaSchema), // Temporaneamente disabilitato per debug
     defaultValues: { titolo: "", commento: "" },
-    mode: "onChange", // Aggiunto per debug
   });
 
   const demosForm = useForm<DemosNotificationFormData>({
     resolver: zodResolver(demosNotificationSchema),
     defaultValues: { titolo: "", commento: "" },
-    mode: "onChange", // Aggiunto per debug
   });
 
   // Funzione per controllare duplicati solo al blur
@@ -299,6 +300,19 @@ export default function Votazione() {
           </Alert>
         )}
         
+        {/* Input manuale di test */}
+        <div className="mb-4 p-4 border border-blue-500 bg-blue-50">
+          <label className="block text-sm font-medium mb-2">INPUT MANUALE (test):</label>
+          <input 
+            type="text" 
+            value={manualTitolo}
+            onChange={(e) => setManualTitolo(e.target.value)}
+            placeholder="Digita qui per testare input manuale..."
+            className="w-full p-2 border border-gray-300 rounded"
+          />
+          <p className="text-sm text-gray-600 mt-1">Valore: {manualTitolo}</p>
+        </div>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit((data) => submitComunicazione.mutate(data))} className="space-y-4">
             <FormField control={form.control} name="titolo" render={({ field }) => (
@@ -307,11 +321,16 @@ export default function Votazione() {
                 <FormControl>
                   <Input 
                     placeholder="Es: Approvazione legge..." 
-                    {...field}
+                    value={field.value || ""}
+                    onChange={(e) => {
+                      field.onChange(e);
+                    }}
                     onBlur={(e) => { 
                       field.onBlur(e); 
                       handleTitoloBlur(e.target.value);
-                    }} 
+                    }}
+                    name={field.name}
+                    ref={field.ref}
                   />
                 </FormControl>
                 <FormMessage />
