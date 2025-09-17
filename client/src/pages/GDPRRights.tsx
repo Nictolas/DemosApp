@@ -10,7 +10,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth-neon';
-import apiRequest from '../lib/api-request';
+import { apiRequest } from '../lib/queryClient';
 
 interface RightsRequest {
   id: string;

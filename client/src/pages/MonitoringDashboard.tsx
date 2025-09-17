@@ -26,7 +26,7 @@ import {
   Heart,
   Zap
 } from 'lucide-react';
-import apiRequest from '../lib/api-request';
+import { apiRequest } from '../lib/queryClient';
 
 interface HealthCheck {
   status: 'OK' | 'WARNING' | 'ERROR';

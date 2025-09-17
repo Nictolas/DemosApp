@@ -24,7 +24,7 @@ import {
   XCircle,
   Info
 } from 'lucide-react';
-import apiRequest from '../lib/api-request';
+import { apiRequest } from '../lib/queryClient';
 
 interface SystemStatus {
   audit: {

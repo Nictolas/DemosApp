@@ -22,7 +22,7 @@ import {
   Eye,
   Trash2
 } from 'lucide-react';
-import apiRequest from '@/lib/api-request';
+import { apiRequest } from '@/lib/queryClient';
 
 interface AuditStats {
   total_actions: number;
