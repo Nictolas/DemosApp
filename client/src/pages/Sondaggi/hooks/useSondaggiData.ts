@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useQuery } from "@tanstack/react-query";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { SondaggiData, GenereData, SondaggiState } from "../types";
 
 export const useSondaggiData = (): SondaggiState & {

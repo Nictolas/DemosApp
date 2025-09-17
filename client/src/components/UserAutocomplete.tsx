@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import apiRequest from '@/lib/api-request';
+import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth-neon';
 
 interface User {

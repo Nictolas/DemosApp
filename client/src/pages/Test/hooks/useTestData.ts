@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 
 export const useTestData = () => {
   const { user, isLoading: authLoading } = useAuth();

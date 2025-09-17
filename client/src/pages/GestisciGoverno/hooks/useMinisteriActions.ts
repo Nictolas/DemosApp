@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { MinisteroCreateData, MinisteroUpdateData } from "../types";
 import { API_ENDPOINTS, QUERY_KEYS, TOAST_MESSAGES } from "../constants";

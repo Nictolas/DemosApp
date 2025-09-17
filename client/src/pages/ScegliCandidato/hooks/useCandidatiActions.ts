@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { OpinioniDialogData } from "../types";
 import { getFieldName } from "../utils/candidatoUtils";
 

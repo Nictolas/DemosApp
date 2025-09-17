@@ -15,7 +15,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useLocation } from 'wouter';
-import apiRequest from '@/lib/api-request';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function SecurityDashboard() {
   const [, setLocation] = useLocation();

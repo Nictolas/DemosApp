@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { Referendum, ReferendumFormData, ReferendumAbrogativiState, QuorumChangeData } from "../types";
 import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
 

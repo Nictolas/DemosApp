@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { UserAutocomplete } from "@/components/UserAutocomplete";
 
 const comunicaSchema = z.object({
