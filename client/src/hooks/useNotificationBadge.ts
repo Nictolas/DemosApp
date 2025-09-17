@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./use-auth-neon";
-import { apiRequest } from "@/lib/queryClient";
+import apiRequest from "@/lib/api-request";
 
 export const useNotificationBadge = () => {
   const { user } = useAuth();

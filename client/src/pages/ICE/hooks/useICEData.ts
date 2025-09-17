@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import apiRequest from "@/lib/api-request";
 import { ICEData } from "../types";
 import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
 

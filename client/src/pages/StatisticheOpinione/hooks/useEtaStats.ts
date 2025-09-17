@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import apiRequest from "@/lib/api-request";
 import { EtaDataItem } from "../types";
 
 export const useEtaStats = (opinionId: string) => {
