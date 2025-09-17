@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Info
 } from 'lucide-react';
-import apiRequest from '../lib/api-request';
+import { apiRequest } from '../lib/queryClient';
 
 interface RetentionPolicy {
   retention_days: number;

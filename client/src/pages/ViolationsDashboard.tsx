@@ -17,7 +17,7 @@ import {
   Bell,
   Activity
 } from 'lucide-react';
-import apiRequest from '../lib/api-request';
+import { apiRequest } from '../lib/queryClient';
 
 interface Violation {
   type: string;

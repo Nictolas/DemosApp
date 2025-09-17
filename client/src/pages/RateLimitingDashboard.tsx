@@ -16,7 +16,7 @@ import {
   BarChart3,
   Globe
 } from 'lucide-react';
-import apiRequest from '../lib/api-request';
+import { apiRequest } from '../lib/queryClient';
 
 interface RateLimitStats {
   limit_type: string;
