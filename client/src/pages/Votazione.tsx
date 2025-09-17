@@ -195,6 +195,12 @@ const Votazione = React.memo(function Votazione() {
     // }
   }, []);
 
+  // Funzione per gestire l'invio del form
+  const onSubmit = useCallback((data: ComunicaFormData) => {
+    console.log('📝 Form submitted with data:', data);
+    submitComunicazione.mutate(data);
+  }, [submitComunicazione]);
+
 
   // Funzioni per gestire i voti
   const addVotoEntry = () => {
@@ -398,62 +404,98 @@ const Votazione = React.memo(function Votazione() {
         )}
         
         
-        {/* Input semplificato per test - NON collegato al form */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Titolo della votazione * (test semplificato)</label>
-          <input 
-            type="text"
-            placeholder="Es: Approvazione legge..."
-            onChange={(e) => {
-              console.log('📝 Input semplificato onChange:', e.target.value);
-            }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        
-        {/* Form semplificato per test */}
-        <div className="space-y-4">
-          {/* Input semplificati per test */}
+        {/* Form per Nuova Comunicazione Votazione */}
+        <div className="space-y-6">
+          {/* Titolo della votazione */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Il tuo voto *</label>
-            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Seleziona il tuo voto</option>
-              <option value="Favorevole">Favorevole</option>
-              <option value="Contrario">Contrario</option>
-              <option value="Astenuto">Astenuto</option>
-            </select>
+            <label className="text-sm font-medium">Titolo della votazione *</label>
+            <input 
+              type="text"
+              placeholder="Es: Approvazione legge..."
+              value={form.watch("titolo")}
+              onChange={(e) => form.setValue("titolo", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {form.formState.errors.titolo && (
+              <p className="text-sm text-red-600">{form.formState.errors.titolo.message}</p>
+            )}
           </div>
           
+          {/* Il tuo voto - Pulsanti come in /opinioni-nazionali */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Il tuo voto *</label>
+            <div className="flex justify-center">
+              <div className="flex w-full max-w-md">
+                {[
+                  { value: "Favorevole", color: "bg-green-600 text-white" },
+                  { value: "Astenuto", color: "bg-yellow-500 text-white" },
+                  { value: "Contrario", color: "bg-red-600 text-white" }
+                ].map((option, idx) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                      idx === 0 ? 'rounded-l-full' : ''
+                    } ${
+                      idx === 2 ? 'rounded-r-full' : ''
+                    } ${
+                      form.watch("voto_dato") === option.value 
+                        ? option.color + ' scale-95 z-10' 
+                        : 'bg-white hover:bg-gray-10 z-0'
+                    }`}
+                    onClick={() => form.setValue("voto_dato", option.value as "Favorevole" | "Contrario" | "Astenuto")}
+                  >
+                    {option.value}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.formState.errors.voto_dato && (
+              <p className="text-sm text-red-600">{form.formState.errors.voto_dato.message}</p>
+            )}
+          </div>
+          
+          {/* Commento */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Commento (opzionale, max 20 caratteri)</label>
             <input
               type="text"
               maxLength={20}
               placeholder="Inserisci commento..."
+              value={form.watch("commento") || ""}
+              onChange={(e) => form.setValue("commento", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              onChange={(e) => {
-                console.log('📝 Commento onChange:', e.target.value);
-              }}
             />
+            {form.formState.errors.commento && (
+              <p className="text-sm text-red-600">{form.formState.errors.commento.message}</p>
+            )}
           </div>
           
+          {/* Risultato della votazione */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Risultato della votazione *</label>
-            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select 
+              value={form.watch("vincitore")}
+              onChange={(e) => form.setValue("vincitore", e.target.value as "Approvata" | "Respinta")}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               <option value="">Seleziona il risultato</option>
               <option value="Approvata">Approvata</option>
               <option value="Respinta">Respinta</option>
             </select>
+            {form.formState.errors.vincitore && (
+              <p className="text-sm text-red-600">{form.formState.errors.vincitore.message}</p>
+            )}
           </div>
           
+          {/* Pulsante invio */}
           <button
             type="button"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            onClick={() => {
-              console.log('📝 Pulsante invio cliccato');
-            }}
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            disabled={submitComunicazione.isPending}
+            onClick={() => form.handleSubmit(onSubmit)()}
           >
-            Invia Comunicazione
+            {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
           </button>
         </div>
         {/* Form originale rimosso per test */}
