@@ -53,6 +53,113 @@ interface VotoEntry {
   voto: "Favorevole" | "Contrario" | "Astenuto";
 }
 
+// Componente per Comunica Voti - spostato fuori dal componente principale
+const ComunicaVotiCard = React.memo(({ 
+  titoloVotazione, 
+  setTitoloVotazione, 
+  votiEntries, 
+  addVotoEntry, 
+  updateVotoEntry, 
+  removeVotoEntry, 
+  submitComunicaVoti 
+}: {
+  titoloVotazione: string;
+  setTitoloVotazione: (value: string) => void;
+  votiEntries: Array<{ id: string; nome: string; voto: string }>;
+  addVotoEntry: () => void;
+  updateVotoEntry: (id: string, field: string, value: string) => void;
+  removeVotoEntry: (id: string) => void;
+  submitComunicaVoti: any;
+}) => (
+  <Card className="w-full bg-white">
+    <CardHeader>
+      <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+        <Calculator className="h-6 w-6" />
+        Comunica Voti
+      </CardTitle>
+      <CardDescription className="text-center">
+        Registra i voti di una votazione e calcola automaticamente il risultato.
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-6">
+      {/* Titolo della votazione - semplificato */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Titolo della votazione *</label>
+        <input
+          type="text"
+          placeholder="Es: Approvazione legge..."
+          value={titoloVotazione}
+          onChange={(e) => setTitoloVotazione(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      {/* Lista voti */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium">Voti registrati</label>
+          <button
+            type="button"
+            onClick={addVotoEntry}
+            className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Aggiungi voto
+          </button>
+        </div>
+
+        {votiEntries.map((entry, index) => (
+          <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-gray-600">Nome</label>
+                <input
+                  type="text"
+                  placeholder="Inserisci nome"
+                  value={entry.nome}
+                  onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Voto</label>
+                <select
+                  value={entry.voto}
+                  onChange={(e) => updateVotoEntry(entry.id, "voto", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Favorevole">Favorevole</option>
+                  <option value="Contrario">Contrario</option>
+                  <option value="Astenuto">Astenuto</option>
+                </select>
+              </div>
+            </div>
+            {votiEntries.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeVotoEntry(entry.id)}
+                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Pulsante salva */}
+      <button
+        type="button"
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+        disabled={!titoloVotazione.trim() || submitComunicaVoti.isPending}
+        onClick={() => submitComunicaVoti.mutate()}
+      >
+        {submitComunicaVoti.isPending ? "Salvataggio in corso..." : "Salva Votazione"}
+      </button>
+    </CardContent>
+  </Card>
+));
+
 
 const Votazione = React.memo(function Votazione() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -357,98 +464,6 @@ const Votazione = React.memo(function Votazione() {
     </Card>
   ));
 
-  // Componente per Comunica Voti - memoizzato
-  const ComunicaVotiCard = React.memo(() => (
-    <Card className="w-full bg-white">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-          <Calculator className="h-6 w-6" />
-          Comunica Voti
-        </CardTitle>
-        <CardDescription className="text-center">
-          Registra i voti di una votazione e calcola automaticamente il risultato.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Titolo della votazione - semplificato */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Titolo della votazione *</label>
-          <input
-            type="text"
-            placeholder="Es: Approvazione legge..."
-            value={titoloVotazione}
-            onChange={(e) => setTitoloVotazione(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        {/* Lista voti */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">Voti registrati</label>
-            <button
-              type="button"
-              onClick={addVotoEntry}
-              className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm"
-            >
-              <Plus className="h-4 w-4" />
-              Aggiungi voto
-            </button>
-          </div>
-
-          {votiEntries.map((entry, index) => (
-            <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-gray-600">Nome</label>
-                  <input
-                    type="text"
-                    placeholder="Inserisci nome"
-                    value={entry.nome}
-                    onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-600">Voto</label>
-                  <select
-                    value={entry.voto}
-                    onChange={(e) => updateVotoEntry(entry.id, "voto", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Favorevole">Favorevole</option>
-                    <option value="Contrario">Contrario</option>
-                    <option value="Astenuto">Astenuto</option>
-                  </select>
-                </div>
-              </div>
-              {votiEntries.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeVotoEntry(entry.id)}
-                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Risultato della votazione - rimosso per evitare re-render */}
-
-        {/* Pulsante salva */}
-        <button
-          type="button"
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          disabled={!titoloVotazione.trim() || submitComunicaVoti.isPending}
-          onClick={() => submitComunicaVoti.mutate()}
-        >
-          {submitComunicaVoti.isPending ? "Salvataggio in corso..." : "Salva Votazione"}
-        </button>
-      </CardContent>
-    </Card>
-  ));
 
   // Componente per Notifiche di Demos - memoizzato
   const NotificheDemosCard = React.memo(() => (
@@ -523,7 +538,15 @@ const Votazione = React.memo(function Votazione() {
             </TabsContent>
             
             <TabsContent value="comunica-voti" className="mt-6">
-              <ComunicaVotiCard />
+              <ComunicaVotiCard 
+                titoloVotazione={titoloVotazione}
+                setTitoloVotazione={setTitoloVotazione}
+                votiEntries={votiEntries}
+                addVotoEntry={addVotoEntry}
+                updateVotoEntry={updateVotoEntry}
+                removeVotoEntry={removeVotoEntry}
+                submitComunicaVoti={submitComunicaVoti}
+              />
             </TabsContent>
             
             <TabsContent value="notifiche-demos" className="mt-6">
@@ -534,7 +557,17 @@ const Votazione = React.memo(function Votazione() {
           // Altri utenti vedono solo i riquadri che possono usare
           <div className="space-y-6">
             {isAllowed && <NuovaComunicazioneCard />}
-            {canComunicaVoti && <ComunicaVotiCard />}
+            {canComunicaVoti && (
+              <ComunicaVotiCard 
+                titoloVotazione={titoloVotazione}
+                setTitoloVotazione={setTitoloVotazione}
+                votiEntries={votiEntries}
+                addVotoEntry={addVotoEntry}
+                updateVotoEntry={updateVotoEntry}
+                removeVotoEntry={removeVotoEntry}
+                submitComunicaVoti={submitComunicaVoti}
+              />
+            )}
             {canSendDemosNotifications && <NotificheDemosCard />}
           </div>
         )}
