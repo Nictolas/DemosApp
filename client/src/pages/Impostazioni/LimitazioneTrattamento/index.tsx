@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 
 interface DataCategory {
   id: string;

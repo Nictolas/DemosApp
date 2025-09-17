@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation } from "@tanstack/react-query";
 import { Redirect, useRouter } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import DatePicker from "@/components/DatePicker";
 
 const eventoSchema = z.object({
