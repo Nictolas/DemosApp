@@ -94,7 +94,7 @@ import ValidationDashboard from "./pages/ValidationDashboard";
 import LoggingDashboard from "./pages/LoggingDashboard";
 import MonitoringDashboard from "./pages/MonitoringDashboard";
 import AuditDashboard from "./pages/AuditDashboard";
-import SecurityDashboard from "./pages/Admin/SecurityDashboard";
+import AdminSecurityDashboard from "./pages/Admin/SecurityDashboard";
 import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
@@ -345,7 +345,7 @@ export default function App() {
                 {/* Route per Dashboard Sicurezza e Monitoraggio */}
                 <Route path="/admin/security-dashboard">
                   <PageTransition location={location} type="fade-up">
-                    <SecurityDashboard />
+                    <AdminSecurityDashboard />
                   </PageTransition>
                 </Route>
 
