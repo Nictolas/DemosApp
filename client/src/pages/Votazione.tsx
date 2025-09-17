@@ -299,11 +299,6 @@ const Votazione = React.memo(function Votazione() {
     },
   });
 
-  // Funzione per gestire l'invio del form
-  const onSubmit = useCallback((data: ComunicaFormData) => {
-    console.log('📝 Form submitted with data:', data);
-    submitComunicazione.mutate(data);
-  }, [submitComunicazione]);
 
   // 1. Caricamento dati utente con React Query (temporaneamente disabilitato per debug)
   const { data: userData, isLoading: isLoadingUser } = useQuery({
@@ -358,6 +353,12 @@ const Votazione = React.memo(function Votazione() {
       toast({ title: "Errore", description: error.message || "Invio fallito.", variant: "destructive" });
     },
   });
+
+  // Funzione per gestire l'invio del form
+  const onSubmit = useCallback((data: ComunicaFormData) => {
+    console.log('📝 Form submitted with data:', data);
+    submitComunicazione.mutate(data);
+  }, [submitComunicazione]);
 
   if (isAuthLoading || (user && isLoadingUser)) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
