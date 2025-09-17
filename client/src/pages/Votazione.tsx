@@ -303,9 +303,23 @@ export default function Votazione() {
         {/* Input manuale di test - componente isolato */}
         <TestInput />
         
+        {/* Input semplificato per test */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Titolo della votazione * (test semplificato)</label>
+          <input 
+            type="text"
+            placeholder="Es: Approvazione legge..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => {
+              console.log('📝 Input semplificato onChange:', e.target.value);
+            }}
+          />
+        </div>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit((data) => submitComunicazione.mutate(data))} className="space-y-4">
-            <FormField control={form.control} name="titolo" render={({ field }) => (
+            {/* FormField originale commentato per test */}
+            {/* <FormField control={form.control} name="titolo" render={({ field }) => (
               <FormItem>
                 <FormLabel>Titolo della votazione *</FormLabel>
                 <FormControl>
@@ -325,7 +339,7 @@ export default function Votazione() {
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )} />
+            )} /> */}
             <FormField control={form.control} name="voto_dato" render={({ field }) => (
               <FormItem>
                 <FormLabel>Il tuo voto *</FormLabel>
