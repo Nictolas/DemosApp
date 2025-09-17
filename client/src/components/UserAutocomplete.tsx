@@ -123,7 +123,6 @@ export const UserAutocomplete: React.FC<UserAutocompleteProps> = ({
                 onClick={() => handleUserSelect(user)}
               >
                 <div className="font-medium text-gray-900">{user.displayName}</div>
-                <div className="text-sm text-gray-500">{user.email}</div>
               </button>
             ))
           ) : searchTerm.length >= 2 ? (
