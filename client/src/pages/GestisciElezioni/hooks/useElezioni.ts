@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { Elezione } from "../types";
 
 export const useElezioni = () => {

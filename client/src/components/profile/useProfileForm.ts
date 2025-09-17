@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { UserInfo } from "../../pages/Profilo";
 import { useToast } from "@/hooks/use-toast";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 
 // Funzione di utilità per normalizzare la data nel formato YYYY-MM-DD
 function normalizeDate(dateStr?: string): string {

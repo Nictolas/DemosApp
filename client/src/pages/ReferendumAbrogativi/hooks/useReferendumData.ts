@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { Referendum } from "../types";
 import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
 

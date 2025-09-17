@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 import { Candidato, OpinioniDialogData } from "../types";
 import { getFieldName } from "../utils/candidatoUtils";
 
