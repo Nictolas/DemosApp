@@ -386,16 +386,14 @@ const Votazione = React.memo(function Votazione() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium">Voti registrati</label>
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={addVotoEntry}
-              className="flex items-center gap-2"
+              className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm"
             >
               <Plus className="h-4 w-4" />
               Aggiungi voto
-            </Button>
+            </button>
           </div>
 
           {votiEntries.map((entry, index) => (
@@ -413,31 +411,25 @@ const Votazione = React.memo(function Votazione() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-600">Voto</label>
-                  <Select
+                  <select
                     value={entry.voto}
-                    onValueChange={(value) => updateVotoEntry(entry.id, "voto", value)}
+                    onChange={(e) => updateVotoEntry(entry.id, "voto", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Favorevole">Favorevole</SelectItem>
-                      <SelectItem value="Contrario">Contrario</SelectItem>
-                      <SelectItem value="Astenuto">Astenuto</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <option value="Favorevole">Favorevole</option>
+                    <option value="Contrario">Contrario</option>
+                    <option value="Astenuto">Astenuto</option>
+                  </select>
                 </div>
               </div>
               {votiEntries.length > 1 && (
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
                   onClick={() => removeVotoEntry(entry.id)}
-                  className="text-red-500 hover:text-red-700"
+                  className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
                 >
                   <Trash2 className="h-4 w-4" />
-                </Button>
+                </button>
               )}
             </div>
           ))}
@@ -446,13 +438,14 @@ const Votazione = React.memo(function Votazione() {
         {/* Risultato della votazione - rimosso per evitare re-render */}
 
         {/* Pulsante salva */}
-        <Button
-          className="w-full"
+        <button
+          type="button"
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
           disabled={!titoloVotazione.trim() || submitComunicaVoti.isPending}
           onClick={() => submitComunicaVoti.mutate()}
         >
           {submitComunicaVoti.isPending ? "Salvataggio in corso..." : "Salva Votazione"}
-        </Button>
+        </button>
       </CardContent>
     </Card>
   ));
