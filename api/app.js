@@ -194,6 +194,7 @@ app.use('/api/iniziative-popolari', iniziativePopolariRoutes);
 app.use('/api/referendum', referendumRoutes);
 app.use('/api/referendum-abrogativi', referendumRoutes);
 app.use('/api/comunicazioni', comunicazioniRoutes);
+app.use('/api/ultima-comunicazione', comunicazioniRoutes);
 app.use('/api/reazioni-comunicazioni', reazioniComunicazioniRoutes);
 app.use('/api/sostenitori', sostenitoriRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);

@@ -6,7 +6,56 @@ const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
-// GET /api/referendum-abrogativi - Ottieni referendum abrogativi
+// GET /api/referendum-abrogativi - Ottieni referendum abrogativi (endpoint root)
+router.get('/', async (req, res) => {
+  try {
+    // 1. Ottieni referendum abrogativi accettati con JOIN per i nomi
+    const referendumQuery = `
+      SELECT DISTINCT r.id, r.nome, r.data_inizio, r.data_fine, r.status, r.quorum, r.firestore_id_backup
+      FROM referendum_abrogativi r
+      WHERE r.status = 'accepted' OR r.status = 'pending'
+      ORDER BY r.nome
+    `;
+    const referendumResult = await pool.query(referendumQuery);
+
+    // 2. Genera classifica basata sui voti con nomi reali
+    const classificaQuery = `
+      SELECT r.nome, COUNT(*) as voti
+      FROM voti_referendum_abrogativi v
+      INNER JOIN referendum_abrogativi r ON v.referendum_id = r.firestore_id_backup
+      GROUP BY r.id, r.nome
+      ORDER BY voti DESC
+    `;
+    const classificaResult = await pool.query(classificaQuery);
+
+    // 3. Combina i risultati
+    const referendum = referendumResult.rows.map(r => ({
+      id: r.id,
+      nome: r.nome,
+      data_inizio: r.data_inizio,
+      data_fine: r.data_fine,
+      status: r.status,
+      quorum: r.quorum,
+      firestore_id_backup: r.firestore_id_backup,
+      voti: classificaResult.rows.find(c => c.nome === r.nome)?.voti || 0
+    }));
+
+    res.json({
+      success: true,
+      data: referendum,
+      classifica: classificaResult.rows
+    });
+  } catch (error) {
+    console.error('Errore nel recupero dei referendum abrogativi:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare i referendum abrogativi'
+    });
+  }
+});
+
+// GET /api/referendum/abrogativi - Ottieni referendum abrogativi (endpoint specifico)
 router.get('/abrogativi', async (req, res) => {
   try {
     // 1. Ottieni referendum abrogativi accettati con JOIN per i nomi

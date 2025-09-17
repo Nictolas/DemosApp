@@ -31,6 +31,8 @@ router.get('/me', async (req, res) => {
     try {
       decoded = jwt.verify(token, JWT_SECRET);
       console.log('✅ Token JWT verificato per utente:', decoded.email);
+      console.log('🔍 DEBUG - decoded.userId:', decoded.userId);
+      console.log('🔍 DEBUG - typeof decoded.userId:', typeof decoded.userId);
     } catch (jwtError) {
       console.log('❌ Token JWT non valido:', jwtError.message);
       return res.status(401).json({
