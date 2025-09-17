@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { TestInput } from "./Votazione/TestInput";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -66,8 +67,8 @@ export default function Votazione() {
   ]);
   const [titoloVotazione, setTitoloVotazione] = useState("");
   
-  // Stato per input manuale (test)
-  const [manualTitolo, setManualTitolo] = useState("");
+  // Stato per input manuale (test) - rimosso per debug
+  // const [manualTitolo, setManualTitolo] = useState("");
   
 
   const form = useForm<ComunicaFormData>({
@@ -299,18 +300,8 @@ export default function Votazione() {
           </Alert>
         )}
         
-        {/* Input manuale di test */}
-        <div className="mb-4 p-4 border border-blue-500 bg-blue-50">
-          <label className="block text-sm font-medium mb-2">INPUT MANUALE (test):</label>
-          <input 
-            type="text" 
-            value={manualTitolo}
-            onChange={(e) => setManualTitolo(e.target.value)}
-            placeholder="Digita qui per testare input manuale..."
-            className="w-full p-2 border border-gray-300 rounded"
-          />
-          <p className="text-sm text-gray-600 mt-1">Valore: {manualTitolo}</p>
-        </div>
+        {/* Input manuale di test - componente isolato */}
+        <TestInput />
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit((data) => submitComunicazione.mutate(data))} className="space-y-4">
@@ -376,7 +367,7 @@ export default function Votazione() {
         </Form>
       </CardContent>
     </Card>
-  ), [form, existingComunicazione, manualTitolo, setManualTitolo, submitComunicazione, handleTitoloBlur]);
+  ), [form, existingComunicazione, submitComunicazione, handleTitoloBlur]);
 
   // Componente per Comunica Voti - memoizzato per evitare re-render
   const ComunicaVotiCard = React.useCallback(() => (
