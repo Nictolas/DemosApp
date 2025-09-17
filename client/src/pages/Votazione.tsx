@@ -102,10 +102,29 @@ export default function Votazione() {
     }
   };
 
+  // Stato locale per evitare re-render continui
+  const [localVotiEntries, setLocalVotiEntries] = React.useState<VotoEntry[]>([]);
+  
+  // Sincronizza stato locale con stato principale
+  React.useEffect(() => {
+    setLocalVotiEntries(votiEntries);
+  }, [votiEntries]);
+  
   const updateVotoEntry = (id: string, field: keyof VotoEntry, value: string) => {
-    setVotiEntries(votiEntries.map(entry => 
+    // Aggiorna solo lo stato locale (non causa re-render del componente padre)
+    setLocalVotiEntries(prev => prev.map(entry => 
       entry.id === id ? { ...entry, [field]: value } : entry
     ));
+  };
+  
+  // Aggiorna lo stato principale solo al blur
+  const handleVotoBlur = (id: string) => {
+    const localEntry = localVotiEntries.find(entry => entry.id === id);
+    if (localEntry) {
+      setVotiEntries(prev => prev.map(entry => 
+        entry.id === id ? localEntry : entry
+      ));
+    }
   };
 
   // Calcolo automatico del risultato - memoizzato per evitare re-render
@@ -424,7 +443,7 @@ export default function Votazione() {
             </Button>
           </div>
 
-          {votiEntries.map((entry, index) => (
+          {localVotiEntries.map((entry, index) => (
             <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -434,6 +453,7 @@ export default function Votazione() {
                     placeholder="Inserisci nome"
                     value={entry.nome}
                     onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
+                    onBlur={() => handleVotoBlur(entry.id)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
