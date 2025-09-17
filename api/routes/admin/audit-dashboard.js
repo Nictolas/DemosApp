@@ -408,13 +408,8 @@ router.get('/violations', async (req, res) => {
  */
 router.get('/performance', async (req, res) => {
   try {
-    // Metriche di performance simulate (in un sistema reale verrebbero da monitoring tools)
-    const performanceData = [
-      { name: 'Response Time', value: '245ms', status: 'good' },
-      { name: 'CPU Usage', value: '45%', status: 'good' },
-      { name: 'Memory Usage', value: '67%', status: 'warning' },
-      { name: 'Database Connections', value: '23/100', status: 'good' }
-    ];
+    // Per ora restituiamo un array vuoto - in futuro si potrebbero integrare monitoring tools reali
+    const performanceData = [];
     
     // Statistiche di logging
     const loggingStatsQuery = `
