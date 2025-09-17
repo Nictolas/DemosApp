@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import apiRequest from "@/lib/api-request";
+import { apiRequest } from "@/lib/queryClient";
 
 interface DataCategory {
   id: string;
