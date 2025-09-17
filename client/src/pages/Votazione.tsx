@@ -383,8 +383,8 @@ export default function Votazione() {
     </Card>
   ), [form, existingComunicazione, submitComunicazione, handleTitoloBlur]);
 
-  // Componente per Comunica Voti - memoizzato per evitare re-render
-  const ComunicaVotiCard = React.useCallback(() => (
+  // Componente per Comunica Voti - semplificato
+  const ComunicaVotiCard = () => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -511,10 +511,10 @@ export default function Votazione() {
         </Button>
       </CardContent>
     </Card>
-  ), [titoloVotazione, setTitoloVotazione, votiEntries, addVotoEntry, removeVotoEntry, updateVotoEntry, result, submitComunicaVoti]);
+  );
 
-  // Componente per Notifiche di Demos - memoizzato per evitare re-render
-  const NotificheDemosCard = React.useCallback(() => (
+  // Componente per Notifiche di Demos - semplificato
+  const NotificheDemosCard = () => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -549,7 +549,7 @@ export default function Votazione() {
         </Form>
       </CardContent>
     </Card>
-  ), [demosForm, submitDemosNotification]);
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
