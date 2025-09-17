@@ -46,15 +46,11 @@ export default function SecurityDashboard() {
       setError(null);
 
       // Carica statistiche generali
-      const statsResponse = await apiRequest('/admin/audit-dashboard/stats', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const statsResponse = await apiRequest('GET', '/admin/audit-dashboard/stats');
 
-      if (statsResponse.success) {
-        const stats = statsResponse.data.general_stats;
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        const stats = statsData.data.general_stats;
         setSecurityStats({
           totalViolations: stats.failed_actions || 0,
           criticalIssues: stats.failed_actions || 0,
@@ -66,27 +62,19 @@ export default function SecurityDashboard() {
       }
 
       // Carica violazioni recenti
-      const violationsResponse = await apiRequest('/admin/audit-dashboard/violations', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const violationsResponse = await apiRequest('GET', '/admin/audit-dashboard/violations');
 
-      if (violationsResponse.success) {
-        setRecentViolations(violationsResponse.data.violations || []);
+      if (violationsResponse.ok) {
+        const violationsData = await violationsResponse.json();
+        setRecentViolations(violationsData.data.violations || []);
       }
 
       // Carica audit logs
-      const logsResponse = await apiRequest('/admin/audit-dashboard/logs', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const logsResponse = await apiRequest('GET', '/admin/audit-dashboard/logs');
 
-      if (logsResponse.success) {
-        setAuditLogs(logsResponse.data.logs.map((log: any) => ({
+      if (logsResponse.ok) {
+        const logsData = await logsResponse.json();
+        setAuditLogs(logsData.data.logs.map((log: any) => ({
           id: log.id,
           action: log.action,
           user: log.user_id,
@@ -96,15 +84,11 @@ export default function SecurityDashboard() {
       }
 
       // Carica metriche performance
-      const performanceResponse = await apiRequest('/admin/audit-dashboard/performance', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const performanceResponse = await apiRequest('GET', '/admin/audit-dashboard/performance');
 
-      if (performanceResponse.success) {
-        setPerformanceMetrics(performanceResponse.data.performance || []);
+      if (performanceResponse.ok) {
+        const performanceData = await performanceResponse.json();
+        setPerformanceMetrics(performanceData.data.performance || []);
       }
 
     } catch (err) {
