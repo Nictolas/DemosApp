@@ -102,17 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log('🔍 DEBUG useAuth - Response non ok:', errorText);
         throw new Error('Errore nel caricamento utente');
       }
 
       const result = await response.json();
-      console.log('🔍 DEBUG useAuth - Response result:', result);
       return result.success ? result.user : null;
     },
     enabled: !!token,
     retry: false,
-    staleTime: 0, // Forza sempre il refetch
+    staleTime: 5 * 60 * 1000, // 5 minuti - evita refetch continui
   });
 
   // Mutation per il login
