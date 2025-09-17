@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import apiRequest from "@/lib/api-request";
 
 export const useTestSelezioni = () => {
   const [selezioni, setSelezioni] = useState<Record<string, any>>({});

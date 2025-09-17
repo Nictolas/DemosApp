@@ -9,7 +9,7 @@ import { Header } from "./components/Header";
 import { ListaNotifiche } from "./components/ListaNotifiche";
 import { LoadingStates } from "./components/LoadingStates";
 import { PageContainer } from "@/components/PageContainer";
-import { apiRequest } from "@/lib/queryClient";
+import apiRequest from "@/lib/api-request";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Notifiche() {

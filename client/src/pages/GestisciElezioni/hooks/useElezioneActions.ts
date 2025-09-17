@@ -1,5 +1,5 @@
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import apiRequest from "@/lib/api-request";
 
 export const useElezioneActions = (onSuccess: () => void) => {
   const { toast } = useToast();
