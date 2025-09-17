@@ -4,6 +4,65 @@ const { verifyToken, requireAdmin } = require('../../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/users/search - Cerca utenti per autocompletamento
+router.get('/search', verifyToken, async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({
+        success: true,
+        users: []
+      });
+    }
+    
+    console.log('🔍 GET /api/users/search - Ricerca utenti per:', q);
+    
+    const searchQuery = `
+      SELECT id, nome, cognome, email
+      FROM users 
+      WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
+      AND status = 'verified'
+      ORDER BY 
+        CASE 
+          WHEN nome ILIKE $2 THEN 1
+          WHEN CONCAT(nome, ' ', cognome) ILIKE $2 THEN 2
+          ELSE 3
+        END,
+        nome, cognome
+      LIMIT 10
+    `;
+    
+    const searchTerm = `%${q}%`;
+    const exactMatch = `${q}%`;
+    
+    const result = await pool.query(searchQuery, [searchTerm, exactMatch]);
+    
+    const users = result.rows.map(user => ({
+      id: user.id,
+      nome: user.nome,
+      cognome: user.cognome,
+      email: user.email,
+      displayName: `${user.nome} ${user.cognome}`.trim()
+    }));
+    
+    console.log(`✅ Trovati ${users.length} utenti per la ricerca`);
+    
+    res.json({
+      success: true,
+      users
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nella ricerca utenti:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile cercare gli utenti'
+    });
+  }
+});
+
 // GET /api/users/ - Lista tutti gli utenti (solo admin)
 router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {

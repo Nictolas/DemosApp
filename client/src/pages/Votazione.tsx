@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { UserAutocomplete } from "@/components/UserAutocomplete";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -110,16 +111,15 @@ const ComunicaVotiCard = React.memo(({
         {votiEntries.map((entry, index) => (
           <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
             <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-600">Nome</label>
-                <input
-                  type="text"
-                  placeholder="Inserisci nome"
-                  value={entry.nome}
-                  onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                <div>
+                  <label className="text-xs text-gray-600">Nome</label>
+                  <UserAutocomplete
+                    value={entry.nome}
+                    onChange={(value) => updateVotoEntry(entry.id, "nome", value)}
+                    placeholder="Inserisci nome utente"
+                    className="w-full"
+                  />
+                </div>
                 <div>
                   <label className="text-xs text-gray-600">Voto</label>
                   <div className="flex justify-center mt-1">
@@ -242,6 +242,25 @@ const Votazione = React.memo(function Votazione() {
       const validVoti = votiEntries.filter(entry => entry.nome.trim());
       if (!titoloVotazione.trim() || validVoti.length === 0) {
         throw new Error("Titolo e almeno un voto sono obbligatori");
+      }
+
+      // Validazione che tutti i nomi siano di utenti esistenti
+      for (const entry of validVoti) {
+        try {
+          const response = await apiRequest("GET", `/api/users/search?q=${encodeURIComponent(entry.nome)}`);
+          if (!response.ok) {
+            throw new Error(`Errore nella validazione di "${entry.nome}"`);
+          }
+          
+          const data = await response.json();
+          const userExists = data.users.some((user: any) => user.displayName === entry.nome);
+          
+          if (!userExists) {
+            throw new Error(`"${entry.nome}" non è un utente registrato. Seleziona un nome dalla lista suggerita.`);
+          }
+        } catch (error) {
+          throw new Error(`Errore nella validazione di "${entry.nome}": ${error.message}`);
+        }
       }
 
       const comunicazioneData = {
