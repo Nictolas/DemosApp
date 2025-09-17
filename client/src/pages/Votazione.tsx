@@ -54,7 +54,7 @@ interface VotoEntry {
 }
 
 
-export default function Votazione() {
+const Votazione = React.memo(function Votazione() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -127,8 +127,8 @@ export default function Votazione() {
     }
   };
 
-  // Calcolo automatico del risultato - memoizzato per evitare re-render
-  const result = React.useMemo(() => {
+  // Calcolo automatico del risultato - semplificato per debug
+  const calculateResult = () => {
     const favorevoli = votiEntries.filter(entry => entry.voto === "Favorevole" && entry.nome.trim()).length;
     const contrari = votiEntries.filter(entry => entry.voto === "Contrario" && entry.nome.trim()).length;
     const astenuti = votiEntries.filter(entry => entry.voto === "Astenuto" && entry.nome.trim()).length;
@@ -140,7 +140,10 @@ export default function Votazione() {
       totale: favorevoli + contrari + astenuti,
       risultato: favorevoli > contrari ? "Approvata" : contrari > favorevoli ? "Respinta" : "Pareggio"
     };
-  }, [votiEntries]);
+  };
+  
+  // Calcoliamo solo quando necessario
+  const result = calculateResult();
 
   // Mutazione per salvare i voti della sezione "Comunica Voti"
   const submitComunicaVoti = useMutation({
@@ -297,8 +300,8 @@ export default function Votazione() {
     );
   }
 
-  // Componente per Nuova Comunicazione Votazione - memoizzato per evitare re-render
-  const NuovaComunicazioneCard = React.useCallback(() => (
+  // Componente per Nuova Comunicazione Votazione - memoizzato
+  const NuovaComunicazioneCard = React.memo(() => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -385,10 +388,10 @@ export default function Votazione() {
         {/* Form originale rimosso per test */}
       </CardContent>
     </Card>
-  ), [form, existingComunicazione, submitComunicazione, handleTitoloBlur]);
+  ));
 
-  // Componente per Comunica Voti - semplificato
-  const ComunicaVotiCard = () => (
+  // Componente per Comunica Voti - memoizzato
+  const ComunicaVotiCard = React.memo(() => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -520,10 +523,10 @@ export default function Votazione() {
         </Button>
       </CardContent>
     </Card>
-  );
+  ));
 
-  // Componente per Notifiche di Demos - semplificato
-  const NotificheDemosCard = () => (
+  // Componente per Notifiche di Demos - memoizzato
+  const NotificheDemosCard = React.memo(() => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -567,7 +570,7 @@ export default function Votazione() {
         </Form>
       </CardContent>
     </Card>
-  );
+  ));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
@@ -613,4 +616,6 @@ export default function Votazione() {
       </div>
     </div>
   );
-       }
+});
+
+export default Votazione;
