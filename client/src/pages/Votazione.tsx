@@ -396,13 +396,15 @@ export default function Votazione() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Titolo della votazione */}
+        {/* Titolo della votazione - semplificato */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Titolo della votazione *</label>
-          <Input
+          <input
+            type="text"
             placeholder="Es: Approvazione legge..."
             value={titoloVotazione}
             onChange={(e) => setTitoloVotazione(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
@@ -427,10 +429,12 @@ export default function Votazione() {
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-gray-600">Nome</label>
-                  <Input
+                  <input
+                    type="text"
                     placeholder="Inserisci nome"
                     value={entry.nome}
                     onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -528,20 +532,29 @@ export default function Votazione() {
       <CardContent className="space-y-6">
         <Form {...demosForm}>
           <form onSubmit={demosForm.handleSubmit((data) => submitDemosNotification.mutate(data))} className="space-y-4">
-            <FormField control={demosForm.control} name="titolo" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Titolo della notifica *</FormLabel>
-                <FormControl><Input placeholder="Es: Aggiornamento importante..." {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={demosForm.control} name="commento" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Commento *</FormLabel>
-                <FormControl><Input placeholder="Inserisci il messaggio per tutti gli utenti..." {...field} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
+            {/* Input semplificati per test */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Titolo della notifica *</label>
+              <input
+                type="text"
+                placeholder="Es: Aggiornamento importante..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  console.log('📝 Demos titolo onChange:', e.target.value);
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Commento *</label>
+              <input
+                type="text"
+                placeholder="Inserisci il messaggio per tutti gli utenti..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => {
+                  console.log('📝 Demos commento onChange:', e.target.value);
+                }}
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={submitDemosNotification.isPending}>
               {submitDemosNotification.isPending ? "Invio in corso..." : "Invia Notifica a Tutti"}
             </Button>
