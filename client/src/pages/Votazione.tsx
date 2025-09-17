@@ -102,29 +102,11 @@ const Votazione = React.memo(function Votazione() {
     }
   };
 
-  // Stato locale per evitare re-render continui
-  const [localVotiEntries, setLocalVotiEntries] = React.useState<VotoEntry[]>([]);
-  
-  // Sincronizza stato locale con stato principale
-  React.useEffect(() => {
-    setLocalVotiEntries(votiEntries);
-  }, [votiEntries]);
-  
+  // Funzione semplificata per aggiornare i voti
   const updateVotoEntry = (id: string, field: keyof VotoEntry, value: string) => {
-    // Aggiorna solo lo stato locale (non causa re-render del componente padre)
-    setLocalVotiEntries(prev => prev.map(entry => 
+    setVotiEntries(prev => prev.map(entry => 
       entry.id === id ? { ...entry, [field]: value } : entry
     ));
-  };
-  
-  // Aggiorna lo stato principale solo al blur
-  const handleVotoBlur = (id: string) => {
-    const localEntry = localVotiEntries.find(entry => entry.id === id);
-    if (localEntry) {
-      setVotiEntries(prev => prev.map(entry => 
-        entry.id === id ? localEntry : entry
-      ));
-    }
   };
 
   // Calcolo automatico del risultato - semplificato per debug
@@ -325,16 +307,14 @@ const Votazione = React.memo(function Votazione() {
         {/* Input manuale di test - componente isolato */}
         <TestInput />
         
-        {/* Input semplificato per test - collegato al form */}
+        {/* Input semplificato per test - NON collegato al form */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Titolo della votazione * (test semplificato)</label>
           <input 
             type="text"
             placeholder="Es: Approvazione legge..."
-            value={form.watch("titolo") || ""}
             onChange={(e) => {
               console.log('📝 Input semplificato onChange:', e.target.value);
-              form.setValue("titolo", e.target.value);
             }}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -431,7 +411,7 @@ const Votazione = React.memo(function Votazione() {
             </Button>
           </div>
 
-          {localVotiEntries.map((entry, index) => (
+          {votiEntries.map((entry, index) => (
             <div key={entry.id} className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -441,7 +421,6 @@ const Votazione = React.memo(function Votazione() {
                     placeholder="Inserisci nome"
                     value={entry.nome}
                     onChange={(e) => updateVotoEntry(entry.id, "nome", e.target.value)}
-                    onBlur={() => handleVotoBlur(entry.id)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
