@@ -20,7 +20,7 @@ const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
   voto_dato: z.enum(["Favorevole", "Contrario", "Astenuto"]),
   commento: z.string().max(20, "Il commento non può superare i 20 caratteri").optional(),
-  vincitore: z.enum(["Approvata", "Respinta"]),
+  vincitore: z.enum(["Approvata", "Parità", "Respinta"]),
 });
 
 const comunicaVotiSchema = z.object({
@@ -493,15 +493,32 @@ const Votazione = React.memo(function Votazione() {
           {/* Risultato della votazione */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Risultato della votazione *</label>
-            <select 
-              value={form.watch("vincitore")}
-              onChange={(e) => form.setValue("vincitore", e.target.value as "Approvata" | "Respinta")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Seleziona il risultato</option>
-              <option value="Approvata">Approvata</option>
-              <option value="Respinta">Respinta</option>
-            </select>
+            <div className="flex justify-center">
+              <div className="flex w-full max-w-md">
+                {[
+                  { value: "Approvata", color: "bg-green-600 text-white" },
+                  { value: "Parità", color: "bg-yellow-500 text-white" },
+                  { value: "Respinta", color: "bg-red-600 text-white" }
+                ].map((option, idx) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                      idx === 0 ? 'rounded-l-full' : ''
+                    } ${
+                      idx === 2 ? 'rounded-r-full' : ''
+                    } ${
+                      form.watch("vincitore") === option.value 
+                        ? option.color + ' scale-95 z-10' 
+                        : 'bg-white hover:bg-gray-10 z-0'
+                    }`}
+                    onClick={() => form.setValue("vincitore", option.value as "Approvata" | "Parità" | "Respinta")}
+                  >
+                    {option.value}
+                  </button>
+                ))}
+              </div>
+            </div>
             {form.formState.errors.vincitore && (
               <p className="text-sm text-red-600">{form.formState.errors.vincitore.message}</p>
             )}
