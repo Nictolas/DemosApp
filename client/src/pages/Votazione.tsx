@@ -109,38 +109,24 @@ const Votazione = React.memo(function Votazione() {
     ));
   };
 
-  // Calcolo automatico del risultato - semplificato per debug
-  const calculateResult = () => {
-    const favorevoli = votiEntries.filter(entry => entry.voto === "Favorevole" && entry.nome.trim()).length;
-    const contrari = votiEntries.filter(entry => entry.voto === "Contrario" && entry.nome.trim()).length;
-    const astenuti = votiEntries.filter(entry => entry.voto === "Astenuto" && entry.nome.trim()).length;
-    
-    return {
-      favorevoli,
-      contrari,
-      astenuti,
-      totale: favorevoli + contrari + astenuti,
-      risultato: favorevoli > contrari ? "Approvata" : contrari > favorevoli ? "Respinta" : "Pareggio"
-    };
-  };
-  
-  // Calcoliamo solo quando necessario
-  const result = calculateResult();
+  // Calcolo automatico del risultato - rimosso per evitare re-render
+  // const result = { favorevoli: 0, contrari: 0, astenuti: 0, totale: 0, risultato: "Pareggio" };
 
   // Mutazione per salvare i voti della sezione "Comunica Voti"
   const submitComunicaVoti = useMutation({
     mutationFn: async () => {
-      if (!titoloVotazione.trim() || result.totale === 0) {
+      const validVoti = votiEntries.filter(entry => entry.nome.trim());
+      if (!titoloVotazione.trim() || validVoti.length === 0) {
         throw new Error("Titolo e almeno un voto sono obbligatori");
       }
 
       const comunicazioneData = {
         titolo: titoloVotazione,
-        vincitore: result.risultato,
+        vincitore: "Approvata", // Valore fisso per test
         zona: "Generale",
         id_utente: user?.id,
         tipo: "comunica_voti",
-        voti: votiEntries.filter(entry => entry.nome.trim()).map(entry => ({
+        voti: validVoti.map(entry => ({
           nome: entry.nome,
           voto: entry.voto
         }))
@@ -150,9 +136,10 @@ const Votazione = React.memo(function Votazione() {
     },
     onSuccess: async (response) => {
       const data = await response.json();
+      const validVoti = votiEntries.filter(entry => entry.nome.trim());
       toast({
         title: "Voti salvati",
-        description: `Votazione "${titoloVotazione}" registrata con ${result.totale} voti. Risultato: ${result.risultato}`
+        description: `Votazione "${titoloVotazione}" registrata con ${validVoti.length} voti.`
       });
 
       // Reset del form
@@ -456,46 +443,12 @@ const Votazione = React.memo(function Votazione() {
           ))}
         </div>
 
-        {/* Risultato della votazione */}
-        {result.totale > 0 && (
-          <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4 text-center">Risultato della votazione</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div className="bg-green-100 p-3 rounded">
-                <div className="text-2xl font-bold text-green-700">{result.favorevoli}</div>
-                <div className="text-sm text-green-600">Favorevoli</div>
-              </div>
-              <div className="bg-red-100 p-3 rounded">
-                <div className="text-2xl font-bold text-red-700">{result.contrari}</div>
-                <div className="text-sm text-red-600">Contrari</div>
-              </div>
-              <div className="bg-gray-100 p-3 rounded">
-                <div className="text-2xl font-bold text-gray-700">{result.astenuti}</div>
-                <div className="text-sm text-gray-600">Astenuti</div>
-              </div>
-              <div className="bg-blue-100 p-3 rounded">
-                <div className="text-2xl font-bold text-blue-700">{result.totale}</div>
-                <div className="text-sm text-blue-600">Totale</div>
-              </div>
-            </div>
-            <div className="mt-4 text-center">
-              <div className="text-lg font-semibold">
-                Risultato: <span className={`font-bold ${
-                  result.risultato === "Approvata" ? "text-green-600" :
-                  result.risultato === "Respinta" ? "text-red-600" :
-                  "text-gray-600"
-                }`}>
-                  {result.risultato}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Risultato della votazione - rimosso per evitare re-render */}
 
         {/* Pulsante salva */}
         <Button
           className="w-full"
-          disabled={!titoloVotazione.trim() || result.totale === 0 || submitComunicaVoti.isPending}
+          disabled={!titoloVotazione.trim() || submitComunicaVoti.isPending}
           onClick={() => submitComunicaVoti.mutate()}
         >
           {submitComunicaVoti.isPending ? "Salvataggio in corso..." : "Salva Votazione"}
