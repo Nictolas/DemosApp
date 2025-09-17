@@ -178,8 +178,8 @@ const Votazione = React.memo(function Votazione() {
   
 
   const form = useForm<ComunicaFormData>({
-    // resolver: zodResolver(comunicaSchema), // Temporaneamente disabilitato per debug
-    defaultValues: { titolo: "", commento: "" },
+    resolver: zodResolver(comunicaSchema),
+    defaultValues: { titolo: "", voto_dato: "Favorevole", commento: "", vincitore: "Approvata" },
   });
 
   const demosForm = useForm<DemosNotificationFormData>({
@@ -195,11 +195,6 @@ const Votazione = React.memo(function Votazione() {
     // }
   }, []);
 
-  // Funzione per gestire l'invio del form
-  const onSubmit = useCallback((data: ComunicaFormData) => {
-    console.log('📝 Form submitted with data:', data);
-    submitComunicazione.mutate(data);
-  }, [submitComunicazione]);
 
 
   // Funzioni per gestire i voti
@@ -303,6 +298,12 @@ const Votazione = React.memo(function Votazione() {
       });
     },
   });
+
+  // Funzione per gestire l'invio del form
+  const onSubmit = useCallback((data: ComunicaFormData) => {
+    console.log('📝 Form submitted with data:', data);
+    submitComunicazione.mutate(data);
+  }, [submitComunicazione]);
 
   // 1. Caricamento dati utente con React Query (temporaneamente disabilitato per debug)
   const { data: userData, isLoading: isLoadingUser } = useQuery({
