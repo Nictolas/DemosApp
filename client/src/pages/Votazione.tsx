@@ -15,7 +15,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle, Loader2, Plus, Trash2, Calculator, Vote, Bell } from "lucide-react";
 import { useLocation, Redirect } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { TestInput } from "./Votazione/TestInput";
 
 const comunicaSchema = z.object({
   titolo: z.string().min(1, "Il titolo è obbligatorio"),
@@ -398,8 +397,6 @@ const Votazione = React.memo(function Votazione() {
           </Alert>
         )}
         
-        {/* Input manuale di test - componente isolato */}
-        <TestInput />
         
         {/* Input semplificato per test - NON collegato al form */}
         <div className="space-y-2">
