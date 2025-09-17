@@ -277,8 +277,8 @@ export default function Votazione() {
     );
   }
 
-  // Componente per Nuova Comunicazione Votazione
-  const NuovaComunicazioneCard = () => (
+  // Componente per Nuova Comunicazione Votazione - memoizzato per evitare re-render
+  const NuovaComunicazioneCard = React.useCallback(() => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -376,10 +376,10 @@ export default function Votazione() {
         </Form>
       </CardContent>
     </Card>
-  );
+  ), [form, existingComunicazione, manualTitolo, setManualTitolo, submitComunicazione, handleTitoloBlur]);
 
-  // Componente per Comunica Voti
-  const ComunicaVotiCard = () => (
+  // Componente per Comunica Voti - memoizzato per evitare re-render
+  const ComunicaVotiCard = React.useCallback(() => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -506,10 +506,10 @@ export default function Votazione() {
         </Button>
       </CardContent>
     </Card>
-  );
+  ), [titoloVotazione, setTitoloVotazione, votiEntries, addVotoEntry, removeVotoEntry, updateVotoEntry, result, submitComunicaVoti]);
 
-  // Componente per Notifiche di Demos
-  const NotificheDemosCard = () => (
+  // Componente per Notifiche di Demos - memoizzato per evitare re-render
+  const NotificheDemosCard = React.useCallback(() => (
     <Card className="w-full bg-white">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -544,7 +544,7 @@ export default function Votazione() {
         </Form>
       </CardContent>
     </Card>
-  );
+  ), [demosForm, submitDemosNotification]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 page-with-navbar">
