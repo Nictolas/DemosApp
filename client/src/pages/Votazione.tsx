@@ -212,20 +212,20 @@ export default function Votazione() {
     enabled: false, // Disabilitato per debug focus
   });
 
-  // 2. Controllo duplicati tramite API (usando una mutazione per la flessibilità)
-  const checkDuplicateMutation = useMutation({
-      mutationFn: async (titolo: string) => {
-        if (!titolo.trim()) return;
-        const response = await apiRequest("GET", `/api/comunicazioni/check-duplicate?titolo=${encodeURIComponent(titolo)}`);
-        const data = await response.json();
-        if (data.exists) {
-            setExistingComunicazione(data.comunicazione);
-            form.setValue("vincitore", data.comunicazione.vincitore);
-        } else {
-            setExistingComunicazione(null);
-        }
-      },
-  });
+  // 2. Controllo duplicati tramite API (temporaneamente disabilitato per debug focus)
+  // const checkDuplicateMutation = useMutation({
+  //     mutationFn: async (titolo: string) => {
+  //       if (!titolo.trim()) return;
+  //       const response = await apiRequest("GET", `/api/comunicazioni/check-duplicate?titolo=${encodeURIComponent(titolo)}`);
+  //       const data = await response.json();
+  //       if (data.exists) {
+  //           setExistingComunicazione(data.comunicazione);
+  //           form.setValue("vincitore", data.comunicazione.vincitore);
+  //       } else {
+  //           setExistingComunicazione(null);
+  //       }
+  //     },
+  // });
 
   // 3. Submit comunicazione tramite API (già presente, solo ripulito)
   const submitComunicazione = useMutation({
@@ -326,7 +326,7 @@ export default function Votazione() {
                     }}
                     onBlur={(e) => { 
                       field.onBlur(e); 
-                      handleTitoloBlur(e.target.value);
+                      // handleTitoloBlur(e.target.value); // Disabilitato per debug focus
                     }}
                     name={field.name}
                     ref={field.ref}
@@ -369,7 +369,7 @@ export default function Votazione() {
                 <FormMessage />
               </FormItem>
             )} />
-            <Button type="submit" className="w-full" disabled={submitComunicazione.isPending || checkDuplicateMutation.isPending}>
+            <Button type="submit" className="w-full" disabled={submitComunicazione.isPending}>
               {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
             </Button>
           </form>
