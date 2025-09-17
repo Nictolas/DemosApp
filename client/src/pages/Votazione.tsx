@@ -322,16 +322,18 @@ export default function Votazione() {
         {/* Input manuale di test - componente isolato */}
         <TestInput />
         
-        {/* Input semplificato per test */}
+        {/* Input semplificato per test - collegato al form */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Titolo della votazione * (test semplificato)</label>
           <input 
             type="text"
             placeholder="Es: Approvazione legge..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={form.watch("titolo") || ""}
             onChange={(e) => {
               console.log('📝 Input semplificato onChange:', e.target.value);
+              form.setValue("titolo", e.target.value);
             }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
         
