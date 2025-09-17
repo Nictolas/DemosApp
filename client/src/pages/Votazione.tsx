@@ -337,69 +337,52 @@ export default function Votazione() {
           />
         </div>
         
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit((data) => submitComunicazione.mutate(data))} className="space-y-4">
-            {/* FormField originale commentato per test */}
-            {/* <FormField control={form.control} name="titolo" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Titolo della votazione *</FormLabel>
-                <FormControl>
-                  <Input 
-                    placeholder="Es: Approvazione legge..." 
-                    value={field.value || ""}
-                    onChange={(e) => {
-                      field.onChange(e);
-                    }}
-                    onBlur={(e) => { 
-                      field.onBlur(e); 
-                      // handleTitoloBlur(e.target.value); // Disabilitato per debug focus
-                    }}
-                    name={field.name}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )} /> */}
-            <FormField control={form.control} name="voto_dato" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Il tuo voto *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Seleziona il tuo voto" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="Favorevole">Favorevole</SelectItem>
-                    <SelectItem value="Contrario">Contrario</SelectItem>
-                    <SelectItem value="Astenuto">Astenuto</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="commento" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Commento (opzionale, max 20 caratteri)</FormLabel>
-                <FormControl><Input {...field} maxLength={20} /></FormControl>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="vincitore" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Risultato della votazione *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value} disabled={!!existingComunicazione}>
-                  <FormControl><SelectTrigger><SelectValue placeholder="Seleziona il risultato" /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="Approvata">Approvata</SelectItem>
-                    <SelectItem value="Respinta">Respinta</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <Button type="submit" className="w-full" disabled={submitComunicazione.isPending}>
-              {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
-            </Button>
-          </form>
-        </Form>
+        {/* Form semplificato per test */}
+        <div className="space-y-4">
+          {/* Input semplificati per test */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Il tuo voto *</label>
+            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Seleziona il tuo voto</option>
+              <option value="Favorevole">Favorevole</option>
+              <option value="Contrario">Contrario</option>
+              <option value="Astenuto">Astenuto</option>
+            </select>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Commento (opzionale, max 20 caratteri)</label>
+            <input
+              type="text"
+              maxLength={20}
+              placeholder="Inserisci commento..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => {
+                console.log('📝 Commento onChange:', e.target.value);
+              }}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Risultato della votazione *</label>
+            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Seleziona il risultato</option>
+              <option value="Approvata">Approvata</option>
+              <option value="Respinta">Respinta</option>
+            </select>
+          </div>
+          
+          <button
+            type="button"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onClick={() => {
+              console.log('📝 Pulsante invio cliccato');
+            }}
+          >
+            Invia Comunicazione
+          </button>
+        </div>
+        {/* Form originale rimosso per test */}
       </CardContent>
     </Card>
   ), [form, existingComunicazione, submitComunicazione, handleTitoloBlur]);
