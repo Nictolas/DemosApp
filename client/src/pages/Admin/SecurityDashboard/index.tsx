@@ -380,19 +380,9 @@ export default function SecurityDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <p className="text-2xl font-bold text-yellow-700">{securityStats.rateLimitViolations}</p>
-                  <p className="text-sm text-yellow-600">Violazioni Oggi</p>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <p className="text-2xl font-bold text-blue-700">0</p>
-                  <p className="text-sm text-blue-600">IP Bloccati</p>
-                </div>
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <p className="text-2xl font-bold text-green-700">98%</p>
-                  <p className="text-sm text-green-600">Success Rate</p>
-                </div>
+              <div className="text-center py-8 text-gray-500">
+                <Zap className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <p>Nessuna violazione da gestire</p>
               </div>
               <div className="text-center py-8 text-gray-500">
                 <Zap className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -458,36 +448,26 @@ export default function SecurityDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Response Time</span>
-                    <Badge variant="default">good</Badge>
-                  </div>
-                  <p className="text-2xl font-bold">245ms</p>
+              {performanceMetrics.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {performanceMetrics.map((metric: any, index: number) => (
+                    <div key={index} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">{metric.name}</span>
+                        <Badge variant={metric.status === 'good' ? 'default' : 'secondary'}>
+                          {metric.status}
+                        </Badge>
+                      </div>
+                      <p className="text-2xl font-bold">{metric.value}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">CPU Usage</span>
-                    <Badge variant="default">good</Badge>
-                  </div>
-                  <p className="text-2xl font-bold">45%</p>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Activity className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p>Nessuna metrica disponibile</p>
                 </div>
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Memory Usage</span>
-                    <Badge variant="secondary">warning</Badge>
-                  </div>
-                  <p className="text-2xl font-bold">67%</p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Database Connections</span>
-                    <Badge variant="default">good</Badge>
-                  </div>
-                  <p className="text-2xl font-bold">23/100</p>
-                </div>
-              </div>
+              )}
               <div className="mt-6">
                 <h4 className="font-medium mb-3">Logging Centralizzato</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -496,11 +476,13 @@ export default function SecurityDashboard() {
                     <p className="text-sm text-blue-600">Log Totali</p>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <p className="text-2xl font-bold text-green-700">98%</p>
+                    <p className="text-2xl font-bold text-green-700">
+                      {securityStats.auditLogs > 0 ? Math.round(((securityStats.auditLogs - securityStats.totalViolations) / securityStats.auditLogs) * 100) : 0}%
+                    </p>
                     <p className="text-sm text-green-600">Success Rate</p>
                   </div>
                   <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                    <p className="text-2xl font-bold text-yellow-700">{securityStats.validationFailures}</p>
+                    <p className="text-2xl font-bold text-yellow-700">{securityStats.totalViolations}</p>
                     <p className="text-sm text-yellow-600">Errori</p>
                   </div>
                 </div>
