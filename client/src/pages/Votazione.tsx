@@ -120,18 +120,35 @@ const ComunicaVotiCard = React.memo(({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div>
-                <label className="text-xs text-gray-600">Voto</label>
-                <select
-                  value={entry.voto}
-                  onChange={(e) => updateVotoEntry(entry.id, "voto", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Favorevole">Favorevole</option>
-                  <option value="Contrario">Contrario</option>
-                  <option value="Astenuto">Astenuto</option>
-                </select>
-              </div>
+                <div>
+                  <label className="text-xs text-gray-600">Voto</label>
+                  <div className="flex justify-center mt-1">
+                    <div className="flex w-full">
+                      {[
+                        { value: "Favorevole", color: "bg-green-600 text-white" },
+                        { value: "Astenuto", color: "bg-yellow-500 text-white" },
+                        { value: "Contrario", color: "bg-red-600 text-white" }
+                      ].map((option, idx) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`flex-1 py-2 text-sm font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                            idx === 0 ? 'rounded-l-full' : ''
+                          } ${
+                            idx === 2 ? 'rounded-r-full' : ''
+                          } ${
+                            entry.voto === option.value 
+                              ? option.color + ' scale-95 z-10' 
+                              : 'bg-white hover:bg-gray-10 z-0'
+                          }`}
+                          onClick={() => updateVotoEntry(entry.id, "voto", option.value)}
+                        >
+                          {option.value}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
             </div>
             {votiEntries.length > 1 && (
               <button
