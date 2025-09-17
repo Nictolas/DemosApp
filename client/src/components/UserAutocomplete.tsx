@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/use-auth-neon';
 
 interface User {
   id: string;
@@ -25,6 +26,7 @@ export const UserAutocomplete: React.FC<UserAutocompleteProps> = ({
   placeholder = "Inserisci nome",
   className = ""
 }) => {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,15 +34,15 @@ export const UserAutocomplete: React.FC<UserAutocompleteProps> = ({
 
   // Query per cercare utenti
   const { data: searchResults, isLoading } = useQuery({
-    queryKey: ['users-search', searchTerm],
+    queryKey: ['users-search', searchTerm, user?.id],
     queryFn: async () => {
-      if (!searchTerm || searchTerm.length < 2) return { users: [] };
+      if (!searchTerm || searchTerm.length < 2 || !user) return { users: [] };
       
       const response = await apiRequest("GET", `/api/users/search?q=${encodeURIComponent(searchTerm)}`);
       if (!response.ok) throw new Error('Failed to search users');
       return response.json();
     },
-    enabled: searchTerm.length >= 2,
+    enabled: searchTerm.length >= 2 && !!user,
     staleTime: 30000, // Cache per 30 secondi
   });
 
