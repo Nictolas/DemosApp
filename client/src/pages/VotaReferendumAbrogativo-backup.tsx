@@ -101,7 +101,7 @@ export default function VotaReferendumAbrogativo() {
   const handleShowClassifica = () => setShowAllClassifica(!showAllClassifica);
 
   // Calcola se i voti sono cambiati
-  const votiCambiati = JSON.stringify(selectedVoti.sort()) !== JSON.stringify(data?.mieiVoti.sort() || []);
+  const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
 
   if (!authReady || isLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!user) return <Redirect to="/auth" />;

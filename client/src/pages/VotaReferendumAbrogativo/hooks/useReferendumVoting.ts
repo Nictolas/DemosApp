@@ -55,7 +55,7 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
   };
 
   // Calcola se i voti sono cambiati
-  const votiCambiati = JSON.stringify(selectedVoti.sort()) !== JSON.stringify(data?.mieiVoti.sort() || []);
+  const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
 
   return {
     selectedVoti,
