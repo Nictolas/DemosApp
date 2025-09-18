@@ -1,6 +1,6 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Users } from "lucide-react";
 import { EtaDataItem } from "../types";
 
@@ -30,14 +30,24 @@ export function GenereChart({ genereData }: GenereChartProps) {
     );
   }
 
-  // Prepara i dati per il grafico
-  const chartData = genereData.map(item => ({
-    genere: item.fascia_eta || item.genere || 'N/A',
-    Favorevole: parseInt(item.favorevole) || 0,
-    Contrario: parseInt(item.contrario) || 0,
-    Indeciso: parseInt(item.indeciso) || 0,
-    Astenuto: parseInt(item.astenuto) || 0,
-  }));
+  // Prepara i dati per i grafici a torta
+  const favorevoliData = genereData
+    .filter(item => (parseInt(item.favorevole) || 0) > 0)
+    .map(item => ({
+      name: item.fascia_eta || item.genere || 'N/A',
+      value: parseInt(item.favorevole) || 0,
+      color: '#10b981'
+    }));
+
+  const contrariData = genereData
+    .filter(item => (parseInt(item.contrario) || 0) > 0)
+    .map(item => ({
+      name: item.fascia_eta || item.genere || 'N/A',
+      value: parseInt(item.contrario) || 0,
+      color: '#ef4444'
+    }));
+
+  const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#6b7280'];
 
   return (
     <Card className="bg-white shadow-lg">
@@ -51,32 +61,75 @@ export function GenereChart({ genereData }: GenereChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="p-6">
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis 
-              dataKey="genere" 
-              tick={{ fontSize: 12 }}
-              angle={-45}
-              textAnchor="end"
-              height={80}
-            />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'white', 
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-              }}
-            />
-            <Legend />
-            <Bar dataKey="Favorevole" fill="#10b981" name="Favorevole" />
-            <Bar dataKey="Contrario" fill="#ef4444" name="Contrario" />
-            <Bar dataKey="Indeciso" fill="#f59e0b" name="Indeciso" />
-            <Bar dataKey="Astenuto" fill="#6b7280" name="Astenuto" />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Grafico Favorevoli */}
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Favorevoli</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={favorevoliData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {favorevoliData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            {favorevoliData.length === 0 && (
+              <p className="text-gray-500 mt-4">Nessun dato favorevole</p>
+            )}
+          </div>
+
+          {/* Grafico Contrari */}
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Contrari</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={contrariData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {contrariData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            {contrariData.length === 0 && (
+              <p className="text-gray-500 mt-4">Nessun dato contrario</p>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

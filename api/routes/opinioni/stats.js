@@ -257,42 +257,39 @@ router.get('/stats/:opinionId/eta', verifyToken, async (req, res) => {
 
     // Query per ottenere le statistiche per età dalla tabella users
     const etaQuery = `
+      WITH eta_groups AS (
+        SELECT 
+          CASE 
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
+            ELSE '65+'
+          END as fascia_eta,
+          ${columnName}
+        FROM users 
+        WHERE ${columnName} IS NOT NULL 
+        AND data_nascita IS NOT NULL
+      )
       SELECT 
-        CASE 
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
-          ELSE '65+'
-        END as fascia_eta,
+        fascia_eta,
         COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
         COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
         COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
         COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-      FROM users 
-      WHERE ${columnName} IS NOT NULL 
-      AND data_nascita IS NOT NULL
-      GROUP BY 
-        CASE 
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
-          ELSE '65+'
-        END
+      FROM eta_groups
+      GROUP BY fascia_eta
       ORDER BY 
-        CASE 
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 1
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN 2
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN 3
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN 4
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN 5
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN 6
-          ELSE 7
+        CASE fascia_eta
+          WHEN 'Under 18' THEN 1
+          WHEN '18-25' THEN 2
+          WHEN '26-35' THEN 3
+          WHEN '36-45' THEN 4
+          WHEN '46-55' THEN 5
+          WHEN '56-65' THEN 6
+          WHEN '65+' THEN 7
         END
     `;
     
@@ -580,43 +577,40 @@ router.get('/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, re
 
     // Query per ottenere le statistiche per età dalla tabella users per la regione specifica
     const etaQuery = `
+      WITH eta_groups AS (
+        SELECT 
+          CASE 
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
+            WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
+            ELSE '65+'
+          END as fascia_eta,
+          ${columnName}
+        FROM users 
+        WHERE ${columnName} IS NOT NULL 
+        AND data_nascita IS NOT NULL
+        AND regione_residenza = $1
+      )
       SELECT 
-        CASE 
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
-          ELSE '65+'
-        END as fascia_eta,
+        fascia_eta,
         COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
         COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
         COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
         COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-      FROM users 
-      WHERE ${columnName} IS NOT NULL 
-      AND data_nascita IS NOT NULL
-      AND regione_residenza = $1
-      GROUP BY 
-        CASE 
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 'Under 18'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN '18-25'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN '26-35'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN '36-45'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN '46-55'
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN '56-65'
-          ELSE '65+'
-        END
+      FROM eta_groups
+      GROUP BY fascia_eta
       ORDER BY 
-        CASE 
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) < 18 THEN 1
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 18 AND 25 THEN 2
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 26 AND 35 THEN 3
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 36 AND 45 THEN 4
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 46 AND 55 THEN 5
-          WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, data_nascita)) BETWEEN 56 AND 65 THEN 6
-          ELSE 7
+        CASE fascia_eta
+          WHEN 'Under 18' THEN 1
+          WHEN '18-25' THEN 2
+          WHEN '26-35' THEN 3
+          WHEN '36-45' THEN 4
+          WHEN '46-55' THEN 5
+          WHEN '56-65' THEN 6
+          WHEN '65+' THEN 7
         END
     `;
     
