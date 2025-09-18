@@ -199,7 +199,7 @@ app.use('/api/ultima-comunicazione', comunicazioniRoutes);
 app.use('/api/reazioni-comunicazioni', reazioniComunicazioniRoutes);
 app.use('/api/sostenitori', sostenitoriRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
-app.use('/api/segnalazioni', publicLimiter, segnalazioniRoutes);
+app.use('/api/segnalazioni', segnalazioniRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/test', testRoutes);
 
