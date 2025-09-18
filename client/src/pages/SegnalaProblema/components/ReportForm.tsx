@@ -79,7 +79,21 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
         }),
       });
 
-      const result = await response.json();
+      console.log('🔍 DEBUG ReportForm - Response status:', response.status);
+      console.log('🔍 DEBUG ReportForm - Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Leggi la risposta come testo prima di provare a parsarla come JSON
+      const responseText = await response.text();
+      console.log('🔍 DEBUG ReportForm - Response text:', responseText);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('🔍 DEBUG ReportForm - JSON parse error:', parseError);
+        console.error('🔍 DEBUG ReportForm - Raw response:', responseText);
+        throw new Error('Risposta del server non valida. Riprova più tardi.');
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Errore nell\'invio della segnalazione');
