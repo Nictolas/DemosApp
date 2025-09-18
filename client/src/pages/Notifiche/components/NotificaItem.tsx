@@ -208,7 +208,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                   )}
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="bg-white">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Conferma cancellazione</AlertDialogTitle>
                   <AlertDialogDescription>
