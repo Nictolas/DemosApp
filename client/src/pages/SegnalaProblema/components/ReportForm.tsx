@@ -56,6 +56,16 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
     setIsSubmitting(true);
 
     try {
+      console.log('🔍 DEBUG ReportForm - User object:', user);
+      console.log('🔍 DEBUG ReportForm - User ID:', user.id);
+      console.log('🔍 DEBUG ReportForm - User Email:', user.email);
+      console.log('🔍 DEBUG ReportForm - Form data:', formData);
+
+      // Verifica che l'utente abbia un ID valido
+      if (!user.id) {
+        throw new Error('ID utente non disponibile. Effettua nuovamente il login.');
+      }
+
       // Invia la segnalazione al backend
       const response = await fetch('/api/segnalazioni', {
         method: 'POST',
