@@ -15,7 +15,7 @@ export const ReferendumForm: React.FC<ReferendumFormProps> = ({
   title
 }) => {
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center">
           <Plus className="mr-2 h-5 w-5" />

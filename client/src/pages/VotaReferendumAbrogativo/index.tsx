@@ -64,16 +64,6 @@ export default function VotaReferendumAbrogativo() {
               onToggleSelezione={toggleSelezione}
             />
 
-            {/* Tabella dei referendum */}
-            <ReferendumTable
-              referendum={data?.referendum || []}
-              classifica={data?.classifica || []}
-              selectedVoti={selectedVoti}
-              onToggleSelezione={toggleSelezione}
-              isBlocked={data?.blocco?.isBlocked || false}
-              isPending={saveVotiMutation.isPending}
-            />
-
             {/* Classifica */}
             <ReferendumRanking
               classifica={data?.classifica || []}

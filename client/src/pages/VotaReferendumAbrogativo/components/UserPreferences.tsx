@@ -21,7 +21,7 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
           <ThumbsUp className="h-5 w-5" />
           <span>Le tue preferenze per i referendum abrogativi</span>
         </CardTitle>
-        <CardDescription>Seleziona i referendum che preferisci.</CardDescription>
+        <CardDescription>Vota quali Referendum Abrogativi che hanno raggiunto il quorum dovrebbero avere la priorità ad essere portati alle urne.</CardDescription>
       </CardHeader>
       <CardContent>
         {selectedVoti.length > 0 && (
