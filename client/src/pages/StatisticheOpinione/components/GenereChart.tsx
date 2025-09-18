@@ -31,12 +31,21 @@ export function GenereChart({ genereData }: GenereChartProps) {
   }
 
   // Prepara i dati per i grafici a torta
+  const getColorForGenere = (genere) => {
+    switch (genere?.toLowerCase()) {
+      case 'uomo': return '#3b82f6'; // Azzurro
+      case 'donna': return '#ec4899'; // Rosa
+      case 'altro': return '#eab308'; // Giallo
+      default: return '#6b7280'; // Grigio per altri valori
+    }
+  };
+
   const favorevoliData = genereData
     .filter(item => (parseInt(item.favorevole) || 0) > 0)
     .map(item => ({
       name: item.fascia_eta || item.genere || 'N/A',
       value: parseInt(item.favorevole) || 0,
-      color: '#10b981'
+      color: getColorForGenere(item.fascia_eta || item.genere)
     }));
 
   const contrariData = genereData
@@ -44,7 +53,7 @@ export function GenereChart({ genereData }: GenereChartProps) {
     .map(item => ({
       name: item.fascia_eta || item.genere || 'N/A',
       value: parseInt(item.contrario) || 0,
-      color: '#ef4444'
+      color: getColorForGenere(item.fascia_eta || item.genere)
     }));
 
   const COLORS = ['#10b981', '#ef4444', '#f59e0b', '#6b7280'];
