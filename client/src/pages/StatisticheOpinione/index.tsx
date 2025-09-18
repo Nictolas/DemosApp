@@ -50,13 +50,18 @@ export default function StatisticheOpinione() {
   ];
 
   // Prepara dati per età (bar chart orizzontale)
-  const etaBarData: BarDataItem[] = etaData?.map(item => ({
-    name: item.fascia_eta,
-    Favorevole: parseInt(item.favorevole) || 0,
-    Indeciso: parseInt(item.indeciso) || 0,
-    Contrario: parseInt(item.contrario) || 0,
-    Astenuto: parseInt(item.astenuto) || 0,
-  })) || [];
+  console.log('🔍 DEBUG - etaData raw:', etaData);
+  const etaBarData: BarDataItem[] = etaData?.map(item => {
+    console.log('🔍 DEBUG - Processing eta item:', item);
+    return {
+      name: item.fascia_eta,
+      Favorevole: parseInt(item.favorevole) || 0,
+      Indeciso: parseInt(item.indeciso) || 0,
+      Contrario: parseInt(item.contrario) || 0,
+      Astenuto: parseInt(item.astenuto) || 0,
+    };
+  }) || [];
+  console.log('🔍 DEBUG - etaBarData processed:', etaBarData);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
@@ -82,6 +87,7 @@ export default function StatisticheOpinione() {
             <BarChartComponent etaBarData={etaBarData} />
 
             {/* Grafico genere */}
+            {console.log('🔍 DEBUG - genereData raw:', genereData)}
             <GenereChart genereData={genereData} />
           </div>
         )}
