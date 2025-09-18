@@ -5,7 +5,7 @@ import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
 
 export const useReferendumData = (user: any) => {
   // Query per caricare la lista dei referendum
-  const { data: listaReferendum = [], isLoading, isError } = useQuery<Referendum[]>({
+  const { data: responseData, isLoading, isError } = useQuery<{success: boolean, referendum: Referendum[], classifica: any[], mieiVoti: string[]}>({
     queryKey: QUERY_KEYS.REFERENDUM_LIST,
     queryFn: async () => {
       const response = await apiRequest("GET", API_ENDPOINTS.REFERENDUM_LIST);
@@ -14,6 +14,9 @@ export const useReferendumData = (user: any) => {
     },
     enabled: !!user,
   });
+
+  // Estrai l'array referendum dalla risposta
+  const listaReferendum = responseData?.referendum || [];
 
   return {
     listaReferendum,

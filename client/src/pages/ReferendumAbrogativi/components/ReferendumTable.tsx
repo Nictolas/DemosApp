@@ -25,7 +25,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="bg-white">
         <CardContent className="p-8 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Caricamento referendum...</p>
@@ -36,7 +36,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
 
   if (isError) {
     return (
-      <Card>
+      <Card className="bg-white">
         <CardContent className="p-8 text-center">
           <p className="text-red-600">Errore nel caricamento dei referendum</p>
         </CardContent>
@@ -45,7 +45,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
   }
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle>Lista Referendum Abrogativi</CardTitle>
         <CardDescription>
