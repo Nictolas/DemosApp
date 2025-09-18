@@ -293,9 +293,15 @@ router.post('/vota', verifyToken, async (req, res) => {
     }
 
     // Controlla se l'utente è bloccato (Admin può sempre votare)
+    console.log('🔍 DEBUG - Controllo ruolo utente per userId:', userId);
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    console.log('🔍 DEBUG - Esecuzione query:', userQuery, 'con parametro:', userId);
+    
     const userResult = await pool.query(userQuery, [userId]);
+    console.log('🔍 DEBUG - Risultato query utente:', userResult.rows);
+    
     const userRole = userResult.rows[0]?.ruolo;
+    console.log('🔍 DEBUG - Ruolo utente:', userRole);
 
     if (userRole !== 'Admin') {
       const bloccoQuery = `
