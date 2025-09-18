@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle, Send, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/api-config";
 
 interface User {
   id: string;
@@ -67,7 +68,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
       }
 
       // Invia la segnalazione al backend
-      const response = await fetch('https://demos-c7k0.onrender.com/api/segnalazioni', {
+      const response = await fetch(getApiUrl('/segnalazioni'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
