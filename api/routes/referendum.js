@@ -18,11 +18,12 @@ router.get('/', async (req, res) => {
     `;
     const referendumResult = await pool.query(referendumQuery);
 
-    // 2. Genera classifica basata sui voti con nomi reali
+    // 2. Genera classifica basata sui voti con nomi reali (includendo anche quelli con zero voti)
     const classificaQuery = `
-      SELECT r.nome, COUNT(*) as voti
-      FROM voti_referendum_abrogativi v
-      INNER JOIN referendum_abrogativi r ON v.referendum_id = r.firestore_id_backup
+      SELECT r.nome, COALESCE(COUNT(v.referendum_id), 0) as voti
+      FROM referendum_abrogativi r
+      LEFT JOIN voti_referendum_abrogativi v ON v.referendum_id = r.firestore_id_backup
+      WHERE r.status = 'accepted' OR r.status = 'pending'
       GROUP BY r.id, r.nome
       ORDER BY voti DESC
     `;
