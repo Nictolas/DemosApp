@@ -109,6 +109,11 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
                        Notifica Demos
                      </Badge>
                    )}
+                   {notifica.tipo_notifica === 'segnalazione_problema' && (
+                     <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                       Segnalazione Problema
+                     </Badge>
+                   )}
           </div>
           
           <p className="text-gray-700 mb-3">
@@ -151,6 +156,96 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
               {notifica.commento && (
                 <div className="text-sm text-gray-600 mt-1">
                   <strong>Commento:</strong> {notifica.commento}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Informazioni dettagliate per segnalazioni */}
+          {notifica.tipo_notifica === 'segnalazione_problema' && (
+            <div className="mb-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Tipo di segnalazione */}
+                {notifica.tipo_segnalazione && (
+                  <div className="text-sm">
+                    <strong className="text-orange-800">Tipo:</strong>
+                    <span className="ml-2 px-2 py-1 rounded text-xs bg-orange-100 text-orange-800">
+                      {notifica.tipo_segnalazione === 'bug' ? '🐛 Bug' :
+                       notifica.tipo_segnalazione === 'feature' ? '💡 Suggerimento' :
+                       notifica.tipo_segnalazione === 'ui' ? '🎨 Interfaccia' :
+                       notifica.tipo_segnalazione === 'performance' ? '⚡ Prestazioni' :
+                       notifica.tipo_segnalazione === 'security' ? '🔒 Sicurezza' :
+                       notifica.tipo_segnalazione === 'other' ? '❓ Altro' :
+                       notifica.tipo_segnalazione}
+                    </span>
+                  </div>
+                )}
+
+                {/* Priorità */}
+                {notifica.priorita && (
+                  <div className="text-sm">
+                    <strong className="text-orange-800">Priorità:</strong>
+                    <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                      notifica.priorita === 'critical' ? 'bg-red-100 text-red-800' :
+                      notifica.priorita === 'high' ? 'bg-orange-100 text-orange-800' :
+                      notifica.priorita === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {notifica.priorita === 'critical' ? '🔴 Critica' :
+                       notifica.priorita === 'high' ? '🟠 Alta' :
+                       notifica.priorita === 'medium' ? '🟡 Media' :
+                       notifica.priorita === 'low' ? '🟢 Bassa' :
+                       notifica.priorita}
+                    </span>
+                  </div>
+                )}
+
+                {/* Browser */}
+                {notifica.browser && (
+                  <div className="text-sm">
+                    <strong className="text-orange-800">Browser:</strong>
+                    <span className="ml-2 text-gray-700">{notifica.browser}</span>
+                  </div>
+                )}
+
+                {/* Dispositivo */}
+                {notifica.dispositivo && (
+                  <div className="text-sm">
+                    <strong className="text-orange-800">Dispositivo:</strong>
+                    <span className="ml-2 text-gray-700">{notifica.dispositivo}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Passaggi per riprodurre */}
+              {notifica.passaggi && (
+                <div className="mt-3 text-sm">
+                  <strong className="text-orange-800 block mb-1">Passaggi per riprodurre:</strong>
+                  <div className="bg-white p-2 rounded border text-gray-700 whitespace-pre-line">
+                    {notifica.passaggi}
+                  </div>
+                </div>
+              )}
+
+              {/* Comportamento atteso vs effettivo */}
+              {(notifica.comportamento_atteso || notifica.comportamento_effettivo) && (
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  {notifica.comportamento_atteso && (
+                    <div>
+                      <strong className="text-green-800 block mb-1">✅ Comportamento atteso:</strong>
+                      <div className="bg-green-50 p-2 rounded border text-gray-700">
+                        {notifica.comportamento_atteso}
+                      </div>
+                    </div>
+                  )}
+                  {notifica.comportamento_effettivo && (
+                    <div>
+                      <strong className="text-red-800 block mb-1">❌ Comportamento effettivo:</strong>
+                      <div className="bg-red-50 p-2 rounded border text-gray-700">
+                        {notifica.comportamento_effettivo}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
