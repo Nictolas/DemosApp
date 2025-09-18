@@ -25,7 +25,7 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
 
   if (!classifica || classifica.length === 0) {
     return (
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Trophy className="h-5 w-5 text-yellow-500" />
@@ -51,7 +51,7 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
   }
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Trophy className="h-5 w-5 text-yellow-500" />

@@ -104,7 +104,7 @@ export default function Amnistia() {
           </Button>
         </Link>
 
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4"><div className="p-4 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full"><FileText className="h-12 w-12 text-white" /></div></div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">Amnistia</CardTitle>
@@ -116,7 +116,7 @@ export default function Amnistia() {
           <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : (
           <div className="space-y-6">
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2"><FileText className="h-5 w-5" /><span>La tua richiesta di amnistia</span></CardTitle>
                 <CardDescription>Inserisci la legge per cui vuoi chiedere l'amnistia.</CardDescription>
@@ -177,7 +177,7 @@ export default function Amnistia() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="bg-white">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2"><Trophy className="h-5 w-5 text-yellow-500" /><span>Classifica Leggi</span></CardTitle>
                 <CardDescription>Le leggi che hanno ricevuto più richieste di amnistia ({data?.classifica?.length || 0} totali)</CardDescription>
