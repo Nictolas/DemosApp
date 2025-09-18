@@ -219,15 +219,56 @@ router.put('/mark-all-read', async (req, res) => {
     
     console.log('📖 Marcatura di', notifica_ids.length, 'notifiche come lette per utente:', user_id);
     
-    // Aggiungi l'utente all'array read_by per tutte le notifiche
-    let totalUpdated = 0;
+    // Prima, identifica il tipo di ogni notifica
+    let comunicazioniIds = [];
+    let segnalazioniIds = [];
+    
     for (const notificaId of notifica_ids) {
+      // Controlla se è una comunicazione
+      const comunicazioneResult = await pool.query(
+        'SELECT id FROM comunicazioni WHERE id = $1',
+        [notificaId]
+      );
+      
+      if (comunicazioneResult.rows.length > 0) {
+        comunicazioniIds.push(notificaId);
+      } else {
+        // Controlla se è una segnalazione
+        const segnalazioneResult = await pool.query(
+          'SELECT id FROM segnalazioni WHERE id = $1',
+          [notificaId]
+        );
+        
+        if (segnalazioneResult.rows.length > 0) {
+          segnalazioniIds.push(notificaId);
+        }
+      }
+    }
+    
+    let totalUpdated = 0;
+    
+    // Aggiorna comunicazioni
+    for (const notificaId of comunicazioniIds) {
       const result = await pool.query(`
         UPDATE comunicazioni 
         SET read_by = array_append(read_by, $1)
         WHERE id = $2 AND $1 != ALL(read_by)
         RETURNING id
       `, [user_id, notificaId]);
+      
+      if (result.rows.length > 0) {
+        totalUpdated++;
+      }
+    }
+    
+    // Aggiorna segnalazioni
+    for (const notificaId of segnalazioniIds) {
+      const result = await pool.query(`
+        UPDATE segnalazioni 
+        SET status = 'letta', data_aggiornamento = NOW()
+        WHERE id = $1 AND status != 'letta'
+        RETURNING id
+      `, [notificaId]);
       
       if (result.rows.length > 0) {
         totalUpdated++;
