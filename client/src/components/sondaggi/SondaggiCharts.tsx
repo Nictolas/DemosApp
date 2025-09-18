@@ -38,49 +38,6 @@ export function SondaggiCharts({
 }: SondaggiChartsProps) {
   return (
     <>
-      {/* Grafico a barre principale */}
-      {barChartData && barChartData.length > 0 && (
-        <Card className="bg-white shadow-lg">
-          <CardHeader className="border-b border-gray-100">
-            <CardTitle className="text-2xl text-gray-800 flex items-center">
-              <BarChartIcon className="mr-2 h-6 w-6 text-blue-600" />
-              Distribuzione delle Opinioni
-            </CardTitle>
-            <CardDescription className="text-gray-600">
-              Panoramica delle opinioni espresse dagli utenti
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 12 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={100}
-                />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="Favorevole" fill={colors.favorevole} name="Favorevole" />
-                <Bar dataKey="Contrario" fill={colors.contrario} name="Contrario" />
-                <Bar dataKey="Indeciso" fill={colors.indeciso} name="Indeciso" />
-                <Bar dataKey="Astenuto" fill={colors.astenuto} name="Astenuto" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Grafici a torta per singole domande */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
         {questions
