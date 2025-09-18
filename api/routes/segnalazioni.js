@@ -157,4 +157,52 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
+// DELETE /api/segnalazioni/:id - Cancella segnalazione (solo per admin)
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_id } = req.query;
+
+    // Verifica che l'utente sia admin
+    const userResult = await pool.query(
+      'SELECT is_admin FROM utenti WHERE id = $1',
+      [user_id]
+    );
+
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo gli amministratori possono cancellare le segnalazioni.'
+      });
+    }
+
+    // Cancella la segnalazione
+    const result = await pool.query(
+      'DELETE FROM segnalazioni WHERE id = $1',
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Segnalazione non trovata'
+      });
+    }
+
+    console.log(`✅ Segnalazione ${id} cancellata da admin ${user_id}`);
+
+    res.json({
+      success: true,
+      message: 'Segnalazione cancellata con successo'
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nella cancellazione segnalazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;

@@ -21,7 +21,7 @@ export default function Notifiche() {
   // Blocca lo scroll della pagina
   useNoScroll(true);
 
-  const { data, isLoading, error, markAsReadMutation } = useNotificheData(user);
+  const { data, isLoading, error, markAsReadMutation, deleteSegnalazioneMutation } = useNotificheData(user);
   const { handleSwitch } = useNotifichePrefs();
 
   // Marca automaticamente tutte le notifiche come lette quando si visita la pagina (solo una volta)
@@ -81,6 +81,7 @@ export default function Notifiche() {
             fcmError={fcmError}
             permission={permission}
             onSwitch={handleSwitch}
+            deleteSegnalazioneMutation={deleteSegnalazioneMutation}
           />
         </div>
       </div>

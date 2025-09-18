@@ -36,10 +36,28 @@ export const useNotificheData = (user: any) => {
     },
   });
 
+  // Mutazione per cancellare segnalazione (solo per admin)
+  const deleteSegnalazioneMutation = useMutation({
+    mutationFn: async (segnalazioneId: string) => {
+      const response = await apiRequest("DELETE", `/api/segnalazioni/${segnalazioneId}?user_id=${user?.id}`);
+      if (!response.ok) throw new Error("Errore nella cancellazione segnalazione.");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifiche'] });
+      queryClient.invalidateQueries({ queryKey: ['notificationBadge'] });
+      toast({ title: "Segnalazione cancellata con successo" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Errore", description: error.message, variant: "destructive" });
+    },
+  });
+
   return {
     data,
     isLoading,
     error,
-    markAsReadMutation
+    markAsReadMutation,
+    deleteSegnalazioneMutation
   };
 };

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Loader2, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -17,7 +18,8 @@ import {
 } from "../utils/notificheUtils";
 
 export const NotificaItem: React.FC<NotificaItemProps> = ({
-  notifica
+  notifica,
+  deleteSegnalazioneMutation
 }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -72,6 +74,12 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
   const handleReaction = (tipo: 'like' | 'dislike') => {
     if (!user?.id || notifica.tipo_notifica !== 'comunicazione') return;
     reactionMutation.mutate(tipo);
+  };
+
+  const handleDeleteSegnalazione = () => {
+    if (deleteSegnalazioneMutation && notifica.tipo_notifica === 'segnalazione_problema') {
+      deleteSegnalazioneMutation.mutate(notifica.id);
+    }
   };
   return (
     <div
@@ -181,6 +189,45 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             </div>
           )}
         </div>
+        
+        {/* Pulsante di cancellazione per segnalazioni (solo per admin) */}
+        {notifica.tipo_notifica === 'segnalazione_problema' && (user?.ruolo === 'Admin' || user?.ruolo === 'admin') && deleteSegnalazioneMutation && (
+          <div className="ml-4">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  disabled={deleteSegnalazioneMutation.isPending}
+                >
+                  {deleteSegnalazioneMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Conferma cancellazione</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Sei sicuro di voler cancellare questa segnalazione? Questa azione non può essere annullata.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteSegnalazione}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Cancella
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
         
       </div>
     </div>
