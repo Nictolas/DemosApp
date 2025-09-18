@@ -27,6 +27,7 @@ import ConfermaEmail from "./pages/ConfermaEmail";
 import Menu from "./pages/Menu";
 import Profilo from "./pages/Profilo";
 import Impostazioni from "./pages/Impostazioni";
+import SegnalaProblema from "./pages/SegnalaProblema";
 import ScaricaDati from "./pages/Impostazioni/ScaricaDati";
 import CancellaAccount from "./pages/Impostazioni/CancellaAccount";
 import GestionePrivacy from "./pages/Impostazioni/GestionePrivacy";
@@ -541,6 +542,13 @@ export default function App() {
               <Route path="/impostazioni">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/impostazioni" component={Impostazioni} />
+                </PageTransition>
+              </Route>
+
+              {/* Route segnala problema */}
+              <Route path="/segnala-problema">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/segnala-problema" component={SegnalaProblema} />
                 </PageTransition>
               </Route>
 
