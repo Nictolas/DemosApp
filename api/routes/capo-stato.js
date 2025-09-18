@@ -79,10 +79,19 @@ router.get('/', async (req, res) => {
 // POST /api/capo-stato/vota - Salva i voti multipli per capo di stato
 router.post('/vota', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG /api/capo-stato/vota - Richiesta ricevuta');
+    console.log('🔍 DEBUG - Headers:', req.headers);
+    console.log('🔍 DEBUG - Body:', req.body);
+    console.log('🔍 DEBUG - User:', req.user);
+    
     const { voti } = req.body;
     const userId = req.user.id;
     
+    console.log('🔍 DEBUG - Voti ricevuti:', voti);
+    console.log('🔍 DEBUG - User ID:', userId);
+    
     if (!Array.isArray(voti)) {
+      console.log('❌ DEBUG - Voti non è un array:', typeof voti);
       return res.status(400).json({
         success: false,
         error: 'I voti devono essere un array'
@@ -90,19 +99,24 @@ router.post('/vota', verifyToken, async (req, res) => {
     }
     
     // Inizia una transazione
+    console.log('🔍 DEBUG - Inizio transazione');
     await pool.query('BEGIN');
     
     try {
       // Prima elimina tutti i voti esistenti dell'utente
-      await pool.query(
+      console.log('🔍 DEBUG - Eliminazione voti esistenti per user:', userId);
+      const deleteResult = await pool.query(
         'DELETE FROM voti_capo_stato WHERE userid = $1',
         [userId]
       );
+      console.log('🔍 DEBUG - Voti eliminati:', deleteResult.rowCount);
       
       // Poi inserisce i nuovi voti
       if (voti.length > 0) {
-        const insertPromises = voti.map(async (nome) => {
-          const votoId = `voto_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('🔍 DEBUG - Inserimento nuovi voti:', voti.length);
+        const insertPromises = voti.map(async (nome, index) => {
+          const votoId = `voto_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`;
+          console.log('🔍 DEBUG - Inserimento voto:', votoId, 'per', nome);
           return pool.query(
             `INSERT INTO voti_capo_stato (
               id, userid, nome, timestamp, created_at, updated_at
@@ -112,11 +126,14 @@ router.post('/vota', verifyToken, async (req, res) => {
         });
         
         await Promise.all(insertPromises);
+        console.log('🔍 DEBUG - Tutti i voti inseriti con successo');
       }
       
       // Conferma la transazione
+      console.log('🔍 DEBUG - Commit transazione');
       await pool.query('COMMIT');
       
+      console.log('✅ DEBUG - Voti salvati con successo');
       res.json({
         success: true,
         message: 'Voti salvati con successo',
@@ -124,6 +141,7 @@ router.post('/vota', verifyToken, async (req, res) => {
       });
     } catch (error) {
       // Rollback in caso di errore
+      console.log('❌ DEBUG - Errore nella transazione, rollback:', error.message);
       await pool.query('ROLLBACK');
       throw error;
     }
