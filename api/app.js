@@ -78,25 +78,7 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', false); // In sviluppo, non fidarti di proxy per evitare errori di rate limiting
 }
 
-// DEBUG: Middleware di logging universale per catturare TUTTE le richieste
-app.use((req, res, next) => {
-  console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
-  next();
-});
-
-// Middleware di sicurezza
-app.use(securityHeaders);
-app.use(securityMiddleware);
-app.use(securityLogger);
-
-// Middleware di logging centralizzato
-app.use(requestLoggingMiddleware);
-
-// Middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// CORS - DEVE essere PRIMA del rate limiting
+// CORS - DEVE essere PRIMO per evitare problemi con OPTIONS
 app.use(cors({
   origin: [
     'https://www.demos.community',
@@ -120,6 +102,24 @@ app.options('*', (req, res) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.status(200).end();
 });
+
+// DEBUG: Middleware di logging universale per catturare TUTTE le richieste
+app.use((req, res, next) => {
+  console.log(`🚨 UNIVERSAL LOG: ${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
+  next();
+});
+
+// Middleware di sicurezza
+app.use(securityHeaders);
+app.use(securityMiddleware);
+app.use(securityLogger);
+
+// Middleware di logging centralizzato
+app.use(requestLoggingMiddleware);
+
+// Middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // RATE LIMITING - Applica limiti generali DOPO il CORS
 app.use(generalLimiter);
