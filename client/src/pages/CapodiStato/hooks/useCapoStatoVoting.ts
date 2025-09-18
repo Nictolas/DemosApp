@@ -21,9 +21,9 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
     mutationFn: (voti: string[]) => {
-      // Usa l'endpoint di test temporaneamente
-      const userid = localStorage.getItem('user_id') || 'test-user-id';
-      return apiRequest("POST", "/api/capo-stato/test-vota", { voti, userid });
+      console.log('🔍 DEBUG - Tentativo di salvataggio voti:', voti);
+      // Usa l'endpoint originale ma con logging
+      return apiRequest("POST", "/api/capo-stato/vota", { voti });
     },
     onSuccess: () => {
       toast({ title: "Preferenze salvate", description: "I tuoi voti sono stati aggiornati." });
