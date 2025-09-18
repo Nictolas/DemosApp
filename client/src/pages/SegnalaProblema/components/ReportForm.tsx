@@ -67,7 +67,7 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
       }
 
       // Invia la segnalazione al backend
-      const response = await fetch('/api/segnalazioni', {
+      const response = await fetch('https://demos-c7k0.onrender.com/api/segnalazioni', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
