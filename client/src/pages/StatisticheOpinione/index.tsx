@@ -9,6 +9,7 @@ import { RegionButtons } from "./components/RegionButtons";
 import { PieChartComponent } from "./components/PieChart";
 import { BarChartComponent } from "./components/BarChart";
 import { LoadingState, AuthLoadingState, ErrorState, UnauthorizedState } from "./components/LoadingStates";
+import { OpinionSelector } from "./components/OpinionSelector";
 import { PieDataItem, BarDataItem } from "./types";
 
 export default function StatisticheOpinione() {
@@ -20,6 +21,17 @@ export default function StatisticheOpinione() {
   if (isAuthLoading) return <AuthLoadingState />;
   if (!user) return <UnauthorizedState />;
   if (!hasAdvancedAccess) return <UnauthorizedState />;
+
+  // Se non c'è un opinionId, mostra il selettore delle opinioni
+  if (!opinionId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
+        <div className="container mx-auto max-w-7xl p-6">
+          <OpinionSelector />
+        </div>
+      </div>
+    );
+  }
 
   const stats = data?.stats || {};
   const questionText = data?.questionText || 'Opinione';

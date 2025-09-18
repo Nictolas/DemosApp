@@ -66,6 +66,9 @@ import GestisciGoverno from "./pages/GestisciGoverno";
 import ModificaImmagine from "./pages/ModificaImmagine";
 import StatisticheUtenti from "./pages/StatisticheUtenti";
 import StatisticheOpinione from "./pages/StatisticheOpinione";
+import SondaggiRegione from "./pages/SondaggiRegione";
+import SondaggiProvincia from "./pages/SondaggiProvincia";
+import SondaggiComune from "./pages/SondaggiComune";
 import VotaIniziativaPopolare from "./pages/VotaIniziativaPopolare";
 import VotaReferendumAbrogativo from "./pages/VotaReferendumAbrogativo";
 import VotaICE from "./pages/VotaICE";
@@ -586,6 +589,27 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route sondaggi per regione */}
+              <Route path="/sondaggi/:regione">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/sondaggi/:regione" component={SondaggiRegione} />
+                </PageTransition>
+              </Route>
+
+              {/* Route sondaggi per provincia */}
+              <Route path="/sondaggi/:regione/:provincia">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/sondaggi/:regione/:provincia" component={SondaggiProvincia} />
+                </PageTransition>
+              </Route>
+
+              {/* Route sondaggi per comune */}
+              <Route path="/sondaggi/:regione/:provincia/:comune">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/sondaggi/:regione/:provincia/:comune" component={SondaggiComune} />
+                </PageTransition>
+              </Route>
+
               {/* Route proponi */}
               <Route path="/proponi">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
@@ -737,6 +761,13 @@ export default function App() {
               <Route path="/statistiche-opinione">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/statistiche-opinione" component={StatisticheOpinione} />
+                </PageTransition>
+              </Route>
+
+              {/* Route statistiche opinione specifica */}
+              <Route path="/statistiche-opinione/:id">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/statistiche-opinione/:id" component={StatisticheOpinione} />
                 </PageTransition>
               </Route>
 

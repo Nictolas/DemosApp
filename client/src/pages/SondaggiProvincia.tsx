@@ -1,15 +1,11 @@
 import React from "react";
-import { Redirect } from "wouter";
+import { Redirect, useParams } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Loader2 } from "lucide-react";
 import SondaggiContent from "@/components/SondaggiContent";
 
-interface SondaggiProvinciaProps {
-  regione: string;
-  provincia: string;
-}
-
-export default function SondaggiProvincia({ regione, provincia }: SondaggiProvinciaProps) {
+export default function SondaggiProvincia() {
+  const { regione, provincia } = useParams();
   const { user, isLoading: isAuthLoading } = useAuth();
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100"><Loader2 className="h-8 w-8 animate-spin" /></div>;

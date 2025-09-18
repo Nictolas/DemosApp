@@ -44,10 +44,10 @@ export function SondaggiCharts({
           <CardHeader className="border-b border-gray-100">
             <CardTitle className="text-2xl text-gray-800 flex items-center">
               <BarChartIcon className="mr-2 h-6 w-6 text-blue-600" />
-              Distribuzione Complessiva delle Opinioni
+              Distribuzione delle Opinioni
             </CardTitle>
             <CardDescription className="text-gray-600">
-              Panoramica generale di tutte le opinioni espresse dagli utenti
+              Panoramica delle opinioni espresse dagli utenti
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
