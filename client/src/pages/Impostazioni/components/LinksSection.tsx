@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Shield, Database, Download, Trash2, Settings, User, Lock, LogOut } from "lucide-react";
+import { FileText, Shield, Database, Download, Trash2, Settings, User, Lock, LogOut, AlertTriangle } from "lucide-react";
 import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
@@ -48,7 +48,7 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
       </CardHeader>
       
       <CardContent className="relative space-y-6">
-        {/* Layout 2x2 per i 4 pulsanti rimanenti */}
+        {/* Layout 2x3 per i 6 pulsanti */}
         <div className="grid grid-cols-2 gap-4">
           {/* GDPR */}
           <Link href="/gdpr">
@@ -111,6 +111,22 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
               <div className="text-xs text-gray-600">Esci dall'account</div>
             </div>
           </Button>
+
+          {/* Segnala Problema */}
+          <Link href="/segnala-problema">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-20 rounded-xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-yellow-50 hover:from-orange-100 hover:to-yellow-100 hover:border-orange-300 hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-500 to-yellow-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <AlertTriangle className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-900">Segnala Problema</div>
+                <div className="text-xs text-gray-600">Aiutaci a migliorare</div>
+              </div>
+            </Button>
+          </Link>
         </div>
 
         {/* Form Cambio Password */}
