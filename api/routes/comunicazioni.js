@@ -431,14 +431,28 @@ router.get('/ultima-comunicazione', async (req, res) => {
       });
     }
     
+    // Prima verifica se l'utente esiste nella tabella users
+    const userCheck = await pool.query(
+      'SELECT id FROM users WHERE id = $1',
+      [user_id]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    // Cerca comunicazioni per questo utente
     const result = await pool.query(
       `SELECT 
         c.*,
         COALESCE(SUM(CASE WHEN r.tipo = 'like' THEN 1 ELSE 0 END), 0) as likes,
         COALESCE(SUM(CASE WHEN r.tipo = 'dislike' THEN 1 ELSE 0 END), 0) as dislikes
       FROM comunicazioni c
-      LEFT JOIN reazioni r ON c.id = r.comunicazione_id
-      WHERE c.id_utente = $1
+      LEFT JOIN reazioni r ON c.id::text = r.comunicazione_id
+      WHERE c.id_utente = $1::uuid
       GROUP BY c.id
       ORDER BY c.data_creazione DESC
       LIMIT 1`,
@@ -448,7 +462,7 @@ router.get('/ultima-comunicazione', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Nessuna comunicazione trovata'
+        error: 'Nessuna comunicazione trovata per questo utente'
       });
     }
     
