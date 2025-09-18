@@ -14,7 +14,7 @@ const pool = new Pool({
 
 // ===== ENDPOINTS PER NOTIFICHE =====
 
-// GET /api/notifiche - Lista notifiche per utente (include comunicazioni)
+// GET /api/notifiche - Lista notifiche per utente (include comunicazioni + segnalazioni per admin)
 router.get('/', async (req, res) => {
   try {
     const { user_id } = req.query;
@@ -27,6 +27,14 @@ router.get('/', async (req, res) => {
         error: 'ID utente richiesto'
       });
     }
+
+    // Verifica se l'utente è admin
+    const userResult = await pool.query(
+      'SELECT is_admin FROM utenti WHERE id = $1',
+      [user_id]
+    );
+    
+    const isAdmin = userResult.rows.length > 0 && userResult.rows[0].is_admin === true;
     
     // Recupera le comunicazioni e controlla se l'utente le ha lette
     const comunicazioniResult = await pool.query(`
@@ -45,16 +53,54 @@ router.get('/', async (req, res) => {
       messaggio: c.testo || c.commento || 'Nessun messaggio',
       data_creazione: c.data_creazione,
       tipo_notifica: 'demos_notification',
-      status: c.is_read ? 'letta' : 'non_letta', // Usa l'array read_by per determinare lo status
+      status: c.is_read ? 'letta' : 'non_letta',
       priorita: 'alta',
       commento: c.commento
     }));
+
+    // Se l'utente è admin, recupera anche le segnalazioni
+    let segnalazioni = [];
+    if (isAdmin) {
+      const segnalazioniResult = await pool.query(`
+        SELECT 
+          id, titolo, messaggio, data_creazione, status, priorita, metadata
+        FROM admin_notifications 
+        WHERE destinatario_id = $1 
+          AND tipo = 'segnalazione_problema'
+        ORDER BY data_creazione DESC
+        LIMIT 10
+      `, [user_id]);
+      
+      segnalazioni = segnalazioniResult.rows.map(s => ({
+        id: s.id,
+        titolo: s.titolo,
+        messaggio: s.messaggio,
+        data_creazione: s.data_creazione,
+        tipo_notifica: 'segnalazione_problema',
+        status: s.status,
+        priorita: s.priorita,
+        metadata: s.metadata
+      }));
+    }
     
-    console.log('🔍 DEBUG: Comunicazioni Demos trovate:', comunicazioni.length);
+    // Combina tutte le notifiche
+    const allNotifiche = [...comunicazioni, ...segnalazioni].sort((a, b) => 
+      new Date(b.data_creazione) - new Date(a.data_creazione)
+    );
+    
+    console.log('🔍 DEBUG: Comunicazioni trovate:', comunicazioni.length);
+    console.log('🔍 DEBUG: Segnalazioni trovate:', segnalazioni.length);
+    console.log('🔍 DEBUG: Totale notifiche:', allNotifiche.length);
     
     res.json({
       success: true,
-      notifiche: comunicazioni
+      notifiche: allNotifiche,
+      isAdmin: isAdmin,
+      stats: {
+        comunicazioni: comunicazioni.length,
+        segnalazioni: segnalazioni.length,
+        totali: allNotifiche.length
+      }
     });
   } catch (error) {
     console.error('❌ Errore nel recupero notifiche:', error);
