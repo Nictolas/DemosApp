@@ -56,27 +56,38 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user }) => {
     setIsSubmitting(true);
 
     try {
-      // Simula l'invio della segnalazione
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Qui potresti aggiungere la logica per inviare i dati al backend
-      console.log("Segnalazione inviata:", {
-        ...formData,
-        userId: user.id,
-        userEmail: user.email,
-        timestamp: new Date().toISOString()
+      // Invia la segnalazione al backend
+      const response = await fetch('/api/segnalazioni', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          userId: user.id,
+          userEmail: user.email
+        }),
       });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Errore nell\'invio della segnalazione');
+      }
+
+      console.log("Segnalazione inviata:", result);
 
       setIsSubmitted(true);
       toast({
         title: "Segnalazione inviata!",
-        description: "Grazie per il tuo feedback. Analizzeremo il problema e ti risponderemo presto.",
+        description: `Grazie per il tuo feedback. La segnalazione è stata inviata a ${result.adminCount} amministratori.`,
         variant: "default",
       });
     } catch (error) {
+      console.error('Errore invio segnalazione:', error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'invio. Riprova più tardi.",
+        description: error.message || "Si è verificato un errore durante l'invio. Riprova più tardi.",
         variant: "destructive",
       });
     } finally {
