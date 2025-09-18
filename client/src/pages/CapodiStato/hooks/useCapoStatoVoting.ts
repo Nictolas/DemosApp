@@ -43,6 +43,16 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
       toast({ title: "Voto già selezionato", description: `Hai già selezionato ${nome}` });
       return;
     }
+    
+    // Controlla il limite di 3 voti massimi
+    if (selectedVoti.length >= 3) {
+      toast({ 
+        title: "Limite voti raggiunto", 
+        description: "Puoi selezionare al massimo 3 candidati" 
+      });
+      return;
+    }
+    
     setSelectedVoti(prev => [...prev, nome]);
   };
 
@@ -53,7 +63,23 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   
   const toggleSelezione = (nome: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
-    setSelectedVoti(prev => prev.includes(nome) ? prev.filter(n => n !== nome) : [...prev, nome]);
+    
+    setSelectedVoti(prev => {
+      if (prev.includes(nome)) {
+        // Rimuovi il voto
+        return prev.filter(n => n !== nome);
+      } else {
+        // Aggiungi il voto solo se non si supera il limite di 3
+        if (prev.length >= 3) {
+          toast({ 
+            title: "Limite voti raggiunto", 
+            description: "Puoi selezionare al massimo 3 candidati" 
+          });
+          return prev;
+        }
+        return [...prev, nome];
+      }
+    });
   };
 
   // Calcola se i voti sono cambiati

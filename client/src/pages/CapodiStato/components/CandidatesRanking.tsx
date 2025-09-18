@@ -88,11 +88,13 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => onToggleSelezione(item.nome)}
-                  disabled={isPending || isBlocked}
+                  disabled={isPending || isBlocked || (!selectedVoti.includes(item.nome) && selectedVoti.length >= 3)}
                   className={`transition-all duration-300 ${
                     selectedVoti.includes(item.nome) 
                       ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
-                      : "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
+                      : selectedVoti.length >= 3
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-yellow-50 hover:border-yellow-400 hover:text-yellow-700"
                   }`}
                 >
                   {selectedVoti.includes(item.nome) ? (
@@ -156,11 +158,13 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => onToggleSelezione(item.nome)}
-                        disabled={isPending || isBlocked}
+                        disabled={isPending || isBlocked || (!selectedVoti.includes(item.nome) && selectedVoti.length >= 3)}
                         className={`transition-all duration-300 ${
                           selectedVoti.includes(item.nome) 
                             ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
-                            : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
+                            : selectedVoti.length >= 3
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700"
                         }`}
                       >
                         {selectedVoti.includes(item.nome) ? (

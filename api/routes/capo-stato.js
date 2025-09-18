@@ -283,6 +283,15 @@ router.post('/vota', verifyToken, async (req, res) => {
       });
     }
 
+    // Controlla il limite di 3 voti massimi
+    if (voti.length > 3) {
+      console.log('❌ DEBUG - Troppi voti:', voti.length);
+      return res.status(400).json({
+        success: false,
+        error: 'Puoi selezionare al massimo 3 candidati'
+      });
+    }
+
     // Controlla se l'utente è bloccato (Admin può sempre votare)
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);

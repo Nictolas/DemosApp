@@ -100,7 +100,12 @@ export const VotingForm: React.FC<VotingFormProps> = ({
 
         {selectedVoti.length > 0 && (
           <div className="mt-4">
-            <h4 className="text-sm font-semibold mb-2">Voti selezionati:</h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold">Voti selezionati:</h4>
+              <p className="text-xs text-gray-500">
+                {selectedVoti.length}/3 candidati
+              </p>
+            </div>
             <div className="flex flex-wrap gap-2">
               {selectedVoti.map((voto) => (
                 <Badge 
@@ -114,6 +119,11 @@ export const VotingForm: React.FC<VotingFormProps> = ({
                 </Badge>
               ))}
             </div>
+            {selectedVoti.length >= 3 && (
+              <p className="text-xs text-amber-600 mt-2">
+                ⚠️ Hai raggiunto il limite massimo di 3 voti
+              </p>
+            )}
           </div>
         )}
       </CardContent>
