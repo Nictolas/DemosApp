@@ -1,6 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const router = express.Router();
@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
     }
 
     // Genera ID univoco per la segnalazione
-    const segnalazioneId = uuidv4();
+    const segnalazioneId = crypto.randomUUID();
 
     // 1. Salva la segnalazione nella tabella segnalazioni
     await pool.query(`
@@ -79,52 +79,13 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 3. Crea notifiche per tutti gli admin
-    const notificationPromises = adminQuery.rows.map(async (admin) => {
-      const notificationId = uuidv4();
-      
-      const notificationData = {
-        id: notificationId,
-        tipo: 'segnalazione_problema',
-        titolo: `🔧 Nuova Segnalazione: ${title}`,
-        messaggio: `Segnalazione di tipo "${type}" da ${userEmail || 'utente'}: ${description}`,
-        destinatario_id: admin.id,
-        data_creazione: new Date(),
-        status: 'non_letta',
-        priorita: priority || 'normale',
-        metadata: {
-          segnalazione_id: segnalazioneId,
-          admin_nome: admin.nome,
-          admin_cognome: admin.cognome
-        }
-      };
-
-      return pool.query(`
-        INSERT INTO admin_notifications (
-          id, tipo, titolo, messaggio, destinatario_id, data_creazione, status, priorita, metadata
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [
-        notificationData.id,
-        notificationData.tipo,
-        notificationData.titolo,
-        notificationData.messaggio,
-        notificationData.destinatario_id,
-        notificationData.data_creazione,
-        notificationData.status,
-        notificationData.priorita,
-        JSON.stringify(notificationData.metadata)
-      ]);
-    });
-
-    // Esegui tutte le inserzioni
-    await Promise.all(notificationPromises);
-
-    console.log(`✅ Segnalazione salvata e inviata a ${adminQuery.rows.length} admin`);
+    console.log(`✅ Segnalazione salvata con successo`);
     console.log('📋 Segnalazione ID:', segnalazioneId);
+    console.log(`👥 Admin che riceveranno la notifica: ${adminQuery.rows.length}`);
 
     res.json({
       success: true,
-      message: 'Segnalazione inviata con successo agli admin',
+      message: 'Segnalazione inviata con successo',
       segnalazioneId,
       adminCount: adminQuery.rows.length
     });
@@ -146,20 +107,15 @@ router.get('/admin/:adminId', async (req, res) => {
 
     const result = await pool.query(`
       SELECT 
-        id,
-        tipo,
-        titolo,
-        messaggio,
-        data_creazione,
-        status,
-        priorita,
-        metadata
-      FROM admin_notifications 
-      WHERE destinatario_id = $1 
-        AND tipo = 'segnalazione_problema'
-      ORDER BY data_creazione DESC
-      LIMIT $2 OFFSET $3
-    `, [adminId, parseInt(limit), parseInt(offset)]);
+        s.*,
+        u.nome as utente_nome,
+        u.cognome as utente_cognome,
+        u.email as utente_email
+      FROM segnalazioni s
+      LEFT JOIN utenti u ON s.utente_id = u.id
+      ORDER BY s.data_creazione DESC
+      LIMIT $1 OFFSET $2
+    `, [parseInt(limit), parseInt(offset)]);
 
     res.json({
       success: true,
@@ -182,8 +138,8 @@ router.put('/:id/read', async (req, res) => {
     const { id } = req.params;
 
     await pool.query(`
-      UPDATE admin_notifications 
-      SET status = 'letta', data_lettura = NOW()
+      UPDATE segnalazioni 
+      SET status = 'letta', data_aggiornamento = NOW()
       WHERE id = $1
     `, [id]);
 
