@@ -26,10 +26,21 @@ export default function Notifiche() {
 
   // Marca automaticamente tutte le notifiche come lette quando si visita la pagina (solo una volta)
   useEffect(() => {
+    console.log('🔍 DEBUG Notifiche - Data:', data);
+    console.log('🔍 DEBUG Notifiche - hasMarkedAsRead:', hasMarkedAsRead);
+    
     if (data?.notifiche && data.notifiche.length > 0 && !hasMarkedAsRead) {
+      console.log('🔍 DEBUG Notifiche - Notifiche totali:', data.notifiche.length);
+      console.log('🔍 DEBUG Notifiche - Status delle notifiche:', data.notifiche.map(n => ({ id: n.id, status: n.status, tipo: n.tipo_notifica })));
+      
       const unreadNotifications = data.notifiche.filter(notifica => 
-        notifica.status === 'non_letta' || notifica.status === 'unread'
+        notifica.status === 'non_letta' || 
+        notifica.status === 'unread' || 
+        notifica.status === 'aperta' ||
+        notifica.status === 'non_letta'
       );
+      
+      console.log('🔍 DEBUG Notifiche - Notifiche non lette trovate:', unreadNotifications.length);
       
       if (unreadNotifications.length > 0) {
         console.log('🔄 Marcatura automatica di', unreadNotifications.length, 'notifiche come lette');
