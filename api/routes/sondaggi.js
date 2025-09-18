@@ -186,6 +186,9 @@ router.get('/:regione', async (req, res) => {
   try {
     const { regione } = req.params;
     
+    // Converte slug in nome regione (es. "toscana" -> "Toscana")
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
       SELECT id, text
@@ -266,11 +269,11 @@ router.get('/:regione', async (req, res) => {
           COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
         FROM users 
         WHERE ${columnName} IS NOT NULL 
-        AND regione = $1
+        AND regione_residenza = $1
       `;
       
       try {
-        const statsResult = await pool.query(statsQuery, [regione]);
+        const statsResult = await pool.query(statsQuery, [regionName]);
         const row = statsResult.rows[0];
         
         stats[questionId] = {
@@ -285,7 +288,7 @@ router.get('/:regione', async (req, res) => {
           text: questionText
         });
       } catch (statsError) {
-        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in regione ${regione}:`, statsError.message);
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in regione ${regionName}:`, statsError.message);
         // Se la colonna non esiste, salta questa opinione
         continue;
       }
@@ -298,7 +301,7 @@ router.get('/:regione', async (req, res) => {
         questions,
         filter: {
           type: 'regione',
-          value: regione
+          value: regionName
         }
       }
     });
@@ -316,18 +319,21 @@ router.get('/genere/:regione', async (req, res) => {
   try {
     const { regione } = req.params;
     
+    // Converte slug in nome regione (es. "toscana" -> "Toscana")
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    
     const query = `
       SELECT 
         genere,
         COUNT(*) as totale
       FROM users 
       WHERE genere IS NOT NULL 
-      AND regione = $1
+      AND regione_residenza = $1
       GROUP BY genere
       ORDER BY totale DESC
     `;
     
-    const result = await pool.query(query, [regione]);
+    const result = await pool.query(query, [regionName]);
     
     res.json({
       success: true,
