@@ -348,4 +348,255 @@ router.get('/genere/:regione', async (req, res) => {
   }
 });
 
+// GET /api/sondaggi/:regione/:provincia - Statistiche per provincia
+router.get('/:regione/:provincia', async (req, res) => {
+  try {
+    const { regione, provincia } = req.params;
+    
+    // Converte slug in nome regione e provincia
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni 
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per la provincia
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      const opinionMapping = {
+        'energia_nucleare': 'energia_nucleare',
+        'sperimentazione_animale': 'sperimentazione_animale',
+        'legalizzazione_canapa': 'legalizzazione_canapa',
+        'caccia': 'caccia',
+        'eutanasia': 'eutanasia',
+        'carne_coltivata': 'carne_coltivata',
+        'cittadina_animale': 'cittadina_animale',
+        'nato': 'nato',
+        'matrimonio_gay': 'matrimonio_gay',
+        'salario_minimo': 'salario_minimo',
+        'case_chiuse': 'case_chiuse',
+        'omobitransfobia': 'omobitransfobia',
+        'nuovi_inceneritori': 'nuovi_inceneritori',
+        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
+        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+        'nuove_case_popolari': 'nuove_case_popolari',
+        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+        'sostegno_commercio_locale': 'sostegno_commercio_locale',
+        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
+      };
+
+      const columnName = opinionMapping[questionId];
+      if (!columnName) continue;
+
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_utenti,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${columnName} IS NOT NULL
+        AND regione_residenza = $1
+        AND provincia_residenza = $2
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [regionName, provinciaName]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in provincia ${provinciaName}:`, statsError.message);
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'provincia',
+          value: provinciaName,
+          regione: regionName
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi provinciali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi provinciali'
+    });
+  }
+});
+
+// GET /api/sondaggi/:regione/:provincia/:comune - Statistiche per comune
+router.get('/:regione/:provincia/:comune', async (req, res) => {
+  try {
+    const { regione, provincia, comune } = req.params;
+    
+    // Converte slug in nome regione, provincia e comune
+    const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    const comuneName = comune.charAt(0).toUpperCase() + comune.slice(1).replace(/-/g, ' ');
+    
+    // 1. Prima recupera le domande dalla tabella opinioni
+    const questionsQuery = `
+      SELECT id, text
+      FROM opinioni 
+      ORDER BY text
+    `;
+    
+    const questionsResult = await pool.query(questionsQuery);
+    const opinioni = questionsResult.rows;
+    
+    // 2. Poi genera statistiche aggregate dalle risposte degli utenti per il comune
+    const stats = {};
+    const questions = [];
+    
+    for (const opinione of opinioni) {
+      const questionId = opinione.id;
+      const questionText = opinione.text;
+      
+      // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
+      const opinionMapping = {
+        'energia_nucleare': 'energia_nucleare',
+        'sperimentazione_animale': 'sperimentazione_animale',
+        'legalizzazione_canapa': 'legalizzazione_canapa',
+        'caccia': 'caccia',
+        'eutanasia': 'eutanasia',
+        'carne_coltivata': 'carne_coltivata',
+        'cittadina_animale': 'cittadina_animale',
+        'nato': 'nato',
+        'matrimonio_gay': 'matrimonio_gay',
+        'salario_minimo': 'salario_minimo',
+        'case_chiuse': 'case_chiuse',
+        'omobitransfobia': 'omobitransfobia',
+        'nuovi_inceneritori': 'nuovi_inceneritori',
+        'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+        'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+        'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+        'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+        'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+        'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+        'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
+        'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+        'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+        'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+        'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+        'nuove_case_popolari': 'nuove_case_popolari',
+        'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+        'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+        'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+        'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+        'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+        'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+        'sostegno_commercio_locale': 'sostegno_commercio_locale',
+        'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+        'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+        'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
+      };
+
+      const columnName = opinionMapping[questionId];
+      if (!columnName) continue;
+
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as totale_utenti,
+          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
+          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
+        FROM users 
+        WHERE ${columnName} IS NOT NULL
+        AND regione_residenza = $1
+        AND provincia_residenza = $2
+        AND comune_residenza = $3
+      `;
+      
+      try {
+        const statsResult = await pool.query(statsQuery, [regionName, provinciaName, comuneName]);
+        const row = statsResult.rows[0];
+        
+        stats[questionId] = {
+          favorevole: parseInt(row.favorevole) || 0,
+          contrario: parseInt(row.contrario) || 0,
+          indeciso: parseInt(row.indeciso) || 0,
+          astenuto: parseInt(row.astenuto) || 0
+        };
+        
+        questions.push({
+          id: questionId,
+          text: questionText
+        });
+      } catch (statsError) {
+        console.log(`⚠️ Errore nel recuperare statistiche per opinione ${questionId} in comune ${comuneName}:`, statsError.message);
+        continue;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        stats,
+        questions,
+        filter: {
+          type: 'comune',
+          value: comuneName,
+          regione: regionName,
+          provincia: provinciaName
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sondaggi comunali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sondaggi comunali'
+    });
+  }
+});
+
 module.exports = router;

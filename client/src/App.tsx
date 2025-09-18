@@ -771,6 +771,13 @@ export default function App() {
                 </PageTransition>
               </Route>
 
+              {/* Route statistiche opinione per regione */}
+              <Route path="/statistiche-opinione/:id/regione/:regione">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/statistiche-opinione/:id/regione/:regione" component={StatisticheOpinione} />
+                </PageTransition>
+              </Route>
+
               {/* Route vota iniziativa popolare */}
               <Route path="/vota-iniziativa-popolare">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
