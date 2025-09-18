@@ -14,6 +14,7 @@ interface ListaNotificheProps {
   fcmError: Error | null;
   permission: NotificationPermission | null;
   onSwitch: (type: 'inApp' | 'push') => void;
+  deleteSegnalazioneMutation: any;
 }
 
 export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
@@ -23,7 +24,8 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   fcmToken,
   fcmError,
   permission,
-  onSwitch
+  onSwitch,
+  deleteSegnalazioneMutation
 }) => {
   return (
     <Card className="bg-white">
@@ -67,6 +69,7 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
               <NotificaItem
                 key={notifica.id}
                 notifica={notifica}
+                deleteSegnalazioneMutation={deleteSegnalazioneMutation}
               />
             ))}
           </div>

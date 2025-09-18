@@ -40,6 +40,7 @@ export interface ConfirmDialogState {
 
 export interface NotificaItemProps {
   notifica: Notifica;
+  deleteSegnalazioneMutation?: any;
 }
 
 export interface PreferenzeNotificheProps {
