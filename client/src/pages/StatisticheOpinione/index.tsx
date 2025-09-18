@@ -3,6 +3,7 @@ import { useOpinionId } from "./hooks/useOpinionId";
 import { useAccessControl } from "./hooks/useAccessControl";
 import { useOpinionStats } from "./hooks/useOpinionStats";
 import { useEtaStats } from "./hooks/useEtaStats";
+import { useGenereStats } from "./hooks/useGenereStats";
 import { Header } from "./components/Header";
 import { StatsOverview } from "./components/StatsOverview";
 import { RegionButtons } from "./components/RegionButtons";
@@ -10,6 +11,7 @@ import { PieChartComponent } from "./components/PieChart";
 import { BarChartComponent } from "./components/BarChart";
 import { LoadingState, AuthLoadingState, ErrorState, UnauthorizedState } from "./components/LoadingStates";
 import { OpinionSelector } from "./components/OpinionSelector";
+import { GenereChart } from "./components/GenereChart";
 import { PieDataItem, BarDataItem } from "./types";
 
 export default function StatisticheOpinione() {
@@ -17,6 +19,7 @@ export default function StatisticheOpinione() {
   const { user, isAuthLoading, hasAdvancedAccess } = useAccessControl();
   const { data, isLoading, isError } = useOpinionStats(opinionId);
   const { data: etaData } = useEtaStats(opinionId);
+  const { data: genereData } = useGenereStats(opinionId);
 
   if (isAuthLoading) return <AuthLoadingState />;
   if (!user) return <UnauthorizedState />;
@@ -77,6 +80,9 @@ export default function StatisticheOpinione() {
 
             {/* Grafico età - BARRE ORIZZONTALI */}
             <BarChartComponent etaBarData={etaBarData} />
+
+            {/* Grafico genere */}
+            <GenereChart genereData={genereData} />
           </div>
         )}
       </div>

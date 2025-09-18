@@ -48,8 +48,18 @@ export default function Sondaggi() {
 
             <RegioniGrid />
 
-            {/* Contenuto dei sondaggi nazionali */}
-            <SondaggiContent />
+            {/* Contenuto dei sondaggi nazionali - solo grafici individuali */}
+            <div className="space-y-8">
+              {/* Grafici individuali per ogni opinione */}
+              {sondaggiData?.questions?.map((question) => (
+                <div key={question.id} className="bg-white shadow-lg rounded-lg p-6">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4">{question.text}</h3>
+                  <div className="h-64 flex items-center justify-center text-gray-500">
+                    Grafico per {question.text}
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {/* Grafico a torta del genere */}
             <GenereChart generePieData={generePieData} />
