@@ -44,7 +44,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   };
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Vote className="h-5 w-5" />
