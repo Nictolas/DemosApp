@@ -27,7 +27,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
 
   if (!classifica || classifica.length === 0) {
     return (
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Trophy className="h-5 w-5 text-yellow-500" />
@@ -53,7 +53,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
   }
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Trophy className="h-5 w-5 text-yellow-500" />
