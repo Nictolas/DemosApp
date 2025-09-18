@@ -20,7 +20,11 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
-    mutationFn: (voti: string[]) => apiRequest("POST", "/api/capo-stato/vota", { voti }),
+    mutationFn: (voti: string[]) => {
+      // Usa l'endpoint di test temporaneamente
+      const userid = localStorage.getItem('user_id') || 'test-user-id';
+      return apiRequest("POST", "/api/capo-stato/test-vota", { voti, userid });
+    },
     onSuccess: () => {
       toast({ title: "Preferenze salvate", description: "I tuoi voti sono stati aggiornati." });
       queryClient.invalidateQueries({ queryKey: ['capoStatoData'] });
