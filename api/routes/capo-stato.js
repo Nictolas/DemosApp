@@ -37,11 +37,43 @@ router.get('/', async (req, res) => {
     
     // Ottieni i voti dell'utente corrente se autenticato
     let mieiVoti = [];
+    let blocco = {
+      isBlocked: false,
+      unlockDate: null
+    };
+    
     if (req.headers.authorization) {
       try {
         const token = req.headers.authorization.replace('Bearer ', '');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.userId;
+
+        // Controlla il ruolo dell'utente
+        const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+        const userResult = await pool.query(userQuery, [userId]);
+        const userRole = userResult.rows[0]?.ruolo;
+
+        // Solo per utenti non-Admin, controlla il limite settimanale
+        if (userRole !== 'Admin') {
+          const bloccoQuery = `
+            SELECT 
+              CASE 
+                WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+                ELSE false
+              END as is_blocked,
+              MAX(timestamp) + INTERVAL '7 days' as unlock_date
+            FROM voti_capo_stato
+            WHERE userid = $1
+          `;
+          const bloccoResult = await pool.query(bloccoQuery, [userId]);
+          const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
+          const unlockDate = bloccoResult.rows[0]?.unlock_date;
+          
+          blocco = {
+            isBlocked,
+            unlockDate: unlockDate ? new Date(unlockDate).toISOString() : null
+          };
+        }
 
         const userVotiQuery = `
           SELECT nome
@@ -54,11 +86,6 @@ router.get('/', async (req, res) => {
         console.log('⚠️ Token non valido per capo di stato:', authError.message);
       }
     }
-    
-    const blocco = {
-      isBlocked: false,
-      unlockDate: null
-    };
     
     const responseData = {
       classifica,
@@ -254,6 +281,34 @@ router.post('/vota', verifyToken, async (req, res) => {
         success: false,
         error: 'I voti devono essere un array'
       });
+    }
+
+    // Controlla se l'utente è bloccato (Admin può sempre votare)
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [userId]);
+    const userRole = userResult.rows[0]?.ruolo;
+
+    if (userRole !== 'Admin') {
+      const bloccoQuery = `
+        SELECT 
+          CASE 
+            WHEN MAX(timestamp) > NOW() - INTERVAL '7 days' THEN true
+            ELSE false
+          END as is_blocked
+        FROM voti_capo_stato
+        WHERE userid = $1
+      `;
+
+      const bloccoResult = await pool.query(bloccoQuery, [userId]);
+      const isBlocked = bloccoResult.rows[0]?.is_blocked || false;
+
+      if (isBlocked) {
+        console.log('❌ DEBUG - Utente bloccato per limite settimanale');
+        return res.status(403).json({
+          success: false,
+          error: 'Non puoi modificare i voti più di una volta a settimana'
+        });
+      }
     }
     
     // Inizia una transazione
