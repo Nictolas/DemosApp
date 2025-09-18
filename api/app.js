@@ -75,7 +75,7 @@ const app = express();
 if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1); // Fidati solo del primo proxy (Render)
 } else {
-  app.set('trust proxy', true); // In sviluppo, fidati di tutti i proxy
+  app.set('trust proxy', false); // In sviluppo, non fidarti di proxy per evitare errori di rate limiting
 }
 
 // DEBUG: Middleware di logging universale per catturare TUTTE le richieste
