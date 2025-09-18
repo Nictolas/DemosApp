@@ -104,7 +104,7 @@ export default function CapodiStato() {
   if (!user) return <Redirect to="/auth" />;
 
   const unlockDate = data?.blocco.unlockDate ? new Date(data.blocco.unlockDate).toLocaleString('it-IT') : null;
-  const votiCambiati = JSON.stringify(selectedVoti.sort()) !== JSON.stringify(data?.mieiVoti.sort() || []);
+  const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4 page-with-navbar">

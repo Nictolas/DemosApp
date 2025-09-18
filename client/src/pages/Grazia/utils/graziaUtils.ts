@@ -6,7 +6,7 @@ export const formatUnlockDate = (unlockDate?: string): string | null => {
 };
 
 export const hasVotiChanged = (selectedVoti: string[], mieiVoti: string[]): boolean => {
-  return JSON.stringify(selectedVoti.sort()) !== JSON.stringify(mieiVoti.sort() || []);
+  return JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(mieiVoti || [])].sort());
 };
 
 export const getTopThreeClassifica = (classifica: Classifica[]): Classifica[] => {

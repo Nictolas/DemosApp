@@ -42,8 +42,9 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
-      data: referendum,
-      classifica: classificaResult.rows
+      referendum: referendum,
+      classifica: classificaResult.rows,
+      mieiVoti: [] // Inizialmente vuoto, sarà popolato se l'utente è autenticato
     });
   } catch (error) {
     console.error('Errore nel recupero dei referendum abrogativi:', error);
