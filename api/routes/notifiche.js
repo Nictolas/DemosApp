@@ -63,23 +63,38 @@ router.get('/', async (req, res) => {
     if (isAdmin) {
       const segnalazioniResult = await pool.query(`
         SELECT 
-          id, titolo, messaggio, data_creazione, status, priorita, metadata
-        FROM admin_notifications 
-        WHERE destinatario_id = $1 
-          AND tipo = 'segnalazione_problema'
-        ORDER BY data_creazione DESC
+          s.id,
+          s.titolo,
+          s.descrizione as messaggio,
+          s.data_creazione,
+          s.status,
+          s.priorita,
+          s.tipo,
+          s.metadata,
+          u.nome as utente_nome,
+          u.cognome as utente_cognome,
+          u.email as utente_email
+        FROM segnalazioni s
+        LEFT JOIN utenti u ON s.utente_id = u.id
+        ORDER BY s.data_creazione DESC
         LIMIT 10
-      `, [user_id]);
+      `);
       
       segnalazioni = segnalazioniResult.rows.map(s => ({
         id: s.id,
-        titolo: s.titolo,
-        messaggio: s.messaggio,
+        titolo: `🔧 ${s.titolo}`,
+        messaggio: `Da ${s.utente_nome || 'Utente'} ${s.utente_cognome || ''}: ${s.messaggio}`,
         data_creazione: s.data_creazione,
         tipo_notifica: 'segnalazione_problema',
         status: s.status,
         priorita: s.priorita,
-        metadata: s.metadata
+        metadata: {
+          ...s.metadata,
+          utente_nome: s.utente_nome,
+          utente_cognome: s.utente_cognome,
+          utente_email: s.utente_email,
+          tipo_segnalazione: s.tipo
+        }
       }));
     }
     
