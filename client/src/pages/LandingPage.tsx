@@ -8,7 +8,7 @@ import appIcon from '/icona.png';
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();
-  const { isInstallable, isInstalled, installApp, showInstallInstructions } = usePWAInstall();
+  const { isInstallable, isInstalled, isMobile, installApp, showInstallInstructions } = usePWAInstall();
   
   // Redirect to menu if user is authenticated
   if (user && !isLoading) {
@@ -58,8 +58,8 @@ export default function LandingPage() {
                   </Link>
                 )}
                 
-                {/* Pulsante Aggiungi a Schermata Home */}
-                {!isInstalled && (
+                {/* Pulsante Aggiungi a Schermata Home - Solo su Mobile */}
+                {!isInstalled && isMobile && (
                   <Button
                     size="lg"
                     variant="outline"
