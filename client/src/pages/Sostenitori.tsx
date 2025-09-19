@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, ArrowLeft, Users, Eye, EyeOff } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,24 +32,75 @@ interface SostenitoriData {
     supporters: Supporter[];
 }
 
+interface RappresentantiData {
+    stats: SupporterStats;
+    supporters: Supporter[];
+}
+
+interface CandidatiData {
+    stats: SupporterStats;
+    supporters: Supporter[];
+}
+
 const COLORS = ['#0088FE', '#FF8042', '#FFBB28'];
 
 export default function Sostenitori() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [showSupportersList, setShowSupportersList] = useState(false);
+  const [activeTab, setActiveTab] = useState("politico");
 
-  const { data, isLoading, isError } = useQuery<SostenitoriData>({
-    queryKey: ['sostenitoriData', user?.id],
+  // Query per sostenitori Rappresentanti (Politico)
+  const { data: rappresentantiData, isLoading: isLoadingRappresentanti, isError: isErrorRappresentanti } = useQuery<RappresentantiData>({
+    queryKey: ['rappresentantiData', user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
-      const response = await apiRequest("GET", `/api/sostenitori?sostenuto_id=${user.id}`);
-      if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori");
+      const response = await apiRequest("GET", `/api/rappresentanti/sostenitori?sostenuto_id=${user.id}`);
+      if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori rappresentanti");
       return response.json();
     },
-    enabled: !!user,
+    enabled: !!user && (user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico"),
   });
 
-  const { stats, supporters = [] } = data || {};
+  // Query per sostenitori Candidati (Candidato)
+  const { data: candidatiData, isLoading: isLoadingCandidati, isError: isErrorCandidati } = useQuery<CandidatiData>({
+    queryKey: ['candidatiData', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error("Utente non autenticato");
+      const response = await apiRequest("GET", `/api/candidati/sostenitori?sostenuto_id=${user.id}`);
+      if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori candidati");
+      return response.json();
+    },
+    enabled: !!user && (user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico"),
+  });
+
+  // Query per sostenitori Totali (Admin e Candidato Politico)
+  const { data: totaleData, isLoading: isLoadingTotale, isError: isErrorTotale } = useQuery<SostenitoriData>({
+    queryKey: ['totaleData', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error("Utente non autenticato");
+      const response = await apiRequest("GET", `/api/sostenitori/totale?sostenuto_id=${user.id}`);
+      if (!response.ok) throw new Error("Errore nel caricamento dei dati totali");
+      return response.json();
+    },
+    enabled: !!user && (user.ruolo === "Admin" || user.ruolo === "Candidato Politico"),
+  });
+
+  // Dati correnti basati sulla tab attiva
+  const getCurrentData = () => {
+    switch (activeTab) {
+      case "politico":
+        return rappresentantiData;
+      case "candidato":
+        return candidatiData;
+      case "totale":
+        return totaleData;
+      default:
+        return rappresentantiData;
+    }
+  };
+
+  const currentData = getCurrentData();
+  const { stats, supporters = [] } = currentData || {};
   
   // === INIZIO MODIFICHE LOGICA GRAFICI ===
   const genderChartData = useMemo(() => {
@@ -62,6 +114,50 @@ export default function Sostenitori() {
   }, [stats]);
   // === FINE MODIFICHE LOGICA GRAFICI ===
 
+  // Logica di loading e error per tab attiva
+  const getCurrentLoading = () => {
+    switch (activeTab) {
+      case "politico":
+        return isLoadingRappresentanti;
+      case "candidato":
+        return isLoadingCandidati;
+      case "totale":
+        return isLoadingTotale;
+      default:
+        return isLoadingRappresentanti;
+    }
+  };
+
+  const getCurrentError = () => {
+    switch (activeTab) {
+      case "politico":
+        return isErrorRappresentanti;
+      case "candidato":
+        return isErrorCandidati;
+      case "totale":
+        return isErrorTotale;
+      default:
+        return isErrorRappresentanti;
+    }
+  };
+
+  const isLoading = getCurrentLoading();
+  const isError = getCurrentError();
+
+  // Funzione per determinare la classe CSS delle tabs
+  const getTabsGridClass = () => {
+    let tabCount = 0;
+    if (user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico") tabCount++;
+    if (user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico") tabCount++;
+    if (user.ruolo === "Admin" || user.ruolo === "Candidato Politico") tabCount++;
+    
+    switch (tabCount) {
+      case 1: return "grid-cols-1";
+      case 2: return "grid-cols-2";
+      case 3: return "grid-cols-3";
+      default: return "grid-cols-1";
+    }
+  };
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
@@ -76,7 +172,7 @@ export default function Sostenitori() {
   }
 
   return (
-    <div className="min-h-screen bg-white p-4">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
       <div className="container mx-auto max-w-6xl">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
         <Card className="bg-white">
@@ -85,60 +181,111 @@ export default function Sostenitori() {
             <CardDescription>Statistiche dettagliate e lista dei tuoi sostenitori.</CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
-            {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-            {stats && (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.totalSupporters}</p><p className="text-sm text-muted-foreground">Sostenitori Totali</p></CardContent></Card>
-                    <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.averageAge.toFixed(1)}</p><p className="text-sm text-muted-foreground">Età Media</p></CardContent></Card>
-                </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className={`grid w-full ${getTabsGridClass()}`}>
+                {(user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico") && (
+                  <TabsTrigger value="politico">Politico</TabsTrigger>
+                )}
+                {(user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico") && (
+                  <TabsTrigger value="candidato">Candidato</TabsTrigger>
+                )}
+                {(user.ruolo === "Admin" || user.ruolo === "Candidato Politico") && (
+                  <TabsTrigger value="totale">Totale</TabsTrigger>
+                )}
+              </TabsList>
 
-                <div className="flex justify-center">
-                  <Button variant="outline" onClick={() => setShowSupportersList(prev => !prev)}>
-                    {showSupportersList ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                    {showSupportersList ? 'Nascondi Lista' : `Mostra Lista (${supporters.length})`}
-                  </Button>
-                </div>
-                
-                {showSupportersList && <SupportersTable supporters={supporters} />}
+              {(user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico") && (
+                <TabsContent value="politico" className="space-y-8">
+                  {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
+                  {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                </TabsContent>
+              )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* === INIZIO MODIFICHE GRAFICI === */}
-                  <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={genderChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
-                          {genderChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </CardContent></Card>
-                  
-                  <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Età</CardTitle></CardHeader><CardContent className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={ageChartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis allowDecimals={false} />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="Numero Sostenitori" fill="#82ca9d" />
-                        </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent></Card>
-                  {/* === FINE MODIFICHE GRAFICI === */}
-                </div>
-              </div>
-            )}
+              {(user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico") && (
+                <TabsContent value="candidato" className="space-y-8">
+                  {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
+                  {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                </TabsContent>
+              )}
+
+              {(user.ruolo === "Admin" || user.ruolo === "Candidato Politico") && (
+                <TabsContent value="totale" className="space-y-8">
+                  {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
+                  {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                </TabsContent>
+              )}
+            </Tabs>
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
+
+// Componente riutilizzabile per il contenuto delle schede
+const SostenitoriContent = ({ 
+  stats, 
+  supporters, 
+  showSupportersList, 
+  setShowSupportersList, 
+  genderChartData, 
+  ageChartData 
+}: {
+  stats: SupporterStats;
+  supporters: Supporter[];
+  showSupportersList: boolean;
+  setShowSupportersList: (value: boolean) => void;
+  genderChartData: any[];
+  ageChartData: any[];
+}) => (
+  <div className="space-y-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.totalSupporters}</p><p className="text-sm text-muted-foreground">Sostenitori Totali</p></CardContent></Card>
+        <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.averageAge.toFixed(1)}</p><p className="text-sm text-muted-foreground">Età Media</p></CardContent></Card>
+    </div>
+
+    <div className="flex justify-center">
+      <Button variant="outline" onClick={() => setShowSupportersList(prev => !prev)}>
+        {showSupportersList ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+        {showSupportersList ? 'Nascondi Lista' : `Mostra Lista (${supporters.length})`}
+      </Button>
+    </div>
+    
+    {showSupportersList && <SupportersTable supporters={supporters} />}
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* === INIZIO MODIFICHE GRAFICI === */}
+      <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={genderChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
+              {genderChartData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent></Card>
+      
+      <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Età</CardTitle></CardHeader><CardContent className="h-80">
+        <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={ageChartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Numero Sostenitori" fill="#82ca9d" />
+            </BarChart>
+        </ResponsiveContainer>
+      </CardContent></Card>
+      {/* === FINE MODIFICHE GRAFICI === */}
+    </div>
+  </div>
+);
 
 const SupportersTable = ({ supporters }: { supporters: Supporter[] }) => (
     <Card className="bg-white"><CardHeader><CardTitle>Lista Sostenitori</CardTitle></CardHeader><CardContent>
