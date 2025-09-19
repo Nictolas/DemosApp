@@ -118,130 +118,121 @@ export default function CopyrightPage() {
           </CardContent>
         </Card>
 
-        {/* Severe Legal Warning - Replaces Terms and Conditions */}
-        <Card className="mb-6 border-red-500 bg-red-50">
+        {/* Legal Notice - Professional Version */}
+        <Card className="mb-6 border-gray-300 bg-gray-50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-3xl text-red-800">
-              <AlertCircle className="h-8 w-8 text-red-600" />
-              🚨 VIOLAZIONE COPYRIGHT - ZERO TOLERANZA 🚨
+            <CardTitle className="flex items-center gap-2 text-2xl text-gray-800">
+              <AlertCircle className="h-6 w-6 text-gray-600" />
+              Avviso Legale - Proprietà Intellettuale
             </CardTitle>
-            <CardDescription className="text-red-700 text-lg">
-              Ogni tentativo di replica, copia o clonazione sarà perseguito legalmente
+            <CardDescription className="text-gray-700">
+              Tutti i diritti riservati - Violazioni perseguite per legge
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-8">
-            <div className="bg-red-100 border-4 border-red-400 rounded-xl p-8">
-              <h3 className="text-2xl font-bold text-red-900 mb-6 text-center">
-                ⚠️ AVVISO LEGALE UFFICIALE ⚠️
+          <CardContent className="space-y-6">
+            <div className="bg-white border border-gray-300 rounded-lg p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Dichiarazione di Proprietà Intellettuale
               </h3>
-              <p className="text-red-800 text-xl leading-relaxed mb-6 text-center font-bold">
-                NICHOLAS MICHELETTI, TITOLARE ESCLUSIVO DEI DIRITTI DI PROPRIETÀ INTELLETTUALE 
-                SUL SOFTWARE DEMOS, DICHIARA UFFICIALMENTE:
+              <p className="text-gray-800 text-lg leading-relaxed mb-4">
+                <strong>Nicolas Micheletti</strong>, titolare esclusivo dei diritti di proprietà intellettuale 
+                sul software Demos, dichiara ufficialmente che:
               </p>
               
-              <div className="space-y-6">
-                <div className="bg-red-200 border-2 border-red-500 rounded-lg p-6">
-                  <h4 className="text-xl font-bold text-red-900 mb-4">1. PROTEZIONE ASSOLUTA</h4>
-                  <p className="text-red-800 text-lg font-semibold">
-                    OGNI ELEMENTO DEL SOFTWARE DEMOS È PROTETTO DA COPYRIGHT E PROPRIETÀ INTELLETTUALE ESCLUSIVA. 
-                    QUESTO INCLUDE MA NON È LIMITATO A: CODICE SORGENTE, ALGORITMI, INTERFACCE UTENTE, 
-                    DATABASE, API, MIDDLEWARE, COMPONENTI REACT, STILI CSS, CONFIGURAZIONI, DOCUMENTAZIONE, 
-                    E OGNI ALTRO ELEMENTO COSTITUENTE LA PIATTAFORMA.
+              <div className="space-y-4">
+                <div className="border-l-4 border-gray-400 pl-4">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">1. Protezione del Software</h4>
+                  <p className="text-gray-700 leading-relaxed">
+                    Ogni elemento del software Demos è protetto da copyright e proprietà intellettuale esclusiva. 
+                    Questo include, ma non è limitato a: codice sorgente, algoritmi, interfacce utente, 
+                    database, API, middleware, componenti React, stili CSS, configurazioni, documentazione 
+                    e ogni altro elemento costituente la piattaforma.
                   </p>
                 </div>
                 
-                <div className="bg-red-300 border-2 border-red-600 rounded-lg p-6">
-                  <h4 className="text-xl font-bold text-red-900 mb-4">2. VIOLAZIONI PENALI E CIVILI</h4>
-                  <p className="text-red-800 text-lg font-bold mb-4">
-                    QUALSIASI TENTATIVO DI REPLICA, CLONAZIONE, IMITAZIONE, REVERSE ENGINEERING, 
-                    O CREAZIONE DI APPLICAZIONI SIMILI SARÀ IMMEDIATAMENTE DENUNCIATO E PERSEGUITO 
-                    CON LA MASSIMA SEVERITÀ DELLA LEGGE.
+                <div className="border-l-4 border-gray-400 pl-4">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">2. Divieti e Violazioni</h4>
+                  <p className="text-gray-700 leading-relaxed mb-3">
+                    È espressamente vietato qualsiasi tentativo di replica, clonazione, imitazione, 
+                    reverse engineering o creazione di applicazioni simili. Tali violazioni saranno 
+                    immediatamente denunciate e perseguite con la massima severità della legge.
                   </p>
-                  <ul className="text-red-900 font-bold space-y-2">
-                    <li>• <strong>Violazione Copyright:</strong> €150.000 + risarcimento danni</li>
-                    <li>• <strong>Concorrenza Sleale:</strong> Inibitoria immediata + danni patrimoniali</li>
-                    <li>• <strong>Furto Proprietà Intellettuale:</strong> Procedimento penale + carcere</li>
-                    <li>• <strong>Uso Non Autorizzato:</strong> €50.000 per ogni giorno di violazione</li>
+                  <ul className="text-gray-700 space-y-1 list-disc list-inside">
+                    <li>Violazione del copyright e delle leggi sulla proprietà intellettuale</li>
+                    <li>Concorrenza sleale e appropriazione indebita di segreti commerciali</li>
+                    <li>Uso non autorizzato di marchi, loghi e elementi distintivi</li>
+                    <li>Creazione di opere derivate senza consenso scritto</li>
                   </ul>
                 </div>
                 
-                <div className="bg-red-400 border-2 border-red-700 rounded-lg p-6">
-                  <h4 className="text-xl font-bold text-red-900 mb-4">3. MONITORAGGIO 24/7</h4>
-                  <p className="text-red-800 text-lg font-bold mb-4">
-                    IL SISTEMA È SOTTO MONITORAGGIO CONTINUO CON SISTEMI DI RILEVAMENTO AUTOMATICO. 
-                    OGNI TENTATIVO DI ACCESSO NON AUTORIZZATO, COPIA, O REPLICA VERRÀ IMMEDIATAMENTE 
-                    TRACCIATO E DENUNCIATO.
+                <div className="border-l-4 border-gray-400 pl-4">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">3. Monitoraggio e Controlli</h4>
+                  <p className="text-gray-700 leading-relaxed">
+                    Il sistema è sottoposto a monitoraggio continuo con sistemi di rilevamento automatico. 
+                    Ogni tentativo di accesso non autorizzato, copia o replica verrà immediatamente 
+                    tracciato e denunciato alle autorità competenti.
                   </p>
-                  <ul className="text-red-900 font-semibold space-y-1">
-                    <li>• Logging completo di tutti gli accessi e tentativi di reverse engineering</li>
-                    <li>• Analisi automatica del codice sorgente per rilevare somiglianze</li>
-                    <li>• Monitoraggio delle applicazioni web per identificare cloni</li>
-                    <li>• Tracciamento IP e geolocalizzazione di violatori</li>
-                    <li>• Collaborazione con autorità competenti per azioni legali immediate</li>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-300 rounded-lg p-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Elementi Protetti</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h5 className="font-semibold text-gray-800 mb-2">Sistema di Autenticazione</h5>
+                  <ul className="text-gray-700 text-sm space-y-1">
+                    <li>• Meccanismi di login e registrazione</li>
+                    <li>• Gestione sessioni e token JWT</li>
+                    <li>• Sistemi di verifica email</li>
+                    <li>• Reset password e sicurezza</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 className="font-semibold text-gray-800 mb-2">Sistema di Voto</h5>
+                  <ul className="text-gray-700 text-sm space-y-1">
+                    <li>• Algoritmi di calcolo compatibilità</li>
+                    <li>• Meccanismi di selezione candidati</li>
+                    <li>• Sistemi di conteggio e ranking</li>
+                    <li>• Logica di filtraggio risultati</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 className="font-semibold text-gray-800 mb-2">Interfaccia Utente</h5>
+                  <ul className="text-gray-700 text-sm space-y-1">
+                    <li>• Design e layout delle pagine</li>
+                    <li>• Componenti React personalizzati</li>
+                    <li>• Stili CSS e animazioni</li>
+                    <li>• Esperienza utente e navigazione</li>
+                  </ul>
+                </div>
+                <div>
+                  <h5 className="font-semibold text-gray-800 mb-2">Database e API</h5>
+                  <ul className="text-gray-700 text-sm space-y-1">
+                    <li>• Struttura tabelle e relazioni</li>
+                    <li>• Endpoint API e middleware</li>
+                    <li>• Sistemi di rate limiting</li>
+                    <li>• Logiche di business e validazione</li>
                   </ul>
                 </div>
               </div>
             </div>
 
-            <div className="bg-yellow-100 border-4 border-yellow-500 rounded-xl p-8">
-              <h4 className="text-2xl font-bold text-yellow-900 mb-6 text-center">
-                💰 CALCOLO DANNI ECONOMICI 💰
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-yellow-200 border-2 border-yellow-600 rounded-lg p-6">
-                  <h5 className="text-xl font-bold text-yellow-900 mb-4">Danni Diretti:</h5>
-                  <ul className="text-yellow-800 font-bold space-y-2">
-                    <li>• €500.000 per ogni giorno di violazione</li>
-                    <li>• €1.000.000 per perdita di profitti</li>
-                    <li>• €2.000.000 per danni reputazionali</li>
-                    <li>• €5.000.000 per violazione segreti commerciali</li>
-                  </ul>
-                </div>
-                <div className="bg-yellow-200 border-2 border-yellow-600 rounded-lg p-6">
-                  <h5 className="text-xl font-bold text-yellow-900 mb-4">Danni Punitivi:</h5>
-                  <ul className="text-yellow-800 font-bold space-y-2">
-                    <li>• €10.000.000 per concorrenza sleale</li>
-                    <li>• €15.000.000 per furto proprietà intellettuale</li>
-                    <li>• €25.000.000 per danni morali</li>
-                    <li>• €50.000.000 per danni punitivi</li>
-                  </ul>
-                </div>
-              </div>
-              <div className="bg-yellow-300 border-2 border-yellow-700 rounded-lg p-6 mt-6">
-                <p className="text-yellow-900 text-2xl font-bold text-center">
-                  TOTALE MINIMO: €100.000.000 + INTERESSI + SPESE LEGALI
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-gray-100 border-4 border-gray-500 rounded-xl p-8">
-              <h4 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-                📞 CONTATTI PER DENUNCE E LICENZE
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-200 border-2 border-gray-600 rounded-lg p-6">
-                  <h5 className="text-xl font-bold text-gray-900 mb-4">Per Denunce:</h5>
-                  <ul className="text-gray-800 font-semibold space-y-2">
-                    <li>• <strong>Email Legale:</strong> legal@demos.community</li>
-                    <li>• <strong>Avvocato:</strong> Studio Legale specializzato</li>
-                    <li>• <strong>Denunce Anonime:</strong> Sistema interno</li>
-                    <li>• <strong>Emergenze:</strong> +39 [NUMERO]</li>
-                  </ul>
-                </div>
-                <div className="bg-gray-200 border-2 border-gray-600 rounded-lg p-6">
-                  <h5 className="text-xl font-bold text-gray-900 mb-4">Per Licenze:</h5>
-                  <p className="text-gray-800 font-semibold mb-4">
-                    L'UNICO MODO PER UTILIZZARE ELEMENTI DEL SOFTWARE È OTTENERE 
-                    UNA LICENZA UFFICIALE SCRITTA E FIRMATA DA NICHOLAS MICHELETTI.
-                  </p>
-                  <ol className="text-gray-800 font-semibold space-y-1 list-decimal list-inside">
-                    <li>Richiesta formale via email legale</li>
-                    <li>Valutazione tecnica e commerciale</li>
-                    <li>Negoziazione termini e condizioni</li>
-                    <li>Firma contratto di licenza ufficiale</li>
-                    <li>Pagamento royalty e commissioni</li>
-                  </ol>
-                </div>
+            <div className="bg-white border border-gray-300 rounded-lg p-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Autorizzazioni e Licenze</h4>
+              <p className="text-gray-700 leading-relaxed mb-4">
+                L'unico modo per utilizzare elementi del software Demos è ottenere 
+                una licenza ufficiale scritta e firmata da Nicolas Micheletti.
+              </p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h5 className="font-semibold text-gray-800 mb-2">Processo di Licenza:</h5>
+                <ol className="text-gray-700 space-y-1 list-decimal list-inside">
+                  <li>Richiesta formale via email ufficiale</li>
+                  <li>Valutazione tecnica e commerciale</li>
+                  <li>Negoziazione termini e condizioni</li>
+                  <li>Firma contratto di licenza ufficiale</li>
+                  <li>Pagamento royalty e commissioni</li>
+                </ol>
               </div>
             </div>
           </CardContent>
