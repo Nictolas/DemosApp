@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
-import { Bell, Wifi, Smartphone, Users, Building, MapPin, Home, Globe } from "lucide-react";
+import { Bell, Users, Building, MapPin, Home, Globe } from "lucide-react";
 import { PreferenzeNotificheProps, PreferenzeRappresentanti } from "../types";
 
 export const PreferenzeNotifiche: React.FC<PreferenzeNotificheProps> = ({
@@ -22,10 +21,12 @@ export const PreferenzeNotifiche: React.FC<PreferenzeNotificheProps> = ({
   });
 
   const handleRappresentanteSwitch = (tipo: keyof PreferenzeRappresentanti, checked: boolean) => {
+    console.log('🔍 DEBUG Switch - Click:', { tipo, checked });
     setPreferenzeRappresentanti(prev => ({
       ...prev,
       [tipo]: checked
     }));
+    // Salva le preferenze localmente e invia al server
     onSwitch(tipo, checked);
   };
 
@@ -50,39 +51,6 @@ export const PreferenzeNotifiche: React.FC<PreferenzeNotificheProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Notifiche generali */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Notifiche Generali</h3>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Wifi className="h-5 w-5 text-blue-600" />
-              <span>Notifiche in-app</span>
-            </div>
-            <Switch
-              checked={true}
-              onCheckedChange={(checked) => onSwitch('app', checked)}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Smartphone className="h-5 w-5 text-green-600" />
-              <span>Notifiche push</span>
-              {fcmError && (
-                <Badge variant="destructive" className="text-xs">
-                  Errore
-                </Badge>
-              )}
-            </div>
-            <Switch
-              checked={permission === 'granted'}
-              onCheckedChange={(checked) => onSwitch('push', checked)}
-              disabled={permission !== 'granted'}
-            />
-          </div>
-        </div>
-
         {/* Notifiche per rappresentanti */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">Notifiche Push per Rappresentanti</h3>
@@ -98,7 +66,6 @@ export const PreferenzeNotifiche: React.FC<PreferenzeNotificheProps> = ({
                 <Switch
                   checked={preferenzeRappresentanti[key]}
                   onCheckedChange={(checked) => handleRappresentanteSwitch(key, checked)}
-                  disabled={permission !== 'granted'}
                 />
               </div>
             ))}
