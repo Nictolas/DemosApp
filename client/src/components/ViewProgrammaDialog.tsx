@@ -55,8 +55,8 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-w-full">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-w-full bg-white">
+        <DialogHeader className="bg-white">
           <DialogTitle>
             {nome && cognome ? `Programma di ${nome} ${cognome}` : "Programma Elettorale"}
           </DialogTitle>
@@ -69,27 +69,37 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
             <CustomAvatar config={JSON.parse(avatarConfig)} size={64} />
           </div>
         )}
-        {isLoading ? (
-          <div className="flex justify-center items-center h-32">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">Caricamento programma...</span>
-          </div>
-        ) : error ? (
-          <div className="flex items-center text-red-600 gap-2">
-            <AlertCircle className="h-5 w-5" />
-            {error}
-          </div>
-        ) : (
+        <div className="bg-white">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-32">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Caricamento programma...</span>
+            </div>
+          ) : error ? (
+            <div className="flex items-center text-red-600 gap-2">
+              <AlertCircle className="h-5 w-5" />
+              {error}
+            </div>
+          ) : (
           <div className="space-y-3 mt-2">
-            {proposte.map((p, idx) => (
-              <div key={idx} className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                <span className="font-semibold text-purple-800">Proposta {idx + 1}:</span>
-                <span className="ml-2 text-gray-800">{p ? p : <span className="italic text-gray-400">Non specificata</span>}</span>
+            {proposte.every(p => !p || p.trim() === '') ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500 text-lg mb-2">📝</div>
+                <p className="text-gray-600 text-lg font-medium">L'utente non ha ancora inserito il suo programma personale.</p>
+                <p className="text-gray-500 text-sm mt-2">Le proposte elettorali verranno mostrate qui una volta inserite.</p>
               </div>
-            ))}
+            ) : (
+              proposte.map((p, idx) => (
+                <div key={idx} className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                  <span className="font-semibold text-purple-800">Proposta {idx + 1}:</span>
+                  <span className="ml-2 text-gray-800">{p ? p : <span className="italic text-gray-400">Non specificata</span>}</span>
+                </div>
+              ))
+            )}
           </div>
-        )}
-        <div className="flex justify-end mt-4">
+          )}
+        </div>
+        <div className="flex justify-end mt-4 bg-white">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Chiudi
           </Button>
