@@ -143,23 +143,20 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
                   .map((p, idx) => (
                     <div key={p.originalIndex} className="bg-purple-50 border border-purple-200 rounded-md p-3">
                       <div className="font-semibold text-purple-800 mb-1">Proposta {p.originalIndex + 1}:</div>
-                      <div className="text-gray-800 mb-2">
-                        {p.proposta}
-                      </div>
-                      {p.url && (
-                        <div className="mt-2">
+                      <div className="text-gray-800 mb-2 flex items-center gap-2">
+                        <span>{p.proposta}</span>
+                        {p.url && (
                           <a
                             href={p.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+                            className="inline-flex items-center justify-center w-6 h-6 bg-blue-500 rounded-full hover:bg-blue-600 transition-colors"
+                            title="Link alla proposta"
                           >
-                            <div className="w-2 h-2 bg-blue-500 rounded-full flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">!</span>
-                            </div>
+                            <span className="text-white text-sm font-bold">!</span>
                           </a>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   ))
               )}
