@@ -54,7 +54,6 @@ router.get('/', async (req, res) => {
       data_creazione: c.data_creazione,
       tipo_notifica: 'demos_notification',
       status: c.is_read ? 'letta' : 'non_letta',
-      priorita: 'alta',
       commento: c.commento
     }));
 
@@ -68,7 +67,6 @@ router.get('/', async (req, res) => {
           s.descrizione as messaggio,
           s.data_creazione,
           s.status,
-          s.priorita,
           s.tipo,
           s.passaggi,
           s.comportamento_atteso,
@@ -92,7 +90,6 @@ router.get('/', async (req, res) => {
         data_creazione: s.data_creazione,
         tipo_notifica: 'segnalazione_problema',
         status: s.status,
-        priorita: s.priorita,
         // Dettagli completi della segnalazione
         tipo_segnalazione: s.tipo,
         passaggi: s.passaggi,

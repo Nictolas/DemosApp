@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Loader2, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth-neon";
@@ -8,8 +7,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { NotificaItemProps } from "../types";
 import { 
-  getStatusColor, 
-  getStatusText, 
   getNotificaBackground,
   getNotificaTitle,
   getNotificaMessage,
@@ -91,29 +88,6 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
             <h3 className="font-semibold text-gray-900">
               {getNotificaTitle(notifica.titolo)}
             </h3>
-            <Badge className={getStatusColor(notifica.status)}>
-              {getStatusText(notifica.status)}
-            </Badge>
-            {notifica.priorita && (
-              <Badge variant="outline">
-                {notifica.priorita}
-              </Badge>
-            )}
-                   {notifica.tipo_notifica === 'comunicazione' && (
-                     <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                       Comunicazione Votazione
-                     </Badge>
-                   )}
-                   {notifica.tipo_notifica === 'demos_notification' && (
-                     <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                       Notifica Demos
-                     </Badge>
-                   )}
-                   {notifica.tipo_notifica === 'segnalazione_problema' && (
-                     <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                       Segnalazione Problema
-                     </Badge>
-                   )}
           </div>
           
           <p className="text-gray-700 mb-3">
