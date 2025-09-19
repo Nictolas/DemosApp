@@ -69,16 +69,17 @@ export default function Comunica() {
 
   // Get user's last communication
   const { data: ultimaComunicazione } = useQuery({
-    queryKey: ["/api/ultima-comunicazione"],
+    queryKey: ["/api/ultima-comunicazione", user?.id],
     queryFn: async () => {
-      const response = await apiRequest("GET", '/api/comunicazioni/ultima-comunicazione');
+      if (!user?.id) return null;
+      const response = await apiRequest("GET", `/api/comunicazioni/ultima-comunicazione?user_id=${user.id}`);
       if (!response.ok) {
         if (response.status === 404) return null; // No previous communication
         throw new Error('Failed to fetch last communication');
       }
       return response.json();
     },
-    enabled: !!user?.email,
+    enabled: !!user?.id,
   });
 
   // Generate zona based on user's election data
