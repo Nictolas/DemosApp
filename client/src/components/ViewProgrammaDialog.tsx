@@ -15,12 +15,17 @@ interface ViewProgrammaDialogProps {
 }
 
 export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognome, avatarConfig }: ViewProgrammaDialogProps) {
+  console.log('🚨🚨🚨 ViewProgrammaDialog RENDERED! 🚨🚨🚨');
+  console.log('🚨 Props:', { utenteId, open, nome, cognome });
+  
   const [proposte, setProposte] = useState<{proposta: string, url: string}[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !utenteId) return;
+    console.log('🚨🚨🚨 ViewProgrammaDialog useEffect TRIGGERED! 🚨🚨🚨');
+    console.log('🚨 open:', open, 'utenteId:', utenteId);
     setIsLoading(true);
     setError(null);
     setProposte([]);
