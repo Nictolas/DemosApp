@@ -4,13 +4,13 @@ import { X, Download, Smartphone } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export function PWAInstallBanner() {
-  const { isInstallable, isInstalled, installApp, showInstallInstructions } = usePWAInstall();
+  const { isInstallable, isInstalled, isMobile, installApp, showInstallInstructions } = usePWAInstall();
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    // Mostra il banner solo se l'app non è installata e non è stata già chiusa
-    if (!isInstalled && !isDismissed) {
+    // Mostra il banner solo su dispositivi mobili, se l'app non è installata e non è stata già chiusa
+    if (isMobile && !isInstalled && !isDismissed) {
       // Mostra il banner dopo un piccolo delay per una migliore UX
       const timer = setTimeout(() => {
         setIsVisible(true);
@@ -18,7 +18,7 @@ export function PWAInstallBanner() {
 
       return () => clearTimeout(timer);
     }
-  }, [isInstalled, isDismissed]);
+  }, [isMobile, isInstalled, isDismissed]);
 
   const handleInstall = async () => {
     if (isInstallable) {
@@ -46,7 +46,7 @@ export function PWAInstallBanner() {
     }
   }, []);
 
-  if (!isVisible || isInstalled) {
+  if (!isVisible || isInstalled || !isMobile) {
     return null;
   }
 

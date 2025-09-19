@@ -13,8 +13,19 @@ export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    // Rileva se il dispositivo è mobile
+    const checkIsMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      
+      setIsMobile(isMobileDevice || (isTouchDevice && isSmallScreen));
+    };
+
     // Verifica se l'app è già installata
     const checkIfInstalled = () => {
       // Controlla se l'app è in modalità standalone (installata)
@@ -46,16 +57,19 @@ export function usePWAInstall() {
     };
 
     // Verifica iniziale
+    checkIsMobile();
     checkIfInstalled();
 
     // Aggiunge i listener per gli eventi
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('resize', checkIsMobile);
 
     // Cleanup
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('resize', checkIsMobile);
     };
   }, []);
 
@@ -117,6 +131,7 @@ export function usePWAInstall() {
   return {
     isInstallable,
     isInstalled,
+    isMobile,
     installApp,
     showInstallInstructions
   };

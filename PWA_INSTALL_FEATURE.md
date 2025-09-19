@@ -12,15 +12,17 @@
 - Fornisce funzioni per installare l'app o mostrare istruzioni
 
 ### 2. Pulsante nella Landing Page (`client/src/pages/LandingPage.tsx`)
-- Pulsante "Aggiungi a Schermata Home" visibile solo se l'app non è installata
+- Pulsante "Aggiungi a Schermata Home" visibile solo su dispositivi mobili
+- Appare solo se l'app non è installata
 - Icona dinamica (Download per installazione automatica, Smartphone per istruzioni)
 - Stile coerente con il design dell'app
 
 ### 3. Banner PWA (`client/src/components/PWAInstallBanner.tsx`)
-- Banner informativo che appare dopo 3 secondi
+- Banner informativo che appare solo su dispositivi mobili
+- Appare dopo 3 secondi se l'app non è installata
 - Può essere chiuso dall'utente
 - Ricorda la preferenza dell'utente nel localStorage
-- Posizionato in basso a destra su desktop, in basso su mobile
+- Posizionato in basso a schermo intero su mobile
 
 ### 4. Service Worker (`client/public/sw.js`)
 - Cache delle risorse principali per funzionamento offline
@@ -58,14 +60,14 @@
 ## Esperienza Utente
 
 ### Su Desktop
-- Banner in basso a destra
-- Pulsante nella landing page
-- Installazione tramite browser
+- Nessun elemento PWA visibile (funzionalità mobile-only)
+- L'app funziona normalmente come sito web
 
 ### Su Mobile
-- Banner in basso a schermo intero
+- Banner in basso a schermo intero (dopo 3 secondi)
 - Pulsante prominente nella landing page
 - Istruzioni specifiche per ogni piattaforma
+- Installazione diretta o tramite istruzioni
 
 ## Browser Supportati
 
