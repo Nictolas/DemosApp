@@ -136,28 +136,34 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
                    <p className="text-gray-600 text-lg font-medium">L'utente non ha ancora inserito il suo programma personale.</p>
                    <p className="text-gray-500 text-sm mt-2">Le proposte elettorali verranno mostrate qui una volta inserite.</p>
                  </div>
-               ) : (
-                 proposte.map((p, idx) => (
-                   <div key={idx} className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                     <div className="font-semibold text-purple-800 mb-1">Proposta {idx + 1}:</div>
-                     <div className="text-gray-800 mb-2">
-                       {p.proposta ? p.proposta : <span className="italic text-gray-400">Non specificata</span>}
-                     </div>
-                     {p.url && (
-                       <div className="mt-2">
-                         <a 
-                           href={p.url} 
-                           target="_blank" 
-                           rel="noopener noreferrer"
-                           className="text-blue-600 hover:text-blue-800 underline text-sm"
-                         >
-                           🔗 Link alla proposta
-                         </a>
-                       </div>
-                     )}
-                   </div>
-                 ))
-               )}
+              ) : (
+                proposte
+                  .map((p, idx) => ({ ...p, originalIndex: idx }))
+                  .filter(p => p.proposta && p.proposta.trim() !== '')
+                  .map((p, idx) => (
+                    <div key={p.originalIndex} className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                      <div className="font-semibold text-purple-800 mb-1">Proposta {p.originalIndex + 1}:</div>
+                      <div className="text-gray-800 mb-2">
+                        {p.proposta}
+                      </div>
+                      {p.url && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">!</span>
+                          </div>
+                          <a
+                            href={p.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline text-sm"
+                          >
+                            Link alla proposta
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ))
+              )}
              </div>
           )}
         </div>
