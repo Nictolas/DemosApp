@@ -76,10 +76,10 @@ export default function Sostenitori() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 p-4">
+    <div className="min-h-screen bg-white p-4">
       <div className="container mx-auto max-w-6xl">
         <Link href="/menu"><Button variant="ghost" className="mb-4 flex items-center"><ArrowLeft className="mr-2 h-4 w-4" />Torna al Menu</Button></Link>
-        <Card>
+        <Card className="bg-white">
           <CardHeader>
             <CardTitle className="text-2xl flex items-center"><Users className="mr-2 h-6 w-6" />I Miei Sostenitori</CardTitle>
             <CardDescription>Statistiche dettagliate e lista dei tuoi sostenitori.</CardDescription>
@@ -90,8 +90,8 @@ export default function Sostenitori() {
             {stats && (
               <div className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.totalSupporters}</p><p className="text-sm text-muted-foreground">Sostenitori Totali</p></CardContent></Card>
-                    <Card><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.averageAge.toFixed(1)}</p><p className="text-sm text-muted-foreground">Età Media</p></CardContent></Card>
+                    <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.totalSupporters}</p><p className="text-sm text-muted-foreground">Sostenitori Totali</p></CardContent></Card>
+                    <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{stats.averageAge.toFixed(1)}</p><p className="text-sm text-muted-foreground">Età Media</p></CardContent></Card>
                 </div>
 
                 <div className="flex justify-center">
@@ -105,7 +105,7 @@ export default function Sostenitori() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* === INIZIO MODIFICHE GRAFICI === */}
-                  <Card><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80">
+                  <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Genere</CardTitle></CardHeader><CardContent className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={genderChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
@@ -117,7 +117,7 @@ export default function Sostenitori() {
                     </ResponsiveContainer>
                   </CardContent></Card>
                   
-                  <Card><CardHeader><CardTitle>Distribuzione per Età</CardTitle></CardHeader><CardContent className="h-80">
+                  <Card className="bg-white"><CardHeader><CardTitle>Distribuzione per Età</CardTitle></CardHeader><CardContent className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={ageChartData}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -141,7 +141,7 @@ export default function Sostenitori() {
 }
 
 const SupportersTable = ({ supporters }: { supporters: Supporter[] }) => (
-    <Card><CardHeader><CardTitle>Lista Sostenitori</CardTitle></CardHeader><CardContent>
+    <Card className="bg-white"><CardHeader><CardTitle>Lista Sostenitori</CardTitle></CardHeader><CardContent>
         <div className="overflow-x-auto">
             <table className="w-full">
                 <thead><tr><th className="p-2 text-left">Nome</th><th className="p-2 text-left">Email</th><th className="p-2 text-left">Ruoli Sostenuti</th></tr></thead>
