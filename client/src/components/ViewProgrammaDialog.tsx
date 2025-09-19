@@ -147,17 +147,16 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
                         {p.proposta}
                       </div>
                       {p.url && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">!</span>
-                          </div>
+                        <div className="mt-2">
                           <a
                             href={p.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline text-sm"
+                            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
                           >
-                            Link alla proposta
+                            <div className="w-2 h-2 bg-blue-500 rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">!</span>
+                            </div>
                           </a>
                         </div>
                       )}
