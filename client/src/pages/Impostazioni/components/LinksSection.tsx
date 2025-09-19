@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Shield, Database, Download, Trash2, Settings, User, Lock, LogOut, AlertTriangle } from "lucide-react";
+import { FileText, Shield, Database, Download, Trash2, Settings, User, Lock, LogOut, AlertTriangle, Copyright } from "lucide-react";
 import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
@@ -124,6 +124,22 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
               <div className="text-left">
                 <div className="font-semibold text-gray-900">Segnala Problema</div>
                 <div className="text-xs text-gray-600">Aiutaci a migliorare</div>
+              </div>
+            </Button>
+          </Link>
+
+          {/* Copyright */}
+          <Link href="/impostazioni/copyright">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start h-20 rounded-xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 hover:border-indigo-300 hover:shadow-lg transition-all duration-300 group"
+            >
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                <Copyright className="h-5 w-5 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-gray-900">Copyright</div>
+                <div className="text-xs text-gray-600">Diritti e proprietà</div>
               </div>
             </Button>
           </Link>
