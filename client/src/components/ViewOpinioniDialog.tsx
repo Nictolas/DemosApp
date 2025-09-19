@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { CustomAvatar } from "@/components/CustomAvatar";
 import { useAuth } from "@/hooks/use-auth-neon";
-
+import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
 
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -52,6 +52,7 @@ export function ViewOpinioniDialog({
   const [tab, setTab] = useState<'favorevole' | 'indeciso' | 'contrario' | 'sostegno' | 'altro'>('favorevole');
   const [, setLocation] = useLocation();
   const [showCambiaModal, setShowCambiaModal] = useState<{categoria: string | null} | false>(false);
+  const [showProgrammaModal, setShowProgrammaModal] = useState(false);
 
   // Funzione per redirect su "Cambia rappresentante"
   const handleCambia = () => {
@@ -408,7 +409,7 @@ export function ViewOpinioniDialog({
           </div>
           {/* Seconda riga: azioni */}
           <div className="flex justify-center gap-2 w-full">
-            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { onOpenChange(false); setTimeout(() => setShowCambiaModal({categoria: categoria || null}), 200); }}>Cambia</button>
+            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { onOpenChange(false); setTimeout(() => setShowProgrammaModal(true), 200); }}>Programma</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
             <Button className="flex-1" onClick={() => onOpenChange(false)}>Chiudi</Button>
           </div>
@@ -432,6 +433,16 @@ export function ViewOpinioniDialog({
           </div>
         </div>
       )}
+      
+      {/* Modal programma */}
+      <ViewProgrammaDialog
+        utenteId={utenteId}
+        open={showProgrammaModal}
+        onOpenChange={setShowProgrammaModal}
+        nome={nome}
+        cognome={cognome}
+        avatarConfig={avatarConfig}
+      />
     </Dialog>
   );
 }

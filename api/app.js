@@ -52,6 +52,7 @@ const monitoringRoutes = require('./routes/admin/monitoring');
 const cleanupRoutes = require('./routes/cleanup');
 const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
 const segnalazioniRoutes = require('./routes/segnalazioni');
+const programmaRoutes = require('./routes/programma');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
 const auditManager = require('./services/auditManager');
 const dataRetentionJob = require('./jobs/dataRetentionJob');
@@ -205,6 +206,7 @@ app.use('/api/rappresentanti', rappresentantiSostenitoriRoutes);
 app.use('/api/candidati', candidatiSostenitoriRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
 app.use('/api/segnalazioni', segnalazioniRoutes);
+app.use('/api/programma', userLimiter, programmaRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/test', testRoutes);
 
