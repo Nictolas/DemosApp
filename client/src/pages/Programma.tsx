@@ -16,6 +16,11 @@ interface ProgrammaData {
   proposta3: string;
   proposta4: string;
   proposta5: string;
+  url1: string;
+  url2: string;
+  url3: string;
+  url4: string;
+  url5: string;
 }
 
 const defaultValues: ProgrammaData = {
@@ -24,6 +29,11 @@ const defaultValues: ProgrammaData = {
   proposta3: "",
   proposta4: "",
   proposta5: "",
+  url1: "",
+  url2: "",
+  url3: "",
+  url4: "",
+  url5: "",
 };
 
 export default function Programma() {
@@ -35,13 +45,20 @@ export default function Programma() {
 
   // 1. Caricamento dati utente e programma con React Query
   const { data, isLoading } = useQuery({
-    queryKey: ['programmaData', user?.uid],
+    queryKey: ['programmaData', user?.id],
     queryFn: async () => {
-      if (!user?.uid) return null;
-      // Usiamo un endpoint che restituisce sia i dati utente che il suo programma
-      const response = await apiRequest("GET", `/api/programma`);
-      if (!response.ok) throw new Error('Failed to fetch data');
-      return response.json();
+      if (!user?.id) return null;
+      // Carica il programma specifico dell'utente
+      const response = await apiRequest("GET", `/api/programma/${user.id}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Nessun programma trovato, restituisci valori vuoti
+          return { programma: defaultValues };
+        }
+        throw new Error('Failed to fetch data');
+      }
+      const result = await response.json();
+      return { programma: result.data };
     },
     enabled: !!user,
   });
@@ -56,13 +73,25 @@ export default function Programma() {
   // 2. Mutazione per salvare il programma
   const saveMutation = useMutation({
     mutationFn: async (values: ProgrammaData) => {
-      const response = await apiRequest("POST", "/api/programma", values);
+      const response = await apiRequest("POST", "/api/programma", {
+        utente_id: user?.id,
+        proposta_1: values.proposta1,
+        proposta_2: values.proposta2,
+        proposta_3: values.proposta3,
+        proposta_4: values.proposta4,
+        proposta_5: values.proposta5,
+        url_1: values.url1,
+        url_2: values.url2,
+        url_3: values.url3,
+        url_4: values.url4,
+        url_5: values.url5
+      });
       if (!response.ok) throw new Error("Impossibile salvare il programma.");
       return response.json();
     },
     onSuccess: () => {
       toast({ title: "Salvato!", description: "Il tuo programma è stato aggiornato." });
-      queryClient.invalidateQueries({ queryKey: ['programmaData', user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ['programmaData', user?.id] });
     },
     onError: (error: any) => {
       toast({ title: "Errore", description: error.message, variant: "destructive" });
@@ -77,7 +106,7 @@ export default function Programma() {
     return <Redirect to="/auth" />;
   }
 
-  const canEdit = user && ["Admin", "Candidato", "Candidato Politico"].includes(user.ruolo || user.role || '');
+  const canEdit = user && ["Admin", "Politico", "Candidato", "Candidato Politico"].includes(user.ruolo || user.role || '');
 
   if (!canEdit) {
     return (
@@ -96,15 +125,30 @@ export default function Programma() {
             <CardDescription>Inserisci le tue 5 proposte elettorali principali.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4" onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}>
+            <form className="space-y-6" onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}>
               {[1, 2, 3, 4, 5].map((n) => (
-                <div key={n}>
-                  <label className="block font-medium mb-1">Proposta {n}</label>
-                  <Input
-                    {...form.register(`proposta${n}` as keyof ProgrammaData)}
-                    placeholder={`Scrivi la proposta ${n}...`}
-                    disabled={!canEdit || saveMutation.isPending}
-                  />
+                <div key={n} className="space-y-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <div>
+                    <label className="block font-medium mb-1">Proposta {n}</label>
+                    <Input
+                      {...form.register(`proposta${n}` as keyof ProgrammaData)}
+                      placeholder={`Scrivi la proposta ${n}...`}
+                      disabled={!canEdit || saveMutation.isPending}
+                      className="bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1 text-sm text-gray-600">
+                      URL {n} (opzionale)
+                    </label>
+                    <Input
+                      {...form.register(`url${n}` as keyof ProgrammaData)}
+                      placeholder={`https://esempio.com/proposta-${n}`}
+                      disabled={!canEdit || saveMutation.isPending}
+                      className="bg-white"
+                      type="url"
+                    />
+                  </div>
                 </div>
               ))}
               <Button type="submit" className="mt-4" disabled={!canEdit || saveMutation.isPending}>

@@ -43,7 +43,7 @@ router.get('/:userId', async (req, res) => {
     }
     
     const result = await pool.query(
-      'SELECT proposta_1, proposta_2, proposta_3, proposta_4, proposta_5, created_at, updated_at FROM programmi WHERE utente_id = $1',
+      'SELECT proposta_1, proposta_2, proposta_3, proposta_4, proposta_5, url_1, url_2, url_3, url_4, url_5, created_at, updated_at FROM programmi WHERE utente_id = $1',
       [userId]
     );
     
@@ -64,6 +64,11 @@ router.get('/:userId', async (req, res) => {
         proposta3: programma.proposta_3 || '',
         proposta4: programma.proposta_4 || '',
         proposta5: programma.proposta_5 || '',
+        url1: programma.url_1 || '',
+        url2: programma.url_2 || '',
+        url3: programma.url_3 || '',
+        url4: programma.url_4 || '',
+        url5: programma.url_5 || '',
         data_creazione: programma.created_at,
         data_modifica: programma.updated_at
       }
@@ -77,29 +82,54 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-// POST /api/programma - Crea nuovo programma
+// POST /api/programma - Crea o aggiorna programma
 router.post('/', async (req, res) => {
   try {
-    const { titolo, descrizione, candidato_id, punti_chiave } = req.body;
+    const { 
+      utente_id, 
+      proposta_1, proposta_2, proposta_3, proposta_4, proposta_5,
+      url_1, url_2, url_3, url_4, url_5
+    } = req.body;
     
-    if (!titolo || !descrizione || !candidato_id) {
+    if (!utente_id) {
       return res.status(400).json({
         success: false,
-        error: 'Titolo, descrizione e candidato sono obbligatori'
+        error: 'ID utente richiesto'
       });
     }
     
-    const result = await pool.query(
-      'INSERT INTO programmi (titolo, descrizione, candidato_id, punti_chiave, data_creazione) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
-      [titolo, descrizione, candidato_id, punti_chiave]
-    );
+    // Usa UPSERT per creare o aggiornare il programma
+    const result = await pool.query(`
+      INSERT INTO programmi (
+        utente_id, proposta_1, proposta_2, proposta_3, proposta_4, proposta_5,
+        url_1, url_2, url_3, url_4, url_5, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+      ON CONFLICT (utente_id) 
+      DO UPDATE SET 
+        proposta_1 = EXCLUDED.proposta_1,
+        proposta_2 = EXCLUDED.proposta_2,
+        proposta_3 = EXCLUDED.proposta_3,
+        proposta_4 = EXCLUDED.proposta_4,
+        proposta_5 = EXCLUDED.proposta_5,
+        url_1 = EXCLUDED.url_1,
+        url_2 = EXCLUDED.url_2,
+        url_3 = EXCLUDED.url_3,
+        url_4 = EXCLUDED.url_4,
+        url_5 = EXCLUDED.url_5,
+        updated_at = NOW()
+      RETURNING *
+    `, [
+      utente_id, 
+      proposta_1 || '', proposta_2 || '', proposta_3 || '', proposta_4 || '', proposta_5 || '',
+      url_1 || '', url_2 || '', url_3 || '', url_4 || '', url_5 || ''
+    ]);
     
     res.status(201).json({
       success: true,
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('❌ Errore nella creazione programma:', error);
+    console.error('❌ Errore nella creazione/aggiornamento programma:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

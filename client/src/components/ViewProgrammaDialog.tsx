@@ -15,7 +15,7 @@ interface ViewProgrammaDialogProps {
 }
 
 export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognome, avatarConfig }: ViewProgrammaDialogProps) {
-  const [proposte, setProposte] = useState<string[]>([]);
+  const [proposte, setProposte] = useState<{proposta: string, url: string}[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,25 +27,43 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
     const fetchProgramma = async () => {
       try {
         const response = await apiRequest("GET", `/api/programma/${utenteId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            setProposte([
-              data.data.proposta1 || "",
-              data.data.proposta2 || "",
-              data.data.proposta3 || "",
-              data.data.proposta4 || "",
-              data.data.proposta5 || "",
-            ]);
-          } else {
-            setProposte(["", "", "", "", ""]);
-          }
-        } else {
-          setProposte(["", "", "", "", ""]);
-        }
+             if (response.ok) {
+               const data = await response.json();
+               if (data.success && data.data) {
+                 setProposte([
+                   {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
+                   {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
+                   {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
+                   {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
+                   {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
+                 ]);
+               } else {
+                 setProposte([
+                   {proposta: "", url: ""},
+                   {proposta: "", url: ""},
+                   {proposta: "", url: ""},
+                   {proposta: "", url: ""},
+                   {proposta: "", url: ""}
+                 ]);
+               }
+             } else {
+               setProposte([
+                 {proposta: "", url: ""},
+                 {proposta: "", url: ""},
+                 {proposta: "", url: ""},
+                 {proposta: "", url: ""},
+                 {proposta: "", url: ""}
+               ]);
+             }
       } catch (e) {
         setError("Errore nel caricamento del programma elettorale.");
-        setProposte(["", "", "", "", ""]);
+        setProposte([
+          {proposta: "", url: ""},
+          {proposta: "", url: ""},
+          {proposta: "", url: ""},
+          {proposta: "", url: ""},
+          {proposta: "", url: ""}
+        ]);
       } finally {
         setIsLoading(false);
       }
@@ -81,22 +99,36 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
               {error}
             </div>
           ) : (
-          <div className="space-y-3 mt-2">
-            {proposte.every(p => !p || p.trim() === '') ? (
-              <div className="text-center py-8">
-                <div className="text-gray-500 text-lg mb-2">📝</div>
-                <p className="text-gray-600 text-lg font-medium">L'utente non ha ancora inserito il suo programma personale.</p>
-                <p className="text-gray-500 text-sm mt-2">Le proposte elettorali verranno mostrate qui una volta inserite.</p>
-              </div>
-            ) : (
-              proposte.map((p, idx) => (
-                <div key={idx} className="bg-purple-50 border border-purple-200 rounded-md p-3">
-                  <span className="font-semibold text-purple-800">Proposta {idx + 1}:</span>
-                  <span className="ml-2 text-gray-800">{p ? p : <span className="italic text-gray-400">Non specificata</span>}</span>
-                </div>
-              ))
-            )}
-          </div>
+             <div className="space-y-3 mt-2">
+               {proposte.every(p => !p.proposta || p.proposta.trim() === '') ? (
+                 <div className="text-center py-8">
+                   <div className="text-gray-500 text-lg mb-2">📝</div>
+                   <p className="text-gray-600 text-lg font-medium">L'utente non ha ancora inserito il suo programma personale.</p>
+                   <p className="text-gray-500 text-sm mt-2">Le proposte elettorali verranno mostrate qui una volta inserite.</p>
+                 </div>
+               ) : (
+                 proposte.map((p, idx) => (
+                   <div key={idx} className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                     <div className="font-semibold text-purple-800 mb-1">Proposta {idx + 1}:</div>
+                     <div className="text-gray-800 mb-2">
+                       {p.proposta ? p.proposta : <span className="italic text-gray-400">Non specificata</span>}
+                     </div>
+                     {p.url && (
+                       <div className="mt-2">
+                         <a 
+                           href={p.url} 
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           className="text-blue-600 hover:text-blue-800 underline text-sm"
+                         >
+                           🔗 Link alla proposta
+                         </a>
+                       </div>
+                     )}
+                   </div>
+                 ))
+               )}
+             </div>
           )}
         </div>
         <div className="flex justify-end mt-4 bg-white">
