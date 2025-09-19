@@ -177,63 +177,14 @@ export default function CopyrightPage() {
             </div>
 
             <div className="bg-white border border-gray-300 rounded-lg p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Elementi Protetti</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h5 className="font-semibold text-gray-800 mb-2">Sistema di Autenticazione</h5>
-                  <ul className="text-gray-700 text-sm space-y-1">
-                    <li>• Meccanismi di login e registrazione</li>
-                    <li>• Gestione sessioni e token JWT</li>
-                    <li>• Sistemi di verifica email</li>
-                    <li>• Reset password e sicurezza</li>
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="font-semibold text-gray-800 mb-2">Sistema di Voto</h5>
-                  <ul className="text-gray-700 text-sm space-y-1">
-                    <li>• Algoritmi di calcolo compatibilità</li>
-                    <li>• Meccanismi di selezione candidati</li>
-                    <li>• Sistemi di conteggio e ranking</li>
-                    <li>• Logica di filtraggio risultati</li>
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="font-semibold text-gray-800 mb-2">Interfaccia Utente</h5>
-                  <ul className="text-gray-700 text-sm space-y-1">
-                    <li>• Design e layout delle pagine</li>
-                    <li>• Componenti React personalizzati</li>
-                    <li>• Stili CSS e animazioni</li>
-                    <li>• Esperienza utente e navigazione</li>
-                  </ul>
-                </div>
-                <div>
-                  <h5 className="font-semibold text-gray-800 mb-2">Database e API</h5>
-                  <ul className="text-gray-700 text-sm space-y-1">
-                    <li>• Struttura tabelle e relazioni</li>
-                    <li>• Endpoint API e middleware</li>
-                    <li>• Sistemi di rate limiting</li>
-                    <li>• Logiche di business e validazione</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-gray-300 rounded-lg p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Autorizzazioni e Licenze</h4>
-              <p className="text-gray-700 leading-relaxed mb-4">
-                L'unico modo per utilizzare elementi del software Demos è ottenere 
-                una licenza ufficiale scritta e firmata da Nicolas Micheletti.
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Data di Pubblicazione</h4>
+              <p className="text-gray-700 leading-relaxed">
+                <strong>Data di aggiornamento:</strong> 20 settembre 2025
               </p>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h5 className="font-semibold text-gray-800 mb-2">Processo di Licenza:</h5>
-                <ol className="text-gray-700 space-y-1 list-decimal list-inside">
-                  <li>Richiesta formale via email ufficiale</li>
-                  <li>Valutazione tecnica e commerciale</li>
-                  <li>Negoziazione termini e condizioni</li>
-                  <li>Firma contratto di licenza ufficiale</li>
-                  <li>Pagamento royalty e commissioni</li>
-                </ol>
-              </div>
+              <p className="text-gray-600 text-sm mt-2">
+                Questo documento è stato aggiornato per riflettere le modifiche più recenti 
+                alla piattaforma Demos e alle relative politiche di proprietà intellettuale.
+              </p>
             </div>
           </CardContent>
         </Card>

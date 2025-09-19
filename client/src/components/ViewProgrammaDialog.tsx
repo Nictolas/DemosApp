@@ -42,13 +42,15 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
           
           if (data.success && data.data) {
             console.log('🔍 ViewProgrammaDialog: Dati programma trovati:', data.data);
-            setProposte([
+            const newProposte = [
               {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
               {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
               {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
               {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
               {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
-            ]);
+            ];
+            console.log('🔍 ViewProgrammaDialog: Nuove proposte da impostare:', newProposte);
+            setProposte(newProposte);
           } else {
             console.log('🔍 ViewProgrammaDialog: Nessun programma trovato o success=false');
             setProposte([
@@ -114,7 +116,11 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
             </div>
           ) : (
              <div className="space-y-3 mt-2">
-               {proposte.every(p => !p.proposta || p.proposta.trim() === '') ? (
+               {(() => {
+                 console.log('🔍 ViewProgrammaDialog: Rendering proposte:', proposte);
+                 console.log('🔍 ViewProgrammaDialog: Tutte vuote?', proposte.every(p => !p.proposta || p.proposta.trim() === ''));
+                 return proposte.every(p => !p.proposta || p.proposta.trim() === '');
+               })() ? (
                  <div className="text-center py-8">
                    <div className="text-gray-500 text-lg mb-2">📝</div>
                    <p className="text-gray-600 text-lg font-medium">L'utente non ha ancora inserito il suo programma personale.</p>
