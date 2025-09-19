@@ -34,20 +34,26 @@ router.get('/', async (req, res) => {
 router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+    console.log('🔍 API programma: Richiesta per userId:', userId);
     
     if (!userId) {
+      console.log('❌ API programma: userId mancante');
       return res.status(400).json({
         success: false,
         error: 'ID utente richiesto'
       });
     }
     
+    console.log('🔍 API programma: Esecuzione query per utente_id:', userId);
     const result = await pool.query(
       'SELECT proposta_1, proposta_2, proposta_3, proposta_4, proposta_5, url_1, url_2, url_3, url_4, url_5, created_at, updated_at FROM programmi WHERE utente_id = $1',
       [userId]
     );
     
+    console.log('🔍 API programma: Righe trovate:', result.rows.length);
+    
     if (result.rows.length === 0) {
+      console.log('❌ API programma: Nessun programma trovato per utente_id:', userId);
       return res.status(404).json({
         success: false,
         error: 'Programma non trovato per questo utente'
@@ -55,8 +61,14 @@ router.get('/:userId', async (req, res) => {
     }
     
     const programma = result.rows[0];
+    console.log('✅ API programma: Programma trovato:', {
+      proposta_1: programma.proposta_1,
+      proposta_2: programma.proposta_2,
+      proposta_3: programma.proposta_3,
+      url_1: programma.url_1
+    });
     
-    res.json({
+    const responseData = {
       success: true,
       data: {
         proposta1: programma.proposta_1 || '',
@@ -72,7 +84,10 @@ router.get('/:userId', async (req, res) => {
         data_creazione: programma.created_at,
         data_modifica: programma.updated_at
       }
-    });
+    };
+    
+    console.log('📤 API programma: Invio risposta:', responseData);
+    res.json(responseData);
   } catch (error) {
     console.error('❌ Errore nel recupero programma utente:', error);
     res.status(500).json({

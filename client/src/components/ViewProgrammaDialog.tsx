@@ -26,35 +26,44 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
     setProposte([]);
     const fetchProgramma = async () => {
       try {
+        console.log('🔍 ViewProgrammaDialog: Caricamento programma per utenteId:', utenteId);
         const response = await apiRequest("GET", `/api/programma/${utenteId}`);
-             if (response.ok) {
-               const data = await response.json();
-               if (data.success && data.data) {
-                 setProposte([
-                   {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
-                   {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
-                   {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
-                   {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
-                   {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
-                 ]);
-               } else {
-                 setProposte([
-                   {proposta: "", url: ""},
-                   {proposta: "", url: ""},
-                   {proposta: "", url: ""},
-                   {proposta: "", url: ""},
-                   {proposta: "", url: ""}
-                 ]);
-               }
-             } else {
-               setProposte([
-                 {proposta: "", url: ""},
-                 {proposta: "", url: ""},
-                 {proposta: "", url: ""},
-                 {proposta: "", url: ""},
-                 {proposta: "", url: ""}
-               ]);
-             }
+        console.log('🔍 ViewProgrammaDialog: Response status:', response.status);
+        console.log('🔍 ViewProgrammaDialog: Response ok:', response.ok);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('🔍 ViewProgrammaDialog: Response data:', data);
+          
+          if (data.success && data.data) {
+            console.log('🔍 ViewProgrammaDialog: Dati programma trovati:', data.data);
+            setProposte([
+              {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
+              {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
+              {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
+              {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
+              {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
+            ]);
+          } else {
+            console.log('🔍 ViewProgrammaDialog: Nessun programma trovato o success=false');
+            setProposte([
+              {proposta: "", url: ""},
+              {proposta: "", url: ""},
+              {proposta: "", url: ""},
+              {proposta: "", url: ""},
+              {proposta: "", url: ""}
+            ]);
+          }
+        } else {
+          console.log('🔍 ViewProgrammaDialog: Response non ok, status:', response.status);
+          setProposte([
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""},
+            {proposta: "", url: ""}
+          ]);
+        }
       } catch (e) {
         setError("Errore nel caricamento del programma elettorale.");
         setProposte([
