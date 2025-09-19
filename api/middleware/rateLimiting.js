@@ -4,7 +4,7 @@ const rateLimit = require('express-rate-limit');
 // Configurazione generale per tutte le API
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 10000, // Disabilitato temporaneamente per permettere il login
+  max: 500, // 500 richieste per IP per finestra (ridotto da 10000 ma aumentato per evitare 429)
   // Gestisci proxy in modo più sicuro
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
   // Escludi localhost in sviluppo
@@ -130,7 +130,7 @@ const adminLimiter = rateLimit({
 // Rate limiting per API utente (moderato)
 const userLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 50, // 50 richieste per utente per finestra
+  max: 200, // 200 richieste per utente per finestra (aumentato da 50)
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
   message: {
     success: false,
