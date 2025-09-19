@@ -10,13 +10,6 @@ export default function LandingPage() {
   const { user, isLoading } = useAuth();
   const { isInstallable, isInstalled, isMobile, installApp, showInstallInstructions } = usePWAInstall();
   
-  // Debug per verificare lo stato PWA
-  console.log('LandingPage PWA state:', {
-    isInstallable,
-    isInstalled,
-    isMobile,
-    userAgent: navigator.userAgent
-  });
   
   // Redirect to menu if user is authenticated
   if (user && !isLoading) {
@@ -66,32 +59,27 @@ export default function LandingPage() {
                   </Link>
                 )}
                 
-                {/* Pulsante Aggiungi a Schermata Home - Test */}
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full sm:w-auto border-blue-600 text-blue-600 hover:bg-blue-50"
-                  onClick={() => {
-                    console.log('Pulsante cliccato!', { isInstallable, isInstalled, isMobile });
-                    if (isInstallable) {
-                      installApp();
-                    } else {
-                      showInstallInstructions();
-                    }
-                  }}
-                >
-                  {isInstallable ? (
-                    <>
-                      <Download className="w-5 h-5 mr-2" />
-                      Installa App (Test)
-                    </>
-                  ) : (
-                    <>
-                      <Smartphone className="w-5 h-5 mr-2" />
-                      Istruzioni Installazione (Test)
-                    </>
-                  )}
-                </Button>
+                {/* Pulsante Aggiungi a Schermata Home - Solo su Mobile */}
+                {!isInstalled && isMobile && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full sm:w-auto border-blue-600 text-blue-600 hover:bg-blue-50"
+                    onClick={isInstallable ? installApp : showInstallInstructions}
+                  >
+                    {isInstallable ? (
+                      <>
+                        <Download className="w-5 h-5 mr-2" />
+                        Aggiungi a Schermata Home
+                      </>
+                    ) : (
+                      <>
+                        <Smartphone className="w-5 h-5 mr-2" />
+                        Aggiungi a Schermata Home
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

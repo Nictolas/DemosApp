@@ -23,18 +23,7 @@ export function usePWAInstall() {
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       const isSmallScreen = window.innerWidth <= 768;
       
-      // Debug per verificare il rilevamento
-      console.log('Mobile detection:', {
-        userAgent: userAgent,
-        isMobileDevice,
-        isTouchDevice,
-        isSmallScreen,
-        windowWidth: window.innerWidth,
-        maxTouchPoints: navigator.maxTouchPoints
-      });
-      
       const mobile = isMobileDevice || (isTouchDevice && isSmallScreen);
-      console.log('Final mobile result:', mobile);
       setIsMobile(mobile);
     };
 
@@ -72,12 +61,6 @@ export function usePWAInstall() {
     checkIsMobile();
     checkIfInstalled();
 
-    // Debug per verificare il service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then((registration) => {
-        console.log('Service Worker registration:', registration);
-      });
-    }
 
     // Aggiunge i listener per gli eventi
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
