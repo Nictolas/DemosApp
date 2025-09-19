@@ -53,6 +53,10 @@ export function ViewOpinioniDialog({
   const [, setLocation] = useLocation();
   const [showCambiaModal, setShowCambiaModal] = useState<{categoria: string | null} | false>(false);
   const [showProgrammaModal, setShowProgrammaModal] = useState(false);
+  
+  // Debug per tracciare l'utenteId
+  console.log('🔍 ViewOpinioniDialog - utenteId corrente:', utenteId);
+  console.log('🔍 ViewOpinioniDialog - showProgrammaModal:', showProgrammaModal);
 
   // Funzione per redirect su "Cambia rappresentante"
   const handleCambia = () => {
