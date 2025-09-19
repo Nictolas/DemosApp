@@ -83,28 +83,57 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // CORS - DEVE essere PRIMO per evitare problemi con OPTIONS
-app.use(cors({
-  origin: [
-    'https://www.demos.community',
-    'https://demos.community',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173'
-  ],
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Lista degli origin consentiti
+    const allowedOrigins = [
+      'https://www.demos.community',
+      'https://demos.community',
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5173'
+    ];
+    
+    // Permetti richieste senza origin (es. Postman, mobile apps)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('🚨 CORS: Origin non autorizzato:', origin);
+      callback(new Error('Non autorizzato da CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
   optionsSuccessStatus: 200
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Gestione esplicita delle richieste OPTIONS per CORS
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  console.log('🔍 CORS OPTIONS richiesta da:', req.headers.origin);
+  res.header('Access-Control-Allow-Origin', req.headers.origin || 'https://www.demos.community');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.status(200).end();
+});
+
+// Middleware CORS aggiuntivo per sicurezza
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log('🌐 Richiesta da origin:', origin);
+  
+  if (origin && (origin.includes('demos.community') || origin.includes('localhost'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  
+  next();
 });
 
 // DEBUG: Middleware di logging universale per catturare TUTTE le richieste
