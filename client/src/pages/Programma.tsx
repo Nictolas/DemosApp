@@ -77,9 +77,9 @@ export default function Programma() {
     return <Redirect to="/auth" />;
   }
 
-  const canEdit = data?.user && ["Admin", "Candidato", "Candidato Politico"].includes(data.user.ruolo);
+  const canEdit = user && ["Admin", "Candidato", "Candidato Politico"].includes(user.ruolo || user.role || '');
 
-  if (data && !canEdit) {
+  if (!canEdit) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4 flex items-center justify-center page-with-navbar">
         <Card><CardHeader><CardTitle>Accesso negato</CardTitle><CardDescription>Non hai i permessi per visualizzare questa pagina.</CardDescription></CardHeader></Card>
