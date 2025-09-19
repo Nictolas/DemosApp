@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Route, Switch, useLocation, Redirect, useParams } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import { AuthProvider } from "@/hooks/use-auth-neon";
 import { RegistrationProvider } from "@/hooks/use-registration";
 import { queryClient } from "./lib/queryClient";
@@ -893,6 +894,7 @@ export default function App() {
              <Navbar />}
             
             <Toaster />
+            <PWAInstallBanner />
             </AppWrapper>
           </RegistrationProvider>
         </AuthProvider>
