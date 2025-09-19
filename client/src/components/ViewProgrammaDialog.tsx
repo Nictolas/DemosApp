@@ -17,6 +17,9 @@ interface ViewProgrammaDialogProps {
 export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognome, avatarConfig }: ViewProgrammaDialogProps) {
   console.log('🚨🚨🚨 ViewProgrammaDialog RENDERED! 🚨🚨🚨');
   console.log('🚨 Props:', { utenteId, open, nome, cognome });
+  console.log('🚨 utenteId type:', typeof utenteId);
+  console.log('🚨 utenteId length:', utenteId?.length);
+  console.log('🚨 utenteId === "":', utenteId === "");
   
   const [proposte, setProposte] = useState<{proposta: string, url: string}[]>([]);
   const [isLoading, setIsLoading] = useState(false);

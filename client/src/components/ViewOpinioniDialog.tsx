@@ -439,6 +439,7 @@ export function ViewOpinioniDialog({
       )}
       
       {/* Modal programma */}
+      {console.log('🚨🚨🚨 ViewOpinioniDialog: Passando utenteId a ViewProgrammaDialog:', utenteId)}
       <ViewProgrammaDialog
         utenteId={utenteId}
         open={showProgrammaModal}
