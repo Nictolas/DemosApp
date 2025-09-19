@@ -1,19 +1,14 @@
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Bell } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { NotificheData } from "../types";
 import { NotificaItem } from "./NotificaItem";
-import { PreferenzeModal } from "./PreferenzeModal";
 
 interface ListaNotificheProps {
   data: NotificheData | undefined;
   isLoading: boolean;
   error: any;
-  fcmToken: string | null;
-  fcmError: Error | null;
-  permission: NotificationPermission | null;
-  onSwitch: (type: 'inApp' | 'push') => void;
   deleteSegnalazioneMutation: any;
 }
 
@@ -21,27 +16,11 @@ export const ListaNotifiche: React.FC<ListaNotificheProps> = ({
   data,
   isLoading,
   error,
-  fcmToken,
-  fcmError,
-  permission,
-  onSwitch,
   deleteSegnalazioneMutation
 }) => {
   return (
     <Card className="bg-white">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            <CardTitle>Le tue Notifiche</CardTitle>
-          </div>
-          <PreferenzeModal
-            fcmToken={fcmToken}
-            fcmError={fcmError}
-            permission={permission}
-            onSwitch={onSwitch}
-          />
-        </div>
         <CardDescription>
           {data?.notifiche?.length || 0} notifiche totali
         </CardDescription>
