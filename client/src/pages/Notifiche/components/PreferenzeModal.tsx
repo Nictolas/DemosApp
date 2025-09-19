@@ -25,7 +25,7 @@ export const PreferenzeModal: React.FC<PreferenzeModalProps> = ({
           Preferenze Notifiche
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
           <DialogTitle>Preferenze Notifiche</DialogTitle>
         </DialogHeader>

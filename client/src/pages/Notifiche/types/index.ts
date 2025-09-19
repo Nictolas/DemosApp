@@ -49,3 +49,12 @@ export interface PreferenzeNotificheProps {
   permission: string;
   onSwitch: (key: string, value: boolean) => void;
 }
+
+export interface PreferenzeRappresentanti {
+  eurodeputato: boolean;
+  senatore: boolean;
+  deputato: boolean;
+  consigliere_regionale: boolean;
+  consigliere_comunale: boolean;
+  demos: boolean;
+}
