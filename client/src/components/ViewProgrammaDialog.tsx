@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, AlertCircle } from "lucide-react";
 import { CustomAvatar } from "@/components/CustomAvatar";
-
-
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 
 interface ViewProgrammaDialogProps {
@@ -27,22 +26,26 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
     setProposte([]);
     const fetchProgramma = async () => {
       try {
-        const ref = doc(db, "programmi", utenteId);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          const data = snap.data();
-          setProposte([
-            data.proposta1 || "",
-            data.proposta2 || "",
-            data.proposta3 || "",
-            data.proposta4 || "",
-            data.proposta5 || "",
-          ]);
+        const response = await apiRequest("GET", `/api/programma/${utenteId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setProposte([
+              data.data.proposta1 || "",
+              data.data.proposta2 || "",
+              data.data.proposta3 || "",
+              data.data.proposta4 || "",
+              data.data.proposta5 || "",
+            ]);
+          } else {
+            setProposte(["", "", "", "", ""]);
+          }
         } else {
           setProposte(["", "", "", "", ""]);
         }
       } catch (e) {
         setError("Errore nel caricamento del programma elettorale.");
+        setProposte(["", "", "", "", ""]);
       } finally {
         setIsLoading(false);
       }
