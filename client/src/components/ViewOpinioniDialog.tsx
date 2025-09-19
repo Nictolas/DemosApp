@@ -413,7 +413,7 @@ export function ViewOpinioniDialog({
           </div>
           {/* Seconda riga: azioni */}
           <div className="flex justify-center gap-2 w-full">
-            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { onOpenChange(false); setTimeout(() => setShowProgrammaModal(true), 200); }}>Programma</button>
+            <button className="flex-1 px-4 py-2 rounded bg-gray-100 text-gray-700" onClick={() => setShowProgrammaModal(true)}>Programma</button>
             <button className={`flex-1 px-4 py-2 rounded ${tab === 'sostegno' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`} onClick={() => setTab('sostegno')}>Sostegno</button>
             <Button className="flex-1" onClick={() => onOpenChange(false)}>Chiudi</Button>
           </div>
