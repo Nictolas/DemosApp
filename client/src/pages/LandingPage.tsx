@@ -1,12 +1,14 @@
 import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth-neon";
-import { Loader2 } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { Loader2, Download, Smartphone } from "lucide-react";
 import appIcon from '/icona.png';
 // import { adminAuth } from './firebase-config'; // Rimosso Firebase
 
 export default function LandingPage() {
   const { user, isLoading } = useAuth();
+  const { isInstallable, isInstalled, installApp, showInstallInstructions } = usePWAInstall();
   
   // Redirect to menu if user is authenticated
   if (user && !isLoading) {
@@ -54,6 +56,28 @@ export default function LandingPage() {
                       Inizia ora
                     </Button>
                   </Link>
+                )}
+                
+                {/* Pulsante Aggiungi a Schermata Home */}
+                {!isInstalled && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full sm:w-auto border-blue-600 text-blue-600 hover:bg-blue-50"
+                    onClick={isInstallable ? installApp : showInstallInstructions}
+                  >
+                    {isInstallable ? (
+                      <>
+                        <Download className="w-5 h-5 mr-2" />
+                        Aggiungi a Schermata Home
+                      </>
+                    ) : (
+                      <>
+                        <Smartphone className="w-5 h-5 mr-2" />
+                        Aggiungi a Schermata Home
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
             </div>
