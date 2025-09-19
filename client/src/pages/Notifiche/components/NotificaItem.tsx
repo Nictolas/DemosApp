@@ -10,7 +10,6 @@ import {
   getNotificaBackground,
   getNotificaTitle,
   getNotificaMessage,
-  getNotificaType,
   formatDate
 } from "../utils/notificheUtils";
 
@@ -226,7 +225,6 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
           )}
           
           <div className="flex items-center gap-4 text-sm text-gray-500">
-            <span>Tipo: {getNotificaType(notifica.tipo || notifica.tipo_notifica)}</span>
             <span>
               {formatDate(notifica.created_at || notifica.data_creazione || '')}
             </span>

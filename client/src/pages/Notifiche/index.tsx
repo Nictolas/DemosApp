@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useFCM } from "@/hooks/useFCM";
-import { useNoScroll } from "@/hooks/useNoScroll";
 import { useNotificheData } from "./hooks/useNotificheData";
 import { useNotifichePrefs } from "./hooks/useNotifichePrefs";
 import { Header } from "./components/Header";
@@ -18,8 +17,6 @@ export default function Notifiche() {
   const queryClient = useQueryClient();
   const [hasMarkedAsRead, setHasMarkedAsRead] = useState(false);
   
-  // Blocca lo scroll della pagina
-  useNoScroll(true);
 
   const { data, isLoading, error, markAsReadMutation, deleteSegnalazioneMutation } = useNotificheData(user);
   const { handleSwitch } = useNotifichePrefs();
@@ -81,17 +78,18 @@ export default function Notifiche() {
       <div className="max-w-4xl mx-auto h-full flex flex-col">
         <LoadingStates isAuthLoading={isAuthLoading} />
         
-        <Header />
+        <Header
+          fcmToken={fcmToken}
+          fcmError={fcmError}
+          permission={permission}
+          onSwitch={handleSwitch}
+        />
 
         <div className="flex-1">
           <ListaNotifiche
             data={data}
             isLoading={isLoading}
             error={error}
-            fcmToken={fcmToken}
-            fcmError={fcmError}
-            permission={permission}
-            onSwitch={handleSwitch}
             deleteSegnalazioneMutation={deleteSegnalazioneMutation}
           />
         </div>

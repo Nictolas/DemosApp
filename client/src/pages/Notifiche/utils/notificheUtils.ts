@@ -26,6 +26,3 @@ export const getNotificaMessage = (messaggio?: string): string => {
   return messaggio || 'Nessun messaggio disponibile';
 };
 
-export const getNotificaType = (tipo?: string): string => {
-  return tipo || 'Generico';
-};
