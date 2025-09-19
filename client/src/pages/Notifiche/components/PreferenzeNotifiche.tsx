@@ -45,7 +45,7 @@ export const PreferenzeNotifiche: React.FC<PreferenzeNotificheProps> = ({
           <Bell className="h-5 w-5" />
           Preferenze Notifiche
         </CardTitle>
-        <CardDescription>
+        <CardDescription id="preferenze-desc">
           Configura come vuoi ricevere le notifiche
         </CardDescription>
       </CardHeader>
