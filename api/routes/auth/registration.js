@@ -113,6 +113,18 @@ router.post('/register',
       }
     }
     
+    // Normalizza i gradi di elezione e candidatura (prima lettera maiuscola)
+    const normalizeGrado = (grado) => {
+      if (!grado || typeof grado !== 'string') return null;
+      return grado.charAt(0).toUpperCase() + grado.slice(1).toLowerCase();
+    };
+    
+    const normalizedGradoElezione = normalizeGrado(grado_elezione);
+    const normalizedGradoCandidatura = normalizeGrado(grado_candidatura);
+    
+    console.log('🔧 Grado elezione normalizzato:', grado_elezione, '→', normalizedGradoElezione);
+    console.log('🔧 Grado candidatura normalizzato:', grado_candidatura, '→', normalizedGradoCandidatura);
+    
     console.log('📝 Tentativo registrazione per:', email);
     console.log('📊 Dati ricevuti:', JSON.stringify(req.body, null, 2));
     
@@ -170,12 +182,12 @@ router.post('/register',
       regione_residenza || null,
       provincia_residenza || null,
       comune_residenza || null,
-      grado_elezione || null,
+      normalizedGradoElezione,
       paese_elezione || null,
       regione_elezione || null,
       provincia_elezione || null,
       comune_elezione || null,
-      grado_candidatura || null,
+      normalizedGradoCandidatura,
       paese_candidatura || null,
       regione_candidatura || null,
       provincia_candidatura || null,

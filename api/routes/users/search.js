@@ -299,11 +299,22 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       'comune_candidatura', 'grado_candidatura'
     ];
     
-    // Filtra solo i campi consentiti
+    // Normalizza i gradi di elezione e candidatura (prima lettera maiuscola)
+    const normalizeGrado = (grado) => {
+      if (!grado || typeof grado !== 'string') return grado;
+      return grado.charAt(0).toUpperCase() + grado.slice(1).toLowerCase();
+    };
+    
+    // Filtra solo i campi consentiti e normalizza i gradi
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
-        filteredData[key] = updateData[key];
+        if (key === 'grado_elezione' || key === 'grado_candidatura') {
+          filteredData[key] = normalizeGrado(updateData[key]);
+          console.log(`🔧 Grado ${key} normalizzato:`, updateData[key], '→', filteredData[key]);
+        } else {
+          filteredData[key] = updateData[key];
+        }
       }
     });
     
