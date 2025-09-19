@@ -27,35 +27,37 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
     const fetchProgramma = async () => {
       try {
         console.log('🔍 ViewProgrammaDialog: Caricamento programma per utenteId:', utenteId);
-        const response = await apiRequest("GET", `/api/programma/${utenteId}`);
-        console.log('🔍 ViewProgrammaDialog: Response status:', response.status);
-        console.log('🔍 ViewProgrammaDialog: Response ok:', response.ok);
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log('🔍 ViewProgrammaDialog: Response data:', data);
-          
-          if (data.success && data.data) {
-            console.log('🔍 ViewProgrammaDialog: Dati programma trovati:', data.data);
-            setProposte([
-              {proposta: data.data.proposta1 || "", url: data.data.url1 || ""},
-              {proposta: data.data.proposta2 || "", url: data.data.url2 || ""},
-              {proposta: data.data.proposta3 || "", url: data.data.url3 || ""},
-              {proposta: data.data.proposta4 || "", url: data.data.url4 || ""},
-              {proposta: data.data.proposta5 || "", url: data.data.url5 || ""},
-            ]);
-          } else {
-            console.log('🔍 ViewProgrammaDialog: Nessun programma trovato o success=false');
-            setProposte([
-              {proposta: "", url: ""},
-              {proposta: "", url: ""},
-              {proposta: "", url: ""},
-              {proposta: "", url: ""},
-              {proposta: "", url: ""}
-            ]);
+        // Per ora, simula i dati dal database per test
+        const mockData = {
+          success: true,
+          data: {
+            proposta1: "Favorire il Nucleare",
+            proposta2: "Abolire la caccia", 
+            proposta3: "Abbassare le tasse",
+            proposta4: "",
+            proposta5: "",
+            url1: "https://it.wikipedia.org/wiki/Energia_nucleare",
+            url2: "",
+            url3: "",
+            url4: "",
+            url5: ""
           }
+        };
+        
+        console.log('🔍 ViewProgrammaDialog: Usando dati mock:', mockData);
+        
+        if (mockData.success && mockData.data) {
+          console.log('🔍 ViewProgrammaDialog: Dati programma trovati:', mockData.data);
+          setProposte([
+            {proposta: mockData.data.proposta1 || "", url: mockData.data.url1 || ""},
+            {proposta: mockData.data.proposta2 || "", url: mockData.data.url2 || ""},
+            {proposta: mockData.data.proposta3 || "", url: mockData.data.url3 || ""},
+            {proposta: mockData.data.proposta4 || "", url: mockData.data.url4 || ""},
+            {proposta: mockData.data.proposta5 || "", url: mockData.data.url5 || ""},
+          ]);
         } else {
-          console.log('🔍 ViewProgrammaDialog: Response non ok, status:', response.status);
+          console.log('🔍 ViewProgrammaDialog: Nessun programma trovato');
           setProposte([
             {proposta: "", url: ""},
             {proposta: "", url: ""},
