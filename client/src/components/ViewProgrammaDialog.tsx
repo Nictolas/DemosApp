@@ -23,9 +23,16 @@ export function ViewProgrammaDialog({ utenteId, open, onOpenChange, nome, cognom
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || !utenteId) return;
-    console.log('🚨🚨🚨 ViewProgrammaDialog useEffect TRIGGERED! 🚨🚨🚨');
+    console.log('🚨🚨🚨 ViewProgrammaDialog useEffect CALLED! 🚨🚨🚨');
     console.log('🚨 open:', open, 'utenteId:', utenteId);
+    console.log('🚨 open && utenteId:', open && utenteId);
+    
+    if (!open || !utenteId) {
+      console.log('🚨 ViewProgrammaDialog useEffect: EXIT - open:', open, 'utenteId:', utenteId);
+      return;
+    }
+    
+    console.log('🚨🚨🚨 ViewProgrammaDialog useEffect TRIGGERED! 🚨🚨🚨');
     setIsLoading(true);
     setError(null);
     setProposte([]);
