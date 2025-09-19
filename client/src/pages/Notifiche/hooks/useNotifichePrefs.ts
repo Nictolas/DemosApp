@@ -18,8 +18,20 @@ export const useNotifichePrefs = () => {
   });
 
   const handleSwitch = (key: string, value: boolean) => {
-    const currentPrefs = { tutte: true, email: true, push: true };
+    // Preferenze per rappresentanti (le notifiche in-app e push sono sempre attive)
+    const rappresentantiPrefs = {
+      eurodeputato: true,
+      senatore: true,
+      deputato: true,
+      consigliere_regionale: true,
+      consigliere_comunale: true,
+      demos: true
+    };
+    
+    const currentPrefs = { ...rappresentantiPrefs };
     const newPrefs = { ...currentPrefs, [key]: value };
+    
+    console.log('🔍 DEBUG Preferenze - Salvataggio:', { key, value, newPrefs });
     prefsMutation.mutate(newPrefs);
   };
 
