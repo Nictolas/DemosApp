@@ -32,6 +32,34 @@ export default function SecurityDashboard() {
     systemHealth: 0
   });
 
+  // Nuove metriche di sicurezza implementate
+  const [jwtStats, setJwtStats] = useState({
+    activeTokens: 0,
+    revokedTokens: 0,
+    expiredTokens: 0,
+    suspiciousActivity: 0
+  });
+
+  const [rateLimitingStats, setRateLimitingStats] = useState({
+    blockedIPs: 0,
+    requestsPerMinute: 0,
+    topBlockedEndpoints: []
+  });
+
+  const [sslStats, setSslStats] = useState({
+    secureConnections: 0,
+    insecureConnections: 0,
+    certificateExpiry: null
+  });
+
+  const [validationStats, setValidationStats] = useState({
+    blockedInjectionAttempts: 0,
+    sanitizedInputs: 0,
+    validationFailures: 0
+  });
+
+  const [realTimeEvents, setRealTimeEvents] = useState([]);
+
   const [recentViolations, setRecentViolations] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [performanceMetrics, setPerformanceMetrics] = useState([]);
@@ -91,11 +119,74 @@ export default function SecurityDashboard() {
         setPerformanceMetrics(performanceData.data.performance || []);
       }
 
+      // Carica nuove metriche di sicurezza implementate
+      await loadSecurityMetrics();
+
     } catch (err) {
       console.error('Errore nel caricamento dati:', err);
       setError('Errore nel caricamento dei dati del sistema');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Carica le nuove metriche di sicurezza implementate
+  const loadSecurityMetrics = async () => {
+    try {
+      // JWT Token Stats
+      const jwtResponse = await apiRequest('GET', '/api/admin/security/jwt-stats');
+      if (jwtResponse.ok) {
+        const jwtData = await jwtResponse.json();
+        setJwtStats(jwtData.data || {
+          activeTokens: 0,
+          revokedTokens: 0,
+          expiredTokens: 0,
+          suspiciousActivity: 0
+        });
+      }
+
+      // Rate Limiting Stats
+      const rateLimitResponse = await apiRequest('GET', '/api/admin/security/rate-limiting-stats');
+      if (rateLimitResponse.ok) {
+        const rateLimitData = await rateLimitResponse.json();
+        setRateLimitingStats(rateLimitData.data || {
+          blockedIPs: 0,
+          requestsPerMinute: 0,
+          topBlockedEndpoints: []
+        });
+      }
+
+      // SSL Stats
+      const sslResponse = await apiRequest('GET', '/api/admin/security/ssl-stats');
+      if (sslResponse.ok) {
+        const sslData = await sslResponse.json();
+        setSslStats(sslData.data || {
+          secureConnections: 0,
+          insecureConnections: 0,
+          certificateExpiry: null
+        });
+      }
+
+      // Validation Stats
+      const validationResponse = await apiRequest('GET', '/api/admin/security/validation-stats');
+      if (validationResponse.ok) {
+        const validationData = await validationResponse.json();
+        setValidationStats(validationData.data || {
+          blockedInjectionAttempts: 0,
+          sanitizedInputs: 0,
+          validationFailures: 0
+        });
+      }
+
+      // Real-time Security Events
+      const eventsResponse = await apiRequest('GET', '/api/admin/security/real-time-events');
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        setRealTimeEvents(eventsData.data || []);
+      }
+
+    } catch (err) {
+      console.error('Errore nel caricamento metriche sicurezza:', err);
     }
   };
 
@@ -190,6 +281,104 @@ export default function SecurityDashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Nuove Metriche di Sicurezza Implementate */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">🛡️ Misure di Sicurezza Implementate</h2>
+          
+          {/* JWT Token Management */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-600">Token Attivi</p>
+                    <p className="text-3xl font-bold text-purple-700">{jwtStats.activeTokens}</p>
+                  </div>
+                  <Shield className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-orange-600">Token Revocati</p>
+                    <p className="text-3xl font-bold text-orange-700">{jwtStats.revokedTokens}</p>
+                  </div>
+                  <AlertTriangle className="h-8 w-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-indigo-600">Rate Limiting</p>
+                    <p className="text-3xl font-bold text-indigo-700">{rateLimitingStats.blockedIPs}</p>
+                    <p className="text-xs text-indigo-500">IP Bloccati</p>
+                  </div>
+                  <Zap className="h-8 w-8 text-indigo-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-600">Connessioni SSL</p>
+                    <p className="text-3xl font-bold text-emerald-700">{sslStats.secureConnections}</p>
+                    <p className="text-xs text-emerald-500">Sicure</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-emerald-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Validazione Input e Eventi Real-time */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            <Card className="bg-gradient-to-r from-rose-50 to-rose-100 border-rose-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-rose-600">Injection Bloccati</p>
+                    <p className="text-3xl font-bold text-rose-700">{validationStats.blockedInjectionAttempts}</p>
+                  </div>
+                  <Search className="h-8 w-8 text-rose-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-cyan-50 to-cyan-100 border-cyan-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-cyan-600">Input Sanitizzati</p>
+                    <p className="text-3xl font-bold text-cyan-700">{validationStats.sanitizedInputs}</p>
+                  </div>
+                  <Database className="h-8 w-8 text-cyan-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-violet-50 to-violet-100 border-violet-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-violet-600">Eventi Real-time</p>
+                    <p className="text-3xl font-bold text-violet-700">{realTimeEvents.length}</p>
+                    <p className="text-xs text-violet-500">Ultimi 5 min</p>
+                  </div>
+                  <Activity className="h-8 w-8 text-violet-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Contenuto principale senza tab */}
@@ -486,6 +675,183 @@ export default function SecurityDashboard() {
                     <p className="text-sm text-yellow-600">Errori</p>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Nuove Sezioni Dettagliate per le Misure di Sicurezza Implementate */}
+          
+          {/* JWT Token Management Dettagliato */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-purple-600" />
+                Gestione Token JWT
+              </CardTitle>
+              <CardDescription>
+                Monitora e gestisci i token JWT per l'autenticazione sicura
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <p className="text-2xl font-bold text-purple-700">{jwtStats.activeTokens}</p>
+                  <p className="text-sm text-purple-600">Token Attivi</p>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <p className="text-2xl font-bold text-orange-700">{jwtStats.revokedTokens}</p>
+                  <p className="text-sm text-orange-600">Token Revocati</p>
+                </div>
+                <div className="text-center p-4 bg-red-50 rounded-lg">
+                  <p className="text-2xl font-bold text-red-700">{jwtStats.expiredTokens}</p>
+                  <p className="text-sm text-red-600">Token Scaduti</p>
+                </div>
+                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-2xl font-bold text-yellow-700">{jwtStats.suspiciousActivity}</p>
+                  <p className="text-sm text-yellow-600">Attività Sospette</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={loadSecurityMetrics}>
+                  <Activity className="h-4 w-4 mr-2" />
+                  Aggiorna Token
+                </Button>
+                <Button variant="outline" size="sm">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Revoca Tutti
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Rate Limiting Dettagliato */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5 text-indigo-600" />
+                Rate Limiting e Protezione DDoS
+              </CardTitle>
+              <CardDescription>
+                Monitora le limitazioni di velocità e la protezione dagli attacchi
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-indigo-50 rounded-lg">
+                  <p className="text-2xl font-bold text-indigo-700">{rateLimitingStats.blockedIPs}</p>
+                  <p className="text-sm text-indigo-600">IP Bloccati</p>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <p className="text-2xl font-bold text-blue-700">{rateLimitingStats.requestsPerMinute}</p>
+                  <p className="text-sm text-blue-600">Richieste/Min</p>
+                </div>
+                <div className="text-center p-4 bg-cyan-50 rounded-lg">
+                  <p className="text-2xl font-bold text-cyan-700">{rateLimitingStats.topBlockedEndpoints.length}</p>
+                  <p className="text-sm text-cyan-600">Endpoint Bloccati</p>
+                </div>
+              </div>
+              {rateLimitingStats.topBlockedEndpoints.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="font-medium mb-2">Endpoint Più Bloccati</h4>
+                  <div className="space-y-1">
+                    {rateLimitingStats.topBlockedEndpoints.map((endpoint: string, index: number) => (
+                      <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <span className="text-sm font-mono">{endpoint}</span>
+                        <Badge variant="destructive">Bloccato</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* SSL/TLS Status Dettagliato */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-emerald-600" />
+                Status SSL/TLS e Crittografia
+              </CardTitle>
+              <CardDescription>
+                Monitora lo stato delle connessioni sicure e la validità dei certificati
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="text-center p-4 bg-emerald-50 rounded-lg">
+                  <p className="text-2xl font-bold text-emerald-700">{sslStats.secureConnections}</p>
+                  <p className="text-sm text-emerald-600">Connessioni Sicure</p>
+                </div>
+                <div className="text-center p-4 bg-red-50 rounded-lg">
+                  <p className="text-2xl font-bold text-red-700">{sslStats.insecureConnections}</p>
+                  <p className="text-sm text-red-600">Connessioni Insecure</p>
+                </div>
+              </div>
+              {sslStats.certificateExpiry && (
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium mb-2">Scadenza Certificato SSL</h4>
+                  <p className="text-sm text-blue-700">
+                    {new Date(sslStats.certificateExpiry).toLocaleDateString('it-IT')}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Eventi Real-time */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-violet-600" />
+                Eventi di Sicurezza Real-time
+              </CardTitle>
+              <CardDescription>
+                Monitora gli eventi di sicurezza in tempo reale per rilevare minacce
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {realTimeEvents.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Activity className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                    <p>Nessun evento di sicurezza recente</p>
+                  </div>
+                ) : (
+                  realTimeEvents.map((event: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-3 w-3 rounded-full ${
+                          event.severity === 'high' ? 'bg-red-500' :
+                          event.severity === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`} />
+                        <div>
+                          <p className="font-medium">{event.type}</p>
+                          <p className="text-sm text-gray-500">{event.description}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">{event.timestamp}</p>
+                        <Badge variant={
+                          event.severity === 'high' ? 'destructive' :
+                          event.severity === 'medium' ? 'secondary' : 'default'
+                        }>
+                          {event.severity}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Button variant="outline" size="sm" onClick={loadSecurityMetrics}>
+                  <Activity className="h-4 w-4 mr-2" />
+                  Aggiorna Eventi
+                </Button>
+                <Button variant="outline" size="sm">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Visualizza Trend
+                </Button>
               </div>
             </CardContent>
           </Card>
