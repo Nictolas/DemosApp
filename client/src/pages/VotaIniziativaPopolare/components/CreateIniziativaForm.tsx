@@ -62,6 +62,7 @@ export const CreateIniziativaForm: React.FC = () => {
       form.reset();
       setIsExpanded(false);
       queryClient.invalidateQueries({ queryKey: ['iniziativePopolariData'] });
+      queryClient.invalidateQueries({ queryKey: ['iniziativePopolari'] });
     },
     onError: (error: any) => {
       toast({

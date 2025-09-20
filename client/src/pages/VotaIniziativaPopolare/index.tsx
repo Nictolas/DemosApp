@@ -10,7 +10,6 @@ import { UserPreferences } from "./components/UserPreferences";
 import { IniziativeRanking } from "./components/IniziativeRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
-import { CreateIniziativaForm } from "./components/CreateIniziativaForm";
 import { AdminIniziativeManager } from "./components/AdminIniziativeManager";
 
 export default function VotaIniziativaPopolare() {
@@ -67,8 +66,6 @@ export default function VotaIniziativaPopolare() {
               userEmail={user?.email}
             />
 
-            {/* Modulo per creare nuove iniziative */}
-            <CreateIniziativaForm />
 
             {/* Le tue preferenze */}
             <UserPreferences
