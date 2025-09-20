@@ -14,7 +14,10 @@ const pool = new Pool(
     ? {
         // Produzione: usa DATABASE_URL (formato standard per Render, Vercel, etc.)
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        ssl: process.env.NODE_ENV === 'production' ? { 
+          rejectUnauthorized: true,
+          ca: process.env.SSL_CERT_PATH ? require('fs').readFileSync(process.env.SSL_CERT_PATH) : undefined
+        } : false,
         max: 20,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 2000,

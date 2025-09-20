@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 const pool = new Pool({
   connectionString: import.meta.env.VITE_DATABASE_URL || process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false
+    rejectUnauthorized: process.env.NODE_ENV === 'production'
   }
 });
 

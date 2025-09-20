@@ -1,126 +1,208 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { pool } = require('../../middleware/auth');
-const { validateInput, validateEmail } = require('../../middleware/validation');
+const { Pool } = require('pg');
+const { generateTokenPair, verifyRefreshToken } = require('../../utils/jwt');
+const { validateInput, sanitizeInput } = require('../../middleware/security');
+const { authLimiter } = require('../../middleware/rateLimiting');
 
 const router = express.Router();
 
-// Costanti
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-// POST /api/auth/login - Login utente
-router.post('/login', validateInput(['email', 'password']), validateEmail, async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    console.log('🔐 Tentativo login per:', email);
-    
-    // Cerca l'utente nel database
-    const userQuery = `
-      SELECT id, nome, cognome, email, password_hash, ruolo, status, 
-             avatar_config, created_at, updated_at
-      FROM users 
-      WHERE email = $1
-    `;
-    
-    const userResult = await pool.query(userQuery, [email.toLowerCase()]);
-    
-    if (userResult.rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        error: 'Credenziali non valide'
-      });
-    }
-    
-    const user = userResult.rows[0];
-    
-    // Verifica se l'utente è attivo
-    if (user.status === 'suspended' || user.status === 'banned') {
-      return res.status(401).json({
-        success: false,
-        error: 'Account sospeso',
-        message: 'Il tuo account è stato sospeso o bannato'
-      });
-    }
-    
-    // Se l'utente è in stato pending, permetti il login ma indica che deve verificare l'email
-    if (user.status === 'pending') {
-      // Genera token anche per utenti pending
-      const token = jwt.sign(
-        { 
-          userId: user.id, 
-          email: user.email,
-          status: user.status
-        },
-        JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-      
-      return res.json({
-        success: true,
-        message: 'Login effettuato, ma devi verificare la tua email',
-        token,
-        user: {
-          id: user.id,
-          nome: user.nome,
-          cognome: user.cognome,
-          email: user.email,
-          ruolo: user.ruolo,
-          status: user.status,
-          avatar_config: user.avatar_config
-        },
-        requiresVerification: true
-      });
-    }
-    
-    // Verifica la password
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        error: 'Credenziali non valide'
-      });
-    }
-    
-    // Genera token JWT
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        email: user.email,
-        ruolo: user.ruolo,
-        status: user.status
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-    
-    console.log('✅ Login riuscito per:', email);
-    
-    res.json({
-      success: true,
-      message: 'Login effettuato con successo',
-      token: token,
-      user: {
-        id: user.id,
-        nome: user.nome,
-        cognome: user.cognome,
-        email: user.email,
-        ruolo: user.ruolo,
-        status: user.status,
-        avatar_config: user.avatar_config
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Errore durante il login:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore interno del server',
-      message: 'Impossibile completare il login'
-    });
+// Configurazione database
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { 
+    rejectUnauthorized: process.env.NODE_ENV === 'production'
   }
 });
+
+/**
+ * 🔐 LOGIN UTENTE
+ * POST /api/auth/login
+ */
+router.post('/login', 
+  authLimiter,
+  sanitizeInput,
+  validateInput(['email', 'password']),
+  async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      // Cerca utente nel database
+      const userQuery = `
+        SELECT id, email, password, ruolo, nome, cognome, 
+               email_verified, created_at, last_login
+        FROM users 
+        WHERE email = $1 AND status = 'active'
+      `;
+      
+      const userResult = await pool.query(userQuery, [email.toLowerCase()]);
+      
+      if (userResult.rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error: 'Credenziali non valide',
+          message: 'Email o password errati'
+        });
+      }
+
+      const user = userResult.rows[0];
+
+      // Verifica password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      
+      if (!isValidPassword) {
+        return res.status(401).json({
+          success: false,
+          error: 'Credenziali non valide',
+          message: 'Email o password errati'
+        });
+      }
+
+      // Verifica se l'email è verificata
+      if (!user.email_verified) {
+        return res.status(403).json({
+          success: false,
+          error: 'Email non verificata',
+          message: 'Verifica la tua email prima di effettuare il login'
+        });
+      }
+
+      // Aggiorna ultimo login
+      await pool.query(
+        'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+        [user.id]
+      );
+
+      // Genera token
+      const tokenPayload = {
+        userId: user.id,
+        email: user.email,
+        role: user.ruolo,
+        nome: user.nome,
+        cognome: user.cognome
+      };
+
+      const tokens = generateTokenPair(tokenPayload);
+
+      // Log del login
+      console.log(`🔐 Login riuscito per utente: ${user.email} (ID: ${user.id})`);
+
+      res.json({
+        success: true,
+        message: 'Login effettuato con successo',
+        user: {
+          id: user.id,
+          email: user.email,
+          nome: user.nome,
+          cognome: user.cognome,
+          ruolo: user.ruolo,
+          lastLogin: user.last_login
+        },
+        ...tokens
+      });
+
+    } catch (error) {
+      console.error('❌ Errore durante il login:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        message: 'Impossibile completare il login'
+      });
+    }
+  }
+);
+
+/**
+ * 🔄 REFRESH TOKEN
+ * POST /api/auth/refresh
+ */
+router.post('/refresh',
+  authLimiter,
+  sanitizeInput,
+  validateInput(['refreshToken']),
+  async (req, res) => {
+    try {
+      const { refreshToken } = req.body;
+
+      // Verifica refresh token
+      const decoded = verifyRefreshToken(refreshToken);
+
+      // Cerca utente nel database
+      const userQuery = `
+        SELECT id, email, ruolo, nome, cognome, status
+        FROM users 
+        WHERE id = $1 AND status = 'active'
+      `;
+      
+      const userResult = await pool.query(userQuery, [decoded.userId]);
+      
+      if (userResult.rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error: 'Utente non trovato',
+          message: 'Effettua nuovamente il login'
+        });
+      }
+
+      const user = userResult.rows[0];
+
+      // Genera nuovi token
+      const tokenPayload = {
+        userId: user.id,
+        email: user.email,
+        role: user.ruolo,
+        nome: user.nome,
+        cognome: user.cognome
+      };
+
+      const tokens = generateTokenPair(tokenPayload);
+
+      res.json({
+        success: true,
+        message: 'Token aggiornati con successo',
+        ...tokens
+      });
+
+    } catch (error) {
+      console.error('❌ Errore durante refresh token:', error);
+      res.status(401).json({
+        success: false,
+        error: 'Refresh token non valido',
+        message: 'Effettua nuovamente il login'
+      });
+    }
+  }
+);
+
+/**
+ * 🚪 LOGOUT
+ * POST /api/auth/logout
+ */
+router.post('/logout',
+  async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        // Revoca il token (aggiunge alla blacklist)
+        require('../../utils/jwt').revokeToken(token);
+      }
+
+      res.json({
+        success: true,
+        message: 'Logout effettuato con successo'
+      });
+
+    } catch (error) {
+      console.error('❌ Errore durante logout:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Errore interno del server',
+        message: 'Impossibile completare il logout'
+      });
+    }
+  }
+);
 
 module.exports = router;
