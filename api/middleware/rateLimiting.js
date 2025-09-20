@@ -35,7 +35,7 @@ const generalLimiter = rateLimit({
 // Rate limiting per autenticazione (più restrittivo)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 5, // Solo 5 tentativi di login per IP
+  max: 20, // 20 tentativi di login per IP (aumentato per evitare blocchi)
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
   // Escludi localhost in sviluppo
   skip: (req) => {
