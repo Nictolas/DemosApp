@@ -60,6 +60,7 @@ export function LastCommunication({ communication }: LastCommunicationProps) {
             <span className="font-medium text-sm">Data:</span>
             <p className="text-sm mt-1">
               {new Date(comunicazione.data_creazione).toLocaleDateString('it-IT', {
+                timeZone: 'Europe/Rome',
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',

@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { formatNotificationDate } from '@/utils/dateUtils';
 
 export const formatDate = (dateString: string): string => {
   try {
@@ -8,6 +9,11 @@ export const formatDate = (dateString: string): string => {
   } catch {
     return 'Data non disponibile';
   }
+};
+
+// Nuova funzione che usa il fuso orario italiano
+export const formatDateItalian = (dateString: string): string => {
+  return formatNotificationDate(dateString);
 };
 
 

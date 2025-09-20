@@ -3,6 +3,7 @@ const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { validateInput } = require('../../middleware/validation');
 const AuditService = require('../../services/auditService');
 const { pool } = require('../../middleware/auth');
+const { formatAuditLogDate, formatSecurityViolationDate } = require('../../utils/dateUtils');
 
 const router = express.Router();
 
@@ -127,9 +128,21 @@ router.get('/logs', async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     let query = `
-      SELECT id, user_id, action, resource, resource_id, details, 
-             ip_address, user_agent, timestamp, success, error_message
-      FROM audit_logs 
+      SELECT 
+        al.id, 
+        al.user_id, 
+        al.action, 
+        al.resource, 
+        al.resource_id, 
+        al.details, 
+        al.ip_address, 
+        al.user_agent, 
+        al.timestamp, 
+        al.success, 
+        al.error_message,
+        COALESCE(u.nome || ' ' || u.cognome, 'Utente Sconosciuto') as user_name
+      FROM audit_logs al
+      LEFT JOIN users u ON al.user_id = u.id
       WHERE 1=1
     `;
     
@@ -181,7 +194,7 @@ router.get('/logs', async (req, res) => {
     
     // Conteggio totale per paginazione
     const countQuery = query.replace(
-      'SELECT id, user_id, action, resource, resource_id, details, ip_address, user_agent, timestamp, success, error_message',
+      'SELECT \n        al.id, \n        al.user_id, \n        al.action, \n        al.resource, \n        al.resource_id, \n        al.details, \n        al.ip_address, \n        al.user_agent, \n        al.timestamp, \n        al.success, \n        al.error_message,\n        COALESCE(u.nome || \' \' || u.cognome, \'Utente Sconosciuto\') as user_name',
       'SELECT COUNT(*)'
     );
     
@@ -344,22 +357,24 @@ router.get('/violations', async (req, res) => {
     // Violazioni di sicurezza
     const violationsQuery = `
       SELECT 
-        id,
-        user_id,
-        action,
-        resource,
-        details,
-        timestamp,
+        al.id,
+        al.user_id,
+        al.action,
+        al.resource,
+        al.details,
+        al.timestamp,
+        COALESCE(u.nome || ' ' || u.cognome, 'Utente Sconosciuto') as user_name,
         CASE 
-          WHEN action LIKE '%FAILED%' OR action LIKE '%ERROR%' THEN 'Critical'
-          WHEN action LIKE '%WARNING%' THEN 'High'
+          WHEN al.action LIKE '%FAILED%' OR al.action LIKE '%ERROR%' THEN 'Critical'
+          WHEN al.action LIKE '%WARNING%' THEN 'High'
           ELSE 'Medium'
         END as severity
-      FROM audit_logs 
-      WHERE success = false 
-        AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-        AND (action LIKE '%SECURITY%' OR action LIKE '%AUTH%' OR action LIKE '%PERMISSION%')
-      ORDER BY timestamp DESC
+      FROM audit_logs al
+      LEFT JOIN users u ON al.user_id = u.id
+      WHERE al.success = false 
+        AND al.timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+        AND (al.action LIKE '%SECURITY%' OR al.action LIKE '%AUTH%' OR al.action LIKE '%PERMISSION%')
+      ORDER BY al.timestamp DESC
       LIMIT 20
     `;
     
@@ -385,8 +400,8 @@ router.get('/violations', async (req, res) => {
         violations: violationsResult.rows.map(v => ({
           id: v.id,
           type: v.action,
-          user: v.user_id,
-          timestamp: new Date(v.timestamp).toLocaleString('it-IT'),
+          user: v.user_name,
+          timestamp: formatSecurityViolationDate(v.timestamp),
           severity: v.severity
         })),
         stats: statsResult.rows[0]
