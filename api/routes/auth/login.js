@@ -36,12 +36,12 @@ router.post('/login',
       const { email, password } = req.body;
       console.log(`📧 Email ricevuta: ${email}`);
 
-      // Cerca utente nel database (tabella utenti)
+      // Cerca utente nel database (tabella users)
       console.log(`🔍 Query database per utente...`);
       const userQuery = `
-        SELECT id, email, ruolo, nome, cognome, 
+        SELECT id, email, password_hash, ruolo, nome, cognome, 
                created_at, status
-        FROM utenti 
+        FROM users 
         WHERE email = $1 AND status = 'approved'
       `;
       
@@ -61,11 +61,10 @@ router.post('/login',
       const user = userResult.rows[0];
       console.log(`👤 Utente trovato: ${user.email} (ID: ${user.id})`);
 
-      // Verifica password (per ora accettiamo qualsiasi password per test)
+      // Verifica password
       console.log(`🔐 Verifica password...`);
       const passwordStart = Date.now();
-      // Per ora accettiamo qualsiasi password per test
-      const isValidPassword = password && password.length > 0;
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
       const passwordTime = Date.now() - passwordStart;
       console.log(`⏱️ Verifica password completata in ${passwordTime}ms`);
       
@@ -82,7 +81,7 @@ router.post('/login',
       console.log(`📝 Aggiornamento ultimo login...`);
       const updateStart = Date.now();
       await pool.query(
-        'UPDATE utenti SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        'UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
         [user.id]
       );
       const updateTime = Date.now() - updateStart;
@@ -147,7 +146,7 @@ router.post('/refresh',
       // Cerca utente nel database
       const userQuery = `
         SELECT id, email, ruolo, nome, cognome, status
-        FROM utenti 
+        FROM users 
         WHERE id = $1 AND status = 'approved'
       `;
       
