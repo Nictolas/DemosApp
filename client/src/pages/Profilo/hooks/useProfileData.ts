@@ -166,7 +166,7 @@ export const useProfileData = (userId?: string) => {
         // 7. Carica dettagli candidati
         console.log('🔍 DEBUG Profilo - Caricando dettagli candidati per userId:', targetUserId);
         try {
-          const candidatiResponse = await apiRequest("GET", "/api/test/selezioni");
+          const candidatiResponse = await apiRequest("GET", "/api/candidati/selezioni");
           console.log('🔍 DEBUG Profilo - Status candidati response:', candidatiResponse.status);
           if (candidatiResponse.ok) {
             const candidatiResult = await candidatiResponse.json();

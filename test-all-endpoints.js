@@ -17,7 +17,7 @@ async function testAllEndpoints() {
     { path: '/api/health', method: 'GET', description: 'Health check' },
     { path: '/api/test-cors', method: 'GET', description: 'Test CORS GET' },
     { path: '/api/test-cors', method: 'POST', description: 'Test CORS POST', body: { test: 'data' } },
-    { path: '/api/test-resend', method: 'GET', description: 'Test Resend' },
+    { path: '/api/candidati-resend', method: 'GET', description: 'Test Resend' },
     { path: '/api/auth/forgot-password', method: 'POST', description: 'Forgot password', body: { email: 'test@example.com' } }
   ];
   
@@ -53,7 +53,7 @@ async function testAllEndpoints() {
              console.log(`   🔗 Reset URL: ${data.resetUrl}`);
            }
            
-           if (endpoint.path === '/api/test-resend') {
+           if (endpoint.path === '/api/candidati-resend') {
              console.log(`   📧 Resend configurato: ${data.resend?.available ? 'Sì' : 'No'}`);
            }
         } catch (parseError) {

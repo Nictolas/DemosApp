@@ -13,8 +13,8 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   const [opinioniDialogData, setOpinioniDialogData] = useState<OpinioniDialogData | null>(null);
   const [, setLocation] = useLocation();
   
-  // Detect if the current route is under /test
-  const [isTestRoute] = useRoute("/test/:categoria");
+  // Detect if the current route is under /candidati
+  const [isTestRoute] = useRoute("/candidati/:categoria");
 
   const selezionaRappresentante = async (rappresentanteId: string, onSuccess: (id: string) => void) => {
     if (!user) return;
@@ -82,8 +82,8 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
 
       // Reindirizza automaticamente dopo la selezione
       if (isTestRoute) {
-        console.log('🔄 DEBUG - Reindirizzamento a /test dopo selezione candidato');
-        setLocation('/test');
+        console.log('🔄 DEBUG - Reindirizzamento a /candidati dopo selezione candidato');
+        setLocation('/candidati');
       } else {
         console.log('🔄 DEBUG - Reindirizzamento a /rappresentanti dopo selezione rappresentante');
         setLocation('/rappresentanti');

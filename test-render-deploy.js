@@ -66,7 +66,7 @@ async function testRenderDeploy() {
   
   // Test 1: Health Check
   console.log('📋 1. TEST HEALTH CHECK');
-  await testRenderEndpoint('GET', '/test/health');
+  await testRenderEndpoint('GET', '/candidati/health');
   
   // Test 2: Frontend Pages
   console.log('\n📋 2. TEST FRONTEND PAGES');
@@ -91,7 +91,7 @@ async function testRenderDeploy() {
   // Test 6: CORS Headers
   console.log('\n📋 6. TEST CORS HEADERS');
   try {
-    const response = await axios.options(`${API_BASE}/test/health`, {
+    const response = await axios.options(`${API_BASE}/candidati/health`, {
       headers: {
         'Origin': 'https://demos.community',
         'Access-Control-Request-Method': 'GET'
@@ -113,7 +113,7 @@ async function testRenderDeploy() {
   // Test 7: Response Time
   console.log('\n📋 7. TEST RESPONSE TIME');
   const startTime = Date.now();
-  await testRenderEndpoint('GET', '/test/health');
+  await testRenderEndpoint('GET', '/candidati/health');
   const endTime = Date.now();
   const responseTime = endTime - startTime;
   

@@ -8,7 +8,7 @@ export const useTestSelezioni = () => {
   const { data, isLoading, error } = useQuery({
     queryKey: ['testSelezioni'],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/test/selezioni");
+      const response = await apiRequest("GET", "/api/candidati/selezioni");
       if (!response.ok) {
         throw new Error("Impossibile caricare le selezioni di test");
       }

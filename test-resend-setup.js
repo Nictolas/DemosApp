@@ -13,9 +13,9 @@ async function testResendSetup() {
   console.log(`API Base: ${API_BASE}`);
   
   try {
-    // 1. Test endpoint test-resend
-    console.log('\n📡 1. Test endpoint /api/test-resend...');
-    const resendResponse = await fetch(`${API_BASE}/api/test-resend`, {
+    // 1. Test endpoint candidati-resend
+    console.log('\n📡 1. Test endpoint /api/candidati-resend...');
+    const resendResponse = await fetch(`${API_BASE}/api/candidati-resend`, {
       method: 'GET',
       headers: {
         'Origin': 'https://www.demos.community'

@@ -195,7 +195,7 @@ curl -H "Origin: http://localhost:3000" http://localhost:3001/api/health
 # Dopo 100 richieste: {"success":false,"error":"Troppe richieste, riprova più tardi"}
 
 # Test servizio email - ✅ FUNZIONA (gestione errori)
-curl -X POST http://localhost:3001/api/test-resend-email
+curl -X POST http://localhost:3001/api/candidati-resend-email
 # Risposta: {"success":false,"error":"Errore nel test Resend","message":"Istanza Resend non disponibile"}
 ```
 

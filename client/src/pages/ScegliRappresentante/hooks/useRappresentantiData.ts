@@ -11,8 +11,8 @@ export const useRappresentantiData = (user: any, categoria: string) => {
   const [loading, setLoading] = useState(true);
   const [rappresentanteSelezionato, setRappresentanteSelezionato] = useState<string | null>(null);
   
-  // Detect if the current route is under /test
-  const [isTestRoute] = useRoute("/test/:categoria");
+  // Detect if the current route is under /candidati
+  const [isTestRoute] = useRoute("/candidati/:categoria");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,8 +25,8 @@ export const useRappresentantiData = (user: any, categoria: string) => {
           // Use the new API endpoint for test routes (candidati)
           // Mappa la categoria al grado_candidatura corretto
           const gradoCandidatura = getTitolo(categoria);
-          url = `/api/test/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
-          console.log('🔍 DEBUG Frontend - Chiamata API TEST (candidati):', url);
+          url = `/api/candidati/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
+          console.log('🔍 DEBUG Frontend - Chiamata API CANDIDATI:', url);
           console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
         } else {
           // Use the existing API endpoint for regular rappresentanti routes

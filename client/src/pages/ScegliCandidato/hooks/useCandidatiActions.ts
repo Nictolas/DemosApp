@@ -25,7 +25,7 @@ export const useCandidatiActions = (user: any, categoria: string, fcmToken: stri
       
       const updateResponse = await apiRequest(
         "PUT",
-        `/api/test/seleziona-candidato`,
+        `/api/candidati/seleziona-candidato`,
         {
           campo: getFieldName(categoria),
           candidatoId: candidatoId,

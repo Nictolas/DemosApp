@@ -4,12 +4,12 @@ import { OpinioniDialogData } from "../types";
 
 export const useRappresentantiActions = () => {
   const [, setLocation] = useLocation();
-  const [match] = useRoute("/test*");
+  const [match] = useRoute("/candidati*");
   const [opinioniDialogData, setOpinioniDialogData] = useState<OpinioniDialogData | null>(null);
 
   const handleNavigateToSelection = (categoriaId: string) => {
-    // Se siamo nella route /test*, usa /test/:categoria, altrimenti usa /scegli-rappresentante/:categoria
-    const basePath = match ? "/test" : "/scegli-rappresentante";
+    // Se siamo nella route /candidati*, usa /candidati/:categoria, altrimenti usa /scegli-rappresentante/:categoria
+    const basePath = match ? "/candidati" : "/scegli-rappresentante";
     setLocation(`${basePath}/${categoriaId}`);
   };
 
