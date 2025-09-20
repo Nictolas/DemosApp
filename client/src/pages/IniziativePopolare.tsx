@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { AdminIniziativeManager } from "./VotaIniziativaPopolare/components/AdminIniziativeManager";
+import { CreateIniziativaForm } from "./VotaIniziativaPopolare/components/CreateIniziativaForm";
 
 interface Iniziativa {
   id: string;
@@ -81,6 +82,9 @@ export default function IniziativePopolare() {
               userRole={user?.ruolo || user?.role} 
               userEmail={user?.email}
             />
+
+            {/* Modulo per creare nuove iniziative */}
+            <CreateIniziativaForm />
             
             <Card className="bg-white">
               <CardHeader><CardTitle>Iniziative Popolari</CardTitle></CardHeader>
