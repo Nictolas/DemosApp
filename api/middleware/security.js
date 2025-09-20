@@ -295,9 +295,55 @@ const securityLogger = (req, res, next) => {
   next();
 };
 
+// Middleware per validazione input
+const validateInput = (requiredFields) => {
+  return (req, res, next) => {
+    const missingFields = [];
+    
+    for (const field of requiredFields) {
+      if (!req.body[field] || req.body[field].toString().trim() === '') {
+        missingFields.push(field);
+      }
+    }
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Campi richiesti mancanti',
+        message: `I seguenti campi sono obbligatori: ${missingFields.join(', ')}`,
+        missingFields
+      });
+    }
+    
+    next();
+  };
+};
+
+// Middleware per sanitizzazione input
+const sanitizeInput = (fieldsToSanitize = []) => {
+  return (req, res, next) => {
+    if (req.body && typeof req.body === 'object') {
+      for (const field of fieldsToSanitize) {
+        if (req.body[field] && typeof req.body[field] === 'string') {
+          // Rimuovi caratteri pericolosi
+          req.body[field] = req.body[field]
+            .replace(/[<>]/g, '') // Rimuovi < e >
+            .replace(/javascript:/gi, '') // Rimuovi javascript:
+            .replace(/on\w+\s*=/gi, '') // Rimuovi event handlers
+            .trim(); // Rimuovi spazi iniziali/finali
+        }
+      }
+    }
+    
+    next();
+  };
+};
+
 module.exports = {
   securityHeaders,
   securityLimiter,
   securityMiddleware,
-  securityLogger
+  securityLogger,
+  validateInput,
+  sanitizeInput
 };

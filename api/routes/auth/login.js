@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const { generateTokenPair, verifyRefreshToken } = require('../../utils/jwt');
 const { validateInput, sanitizeInput } = require('../../middleware/security');
+const { requireAdmin } = require('../../middleware/auth');
 const { authLimiter } = require('../../middleware/rateLimiting');
 
 const router = express.Router();
