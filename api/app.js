@@ -49,6 +49,7 @@ const rateLimitingRoutes = require('./routes/admin/rate-limiting');
 const validationRoutes = require('./routes/admin/validation');
 const loggingRoutes = require('./routes/admin/logging');
 const monitoringRoutes = require('./routes/admin/monitoring');
+const securityMetricsRoutes = require('./routes/admin/security-metrics');
 const cleanupRoutes = require('./routes/cleanup');
 const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
 const segnalazioniRoutes = require('./routes/segnalazioni');
@@ -281,6 +282,7 @@ app.use('/api/admin/logging', adminLimiter, loggingRoutes);
 
 // Route per monitoraggio performance e salute
 app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
+app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
 
 // Route per pulizia database (temporanea)
 app.use('/api/cleanup', cleanupRoutes);
