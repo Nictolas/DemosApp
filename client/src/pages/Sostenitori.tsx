@@ -13,7 +13,7 @@ import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, Cart
 
 interface SupporterStats {
   totalSupporters: number;
-  genderDistribution: { Maschio: number; Femmina: number; Altro: number; };
+  genderDistribution: { Uomo: number; Donna: number; Altro: number; };
   locationDistribution: Record<string, number>;
   averageAge: number;
   ageDistribution: Record<string, number>;
@@ -42,7 +42,7 @@ interface CandidatiData {
     supporters: Supporter[];
 }
 
-const COLORS = ['#0088FE', '#FF8042', '#FFBB28'];
+const COLORS = ['#3b82f6', '#ec4899', '#eab308']; // Blu per Uomo, Rosa per Donna, Giallo per Altro
 
 export default function Sostenitori() {
   const { user, isLoading: isAuthLoading } = useAuth();

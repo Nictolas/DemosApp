@@ -82,7 +82,7 @@ router.get('/', async (req, res) => {
 
     // Calcola statistiche
     const totalSupporters = supporters.length;
-    const genderDistribution = { Maschio: 0, Femmina: 0, Altro: 0 };
+    const genderDistribution = { Uomo: 0, Donna: 0, Altro: 0 };
     const locationDistribution = {};
     let ageSum = 0;
     const ageDistribution = {
@@ -104,8 +104,8 @@ router.get('/', async (req, res) => {
     supporters.forEach(supporter => {
       // Distribuzione per genere
       const genere = supporter.genere || supporter.sesso || 'Altro';
-      if (genere === 'Maschio' || genere === 'M') genderDistribution.Maschio++;
-      else if (genere === 'Femmina' || genere === 'F') genderDistribution.Femmina++;
+      if (genere === 'Maschio' || genere === 'M' || genere === 'uomo') genderDistribution.Uomo++;
+      else if (genere === 'Femmina' || genere === 'F' || genere === 'donna') genderDistribution.Donna++;
       else genderDistribution.Altro++;
 
       // Distribuzione per località

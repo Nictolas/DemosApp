@@ -123,14 +123,14 @@ router.get('/selezioni', verifyToken, async (req, res) => {
     const userId = req.userId;
     console.log('🔍 DEBUG - userId:', userId);
     
-    // Ottieni le selezioni di test dell'utente
+    // Ottieni le selezioni di candidati dell'utente
     const userQuery = `
       SELECT 
-        test_europeo,
-        test_camera,
-        test_senato,
-        test_regionale,
-        test_comune
+        candidato_europeo,
+        candidato_camera,
+        candidato_senato,
+        candidato_regionale,
+        candidato_comune
       FROM users
       WHERE id = $1
     `;
@@ -144,16 +144,16 @@ router.get('/selezioni', verifyToken, async (req, res) => {
     const candidatiSelezionati = {};
     const idMap = {};
     
-    // Lista dei campi test
-    const campiTest = [
-      { campo: 'test_europeo', categoria: 'europeo' },
-      { campo: 'test_camera', categoria: 'camera' },
-      { campo: 'test_senato', categoria: 'senato' },
-      { campo: 'test_regionale', categoria: 'regione' },
-      { campo: 'test_comune', categoria: 'comune' }
+    // Lista dei campi candidati
+    const campiCandidati = [
+      { campo: 'candidato_europeo', categoria: 'europeo' },
+      { campo: 'candidato_camera', categoria: 'camera' },
+      { campo: 'candidato_senato', categoria: 'senato' },
+      { campo: 'candidato_regionale', categoria: 'regione' },
+      { campo: 'candidato_comune', categoria: 'comune' }
     ];
     
-    for (const { campo, categoria } of campiTest) {
+    for (const { campo, categoria } of campiCandidati) {
       const candidatoId = user[campo];
       
       if (candidatoId) {
