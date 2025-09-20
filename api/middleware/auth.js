@@ -1,12 +1,13 @@
 // File: api/middleware/auth.js
-const jwt = require('jsonwebtoken');
+const { verifyAccessToken, revokeToken } = require('../utils/jwt');
 const { Pool } = require('pg');
 
 // Configurazione database diretta (senza dipendenze esterne)
 const pool = new Pool({
-  // Usa sempre Neon per ora
-  connectionString: 'postgresql://neondb_owner:[REDACTED_NEON_PASSWORD]@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require',
-  ssl: { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL,
+  ssl: { 
+    rejectUnauthorized: process.env.NODE_ENV === 'production'
+  },
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000, // Aumento timeout
@@ -27,11 +28,12 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader.substring(7);
     
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const decoded = verifyAccessToken(token);
       req.user = {
         id: decoded.userId || decoded.email,
         role: decoded.role || decoded.ruolo,
-        email: decoded.email
+        email: decoded.email,
+        jti: decoded.jti // JWT ID per tracking
       };
       req.userId = decoded.userId || decoded.email;
       req.userRole = decoded.role || decoded.ruolo;
@@ -43,10 +45,18 @@ const verifyToken = async (req, res, next) => {
     } catch (jwtError) {
       console.error('❌ Errore verifica JWT:', jwtError.message);
       
-      if (jwtError.name === 'TokenExpiredError') {
+      if (jwtError.message.includes('scaduto') || jwtError.message.includes('expired')) {
         return res.status(401).json({
           success: false,
           error: 'Token scaduto',
+          message: 'Effettua nuovamente il login'
+        });
+      }
+      
+      if (jwtError.message.includes('revocato')) {
+        return res.status(401).json({
+          success: false,
+          error: 'Token revocato',
           message: 'Effettua nuovamente il login'
         });
       }
