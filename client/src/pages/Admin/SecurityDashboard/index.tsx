@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
+import { formatAuditLogDate, formatItalianDateTime, formatItalianDate } from '@/utils/dateUtils';
 
 export default function SecurityDashboard() {
   const [, setLocation] = useLocation();
@@ -105,8 +106,8 @@ export default function SecurityDashboard() {
         setAuditLogs(logsData.data.logs.map((log: any) => ({
           id: log.id,
           action: log.action,
-          user: log.user_id,
-          timestamp: new Date(log.timestamp).toLocaleString('it-IT'),
+          user: log.user_name || log.user_id,
+          timestamp: formatAuditLogDate(log.timestamp),
           status: log.success ? 'Success' : 'Failed'
         })) || []);
       }
@@ -792,7 +793,7 @@ export default function SecurityDashboard() {
                 <div className="mb-4 p-4 bg-blue-50 rounded-lg">
                   <h4 className="font-medium mb-2">Scadenza Certificato SSL</h4>
                   <p className="text-sm text-blue-700">
-                    {new Date(sslStats.certificateExpiry).toLocaleDateString('it-IT')}
+                    {formatItalianDate(sslStats.certificateExpiry)}
                   </p>
                 </div>
               )}

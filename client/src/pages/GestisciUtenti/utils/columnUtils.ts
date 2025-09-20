@@ -37,7 +37,12 @@ export const formatColumnValue = (value: any, columnName: string, user?: User) =
   // Formatta date
   if (columnName.includes('_at') || columnName.includes('data_')) {
     try {
-      return new Date(value).toLocaleDateString('it-IT');
+      return new Date(value).toLocaleDateString('it-IT', {
+        timeZone: 'Europe/Rome',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
     } catch {
       return value;
     }
