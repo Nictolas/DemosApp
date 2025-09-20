@@ -46,39 +46,31 @@ export default function ICE() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="relative w-full rounded-2xl shadow-lg overflow-hidden">
-        {/* SVG con forme geometriche colorate come nelle altre pagine */}
-        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
-          <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-        </svg>
-        
-        <Card className="relative z-10 bg-transparent border-0 shadow-none">
-          <CardContent className="p-6">
-            <Header />
-            
-            <CreateButton onClick={showCreateForm} />
-            
-            {state.showForm && (
-              <ICEForm
-                onSubmit={handleCreate}
-                onCancel={hideCreateForm}
-                isLoading={addMutation.isPending}
-              />
-            )}
-            
-            <ICETable
-              listaICE={listaICE}
-              mieiVoti={mieiVoti}
-              isLoading={isLoading}
-              isError={isError}
-              onEdit={startEdit}
-              onDelete={handleDelete}
-              deleteMutation={deleteMutation}
+      <Card className="w-full rounded-2xl shadow-lg">
+        <CardContent className="p-6">
+          <Header />
+          
+          <CreateButton onClick={showCreateForm} />
+          
+          {state.showForm && (
+            <ICEForm
+              onSubmit={handleCreate}
+              onCancel={hideCreateForm}
+              isLoading={addMutation.isPending}
             />
-          </CardContent>
-        </Card>
-      </div>
+          )}
+          
+          <ICETable
+            listaICE={listaICE}
+            mieiVoti={mieiVoti}
+            isLoading={isLoading}
+            isError={isError}
+            onEdit={startEdit}
+            onDelete={handleDelete}
+            deleteMutation={deleteMutation}
+          />
+        </CardContent>
+      </Card>
       
       <EditDialog
         ice={state.editICE}

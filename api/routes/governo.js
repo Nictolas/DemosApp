@@ -242,19 +242,44 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/governo/ideale - Governo ideale dell'utente
-router.get('/ideale', async (req, res) => {
+router.get('/ideale', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/governo/ideale - Richiesta governo ideale');
+    const userId = req.userId;
     
-    // Per ora restituiamo un governo ideale di esempio
-    // In futuro potremmo recuperarlo dal database per utente specifico
-    const governoIdeale = {
-      presidente_consiglio: "Mario Rossi",
-      ministro_interni: "Giulia Bianchi",
-      ministro_esteri: "Luca Verdi",
-      ministro_economia: "Anna Neri",
-      ministro_giustizia: "Paolo Blu"
-    };
+    const governoIdeale = {};
+    
+    // Lista dei ministeri
+    const ministeri = [
+      'primo_ministro', 'difesa', 'economia', 'esteri', 'giustizia', 'interno', 
+      'istruzione', 'lavoro', 'salute', 'trasporti', 'ambiente', 
+      'cultura', 'sport'
+    ];
+    
+    // Per ogni ministero, ottieni il voto dell'utente
+    for (const ministero of ministeri) {
+      const tableName = `voti_${ministero}`;
+      
+      try {
+        const votoQuery = `
+          SELECT nome_display
+          FROM ${tableName}
+          WHERE userid = $1
+          ORDER BY timestamp DESC
+          LIMIT 1
+        `;
+        
+        const votoResult = await pool.query(votoQuery, [userId]);
+        if (votoResult.rows.length > 0) {
+          governoIdeale[ministero] = votoResult.rows[0].nome_display;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Errore per ministero ${ministero}:`, error.message);
+        // Continua con gli altri ministeri
+      }
+    }
+    
+    console.log('🔍 DEBUG - Governo ideale recuperato:', governoIdeale);
     
     res.json({
       success: true,
