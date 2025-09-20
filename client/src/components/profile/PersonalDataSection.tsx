@@ -53,16 +53,16 @@ export function PersonalDataSection({ formData, onFieldChange }: PersonalDataSec
         <div>
           <Label htmlFor="genere">Genere *</Label>
           <Select
-            value={formData.genere || ""}
+            value={getGenereValue(formData.genere)}
             onValueChange={(value) => onFieldChange("genere", value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Seleziona il genere" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="M">Uomo</SelectItem>
-              <SelectItem value="F">Donna</SelectItem>
-              <SelectItem value="A">Altro</SelectItem>
+              <SelectItem value="uomo">Uomo</SelectItem>
+              <SelectItem value="donna">Donna</SelectItem>
+              <SelectItem value="altro">Altro</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -124,4 +124,24 @@ function convertToDateInput(dateStr: string): string {
   }
   
   return "";
+}
+
+// Funzione per mappare i valori del genere
+function getGenereValue(genere: string): string {
+  if (!genere) return "";
+  
+  // Mappa i valori dal database ai valori del form
+  const mapping: Record<string, string> = {
+    'uomo': 'uomo',
+    'donna': 'donna', 
+    'altro': 'altro',
+    'M': 'uomo',
+    'F': 'donna',
+    'A': 'altro',
+    'Maschio': 'uomo',
+    'Femmina': 'donna',
+    'Altro': 'altro'
+  };
+  
+  return mapping[genere] || genere;
 }

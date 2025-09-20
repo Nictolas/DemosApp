@@ -23,8 +23,19 @@ export const ProfileInfo = ({
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Non specificata';
+    
+    // Se la data è già nel formato DD/MM/YYYY, restituiscila così
+    if (dateString.includes('/') && dateString.split('/').length === 3) {
+      return dateString;
+    }
+    
+    // Altrimenti prova a formattarla
     try {
-      return new Date(dateString).toLocaleDateString('it-IT');
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return dateString; // Restituisci la stringa originale se non è una data valida
+      }
+      return date.toLocaleDateString('it-IT');
     } catch {
       return dateString;
     }
