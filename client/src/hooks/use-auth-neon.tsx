@@ -142,8 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(result.error || 'Login fallito');
       }
 
-      // Salva il token
-      const userToken = result.token || 'mock_token_' + Date.now();
+      // Salva il token JWT reale
+      const userToken = result.accessToken || result.token || 'mock_token_' + Date.now();
       localStorage.setItem('auth_token', userToken);
       setToken(userToken);
 
@@ -254,8 +254,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
-      // Salva il token solo se la registrazione è completamente completata
-      const userToken = result.token || 'mock_token_' + Date.now();
+      // Salva il token JWT reale solo se la registrazione è completamente completata
+      const userToken = result.accessToken || result.token || 'mock_token_' + Date.now();
       localStorage.setItem('auth_token', userToken);
       setToken(userToken);
 
