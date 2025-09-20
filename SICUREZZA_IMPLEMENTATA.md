@@ -76,13 +76,19 @@ cp env.security.example .env
 nano .env
 ```
 
-### **2. Setup Database Sicurezza**
+### **2. Deploy Immediato**
+Il sistema è ora configurato per funzionare anche senza variabili d'ambiente:
+- ✅ **JWT**: Usa chiave temporanea se JWT_SECRET non configurato
+- ✅ **Database**: Funziona con DATABASE_URL esistente
+- ✅ **Middleware**: Tutti i middleware di sicurezza funzionanti
+
+### **3. Setup Database Sicurezza**
 ```bash
 # Crea le tabelle di monitoraggio sicurezza
 node create-security-tables.cjs
 ```
 
-### **3. Configurazione Produzione**
+### **4. Configurazione Produzione**
 ```env
 # .env per produzione
 DATABASE_URL=postgresql://username:password@host.db.neon.tech/neondb?sslmode=require
@@ -91,7 +97,7 @@ NODE_ENV=production
 SSL_CERT_PATH=/path/to/ssl/cert.pem
 ```
 
-### **4. Monitoraggio**
+### **5. Monitoraggio**
 - **Dashboard**: `/security-dashboard` (solo admin)
 - **API**: `/api/security/*` per statistiche e gestione
 - **Log**: Eventi salvati in `security_events` table

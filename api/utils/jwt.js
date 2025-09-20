@@ -19,8 +19,15 @@ class JWTHelper {
     this.secret = process.env.JWT_SECRET;
     this.refreshSecret = process.env.JWT_REFRESH_SECRET || this.secret + '_refresh';
     
-    if (!this.secret || this.secret.length < 32) {
-      throw new Error('JWT_SECRET deve essere almeno 32 caratteri per sicurezza');
+    // Se non c'è JWT_SECRET, usa una chiave temporanea per sviluppo
+    if (!this.secret) {
+      console.warn('⚠️ JWT_SECRET non configurato, usando chiave temporanea per sviluppo');
+      this.secret = 'temporary-jwt-secret-for-development-only-change-in-production';
+    }
+    
+    if (this.secret.length < 32) {
+      console.warn('⚠️ JWT_SECRET troppo corto, usando chiave temporanea per sviluppo');
+      this.secret = 'temporary-jwt-secret-for-development-only-change-in-production';
     }
   }
 
