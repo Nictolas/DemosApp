@@ -50,6 +50,9 @@ const authLimiter = rateLimit({
     retryAfter: 15 * 60
   },
   skipSuccessfulRequests: true, // Non conta i login riusciti
+  onLimitReached: (req, res, options) => {
+    console.log(`🚨 AUTH RATE LIMIT REACHED: IP ${req.ip} ha raggiunto il limite di autenticazione`);
+  },
   handler: (req, res) => {
     console.log(`🚨 AUTH RATE LIMIT: IP ${req.ip} ha superato il limite di autenticazione`);
     res.status(429).json({
