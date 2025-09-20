@@ -16,19 +16,8 @@ const tokenBlacklist = new Set();
 
 class JWTHelper {
   constructor() {
-    this.secret = process.env.JWT_SECRET;
+    this.secret = process.env.JWT_SECRET || 'temporary-jwt-secret-for-development-only-change-in-production';
     this.refreshSecret = process.env.JWT_REFRESH_SECRET || this.secret + '_refresh';
-    
-    // Se non c'è JWT_SECRET, usa una chiave temporanea per sviluppo
-    if (!this.secret) {
-      console.warn('⚠️ JWT_SECRET non configurato, usando chiave temporanea per sviluppo');
-      this.secret = 'temporary-jwt-secret-for-development-only-change-in-production';
-    }
-    
-    if (this.secret.length < 32) {
-      console.warn('⚠️ JWT_SECRET troppo corto, usando chiave temporanea per sviluppo');
-      this.secret = 'temporary-jwt-secret-for-development-only-change-in-production';
-    }
   }
 
   /**
