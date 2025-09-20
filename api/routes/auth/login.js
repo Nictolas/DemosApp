@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const { generateTokenPair, verifyRefreshToken } = require('../../utils/jwt');
-const { validateInput, sanitizeInput } = require('../../middleware/security');
+// const { validateInput, sanitizeInput } = require('../../middleware/security');
 const { requireAdmin } = require('../../middleware/auth');
 const { authLimiter } = require('../../middleware/rateLimiting');
 
@@ -28,21 +28,7 @@ const pool = new Pool({
  * POST /api/auth/login
  */
 router.post('/login', 
-  (req, res, next) => {
-    console.log(`🔍 AUTH LIMITER: Controllo rate limit per IP ${req.ip}`);
-    next();
-  },
   authLimiter,
-  (req, res, next) => {
-    console.log(`🧹 SANITIZE: Inizio sanitizzazione input`);
-    next();
-  },
-  sanitizeInput,
-  (req, res, next) => {
-    console.log(`✅ VALIDATE: Inizio validazione input`);
-    next();
-  },
-  validateInput(['email', 'password']),
   async (req, res) => {
     const startTime = Date.now();
     console.log(`🚀 LOGIN START: ${req.body.email} - ${new Date().toISOString()}`);
