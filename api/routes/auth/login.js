@@ -8,12 +8,19 @@ const { authLimiter } = require('../../middleware/rateLimiting');
 
 const router = express.Router();
 
-// Configurazione database
+// Configurazione database ottimizzata per performance
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { 
     rejectUnauthorized: process.env.NODE_ENV === 'production'
-  }
+  },
+  max: 20, // Massimo 20 connessioni
+  idleTimeoutMillis: 30000, // 30 secondi
+  connectionTimeoutMillis: 5000, // 5 secondi timeout connessione
+  query_timeout: 10000, // 10 secondi timeout query
+  statement_timeout: 10000, // 10 secondi timeout statement
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000
 });
 
 /**
@@ -25,10 +32,15 @@ router.post('/login',
   sanitizeInput,
   validateInput(['email', 'password']),
   async (req, res) => {
+    const startTime = Date.now();
+    console.log(`🚀 LOGIN START: ${req.body.email} - ${new Date().toISOString()}`);
+    
     try {
       const { email, password } = req.body;
+      console.log(`📧 Email ricevuta: ${email}`);
 
       // Cerca utente nel database
+      console.log(`🔍 Query database per utente...`);
       const userQuery = `
         SELECT id, email, password, ruolo, nome, cognome, 
                email_verified, created_at, last_login
@@ -36,7 +48,10 @@ router.post('/login',
         WHERE email = $1 AND status = 'active'
       `;
       
+      const queryStart = Date.now();
       const userResult = await pool.query(userQuery, [email.toLowerCase()]);
+      const queryTime = Date.now() - queryStart;
+      console.log(`⏱️ Query database completata in ${queryTime}ms`);
       
       if (userResult.rows.length === 0) {
         return res.status(401).json({
@@ -47,11 +62,17 @@ router.post('/login',
       }
 
       const user = userResult.rows[0];
+      console.log(`👤 Utente trovato: ${user.email} (ID: ${user.id})`);
 
       // Verifica password
+      console.log(`🔐 Verifica password...`);
+      const passwordStart = Date.now();
       const isValidPassword = await bcrypt.compare(password, user.password);
+      const passwordTime = Date.now() - passwordStart;
+      console.log(`⏱️ Verifica password completata in ${passwordTime}ms`);
       
       if (!isValidPassword) {
+        console.log(`❌ Password non valida per ${email}`);
         return res.status(401).json({
           success: false,
           error: 'Credenziali non valide',
@@ -61,6 +82,7 @@ router.post('/login',
 
       // Verifica se l'email è verificata
       if (!user.email_verified) {
+        console.log(`⚠️ Email non verificata per ${email}`);
         return res.status(403).json({
           success: false,
           error: 'Email non verificata',
@@ -69,12 +91,18 @@ router.post('/login',
       }
 
       // Aggiorna ultimo login
+      console.log(`📝 Aggiornamento ultimo login...`);
+      const updateStart = Date.now();
       await pool.query(
         'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
         [user.id]
       );
+      const updateTime = Date.now() - updateStart;
+      console.log(`⏱️ Aggiornamento ultimo login completato in ${updateTime}ms`);
 
       // Genera token
+      console.log(`🎫 Generazione token...`);
+      const tokenStart = Date.now();
       const tokenPayload = {
         userId: user.id,
         email: user.email,
@@ -84,9 +112,11 @@ router.post('/login',
       };
 
       const tokens = generateTokenPair(tokenPayload);
+      const tokenTime = Date.now() - tokenStart;
+      console.log(`⏱️ Generazione token completata in ${tokenTime}ms`);
 
-      // Log del login
-      console.log(`🔐 Login riuscito per utente: ${user.email} (ID: ${user.id})`);
+      const totalTime = Date.now() - startTime;
+      console.log(`🎉 LOGIN SUCCESS: ${user.email} - Tempo totale: ${totalTime}ms`);
 
       res.json({
         success: true,
