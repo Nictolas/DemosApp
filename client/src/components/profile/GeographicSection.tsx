@@ -82,17 +82,19 @@ export function GeographicSection({
                 <SelectItem value="Provinciale">Provinciale</SelectItem>
                 <SelectItem value="Regionale">Regionale</SelectItem>
                 <SelectItem value="Nazionale">Nazionale</SelectItem>
+                <SelectItem value="Camera">Camera dei Deputati</SelectItem>
+                <SelectItem value="Senato">Senato della Repubblica</SelectItem>
                 <SelectItem value="Europeo">Europeo</SelectItem>
               </SelectContent>
             </Select>
           </div>
         )}
 
-        {showAula && gradoValue === "Nazionale" && (
+        {showAula && (gradoValue === "Nazionale" || gradoValue === "Camera" || gradoValue === "Senato") && (
           <div>
             <Label htmlFor={`${prefix}_aula`}>Aula *</Label>
             <Select
-              value={initialData.aula || ""}
+              value={getAulaValue(gradoValue, initialData.aula)}
               onValueChange={(value) => onFieldChange(`${prefix}_aula`, value)}
             >
               <SelectTrigger>
@@ -188,4 +190,17 @@ export function GeographicSection({
       </div>
     </div>
   );
+}
+
+// Funzione per mappare i valori del grado e dell'aula
+function getAulaValue(gradoValue: string, aulaValue: string): string {
+  if (!gradoValue) return aulaValue || "";
+  
+  // Se il grado è già "Camera" o "Senato", usalo direttamente
+  if (gradoValue === "Camera" || gradoValue === "Senato") {
+    return gradoValue;
+  }
+  
+  // Altrimenti usa il valore dell'aula
+  return aulaValue || "";
 }

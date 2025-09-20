@@ -110,7 +110,7 @@ Response to preflight request doesn't pass access control check
 node test-cors.js
 
 # Verifica endpoint specifici
-curl -X OPTIONS https://demos-c7k0.onrender.com/api/test-cors \
+curl -X OPTIONS https://demos-c7k0.onrender.com/api/candidati-cors \
   -H "Origin: https://www.demos.community" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: Content-Type" \

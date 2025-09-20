@@ -7,8 +7,8 @@ export const useTestActions = () => {
   const [opinioniDialogData, setOpinioniDialogData] = useState<OpinioniDialogData | null>(null);
 
   const handleNavigateToSelection = (categoriaId: string) => {
-    // Per le pagine di test, usa sempre /test/:categoria
-    setLocation(`/test/${categoriaId}`);
+    // Per le pagine di candidati, usa sempre /candidati/:categoria
+    setLocation(`/candidati/${categoriaId}`);
   };
 
   const handleOpenOpinioniDialog = (utenteId: string, nome: string, cognome: string, avatarConfig?: string, categoria?: string) => {

@@ -17,7 +17,7 @@ const DatabaseTest: React.FC = () => {
 
   // Test connessione database
   const testConnection = async () => {
-    const result = await executeApiCall('/test');
+    const result = await executeApiCall('/candidati');
     setTestResults(prev => ({ ...prev, connection: result }));
   };
 
@@ -274,7 +274,7 @@ const DatabaseTest: React.FC = () => {
             <p><strong>Base URL:</strong> {API_CONFIG.BASE_URL}</p>
             <p><strong>Endpoints disponibili:</strong></p>
             <ul className="list-disc list-inside space-y-1 ml-4">
-              <li><code>/test</code> - Test connessione</li>
+              <li><code>/candidati</code> - Test connessione</li>
               <li><code>/users</code> - Lista utenti</li>
               <li><code>/opinions</code> - Lista opinioni</li>
               <li><code>/votes/capo-stato</code> - Voti capo stato</li>

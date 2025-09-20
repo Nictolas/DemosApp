@@ -4,8 +4,8 @@ const { pool } = require('../../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/opinioni/test - Endpoint di test senza autenticazione
-router.get('/test', async (req, res) => {
+// GET /api/opinioni/candidati - Endpoint di test senza autenticazione
+router.get('/candidati', async (req, res) => {
   try {
     console.log('🧪 TEST - Endpoint opinioni raggiunto senza autenticazione');
     

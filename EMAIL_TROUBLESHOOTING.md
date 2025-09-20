@@ -42,21 +42,21 @@
 - **Branding**: Consistente con l'identità visiva dell'app
 
 ### 4. Endpoint di Test
-- **`/api/test-resend`** - Verifica configurazione Resend
-- **`/api/test-resend-email`** - Test invio email specifiche
+- **`/api/candidati-resend`** - Verifica configurazione Resend
+- **`/api/candidati-resend-email`** - Test invio email specifiche
 
 ## Procedure di Debug
 
 ### Step 1: Verificare Configurazione
 ```bash
 # Test configurazione Resend
-curl -X GET https://your-api-domain/api/test-resend
+curl -X GET https://your-api-domain/api/candidati-resend
 ```
 
 ### Step 2: Test Invio Email
 ```bash
 # Test invio email specifica
-curl -X POST https://your-api-domain/api/test-resend-email \
+curl -X POST https://your-api-domain/api/candidati-resend-email \
   -H "Content-Type: application/json" \
   -d '{"email": "chiara.nardone0@gmail.com"}'
 ```
@@ -111,8 +111,8 @@ JWT_SECRET=your-super-secret-jwt-key-here
 
 ### ✅ API
 - [ ] Endpoint `/api/auth/forgot-password` funzionante
-- [ ] Endpoint `/api/test-resend` funzionante
-- [ ] Endpoint `/api/test-resend-email` funzionante
+- [ ] Endpoint `/api/candidati-resend` funzionante
+- [ ] Endpoint `/api/candidati-resend-email` funzionante
 
 ### ✅ Email
 - [ ] Template HTML renderizzato correttamente

@@ -20,7 +20,7 @@ export const useCandidatiData = (user: any, categoria: string) => {
         
         const result = await apiRequest(
           "GET",
-          `/api/test/disponibili?grado_candidatura=${categoria}`
+          `/api/candidati/disponibili?grado_candidatura=${categoria}`
         );
 
         if (!result.ok) {

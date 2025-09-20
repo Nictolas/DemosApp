@@ -488,17 +488,17 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-      {/* Route test - COPIA IDENTICA DI RAPPRESENTANTI */}
-      <Route path="/test">
+      {/* Route candidati - COPIA IDENTICA DI RAPPRESENTANTI */}
+      <Route path="/candidati">
         <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/test" component={Rappresentanti} />
+          <ProtectedRoute path="/candidati" component={Rappresentanti} />
         </PageTransition>
       </Route>
 
-      {/* Route scegli test - COPIA IDENTICA DI SCEGLI RAPPRESENTANTE */}
-      <Route path="/test/:categoria">
+      {/* Route scegli candidato - COPIA IDENTICA DI SCEGLI RAPPRESENTANTE */}
+      <Route path="/candidati/:categoria">
         <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/test/:categoria" component={ScegliRappresentante} />
+          <ProtectedRoute path="/candidati/:categoria" component={ScegliRappresentante} />
         </PageTransition>
       </Route>
 

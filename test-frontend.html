@@ -103,7 +103,7 @@
 
         async function testApiConnection() {
             try {
-                const response = await fetch(`${API_BASE}/test/health`);
+                const response = await fetch(`${API_BASE}/candidati/health`);
                 const data = await response.json();
                 
                 if (response.ok) {

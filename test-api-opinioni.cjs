@@ -6,7 +6,7 @@ async function testApiOpinioni() {
   try {
     // Test senza autenticazione prima
     console.log('\n1️⃣ Test endpoint senza autenticazione:');
-    const testUrl = 'https://demos-c7k0.onrender.com/api/opinioni/test';
+    const testUrl = 'https://demos-c7k0.onrender.com/api/opinioni/candidati';
     
     try {
       const testResponse = await fetch(testUrl);

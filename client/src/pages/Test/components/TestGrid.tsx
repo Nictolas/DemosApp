@@ -62,7 +62,7 @@ export const TestGrid: React.FC<TestGridProps> = ({ hasAdvancedAccess, onNavigat
   const { selezioni, isLoading } = useTestSelezioni();
 
   const handleCategoryClick = (categoryId: string) => {
-    onNavigate(`/test/${categoryId}`);
+    onNavigate(`/candidati/${categoryId}`);
   };
 
   return (

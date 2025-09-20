@@ -4,13 +4,13 @@ const { pool } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/test/disponibili - Ottieni candidati disponibili per grado_candidatura
+// GET /api/candidati/disponibili - Ottieni candidati disponibili per grado_candidatura
 router.get('/disponibili', verifyToken, async (req, res) => {
   try {
     const { grado_candidatura } = req.query;
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/test/disponibili - Richiesta ricevuta:', { grado_candidatura, userId });
+    console.log('🔍 DEBUG /api/candidati/disponibili - Richiesta ricevuta:', { grado_candidatura, userId });
     
     if (!grado_candidatura) {
       return res.status(400).json({
@@ -58,7 +58,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare candidati test:', error);
+    console.error('❌ Errore nel recuperare candidati:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
@@ -67,10 +67,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
   }
 });
 
-// PUT /api/test/seleziona-candidato - Seleziona candidato per categoria di test
+// PUT /api/candidati/seleziona-candidato - Seleziona candidato per categoria
 router.put('/seleziona-candidato', verifyToken, async (req, res) => {
   try {
-    console.log('🎯 PUT /api/test/seleziona-candidato - Selezione candidato test');
+    console.log('🎯 PUT /api/candidati/seleziona-candidato - Selezione candidato');
     
     const { campo, candidatoId } = req.body;
     const userId = req.userId; // ID dell'utente autenticato dal token
@@ -79,16 +79,16 @@ router.put('/seleziona-candidato', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - campo:', campo);
     console.log('🔍 DEBUG - candidatoId:', candidatoId);
     
-    // Verifica che il campo sia valido per le selezioni di test
+    // Verifica che il campo sia valido per le selezioni di candidati
     const validFields = ['test_europeo', 'test_camera', 'test_senato', 'test_regionale', 'test_comune'];
     if (!validFields.includes(campo)) {
       return res.status(400).json({
         success: false,
-        error: 'Campo non valido per le selezioni di test'
+        error: 'Campo non valido per le selezioni di candidati'
       });
     }
     
-    // Aggiorna il campo del candidato di test
+    // Aggiorna il campo del candidato
     const query = `UPDATE users SET ${campo} = $1, updated_at = NOW() WHERE id = $2 RETURNING *`;
     const result = await pool.query(query, [candidatoId, userId]);
     
@@ -99,16 +99,16 @@ router.put('/seleziona-candidato', verifyToken, async (req, res) => {
       });
     }
     
-    console.log('✅ Candidato di test selezionato con successo');
+    console.log('✅ Candidato selezionato con successo');
     
     res.json({
       success: true,
-      message: 'Candidato di test selezionato con successo',
+      message: 'Candidato selezionato con successo',
       user: result.rows[0]
     });
     
   } catch (error) {
-    console.error('❌ Errore durante la selezione candidato test:', error);
+    console.error('❌ Errore durante la selezione candidato:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -116,10 +116,10 @@ router.put('/seleziona-candidato', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/test/selezioni - Ottieni selezioni di test dell'utente
+// GET /api/candidati/selezioni - Ottieni selezioni di candidati dell'utente
 router.get('/selezioni', verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/test/selezioni - Richiesta selezioni test');
+    console.log('🔍 GET /api/candidati/selezioni - Richiesta selezioni candidati');
     const userId = req.userId;
     console.log('🔍 DEBUG - userId:', userId);
     
@@ -138,9 +138,9 @@ router.get('/selezioni', verifyToken, async (req, res) => {
     const userResult = await pool.query(userQuery, [userId]);
     const user = userResult.rows[0] || {};
     
-    console.log('🔍 DEBUG Frontend - Utente selezioni test:', user);
+    console.log('🔍 DEBUG Frontend - Utente selezioni candidati:', user);
     
-    // Ottieni i dettagli dei candidati selezionati per test
+    // Ottieni i dettagli dei candidati selezionati
     const candidatiSelezionati = {};
     const idMap = {};
     
@@ -173,23 +173,23 @@ router.get('/selezioni', verifyToken, async (req, res) => {
           AND grado_candidatura = $2
         `;
         
-        console.log(`🔍 DEBUG - Cercando candidato test con ID: ${candidatoId} per categoria: ${categoria}`);
+        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
         const candidatoResult = await pool.query(candidatoQuery, [candidatoId, categoria]);
-        console.log(`🔍 DEBUG - Risultato query candidato test:`, candidatoResult.rows.length, 'righe trovate');
+        console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
         const candidato = candidatoResult.rows[0];
         
         if (candidato) {
           candidatiSelezionati[categoria] = [candidato];
           idMap[categoria] = candidatoId;
-          console.log(`🔍 DEBUG Frontend - Candidato test selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
+          console.log(`🔍 DEBUG Frontend - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
         } else {
-          console.log(`❌ DEBUG - Nessun candidato test trovato per ID: ${candidatoId} e categoria: ${categoria}`);
+          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
         }
       }
     }
     
-    console.log('🔍 DEBUG Frontend - Candidati test selezionati finali:', candidatiSelezionati);
-    console.log('🔍 DEBUG Frontend - ID Map test finale:', idMap);
+    console.log('🔍 DEBUG Frontend - Candidati selezionati finali:', candidatiSelezionati);
+    console.log('🔍 DEBUG Frontend - ID Map finale:', idMap);
     
     res.json({
       success: true,
@@ -200,10 +200,10 @@ router.get('/selezioni', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare selezioni test utente:', error);
+    console.error('❌ Errore nel recuperare selezioni candidati utente:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare selezioni test utente'
+      error: 'Errore nel recuperare selezioni candidati utente'
     });
   }
 });

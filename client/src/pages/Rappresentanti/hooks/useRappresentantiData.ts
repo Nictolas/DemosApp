@@ -4,7 +4,7 @@ import { RappresentantiData } from "../types";
 import { useRoute } from "wouter";
 
 export const useRappresentantiData = (user: any) => {
-  const [isTestRoute] = useRoute("/test*");
+  const [isTestRoute] = useRoute("/candidati*");
   
   return useQuery<RappresentantiData>({
     queryKey: ['rappresentantiData', isTestRoute ? 'test' : 'rappresentanti'],

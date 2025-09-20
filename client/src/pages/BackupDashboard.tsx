@@ -310,7 +310,7 @@ const BackupDashboard: React.FC = () => {
               Crea Backup Incrementale
             </Button>
             <Button 
-              onClick={() => handleAction('Test Integrità', '/admin/backup/test/integrity')}
+              onClick={() => handleAction('Test Integrità', '/admin/backup/candidati/integrity')}
               className="w-full justify-start"
               variant="outline"
             >

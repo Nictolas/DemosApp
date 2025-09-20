@@ -54,7 +54,7 @@ async function runTests() {
   
   // Test 1: Health Check
   console.log('📋 1. TEST HEALTH CHECK');
-  await testEndpoint('GET', '/test/health');
+  await testEndpoint('GET', '/candidati/health');
   
   // Test 2: Audit Logging
   console.log('\n📋 2. TEST AUDIT LOGGING');
