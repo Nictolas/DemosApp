@@ -2,7 +2,6 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 const { generateTokenPair, verifyRefreshToken } = require('../../utils/jwt');
-// const { validateInput, sanitizeInput } = require('../../middleware/security');
 const { requireAdmin } = require('../../middleware/auth');
 const { authLimiter } = require('../../middleware/rateLimiting');
 
@@ -147,8 +146,6 @@ router.post('/login',
  */
 router.post('/refresh',
   authLimiter,
-  sanitizeInput,
-  validateInput(['refreshToken']),
   async (req, res) => {
     try {
       const { refreshToken } = req.body;
