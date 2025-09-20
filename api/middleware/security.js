@@ -298,62 +298,84 @@ const securityLogger = (req, res, next) => {
 // Middleware per validazione input
 const validateInput = (requiredFields) => {
   return (req, res, next) => {
-    console.log(`🔍 VALIDATE INPUT: Controllo campi ${requiredFields.join(', ')}`);
-    console.log(`📦 REQ BODY:`, req.body);
-    
-    const missingFields = [];
-    
-    for (const field of requiredFields) {
-      if (!req.body[field] || req.body[field].toString().trim() === '') {
-        missingFields.push(field);
-        console.log(`❌ Campo mancante: ${field}`);
-      } else {
-        console.log(`✅ Campo presente: ${field}`);
+    try {
+      console.log(`🔍 VALIDATE INPUT: Controllo campi ${requiredFields.join(', ')}`);
+      console.log(`📦 REQ BODY:`, req.body);
+      
+      // Se non ci sono campi richiesti, passa direttamente
+      if (!requiredFields || requiredFields.length === 0) {
+        console.log(`✅ VALIDATION SKIPPED: Nessun campo richiesto`);
+        return next();
       }
+      
+      const missingFields = [];
+      
+      for (const field of requiredFields) {
+        if (!req.body[field] || req.body[field].toString().trim() === '') {
+          missingFields.push(field);
+          console.log(`❌ Campo mancante: ${field}`);
+        } else {
+          console.log(`✅ Campo presente: ${field}`);
+        }
+      }
+      
+      if (missingFields.length > 0) {
+        console.log(`🚫 VALIDATION FAILED: Campi mancanti: ${missingFields.join(', ')}`);
+        return res.status(400).json({
+          success: false,
+          error: 'Campi richiesti mancanti',
+          message: `I seguenti campi sono obbligatori: ${missingFields.join(', ')}`,
+          missingFields
+        });
+      }
+      
+      console.log(`✅ VALIDATION PASSED: Tutti i campi presenti`);
+      next();
+    } catch (error) {
+      console.error('❌ Errore nel middleware validateInput:', error);
+      next(error);
     }
-    
-    if (missingFields.length > 0) {
-      console.log(`🚫 VALIDATION FAILED: Campi mancanti: ${missingFields.join(', ')}`);
-      return res.status(400).json({
-        success: false,
-        error: 'Campi richiesti mancanti',
-        message: `I seguenti campi sono obbligatori: ${missingFields.join(', ')}`,
-        missingFields
-      });
-    }
-    
-    console.log(`✅ VALIDATION PASSED: Tutti i campi presenti`);
-    next();
   };
 };
 
 // Middleware per sanitizzazione input
 const sanitizeInput = (fieldsToSanitize = []) => {
   return (req, res, next) => {
-    console.log(`🧹 SANITIZE INPUT: Campi da sanitizzare ${fieldsToSanitize.join(', ')}`);
-    console.log(`📦 REQ BODY PRIMA:`, req.body);
-    
-    if (req.body && typeof req.body === 'object') {
-      for (const field of fieldsToSanitize) {
-        if (req.body[field] && typeof req.body[field] === 'string') {
-          const originalValue = req.body[field];
-          // Rimuovi caratteri pericolosi
-          req.body[field] = req.body[field]
-            .replace(/[<>]/g, '') // Rimuovi < e >
-            .replace(/javascript:/gi, '') // Rimuovi javascript:
-            .replace(/on\w+\s*=/gi, '') // Rimuovi event handlers
-            .trim(); // Rimuovi spazi iniziali/finali
-          
-          if (originalValue !== req.body[field]) {
-            console.log(`🧹 Campo ${field} sanitizzato: "${originalValue}" -> "${req.body[field]}"`);
+    try {
+      console.log(`🧹 SANITIZE INPUT: Campi da sanitizzare ${fieldsToSanitize.join(', ')}`);
+      console.log(`📦 REQ BODY PRIMA:`, req.body);
+      
+      // Se non ci sono campi da sanitizzare, passa direttamente
+      if (!fieldsToSanitize || fieldsToSanitize.length === 0) {
+        console.log(`✅ SANITIZE SKIPPED: Nessun campo da sanitizzare`);
+        return next();
+      }
+      
+      if (req.body && typeof req.body === 'object') {
+        for (const field of fieldsToSanitize) {
+          if (req.body[field] && typeof req.body[field] === 'string') {
+            const originalValue = req.body[field];
+            // Rimuovi caratteri pericolosi
+            req.body[field] = req.body[field]
+              .replace(/[<>]/g, '') // Rimuovi < e >
+              .replace(/javascript:/gi, '') // Rimuovi javascript:
+              .replace(/on\w+\s*=/gi, '') // Rimuovi event handlers
+              .trim(); // Rimuovi spazi iniziali/finali
+            
+            if (originalValue !== req.body[field]) {
+              console.log(`🧹 Campo ${field} sanitizzato: "${originalValue}" -> "${req.body[field]}"`);
+            }
           }
         }
       }
+      
+      console.log(`📦 REQ BODY DOPO:`, req.body);
+      console.log(`✅ SANITIZE COMPLETED`);
+      next();
+    } catch (error) {
+      console.error('❌ Errore nel middleware sanitizeInput:', error);
+      next(error);
     }
-    
-    console.log(`📦 REQ BODY DOPO:`, req.body);
-    console.log(`✅ SANITIZE COMPLETED`);
-    next();
   };
 };
 
