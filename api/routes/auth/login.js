@@ -28,8 +28,20 @@ const pool = new Pool({
  * POST /api/auth/login
  */
 router.post('/login', 
+  (req, res, next) => {
+    console.log(`🔍 AUTH LIMITER: Controllo rate limit per IP ${req.ip}`);
+    next();
+  },
   authLimiter,
+  (req, res, next) => {
+    console.log(`🧹 SANITIZE: Inizio sanitizzazione input`);
+    next();
+  },
   sanitizeInput,
+  (req, res, next) => {
+    console.log(`✅ VALIDATE: Inizio validazione input`);
+    next();
+  },
   validateInput(['email', 'password']),
   async (req, res) => {
     const startTime = Date.now();
