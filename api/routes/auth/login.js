@@ -42,15 +42,17 @@ router.post('/login',
         SELECT id, email, password_hash, ruolo, nome, cognome, 
                created_at, status
         FROM users 
-        WHERE email = $1 AND status = 'approved'
+        WHERE email = $1 AND status = 'active'
       `;
       
       const queryStart = Date.now();
       const userResult = await pool.query(userQuery, [email.toLowerCase()]);
       const queryTime = Date.now() - queryStart;
       console.log(`⏱️ Query database completata in ${queryTime}ms`);
+      console.log(`📊 Risultato query: ${userResult.rows.length} righe trovate`);
       
       if (userResult.rows.length === 0) {
+        console.log(`❌ Utente non trovato per email: ${email}`);
         return res.status(401).json({
           success: false,
           error: 'Credenziali non valide',
@@ -63,10 +65,13 @@ router.post('/login',
 
       // Verifica password
       console.log(`🔐 Verifica password...`);
+      console.log(`🔍 Password ricevuta: ${password ? 'presente' : 'mancante'}`);
+      console.log(`🔍 Password hash nel DB: ${user.password_hash ? 'presente' : 'mancante'}`);
       const passwordStart = Date.now();
       const isValidPassword = await bcrypt.compare(password, user.password_hash);
       const passwordTime = Date.now() - passwordStart;
       console.log(`⏱️ Verifica password completata in ${passwordTime}ms`);
+      console.log(`🔐 Password valida: ${isValidPassword}`);
       
       if (!isValidPassword) {
         console.log(`❌ Password non valida per ${email}`);
@@ -147,7 +152,7 @@ router.post('/refresh',
       const userQuery = `
         SELECT id, email, ruolo, nome, cognome, status
         FROM users 
-        WHERE id = $1 AND status = 'approved'
+        WHERE id = $1 AND status = 'active'
       `;
       
       const userResult = await pool.query(userQuery, [decoded.userId]);
