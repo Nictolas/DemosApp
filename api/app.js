@@ -10,6 +10,7 @@ const healthRoutes = require('./routes/health');
 const emailRoutes = require('./routes/email');
 const databaseRoutes = require('./routes/database');
 const compatibilityRoutes = require('./routes/compatibility');
+const testOpinioniRoutes = require('./routes/test-opinioni-endpoints');
 const servicesRoutes = require('./routes/services');
 const authRoutes = require('./routes/auth/index');
 const clearTokenRoutes = require('./routes/auth/clear-token');
@@ -212,6 +213,9 @@ app.use('/api', compatibilityRoutes);
 
 // Route per servizi
 app.use('/api', servicesRoutes);
+
+// Route di test
+app.use('/api/test-opinioni-endpoints', testOpinioniRoutes);
 
 // Route modulari con rate limiting specifico
 app.use('/api/auth', authLimiter, authRoutes);

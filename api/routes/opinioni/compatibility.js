@@ -170,18 +170,20 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/opinioni/proposte - Ottieni opinioni proposte dagli utenti
+// GET /api/opinioni/proposte - Ottieni tutte le opinioni (per gestione)
 router.get('/proposte', verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni proposte');
+    console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
     
     const query = `
-      SELECT id, text, user_id, created_at, status
-      FROM opinioni_proposte
-      ORDER BY created_at DESC
+      SELECT id, text, gradi_opinione, created_at, updated_at
+      FROM opinioni
+      ORDER BY text
     `;
     
     const result = await pool.query(query);
+    
+    console.log(`✅ Trovate ${result.rows.length} opinioni per gestione`);
     
     res.json({
       success: true,
@@ -189,11 +191,11 @@ router.get('/proposte', verifyToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Errore nel recuperare opinioni proposte:', error);
+    console.error('❌ Errore nel recuperare opinioni:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
-      message: 'Impossibile recuperare le opinioni proposte'
+      message: 'Impossibile recuperare le opinioni'
     });
   }
 });
