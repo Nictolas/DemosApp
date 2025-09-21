@@ -11,6 +11,7 @@ const emailRoutes = require('./routes/email');
 const databaseRoutes = require('./routes/database');
 const compatibilityRoutes = require('./routes/compatibility');
 const testOpinioniRoutes = require('./routes/test-opinioni-endpoints');
+const testAddOpinioneRoutes = require('./routes/test-add-opinione');
 const servicesRoutes = require('./routes/services');
 const authRoutes = require('./routes/auth/index');
 const clearTokenRoutes = require('./routes/auth/clear-token');
@@ -216,6 +217,7 @@ app.use('/api', servicesRoutes);
 
 // Route di test
 app.use('/api/test-opinioni-endpoints', testOpinioniRoutes);
+app.use('/api/test-add-opinione', testAddOpinioneRoutes);
 
 // Route modulari con rate limiting specifico
 app.use('/api/auth', authLimiter, authRoutes);
