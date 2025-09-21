@@ -13,6 +13,8 @@ import { getDisplayColumns } from "./utils/columnUtils";
 import { Header } from "./components/Header";
 import { SearchBar } from "./components/SearchBar";
 import { UsersTable } from "./components/UsersTable";
+import { MobileUsersTable } from "./components/MobileUsersTable";
+import { MobilePendingUsersTable } from "./components/MobilePendingUsersTable";
 import { PendingUsersTable } from "./components/PendingUsersTable";
 import { usePendingUserActions } from "./hooks/usePendingUserActions";
 import { Pagination } from "./components/Pagination";
@@ -62,6 +64,20 @@ export default function GestisciUtenti() {
   // Stato per gestire le modifiche inline
   const [userChanges, setUserChanges] = useState<Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Hook per rilevare se siamo su mobile
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Debug logging per capire il ruolo dell'utente
   useEffect(() => {
@@ -268,7 +284,7 @@ export default function GestisciUtenti() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
-      <div className="container mx-auto max-w-full p-6">
+      <div className="container mx-auto max-w-full px-4 py-4 md:px-6 md:py-6">
         {/* Header */}
         <Header 
           lastUpdateTime={lastUpdateTime}
@@ -292,15 +308,22 @@ export default function GestisciUtenti() {
             <span className="ml-3 text-lg text-gray-600">Caricamento utenti...</span>
           </div>
         ) : isError ? (
-          <div className="text-center py-12">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <div className="text-center py-8 md:py-12 px-4">
+            <AlertCircle className="h-12 w-12 md:h-16 md:w-16 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-red-900 mb-2">Errore nel caricamento</h3>
-            <p className="text-red-600">Impossibile caricare gli utenti. Riprova più tardi.</p>
+            <p className="text-red-600 mb-4">Impossibile caricare gli utenti. Riprova più tardi.</p>
+            <Button 
+              onClick={handleRefresh}
+              variant="outline"
+              className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+            >
+              Riprova
+            </Button>
           </div>
         ) : (
           <>
-            {/* Statistiche */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Statistiche */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
@@ -357,12 +380,21 @@ export default function GestisciUtenti() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <PendingUsersTable 
-                    users={pendingUsers}
-                    onApprove={handleApproveUser}
-                    onReject={handleRejectUser}
-                    isProcessing={isProcessing}
-                  />
+                  {isMobile ? (
+                    <MobilePendingUsersTable 
+                      users={pendingUsers}
+                      onApprove={handleApproveUser}
+                      onReject={handleRejectUser}
+                      isProcessing={isProcessing}
+                    />
+                  ) : (
+                    <PendingUsersTable 
+                      users={pendingUsers}
+                      onApprove={handleApproveUser}
+                      onReject={handleRejectUser}
+                      isProcessing={isProcessing}
+                    />
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -390,17 +422,28 @@ export default function GestisciUtenti() {
                 </div>
               </CardHeader>
               <CardContent>
-                <UsersTable 
-                  users={paginatedUsers}
-                  displayColumns={displayColumns}
-                  sortState={sortState}
-                  onSort={updateSort}
-                  onEdit={handleEdit}
-                  onEditOpinioni={handleEditOpinioni}
-                  onDelete={handleDelete}
-                  userChanges={userChanges}
-                  onFieldChange={handleFieldChange}
-                />
+                {isMobile ? (
+                  <MobileUsersTable 
+                    users={paginatedUsers}
+                    onEdit={handleEdit}
+                    onEditOpinioni={handleEditOpinioni}
+                    onDelete={handleDelete}
+                    userChanges={userChanges}
+                    onFieldChange={handleFieldChange}
+                  />
+                ) : (
+                  <UsersTable 
+                    users={paginatedUsers}
+                    displayColumns={displayColumns}
+                    sortState={sortState}
+                    onSort={updateSort}
+                    onEdit={handleEdit}
+                    onEditOpinioni={handleEditOpinioni}
+                    onDelete={handleDelete}
+                    userChanges={userChanges}
+                    onFieldChange={handleFieldChange}
+                  />
+                )}
                 
                 {/* Paginazione */}
                 <Pagination 
