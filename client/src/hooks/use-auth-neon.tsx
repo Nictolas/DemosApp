@@ -94,9 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.status === 401) {
         console.log('🔍 DEBUG useAuth - Token non valido, rimuovendo');
-        // Token non valido, rimuovilo
+        // Token non valido, rimuovilo e forza logout
         localStorage.removeItem('auth_token');
         setToken(null);
+        // Forza refresh della pagina per pulire completamente lo stato
+        window.location.reload();
         return null;
       }
 
