@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
     
     // Test 3: Esempio di opinioni
     const sampleOpinions = await pool.query(`
-      SELECT id, text, gradi_opinione 
+      SELECT id, text, gradi_opinione, approfondimento
       FROM opinioni 
       LIMIT 3
     `);

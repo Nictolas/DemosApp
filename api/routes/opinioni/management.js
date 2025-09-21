@@ -8,9 +8,9 @@ const router = express.Router();
 router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
-      SELECT o.*, o.gradi_opinione as categoria_nome
+      SELECT o.id, o.text, o.gradi_opinione, o.approfondimento
       FROM opinioni o
-      ORDER BY o.gradi_opinione[1], o.text
+      ORDER BY o.text
     `;
     
     const result = await pool.query(query);
@@ -47,16 +47,16 @@ router.post('/', verifyToken, async (req, res) => {
     }
     
     const insertQuery = `
-      INSERT INTO opinioni (id, text, gradi_opinione, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO opinioni (id, text, gradi_opinione, approfondimento)
+      VALUES ($1, $2, $3, $4)
       ON CONFLICT (id) DO UPDATE SET
         text = EXCLUDED.text,
         gradi_opinione = EXCLUDED.gradi_opinione,
-        updated_at = EXCLUDED.updated_at
+        approfondimento = EXCLUDED.approfondimento
     `;
     
-    const now = new Date();
-    const result = await pool.query(insertQuery, [id, text, gradi_opinione, now, now]);
+    const approfondimento = `## Proposta ${gradi_opinione.join(', ')}\n\n${text}`;
+    const result = await pool.query(insertQuery, [id, text, gradi_opinione, approfondimento]);
     
     console.log('✅ Opinione creata/aggiornata con successo:', id);
     
@@ -97,12 +97,12 @@ router.put('/:id', verifyToken, async (req, res) => {
     
     const updateQuery = `
       UPDATE opinioni
-      SET text = $1, gradi_opinione = $2, updated_at = $3
+      SET text = $1, gradi_opinione = $2, approfondimento = $3
       WHERE id = $4
     `;
     
-    const now = new Date();
-    const result = await pool.query(updateQuery, [text, gradi_opinione, now, id]);
+    const approfondimento = `## Proposta ${gradi_opinione.join(', ')}\n\n${text}`;
+    const result = await pool.query(updateQuery, [text, gradi_opinione, approfondimento, id]);
     
     if (result.rowCount === 0) {
       return res.status(404).json({

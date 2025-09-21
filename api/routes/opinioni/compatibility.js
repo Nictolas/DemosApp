@@ -176,7 +176,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
     console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
     
     const query = `
-      SELECT id, text, gradi_opinione, created_at, updated_at
+      SELECT id, text, gradi_opinione, approfondimento
       FROM opinioni
       ORDER BY text
     `;
