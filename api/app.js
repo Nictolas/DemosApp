@@ -12,6 +12,7 @@ const databaseRoutes = require('./routes/database');
 const compatibilityRoutes = require('./routes/compatibility');
 const servicesRoutes = require('./routes/services');
 const authRoutes = require('./routes/auth/index');
+const clearTokenRoutes = require('./routes/auth/clear-token');
 const userRoutes = require('./routes/users/index');
 const opinioniRoutes = require('./routes/opinioni/index');
 const governoRoutes = require('./routes/governo');
@@ -214,6 +215,7 @@ app.use('/api', servicesRoutes);
 
 // Route modulari con rate limiting specifico
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', clearTokenRoutes);
 app.use('/api/users', userLimiter, userRoutes);
 app.use('/api/opinioni', userLimiter, opinioniRoutes);
 app.use('/api/governo', publicLimiter, governoRoutes);

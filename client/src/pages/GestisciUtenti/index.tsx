@@ -21,6 +21,7 @@ import { Pagination } from "./components/Pagination";
 import { USERS_PER_PAGE } from "./constants";
 import { User } from "./types";
 import { apiRequest } from "@/lib/queryClient";
+import { clearAllTokens, forceTokenRefresh } from "@/utils/tokenUtils";
 
 export default function GestisciUtenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -89,6 +90,17 @@ export default function GestisciUtenti() {
       isAdmin: user?.role === 'Admin' || (user as any)?.ruolo === 'Admin'
     });
   }, [user, isAuthLoading]);
+
+  // Funzione per pulire token vecchi e forzare nuovo login
+  const clearInvalidToken = async () => {
+    console.log('🔍 DEBUG GestisciUtenti - Pulizia token non valido');
+    try {
+      await forceTokenRefresh();
+    } catch (error) {
+      console.error('❌ Errore nella pulizia token:', error);
+      clearAllTokens();
+    }
+  };
 
   // Hook per forzare il refresh quando la pagina diventa visibile
   useEffect(() => {
@@ -311,14 +323,23 @@ export default function GestisciUtenti() {
           <div className="text-center py-8 md:py-12 px-4">
             <AlertCircle className="h-12 w-12 md:h-16 md:w-16 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-red-900 mb-2">Errore nel caricamento</h3>
-            <p className="text-red-600 mb-4">Impossibile caricare gli utenti. Riprova più tardi.</p>
-            <Button 
-              onClick={handleRefresh}
-              variant="outline"
-              className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
-            >
-              Riprova
-            </Button>
+            <p className="text-red-600 mb-4">Impossibile caricare gli utenti. Potrebbe essere un problema di autenticazione.</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button 
+                onClick={handleRefresh}
+                variant="outline"
+                className="bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+              >
+                Riprova
+              </Button>
+              <Button 
+                onClick={clearInvalidToken}
+                variant="outline"
+                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+              >
+                Nuovo Login
+              </Button>
+            </div>
           </div>
         ) : (
           <>
