@@ -42,53 +42,6 @@ class ValidationService {
     }
   }
 
-  // Valida codice fiscale unico
-  static async validateUniqueCodiceFiscale(codiceFiscale, excludeUserId = null) {
-    try {
-      if (!codiceFiscale) {
-        return { isValid: true };
-      }
-      
-      const cfValidation = validators.codiceFiscale(codiceFiscale);
-      if (!cfValidation.isValid) {
-        return { isValid: false, error: cfValidation.error };
-      }
-      const sanitizedCF = cfValidation.value;
-      
-      let query = 'SELECT id FROM users WHERE codice_fiscale = $1';
-      const params = [sanitizedCF];
-      
-      if (excludeUserId) {
-        query += ' AND id != $2';
-        params.push(excludeUserId);
-      }
-      
-      const result = await pool.query(query, params);
-      
-      if (result.rows.length > 0) {
-        return {
-          isValid: false,
-          error: 'Codice fiscale già utilizzato'
-        };
-      }
-      
-      return {
-        isValid: true,
-        sanitizedCF
-      };
-    } catch (error) {
-      console.error('❌ Errore validazione codice fiscale unico:', error);
-      return {
-        isValid: false,
-        error: 'Errore interno del server'
-      };
-    }
-  }
-
-  // Valida formato codice fiscale italiano
-  static validateCodiceFiscaleFormat(codiceFiscale) {
-    return validators.codiceFiscale(codiceFiscale);
-  }
 
   // Valida data di nascita
   static validateDataNascita(dataNascita) {

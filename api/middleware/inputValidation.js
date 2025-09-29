@@ -388,7 +388,6 @@ const validationRules = {
     data_nascita: { type: 'dataNascita', required: false },
     genere: { type: 'genere', required: false },
     cittadinanza: { type: 'name', required: false },
-    codice_fiscale: { type: 'codiceFiscale', required: false },
     telefono: { type: 'telefono', required: false }
   },
 

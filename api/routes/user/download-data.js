@@ -30,7 +30,7 @@ router.get('/', verifyToken, async (req, res) => {
       const profileQuery = `
         SELECT 
           id, email, nome, cognome, data_nascita, genere, 
-          codice_fiscale, created_at, updated_at
+          created_at, updated_at
         FROM users 
         WHERE id = $1
       `;

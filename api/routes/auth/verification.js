@@ -19,40 +19,6 @@ try {
   };
 }
 
-// GET /api/auth/check-codice-fiscale - Verifica se un codice fiscale è già registrato
-router.get('/check-codice-fiscale', async (req, res) => {
-  try {
-    const { codice_fiscale } = req.query;
-    
-    if (!codice_fiscale) {
-      return res.status(400).json({
-        success: false,
-        error: 'Codice fiscale richiesto'
-      });
-    }
-    
-    // Verifica se il codice fiscale esiste già
-    const result = await pool.query('SELECT id FROM users WHERE codice_fiscale = $1', [codice_fiscale.toUpperCase()]);
-    
-    if (result.rows.length > 0) {
-      res.json({
-        exists: true,
-        message: 'Codice fiscale già registrato nel sistema'
-      });
-    } else {
-      res.json({
-        exists: false,
-        message: 'Codice fiscale disponibile'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Errore nella verifica codice fiscale:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Errore nella verifica codice fiscale'
-    });
-  }
-});
 
 // POST /api/auth/verify-email - Verifica email con token
 router.post('/verify-email', async (req, res) => {

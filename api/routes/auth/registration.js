@@ -43,7 +43,6 @@ router.post('/register',
       password: { type: 'password', required: true },
       nome: { required: false }, // Opzionale nella fase iniziale
       cognome: { required: false }, // Opzionale nella fase iniziale
-      codice_fiscale: { type: 'codiceFiscale', required: false },
       data_nascita: { type: 'dataNascita', required: false }
     };
     
@@ -66,7 +65,7 @@ router.post('/register',
       });
     }
     
-    const { email, password, nome, cognome, codice_fiscale, privacy_policy_consent, terms_of_service_consent, cookie_policy_consent } = validation.sanitizedInput;
+    const { email, password, nome, cognome, privacy_policy_consent, terms_of_service_consent, cookie_policy_consent } = validation.sanitizedInput;
     
     // Se nome e cognome non sono presenti, usa valori di default temporanei
     const finalNome = nome || 'Temporaneo';
@@ -138,19 +137,6 @@ router.post('/register',
     
     // L'unicità dell'email viene già verificata dal frontend tramite /api/check-email
     
-    // Verifica se il codice fiscale è già registrato (se fornito)
-    if (codice_fiscale) {
-      const existingCfQuery = 'SELECT id FROM users WHERE codice_fiscale = $1';
-      const existingCfResult = await pool.query(existingCfQuery, [codice_fiscale.toUpperCase()]);
-      
-      if (existingCfResult.rows.length > 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Codice fiscale già registrato',
-          message: 'Un account con questo codice fiscale esiste già'
-        });
-      }
-    }
     
     // Hash della password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -172,7 +158,7 @@ router.post('/register',
       email.toLowerCase(), 
       passwordHash, 
       ruolo || 'Elettore',
-      codice_fiscale ? codice_fiscale.toUpperCase() : null,
+      null,
       'pending',
       verificationToken,
       genere || null,
@@ -205,14 +191,14 @@ router.post('/register',
     
     // Inserisci nuovo utente con status "pending"
     const insertQuery = `
-      INSERT INTO users (nome, cognome, email, password_hash, ruolo, codice_fiscale, status, email_verification_token, 
+      INSERT INTO users (nome, cognome, email, password_hash, ruolo, status, email_verification_token, 
                         genere, data_nascita, cittadinanza, paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
                         grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
                         grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
                         privacy_policy_consent, terms_of_service_consent, cookie_policy_consent, consent_timestamp, 
                         consent_ip_address, consent_user_agent, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, NOW())
-      RETURNING id, nome, cognome, email, ruolo, codice_fiscale, status
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, NOW())
+      RETURNING id, nome, cognome, email, ruolo, status
     `;
     
     console.log('🚀 Esecuzione query INSERT...');
@@ -248,7 +234,6 @@ router.post('/register',
           cognome: newUser.cognome,
           email: newUser.email,
           ruolo: newUser.ruolo,
-          codice_fiscale: newUser.codice_fiscale,
           status: newUser.status
         },
         requiresVerification: true
@@ -277,12 +262,6 @@ router.post('/register',
             success: false,
             error: 'Email già registrata',
             message: 'Un account con questa email esiste già. Prova ad accedere o usa un\'altra email.'
-          });
-        } else if (error.constraint === 'users_codice_fiscale_key') {
-          return res.status(400).json({
-            success: false,
-            error: 'Codice fiscale già registrato',
-            message: 'Un account con questo codice fiscale esiste già.'
           });
         }
       }
