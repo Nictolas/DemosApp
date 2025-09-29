@@ -20,7 +20,6 @@ import RegistrazioneNome from "./pages/registrazione-nome";
 import RegistrazioneGenere from "./pages/registrazione-genere";
 import RegistrazioneCittadinanza from "./pages/registrazione-cittadinanza";
 import RegistrazioneDataNascita from "./pages/registrazione-data-nascita";
-import RegistrazioneCodiceFiscale from "./pages/registrazione-codice-fiscale";
 import RegistrazioneResidenza from "./pages/registrazione-3-residenza";
 import RegistrazioneRuolo from "./pages/registrazione-ruolo";
 import VerificaEmailStandalone from "./pages/VerificaEmailStandalone";
@@ -387,11 +386,6 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              <Route path="/registrazione-codice-fiscale">
-                <PageTransition location={location} type="fade-up">
-                  <RegistrazioneCodiceFiscale />
-                </PageTransition>
-              </Route>
 
 
               <Route path="/registrazione-3-residenza">

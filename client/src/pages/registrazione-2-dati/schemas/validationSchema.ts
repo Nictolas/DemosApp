@@ -29,7 +29,8 @@ export const registrationSchema = z.object({
   codiceFiscale: z.string()
     .min(16, "Il codice fiscale deve essere di 16 caratteri")
     .max(16, "Il codice fiscale deve essere di 16 caratteri")
-    .regex(/^[A-Z0-9]{16}$/, "Formato codice fiscale non valido"),
+    .regex(/^[A-Z0-9]{16}$/, "Formato codice fiscale non valido")
+    .optional(),
   
   indirizzo: z.string()
     .min(5, "L'indirizzo deve essere di almeno 5 caratteri")

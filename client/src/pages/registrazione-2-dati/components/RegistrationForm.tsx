@@ -129,16 +129,6 @@ export const RegistrationForm: React.FC = () => {
                     error={formState.errors.dataNascita}
                     required
                   />
-                  
-                  <FormField
-                    label="Codice Fiscale"
-                    name="codiceFiscale"
-                    value={formState.data.codiceFiscale}
-                    onChange={(value) => formActions.setData({ codiceFiscale: value.toUpperCase() })}
-                    error={formState.errors.codiceFiscale}
-                    placeholder="Inserisci il tuo codice fiscale"
-                    required
-                  />
                 </div>
               </div>
 
