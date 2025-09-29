@@ -210,7 +210,7 @@ export default function AuthPage() {
           localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
           
           // Vai alla fase successiva senza registrare l'utente
-          window.location.href = "/registrazione-codice-fiscale";
+          window.location.href = "/registrazione-nome";
         } catch (error) {
           toast({
             title: "Errore di connessione",
@@ -233,7 +233,7 @@ export default function AuthPage() {
       localStorage.setItem("registrazione_consent_timestamp", new Date().toISOString());
       
       // Vai alla fase successiva senza registrare l'utente
-      window.location.href = "/registrazione-codice-fiscale";
+      window.location.href = "/registrazione-nome";
     } catch (error) {
       toast({
         title: "Errore di connessione",

@@ -98,7 +98,7 @@ export default function RegistrazioneNome() {
         <div className="text-center mt-6">
                      <Button
              variant="ghost"
-             onClick={() => navigate("/registrazione-codice-fiscale")}
+             onClick={() => navigate("/auth")}
              className="text-gray-500 hover:text-gray-700"
            >
              ← Indietro

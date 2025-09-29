@@ -11,7 +11,7 @@ const initialData: RegistrationData = {
   genere: '',
   cittadinanza: '',
   dataNascita: '',
-  codiceFiscale: '',
+  codiceFiscale: undefined,
   indirizzo: '',
   cap: '',
   comune: '',

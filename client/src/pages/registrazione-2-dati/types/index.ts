@@ -4,7 +4,7 @@ export interface RegistrationData {
   genere: string;
   cittadinanza: string;
   dataNascita: string;
-  codiceFiscale: string;
+  codiceFiscale?: string;
   indirizzo: string;
   cap: string;
   comune: string;
