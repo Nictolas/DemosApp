@@ -7,9 +7,11 @@ import { Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { useMinisteroData } from "./hooks/useMinisteroData";
 import { useMinisteroActions } from "./hooks/useMinisteroActions";
+import { useConsensoGovernoData } from "../hooks/useConsensoGovernoData";
 import { Header } from "./components/Header";
 import { TopTen } from "./components/TopTen";
 import { VotingForm } from "./components/VotingForm";
+import { ConsensoGovernoSection } from "../components/ConsensoGovernoSection";
 import { LoadingState } from "./components/LoadingState";
 import { ErrorState } from "./components/ErrorState";
 import { ministeri } from "../constants/ministeri";
@@ -33,6 +35,14 @@ export default function MinisteroPage() {
     showClassifica, 
     saveVoti 
   } = useMinisteroActions(data);
+
+  // Hook per i dati di consenso del governo
+  const { 
+    data: consensoData, 
+    isLoading: isLoadingConsenso, 
+    voteConsenso, 
+    isVoting: isVotingConsenso 
+  } = useConsensoGovernoData(user);
 
 
   const handleSaveVoti = () => {
@@ -64,12 +74,21 @@ export default function MinisteroPage() {
       <div className="container mx-auto max-w-4xl">
         <Header ministero={ministero} unlockDate={data?.blocco.unlockDate} />
         
-        {isLoading ? (
+        {isLoading || isLoadingConsenso ? (
           <LoadingState />
         ) : isError ? (
           <ErrorState />
         ) : (
           <div className="space-y-8">
+            {/* SEZIONE CONSENSO GOVERNO */}
+            {consensoData && (
+              <ConsensoGovernoSection
+                data={consensoData}
+                onVote={voteConsenso}
+                isVoting={isVotingConsenso}
+              />
+            )}
+
             {/* FORM VOTO - PRIMA SEZIONE */}
             <div style={{
               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',

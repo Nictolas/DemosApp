@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -317,6 +318,212 @@ router.post('/', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nell\'aggiunta membro governo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// ===== ENDPOINTS PER CONSENSO GOVERNO =====
+
+// GET /api/governo/consenso - Ottieni i dati di consenso del governo
+router.get('/consenso', async (req, res) => {
+  try {
+    console.log('🔍 DEBUG /api/governo/consenso GET - Richiesta ricevuta');
+    console.log('🔍 DEBUG - Headers:', req.headers);
+    
+    // Ottieni i voti di consenso dell'utente corrente se autenticato
+    let mioConsenso = null;
+    let blocco = {
+      isBlocked: false,
+      unlockDate: null
+    };
+    
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId || decoded.email;
+        
+        console.log('🔍 DEBUG - Token decodificato:', decoded);
+        console.log('🔍 DEBUG - User ID:', userId);
+
+        // Controlla se l'utente ha già votato per il consenso
+        const consensoQuery = `
+          SELECT risposta, timestamp
+          FROM consenso_governo 
+          WHERE userid = $1
+          ORDER BY timestamp DESC
+          LIMIT 1
+        `;
+        
+        const consensoResult = await pool.query(consensoQuery, [userId]);
+        
+        if (consensoResult.rows.length > 0) {
+          mioConsenso = {
+            risposta: consensoResult.rows[0].risposta,
+            timestamp: consensoResult.rows[0].timestamp
+          };
+        }
+
+        // Controlla se l'utente è bloccato (stessa logica dei voti normali)
+        const bloccoQuery = `
+          SELECT timestamp
+          FROM consenso_governo 
+          WHERE userid = $1
+          ORDER BY timestamp DESC
+          LIMIT 1
+        `;
+        
+        const bloccoResult = await pool.query(bloccoQuery, [userId]);
+        
+        if (bloccoResult.rows.length > 0) {
+          const lastVote = new Date(bloccoResult.rows[0].timestamp);
+          const now = new Date();
+          const diffInDays = Math.floor((now - lastVote) / (1000 * 60 * 60 * 24));
+          
+          if (diffInDays < 7) {
+            const unlockDate = new Date(lastVote);
+            unlockDate.setDate(unlockDate.getDate() + 7);
+            blocco = {
+              isBlocked: true,
+              unlockDate: unlockDate.toISOString()
+            };
+          }
+        }
+      } catch (error) {
+        console.log('🔍 DEBUG - Token non valido per consenso governo:', error.message);
+      }
+    }
+
+    // Ottieni le statistiche aggregate dei voti di consenso
+    const statsQuery = `
+      SELECT 
+        risposta,
+        COUNT(*) as conteggio
+      FROM consenso_governo
+      GROUP BY risposta
+      ORDER BY risposta
+    `;
+    
+    const statsResult = await pool.query(statsQuery);
+    
+    const statistiche = {
+      'Sì': 0,
+      'Non so': 0,
+      'No': 0,
+      totale: 0
+    };
+    
+    statsResult.rows.forEach(row => {
+      statistiche[row.risposta] = parseInt(row.conteggio);
+      statistiche.totale += parseInt(row.conteggio);
+    });
+
+    res.json({
+      success: true,
+      data: {
+        mioConsenso,
+        statistiche,
+        blocco
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero dati consenso governo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/governo/consenso - Salva il voto di consenso del governo
+router.post('/consenso', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 DEBUG /api/governo/consenso POST - Richiesta ricevuta');
+    console.log('🔍 DEBUG - Headers:', req.headers);
+    console.log('🔍 DEBUG - Body:', req.body);
+    console.log('🔍 DEBUG - User:', req.user);
+    
+    const { risposta } = req.body;
+    const userId = req.user.id;
+    
+    console.log('🔍 DEBUG - Risposta ricevuta:', risposta);
+    console.log('🔍 DEBUG - User ID:', userId);
+
+    if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Risposta non valida. Deve essere "Sì", "Non so" o "No"'
+      });
+    }
+
+    // Controlla se l'utente è bloccato
+    const bloccoQuery = `
+      SELECT timestamp
+      FROM consenso_governo 
+      WHERE userid = $1
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `;
+    
+    const bloccoResult = await pool.query(bloccoQuery, [userId]);
+    
+    if (bloccoResult.rows.length > 0) {
+      const lastVote = new Date(bloccoResult.rows[0].timestamp);
+      const now = new Date();
+      const diffInDays = Math.floor((now - lastVote) / (1000 * 60 * 60 * 24));
+      
+      if (diffInDays < 7) {
+        const unlockDate = new Date(lastVote);
+        unlockDate.setDate(unlockDate.getDate() + 7);
+        return res.status(400).json({
+          success: false,
+          error: 'Hai già votato per il consenso questa settimana',
+          unlockDate: unlockDate.toISOString()
+        });
+      }
+    }
+
+    // Inizia transazione
+    await pool.query('BEGIN');
+    
+    try {
+      // Elimina il voto precedente se esiste
+      await pool.query(
+        'DELETE FROM consenso_governo WHERE userid = $1',
+        [userId]
+      );
+      
+      // Inserisce il nuovo voto
+      const votoId = `consenso_gov_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      await pool.query(
+        `INSERT INTO consenso_governo (
+          id, userid, risposta, timestamp, created_at, updated_at
+        ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
+        [votoId, userId, risposta]
+      );
+      
+      // Conferma la transazione
+      await pool.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Voto di consenso del governo salvato con successo',
+        data: {
+          risposta,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      // Rollback in caso di errore
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('❌ Errore nel salvataggio consenso governo:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
