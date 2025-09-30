@@ -100,15 +100,20 @@ export default function Eventi() {
 
     try {
       console.log('🗑️ Tentativo eliminazione evento:', eventId);
-      const response = await apiRequest.delete(`/eventi/${eventId}`);
+      const response = await apiRequest("DELETE", `/api/eventi/${eventId}`);
       console.log('✅ Risposta eliminazione:', response);
       
-      if (response.success) {
-        // Refresh the eventi list
-        refetch();
-        alert('Evento eliminato con successo!');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Refresh the eventi list
+          refetch();
+          alert('Evento eliminato con successo!');
+        } else {
+          throw new Error(result.error || 'Errore nell\'eliminazione dell\'evento');
+        }
       } else {
-        throw new Error(response.error || 'Errore nell\'eliminazione dell\'evento');
+        throw new Error('Errore nella richiesta di eliminazione');
       }
     } catch (error) {
       console.error('❌ Errore eliminazione:', error);

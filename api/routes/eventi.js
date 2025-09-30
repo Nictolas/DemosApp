@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { verifyToken } = require('../middleware/auth');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -254,7 +255,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/eventi/:id - Elimina evento
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     console.log('🗑️ DELETE /api/eventi - Eliminazione evento:', id);
