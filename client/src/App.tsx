@@ -41,6 +41,7 @@ import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
 import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
+import Preferiti from "./pages/Preferiti";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
@@ -472,6 +473,13 @@ export default function App() {
               <Route path="/rappresentanti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/rappresentanti" component={Rappresentanti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route preferiti */}
+              <Route path="/preferiti">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/preferiti" component={Preferiti} />
                 </PageTransition>
               </Route>
 
