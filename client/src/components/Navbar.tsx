@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Users, Settings, Bell, Megaphone } from "lucide-react";
+import { Home, MessageSquare, Users, Settings, Bell, Megaphone, Heart } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useNotificationBadge } from "@/hooks/useNotificationBadge";
@@ -43,6 +43,10 @@ export default function Navbar() {
         <Link href="/rappresentanti" className={getLinkClasses("/rappresentanti")} style={{marginTop: 0}}>
           <Users className={`h-7 w-7 mb-1 ${isActive("/rappresentanti") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/rappresentanti") ? "text-blue-600 font-semibold" : ""}`}>Rappresentanti</span>
+        </Link>
+        <Link href="/preferiti" className={getLinkClasses("/preferiti")} style={{marginTop: 0}}>
+          <Heart className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
+          <span className={`text-xs hidden md:block ${isActive("/preferiti") ? "text-blue-600 font-semibold" : ""}`}>Preferiti</span>
         </Link>
         <Link href="/notifiche" className={getLinkClasses("/notifiche")} style={{marginTop: 0}}>
           <div className="relative">
