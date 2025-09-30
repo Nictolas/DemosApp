@@ -5,8 +5,10 @@ import { Redirect } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useCapoStatoData } from "./hooks/useCapoStatoData";
 import { useCapoStatoVoting } from "./hooks/useCapoStatoVoting";
+import { useConsensoData } from "./hooks/useConsensoData";
 import { Header } from "./components/Header";
 import { BlockedWarning } from "./components/BlockedWarning";
+import { ConsensoSection } from "./components/ConsensoSection";
 import { VotingForm } from "./components/VotingForm";
 import { CandidatesRanking } from "./components/CandidatesRanking";
 import { SaveButton } from "./components/SaveButton";
@@ -18,6 +20,14 @@ export default function CapodiStato() {
 
   // Hook per i dati
   const { data, isLoading: isLoadingData } = useCapoStatoData(user);
+
+  // Hook per i dati di consenso
+  const { 
+    data: consensoData, 
+    isLoading: isLoadingConsenso, 
+    voteConsenso, 
+    isVoting: isVotingConsenso 
+  } = useConsensoData(user);
 
   // Hook per la logica di voto
   const {
@@ -54,12 +64,21 @@ export default function CapodiStato() {
           <BlockedWarning unlockDate={data.blocco.unlockDate} />
         )}
 
-        {isLoadingData ? (
+        {isLoadingData || isLoadingConsenso ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Sezione Consenso */}
+            {consensoData && (
+              <ConsensoSection
+                data={consensoData}
+                onVote={voteConsenso}
+                isVoting={isVotingConsenso}
+              />
+            )}
+
             {/* Form di voto */}
             <VotingForm
               selectedVoti={selectedVoti}
