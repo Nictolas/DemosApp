@@ -125,7 +125,7 @@ export default function Preferiti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect se non autenticato
+  // Gestione stati di loading e autenticazione
   if (isAuthLoading) {
     return (
       <PageContainer>
@@ -136,6 +136,12 @@ export default function Preferiti() {
     );
   }
 
+  // Se non c'è utente e non stiamo caricando, reindirizza al login
+  if (!user && !isAuthLoading) {
+    return <Redirect to="/auth" />;
+  }
+
+  // Se non c'è utente (caso di fallback), reindirizza al login
   if (!user) {
     return <Redirect to="/auth" />;
   }
