@@ -1,7 +1,7 @@
 -- Schema PostgreSQL per DemosApp
 
 -- Tabella utenti (equivalente alla collection 'utenti' di Firebase)
-CREATE TABLE IF NOT EXISTS utenti (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     nome VARCHAR(255) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS utenti (
 -- Tabella comunicazioni (equivalente alla collection 'comunicazioni')
 CREATE TABLE IF NOT EXISTS comunicazioni (
     id UUID PRIMARY KEY,
-    id_utente UUID REFERENCES utenti(id),
+    id_utente UUID REFERENCES users(id),
     titolo TEXT,
     testo TEXT NOT NULL,
     zona TEXT,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS comunicazioni (
     likes INTEGER DEFAULT 0,
     dislikes INTEGER DEFAULT 0,
     punti_trasparenza INTEGER DEFAULT 0,
-    FOREIGN KEY (id_utente) REFERENCES utenti(id)
+    FOREIGN KEY (id_utente) REFERENCES users(id)
 );
 
 -- Tabella opinioni (equivalente alla collection 'opinioni')
@@ -55,14 +55,14 @@ CREATE TABLE IF NOT EXISTS opinioni_proposte (
 CREATE TABLE IF NOT EXISTS voti_capo_stato (
     id UUID PRIMARY KEY,
     nome TEXT NOT NULL,
-    userId UUID REFERENCES utenti(id),
+    userId UUID REFERENCES users(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tabella voti referendum abrogativi (equivalente alla collection 'voti_referendum_abrogativi')
 CREATE TABLE IF NOT EXISTS voti_referendum_abrogativi (
     id UUID PRIMARY KEY,
-    userId UUID REFERENCES utenti(id),
+    userId UUID REFERENCES users(id),
     referendumId UUID REFERENCES opinioni(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS voti_referendum_abrogativi (
 -- Tabella richieste premium (equivalente alla collection 'premium_requests')
 CREATE TABLE IF NOT EXISTS premium_requests (
     id UUID PRIMARY KEY,
-    userId UUID REFERENCES utenti(id),
+    userId UUID REFERENCES users(id),
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     approved_at TIMESTAMP WITH TIME ZONE,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS admin_notifications (
 );
 
 -- Indici per migliorare le prestazioni
-CREATE INDEX idx_utenti_email ON utenti(email);
+CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_comunicazioni_id_utente ON comunicazioni(id_utente);
 CREATE INDEX idx_opinioni_proposte_votanti ON opinioni_proposte(votanti);
 CREATE INDEX idx_voti_capo_stato_userId ON voti_capo_stato(userId);

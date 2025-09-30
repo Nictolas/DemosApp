@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
 
     // 2. Trova tutti gli utenti admin
     const adminQuery = await pool.query(
-      'SELECT id, email, nome, cognome FROM utenti WHERE is_admin = true'
+      'SELECT id, email, nome, cognome FROM users WHERE is_admin = true'
     );
 
     if (adminQuery.rows.length === 0) {
@@ -165,7 +165,7 @@ router.delete('/:id', async (req, res) => {
 
     // Verifica che l'utente sia admin
     const userResult = await pool.query(
-      'SELECT is_admin FROM utenti WHERE id = $1',
+      'SELECT is_admin FROM users WHERE id = $1',
       [user_id]
     );
 

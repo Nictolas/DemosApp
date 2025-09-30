@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
 
     // Verifica se l'utente è admin
     const userResult = await pool.query(
-      'SELECT is_admin FROM utenti WHERE id = $1',
+      'SELECT is_admin FROM users WHERE id = $1',
       [user_id]
     );
     

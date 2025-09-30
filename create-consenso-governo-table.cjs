@@ -14,7 +14,7 @@ async function createConsensoGovernoTable() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS consenso_governo (
         id VARCHAR(255) PRIMARY KEY,
-        userid VARCHAR(255) NOT NULL REFERENCES utenti(id) ON DELETE CASCADE,
+        userid VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         risposta VARCHAR(10) NOT NULL CHECK (risposta IN ('Sì', 'Non so', 'No')),
         timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

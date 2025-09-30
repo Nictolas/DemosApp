@@ -24,19 +24,19 @@ export const db = {
 export const users = {
   // Ottieni tutti gli utenti
   getAll: async () => {
-    const result = await db.query('SELECT * FROM utenti ORDER BY created_at DESC');
+    const result = await db.query('SELECT * FROM users ORDER BY created_at DESC');
     return result.rows;
   },
   
   // Ottieni utente per ID
   getById: async (id: string) => {
-    const result = await db.query('SELECT * FROM utenti WHERE id = $1', [id]);
+    const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
     return result.rows[0];
   },
   
   // Ottieni utente per email
   getByEmail: async (email: string) => {
-    const result = await db.query('SELECT * FROM utenti WHERE email = $1', [email]);
+    const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     return result.rows[0];
   },
   
@@ -44,7 +44,7 @@ export const users = {
   create: async (userData: any) => {
     const { id, email, nome, cognome, ...otherData } = userData;
     const result = await db.query(
-      `INSERT INTO utenti (id, email, nome, cognome, created_at, updated_at, ${Object.keys(otherData).join(', ')})
+      `INSERT INTO users (id, email, nome, cognome, created_at, updated_at, ${Object.keys(otherData).join(', ')})
        VALUES ($1, $2, $3, $4, NOW(), NOW(), ${Object.keys(otherData).map((_, i) => `$${i + 5}`).join(', ')})
        RETURNING *`,
       [id, email, nome, cognome, ...Object.values(otherData)]
@@ -56,7 +56,7 @@ export const users = {
   update: async (id: string, updates: any) => {
     const setClause = Object.keys(updates).map((key, i) => `${key} = $${i + 2}`).join(', ');
     const result = await db.query(
-      `UPDATE utenti SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING *`,
       [id, ...Object.values(updates)]
     );
     return result.rows[0];
