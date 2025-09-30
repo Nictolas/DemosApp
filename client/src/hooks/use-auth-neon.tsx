@@ -82,37 +82,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('🔍 DEBUG useAuth - Token disponibile, chiamando API');
       console.log('🔍 DEBUG useAuth - Token value:', token.substring(0, 20) + '...');
       
-      const response = await fetch(getApiUrl(API_CONFIG.AUTH.ME), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      // Aggiungi timeout alla richiesta
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondi timeout
+      
+      try {
+        const response = await fetch(getApiUrl(API_CONFIG.AUTH.ME), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        console.log('🔍 DEBUG useAuth - Response status:', response.status);
+        console.log('🔍 DEBUG useAuth - Response headers:', Object.fromEntries(response.headers.entries()));
+
+        if (response.status === 401) {
+          console.log('🔍 DEBUG useAuth - Token non valido, rimuovendo');
+          // Token non valido, rimuovilo e forza logout
+          localStorage.removeItem('auth_token');
+          setToken(null);
+          // Non fare reload della pagina, lascia che il componente gestisca il redirect
+          return null;
         }
-      });
 
-      console.log('🔍 DEBUG useAuth - Response status:', response.status);
-      console.log('🔍 DEBUG useAuth - Response headers:', Object.fromEntries(response.headers.entries()));
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error('Errore nel caricamento utente');
+        }
 
-      if (response.status === 401) {
-        console.log('🔍 DEBUG useAuth - Token non valido, rimuovendo');
-        // Token non valido, rimuovilo e forza logout
-        localStorage.removeItem('auth_token');
-        setToken(null);
-        // Forza refresh della pagina per pulire completamente lo stato
-        window.location.reload();
-        return null;
+        const result = await response.json();
+        return result.success ? result.user : null;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('🔍 DEBUG useAuth - Timeout della richiesta');
+          throw new Error('Timeout della richiesta di autenticazione');
+        }
+        throw error;
       }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error('Errore nel caricamento utente');
-      }
-
-      const result = await response.json();
-      return result.success ? result.user : null;
     },
     enabled: !!token,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minuti - evita refetch continui
+    refetchOnWindowFocus: false, // Evita refetch quando si torna alla finestra
+    refetchOnMount: false, // Evita refetch al mount se i dati sono ancora validi
   });
 
   // Mutation per il login
