@@ -244,7 +244,6 @@ app.use('/api/reazioni-comunicazioni', reazioniComunicazioniRoutes);
 app.use('/api/sostenitori', sostenitoriRoutes);
 app.use('/api/sostenitori', sostenitoriTotaleRoutes);
 app.use('/api/rappresentanti', rappresentantiSostenitoriRoutes);
-app.use('/api/candidati', candidatiSostenitoriRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
 app.use('/api/segnalazioni', segnalazioniRoutes);
 app.use('/api/programma', userLimiter, programmaRoutes);

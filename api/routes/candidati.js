@@ -4,6 +4,176 @@ const { pool } = require('../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/candidati - Ottieni selezioni candidati dell'utente corrente
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    console.log('🔍 DEBUG /api/candidati - Richiesta ricevuta per userId:', userId);
+    
+    // Ottieni i dati dell'utente con le selezioni candidati
+    const userQuery = `
+      SELECT 
+        id,
+        nome,
+        cognome,
+        email,
+        ruolo,
+        status,
+        avatar_config,
+        candidato_europeo,
+        candidato_camera,
+        candidato_senato,
+        candidato_regionale,
+        candidato_comune
+      FROM users
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    const user = userResult.rows[0];
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    console.log('🔍 DEBUG - Utente trovato:', user.nome, user.cognome);
+    
+    // Inizializza le strutture dati
+    const candidatiSelezionati = {};
+    const idMap = {};
+    
+    // Campi candidati da controllare
+    const campiCandidati = [
+      { campo: 'candidato_europeo', categoria: 'europeo' },
+      { campo: 'candidato_camera', categoria: 'camera' },
+      { campo: 'candidato_senato', categoria: 'senato' },
+      { campo: 'candidato_regionale', categoria: 'regionale' },
+      { campo: 'candidato_comune', categoria: 'comune' }
+    ];
+    
+    for (const { campo, categoria } of campiCandidati) {
+      const candidatoId = user[campo];
+      
+      if (candidatoId) {
+        // Cerca il candidato selezionato
+        const candidatoQuery = `
+          SELECT 
+            id,
+            nome,
+            cognome,
+            email,
+            ruolo,
+            status,
+            avatar_config,
+            grado_candidatura
+          FROM users
+          WHERE id::text = $1
+          AND ruolo IN ('Candidato', 'Candidato Politico')
+        `;
+        
+        console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
+        const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
+        console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
+        const candidato = candidatoResult.rows[0];
+        
+        if (candidato) {
+          candidatiSelezionati[categoria] = [candidato];
+          idMap[categoria] = candidatoId;
+          console.log(`🔍 DEBUG - Candidato selezionato per ${categoria}:`, candidato.nome, candidato.cognome);
+        } else {
+          console.log(`❌ DEBUG - Nessun candidato trovato per ID: ${candidatoId} e categoria: ${categoria}`);
+        }
+      }
+    }
+    
+    console.log('🔍 DEBUG - Candidati selezionati finali:', candidatiSelezionati);
+    console.log('🔍 DEBUG - ID Map finale:', idMap);
+    
+    res.json({
+      success: true,
+      data: {
+        candidati: candidatiSelezionati,
+        idMap: idMap
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare selezioni candidati utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare selezioni candidati utente'
+    });
+  }
+});
+
+// GET /api/candidati/sostenitori - Ottieni sostenitori candidati di un utente
+router.get('/sostenitori', async (req, res) => {
+  try {
+    const { sostenuto_id } = req.query;
+    
+    if (!sostenuto_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID sostenuto richiesto'
+      });
+    }
+
+    // Trova tutti gli utenti che hanno scelto questo utente come candidato
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.nome,
+        u.cognome,
+        u.email,
+        u.ruolo,
+        u.data_nascita,
+        u.genere,
+        u.regione_residenza,
+        u.provincia_residenza,
+        u.comune_residenza,
+        u.created_at,
+        CASE 
+          WHEN u.candidato_europeo = $1 THEN 'Candidato Europeo'
+          WHEN u.candidato_camera = $1 THEN 'Candidato Camera'
+          WHEN u.candidato_senato = $1 THEN 'Candidato Senato'
+          WHEN u.candidato_regionale = $1 THEN 'Candidato Regionale'
+          WHEN u.candidato_comune = $1 THEN 'Candidato Comunale'
+        END as supporter_role
+      FROM users u
+      WHERE (
+        u.candidato_europeo = $1 OR
+        u.candidato_camera = $1 OR
+        u.candidato_senato = $1 OR
+        u.candidato_regionale = $1 OR
+        u.candidato_comune = $1
+      )
+      AND u.status = 'attivo'
+      ORDER BY u.created_at DESC
+    `, [sostenuto_id]);
+
+    const sostenitori = result.rows;
+
+    res.json({
+      success: true,
+      data: {
+        sostenitori: sostenitori,
+        count: sostenitori.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel recuperare sostenitori candidati:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare sostenitori candidati'
+    });
+  }
+});
+
 // GET /api/candidati/disponibili - Ottieni candidati disponibili per grado_candidatura
 router.get('/disponibili', verifyToken, async (req, res) => {
   try {
