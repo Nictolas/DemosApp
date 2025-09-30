@@ -1,7 +1,7 @@
 -- Schema PostgreSQL completo per DemosApp (compatibile con Firebase)
 
 -- Tabella utenti (equivalente alla collection 'utenti' di Firebase)
-CREATE TABLE IF NOT EXISTS utenti (
+CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(255) PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     nome VARCHAR(255) NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS utenti (
 -- Tabella comunicazioni (equivalente alla collection 'comunicazioni')
 CREATE TABLE IF NOT EXISTS comunicazioni (
     id VARCHAR(255) PRIMARY KEY,
-    id_utente VARCHAR(255) REFERENCES utenti(id),
+    id_utente VARCHAR(255) REFERENCES users(id),
     titolo TEXT NOT NULL,
     testo TEXT,
     zona TEXT,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS comunicazioni (
     likes INTEGER DEFAULT 0,
     dislikes INTEGER DEFAULT 0,
     punti_trasparenza INTEGER DEFAULT 0,
-    FOREIGN KEY (id_utente) REFERENCES utenti(id)
+    FOREIGN KEY (id_utente) REFERENCES users(id)
 );
 
 -- Tabella opinioni (equivalente alla collection 'opinioni')
@@ -84,14 +84,14 @@ CREATE TABLE IF NOT EXISTS opinioni_proposte (
 CREATE TABLE IF NOT EXISTS voti_capo_stato (
     id VARCHAR(255) PRIMARY KEY,
     nome TEXT NOT NULL,
-    userId VARCHAR(255) REFERENCES utenti(id),
+    userId VARCHAR(255) REFERENCES users(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tabella voti referendum abrogativi (equivalente alla collection 'voti_referendum_abrogativi')
 CREATE TABLE IF NOT EXISTS voti_referendum_abrogativi (
     id VARCHAR(255) PRIMARY KEY,
-    userId VARCHAR(255) REFERENCES utenti(id),
+    userId VARCHAR(255) REFERENCES users(id),
     referendumId VARCHAR(255) REFERENCES opinioni(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS voti_referendum_abrogativi (
 -- Tabella richieste premium (equivalente alla collection 'premium_requests')
 CREATE TABLE IF NOT EXISTS premium_requests (
     id VARCHAR(255) PRIMARY KEY,
-    userId VARCHAR(255) REFERENCES utenti(id),
+    userId VARCHAR(255) REFERENCES users(id),
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     approved_at TIMESTAMP WITH TIME ZONE,
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS elezioni (
 -- Tabella iniziative popolari (equivalente alla collection 'iniziative_popolari')
 CREATE TABLE IF NOT EXISTS iniziative_popolari (
     id VARCHAR(255) PRIMARY KEY,
-    userId VARCHAR(255) REFERENCES utenti(id),
+    userId VARCHAR(255) REFERENCES users(id),
     nome TEXT NOT NULL,
     dataInizio DATE,
     dataFine DATE,
@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS iniziative_popolari (
 CREATE TABLE IF NOT EXISTS voti_iniziative_popolari (
     id VARCHAR(255) PRIMARY KEY,
     iniziativaId VARCHAR(255) REFERENCES iniziative_popolari(id),
-    userId VARCHAR(255) REFERENCES utenti(id),
+    userId VARCHAR(255) REFERENCES users(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -176,12 +176,12 @@ CREATE TABLE IF NOT EXISTS ice (
 CREATE TABLE IF NOT EXISTS voti_ice (
     id VARCHAR(255) PRIMARY KEY,
     iceId VARCHAR(255) REFERENCES ice(id),
-    userId VARCHAR(255) REFERENCES utenti(id),
+    userId VARCHAR(255) REFERENCES users(id),
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indici per migliorare le prestazioni
-CREATE INDEX IF NOT EXISTS idx_utenti_email ON utenti(email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_comunicazioni_id_utente ON comunicazioni(id_utente);
 CREATE INDEX IF NOT EXISTS idx_opinioni_proposte_votanti ON opinioni_proposte(votanti);
 CREATE INDEX IF NOT EXISTS idx_voti_capo_stato_userId ON voti_capo_stato(userId);

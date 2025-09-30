@@ -123,7 +123,7 @@ router.post('/', async (req, res) => {
 
         // Cerca l'utente Politico/Candidato Politico per nome
         const utenteResult = await pool.query(
-          `SELECT id, nome, cognome, ruolo FROM utenti 
+          `SELECT id, nome, cognome, ruolo FROM users 
            WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
            AND ruolo IN ('Politico', 'Candidato Politico')
            LIMIT 1`,
@@ -376,7 +376,7 @@ async function notifyAllUsers(titolo, commento) {
   try {
     // Recupera tutti gli utenti attivi
     const utentiResult = await pool.query(
-      'SELECT id FROM utenti WHERE status = $1 OR status IS NULL',
+      'SELECT id FROM users WHERE status = $1 OR status IS NULL',
       ['active']
     );
 
