@@ -7,8 +7,8 @@ export const menuItems = [
     icon: User,
     label: "Profilo",
     color: {
-      bg: "#fef3c7",
-      icon: "#d97706"
+      bg: "#f3e8ff",
+      icon: "#9333ea"
     }
   },
   {
@@ -27,8 +27,8 @@ export const menuItems = [
     icon: FileText,
     label: "Proponi",
     color: {
-      bg: "#f0f9ff",
-      icon: "#0284c7"
+      bg: "#fef3c7",
+      icon: "#d97706"
     }
   },
   {
