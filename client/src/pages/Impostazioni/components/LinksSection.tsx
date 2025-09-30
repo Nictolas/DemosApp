@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Shield, Database, Download, Trash2, Settings, User, Lock, LogOut, AlertTriangle, Copyright } from "lucide-react";
+import { FileText, Shield, Database, Download, Trash2, Settings, Lock, LogOut, AlertTriangle, Copyright } from "lucide-react";
 import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
@@ -66,21 +66,6 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
             </Button>
           </Link>
 
-          {/* Modifica Profilo */}
-          <Link href="/menu/profilo">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start h-20 rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 hover:border-green-300 hover:shadow-lg transition-all duration-300 group"
-            >
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
-                <User className="h-5 w-5 text-white" />
-              </div>
-              <div className="text-left">
-                <div className="font-semibold text-gray-900">Profilo</div>
-                <div className="text-xs text-gray-600">Modifica informazioni</div>
-              </div>
-            </Button>
-          </Link>
 
           {/* Cambia Password */}
           <Button 

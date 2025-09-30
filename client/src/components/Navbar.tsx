@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Settings, Bell, Megaphone, Heart } from "lucide-react";
+import { Home, Settings, Bell, Megaphone, Heart, Calendar } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useNotificationBadge } from "@/hooks/useNotificationBadge";
@@ -36,9 +36,9 @@ export default function Navbar() {
           <Home className={`h-7 w-7 mb-1 ${isActive("/menu") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/menu") ? "text-blue-600 font-semibold" : ""}`}>Menu</span>
         </Link>
-        <Link href="/opinioni" className={getLinkClasses("/opinioni")} style={{marginTop: 0}}>
-          <MessageSquare className={`h-7 w-7 mb-1 ${isActive("/opinioni") ? "drop-shadow-lg text-blue-600" : ""}`} />
-          <span className={`text-xs hidden md:block ${isActive("/opinioni") ? "text-blue-600 font-semibold" : ""}`}>Opinioni</span>
+        <Link href="/eventi" className={getLinkClasses("/eventi")} style={{marginTop: 0}}>
+          <Calendar className={`h-7 w-7 mb-1 ${isActive("/eventi") ? "drop-shadow-lg text-blue-600" : ""}`} />
+          <span className={`text-xs hidden md:block ${isActive("/eventi") ? "text-blue-600 font-semibold" : ""}`}>Eventi</span>
         </Link>
         <Link href="/preferiti" className={getLinkClasses("/preferiti")} style={{marginTop: 0}}>
           <Heart className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
