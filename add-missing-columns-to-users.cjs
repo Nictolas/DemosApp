@@ -1,128 +1,96 @@
-require('dotenv').config();
 const { Pool } = require('pg');
+require('dotenv').config();
 
-// Configurazione Neon Database
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_oifPG6Kvz0UT@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require'
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-async function addMissingColumnsToUsers() {
+async function addMissingColumns() {
   try {
-    console.log('🔧 AGGIUNTA COLONNE MANCANTI ALLA TABELLA USERS');
+    console.log('🔍 Aggiunta colonne mancanti alla tabella users...');
     
-    // 1. VERIFICA STRUTTURA ATTUALE
-    console.log('🔄 Verifica struttura attuale tabella users...');
-    
-    const currentColumns = await pool.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      ORDER BY ordinal_position
-    `);
-    
-    console.log('✅ Colonne attuali in users:', currentColumns.rows.length);
-    currentColumns.rows.forEach(col => {
-      console.log(`   📋 ${col.column_name}: ${col.data_type}`);
-    });
-    
-    // 2. DEFINISCI LE COLONNE MANCANTI
-    const missingColumns = [
-      { name: 'data_nascita', type: 'DATE' },
-      { name: 'genere', type: 'VARCHAR(50)' },
-      { name: 'cittadinanza', type: 'VARCHAR(100)' },
-      { name: 'paese_residenza', type: 'VARCHAR(100)' },
-      { name: 'regione_residenza', type: 'VARCHAR(100)' },
-      { name: 'provincia_residenza', type: 'VARCHAR(100)' },
-      { name: 'comune_residenza', type: 'VARCHAR(100)' },
-      { name: 'paese_elezione', type: 'VARCHAR(100)' },
-      { name: 'regione_elezione', type: 'VARCHAR(100)' },
-      { name: 'provincia_elezione', type: 'VARCHAR(100)' },
-      { name: 'comune_elezione', type: 'VARCHAR(100)' },
-      { name: 'grado_elezione', type: 'VARCHAR(100)' },
-      { name: 'paese_candidatura', type: 'VARCHAR(100)' },
-      { name: 'regione_candidatura', type: 'VARCHAR(100)' },
-      { name: 'provincia_candidatura', type: 'VARCHAR(100)' },
-      { name: 'comune_candidatura', type: 'VARCHAR(100)' },
-      { name: 'grado_candidatura', type: 'VARCHAR(100)' },
-      { name: 'energia_nucleare', type: 'TEXT' },
-      { name: 'sperimentazione_animale', type: 'TEXT' },
-      { name: 'legalizzazione_canapa', type: 'TEXT' },
-      { name: 'caccia', type: 'TEXT' },
-      { name: 'cittadina_animale', type: 'TEXT' },
-      { name: 'nato', type: 'TEXT' },
-      { name: 'matrimonio_gay', type: 'TEXT' },
-      { name: 'salario_minimo', type: 'TEXT' },
-      { name: 'carne_coltivata', type: 'TEXT' },
-      { name: 'case_chiuse', type: 'TEXT' },
-      { name: 'eutanasia', type: 'TEXT' },
-      { name: 'omobitransfobia', type: 'TEXT' },
-      { name: 'avatar_config', type: 'TEXT' },
-      { name: 'test_europeo', type: 'VARCHAR(255)' },
-      { name: 'test_camera', type: 'VARCHAR(255)' },
-      { name: 'test_senato', type: 'VARCHAR(255)' },
-      { name: 'test_regionale', type: 'VARCHAR(255)' },
-      { name: 'test_comune', type: 'VARCHAR(255)' }
-    ];
-    
-    // 3. AGGIUNGI LE COLONNE MANCANTI
-    console.log('🔄 Aggiunta colonne mancanti...');
-    
-    for (const column of missingColumns) {
-      try {
-        // Verifica se la colonna esiste già
-        const columnExists = currentColumns.rows.find(c => c.column_name === column.name);
-        
-        if (!columnExists) {
-          console.log(`   ➕ Aggiungo colonna: ${column.name} (${column.type})`);
-          
-          await pool.query(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`);
-          console.log(`   ✅ Colonna ${column.name} aggiunta`);
-        } else {
-          console.log(`   ℹ️ Colonna ${column.name} già esistente`);
-        }
-      } catch (error) {
-        console.error(`   ❌ Errore aggiunta colonna ${column.name}:`, error.message);
-      }
+    // Aggiungi is_admin se non esiste
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE
+      `);
+      console.log('✅ Colonna is_admin aggiunta');
+    } catch (error) {
+      console.log('⚠️ Errore aggiunta is_admin:', error.message);
     }
     
-    // 4. VERIFICA FINALE
-    console.log('\n📊 VERIFICA FINALE:');
-    
-    const finalColumns = await pool.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'users' 
-      ORDER BY ordinal_position
-    `);
-    
-    console.log('✅ Colonne finali in users:', finalColumns.rows.length);
-    finalColumns.rows.forEach(col => {
-      console.log(`   📋 ${col.column_name}: ${col.data_type}`);
-    });
-    
-    // 5. VERIFICA DATI ESISTENTI
-    const usersCount = await pool.query('SELECT COUNT(*) as total FROM users');
-    console.log(`📊 Totale utenti in users: ${usersCount.rows[0].total}`);
-    
-    if (parseInt(usersCount.rows[0].total) > 0) {
-      const sampleUser = await pool.query('SELECT * FROM users LIMIT 1');
-      console.log('\n📊 ESEMPIO UTENTE:');
-      console.log('   ID:', sampleUser.rows[0].id);
-      console.log('   Email:', sampleUser.rows[0].email);
-      console.log('   Nome:', sampleUser.rows[0].nome);
-      console.log('   Cognome:', sampleUser.rows[0].cognome);
-      console.log('   Ruolo:', sampleUser.rows[0].ruolo);
-      console.log('   Status:', sampleUser.rows[0].status);
+    // Aggiungi is_premium se non esiste (per compatibilità)
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE
+      `);
+      console.log('✅ Colonna is_premium aggiunta');
+    } catch (error) {
+      console.log('⚠️ Errore aggiunta is_premium:', error.message);
     }
     
-    console.log('\n✅ COLONNE AGGIUNTE CON SUCCESSO');
+    // Sincronizza is_premium con premium
+    try {
+      await pool.query(`
+        UPDATE users 
+        SET is_premium = COALESCE(premium, FALSE)
+        WHERE is_premium IS NULL
+      `);
+      console.log('✅ Sincronizzazione is_premium con premium completata');
+    } catch (error) {
+      console.log('⚠️ Errore sincronizzazione is_premium:', error.message);
+    }
     
-    await pool.end();
+    // Imposta is_admin = true per utenti con ruolo admin
+    try {
+      await pool.query(`
+        UPDATE users 
+        SET is_admin = TRUE
+        WHERE ruolo = 'admin' OR ruolo = 'Admin'
+      `);
+      console.log('✅ is_admin impostato per utenti admin');
+    } catch (error) {
+      console.log('⚠️ Errore impostazione is_admin:', error.message);
+    }
+    
+    // Verifica finale
+    const finalStructure = await pool.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns 
+      WHERE table_name = 'users' 
+        AND column_name IN ('is_admin', 'is_premium', 'premium', 'ruolo')
+        AND table_schema = 'public'
+      ORDER BY column_name
+    `);
+    
+    console.log('\n📋 Colonne verificate:');
+    finalStructure.rows.forEach(row => {
+      console.log(`  - ${row.column_name}: ${row.data_type} (${row.is_nullable === 'YES' ? 'nullable' : 'not null'})`);
+    });
+    
+    // Conta admin
+    const adminCount = await pool.query(`
+      SELECT COUNT(*) as count FROM users WHERE is_admin = TRUE
+    `);
+    console.log(`\n👑 Utenti admin: ${adminCount.rows[0].count}`);
     
   } catch (error) {
-    console.error('❌ Errore durante aggiunta colonne:', error);
+    console.error('❌ Errore durante l\'aggiunta colonne:', error);
+    throw error;
+  } finally {
     await pool.end();
   }
 }
 
-addMissingColumnsToUsers();
+addMissingColumns()
+  .then(() => {
+    console.log('🎉 Aggiunta colonne completata');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('💥 Errore durante l\'aggiunta:', error);
+    process.exit(1);
+  });
