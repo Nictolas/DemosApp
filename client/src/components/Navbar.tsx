@@ -1,4 +1,4 @@
-import { Home, MessageSquare, Users, Settings, Bell, Megaphone, Heart } from "lucide-react";
+import { Home, MessageSquare, Settings, Bell, Megaphone, Heart } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useNotificationBadge } from "@/hooks/useNotificationBadge";
@@ -39,10 +39,6 @@ export default function Navbar() {
         <Link href="/opinioni" className={getLinkClasses("/opinioni")} style={{marginTop: 0}}>
           <MessageSquare className={`h-7 w-7 mb-1 ${isActive("/opinioni") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/opinioni") ? "text-blue-600 font-semibold" : ""}`}>Opinioni</span>
-        </Link>
-        <Link href="/rappresentanti" className={getLinkClasses("/rappresentanti")} style={{marginTop: 0}}>
-          <Users className={`h-7 w-7 mb-1 ${isActive("/rappresentanti") ? "drop-shadow-lg text-blue-600" : ""}`} />
-          <span className={`text-xs hidden md:block ${isActive("/rappresentanti") ? "text-blue-600 font-semibold" : ""}`}>Rappresentanti</span>
         </Link>
         <Link href="/preferiti" className={getLinkClasses("/preferiti")} style={{marginTop: 0}}>
           <Heart className={`h-7 w-7 mb-1 ${isActive("/preferiti") ? "drop-shadow-lg text-blue-600" : ""}`} />
