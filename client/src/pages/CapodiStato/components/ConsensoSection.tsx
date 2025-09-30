@@ -59,7 +59,7 @@ export const ConsensoSection: React.FC<ConsensoSectionProps> = ({
   };
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-6 bg-white">
       <CardHeader>
         <CardTitle className="text-xl font-bold text-center">
           Consenso

@@ -425,6 +425,9 @@ router.post('/', async (req, res) => {
 // GET /api/capo-stato/consenso - Ottieni i dati di consenso
 router.get('/consenso', async (req, res) => {
   try {
+    console.log('🔍 DEBUG /api/capo-stato/consenso GET - Richiesta ricevuta');
+    console.log('🔍 DEBUG - Headers:', req.headers);
+    
     // Ottieni i voti di consenso dell'utente corrente se autenticato
     let mioConsenso = null;
     let blocco = {
@@ -436,7 +439,10 @@ router.get('/consenso', async (req, res) => {
       try {
         const token = req.headers.authorization.replace('Bearer ', '');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
+        const userId = decoded.userId || decoded.email;
+        
+        console.log('🔍 DEBUG - Token decodificato:', decoded);
+        console.log('🔍 DEBUG - User ID:', userId);
 
         // Controlla se l'utente ha già votato per il consenso
         const consensoQuery = `
@@ -530,8 +536,16 @@ router.get('/consenso', async (req, res) => {
 // POST /api/capo-stato/consenso - Salva il voto di consenso
 router.post('/consenso', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG /api/capo-stato/consenso - Richiesta ricevuta');
+    console.log('🔍 DEBUG - Headers:', req.headers);
+    console.log('🔍 DEBUG - Body:', req.body);
+    console.log('🔍 DEBUG - User:', req.user);
+    
     const { risposta } = req.body;
-    const userId = req.user.userId;
+    const userId = req.user.id;
+    
+    console.log('🔍 DEBUG - Risposta ricevuta:', risposta);
+    console.log('🔍 DEBUG - User ID:', userId);
 
     if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
       return res.status(400).json({
