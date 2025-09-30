@@ -29,17 +29,43 @@ const verifyToken = async (req, res, next) => {
     
     try {
       const decoded = verifyAccessToken(token);
+      
+      // Verifica che l'utente esista e sia attivo
+      const userResult = await pool.query(
+        'SELECT id, email, status, ruolo FROM users WHERE id = $1 OR email = $2',
+        [decoded.userId || decoded.email, decoded.email]
+      );
+      
+      if (userResult.rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          error: 'Utente non trovato',
+          message: 'Effettua nuovamente il login'
+        });
+      }
+      
+      const user = userResult.rows[0];
+      
+      if (user.status !== 'active') {
+        return res.status(401).json({
+          success: false,
+          error: 'Account non attivo',
+          message: `Il tuo account ha status "${user.status}". Contatta l'amministratore per l'attivazione.`
+        });
+      }
+      
       req.user = {
-        id: decoded.userId || decoded.email,
-        role: decoded.role || decoded.ruolo,
-        email: decoded.email,
+        id: user.id,
+        role: user.ruolo,
+        email: user.email,
+        status: user.status,
         jti: decoded.jti // JWT ID per tracking
       };
-      req.userId = decoded.userId || decoded.email;
-      req.userRole = decoded.role || decoded.ruolo;
-      req.userEmail = decoded.email;
+      req.userId = user.id;
+      req.userRole = user.ruolo;
+      req.userEmail = user.email;
       
-      console.log('🔐 DEBUG - Token verificato per utente:', req.user.id, 'con ruolo:', req.user.role);
+      console.log('🔐 DEBUG - Token verificato per utente:', req.user.id, 'con ruolo:', req.user.role, 'status:', req.user.status);
       
       next();
     } catch (jwtError) {
