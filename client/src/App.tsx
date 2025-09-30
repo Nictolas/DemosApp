@@ -42,6 +42,9 @@ import OpinioniComunali from "./pages/OpinioniComunali";
 import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Preferiti from "./pages/Preferiti";
+import Candidati from "./pages/Candidati";
+import Attivisti from "./pages/Attivisti";
+import Organizzazioni from "./pages/Organizzazioni";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
 import Eventi from "./pages/Eventi";
@@ -480,6 +483,27 @@ export default function App() {
               <Route path="/preferiti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/preferiti" component={Preferiti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route candidati */}
+              <Route path="/candidati">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/candidati" component={Candidati} />
+                </PageTransition>
+              </Route>
+
+              {/* Route attivisti */}
+              <Route path="/attivisti">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/attivisti" component={Attivisti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route organizzazioni */}
+              <Route path="/organizzazioni">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/organizzazioni" component={Organizzazioni} />
                 </PageTransition>
               </Route>
 
