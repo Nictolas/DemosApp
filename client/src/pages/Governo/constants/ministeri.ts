@@ -11,7 +11,7 @@ export const ministeri = [
   },
   { 
     id: "esteri",
-    nome: "Ministro degli Esteri", 
+    nome: "Esteri", 
     categoria: "esteri", 
     icon: Building2, 
     color: "blue",
@@ -19,7 +19,7 @@ export const ministeri = [
   },
   { 
     id: "interno",
-    nome: "Ministro dell'Interno", 
+    nome: "Interno", 
     categoria: "interno", 
     icon: Shield, 
     color: "green",
@@ -27,7 +27,7 @@ export const ministeri = [
   },
   { 
     id: "giustizia",
-    nome: "Ministro della Giustizia", 
+    nome: "Giustizia", 
     categoria: "giustizia", 
     icon: Scale, 
     color: "purple",
@@ -35,7 +35,7 @@ export const ministeri = [
   },
   { 
     id: "difesa",
-    nome: "Ministro della Difesa", 
+    nome: "Difesa", 
     categoria: "difesa", 
     icon: Shield, 
     color: "gray",
@@ -43,7 +43,7 @@ export const ministeri = [
   },
   { 
     id: "economia",
-    nome: "Ministro dell'Economia", 
+    nome: "Economia", 
     categoria: "economia", 
     icon: Banknote, 
     color: "yellow",
@@ -51,7 +51,7 @@ export const ministeri = [
   },
   { 
     id: "lavoro",
-    nome: "Ministro del Lavoro", 
+    nome: "Lavoro", 
     categoria: "lavoro", 
     icon: Briefcase, 
     color: "orange",
@@ -59,7 +59,7 @@ export const ministeri = [
   },
   { 
     id: "istruzione",
-    nome: "Ministro dell'Istruzione", 
+    nome: "Istruzione", 
     categoria: "istruzione", 
     icon: GraduationCap, 
     color: "indigo",
@@ -67,7 +67,7 @@ export const ministeri = [
   },
   { 
     id: "salute",
-    nome: "Ministro della Salute", 
+    nome: "Salute", 
     categoria: "salute", 
     icon: Heart, 
     color: "pink",
@@ -75,7 +75,7 @@ export const ministeri = [
   },
   { 
     id: "cultura",
-    nome: "Ministro della Cultura", 
+    nome: "Cultura", 
     categoria: "cultura", 
     icon: Palette, 
     color: "teal",
@@ -83,7 +83,7 @@ export const ministeri = [
   },
   { 
     id: "ambiente_sicurezza_energetica",
-    nome: "Ministro dell'Ambiente", 
+    nome: "Ambiente", 
     categoria: "ambiente_sicurezza_energetica", 
     icon: Leaf, 
     color: "lime",

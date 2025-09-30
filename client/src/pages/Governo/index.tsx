@@ -6,8 +6,10 @@ import { Loader2 } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { useGovernoData } from "./hooks/useGovernoData";
 import { useGovernoActions } from "./hooks/useGovernoActions";
+import { useConsensoGovernoData } from "./hooks/useConsensoGovernoData";
 import { MinisteroCard } from "./components/MinisteroCard";
 import { MinisteroModal } from "./components/MinisteroModal";
+import { ConsensoGovernoSection } from "./components/ConsensoGovernoSection";
 import { LoadingState } from "./components/LoadingState";
 import { ErrorState } from "./components/ErrorState";
 import { ministeri, colorMap } from "./constants/ministeri";
@@ -19,6 +21,14 @@ export default function Governo() {
   
   const { data, isLoading, isError } = useGovernoData(user);
   const { handleNavigateToMinistero } = useGovernoActions();
+  
+  // Hook per i dati di consenso del governo
+  const { 
+    data: consensoData, 
+    isLoading: isLoadingConsenso, 
+    voteConsenso, 
+    isVoting: isVotingConsenso 
+  } = useConsensoGovernoData(user);
   
   // Stato per il modal
   const [selectedMinistero, setSelectedMinistero] = useState<Ministero | null>(null);
@@ -48,30 +58,38 @@ export default function Governo() {
 
   return (
     <PageTransition>
-      <div className="h-[calc(100vh-7.5rem)] bg-gradient-to-b from-background to-secondary/20 overflow-hidden pt-4">
-        <div className="h-full flex flex-col">
-          {isLoading ? (
-            <div className="flex-1 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 pt-4 page-with-navbar">
+        <div className="container mx-auto max-w-6xl p-4">
+          {/* Sezione Consenso Governo */}
+          {consensoData && (
+            <ConsensoGovernoSection
+              data={consensoData}
+              onVote={voteConsenso}
+              isVoting={isVotingConsenso}
+            />
+          )}
+
+          {/* Griglia Ministeri */}
+          {isLoading || isLoadingConsenso ? (
+            <div className="flex items-center justify-center py-8">
               <LoadingState />
             </div>
           ) : isError ? (
-            <div className="flex-1 flex items-center justify-center">
+            <div className="flex items-center justify-center py-8">
               <ErrorState />
             </div>
           ) : (
-            <div className="flex-1 p-2 overflow-hidden">
-              <div className="h-full grid grid-cols-3 gap-1 auto-rows-[minmax(0,1fr)]">
-                {ministeri.map((ministero) => (
-                  <MinisteroCard
-                    key={ministero.id}
-                    ministero={ministero}
-                    data={data}
-                    onNavigate={handleNavigateToMinistero}
-                    onOpenModal={handleOpenModal}
-                    isWide={ministero.id === "primo_ministro"}
-                  />
-                ))}
-              </div>
+            <div className="grid grid-cols-3 gap-2 auto-rows-[minmax(120px,1fr)]">
+              {ministeri.map((ministero) => (
+                <MinisteroCard
+                  key={ministero.id}
+                  ministero={ministero}
+                  data={data}
+                  onNavigate={handleNavigateToMinistero}
+                  onOpenModal={handleOpenModal}
+                  isWide={ministero.id === "primo_ministro"}
+                />
+              ))}
             </div>
           )}
           
