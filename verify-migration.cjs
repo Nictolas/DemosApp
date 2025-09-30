@@ -1,98 +1,107 @@
-require('dotenv').config();
 const { Pool } = require('pg');
+require('dotenv').config();
 
-// Configurazione Neon Database
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://neondb_owner:[REDACTED_NEON_PASSWORD]@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require'
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function verifyMigration() {
   try {
-    console.log('🔍 DEBUG: VERIFICA MIGRAZIONE COMPLETATA');
+    console.log('🔍 Verifica migrazione completata...');
     
-    // 1. Controlla utenti con opinioni
-    const usersWithOpinions = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM users 
-      WHERE energia_nucleare IS NOT NULL 
-         OR sperimentazione_animale IS NOT NULL 
-         OR legalizzazione_canapa IS NOT NULL
+    // 1. Verifica che la tabella utenti sia stata eliminata
+    const checkUtenti = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'utenti'
+      );
     `);
     
-    console.log(`📊 Utenti con opinioni: ${usersWithOpinions.rows[0].count}`);
+    console.log(`📊 Tabella utenti esiste: ${checkUtenti.rows[0].exists}`);
     
-    // 2. Controlla utenti con dati geografici
-    const usersWithGeographic = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM users 
-      WHERE regione IS NOT NULL 
-         OR provincia IS NOT NULL 
-         OR comune IS NOT NULL
+    // 2. Verifica la tabella users
+    const checkUsers = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      );
     `);
     
-    console.log(`📊 Utenti con dati geografici: ${usersWithGeographic.rows[0].count}`);
+    console.log(`📊 Tabella users esiste: ${checkUsers.rows[0].exists}`);
     
-    // 3. Controlla alcuni utenti specifici
-    const sampleUsers = await pool.query(`
-      SELECT id, name, email, nome, cognome, 
-             energia_nucleare, sperimentazione_animale, legalizzazione_canapa,
-             regione, provincia, comune
+    // 3. Conta i record in users
+    const countUsers = await pool.query('SELECT COUNT(*) FROM users');
+    console.log(`📊 Record in users: ${countUsers.rows[0].count}`);
+    
+    // 4. Verifica che le foreign key funzionino
+    console.log('\n🔗 Verifica foreign key...');
+    
+    // consenso_governo
+    const consensoGoverno = await pool.query(`
+      SELECT COUNT(*) as total,
+             COUNT(CASE WHEN userid IS NOT NULL THEN 1 END) as with_userid
+      FROM consenso_governo
+    `);
+    console.log(`  consenso_governo: ${consensoGoverno.rows[0].with_userid}/${consensoGoverno.rows[0].total} con userid valido`);
+    
+    // consenso_capo_stato
+    const consensoCapoStato = await pool.query(`
+      SELECT COUNT(*) as total,
+             COUNT(CASE WHEN userid IS NOT NULL THEN 1 END) as with_userid
+      FROM consenso_capo_stato
+    `);
+    console.log(`  consenso_capo_stato: ${consensoCapoStato.rows[0].with_userid}/${consensoCapoStato.rows[0].total} con userid valido`);
+    
+    // notifiche_utente
+    const notificheUtente = await pool.query(`
+      SELECT COUNT(*) as total,
+             COUNT(CASE WHEN utente_id IS NOT NULL THEN 1 END) as with_utente_id
+      FROM notifiche_utente
+    `);
+    console.log(`  notifiche_utente: ${notificheUtente.rows[0].with_utente_id}/${notificheUtente.rows[0].total} con utente_id valido`);
+    
+    // segnalazioni
+    const segnalazioni = await pool.query(`
+      SELECT COUNT(*) as total,
+             COUNT(CASE WHEN utente_id IS NOT NULL THEN 1 END) as with_utente_id,
+             COUNT(CASE WHEN risolto_da IS NOT NULL THEN 1 END) as with_risolto_da
+      FROM segnalazioni
+    `);
+    console.log(`  segnalazioni: ${segnalazioni.rows[0].with_utente_id}/${segnalazioni.rows[0].total} con utente_id, ${segnalazioni.rows[0].with_risolto_da}/${segnalazioni.rows[0].total} con risolto_da`);
+    
+    // 5. Test di una query di login
+    console.log('\n🔐 Test query di login...');
+    const testLogin = await pool.query(`
+      SELECT id, email, nome, cognome, status 
       FROM users 
-      WHERE energia_nucleare IS NOT NULL 
-      LIMIT 5
+      WHERE email = 'admin@demos.community'
     `);
     
-    console.log('\n📊 CAMPIONE UTENTI MIGRATI:');
-    sampleUsers.rows.forEach(user => {
-      console.log(`\n👤 ${user.nome} ${user.cognome} (${user.email})`);
-      console.log(`   📍 Regione: ${user.regione || 'N/A'}`);
-      console.log(`   📍 Provincia: ${user.provincia || 'N/A'}`);
-      console.log(`   📍 Comune: ${user.comune || 'N/A'}`);
-      console.log(`   💭 Energia Nucleare: ${user.energia_nucleare || 'N/A'}`);
-      console.log(`   💭 Sperimentazione Animale: ${user.sperimentazione_animale || 'N/A'}`);
-      console.log(`   💭 Legalizzazione Canapa: ${user.legalizzazione_canapa || 'N/A'}`);
-    });
+    if (testLogin.rows.length > 0) {
+      console.log(`  ✅ Login test: Trovato utente ${testLogin.rows[0].email}`);
+    } else {
+      console.log(`  ❌ Login test: Utente admin non trovato`);
+    }
     
-    // 4. Controlla distribuzione opinioni
-    const opinionStats = await pool.query(`
-      SELECT 
-        energia_nucleare,
-        COUNT(*) as count
-      FROM users 
-      WHERE energia_nucleare IS NOT NULL
-      GROUP BY energia_nucleare
-      ORDER BY count DESC
-    `);
-    
-    console.log('\n📊 DISTRIBUZIONE OPINIONI (Energia Nucleare):');
-    opinionStats.rows.forEach(stat => {
-      console.log(`   ${stat.energia_nucleare}: ${stat.count} utenti`);
-    });
-    
-    // 5. Controlla distribuzione geografica
-    const geographicStats = await pool.query(`
-      SELECT 
-        regione,
-        COUNT(*) as count
-      FROM users 
-      WHERE regione IS NOT NULL
-      GROUP BY regione
-      ORDER BY count DESC
-      LIMIT 10
-    `);
-    
-    console.log('\n📊 DISTRIBUZIONE GEOGRAFICA (Top 10):');
-    geographicStats.rows.forEach(stat => {
-      console.log(`   ${stat.regione}: ${stat.count} utenti`);
-    });
-    
-    await pool.end();
-    console.log('\n✅ VERIFICA COMPLETATA - MIGRAZIONE RIUSCITA!');
+    console.log('\n🎉 Verifica completata!');
     
   } catch (error) {
-    console.error('❌ Errore durante verifica:', error);
+    console.error('❌ Errore durante la verifica:', error);
+    throw error;
+  } finally {
     await pool.end();
   }
 }
 
-verifyMigration();
+verifyMigration()
+  .then(() => {
+    console.log('✅ Tutto OK!');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('💥 Errore durante la verifica:', error);
+    process.exit(1);
+  });
