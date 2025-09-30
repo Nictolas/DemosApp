@@ -28,7 +28,7 @@ class JWTHelper {
       ...payload,
       type: 'access',
       iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (15 * 60), // 15 minuti
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 ore
       jti: crypto.randomUUID() // JWT ID unico
     };
 
@@ -130,7 +130,7 @@ class JWTHelper {
     return {
       accessToken: this.generateAccessToken(payload),
       refreshToken: this.generateRefreshToken(payload),
-      expiresIn: 15 * 60, // 15 minuti
+      expiresIn: 24 * 60 * 60, // 24 ore
       tokenType: 'Bearer'
     };
   }
