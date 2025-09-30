@@ -420,4 +420,196 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ===== ENDPOINTS PER CONSENSO CAPO DI STATO =====
+
+// GET /api/capo-stato/consenso - Ottieni i dati di consenso
+router.get('/consenso', async (req, res) => {
+  try {
+    // Ottieni i voti di consenso dell'utente corrente se autenticato
+    let mioConsenso = null;
+    let blocco = {
+      isBlocked: false,
+      unlockDate: null
+    };
+    
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+
+        // Controlla se l'utente ha già votato per il consenso
+        const consensoQuery = `
+          SELECT risposta, timestamp
+          FROM consenso_capo_stato 
+          WHERE userid = $1
+          ORDER BY timestamp DESC
+          LIMIT 1
+        `;
+        
+        const consensoResult = await pool.query(consensoQuery, [userId]);
+        
+        if (consensoResult.rows.length > 0) {
+          mioConsenso = {
+            risposta: consensoResult.rows[0].risposta,
+            timestamp: consensoResult.rows[0].timestamp
+          };
+        }
+
+        // Controlla se l'utente è bloccato (stessa logica dei voti normali)
+        const bloccoQuery = `
+          SELECT timestamp
+          FROM consenso_capo_stato 
+          WHERE userid = $1
+          ORDER BY timestamp DESC
+          LIMIT 1
+        `;
+        
+        const bloccoResult = await pool.query(bloccoQuery, [userId]);
+        
+        if (bloccoResult.rows.length > 0) {
+          const lastVote = new Date(bloccoResult.rows[0].timestamp);
+          const now = new Date();
+          const diffInDays = Math.floor((now - lastVote) / (1000 * 60 * 60 * 24));
+          
+          if (diffInDays < 7) {
+            const unlockDate = new Date(lastVote);
+            unlockDate.setDate(unlockDate.getDate() + 7);
+            blocco = {
+              isBlocked: true,
+              unlockDate: unlockDate.toISOString()
+            };
+          }
+        }
+      } catch (error) {
+        console.log('🔍 DEBUG - Token non valido per consenso:', error.message);
+      }
+    }
+
+    // Ottieni le statistiche aggregate dei voti di consenso
+    const statsQuery = `
+      SELECT 
+        risposta,
+        COUNT(*) as conteggio
+      FROM consenso_capo_stato
+      GROUP BY risposta
+      ORDER BY risposta
+    `;
+    
+    const statsResult = await pool.query(statsQuery);
+    
+    const statistiche = {
+      'Sì': 0,
+      'Non so': 0,
+      'No': 0,
+      totale: 0
+    };
+    
+    statsResult.rows.forEach(row => {
+      statistiche[row.risposta] = parseInt(row.conteggio);
+      statistiche.totale += parseInt(row.conteggio);
+    });
+
+    res.json({
+      success: true,
+      data: {
+        mioConsenso,
+        statistiche,
+        blocco
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero dati consenso:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/capo-stato/consenso - Salva il voto di consenso
+router.post('/consenso', verifyToken, async (req, res) => {
+  try {
+    const { risposta } = req.body;
+    const userId = req.user.userId;
+
+    if (!risposta || !['Sì', 'Non so', 'No'].includes(risposta)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Risposta non valida. Deve essere "Sì", "Non so" o "No"'
+      });
+    }
+
+    // Controlla se l'utente è bloccato
+    const bloccoQuery = `
+      SELECT timestamp
+      FROM consenso_capo_stato 
+      WHERE userid = $1
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `;
+    
+    const bloccoResult = await pool.query(bloccoQuery, [userId]);
+    
+    if (bloccoResult.rows.length > 0) {
+      const lastVote = new Date(bloccoResult.rows[0].timestamp);
+      const now = new Date();
+      const diffInDays = Math.floor((now - lastVote) / (1000 * 60 * 60 * 24));
+      
+      if (diffInDays < 7) {
+        const unlockDate = new Date(lastVote);
+        unlockDate.setDate(unlockDate.getDate() + 7);
+        return res.status(400).json({
+          success: false,
+          error: 'Hai già votato per il consenso questa settimana',
+          unlockDate: unlockDate.toISOString()
+        });
+      }
+    }
+
+    // Inizia transazione
+    await pool.query('BEGIN');
+    
+    try {
+      // Elimina il voto precedente se esiste
+      await pool.query(
+        'DELETE FROM consenso_capo_stato WHERE userid = $1',
+        [userId]
+      );
+      
+      // Inserisce il nuovo voto
+      const votoId = `consenso_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      await pool.query(
+        `INSERT INTO consenso_capo_stato (
+          id, userid, risposta, timestamp, created_at, updated_at
+        ) VALUES ($1, $2, $3, NOW(), NOW(), NOW())`,
+        [votoId, userId, risposta]
+      );
+      
+      // Conferma la transazione
+      await pool.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Voto di consenso salvato con successo',
+        data: {
+          risposta,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      // Rollback in caso di errore
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('❌ Errore nel salvataggio consenso:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;
