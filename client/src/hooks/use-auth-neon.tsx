@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl, API_CONFIG } from "@/lib/api-config";
+import { cleanupExpiredTokens } from "@/utils/token-cleanup";
 
 // Tipi per l'autenticazione
 interface User {
@@ -66,9 +67,15 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [token, setToken] = useState<string | null>(
-    () => localStorage.getItem('auth_token')
-  );
+  const [token, setToken] = useState<string | null>(() => {
+    const storedToken = localStorage.getItem('auth_token');
+    if (storedToken) {
+      // Pulisci token scaduti prima di impostare il token
+      const wasCleaned = cleanupExpiredTokens();
+      return wasCleaned ? null : storedToken;
+    }
+    return null;
+  });
 
   // Query per ottenere l'utente corrente
   const { data: user, isLoading } = useQuery<User | null>({
@@ -101,9 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('🔍 DEBUG useAuth - Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (response.status === 401) {
-          console.log('🔍 DEBUG useAuth - Token non valido, rimuovendo');
-          // Token non valido, rimuovilo e forza logout
+          console.log('🔍 DEBUG useAuth - Token non valido o scaduto, rimuovendo');
+          // Token non valido o scaduto, rimuovilo e forza logout
           localStorage.removeItem('auth_token');
+          localStorage.removeItem('refresh_token');
           setToken(null);
           // Non fare reload della pagina, lascia che il componente gestisca il redirect
           return null;
