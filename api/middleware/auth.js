@@ -1,17 +1,9 @@
 // File: api/middleware/auth.js
 const { verifyAccessToken, revokeToken } = require('../utils/jwt');
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 
-// Configurazione database diretta (senza dipendenze esterne)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { 
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  },
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000, // Aumento timeout
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // Middleware per verificare il token JWT
 const verifyToken = async (req, res, next) => {

@@ -1,16 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const { getPool } = require('../config/database');
 require('dotenv').config();
 
-const pool = new Pool({
-  // Usa sempre Neon per ora
-  connectionString: 'postgresql://neondb_owner:[REDACTED_NEON_PASSWORD]@ep-withered-butterfly-a2mroznt-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require',
-  ssl: { rejectUnauthorized: false },
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
-});
+// Usa il pool centralizzato ottimizzato
+const pool = getPool();
 
 // Funzione per creare record in notifiche_utente per tutti gli utenti attivi
 async function createNotificheUtente(comunicazioneId) {
