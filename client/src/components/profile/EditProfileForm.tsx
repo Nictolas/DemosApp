@@ -27,7 +27,8 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
         <CardContent className="p-6">
           <PersonalDataSection 
             formData={formData} 
-            onFieldChange={handleChange} 
+            onFieldChange={handleChange}
+            isAdmin={isAdmin}
           />
         </CardContent>
       </Card>

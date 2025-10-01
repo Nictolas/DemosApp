@@ -7,9 +7,10 @@ import { UserInfo } from "../../pages/Profilo";
 interface PersonalDataSectionProps {
   formData: UserInfo & { uid: string };
   onFieldChange: (field: keyof (UserInfo & { uid: string }), value: string) => void;
+  isAdmin?: boolean;
 }
 
-export function PersonalDataSection({ formData, onFieldChange }: PersonalDataSectionProps) {
+export function PersonalDataSection({ formData, onFieldChange, isAdmin = false }: PersonalDataSectionProps) {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900 border-b pb-2">Dati Personali</h3>
@@ -69,24 +70,28 @@ export function PersonalDataSection({ formData, onFieldChange }: PersonalDataSec
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="ruolo">Ruolo *</Label>
-          <Select
-            value={formData.ruolo || ""}
-            onValueChange={(value) => onFieldChange("ruolo", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleziona il ruolo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="elettore">Elettore</SelectItem>
-              <SelectItem value="Politico">Politico</SelectItem>
-              <SelectItem value="Candidato">Candidato</SelectItem>
-              <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-              <SelectItem value="Utente">Utente</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Campo Ruolo - visibile solo per Admin */}
+        {isAdmin && (
+          <div>
+            <Label htmlFor="ruolo">Ruolo *</Label>
+            <Select
+              value={formData.ruolo || ""}
+              onValueChange={(value) => onFieldChange("ruolo", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona il ruolo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="elettore">Elettore</SelectItem>
+                <SelectItem value="Politico">Politico</SelectItem>
+                <SelectItem value="Candidato">Candidato</SelectItem>
+                <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
+                <SelectItem value="Utente">Utente</SelectItem>
+                <SelectItem value="Admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         <div>
           <Label htmlFor="cittadinanza">Cittadinanza *</Label>
