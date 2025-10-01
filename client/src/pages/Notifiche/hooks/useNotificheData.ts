@@ -7,22 +7,34 @@ export const useNotificheData = (user: any) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Funzione per validare UUID
+  const isValidUUID = (uuid: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  };
+
   // Query per caricare le notifiche
   const { data, isLoading, error } = useQuery<NotificheData>({
     queryKey: ['notifiche', user?.id],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/notifiche?user_id=${user?.id}`);
+      if (!user?.id || !isValidUUID(user.id)) {
+        throw new Error("ID utente non valido");
+      }
+      const response = await apiRequest("GET", `/api/notifiche?user_id=${user.id}`);
       if (!response.ok) throw new Error("Errore nel caricamento delle notifiche.");
       return response.json();
     },
-    enabled: !!user,
+    enabled: !!user && !!user?.id && isValidUUID(user.id),
     refetchInterval: 60000, // Ricarica i dati ogni minuto
   });
 
   // Mutazione per segnare notifica come letta
   const markAsReadMutation = useMutation({
     mutationFn: async (notificaId: string) => {
-      const response = await apiRequest("PUT", `/api/notifiche/${notificaId}/read?user_id=${user?.id}`);
+      if (!user?.id || !isValidUUID(user.id)) {
+        throw new Error("ID utente non valido");
+      }
+      const response = await apiRequest("PUT", `/api/notifiche/${notificaId}/read?user_id=${user.id}`);
       if (!response.ok) throw new Error("Errore nell'aggiornamento notifica.");
       return response.json();
     },
@@ -39,7 +51,10 @@ export const useNotificheData = (user: any) => {
   // Mutazione per cancellare segnalazione (solo per admin)
   const deleteSegnalazioneMutation = useMutation({
     mutationFn: async (segnalazioneId: string) => {
-      const response = await apiRequest("DELETE", `/api/segnalazioni/${segnalazioneId}?user_id=${user?.id}`);
+      if (!user?.id || !isValidUUID(user.id)) {
+        throw new Error("ID utente non valido");
+      }
+      const response = await apiRequest("DELETE", `/api/segnalazioni/${segnalazioneId}?user_id=${user.id}`);
       if (!response.ok) throw new Error("Errore nella cancellazione segnalazione.");
       return response.json();
     },

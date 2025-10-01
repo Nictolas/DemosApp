@@ -72,7 +72,7 @@ const PreferitiButton: React.FC<PreferitiButtonProps> = ({
           <Icon className="h-14 w-14 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
           <Icon className="h-10 w-10 relative z-10" style={{ color: color.icon }} />
         </span>
-        <div className="text-gray-700 font-semibold text-3xl select-none">{label}</div>
+        <div className={`text-gray-700 font-semibold select-none ${label === 'Organizzazioni' ? 'text-2xl' : 'text-3xl'}`}>{label}</div>
       </div>
     </button>
   );
