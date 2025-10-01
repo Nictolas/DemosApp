@@ -72,7 +72,7 @@ router.get('/', async (req, res) => {
           u.cognome as utente_cognome,
           u.email as utente_email
         FROM segnalazioni s
-        LEFT JOIN users u ON s.utente_id = u.id
+        LEFT JOIN users u ON s.utente_id::uuid = u.id
         ORDER BY s.data_creazione DESC
         LIMIT 10
       `);

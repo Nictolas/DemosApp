@@ -191,10 +191,11 @@ class PerformanceOptimizer {
   async getActiveUsersCount() {
     try {
       const pool = getPool();
+      // Usa created_at come proxy per l'attività, dato che last_activity non esiste
       const result = await pool.query(`
         SELECT COUNT(*) as count 
         FROM users 
-        WHERE last_activity > NOW() - INTERVAL '15 minutes'
+        WHERE created_at > NOW() - INTERVAL '15 minutes'
       `);
       return parseInt(result.rows[0].count);
     } catch (error) {
