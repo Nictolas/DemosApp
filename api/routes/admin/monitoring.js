@@ -2,6 +2,7 @@
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const performanceMonitor = require('../../services/performanceMonitor');
+const performanceOptimizer = require('../../services/performanceOptimizer');
 const healthCheckService = require('../../services/healthCheckService');
 const { pool } = require('../../middleware/auth');
 const { auditMiddleware } = require('../../middleware/auditMiddleware');
@@ -40,12 +41,16 @@ router.get('/performance', auditMiddleware, async (req, res) => {
   try {
     const metrics = performanceMonitor.getCurrentMetrics();
     const health = performanceMonitor.getSystemHealth();
+    const optimizerMetrics = performanceOptimizer.getCurrentMetrics();
+    const recommendations = performanceOptimizer.getRecommendations();
     
     res.json({
       success: true,
       data: {
         metrics,
-        health
+        health,
+        optimizer: optimizerMetrics,
+        recommendations
       }
     });
   } catch (error) {

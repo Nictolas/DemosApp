@@ -1,10 +1,10 @@
 // File: api/middleware/rateLimiting.js
 const rateLimit = require('express-rate-limit');
 
-// Configurazione generale per tutte le API
+// Configurazione generale per tutte le API - OTTIMIZZATA per molti utenti
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 500, // 500 richieste per IP per finestra (ridotto da 10000 ma aumentato per evitare 429)
+  max: 2000, // Aumentato a 2000 richieste per IP per finestra per supportare più utenti
   // Gestisci proxy in modo più sicuro
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
   // Escludi localhost in sviluppo
@@ -32,10 +32,10 @@ const generalLimiter = rateLimit({
   }
 });
 
-// Rate limiting per autenticazione (più restrittivo)
+// Rate limiting per autenticazione - OTTIMIZZATO per molti utenti
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 20, // 20 tentativi di login per IP (aumentato per evitare blocchi)
+  max: 100, // Aumentato a 100 tentativi di login per IP per supportare più utenti
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
   // Escludi localhost in sviluppo
   skip: (req) => {
@@ -127,10 +127,10 @@ const adminLimiter = rateLimit({
   }
 });
 
-// Rate limiting per API utente (moderato)
+// Rate limiting per API utente - OTTIMIZZATO per molti utenti
 const userLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 200, // 200 richieste per utente per finestra (aumentato da 50)
+  max: 1000, // Aumentato a 1000 richieste per utente per finestra per supportare più attività
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
   message: {
     success: false,

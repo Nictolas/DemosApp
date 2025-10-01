@@ -57,7 +57,7 @@ const cleanupRoutes = require('./routes/cleanup');
 const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
 const segnalazioniRoutes = require('./routes/segnalazioni');
 const programmaRoutes = require('./routes/programma');
-// const testPerformanceRoutes = require('./routes/test-performance');
+const testPerformanceRoutes = require('./routes/test-performance');
 // const testMiddlewareRoutes = require('./routes/test-middleware');
 // const testSimpleRoutes = require('./routes/test-simple');
 // const { startAuditJobs } = require('./jobs/auditCleanup'); // Disabilitato per il deploy
@@ -247,7 +247,7 @@ app.use('/api/rappresentanti', rappresentantiSostenitoriRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
 app.use('/api/segnalazioni', segnalazioniRoutes);
 app.use('/api/programma', userLimiter, programmaRoutes);
-// app.use('/api/test', testPerformanceRoutes);
+app.use('/api/test-performance', testPerformanceRoutes);
 // app.use('/api/test', testMiddlewareRoutes);
 // app.use('/api/test', testSimpleRoutes);
 app.use('/api/admin', adminRoutes);
@@ -331,6 +331,10 @@ auditManager.start();
 // Avvia sistema di monitoraggio performance
 const performanceMonitor = require('./services/performanceMonitor');
 performanceMonitor.start(30000); // 30 secondi
+
+// Avvia sistema di ottimizzazione performance
+const performanceOptimizer = require('./services/performanceOptimizer');
+performanceOptimizer.start();
 
 // Avvia job di data retention (solo se abilitato)
 if (process.env.ENABLE_DATA_RETENTION === 'true') {
