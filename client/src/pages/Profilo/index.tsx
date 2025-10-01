@@ -164,9 +164,6 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
               opinionQuestions={opinionQuestions}
             />
 
-            {/* Sezione governo ideale */}
-            <ProfileGovernoIdeale governoIdeale={governoIdeale} />
-
             {/* Sezione rappresentanti */}
             {userInfo && (
               <div className="transform hover:scale-[1.02] transition-all duration-300">
@@ -198,6 +195,9 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 </div>
               </div>
             )}
+
+            {/* Sezione governo ideale */}
+            <ProfileGovernoIdeale governoIdeale={governoIdeale} />
           </>
         )}
 
