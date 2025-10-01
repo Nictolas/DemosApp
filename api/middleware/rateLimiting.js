@@ -152,13 +152,17 @@ const userLimiter = rateLimit({
 // Rate limiting per richieste sospette (sostituisce slow-down)
 const speedLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minuti
-  max: 50, // Limite più basso per richieste sospette
+  max: 500, // Aumentato a 500 richieste per IP per finestra (era 50)
   trustProxy: process.env.NODE_ENV === 'production' ? 1 : false,
-  // Escludi localhost e IP di sviluppo
+  // Escludi localhost, IP di sviluppo e richieste normali
   skip: (req) => {
     const isLocalhost = req.ip === '::1' || req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1';
     const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev';
-    return isLocalhost && isDevelopment;
+    const isNotificationRequest = req.url.includes('/api/notifiche');
+    const isAuthRequest = req.url.includes('/api/auth/me');
+    const isNormalRequest = isNotificationRequest || isAuthRequest;
+    
+    return (isLocalhost && isDevelopment) || isNormalRequest;
   },
   message: {
     success: false,

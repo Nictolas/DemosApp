@@ -30,8 +30,8 @@ export const useNotificationBadge = () => {
       }
     },
     enabled: !!user,
-    refetchInterval: 10000, // Aggiorna ogni 10 secondi
-    staleTime: 5000, // Considera i dati obsoleti dopo 5 secondi
+    refetchInterval: 30000, // Aggiorna ogni 30 secondi (era 10)
+    staleTime: 15000, // Considera i dati obsoleti dopo 15 secondi (era 5)
     refetchOnWindowFocus: true, // Aggiorna quando si torna alla finestra
   });
 

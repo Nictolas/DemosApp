@@ -295,6 +295,10 @@ app.use('/api/admin/security', adminLimiter, securityMetricsRoutes);
 app.use('/api/cleanup', cleanupRoutes);
 app.use('/api/cleanup', cleanupRateLimitRoutes);
 
+// Route per test rate limiting
+const testRateLimitRoutes = require('./routes/test-rate-limit');
+app.use('/api/test', testRateLimitRoutes);
+
 // Gestione errori 404
 app.use('*', (req, res) => {
   console.log(`❌ Route non trovata: ${req.method} ${req.originalUrl}`);
