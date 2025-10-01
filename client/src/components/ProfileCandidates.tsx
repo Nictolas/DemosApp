@@ -12,6 +12,9 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
   const [candidateAvatars, setCandidateAvatars] = useState<Record<string, any>>({});
 
   const fetchCandidateNames = async (userInfo: any) => {
+    console.log('🔍 DEBUG ProfileCandidates - userInfo:', userInfo);
+    console.log('🔍 DEBUG ProfileCandidates - candidatiDetails:', candidatiDetails);
+    
     const candidates = {
       candidato_europeo: userInfo.candidato_europeo,
       candidato_camera: userInfo.candidato_camera,
@@ -19,6 +22,8 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
       candidato_regionale: userInfo.candidato_regionale,
       candidato_comune: userInfo.candidato_comune,
     };
+    console.log('🔍 DEBUG ProfileCandidates - candidates IDs:', candidates);
+    
     const names: Record<string, string> = {};
     const avatars: Record<string, any> = {};
     
@@ -27,16 +32,22 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
       'candidato_europeo': 'europeo',
       'candidato_camera': 'camera',
       'candidato_senato': 'senato',
-      'candidato_regionale': 'regionale',
+      'candidato_regionale': 'regione',  // Corretto: era 'regionale'
       'candidato_comune': 'comune'
     };
     
     for (const [key, value] of Object.entries(candidates)) {
+      console.log(`🔍 DEBUG ProfileCandidates - Processing ${key}:`, value);
+      
       if (value && typeof value === 'string') {
         // Cerca nei dettagli completi
         const category = categoryMap[key];
+        console.log(`🔍 DEBUG ProfileCandidates - Category for ${key}:`, category);
+        console.log(`🔍 DEBUG ProfileCandidates - candidatiDetails[${category}]:`, candidatiDetails?.[category]);
+        
         if (candidatiDetails && candidatiDetails[category] && candidatiDetails[category].length > 0) {
           const candidate = candidatiDetails[category][0];
+          console.log(`🔍 DEBUG ProfileCandidates - Found candidate for ${key}:`, candidate);
           names[key] = `${candidate.nome} ${candidate.cognome}`;
           if (candidate.avatar_config) {
             try {
@@ -46,12 +57,17 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
             }
           }
         } else {
+          console.log(`🔍 DEBUG ProfileCandidates - No details found for ${key}, using ID:`, value);
           names[key] = value; // Usa l'ID se non troviamo i dettagli
         }
       } else {
+        console.log(`🔍 DEBUG ProfileCandidates - No value for ${key}, setting as not selected`);
         names[key] = "Non selezionato";
       }
     }
+    
+    console.log('🔍 DEBUG ProfileCandidates - Final names:', names);
+    console.log('🔍 DEBUG ProfileCandidates - Final avatars:', avatars);
     
     setCandidateNames(names);
     setCandidateAvatars(avatars);
