@@ -13,7 +13,7 @@ export const Header: React.FC = () => {
         </Button>
       </Link>
 
-      <Card className="mb-6">
+      <Card className="mb-6 bg-white">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="p-4 bg-gradient-to-r from-fuchsia-500 to-fuchsia-700 rounded-full">
