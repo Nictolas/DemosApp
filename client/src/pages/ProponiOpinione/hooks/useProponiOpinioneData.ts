@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-// TODO: Migrate from Firebase to Neon API
-// import { collection, getDocs, doc, updateDoc, addDoc, arrayUnion, arrayRemove, increment } from "firebase/firestore";
-// import { db } from "@/lib/firebase";
+import { apiRequest } from "@/lib/queryClient";
 import { OpinioneProposta } from "../types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,77 +9,124 @@ export const useProponiOpinioneData = (user: any) => {
   const [loadingData, setLoadingData] = useState(true);
   const [userVoti, setUserVoti] = useState<string[]>([]);
 
-  // TODO: Migrate from Firebase to Neon API
-  // Carica opinioni proposte e voti utente direttamente da Firestore
+  // Carica opinioni proposte e voti utente dall'API Neon
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoadingData(true);
     try {
-      // TODO: Implement Neon API call
-      // const snap = await getDocs(collection(db, "opinioni_proposte"));
-      // const arr = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-      // setOpinioni(arr.map(op => ({
-      //   id: op.id,
-      //   testo: op.testo,
-      //   voti: op.voti || 0,
-      //   proponente: op.proponente || "",
-      //   votanti: op.votanti || [],
-      // })));
-      // const mieiVoti = arr.filter(op => (op.votanti || []).includes(user.uid)).map(op => op.id);
-      // setUserVoti(mieiVoti);
+      console.log('🔍 Caricamento opinioni proposte...');
+      const response = await apiRequest('GET', '/api/opinioni-proposte');
       
-      // Temporary: Set empty data
+      if (!response.ok) {
+        throw new Error('Errore nel caricamento delle opinioni proposte');
+      }
+      
+      const data = await response.json();
+      console.log('📊 Dati ricevuti:', data);
+      
+      if (data.success && data.data) {
+        const opinioniMapped = data.data.map((op: any) => ({
+          id: op.id,
+          testo: op.testo,
+          voti: op.voti || 0,
+          proponente: op.nome && op.cognome ? `${op.nome} ${op.cognome}` : op.email || 'Utente',
+          titolo: op.titolo,
+          descrizione: op.descrizione,
+          categoria: op.categoria,
+          data_creazione: op.data_creazione
+        }));
+        
+        setOpinioni(opinioniMapped);
+        
+        // Per ora, non abbiamo ancora i voti dell'utente, li impostiamo vuoti
+        setUserVoti([]);
+        
+        console.log(`✅ Caricate ${opinioniMapped.length} opinioni proposte`);
+      } else {
+        console.log('⚠️ Nessuna opinione proposta trovata');
+        setOpinioni([]);
+        setUserVoti([]);
+      }
+    } catch (error) {
+      console.error('❌ Errore nel caricamento opinioni proposte:', error);
+      toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
       setOpinioni([]);
       setUserVoti([]);
-    } catch (error) {
-      toast({ title: "Errore", description: "Impossibile caricare i dati.", variant: "destructive" });
     } finally {
       setLoadingData(false);
     }
   }, [user, toast]);
 
-  // TODO: Migrate from Firebase to Neon API
-  // Proponi nuova opinione direttamente su Firestore
+  // Proponi nuova opinione tramite API Neon
   const handleProponi = async (testoInput: string) => {
-    if (!testoInput.trim()) return;
+    if (!testoInput.trim()) return false;
+    
     try {
-      // TODO: Implement Neon API call
-      // await addDoc(collection(db, "opinioni_proposte"), {
-      //   testo: testoInput.trim(),
-      //   voti: 0,
-      //   proponente: user.uid,
-      //   proponente_email: user.email,
-      //   data_creazione: new Date().toISOString(),
-      //   votanti: [],
-      // });
-      toast({ title: "Funzionalità temporaneamente non disponibile", description: "La migrazione è in corso." });
-      // loadData();
-      return false;
+      console.log('📝 Invio nuova opinione proposta...');
+      const response = await apiRequest('POST', '/api/opinioni-proposte', {
+        testo: testoInput.trim()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Errore nell\'invio della proposta');
+      }
+      
+      const data = await response.json();
+      console.log('✅ Opinione proposta inviata:', data);
+      
+      toast({ 
+        title: "Successo", 
+        description: "La tua opinione è stata proposta con successo!" 
+      });
+      
+      // Ricarica i dati per mostrare la nuova opinione
+      await loadData();
+      return true;
     } catch (error) {
-      toast({ title: "Errore", description: "Errore nell'invio della proposta", variant: "destructive" });
+      console.error('❌ Errore nell\'invio proposta:', error);
+      toast({ 
+        title: "Errore", 
+        description: error instanceof Error ? error.message : "Errore nell'invio della proposta", 
+        variant: "destructive" 
+      });
       return false;
     }
   };
 
-  // TODO: Migrate from Firebase to Neon API
-  // Vota opinione direttamente su Firestore
+  // Vota opinione tramite API Neon
   const handleVota = async (id: string) => {
     if (userVoti.includes(id)) {
       toast({ title: "Voto già registrato", description: "Hai già votato questa opinione." });
       return false;
     }
+    
     try {
-      // TODO: Implement Neon API call
-      // const ref = doc(db, "opinioni_proposte", id);
-      // await updateDoc(ref, {
-      //   votanti: arrayUnion(user.uid),
-      //   voti: increment(1),
-      // });
-      toast({ title: "Funzionalità temporaneamente non disponibile", description: "La migrazione è in corso." });
-      // loadData();
-      return false;
+      console.log('👍 Invio voto per opinione:', id);
+      const response = await apiRequest('POST', `/api/opinioni-proposte/${id}/vota`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Errore nel voto');
+      }
+      
+      console.log('✅ Voto registrato con successo');
+      
+      toast({ 
+        title: "Successo", 
+        description: "Il tuo voto è stato registrato!" 
+      });
+      
+      // Ricarica i dati per aggiornare i voti
+      await loadData();
+      return true;
     } catch (error) {
-      toast({ title: "Errore", description: "Errore nel voto", variant: "destructive" });
+      console.error('❌ Errore nel voto:', error);
+      toast({ 
+        title: "Errore", 
+        description: error instanceof Error ? error.message : "Errore nel voto", 
+        variant: "destructive" 
+      });
       return false;
     }
   };
