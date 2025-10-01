@@ -142,11 +142,12 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
         {userInfo && !isLoading && !isLoadingInfo && !error && (
           <>
             {/* Form di modifica o informazioni del profilo */}
-            {isEditing && userInfo && isViewingOwnProfile ? (
+            {isEditing && userInfo ? (
               <EditProfileForm
                 userData={{...userInfo, uid: userInfo.id || ''}}
                 onProfileUpdated={handleSaveProfile}
                 onCancel={() => setIsEditing(false)}
+                isAdmin={user?.ruolo === 'Admin'}
               />
             ) : (
               <ProfileInfo
