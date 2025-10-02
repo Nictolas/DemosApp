@@ -15,6 +15,7 @@ interface UsersTableProps {
   onEdit: (user: User) => void;
   onEditOpinioni: (user: User) => void;
   onDelete: (user: User) => void;
+  onEditAvatar?: (user: User) => void;
   userChanges?: Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>;
   onFieldChange?: (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => void;
 }
@@ -27,6 +28,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   onEdit,
   onEditOpinioni,
   onDelete,
+  onEditAvatar,
   userChanges = {},
   onFieldChange
 }) => {
@@ -83,7 +85,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                     />
                   ) : (
                     <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column)}>
-                      {renderColumnValue(user[column], column, user)}
+                      {renderColumnValue(user[column], column, user, onEditAvatar)}
                     </div>
                   )}
                 </TableCell>

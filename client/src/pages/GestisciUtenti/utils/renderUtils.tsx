@@ -6,7 +6,7 @@ import { getRoleColor, getGenderColor, getCandidaturaStatusColor } from "./style
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 // Funzione per renderizzare il valore con targhette colorate
-export const renderColumnValue = (value: any, columnName: string, user?: User) => {
+export const renderColumnValue = (value: any, columnName: string, user?: User, onEditAvatar?: (user: User) => void) => {
   // Gestione speciale per la colonna "avatar"
   if (columnName === 'avatar' && user) {
     if (user.avatar_config) {
@@ -25,14 +25,24 @@ export const renderColumnValue = (value: any, columnName: string, user?: User) =
         }
         return (
           <div className="flex justify-center">
-            <CustomAvatar config={config} size={40} className="w-10 h-10" />
+            <div 
+              className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onEditAvatar?.(user)}
+              title="Clicca per modificare l'avatar"
+            >
+              <CustomAvatar config={config} size={40} className="w-full h-full" />
+            </div>
           </div>
         );
       } catch (e) {
         console.log(`⚠️ DEBUG renderUtils - Errore parsing avatar per ${user.id}:`, e);
         return (
           <div className="flex justify-center">
-            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+            <div 
+              className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => onEditAvatar?.(user)}
+              title="Clicca per modificare l'avatar"
+            >
               <span className="text-gray-500 text-xs">N/A</span>
             </div>
           </div>
@@ -41,7 +51,11 @@ export const renderColumnValue = (value: any, columnName: string, user?: User) =
     } else {
       return (
         <div className="flex justify-center">
-          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+          <div 
+            className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => onEditAvatar?.(user)}
+            title="Clicca per modificare l'avatar"
+          >
             <span className="text-gray-500 text-xs">N/A</span>
           </div>
         </div>
