@@ -6,6 +6,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { EditOpinioniDialog } from "@/components/EditOpinioniDialog";
+import { EditUserAvatarDialog } from "@/components/EditUserAvatarDialog";
 import { Loader2, Users, AlertCircle } from "lucide-react";
 import { useUsers } from "./hooks/useUsers";
 import { useUserManagement } from "./hooks/useUserManagement";
@@ -54,6 +55,10 @@ export default function GestisciUtenti() {
     updateLastUpdateTime,
     setCurrentPage
   } = useUserManagement();
+
+  // Stato per il dialog di modifica avatar
+  const [showEditAvatarDialog, setShowEditAvatarDialog] = useState(false);
+  const [userForAvatarEdit, setUserForAvatarEdit] = useState<User | null>(null);
 
   // Hook per le azioni sugli utenti pending
   const {
@@ -239,6 +244,11 @@ export default function GestisciUtenti() {
   const handleRejectUser = (user: any) => {
     // Per ora rifiutiamo senza motivo, in futuro si può aggiungere un dialog per inserire il motivo
     rejectUser({ userId: user.id });
+  };
+
+  const handleEditAvatar = (user: User) => {
+    setUserForAvatarEdit(user);
+    setShowEditAvatarDialog(true);
   };
 
   // Funzioni per gestire le modifiche inline
@@ -449,6 +459,7 @@ export default function GestisciUtenti() {
                     onEdit={handleEdit}
                     onEditOpinioni={handleEditOpinioni}
                     onDelete={handleDelete}
+                    onEditAvatar={handleEditAvatar}
                     userChanges={userChanges}
                     onFieldChange={handleFieldChange}
                   />
@@ -461,6 +472,7 @@ export default function GestisciUtenti() {
                     onEdit={handleEdit}
                     onEditOpinioni={handleEditOpinioni}
                     onDelete={handleDelete}
+                    onEditAvatar={handleEditAvatar}
                     userChanges={userChanges}
                     onFieldChange={handleFieldChange}
                   />
@@ -519,6 +531,21 @@ export default function GestisciUtenti() {
               onOpinioniUpdated={() => queryClient.invalidateQueries({ queryKey: ['allUsers'] })} 
             />
           </>
+        )}
+
+        {/* Dialog per modifica avatar */}
+        {userForAvatarEdit && (
+          <EditUserAvatarDialog
+            open={showEditAvatarDialog}
+            onOpenChange={setShowEditAvatarDialog}
+            userId={userForAvatarEdit.id}
+            userName={userForAvatarEdit.nome_completo || `${userForAvatarEdit.nome || ''} ${userForAvatarEdit.cognome || ''}`.trim() || userForAvatarEdit.name || 'N/A'}
+            currentAvatarConfig={userForAvatarEdit.avatar_config}
+            onAvatarUpdated={() => {
+              queryClient.invalidateQueries({ queryKey: ['allUsers'] });
+              setUserForAvatarEdit(null);
+            }}
+          />
         )}
       </div>
     </div>
