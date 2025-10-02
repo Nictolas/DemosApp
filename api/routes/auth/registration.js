@@ -182,8 +182,7 @@ router.post('/register',
       terms_of_service_consent || false,
       cookie_policy_consent || false,
       new Date().toISOString(),
-      req.ip || req.connection.remoteAddress || null,
-      req.get('User-Agent') || null
+      req.ip || req.connection.remoteAddress || null
     ];
     
     console.log('🔍 Parametri query:', queryParams.length);
@@ -196,8 +195,8 @@ router.post('/register',
                         grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
                         grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
                         privacy_policy_consent, terms_of_service_consent, cookie_policy_consent, consent_timestamp, 
-                        consent_ip_address, consent_user_agent, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, NOW())
+                        consent_ip_address, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, NOW())
       RETURNING id, nome, cognome, email, ruolo, status
     `;
     
