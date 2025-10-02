@@ -51,7 +51,7 @@ router.get('/', verifyToken, async (req, res) => {
       { campo: 'candidato_europeo', categoria: 'europeo' },
       { campo: 'candidato_camera', categoria: 'camera' },
       { campo: 'candidato_senato', categoria: 'senato' },
-      { campo: 'candidato_regionale', categoria: 'regionale' },
+      { campo: 'candidato_regionale', categoria: 'regione' },
       { campo: 'candidato_comune', categoria: 'comune' }
     ];
     
@@ -250,7 +250,7 @@ router.put('/seleziona-candidato', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - candidatoId:', candidatoId);
     
     // Verifica che il campo sia valido per le selezioni di candidati
-    const validFields = ['test_europeo', 'test_camera', 'test_senato', 'test_regionale', 'test_comune'];
+    const validFields = ['candidato_europeo', 'candidato_camera', 'candidato_senato', 'candidato_regionale', 'candidato_comune'];
     if (!validFields.includes(campo)) {
       return res.status(400).json({
         success: false,
