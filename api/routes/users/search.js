@@ -116,7 +116,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     // Query per gli utenti con paginazione
     let usersQuery = `
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
-             grado_elezione, grado_candidatura
+             grado_elezione, grado_candidatura, avatar_config
       FROM users 
       ${whereClause}
       ORDER BY created_at DESC
@@ -159,7 +159,7 @@ router.get('/pending', verifyToken, requireAdmin, async (req, res) => {
     console.log('⏳ GET /api/users/pending - Lista utenti in attesa richiesta da admin');
     
     const result = await pool.query(`
-      SELECT id, nome, cognome, email, ruolo, created_at
+      SELECT id, nome, cognome, email, ruolo, created_at, avatar_config
       FROM users 
       WHERE status = 'pending'
       ORDER BY created_at ASC
