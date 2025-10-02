@@ -4,13 +4,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useCandidatiData } from "./hooks/useCandidatiData";
 import { useCandidatiActions } from "./hooks/useCandidatiActions";
-import { LoadingStates } from "@/components/LoadingStates";
 import { PageTransition } from "@/components/PageTransition";
 import { Header } from "./components/Header";
 import { EmptyState } from "./components/EmptyState";
 import { CandidatoCard } from "./components/CandidatoCard";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { getTitolo, getFieldName } from "./utils/candidatoUtils";
+import { Loader2 } from "lucide-react";
 
 export default function ScegliCandidato() {
   const { categoria } = useParams<{ categoria: string }>();
@@ -47,16 +47,24 @@ export default function ScegliCandidato() {
     return <Redirect to="/auth" />;
   }
 
+  // Mostra loading se non siamo pronti
+  if (!authReady || loading) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-gray-600">Caricamento candidati...</p>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
+
   return (
     <PageTransition>
       <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
-          <LoadingStates 
-            authReady={authReady} 
-            isLoading={isLoading} 
-            loading={loading} 
-          />
-          
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           
           <ViewOpinioniDialog
