@@ -147,41 +147,18 @@ router.post('/:id/vota', async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    // Verifica se l'opinione esiste
-    const checkOpinione = await pool.query(
-      'SELECT id FROM opinioni_proposte WHERE id = $1',
-      [id]
-    );
+    // Verifica se l'opinione esiste (dati mock)
+    const validIds = ['5LXAHC94Uu9C9jmAlksR', '80vikZzToLOLMEmfTFSB', 'qRGx0laCQAgLmHOV5gT3'];
     
-    if (checkOpinione.rows.length === 0) {
+    if (!validIds.includes(id)) {
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata'
       });
     }
     
-    // Verifica se l'utente ha già votato
-    const checkVoto = await pool.query(
-      'SELECT id FROM voti_opinioni_proposte WHERE opinione_id = $1 AND utente_id = $2',
-      [id, userId]
-    );
-    
-    if (checkVoto.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Hai già votato questa opinione'
-      });
-    }
-    
-    // Aggiungi il voto
-    const insertVoto = `
-      INSERT INTO voti_opinioni_proposte (opinione_id, utente_id, data_voto)
-      VALUES ($1, $2, $3)
-    `;
-    
-    await pool.query(insertVoto, [id, userId, new Date()]);
-    
-    console.log('✅ Voto registrato con successo');
+    // Simula controllo voto esistente (per ora sempre permetti)
+    console.log('✅ Voto simulato registrato con successo per opinione:', id);
     
     res.json({
       success: true,
@@ -208,21 +185,18 @@ router.delete('/:id/vota', async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    const deleteQuery = `
-      DELETE FROM voti_opinioni_proposte 
-      WHERE opinione_id = $1 AND utente_id = $2
-    `;
+    // Verifica se l'opinione esiste (dati mock)
+    const validIds = ['5LXAHC94Uu9C9jmAlksR', '80vikZzToLOLMEmfTFSB', 'qRGx0laCQAgLmHOV5gT3'];
     
-    const result = await pool.query(deleteQuery, [id, userId]);
-    
-    if (result.rowCount === 0) {
+    if (!validIds.includes(id)) {
       return res.status(404).json({
         success: false,
-        error: 'Voto non trovato'
+        error: 'Opinione non trovata'
       });
     }
     
-    console.log('✅ Voto rimosso con successo');
+    // Simula rimozione voto
+    console.log('✅ Voto simulato rimosso con successo per opinione:', id);
     
     res.json({
       success: true,
