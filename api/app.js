@@ -225,7 +225,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/auth', clearTokenRoutes);
 app.use('/api/users', userLimiter, userRoutes);
 app.use('/api/opinioni', userLimiter, opinioniRoutes);
-app.use('/api/opinioni-proposte', userLimiter, opinioniProposteRoutes);
+app.use('/api/opinioni-proposte', publicLimiter, opinioniProposteRoutes);
 app.use('/api/governo', publicLimiter, governoRoutes);
 app.use('/api/governo/ministro', publicLimiter, governoMinistroRoutes);
 app.use('/api/rappresentanti', publicLimiter, rappresentantiRoutes);
