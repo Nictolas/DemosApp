@@ -59,7 +59,7 @@ router.get('/', verifyToken, async (req, res) => {
       const candidatoId = user[campo];
       
       if (candidatoId) {
-        // Cerca il candidato selezionato
+        // Cerca il candidato selezionato (rimuoviamo il filtro ruolo per trovare tutti gli utenti)
         const candidatoQuery = `
           SELECT 
             id,
@@ -72,7 +72,6 @@ router.get('/', verifyToken, async (req, res) => {
             grado_candidatura
           FROM users
           WHERE id::text = $1
-          AND ruolo IN ('Candidato', 'Candidato Politico')
         `;
         
         console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
@@ -344,7 +343,7 @@ router.get('/selezioni', verifyToken, async (req, res) => {
       const candidatoId = user[campo];
       
       if (candidatoId) {
-        // Cerca il candidato selezionato tra tutti i candidati disponibili per quella categoria
+        // Cerca il candidato selezionato (rimuoviamo i filtri per trovare tutti gli utenti)
         const candidatoQuery = `
           SELECT 
             id,
@@ -356,12 +355,10 @@ router.get('/selezioni', verifyToken, async (req, res) => {
             avatar_config
           FROM users
           WHERE id::text = $1
-          AND ruolo IN ('Candidato', 'Candidato Politico')
-          AND grado_candidatura = $2
         `;
         
         console.log(`🔍 DEBUG - Cercando candidato con ID: ${candidatoId} per categoria: ${categoria}`);
-        const candidatoResult = await pool.query(candidatoQuery, [candidatoId, categoria]);
+        const candidatoResult = await pool.query(candidatoQuery, [candidatoId]);
         console.log(`🔍 DEBUG - Risultato query candidato:`, candidatoResult.rows.length, 'righe trovate');
         const candidato = candidatoResult.rows[0];
         
