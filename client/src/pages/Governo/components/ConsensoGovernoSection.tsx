@@ -143,8 +143,8 @@ export const ConsensoGovernoSection: React.FC<ConsensoGovernoSectionProps> = ({
           </div>
         </div>
 
-        {/* Grafico a torta */}
-        {data.statistiche.totale > 0 && (
+        {/* Grafico a torta - Mostra solo se l'utente ha mai votato */}
+        {data.mioConsenso !== null && data.statistiche.totale > 0 && (
           <div className="flex justify-center">
             <div className="w-full max-w-md h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -179,8 +179,8 @@ export const ConsensoGovernoSection: React.FC<ConsensoGovernoSectionProps> = ({
           </div>
         )}
 
-        {/* Statistiche testuali */}
-        {data.statistiche.totale > 0 && (
+        {/* Statistiche testuali - Mostra solo se l'utente ha mai votato */}
+        {data.mioConsenso !== null && data.statistiche.totale > 0 && (
           <div className="text-center space-y-2">
             <p className="text-sm text-gray-600">
               Totale voti: <span className="font-semibold">{data.statistiche.totale}</span>
