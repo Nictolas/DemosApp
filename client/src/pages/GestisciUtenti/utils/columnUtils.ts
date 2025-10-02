@@ -13,11 +13,11 @@ export const getDisplayColumns = (users: any[]) => {
   // Filtra le colonne nascoste
   const displayColumns = allColumns.filter(col => !HIDDEN_COLUMNS.includes(col));
   
-  // Aggiungi colonna "Nome Completo" all'inizio
-  const columnsWithFullName = ['nome_completo', ...displayColumns];
+  // Aggiungi colonna "Avatar" e "Nome Completo" all'inizio
+  const columnsWithAvatarAndFullName = ['avatar', 'nome_completo', ...displayColumns];
   
   // Aggiungi le colonne forzate se non sono già presenti
-  const allRequiredColumns = [...new Set([...columnsWithFullName, ...FORCED_COLUMNS])];
+  const allRequiredColumns = [...new Set([...columnsWithAvatarAndFullName, ...FORCED_COLUMNS])];
   
   // Ordina le colonne in modo logico con priorità per candidatura ed elezione
   const sortedColumns = [

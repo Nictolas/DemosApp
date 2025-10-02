@@ -3,9 +3,52 @@ import { Link } from "wouter";
 import { User } from "../types";
 import { formatColumnValue } from "./columnUtils";
 import { getRoleColor, getGenderColor, getCandidaturaStatusColor } from "./styleUtils";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 // Funzione per renderizzare il valore con targhette colorate
 export const renderColumnValue = (value: any, columnName: string, user?: User) => {
+  // Gestione speciale per la colonna "avatar"
+  if (columnName === 'avatar' && user) {
+    if (user.avatar_config) {
+      try {
+        // Gestisci il caso di doppia serializzazione JSON
+        let config;
+        if (typeof user.avatar_config === 'string') {
+          // Prima prova a fare il parse diretto
+          config = JSON.parse(user.avatar_config);
+          // Se il risultato è ancora una stringa, fai un secondo parse
+          if (typeof config === 'string') {
+            config = JSON.parse(config);
+          }
+        } else {
+          config = user.avatar_config;
+        }
+        return (
+          <div className="flex justify-center">
+            <CustomAvatar config={config} size={40} className="w-10 h-10" />
+          </div>
+        );
+      } catch (e) {
+        console.log(`⚠️ DEBUG renderUtils - Errore parsing avatar per ${user.id}:`, e);
+        return (
+          <div className="flex justify-center">
+            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+              <span className="text-gray-500 text-xs">N/A</span>
+            </div>
+          </div>
+        );
+      }
+    } else {
+      return (
+        <div className="flex justify-center">
+          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+            <span className="text-gray-500 text-xs">N/A</span>
+          </div>
+        </div>
+      );
+    }
+  }
+  
   if (columnName === 'ruolo' && value) {
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getRoleColor(value)}`}>

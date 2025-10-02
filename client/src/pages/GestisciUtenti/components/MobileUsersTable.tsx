@@ -6,6 +6,7 @@ import { Edit, Trash2, User, Mail, Calendar } from "lucide-react";
 import { User as UserType } from "../types";
 import { formatColumnValue } from "../utils/columnUtils";
 import { EditableDropdown } from "./EditableDropdown";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 interface MobileUsersTableProps {
   users: UserType[];
@@ -67,8 +68,32 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
             {/* Header con nome e azioni */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-2 mb-1">
-                  <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                <div className="flex items-center space-x-3 mb-1">
+                  {/* Avatar */}
+                  {user.avatar_config ? (
+                    (() => {
+                      try {
+                        // Gestisci il caso di doppia serializzazione JSON
+                        let config;
+                        if (typeof user.avatar_config === 'string') {
+                          // Prima prova a fare il parse diretto
+                          config = JSON.parse(user.avatar_config);
+                          // Se il risultato è ancora una stringa, fai un secondo parse
+                          if (typeof config === 'string') {
+                            config = JSON.parse(config);
+                          }
+                        } else {
+                          config = user.avatar_config;
+                        }
+                        return <CustomAvatar config={config} size={32} className="w-8 h-8 flex-shrink-0" />;
+                      } catch (e) {
+                        console.log(`⚠️ DEBUG MobileUsersTable - Errore parsing avatar per ${user.id}:`, e);
+                        return <User className="h-8 w-8 text-gray-400 flex-shrink-0" />;
+                      }
+                    })()
+                  ) : (
+                    <User className="h-8 w-8 text-gray-400 flex-shrink-0" />
+                  )}
                   <h3 className="font-semibold text-gray-900 truncate">
                     {user.nome_completo || `${user.nome || ''} ${user.cognome || ''}`.trim() || user.name || 'N/A'}
                   </h3>

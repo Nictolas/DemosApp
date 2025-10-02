@@ -45,12 +45,16 @@ export const UsersTable: React.FC<UsersTableProps> = ({
         <TableHeader>
           <TableRow>
             {displayColumns.map((column) => (
-              <TableHead key={column} className="cursor-pointer hover:bg-gray-50" onClick={() => onSort(column as keyof User)}>
+              <TableHead 
+                key={column} 
+                className={column === 'avatar' ? "text-center" : "cursor-pointer hover:bg-gray-50"} 
+                onClick={column === 'avatar' ? undefined : () => onSort(column as keyof User)}
+              >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-gray-700 capitalize">
                     {column.replace(/_/g, ' ')}
                   </span>
-                  {sortState.sortField === column && (
+                  {column !== 'avatar' && sortState.sortField === column && (
                     <span className="text-blue-600 ml-2">
                       {sortState.sortDirection === 'asc' ? '↑' : '↓'}
                     </span>
@@ -65,7 +69,10 @@ export const UsersTable: React.FC<UsersTableProps> = ({
           {users.map((user) => (
             <TableRow key={user.id} className="hover:bg-gray-50">
               {displayColumns.map((column) => (
-                <TableCell key={column} className="min-w-[150px] max-w-[300px]">
+                <TableCell 
+                  key={column} 
+                  className={column === 'avatar' ? "text-center w-16" : "min-w-[150px] max-w-[300px]"}
+                >
                   {column === 'grado_elezione' || column === 'grado_candidatura' ? (
                     <EditableDropdown
                       value={userChanges[user.id]?.[column] !== undefined ? userChanges[user.id][column] : user[column]}
@@ -75,7 +82,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                       className="w-full"
                     />
                   ) : (
-                    <div className="truncate" title={formatColumnValue(user[column], column)}>
+                    <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column)}>
                       {renderColumnValue(user[column], column, user)}
                     </div>
                   )}
