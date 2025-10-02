@@ -32,7 +32,7 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
       'rappresentante_europeo': 'europeo',
       'rappresentante_camera': 'camera',
       'rappresentante_senato': 'senato',
-      'rappresentante_regionale': 'regionale',
+      'rappresentante_regionale': 'regione',  // Corretto: l'API usa 'regione', non 'regionale'
       'rappresentante_comune': 'comune'
     };
     
