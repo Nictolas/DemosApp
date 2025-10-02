@@ -14,7 +14,11 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Cache aperta');
-        return cache.addAll(urlsToCache);
+        return cache.addAll(urlsToCache).catch((error) => {
+          console.warn('Errore nel caching di alcune risorse:', error);
+          // Continua anche se alcune risorse non possono essere cachate
+          return Promise.resolve();
+        });
       })
   );
 });

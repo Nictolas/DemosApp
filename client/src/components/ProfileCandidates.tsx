@@ -46,15 +46,21 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
         console.log(`🔍 DEBUG ProfileCandidates - candidatiDetails[${category}]:`, candidatiDetails?.[category]);
         
         if (candidatiDetails && candidatiDetails[category] && candidatiDetails[category].length > 0) {
-          const candidate = candidatiDetails[category][0];
-          console.log(`🔍 DEBUG ProfileCandidates - Found candidate for ${key}:`, candidate);
-          names[key] = `${candidate.nome} ${candidate.cognome}`;
-          if (candidate.avatar_config) {
-            try {
-              avatars[key] = JSON.parse(candidate.avatar_config);
-            } catch (e) {
-              avatars[key] = null;
+          // Cerca il candidato con l'ID corrispondente
+          const candidate = candidatiDetails[category].find((c: any) => c.id === value);
+          if (candidate) {
+            console.log(`🔍 DEBUG ProfileCandidates - Found candidate for ${key}:`, candidate);
+            names[key] = `${candidate.nome} ${candidate.cognome}`;
+            if (candidate.avatar_config) {
+              try {
+                avatars[key] = JSON.parse(candidate.avatar_config);
+              } catch (e) {
+                avatars[key] = null;
+              }
             }
+          } else {
+            console.log(`🔍 DEBUG ProfileCandidates - Candidate with ID ${value} not found in ${category}`);
+            names[key] = "Non selezionato";
           }
         } else {
           console.log(`🔍 DEBUG ProfileCandidates - No details found for ${key}, setting as not selected`);
