@@ -40,8 +40,21 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
           names[key] = `${representative.nome} ${representative.cognome}`;
           if (representative.avatar_config) {
             try {
-              avatars[key] = JSON.parse(representative.avatar_config);
+              // Gestisci il caso di doppia serializzazione JSON
+              let config;
+              if (typeof representative.avatar_config === 'string') {
+                // Prima prova a fare il parse diretto
+                config = JSON.parse(representative.avatar_config);
+                // Se il risultato è ancora una stringa, fai un secondo parse
+                if (typeof config === 'string') {
+                  config = JSON.parse(config);
+                }
+              } else {
+                config = representative.avatar_config;
+              }
+              avatars[key] = config;
             } catch (e) {
+              console.log(`⚠️ DEBUG ProfileRepresentatives - Errore parsing avatar per ${key}:`, e);
               avatars[key] = null;
             }
           }
@@ -140,8 +153,8 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
       {/* Rappresentante Comunale */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12">
-          {representativeAvatars.rappresentante_comunale ? (
-            <CustomAvatar config={representativeAvatars.rappresentante_comunale} size={48} />
+          {representativeAvatars.rappresentante_comune ? (
+            <CustomAvatar config={representativeAvatars.rappresentante_comune} size={48} />
           ) : (
             <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
               <span className="text-gray-500 text-xs">N/A</span>
@@ -150,7 +163,7 @@ export function ProfileRepresentatives({ userInfo, rappresentantiDetails }: Prof
         </div>
         <div>
           <p className="font-medium">Rappresentante Comunale</p>
-          <p className="text-sm text-gray-600">{representativeNames.rappresentante_comunale || "Non selezionato"}</p>
+          <p className="text-sm text-gray-600">{representativeNames.rappresentante_comune || "Non selezionato"}</p>
         </div>
       </div>
     </div>
