@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Candidato, OpinioniDialogData } from "../types";
-import { getFieldName } from "../utils/candidatoUtils";
+import { getFieldName, getTitolo } from "../utils/candidatoUtils";
 
 export const useCandidatiData = (user: any, categoria: string) => {
   const { toast } = useToast();
@@ -18,24 +18,47 @@ export const useCandidatiData = (user: any, categoria: string) => {
       try {
         console.log('🔍 DEBUG Frontend - Fetching candidati per categoria:', categoria);
         
-        const result = await apiRequest(
-          "GET",
-          `/api/candidati/disponibili?grado_candidatura=${categoria}`
-        );
+        // Mappa la categoria al grado_candidatura corretto
+        const gradoCandidatura = getTitolo(categoria);
+        const url = `/api/candidati/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
+        console.log('🔍 DEBUG Frontend - Chiamata API CANDIDATI:', url);
+        console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);
+        
+        const response = await apiRequest("GET", url);
 
-        if (!result.ok) {
-          throw new Error("Impossibile caricare i candidati.");
+        if (!response.ok) {
+          throw new Error("Errore nel caricamento dei dati dal server.");
         }
 
-        const data = await result.json();
-        console.log('🔍 DEBUG Frontend - Risultato API candidati:', data);
+        const result = await response.json();
+        console.log('🔍 DEBUG Frontend - Risposta API candidati:', result);
 
-        if (data.success) {
-          const candidati = data.data || [];
-          console.log('🔍 DEBUG Frontend - Candidati ricevuti (TEST):', candidati.length);
-          setCandidatoSelezionato(null); // Nessun candidato selezionato per le route test
-          setCandidati(candidati);
+        if (!result.success) {
+          throw new Error(result.error || "Errore nel caricamento dei dati");
         }
+
+        // I dati sono direttamente nell'array data
+        const candidati = result.data || [];
+        console.log('🔍 DEBUG Frontend - Candidati ricevuti:', candidati.length);
+        
+        // Recuperiamo le selezioni esistenti dall'API
+        try {
+          const selezioniResponse = await apiRequest("GET", `/api/candidati/selezioni`);
+          if (selezioniResponse.ok) {
+            const selezioniData = await selezioniResponse.json();
+            if (selezioniData.success) {
+              const { candidati: candidatiSelezionati } = selezioniData.data;
+              const candidatoSelezionato = candidatiSelezionati[categoria]?.[0];
+              setCandidatoSelezionato(candidatoSelezionato?.id || null);
+              console.log('🔍 DEBUG Frontend - Candidato selezionato:', candidatoSelezionato);
+            }
+          }
+        } catch (error) {
+          console.log('⚠️ Errore nel recuperare selezioni:', error);
+          setCandidatoSelezionato(null);
+        }
+        
+        setCandidati(candidati);
 
       } catch (error) {
         console.error("Errore durante il recupero dei dati:", error);
