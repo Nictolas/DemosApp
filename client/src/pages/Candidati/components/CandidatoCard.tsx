@@ -40,9 +40,7 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
       candidatoData = candidatiPerCategoria[0]; // Prendi il primo (e unico) candidato
       candidatoUid = candidatoData.id;
       
-      console.log(`🔍 DEBUG CandidatoCard - Candidato trovato per ${categoriaId}:`, candidatoData);
-    } else {
-      console.log(`🔍 DEBUG CandidatoCard - Nessun candidato per ${categoriaId}:`, candidatiPerCategoria);
+      } else {
     }
 
     let avatarContent;
@@ -61,9 +59,7 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
           config = candidatoData.avatar_config;
         }
         avatarContent = <CustomAvatar config={config} size={56} className="w-full h-full" />;
-        console.log(`🔍 DEBUG CandidatoCard - Avatar config per ${categoriaId}:`, config);
-      } catch (e) { 
-        console.log(`⚠️ DEBUG CandidatoCard - Errore parsing avatar per ${categoriaId}:`, e);
+      } catch (e) {
       }
     }
 

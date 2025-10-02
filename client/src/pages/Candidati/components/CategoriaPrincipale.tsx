@@ -17,12 +17,8 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
   onOpenOpinioni
 }) => {
   const renderCandidato = (categoriaId: string) => {
-    console.log(`🔍 DEBUG CategoriaPrincipale - renderCandidato chiamato con categoriaId:`, categoriaId);
-    console.log(`🔍 DEBUG CategoriaPrincipale - data:`, data);
-    
     // Controlli di sicurezza per evitare TypeError
     if (!data) {
-      console.log(`🔍 DEBUG CategoriaPrincipale - data è null/undefined`);
       return (
         <div className="flex flex-col space-y-2 items-center">
           <div className="h-16 w-16 border-2 border-gray-300 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -35,9 +31,6 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
       );
     }
 
-    console.log(`🔍 DEBUG CategoriaPrincipale - data.candidati:`, data.candidati);
-    console.log(`🔍 DEBUG CategoriaPrincipale - data.idMap:`, data.idMap);
-
     // Logica per la struttura aggiornata dell'API
     let candidatoData = null;
     let candidatoUid = null;
@@ -45,18 +38,11 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
     if (data.candidati && data.idMap) {
       // La nuova struttura dell'API restituisce candidati per categoria
       const candidatiPerCategoria = data.candidati[categoriaId];
-      console.log(`🔍 DEBUG CategoriaPrincipale - candidatiPerCategoria per ${categoriaId}:`, candidatiPerCategoria);
       
       if (candidatiPerCategoria && Array.isArray(candidatiPerCategoria) && candidatiPerCategoria.length > 0) {
         candidatoData = candidatiPerCategoria[0]; // Prendi il primo (e unico) candidato
         candidatoUid = candidatoData.id;
-        
-        console.log(`🔍 DEBUG CategoriaPrincipale - Candidato trovato per ${categoriaId}:`, candidatoData);
-      } else {
-        console.log(`🔍 DEBUG CategoriaPrincipale - Nessun candidato per ${categoriaId}:`, candidatiPerCategoria);
       }
-    } else {
-      console.log(`🔍 DEBUG CategoriaPrincipale - data.candidati o data.idMap mancanti`);
     }
 
     let avatarContent;
@@ -75,9 +61,7 @@ export const CategoriaPrincipale: React.FC<CategoriaPrincipaleProps> = ({
           config = candidatoData.avatar_config;
         }
         avatarContent = <CustomAvatar config={config} size={64} className="w-full h-full" />;
-        console.log(`🔍 DEBUG CategoriaPrincipale - Avatar config per ${categoriaId}:`, config);
-      } catch (e) { 
-        console.log(`⚠️ DEBUG CategoriaPrincipale - Errore parsing avatar per ${categoriaId}:`, e);
+      } catch (e) {
       }
     }
 
