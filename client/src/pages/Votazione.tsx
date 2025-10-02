@@ -427,22 +427,39 @@ const Votazione = React.memo(function Votazione() {
     const [votoDato, setVotoDato] = useState<"Favorevole" | "Contrario" | "Astenuto">("Favorevole");
     const [vincitore, setVincitore] = useState<"Approvata" | "Parità" | "Respinta">("Approvata");
 
-    // Sincronizza con il form quando necessario
-    React.useEffect(() => {
-      form.setValue("titolo", titolo);
-    }, [titolo, form]);
+    // Funzione per gestire l'invio con i valori locali
+    const handleSubmit = () => {
+      // Validazione locale
+      if (!titolo.trim()) {
+        toast({ title: "Errore", description: "Il titolo è obbligatorio", variant: "destructive" });
+        return;
+      }
+      
+      if (commento && commento.length > 20) {
+        toast({ title: "Errore", description: "Il commento non può superare i 20 caratteri", variant: "destructive" });
+        return;
+      }
 
-    React.useEffect(() => {
-      form.setValue("commento", commento);
-    }, [commento, form]);
+      const formData = {
+        titolo: titolo.trim(),
+        voto_dato: votoDato,
+        commento: commento.trim(),
+        vincitore
+      };
+      
+      console.log('📝 Form submitted with local data:', formData);
+      submitComunicazione.mutate(formData);
+    };
 
+    // Reset del form locale quando la comunicazione viene inviata con successo
     React.useEffect(() => {
-      form.setValue("voto_dato", votoDato);
-    }, [votoDato, form]);
-
-    React.useEffect(() => {
-      form.setValue("vincitore", vincitore);
-    }, [vincitore, form]);
+      if (submitComunicazione.isSuccess) {
+        setTitolo("");
+        setCommento("");
+        setVotoDato("Favorevole");
+        setVincitore("Approvata");
+      }
+    }, [submitComunicazione.isSuccess]);
 
     return (
       <Card className="w-full bg-white">
@@ -571,7 +588,7 @@ const Votazione = React.memo(function Votazione() {
               type="button"
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={submitComunicazione.isPending}
-              onClick={() => form.handleSubmit(onSubmit)()}
+              onClick={handleSubmit}
             >
               {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
             </button>
