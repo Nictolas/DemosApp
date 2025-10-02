@@ -41,6 +41,7 @@ import OpinioniRegionali from "./pages/OpinioniRegionali";
 import OpinioniComunali from "./pages/OpinioniComunali";
 import Rappresentanti from "./pages/Rappresentanti";
 import ScegliRappresentante from "./pages/ScegliRappresentante";
+import ScegliCandidato from "./pages/ScegliCandidato";
 import Preferiti from "./pages/Preferiti";
 import Candidati from "./pages/Candidati";
 import Attivisti from "./pages/Attivisti";
@@ -532,14 +533,14 @@ export default function App() {
       {/* Route candidati - COPIA IDENTICA DI RAPPRESENTANTI */}
       <Route path="/candidati">
         <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/candidati" component={Rappresentanti} />
+          <ProtectedRoute path="/candidati" component={Candidati} />
         </PageTransition>
       </Route>
 
-      {/* Route scegli candidato - COPIA IDENTICA DI SCEGLI RAPPRESENTANTE */}
+      {/* Route scegli candidato */}
       <Route path="/candidati/:categoria">
         <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-          <ProtectedRoute path="/candidati/:categoria" component={ScegliRappresentante} />
+          <ProtectedRoute path="/candidati/:categoria" component={ScegliCandidato} />
         </PageTransition>
       </Route>
 

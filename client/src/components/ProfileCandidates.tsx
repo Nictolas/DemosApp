@@ -57,8 +57,8 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
             }
           }
         } else {
-          console.log(`🔍 DEBUG ProfileCandidates - No details found for ${key}, using ID:`, value);
-          names[key] = value; // Usa l'ID se non troviamo i dettagli
+          console.log(`🔍 DEBUG ProfileCandidates - No details found for ${key}, setting as not selected`);
+          names[key] = "Non selezionato";
         }
       } else {
         console.log(`🔍 DEBUG ProfileCandidates - No value for ${key}, setting as not selected`);
@@ -156,8 +156,8 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
       {/* Candidato Comunale */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12">
-          {candidateAvatars.candidato_comunale ? (
-            <CustomAvatar config={candidateAvatars.candidato_comunale} size={48} />
+          {candidateAvatars.candidato_comune ? (
+            <CustomAvatar config={candidateAvatars.candidato_comune} size={48} />
           ) : (
             <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
               <span className="text-gray-500 text-xs">N/A</span>
@@ -166,7 +166,7 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
         </div>
         <div>
           <p className="font-medium">Candidato Comunale</p>
-          <p className="text-sm text-gray-600">{candidateNames.candidato_comunale || "Non selezionato"}</p>
+          <p className="text-sm text-gray-600">{candidateNames.candidato_comune || "Non selezionato"}</p>
         </div>
       </div>
     </div>
