@@ -20,7 +20,7 @@ export const FORCED_COLUMNS = [
 
 // Colonne con priorità di ordinamento
 export const PRIORITY_COLUMNS = [
-  'nome_completo', 'email', 'ruolo', 'status', 'grado_candidatura', 'grado_elezione'
+  'avatar', 'nome_completo', 'email', 'ruolo', 'status', 'grado_candidatura', 'grado_elezione'
 ];
 
 export const USERS_PER_PAGE = 20;
