@@ -23,26 +23,8 @@ export default function Candidati() {
     handleCloseOpinioniDialog
   } = useCandidatiActions();
 
-  // Debug logging più dettagliato
-  console.log('🔍 DEBUG Candidati - Valori singoli:');
-  console.log('  isAuthLoading:', isAuthLoading);
-  console.log('  user:', !!user);
-  console.log('  isLoading:', isLoading);
-  console.log('  isError:', isError);
-  console.log('  data:', data);
-  console.log('  data type:', typeof data);
-  console.log('  data keys:', data ? Object.keys(data) : 'data è null/undefined');
-  console.log('  candidati:', data?.candidati);
-  console.log('  idMap:', data?.idMap);
-  
-  // Log della condizione di rendering
-  const hasData = !!data;
-  // Rimuovo completamente i controlli hasCandidati e hasIdMap
-  // Le card devono essere sempre visibili per permettere la selezione
-  
-  console.log('🔍 DEBUG Rendering conditions:');
-  console.log('  hasData:', hasData);
-  console.log('  Mostrando sempre le card per permettere selezione candidati');
+  // Debug logging ridotto
+  console.log('🔍 DEBUG Candidati - Stato:', { isAuthLoading, user: !!user, isLoading, isError, hasData: !!data });
 
   if (isAuthLoading) {
     return (

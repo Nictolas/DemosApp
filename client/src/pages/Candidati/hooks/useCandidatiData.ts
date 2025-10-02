@@ -4,7 +4,7 @@ import { CandidatiData } from "../types";
 
 export const useCandidatiData = (user: any) => {
   return useQuery<CandidatiData>({
-    queryKey: ['candidatiData', Date.now()],
+    queryKey: ['candidatiData'],
     queryFn: async () => {
       console.log('🔍 DEBUG useCandidatiData - Iniziando fetch dati candidati');
       
