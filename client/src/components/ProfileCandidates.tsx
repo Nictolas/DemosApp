@@ -53,8 +53,21 @@ export function ProfileCandidates({ userInfo, candidatiDetails }: ProfileCandida
             names[key] = `${candidate.nome} ${candidate.cognome}`;
             if (candidate.avatar_config) {
               try {
-                avatars[key] = JSON.parse(candidate.avatar_config);
+                // Gestisci il caso di doppia serializzazione JSON
+                let config;
+                if (typeof candidate.avatar_config === 'string') {
+                  // Prima prova a fare il parse diretto
+                  config = JSON.parse(candidate.avatar_config);
+                  // Se il risultato è ancora una stringa, fai un secondo parse
+                  if (typeof config === 'string') {
+                    config = JSON.parse(config);
+                  }
+                } else {
+                  config = candidate.avatar_config;
+                }
+                avatars[key] = config;
               } catch (e) {
+                console.log(`⚠️ DEBUG ProfileCandidates - Errore parsing avatar per ${key}:`, e);
                 avatars[key] = null;
               }
             }
