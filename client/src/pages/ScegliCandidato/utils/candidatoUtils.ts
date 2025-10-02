@@ -11,11 +11,11 @@ export const getTitolo = (categoria: string): string => {
 
 export const getFieldName = (categoria: string): string => {
   switch (categoria) {
-    case "europeo": return "test_europeo";
-    case "camera": return "test_camera";
-    case "senato": return "test_senato";
-    case "regione": return "test_regionale";
-    case "comune": return "test_comune";
-    default: return "test_europeo";
+    case "europeo": return "candidato_europeo";
+    case "camera": return "candidato_camera";
+    case "senato": return "candidato_senato";
+    case "regione": return "candidato_regionale";
+    case "comune": return "candidato_comune";
+    default: return "candidato_europeo";
   }
 };
