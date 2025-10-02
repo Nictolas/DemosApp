@@ -1,70 +1,55 @@
-import React, { useEffect, useState } from "react";
-import { useParams, Redirect } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
+import { useAuthReady } from "@/hooks/use-auth-ready";
+import { Redirect, useParams } from "wouter";
+import { PageTransition } from "@/components/PageTransition";
+import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useCandidatiData } from "./hooks/useCandidatiData";
 import { useCandidatiActions } from "./hooks/useCandidatiActions";
-import { PageTransition } from "@/components/PageTransition";
 import { Header } from "./components/Header";
 import { EmptyState } from "./components/EmptyState";
 import { CandidatoCard } from "./components/CandidatoCard";
-import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
-import { getTitolo, getFieldName } from "./utils/candidatoUtils";
-import { Loader2 } from "lucide-react";
+import { LoadingStates } from "./components/LoadingStates";
+import { getTitolo } from "./utils/candidatoUtils";
 
 export default function ScegliCandidato() {
   const { categoria } = useParams<{ categoria: string }>();
-  const { user, isLoading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
-  const [authReady, setAuthReady] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { user, isLoading } = useAuth();
+  const authReady = useAuthReady();
 
-  const { candidati, loading: dataLoading, candidatoSelezionato, setCandidatoSelezionato } = useCandidatiData(user, categoria || '');
-  const { selezionando, opinioniDialogData, selezionaCandidato, openOpinioniDialog, closeOpinioniDialog } = useCandidatiActions(user, categoria || '', null);
+  const { 
+    candidati, 
+    loading, 
+    candidatoSelezionato, 
+    setCandidatoSelezionato 
+  } = useCandidatiData(user, categoria || '');
 
-  // Gestione stato di caricamento
-  useEffect(() => {
-    if (!authLoading) {
-      setAuthReady(true);
-    }
-  }, [authLoading]);
+  const {
+    selezionando,
+    opinioniDialogData,
+    selezionaCandidato,
+    openOpinioniDialog,
+    closeOpinioniDialog
+  } = useCandidatiActions(user, categoria || '', null);
 
-  useEffect(() => {
-    if (authReady && !dataLoading) {
-      setLoading(false);
-    }
-  }, [authReady, dataLoading]);
-
-  const handleSelezionaCandidato = async (candidatoId: string) => {
-    await selezionaCandidato(candidatoId, (id: string) => {
-      setCandidatoSelezionato(id);
-      // Invalida la query dei candidati per aggiornare la pagina test
-      queryClient.invalidateQueries({ queryKey: ['testSelezioni'] });
-    });
+  const handleSelezionaCandidato = (candidatoId: string) => {
+    selezionaCandidato(candidatoId, setCandidatoSelezionato);
   };
 
   if (!user && !isLoading) {
     return <Redirect to="/auth" />;
   }
 
-  // Mostra loading se non siamo pronti
-  if (!authReady || loading) {
-    return (
-      <PageTransition>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-gray-600">Caricamento candidati...</p>
-          </div>
-        </div>
-      </PageTransition>
-    );
-  }
-
   return (
     <PageTransition>
       <div className="min-h-screen flex flex-col overflow-hidden page-with-navbar">
         <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+          <LoadingStates 
+            authReady={authReady} 
+            isLoading={isLoading} 
+            loading={loading} 
+          />
+          
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           
           <ViewOpinioniDialog
