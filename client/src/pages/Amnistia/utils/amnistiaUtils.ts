@@ -24,9 +24,9 @@ export const isTopThree = (index: number): boolean => {
 
 export const getLeggeStyle = (isTopThree: boolean): string => {
   if (isTopThree) {
-    return "bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:from-yellow-100 hover:to-yellow-200";
+    return "bg-white border-gray-200 hover:bg-gray-50";
   }
-  return "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100";
+  return "bg-white border-gray-200 hover:bg-gray-50";
 };
 
 export const getLeggeNumberStyle = (isTopThree: boolean): string => {
