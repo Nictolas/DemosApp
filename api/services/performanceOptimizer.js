@@ -75,7 +75,7 @@ class PerformanceOptimizer {
       
     } catch (error) {
       console.error('❌ Errore durante ottimizzazioni:', error);
-      logger.logError(error, null, { context: 'performance_optimizer' });
+      logger.error(error.message || error, { context: 'performance_optimizer' });
     }
   }
 
@@ -94,7 +94,7 @@ class PerformanceOptimizer {
       }
       
       // Log delle statistiche per monitoraggio
-      logger.logInfo('Pool database ottimizzato', {
+      logger.info('Pool database ottimizzato', {
         totalConnections: stats.totalCount,
         idleConnections: stats.idleCount,
         utilization: stats.utilizationPercent
@@ -121,7 +121,7 @@ class PerformanceOptimizer {
       
       console.log(`💾 Memoria liberata: ${Math.round(freed / 1024 / 1024)}MB`);
       
-      logger.logInfo('Memoria ottimizzata', {
+      logger.info('Memoria ottimizzata', {
         beforeGC: Math.round(beforeGC.heapUsed / 1024 / 1024),
         afterGC: Math.round(afterGC.heapUsed / 1024 / 1024),
         freed: Math.round(freed / 1024 / 1024)
