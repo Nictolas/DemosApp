@@ -42,12 +42,12 @@ router.get('/opinioni-proposte', async (req, res) => {
     console.log('🔑 Headers ricevuti:', req.headers);
     
     // Reindirizza alla route modulare
-    const opinioniRoutes = require('../routes/opinioni');
+    const opinioniProposteRoutes = require('../routes/opinioni-proposte');
     
     // Crea una richiesta mock per il router con TUTTI gli headers
     const mockReq = {
       ...req,
-      url: '/proposte' + req.url.replace('/opinioni-proposte', ''),
+      url: '/' + req.url.replace('/opinioni-proposte', ''),
       headers: { ...req.headers }, // Copia esplicita degli headers
       get: (name) => req.headers[name], // Metodo get per compatibilità
       header: (name) => req.headers[name] // Metodo header per compatibilità
@@ -56,7 +56,7 @@ router.get('/opinioni-proposte', async (req, res) => {
     console.log('🔑 Mock request headers:', mockReq.headers);
     
     // Usa il router modulare
-    opinioniRoutes.handle(mockReq, res);
+    opinioniProposteRoutes.handle(mockReq, res);
     
   } catch (error) {
     console.error('💥 Errore endpoint diretto opinioni-proposte:', error);
