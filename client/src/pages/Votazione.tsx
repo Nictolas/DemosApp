@@ -419,144 +419,167 @@ const Votazione = React.memo(function Votazione() {
     );
   }
 
-  // Componente per Nuova Comunicazione Votazione - memoizzato
-  const NuovaComunicazioneCard = React.memo(() => (
-    <Card className="w-full bg-white">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
-          <Vote className="h-6 w-6" />
-          Nuova Comunicazione Votazione
-        </CardTitle>
-        <CardDescription className="text-center">Condividi i dettagli di una votazione con i tuoi elettori.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {existingComunicazione && (
-          <Alert>
-            <CheckCircle className="h-4 w-4" />
-            <AlertTitle>Votazione già comunicata</AlertTitle>
-            <AlertDescription>
-              Questa votazione è già stata registrata per la tua zona. Puoi comunque aggiungere il tuo voto.
-              <br /><strong>Risultato registrato:</strong> {existingComunicazione.vincitore}
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        
-        {/* Form per Nuova Comunicazione Votazione */}
-        <div className="space-y-6">
-          {/* Titolo della votazione */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Titolo della votazione *</label>
-            <input 
-              type="text"
-              placeholder="Es: Approvazione legge..."
-              value={form.watch("titolo")}
-              onChange={(e) => form.setValue("titolo", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {form.formState.errors.titolo && (
-              <p className="text-sm text-red-600">{form.formState.errors.titolo.message}</p>
-            )}
-          </div>
+  // Componente per Nuova Comunicazione Votazione - ottimizzato per evitare perdita di focus
+  const NuovaComunicazioneCard = React.memo(() => {
+    // Usa useState locale per evitare re-render del form
+    const [titolo, setTitolo] = useState("");
+    const [commento, setCommento] = useState("");
+    const [votoDato, setVotoDato] = useState<"Favorevole" | "Contrario" | "Astenuto">("Favorevole");
+    const [vincitore, setVincitore] = useState<"Approvata" | "Parità" | "Respinta">("Approvata");
+
+    // Sincronizza con il form quando necessario
+    React.useEffect(() => {
+      form.setValue("titolo", titolo);
+    }, [titolo, form]);
+
+    React.useEffect(() => {
+      form.setValue("commento", commento);
+    }, [commento, form]);
+
+    React.useEffect(() => {
+      form.setValue("voto_dato", votoDato);
+    }, [votoDato, form]);
+
+    React.useEffect(() => {
+      form.setValue("vincitore", vincitore);
+    }, [vincitore, form]);
+
+    return (
+      <Card className="w-full bg-white">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+            <Vote className="h-6 w-6" />
+            Nuova Comunicazione Votazione
+          </CardTitle>
+          <CardDescription className="text-center">Condividi i dettagli di una votazione con i tuoi elettori.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {existingComunicazione && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertTitle>Votazione già comunicata</AlertTitle>
+              <AlertDescription>
+                Questa votazione è già stata registrata per la tua zona. Puoi comunque aggiungere il tuo voto.
+                <br /><strong>Risultato registrato:</strong> {existingComunicazione.vincitore}
+              </AlertDescription>
+            </Alert>
+          )}
           
-          {/* Il tuo voto - Pulsanti come in /opinioni-nazionali */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Il tuo voto *</label>
-            <div className="flex justify-center">
-              <div className="flex w-full max-w-md">
-                {[
-                  { value: "Favorevole", color: "bg-green-600 text-white" },
-                  { value: "Astenuto", color: "bg-yellow-500 text-white" },
-                  { value: "Contrario", color: "bg-red-600 text-white" }
-                ].map((option, idx) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
-                      idx === 0 ? 'rounded-l-full' : ''
-                    } ${
-                      idx === 2 ? 'rounded-r-full' : ''
-                    } ${
-                      form.watch("voto_dato") === option.value 
-                        ? option.color + ' scale-95 z-10' 
-                        : 'bg-white hover:bg-gray-10 z-0'
-                    }`}
-                    onClick={() => form.setValue("voto_dato", option.value as "Favorevole" | "Contrario" | "Astenuto")}
-                  >
-                    {option.value}
-                  </button>
-                ))}
-              </div>
+          {/* Form per Nuova Comunicazione Votazione */}
+          <div className="space-y-6">
+            {/* Titolo della votazione */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Titolo della votazione *</label>
+              <input 
+                type="text"
+                placeholder="Es: Approvazione legge..."
+                value={titolo}
+                onChange={(e) => setTitolo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {form.formState.errors.titolo && (
+                <p className="text-sm text-red-600">{form.formState.errors.titolo.message}</p>
+              )}
             </div>
-            {form.formState.errors.voto_dato && (
-              <p className="text-sm text-red-600">{form.formState.errors.voto_dato.message}</p>
-            )}
-          </div>
-          
-          {/* Commento */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Commento (opzionale, max 20 caratteri)</label>
-            <input
-              type="text"
-              maxLength={20}
-              placeholder="Inserisci commento..."
-              value={form.watch("commento") || ""}
-              onChange={(e) => form.setValue("commento", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {form.formState.errors.commento && (
-              <p className="text-sm text-red-600">{form.formState.errors.commento.message}</p>
-            )}
-          </div>
-          
-          {/* Risultato della votazione */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Risultato della votazione *</label>
-            <div className="flex justify-center">
-              <div className="flex w-full max-w-md">
-                {[
-                  { value: "Approvata", color: "bg-green-600 text-white" },
-                  { value: "Parità", color: "bg-yellow-500 text-white" },
-                  { value: "Respinta", color: "bg-red-600 text-white" }
-                ].map((option, idx) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
-                      idx === 0 ? 'rounded-l-full' : ''
-                    } ${
-                      idx === 2 ? 'rounded-r-full' : ''
-                    } ${
-                      form.watch("vincitore") === option.value 
-                        ? option.color + ' scale-95 z-10' 
-                        : 'bg-white hover:bg-gray-10 z-0'
-                    }`}
-                    onClick={() => form.setValue("vincitore", option.value as "Approvata" | "Parità" | "Respinta")}
-                  >
-                    {option.value}
-                  </button>
-                ))}
+            
+            {/* Il tuo voto - Pulsanti come in /opinioni-nazionali */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Il tuo voto *</label>
+              <div className="flex justify-center">
+                <div className="flex w-full max-w-md">
+                  {[
+                    { value: "Favorevole", color: "bg-green-600 text-white" },
+                    { value: "Astenuto", color: "bg-yellow-500 text-white" },
+                    { value: "Contrario", color: "bg-red-600 text-white" }
+                  ].map((option, idx) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                        idx === 0 ? 'rounded-l-full' : ''
+                      } ${
+                        idx === 2 ? 'rounded-r-full' : ''
+                      } ${
+                        votoDato === option.value 
+                          ? option.color + ' scale-95 z-10' 
+                          : 'bg-white hover:bg-gray-10 z-0'
+                      }`}
+                      onClick={() => setVotoDato(option.value as "Favorevole" | "Contrario" | "Astenuto")}
+                    >
+                      {option.value}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {form.formState.errors.voto_dato && (
+                <p className="text-sm text-red-600">{form.formState.errors.voto_dato.message}</p>
+              )}
             </div>
-            {form.formState.errors.vincitore && (
-              <p className="text-sm text-red-600">{form.formState.errors.vincitore.message}</p>
-            )}
+            
+            {/* Commento */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Commento (opzionale, max 20 caratteri)</label>
+              <input
+                type="text"
+                maxLength={20}
+                placeholder="Inserisci commento..."
+                value={commento}
+                onChange={(e) => setCommento(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {form.formState.errors.commento && (
+                <p className="text-sm text-red-600">{form.formState.errors.commento.message}</p>
+              )}
+            </div>
+            
+            {/* Risultato della votazione */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Risultato della votazione *</label>
+              <div className="flex justify-center">
+                <div className="flex w-full max-w-md">
+                  {[
+                    { value: "Approvata", color: "bg-green-600 text-white" },
+                    { value: "Parità", color: "bg-yellow-500 text-white" },
+                    { value: "Respinta", color: "bg-red-600 text-white" }
+                  ].map((option, idx) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`flex-1 py-3 text-base font-medium transition-transform duration-150 focus:outline-none border border-gray-200 ${
+                        idx === 0 ? 'rounded-l-full' : ''
+                      } ${
+                        idx === 2 ? 'rounded-r-full' : ''
+                      } ${
+                        vincitore === option.value 
+                          ? option.color + ' scale-95 z-10' 
+                          : 'bg-white hover:bg-gray-10 z-0'
+                      }`}
+                      onClick={() => setVincitore(option.value as "Approvata" | "Parità" | "Respinta")}
+                    >
+                      {option.value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {form.formState.errors.vincitore && (
+                <p className="text-sm text-red-600">{form.formState.errors.vincitore.message}</p>
+              )}
+            </div>
+            
+            {/* Pulsante invio */}
+            <button
+              type="button"
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={submitComunicazione.isPending}
+              onClick={() => form.handleSubmit(onSubmit)()}
+            >
+              {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
+            </button>
           </div>
-          
-          {/* Pulsante invio */}
-          <button
-            type="button"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            disabled={submitComunicazione.isPending}
-            onClick={() => form.handleSubmit(onSubmit)()}
-          >
-            {submitComunicazione.isPending ? "Invio in corso..." : "Invia Comunicazione"}
-          </button>
-        </div>
-        {/* Form originale rimosso per test */}
-      </CardContent>
-    </Card>
-  ));
+        </CardContent>
+      </Card>
+    );
+  });
 
 
   // Componente per Notifiche di Demos - memoizzato
@@ -581,9 +604,7 @@ const Votazione = React.memo(function Votazione() {
                 type="text"
                 placeholder="Es: Aggiornamento importante..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onChange={(e) => {
-                  console.log('📝 Demos titolo onChange:', e.target.value);
-                }}
+                {...demosForm.register("titolo")}
               />
             </div>
             <div className="space-y-2">
@@ -592,9 +613,7 @@ const Votazione = React.memo(function Votazione() {
                 type="text"
                 placeholder="Inserisci il messaggio per tutti gli utenti..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onChange={(e) => {
-                  console.log('📝 Demos commento onChange:', e.target.value);
-                }}
+                {...demosForm.register("commento")}
               />
             </div>
             <Button type="submit" className="w-full" disabled={submitDemosNotification.isPending}>
