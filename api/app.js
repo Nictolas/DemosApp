@@ -40,6 +40,7 @@ const candidatiSostenitoriRoutes = require('./routes/candidati-sostenitori');
 const sondaggiRoutes = require('./routes/sondaggi');
 const adminRoutes = require('./routes/admin/database');
 const candidatiRoutes = require('./routes/candidati');
+const attivistiRoutes = require('./routes/attivisti');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
 const gdprRequestsRoutes = require('./routes/user/gdpr-requests');
 const downloadDataRoutes = require('./routes/user/download-data');
@@ -254,6 +255,7 @@ app.use('/api/test-performance', testPerformanceRoutes);
 // app.use('/api/test', testSimpleRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/candidati', candidatiRoutes);
+app.use('/api/attivisti', attivistiRoutes);
 
 // Route per diritti GDPR
 app.use('/api/user', userLimiter, gdprRightsRoutes);
