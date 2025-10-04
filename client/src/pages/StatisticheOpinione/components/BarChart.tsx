@@ -16,10 +16,10 @@ export const BarChartComponent: React.FC<BarChartProps> = ({ etaBarData }) => {
       <CardContent className="h-80">
         {etaBarData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <RechartsBarChart layout="horizontal" data={etaBarData}>
+            <RechartsBarChart data={etaBarData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" />
+              <XAxis dataKey="name" />
+              <YAxis />
               <Tooltip />
               <Bar dataKey="Favorevole" fill="#10B981" />
               <Bar dataKey="Indeciso" fill="#FCD34D" />
