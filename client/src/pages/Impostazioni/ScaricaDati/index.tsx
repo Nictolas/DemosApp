@@ -151,7 +151,7 @@ export default function ScaricaDati() {
         </div>
 
         {/* Informazioni GDPR */}
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-white">
           <Shield className="h-4 w-4" />
           <AlertDescription>
             Secondo il GDPR, hai il diritto di ottenere una copia dei tuoi dati personali. 
@@ -162,7 +162,7 @@ export default function ScaricaDati() {
 
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-6 bg-white">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -170,7 +170,7 @@ export default function ScaricaDati() {
         {/* Data Types Grid */}
         <div className="grid gap-6 md:grid-cols-2">
           {dataTypes.map((data) => (
-            <Card key={data.id} className="hover:shadow-lg transition-shadow">
+            <Card key={data.id} className="hover:shadow-lg transition-shadow bg-white">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
                   {data.icon}
@@ -213,7 +213,7 @@ export default function ScaricaDati() {
         </div>
 
         {/* Additional Info */}
-        <Card className="mt-8">
+        <Card className="mt-8 bg-white">
           <CardHeader>
             <CardTitle>Informazioni Aggiuntive</CardTitle>
           </CardHeader>

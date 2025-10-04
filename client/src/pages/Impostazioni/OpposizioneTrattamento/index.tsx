@@ -176,7 +176,7 @@ export default function OpposizioneTrattamento() {
         </div>
 
         {/* Informazioni Legali */}
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-white">
           <Info className="h-4 w-4" />
           <AlertDescription>
             <strong>Diritto di Opposizione (Art. 21 GDPR):</strong> Hai il diritto di opporti 
@@ -187,7 +187,7 @@ export default function OpposizioneTrattamento() {
 
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-6 bg-white">
             <XCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -195,14 +195,14 @@ export default function OpposizioneTrattamento() {
 
         {/* Success Alert */}
         {success && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
+          <Alert className="mb-6 border-green-200 bg-white">
             <CheckCircle className="h-4 w-4" />
             <AlertDescription className="text-green-800">{success}</AlertDescription>
           </Alert>
         )}
 
         {/* Form Opposizione */}
-        <Card className="mb-8">
+        <Card className="mb-8 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
@@ -257,7 +257,7 @@ export default function OpposizioneTrattamento() {
               <Label className="text-base font-medium">Categorie di Dati</Label>
               <div className="grid gap-4">
                 {dataCategories.map((category) => (
-                  <div key={category.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                  <div key={category.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50 bg-white">
                     <Checkbox
                       id={`objection-${category.id}`}
                       checked={objectionCategories.includes(category.id)}
@@ -304,7 +304,7 @@ export default function OpposizioneTrattamento() {
         </Card>
 
         {/* Informazioni Aggiuntive */}
-        <Card>
+        <Card className="bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Info className="h-5 w-5" />
