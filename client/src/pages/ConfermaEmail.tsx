@@ -45,7 +45,7 @@ const ConfermaEmail: React.FC = () => {
 
         // Chiama l'API per verificare l'email
         console.log('📡 Invio richiesta verifica email...');
-        const response = await fetch('https://demos-c7k0.onrender.com/api/auth/verify-email', {
+        const response = await fetch('https://demos-backend.onrender.com/api/auth/verify-email', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
