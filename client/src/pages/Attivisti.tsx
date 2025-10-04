@@ -48,7 +48,7 @@ export default function Attivisti() {
         setIsLoading(true);
         setIsError(false);
         
-        const response = await fetch('/api/attivisti');
+        const response = await fetch('https://demos-c7k0.onrender.com/api/attivisti');
         if (!response.ok) {
           throw new Error(`Errore ${response.status}: ${response.statusText}`);
         }
