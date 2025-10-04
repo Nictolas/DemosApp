@@ -14,6 +14,13 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/attivisti - Lista attivisti richiesta');
     
+    // Disabilita il caching per questo endpoint
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
     // Query per ottenere tutti gli utenti con ruolo "Attivista"
     const result = await pool.query(`
       SELECT 
