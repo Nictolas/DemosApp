@@ -4,7 +4,7 @@ declare const importMetaEnv: Record<string, string | undefined> & { VITE_API_BAS
 const resolveBaseUrl = (): string => {
   // Controlla se siamo in produzione (Render)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return 'https://demos-backend.onrender.com/api';
+    return 'https://demos-c7k0.onrender.com/api';
   }
 
   // Sviluppo locale

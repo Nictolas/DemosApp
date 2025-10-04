@@ -128,7 +128,7 @@ export default function RegistrazioneRuolo() {
       console.log('🔍 Email da registrare:', email);
 
       // Chiama l'API di registrazione
-      const response = await fetch('https://demos-backend.onrender.com/api/auth/register', {
+      const response = await fetch('https://demos-c7k0.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
