@@ -9,7 +9,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function Menu() {
-  const { user, isLoading, isAdmin, hasAdvancedAccess } = useMenuData();
+  const { user, isLoading, isAdmin, hasAdvancedAccess, hasLimitedAccess } = useMenuData();
   const { navigateWithButtonReset, setLocation } = useMenuActions();
   const queryClient = useQueryClient();
   const [isAndroid, setIsAndroid] = useState(false);
@@ -86,6 +86,7 @@ export default function Menu() {
             <MenuGrid 
               key={`grid-${user?.email || 'no-user'}-${hasAdvancedAccess}`}
               hasAdvancedAccess={hasAdvancedAccess}
+              hasLimitedAccess={hasLimitedAccess}
               onNavigate={navigateWithButtonReset}
             />
           </div>

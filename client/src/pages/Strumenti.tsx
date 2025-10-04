@@ -293,25 +293,27 @@ export default function Strumenti() {
 
         {/* Pulsanti Navigazione - Nuova estetica */}
         <div className="flex-1 grid grid-cols-2 gap-6">
-          {/* Votazione (solo per ruoli avanzati) */}
-          <button
-            type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => setLocation('/votazione')}
-            onContextMenu={e => e.preventDefault()}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <Megaphone className="h-8 w-8 text-blue-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">Votazione</div>
-            </div>
-          </button>
+          {/* Votazione (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
+          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+            <button
+              type="button"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation('/votazione')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#dbeafe" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <Megaphone className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <Megaphone className="h-8 w-8 text-blue-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Votazione</div>
+              </div>
+            </button>
+          )}
           {/* Evento (solo per ruoli avanzati) */}
           <button
             type="button"
@@ -352,8 +354,8 @@ export default function Strumenti() {
               </div>
             </button>
           ) : null}
-          {/* Sostenitori (solo Politico/Candidato/Admin) */}
-          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+          {/* Sostenitori (Politico/Candidato/Admin/Attivista/Organizzazione) */}
+          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin' || user?.ruolo === 'Attivista' || user?.ruolo === 'Organizzazione') && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -373,44 +375,48 @@ export default function Strumenti() {
               </div>
             </button>
           )}
-          {/* Riscontro (solo per ruoli avanzati) */}
-          <button
-            type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => setLocation('/riscontro')}
-            onContextMenu={e => e.preventDefault()}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#c7d2fe" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <CheckCircle className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <CheckCircle className="h-8 w-8 text-indigo-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">Riscontro</div>
-            </div>
-          </button>
-          {/* Sondaggi (solo per ruoli avanzati) */}
-          <button
-            type="button"
-            className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
-            onClick={() => setLocation('/sondaggi')}
-            onContextMenu={e => e.preventDefault()}
-          >
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
-              <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
-            </svg>
-            <div className="relative z-10 flex flex-col items-center justify-center h-full">
-              <span className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
-                <MessageSquare className="h-8 w-8 text-yellow-600 relative z-10" />
-              </span>
-              <div className="text-gray-700 font-semibold text-lg select-none">Sondaggi</div>
-            </div>
-          </button>
+          {/* Riscontro (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
+          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+            <button
+              type="button"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation('/riscontro')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#c7d2fe" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <CheckCircle className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <CheckCircle className="h-8 w-8 text-indigo-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Riscontro</div>
+              </div>
+            </button>
+          )}
+          {/* Sondaggi (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
+          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+            <button
+              type="button"
+              className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setLocation('/sondaggi')}
+              onContextMenu={e => e.preventDefault()}
+            >
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <polygon points="100,0 0,0 0,35 100,20" fill="#fef9c3" />
+                <polygon points="100,20 0,35 0,100 100,100" fill="#fff" />
+              </svg>
+              <div className="relative z-10 flex flex-col items-center justify-center h-full">
+                <span className="relative flex items-center justify-center w-16 h-16 mb-2">
+                  <MessageSquare className="h-12 w-12 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
+                  <MessageSquare className="h-8 w-8 text-yellow-600 relative z-10" />
+                </span>
+                <div className="text-gray-700 font-semibold text-lg select-none">Sondaggi</div>
+              </div>
+            </button>
+          )}
         </div>
 
         {/* Ultima Votazione Section */}

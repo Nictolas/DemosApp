@@ -27,7 +27,10 @@ export default function Navbar() {
 
   // Determina se l'utente ha accesso agli strumenti avanzati
   const userRole = user?.role || user?.ruolo;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin" || userRole === "Attivista" || userRole === "Organizzazione";
+  
+  // Determina se l'utente ha accesso limitato (solo Evento e Sostenitori)
+  const hasLimitedAccess = userRole === "Attivista" || userRole === "Organizzazione";
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-center items-center h-24 z-[9999] pt-3 pb-4 select-none px-4" style={{ boxShadow: '0 -1px 8px 0 rgba(0,0,0,0.03)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
