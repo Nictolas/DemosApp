@@ -20,4 +20,5 @@ export interface MenuData {
   isLoading: boolean;
   isAdmin: boolean;
   hasAdvancedAccess: boolean;
+  hasLimitedAccess: boolean;
 }

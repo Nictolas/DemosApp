@@ -6,15 +6,17 @@ import { MenuButtonProps } from "../types";
 
 interface MenuGridProps {
   hasAdvancedAccess: boolean;
+  hasLimitedAccess: boolean;
   onNavigate: (path: string, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const MenuGrid: React.FC<MenuGridProps> = ({
   hasAdvancedAccess,
+  hasLimitedAccess,
   onNavigate
 }) => {
   const visibleItems = menuItems.filter(item => 
-    !item.requiresAdvancedAccess || hasAdvancedAccess
+    !item.requiresAdvancedAccess || hasAdvancedAccess || hasLimitedAccess
   );
 
   // Debug logging rimosso per evitare re-render
