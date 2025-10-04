@@ -43,28 +43,37 @@ export default function Attivisti() {
 
   // Carica gli attivisti
   useEffect(() => {
+    console.log('🚀 Attivisti useEffect - Inizio');
     const fetchAttivisti = async () => {
       try {
+        console.log('🔄 fetchAttivisti - Inizio caricamento');
         setIsLoading(true);
         setIsError(false);
         
+        console.log('📡 fetchAttivisti - Chiamata API...');
         const response = await fetch('https://demos-c7k0.onrender.com/api/attivisti');
+        console.log('📡 fetchAttivisti - Response status:', response.status);
+        
         if (!response.ok) {
           throw new Error(`Errore ${response.status}: ${response.statusText}`);
         }
         
+        console.log('📡 fetchAttivisti - Parsing JSON...');
         const data: AttivistiResponse = await response.json();
+        console.log('📊 fetchAttivisti - Data ricevuta:', data);
         
         if (data.success) {
+          console.log('✅ fetchAttivisti - Successo, attivisti:', data.data.length);
           setAttivisti(data.data);
         } else {
           throw new Error(data.message || 'Errore nel caricamento degli attivisti');
         }
       } catch (error) {
-        console.error('Errore nel caricamento degli attivisti:', error);
+        console.error('❌ fetchAttivisti - Errore:', error);
         setIsError(true);
         setErrorMessage(error instanceof Error ? error.message : 'Errore sconosciuto');
       } finally {
+        console.log('🏁 fetchAttivisti - Completato, setIsLoading(false)');
         setIsLoading(false);
       }
     };
@@ -136,6 +145,8 @@ export default function Attivisti() {
     }
   };
 
+  console.log('🎨 Attivisti render - isLoading:', isLoading, 'isError:', isError, 'attivisti.length:', attivisti.length);
+  
   return (
     <PageTransition location="/attivisti" type="fade-up">
       <PageContainer>
