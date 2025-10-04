@@ -49,7 +49,7 @@ export default function RegistrazioneCodiceFiscale() {
       setCodiceFiscaleStatus('checking');
       console.log('🔍 Controllo intelligente codice fiscale:', codiceFiscale);
       
-      const apiUrl = `https://demos-backend.onrender.com/api/auth/check-codice-fiscale?codice_fiscale=${encodeURIComponent(codiceFiscale.toUpperCase())}`;
+      const apiUrl = `https://demos-c7k0.onrender.com/api/auth/check-codice-fiscale?codice_fiscale=${encodeURIComponent(codiceFiscale.toUpperCase())}`;
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
