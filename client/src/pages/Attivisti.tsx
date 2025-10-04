@@ -219,82 +219,49 @@ export default function Attivisti() {
                   </div>
                 </div>
 
-                {/* Attivisti Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {attivisti.map((attivista) => (
-                    <Card key={attivista.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-center space-x-4">
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={attivista.avatar_config} />
-                            <AvatarFallback className="bg-blue-100 text-blue-600">
-                              {getInitials(attivista.nome, attivista.cognome)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg font-semibold text-gray-900 truncate">
-                              {attivista.nome} {attivista.cognome}
-                            </CardTitle>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <Badge className={`text-xs ${getStatusColor(attivista.status)}`}>
-                                {translateStatus(attivista.status)}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {attivista.ruolo}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-3">
-                          {/* Email */}
-                          <div>
-                            <span className="text-sm font-medium text-gray-500">Email:</span>
-                            <p className="text-sm text-gray-900 truncate">{attivista.email}</p>
-                          </div>
-
-                          {/* Residenza */}
-                          {attivista.comune_residenza && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-500">Residenza:</span>
-                              <p className="text-sm text-gray-900">
-                                {attivista.comune_residenza}
-                                {attivista.provincia_residenza && `, ${attivista.provincia_residenza}`}
-                                {attivista.regione_residenza && `, ${attivista.regione_residenza}`}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Data di nascita */}
-                          {attivista.data_nascita && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-500">Data di nascita:</span>
-                              <p className="text-sm text-gray-900">
-                                {formatDate(attivista.data_nascita)}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Cittadinanza */}
-                          {attivista.cittadinanza && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-500">Cittadinanza:</span>
-                              <p className="text-sm text-gray-900">{attivista.cittadinanza}</p>
-                            </div>
-                          )}
-
-                          {/* Data registrazione */}
-                          <div>
-                            <span className="text-sm font-medium text-gray-500">Registrato il:</span>
-                            <p className="text-sm text-gray-900">
-                              {formatDate(attivista.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                {/* Tabella Attivisti */}
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Avatar
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Nome Cognome
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Regione di Residenza
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {attivisti.map((attivista) => (
+                          <tr key={attivista.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={attivista.avatar_config} />
+                                <AvatarFallback className="bg-blue-100 text-blue-600">
+                                  {getInitials(attivista.nome, attivista.cognome)}
+                                </AvatarFallback>
+                              </Avatar>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {attivista.nome} {attivista.cognome}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {attivista.regione_residenza || 'Non specificata'}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
