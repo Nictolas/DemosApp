@@ -87,7 +87,7 @@ export default function AuthPage() {
       setEmailStatus('checking');
       console.log('🔍 Controllo intelligente email:', email);
       
-      const apiUrl = 'https://demos-c7k0.onrender.com/api/check-email';
+      const apiUrl = 'https://demos-backend.onrender.com/api/check-email';
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

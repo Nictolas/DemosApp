@@ -35,7 +35,7 @@ const VerificaEmailStandalone: React.FC = () => {
   const verifyEmail = async (token: string) => {
     setIsVerifying(true);
     try {
-      const response = await fetch('https://demos-c7k0.onrender.com/api/auth/verify-email', {
+      const response = await fetch('https://demos-backend.onrender.com/api/auth/verify-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ const VerificaEmailStandalone: React.FC = () => {
 
     setIsResending(true);
     try {
-      const response = await fetch('https://demos-c7k0.onrender.com/api/auth/resend-verification', {
+      const response = await fetch('https://demos-backend.onrender.com/api/auth/resend-verification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ const VerificaEmailStandalone: React.FC = () => {
       // Chiama l'endpoint di logout
       const token = localStorage.getItem('auth_token');
       if (token) {
-        await fetch('https://demos-c7k0.onrender.com/api/auth/logout', {
+        await fetch('https://demos-backend.onrender.com/api/auth/logout', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
