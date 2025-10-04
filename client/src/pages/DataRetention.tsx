@@ -149,21 +149,21 @@ const DataRetention: React.FC = () => {
       </div>
 
       {error && (
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-white">
           <XCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-white">
           <CheckCircle className="h-4 w-4" />
           <AlertDescription>{success}</AlertDescription>
         </Alert>
       )}
 
       {/* Job Status */}
-      <Card className="mb-6">
+      <Card className="mb-6 bg-white">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Database className="h-5 w-5 mr-2" />
@@ -207,7 +207,7 @@ const DataRetention: React.FC = () => {
       </Card>
 
       {/* Policies */}
-      <Card className="mb-6">
+      <Card className="mb-6 bg-white">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Shield className="h-5 w-5 mr-2" />
@@ -217,7 +217,7 @@ const DataRetention: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             {Object.entries(policies).map(([dataType, policy]) => (
-              <div key={dataType} className="border rounded-lg p-4">
+              <div key={dataType} className="border rounded-lg p-4 bg-white">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-lg capitalize">
                     {dataType.replace('_', ' ')}
@@ -237,7 +237,7 @@ const DataRetention: React.FC = () => {
       </Card>
 
       {/* Statistics */}
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Clock className="h-5 w-5 mr-2" />
@@ -247,7 +247,7 @@ const DataRetention: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(stats).map(([dataType, stat]) => (
-              <div key={dataType} className="border rounded-lg p-4">
+              <div key={dataType} className="border rounded-lg p-4 bg-white">
                 <h3 className="font-semibold mb-2 capitalize">
                   {dataType.replace('_', ' ')}
                 </h3>
@@ -276,7 +276,7 @@ const DataRetention: React.FC = () => {
       </Card>
 
       {/* Info */}
-      <Card className="mt-6">
+      <Card className="mt-6 bg-white">
         <CardContent className="pt-6">
           <div className="flex items-start space-x-3">
             <Info className="h-5 w-5 text-blue-500 mt-0.5" />

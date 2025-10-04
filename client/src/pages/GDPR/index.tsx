@@ -66,7 +66,7 @@ export default function GDPR() {
         </div>
 
         {/* Informazioni Generali */}
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-white">
           <Shield className="h-4 w-4" />
           <AlertDescription>
             <strong>Regolamento Generale sulla Protezione dei Dati (GDPR):</strong> Hai il diritto 
@@ -76,7 +76,7 @@ export default function GDPR() {
         </Alert>
 
         {/* Sezione Gestione Dati */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Download className="h-5 w-5" />
@@ -108,7 +108,7 @@ export default function GDPR() {
         </Card>
 
         {/* Sezione Diritti Specifici GDPR */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
@@ -140,7 +140,7 @@ export default function GDPR() {
         </Card>
 
         {/* Sezione Account */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trash2 className="h-5 w-5" />
@@ -163,7 +163,7 @@ export default function GDPR() {
         </Card>
 
         {/* Sezione Documenti */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />

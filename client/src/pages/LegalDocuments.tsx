@@ -81,7 +81,7 @@ const LegalDocuments: React.FC = () => {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
+        <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Documenti Attivi</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -96,7 +96,7 @@ const LegalDocuments: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conformità GDPR</CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
@@ -111,7 +111,7 @@ const LegalDocuments: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-white">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ultimo Aggiornamento</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -130,7 +130,7 @@ const LegalDocuments: React.FC = () => {
       {/* Documents List */}
       <div className="space-y-6">
         {legalDocuments.map((document) => (
-          <Card key={document.id}>
+          <Card key={document.id} className="bg-white">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -188,7 +188,7 @@ const LegalDocuments: React.FC = () => {
       </div>
 
       {/* GDPR Compliance Info */}
-      <Card className="mt-8">
+      <Card className="mt-8 bg-white">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Shield className="h-5 w-5 mr-2" />
@@ -229,7 +229,7 @@ const LegalDocuments: React.FC = () => {
       </Card>
 
       {/* Legal Requirements */}
-      <Card className="mt-6">
+      <Card className="mt-6 bg-white">
         <CardContent className="pt-6">
           <div className="flex items-start space-x-3">
             <Info className="h-5 w-5 text-blue-500 mt-0.5" />

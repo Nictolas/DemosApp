@@ -148,7 +148,7 @@ export default function LimitazioneTrattamento() {
         </div>
 
         {/* Informazioni Legali */}
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-white">
           <Info className="h-4 w-4" />
           <AlertDescription>
             <strong>Diritto di Limitazione (Art. 18 GDPR):</strong> Hai il diritto di richiedere 
@@ -159,7 +159,7 @@ export default function LimitazioneTrattamento() {
 
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-6 bg-white">
             <XCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -167,14 +167,14 @@ export default function LimitazioneTrattamento() {
 
         {/* Success Alert */}
         {success && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
+          <Alert className="mb-6 border-green-200 bg-white">
             <CheckCircle className="h-4 w-4" />
             <AlertDescription className="text-green-800">{success}</AlertDescription>
           </Alert>
         )}
 
         {/* Form Limitazione */}
-        <Card className="mb-8">
+        <Card className="mb-8 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
@@ -187,7 +187,7 @@ export default function LimitazioneTrattamento() {
           <CardContent className="space-y-6">
             <div className="grid gap-4">
               {dataCategories.map((category) => (
-                <div key={category.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                <div key={category.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50 bg-white">
                   <Checkbox
                     id={`limitation-${category.id}`}
                     checked={limitationCategories.includes(category.id)}
@@ -233,7 +233,7 @@ export default function LimitazioneTrattamento() {
         </Card>
 
         {/* Informazioni Aggiuntive */}
-        <Card>
+        <Card className="bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Info className="h-5 w-5" />

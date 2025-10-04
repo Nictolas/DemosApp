@@ -235,20 +235,20 @@ export default function GestionePrivacy() {
 
         {/* Success Alert */}
         {success && (
-          <Alert className="mb-6 border-green-200 bg-green-50">
+          <Alert className="mb-6 border-green-200 bg-white">
             <AlertDescription className="text-green-800">{success}</AlertDescription>
           </Alert>
         )}
 
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-6 bg-white">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {/* Privacy Information */}
-        <Alert className="mb-6">
+        <Alert className="mb-6 bg-white">
           <Shield className="h-4 w-4" />
           <AlertDescription>
             Hai il controllo completo sui tuoi dati personali. Puoi modificare queste impostazioni 
@@ -261,7 +261,7 @@ export default function GestionePrivacy() {
           const categorySettings = settings.filter(setting => setting.category === category);
           
           return (
-            <Card key={category} className="mb-6">
+            <Card key={category} className="mb-6 bg-white">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="h-5 w-5" />
@@ -273,7 +273,7 @@ export default function GestionePrivacy() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {categorySettings.map((setting) => (
-                  <div key={setting.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={setting.id} className="flex items-center justify-between p-4 border rounded-lg bg-white">
                     <div className="flex items-center gap-3 flex-1">
                       {setting.icon}
                       <div>
@@ -299,7 +299,7 @@ export default function GestionePrivacy() {
         })}
 
         {/* Data Usage Summary */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Database className="h-5 w-5" />

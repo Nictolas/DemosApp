@@ -95,14 +95,14 @@ export default function GDPRRights() {
       </div>
 
       {error && (
-        <Alert className="mb-6 border-red-200 bg-red-50">
+        <Alert className="mb-6 border-red-200 bg-white">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="mb-6 border-green-200 bg-green-50">
+        <Alert className="mb-6 border-green-200 bg-white">
           <CheckCircle className="h-4 w-4" />
           <AlertDescription>{success}</AlertDescription>
         </Alert>
@@ -110,7 +110,7 @@ export default function GDPRRights() {
 
 
       {/* Storico Richieste */}
-      <Card className="mt-8">
+      <Card className="mt-8 bg-white">
         <CardHeader>
           <CardTitle className="flex items-center">
             <FileText className="w-5 h-5 mr-2" />
@@ -127,7 +127,7 @@ export default function GDPRRights() {
           ) : (
             <div className="space-y-4">
               {requests.map((request) => (
-                <div key={request.id} className="border rounded-lg p-4">
+                <div key={request.id} className="border rounded-lg p-4 bg-white">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium">{getRequestTypeLabel(request.request_type)}</h3>
                     {getStatusBadge(request.status)}
