@@ -69,10 +69,8 @@ export default function Attivisti() {
       }
     };
 
-    if (user) {
-      fetchAttivisti();
-    }
-  }, [user]);
+    fetchAttivisti();
+  }, []);
 
   // Mostra loading durante l'autenticazione
   if (isAuthLoading) {
@@ -109,6 +107,8 @@ export default function Attivisti() {
   // Funzione per ottenere il colore del badge status
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'approved':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'pending':
@@ -123,6 +123,8 @@ export default function Attivisti() {
   // Funzione per tradurre lo status
   const translateStatus = (status: string) => {
     switch (status) {
+      case 'active':
+        return 'Attivo';
       case 'approved':
         return 'Approvato';
       case 'pending':
