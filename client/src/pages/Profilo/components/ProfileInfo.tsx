@@ -1,8 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Image, Globe } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Edit, Image, Globe, Heart } from "lucide-react";
 import { useLocation } from "wouter";
 import { UserInfo } from "@/types/profile";
+import { TIPOLOGIE_ATTIVISMO } from "@/constants/attivismo-types";
 
 interface ProfileInfoProps {
   userInfo: UserInfo;
@@ -151,6 +153,36 @@ export const ProfileInfo = ({
                     <p className="text-lg font-semibold text-gray-900 mt-1">{userInfo.telefono}</p>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+          
+          {/* Sezione Tipologie di Attivismo - Solo per Attivisti e Admin */}
+          {(userInfo.ruolo === "Attivista" || userInfo.ruolo === "Admin") && userInfo.tipologie_attivismo && userInfo.tipologie_attivismo.length > 0 && (
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
+                  <Heart className="h-3 w-3 text-white" />
+                </div>
+                Tipologie di Attivismo
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {userInfo.tipologie_attivismo.map((tipo) => {
+                  const tipologia = TIPOLOGIE_ATTIVISMO.find(t => t.tipo === tipo);
+                  if (!tipologia) return null;
+                  
+                  return (
+                    <Badge
+                      key={tipo}
+                      variant="secondary"
+                      className="flex items-center gap-2 px-4 py-2 text-sm"
+                      style={{ backgroundColor: `${tipologia.colore}20`, color: tipologia.colore }}
+                    >
+                      <span className="text-lg">{tipologia.emoji}</span>
+                      <span className="font-medium">{tipologia.nome}</span>
+                    </Badge>
+                  );
+                })}
               </div>
             </div>
           )}

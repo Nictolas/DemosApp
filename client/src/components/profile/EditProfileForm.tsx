@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { useProfileForm } from "./useProfileForm";
 import { PersonalDataSection } from "./PersonalDataSection";
 import { GeographicSection } from "./GeographicSection";
+import { ActivismTypesSection } from "./ActivismTypesSection";
 
 interface EditProfileFormProps {
   userData: UserInfo & { uid: string };
@@ -20,6 +21,7 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
   // Determina se mostrare le sezioni in base al ruolo
   const shouldShowElectionSection = formData.ruolo === "Politico" || formData.ruolo === "Candidato Politico";
   const shouldShowCandidacySection = formData.ruolo === "Candidato" || formData.ruolo === "Candidato Politico";
+  const shouldShowActivismSection = formData.ruolo === "Attivista" || formData.ruolo === "Admin";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -91,6 +93,14 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
             />
           </CardContent>
         </Card>
+      )}
+
+      {shouldShowActivismSection && (
+        <ActivismTypesSection
+          initialTypes={formData.tipologie_attivismo || []}
+          onTypesChange={(types) => handleChange("tipologie_attivismo", types)}
+          disabled={isSubmitting}
+        />
       )}
 
       <div className="flex justify-end space-x-3">

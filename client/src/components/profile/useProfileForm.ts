@@ -39,7 +39,7 @@ export function useProfileForm(
   }, [userData]);
 
   // Funzione generica per aggiornare il formData
-  const handleChange = (field: keyof (UserInfo & { uid: string }), value: string) => {
+  const handleChange = (field: keyof (UserInfo & { uid: string }), value: string | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -51,6 +51,7 @@ export function useProfileForm(
     setIsSubmitting(true);
 
     try {
+      // Prima aggiorna il profilo normale
       const endpoint = isAdmin ? `/api/users/${userData.uid}` : "/api/users/me";
       const response = await apiRequest("PUT", endpoint, formData);
       
@@ -60,11 +61,30 @@ export function useProfileForm(
       }
       
       const data = await response.json();
-      if (data.success) {
-        onProfileUpdated(data.user || formData);
-      } else {
+      if (!data.success) {
         throw new Error(data.error || "Errore durante l'aggiornamento del profilo");
       }
+
+      // Se l'utente ha tipologie di attivismo, aggiornale separatamente
+      if (formData.tipologie_attivismo && formData.tipologie_attivismo.length > 0) {
+        const activismEndpoint = `/api/attivismo-tipologie/${userData.uid}`;
+        const activismResponse = await apiRequest("PUT", activismEndpoint, {
+          tipologie: formData.tipologie_attivismo
+        });
+        
+        if (!activismResponse.ok) {
+          console.warn("Errore nell'aggiornamento delle tipologie di attivismo:", await activismResponse.text());
+          // Non bloccare il salvataggio del profilo per questo errore
+        }
+      }
+      
+      onProfileUpdated(data.user || formData);
+      
+      toast({
+        title: "Successo",
+        description: "Profilo aggiornato con successo!",
+      });
+      
     } catch (error) {
       console.error("Errore durante l'aggiornamento:", error);
       

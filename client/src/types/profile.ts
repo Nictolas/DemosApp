@@ -27,6 +27,7 @@ export type UserInfo = {
   caccia?: string;
   avatar_config?: string;
   status?: string;
+  tipologie_attivismo?: string[];
   [key: string]: any;
 };
 
