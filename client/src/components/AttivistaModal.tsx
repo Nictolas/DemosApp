@@ -1,6 +1,14 @@
 import React from 'react';
 import { X, Facebook, Twitter, Instagram, Linkedin, MessageCircle, Globe, Twitch, Youtube } from 'lucide-react';
 
+interface TipologiaAttivismo {
+  tipo: string;
+  emoji: string;
+  nome: string;
+  descrizione?: string;
+  colore?: string;
+}
+
 interface Attivista {
   id: string;
   nome: string;
@@ -26,6 +34,7 @@ interface Attivista {
   website_url?: string;
   twitch_url?: string;
   youtube_url?: string;
+  tipologie_attivismo?: TipologiaAttivismo[];
 }
 
 interface AttivistaModalProps {
@@ -188,6 +197,29 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
                 {attivista.regione_residenza || 'Non specificata'}
               </p>
             </div>
+
+            {/* Tipologie di Attivismo */}
+            {attivista.tipologie_attivismo && attivista.tipologie_attivismo.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">
+                  Tipologie di Attivismo
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {attivista.tipologie_attivismo.map((tipologia) => (
+                    <div
+                      key={tipologia.tipo}
+                      className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg"
+                      style={{ backgroundColor: tipologia.colore ? `${tipologia.colore}20` : undefined }}
+                    >
+                      <span className="text-lg">{tipologia.emoji}</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {tipologia.nome}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Social Links */}
             {socialLinks.length > 0 && (

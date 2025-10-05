@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
-import { Loader2, Users, User } from "lucide-react";
+import { Loader2, Users, User, Search, X } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import AttivistaModal from "@/components/AttivistaModal";
+
+interface TipologiaAttivismo {
+  tipo: string;
+  emoji: string;
+  nome: string;
+  descrizione?: string;
+  colore?: string;
+}
 
 interface Attivista {
   id: string;
@@ -34,6 +44,7 @@ interface Attivista {
   website_url?: string;
   twitch_url?: string;
   youtube_url?: string;
+  tipologie_attivismo?: TipologiaAttivismo[];
 }
 
 interface AttivistiResponse {
@@ -46,6 +57,8 @@ interface AttivistiResponse {
 export default function Attivisti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
+  const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -76,6 +89,7 @@ export default function Attivisti() {
         if (data.success) {
           console.log('✅ fetchAttivisti - Successo, attivisti:', data.data.length);
           setAttivisti(data.data);
+          setFilteredAttivisti(data.data);
         } else {
           throw new Error(data.message || 'Errore nel caricamento degli attivisti');
         }
@@ -91,6 +105,32 @@ export default function Attivisti() {
 
     fetchAttivisti();
   }, []);
+
+  // Filtra gli attivisti in base al termine di ricerca
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredAttivisti(attivisti);
+    } else {
+      const filtered = attivisti.filter(attivista => {
+        const fullName = `${attivista.nome} ${attivista.cognome}`.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        return fullName.includes(searchLower) || 
+               attivista.nome.toLowerCase().includes(searchLower) || 
+               attivista.cognome.toLowerCase().includes(searchLower);
+      });
+      setFilteredAttivisti(filtered);
+    }
+  }, [searchTerm, attivisti]);
+
+  // Funzione per gestire il cambio del termine di ricerca
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Funzione per cancellare la ricerca
+  const clearSearch = () => {
+    setSearchTerm("");
+  };
 
   // Pagina pubblica - non richiede autenticazione
   // if (isAuthLoading) {
@@ -168,9 +208,27 @@ export default function Attivisti() {
     setSelectedAttivista(null);
   };
 
-  console.log('🎨 Attivisti render - isLoading:', isLoading, 'isError:', isError, 'attivisti.length:', attivisti.length);
+  // Funzione per ottenere le emoji delle tipologie di attivismo
+  const getTipologieEmoji = (tipologie?: TipologiaAttivismo[]): string => {
+    if (!tipologie || tipologie.length === 0) {
+      return '❓'; // Emoji di default per attivisti senza tipologie
+    }
+    return tipologie.map(t => t.emoji).join(' ');
+  };
+
+  // Funzione per ottenere i tooltip delle tipologie
+  const getTipologieTooltip = (tipologie?: TipologiaAttivismo[]): string => {
+    if (!tipologie || tipologie.length === 0) {
+      return 'Tipologie non specificate';
+    }
+    return tipologie.map(t => `${t.emoji} ${t.nome}`).join(', ');
+  };
+
+  console.log('🎨 Attivisti render - isLoading:', isLoading, 'isError:', isError, 'attivisti.length:', attivisti.length, 'filteredAttivisti.length:', filteredAttivisti.length);
   console.log('🎨 Attivisti render - attivisti data:', attivisti);
-  console.log('🎨 Attivisti render - should show table:', !isLoading && !isError && attivisti.length > 0);
+  console.log('🎨 Attivisti render - filteredAttivisti data:', filteredAttivisti);
+  console.log('🎨 Attivisti render - searchTerm:', searchTerm);
+  console.log('🎨 Attivisti render - should show table:', !isLoading && !isError && filteredAttivisti.length > 0);
   
   return (
     <PageTransition location="/attivisti" type="fade-up">
@@ -187,6 +245,45 @@ export default function Attivisti() {
                 Lista di tutti gli attivisti registrati nella piattaforma
               </p>
             </div>
+
+            {/* Barra di Ricerca */}
+            {!isLoading && !isError && attivisti.length > 0 && (
+              <div className="mb-6">
+                <div className="max-w-md mx-auto relative">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Cerca per nome o cognome..."
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                      className="pl-10 pr-10 py-2 w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    {searchTerm && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearSearch}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-gray-100"
+                      >
+                        <X className="h-4 w-4 text-gray-400" />
+                      </Button>
+                    )}
+                  </div>
+                  {searchTerm && (
+                    <div className="mt-2 text-sm text-gray-600 text-center">
+                      {filteredAttivisti.length === 0 ? (
+                        <span className="text-red-600">Nessun attivista trovato per "{searchTerm}"</span>
+                      ) : (
+                        <span>
+                          {filteredAttivisti.length} attivista{filteredAttivisti.length !== 1 ? 'i' : ''} trovato{filteredAttivisti.length !== 1 ? 'i' : ''} per "{searchTerm}"
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Loading State */}
             {isLoading && (
@@ -221,25 +318,55 @@ export default function Attivisti() {
               </div>
             )}
 
+            {/* No Search Results */}
+            {!isLoading && !isError && attivisti.length > 0 && filteredAttivisti.length === 0 && searchTerm && (
+              <div className="text-center py-16">
+                <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Nessun risultato trovato
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Non ci sono attivisti che corrispondono alla ricerca "{searchTerm}".
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={clearSearch}
+                  className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                >
+                  Cancella ricerca
+                </Button>
+              </div>
+            )}
+
             {/* Attivisti List */}
-            {!isLoading && !isError && attivisti.length > 0 && (
+            {!isLoading && !isError && attivisti.length > 0 && filteredAttivisti.length > 0 && (
               <div className="space-y-6">
                 {/* Stats */}
                 <div className="bg-white rounded-lg shadow p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-semibold text-gray-900">
-                        Statistiche Attivisti
+                        {searchTerm ? 'Risultati Ricerca' : 'Statistiche Attivisti'}
                       </h2>
                       <p className="text-gray-600">
-                        {attivisti.length} attivista{attivisti.length !== 1 ? 'i' : ''} registrato{attivisti.length !== 1 ? 'i' : ''}
+                        {searchTerm ? (
+                          <>
+                            {filteredAttivisti.length} attivista{filteredAttivisti.length !== 1 ? 'i' : ''} trovato{filteredAttivisti.length !== 1 ? 'i' : ''} su {attivisti.length} totali
+                          </>
+                        ) : (
+                          <>
+                            {attivisti.length} attivista{attivisti.length !== 1 ? 'i' : ''} registrato{attivisti.length !== 1 ? 'i' : ''}
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-blue-600">
-                        {attivisti.length}
+                        {filteredAttivisti.length}
                       </div>
-                      <div className="text-sm text-gray-500">Totale</div>
+                      <div className="text-sm text-gray-500">
+                        {searchTerm ? 'Trovati' : 'Totale'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -259,10 +386,13 @@ export default function Attivisti() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Regione di Residenza
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tipologie di Attivismo
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {attivisti.map((attivista) => (
+                        {filteredAttivisti.map((attivista) => (
                           <tr key={attivista.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <Avatar className="h-10 w-10">
@@ -283,6 +413,14 @@ export default function Attivisti() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {attivista.regione_residenza || 'Non specificata'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div 
+                                className="text-lg cursor-help"
+                                title={getTipologieTooltip(attivista.tipologie_attivismo)}
+                              >
+                                {getTipologieEmoji(attivista.tipologie_attivismo)}
                               </div>
                             </td>
                           </tr>
