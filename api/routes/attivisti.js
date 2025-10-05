@@ -22,28 +22,34 @@ router.get('/', async (req, res) => {
     });
     
     // Query per ottenere tutti gli utenti con ruolo "Attivista"
-    const result = await pool.query(`
-      SELECT 
-        id, 
-        nome, 
-        cognome, 
-        email, 
-        ruolo, 
-        status, 
-        created_at, 
-        updated_at,
-        avatar_config,
-        genere,
-        data_nascita,
-        cittadinanza,
-        paese_residenza,
-        regione_residenza,
-        provincia_residenza,
-        comune_residenza
-      FROM users 
-      WHERE ruolo = 'Attivista'
-      ORDER BY created_at DESC
-    `);
+          const result = await pool.query(`
+            SELECT
+              id,
+              nome,
+              cognome,
+              email,
+              ruolo,
+              status,
+              created_at,
+              updated_at,
+              avatar_config,
+              genere,
+              data_nascita,
+              cittadinanza,
+              paese_residenza,
+              regione_residenza,
+              provincia_residenza,
+              comune_residenza,
+              facebook_url,
+              twitter_url,
+              instagram_url,
+              linkedin_url,
+              telegram_url,
+              website_url
+            FROM users
+            WHERE ruolo = 'Attivista'
+            ORDER BY created_at DESC
+          `);
     
     const attivisti = result.rows;
     
