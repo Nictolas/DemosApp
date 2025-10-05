@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import AttivistaModal from "@/components/AttivistaModal";
 
 interface Attivista {
   id: string;
@@ -25,6 +26,12 @@ interface Attivista {
   regione_residenza?: string;
   provincia_residenza?: string;
   comune_residenza?: string;
+  facebook_url?: string;
+  twitter_url?: string;
+  instagram_url?: string;
+  linkedin_url?: string;
+  telegram_url?: string;
+  website_url?: string;
 }
 
 interface AttivistiResponse {
@@ -40,6 +47,8 @@ export default function Attivisti() {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [selectedAttivista, setSelectedAttivista] = useState<Attivista | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Carica gli attivisti
   useEffect(() => {
@@ -145,6 +154,18 @@ export default function Attivisti() {
     }
   };
 
+  // Funzione per aprire il modale
+  const handleAttivistaClick = (attivista: Attivista) => {
+    setSelectedAttivista(attivista);
+    setIsModalOpen(true);
+  };
+
+  // Funzione per chiudere il modale
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedAttivista(null);
+  };
+
   console.log('🎨 Attivisti render - isLoading:', isLoading, 'isError:', isError, 'attivisti.length:', attivisti.length);
   
   return (
@@ -248,9 +269,12 @@ export default function Attivisti() {
                               </Avatar>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">
+                              <button
+                                onClick={() => handleAttivistaClick(attivista)}
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                              >
                                 {attivista.nome} {attivista.cognome}
-                              </div>
+                              </button>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
@@ -267,6 +291,13 @@ export default function Attivisti() {
             )}
           </div>
         </div>
+
+        {/* Modale Attivista */}
+        <AttivistaModal
+          attivista={selectedAttivista}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+        />
       </PageContainer>
     </PageTransition>
   );
