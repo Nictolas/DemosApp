@@ -509,10 +509,10 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route attivisti */}
+              {/* Route attivisti - PAGINA PUBBLICA */}
               <Route path="/attivisti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/attivisti" component={Attivisti} />
+                  <Attivisti />
                 </PageTransition>
               </Route>
 
