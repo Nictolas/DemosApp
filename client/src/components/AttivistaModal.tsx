@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Facebook, Twitter, Instagram, Linkedin, MessageCircle, Globe } from 'lucide-react';
+import { X, Facebook, Twitter, Instagram, Linkedin, MessageCircle, Globe, Twitch, Youtube } from 'lucide-react';
 
 interface Attivista {
   id: string;
@@ -24,6 +24,8 @@ interface Attivista {
   linkedin_url?: string;
   telegram_url?: string;
   website_url?: string;
+  twitch_url?: string;
+  youtube_url?: string;
 }
 
 interface AttivistaModalProps {
@@ -110,6 +112,20 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
       url: attivista.website_url,
       icon: Globe,
       color: 'bg-gray-600 hover:bg-gray-700',
+      textColor: 'text-white'
+    },
+    {
+      name: 'Twitch',
+      url: attivista.twitch_url,
+      icon: Twitch,
+      color: 'bg-purple-600 hover:bg-purple-700',
+      textColor: 'text-white'
+    },
+    {
+      name: 'YouTube',
+      url: attivista.youtube_url,
+      icon: Youtube,
+      color: 'bg-red-600 hover:bg-red-700',
       textColor: 'text-white'
     }
   ].filter(link => link.url); // Filtra solo i social con URL

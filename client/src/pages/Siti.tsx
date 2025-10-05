@@ -17,6 +17,8 @@ interface SitiData {
   linkedin_url: string;
   telegram_url: string;
   website_url: string;
+  twitch_url: string;
+  youtube_url: string;
 }
 
 const defaultValues: SitiData = {
@@ -26,6 +28,8 @@ const defaultValues: SitiData = {
   linkedin_url: "",
   telegram_url: "",
   website_url: "",
+  twitch_url: "",
+  youtube_url: "",
 };
 
 export default function Siti() {
@@ -54,6 +58,8 @@ export default function Siti() {
           linkedin_url: result.data.linkedin_url || "",
           telegram_url: result.data.telegram_url || "",
           website_url: result.data.website_url || "",
+          twitch_url: result.data.twitch_url || "",
+          youtube_url: result.data.youtube_url || "",
         }
       };
     },
@@ -77,6 +83,8 @@ export default function Siti() {
         linkedin_url: values.linkedin_url,
         telegram_url: values.telegram_url,
         website_url: values.website_url,
+        twitch_url: values.twitch_url,
+        youtube_url: values.youtube_url,
       });
       if (!response.ok) throw new Error("Impossibile salvare i siti.");
       return response.json();
@@ -189,6 +197,32 @@ export default function Siti() {
                   <Input
                     {...form.register("website_url")}
                     placeholder="https://tuosito.com"
+                    disabled={!canEdit || saveMutation.isPending}
+                    className="bg-white"
+                    type="url"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div>
+                  <label className="block font-medium mb-1">Twitch</label>
+                  <Input
+                    {...form.register("twitch_url")}
+                    placeholder="https://twitch.tv/tuousername"
+                    disabled={!canEdit || saveMutation.isPending}
+                    className="bg-white"
+                    type="url"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div>
+                  <label className="block font-medium mb-1">YouTube</label>
+                  <Input
+                    {...form.register("youtube_url")}
+                    placeholder="https://youtube.com/@tuousername"
                     disabled={!canEdit || saveMutation.isPending}
                     className="bg-white"
                     type="url"

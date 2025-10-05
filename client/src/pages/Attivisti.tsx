@@ -32,6 +32,8 @@ interface Attivista {
   linkedin_url?: string;
   telegram_url?: string;
   website_url?: string;
+  twitch_url?: string;
+  youtube_url?: string;
 }
 
 interface AttivistiResponse {

@@ -64,12 +64,6 @@ export default function Navbar() {
             <span className={`text-xs hidden md:block ${isActive("/strumenti") ? "text-blue-600 font-semibold" : ""}`}>Strumenti</span>
           </Link>
         )}
-        {(userRole === "Attivista" || userRole === "Admin") && (
-          <Link href="/siti" className={getLinkClasses("/siti")} style={{marginTop: 0}}>
-            <Globe className={`h-7 w-7 mb-1 ${isActive("/siti") ? "drop-shadow-lg text-blue-600" : ""}`} />
-            <span className={`text-xs hidden md:block ${isActive("/siti") ? "text-blue-600 font-semibold" : ""}`}>Siti</span>
-          </Link>
-        )}
         <Link href="/impostazioni" className={getLinkClasses("/impostazioni")} style={{marginTop: 0}}>
           <Settings className={`h-7 w-7 mb-1 ${isActive("/impostazioni") ? "drop-shadow-lg text-blue-600" : ""}`} />
           <span className={`text-xs hidden md:block ${isActive("/impostazioni") ? "text-blue-600 font-semibold" : ""}`}>Impostazioni</span>
