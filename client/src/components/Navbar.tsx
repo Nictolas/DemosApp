@@ -1,4 +1,4 @@
-import { Home, Settings, Bell, Megaphone, Heart, Calendar } from "lucide-react";
+import { Home, Settings, Bell, Megaphone, Heart, Calendar, Globe } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useNotificationBadge } from "@/hooks/useNotificationBadge";
@@ -62,6 +62,12 @@ export default function Navbar() {
           <Link href="/strumenti" className={getLinkClasses("/strumenti")} style={{marginTop: 0}}>
             <Megaphone className={`h-7 w-7 mb-1 ${isActive("/strumenti") ? "drop-shadow-lg text-blue-600" : ""}`} />
             <span className={`text-xs hidden md:block ${isActive("/strumenti") ? "text-blue-600 font-semibold" : ""}`}>Strumenti</span>
+          </Link>
+        )}
+        {(userRole === "Attivista" || userRole === "Admin") && (
+          <Link href="/siti" className={getLinkClasses("/siti")} style={{marginTop: 0}}>
+            <Globe className={`h-7 w-7 mb-1 ${isActive("/siti") ? "drop-shadow-lg text-blue-600" : ""}`} />
+            <span className={`text-xs hidden md:block ${isActive("/siti") ? "text-blue-600 font-semibold" : ""}`}>Siti</span>
           </Link>
         )}
         <Link href="/impostazioni" className={getLinkClasses("/impostazioni")} style={{marginTop: 0}}>

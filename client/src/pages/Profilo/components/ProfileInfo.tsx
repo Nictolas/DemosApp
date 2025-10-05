@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Image } from "lucide-react";
+import { Edit, Image, Globe } from "lucide-react";
 import { useLocation } from "wouter";
 import { UserInfo } from "@/types/profile";
 
@@ -9,6 +9,7 @@ interface ProfileInfoProps {
   isEditing: boolean;
   onEditClick: () => void;
   onModificaImmagine: () => void;
+  onModificaSiti?: () => void;
   canEdit?: boolean;
 }
 
@@ -17,6 +18,7 @@ export const ProfileInfo = ({
   isEditing, 
   onEditClick, 
   onModificaImmagine,
+  onModificaSiti,
   canEdit = true
 }: ProfileInfoProps) => {
   const [, setLocation] = useLocation();
@@ -167,6 +169,18 @@ export const ProfileInfo = ({
                 </div>
                 <span className="font-semibold">Modifica Immagine</span>
               </Button>
+              {(userInfo.ruolo === "Attivista" || userInfo.ruolo === "Admin") && onModificaSiti && (
+                <Button 
+                  onClick={onModificaSiti} 
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 hover:border-green-300 hover:shadow-lg transition-all duration-300 group"
+                >
+                  <div className="h-6 w-6 rounded-md bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                    <Globe className="h-3 w-3 text-white" />
+                  </div>
+                  <span className="font-semibold">Modifica Siti</span>
+                </Button>
+              )}
               {!isEditing && (
                 <Button 
                   onClick={onEditClick}
