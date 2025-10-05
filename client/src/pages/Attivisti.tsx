@@ -215,15 +215,6 @@ export default function Attivisti() {
     <PageContainer>
       <div className="min-h-screen bg-gray-50 py-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* TEST DEBUG */}
-            <div className="bg-red-500 text-white p-4 mb-4 rounded">
-              <h1>🔴 DEBUG: PAGINA ATTIVISTI FUNZIONA!</h1>
-              <p>isLoading: {isLoading.toString()}</p>
-              <p>isError: {isError.toString()}</p>
-              <p>attivisti.length: {attivisti.length}</p>
-              <p>filteredAttivisti.length: {filteredAttivisti.length}</p>
-            </div>
-            
             {/* Header */}
             <div className="text-center mb-8">
               <div className="flex items-center justify-center mb-4">
