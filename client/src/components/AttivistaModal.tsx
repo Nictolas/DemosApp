@@ -169,8 +169,7 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
               </div>
               
               <p className="text-sm text-gray-600">
-                {attivista.regione_residenza && `${attivista.regione_residenza}`}
-                {attivista.comune_residenza && `, ${attivista.comune_residenza}`}
+                {attivista.regione_residenza || 'Non specificata'}
               </p>
             </div>
 
@@ -200,34 +199,7 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
               </div>
             )}
 
-            {/* Info Aggiuntive */}
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Email:</span>
-                <span className="text-gray-900">{attivista.email}</span>
-              </div>
-              
-              {attivista.genere && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Genere:</span>
-                  <span className="text-gray-900 capitalize">{attivista.genere}</span>
-                </div>
-              )}
-              
-              {attivista.cittadinanza && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Cittadinanza:</span>
-                  <span className="text-gray-900">{attivista.cittadinanza}</span>
-                </div>
-              )}
-              
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Registrato:</span>
-                <span className="text-gray-900">
-                  {new Date(attivista.created_at).toLocaleDateString('it-IT')}
-                </span>
-              </div>
-            </div>
+            {/* Info Aggiuntive - Rimosse per semplificare il modale */}
           </div>
 
           {/* Footer */}
