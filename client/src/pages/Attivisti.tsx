@@ -90,23 +90,23 @@ export default function Attivisti() {
     fetchAttivisti();
   }, []);
 
-  // Mostra loading durante l'autenticazione
-  if (isAuthLoading) {
-    return (
-      <PageTransition location="/attivisti" type="fade-up">
-        <PageContainer>
-          <div className="flex items-center justify-center min-h-screen">
-            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-          </div>
-        </PageContainer>
-      </PageTransition>
-    );
-  }
+  // Pagina pubblica - non richiede autenticazione
+  // if (isAuthLoading) {
+  //   return (
+  //     <PageTransition location="/attivisti" type="fade-up">
+  //       <PageContainer>
+  //         <div className="flex items-center justify-center min-h-screen">
+  //           <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+  //         </div>
+  //       </PageContainer>
+  //     </PageTransition>
+  //   );
+  // }
 
-  // Redirect se non autenticato
-  if (!user) {
-    return <Redirect to="/auth" />;
-  }
+  // Redirect se non autenticato - RIMOSSO per rendere la pagina pubblica
+  // if (!user) {
+  //   return <Redirect to="/auth" />;
+  // }
 
   // Funzione per ottenere le iniziali del nome
   const getInitials = (nome: string, cognome: string) => {
