@@ -44,6 +44,7 @@ import ScegliRappresentante from "./pages/ScegliRappresentante";
 import Preferiti from "./pages/Preferiti";
 import Candidati from "./pages/Candidati";
 import Attivisti from "./pages/Attivisti";
+import Siti from "./pages/Siti";
 import Organizzazioni from "./pages/Organizzazioni";
 import Notifiche from "./pages/Notifiche";
 import Vota from "./pages/Vota";
@@ -512,6 +513,13 @@ export default function App() {
               <Route path="/attivisti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/attivisti" component={Attivisti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route siti */}
+              <Route path="/siti">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/siti" component={Siti} />
                 </PageTransition>
               </Route>
 
