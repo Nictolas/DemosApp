@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth-neon";
-import { Redirect } from "wouter";
 import { Loader2, Users, User, Search, X } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { PageContainer } from "@/components/PageContainer";
@@ -55,7 +53,6 @@ interface AttivistiResponse {
 }
 
 export default function Attivisti() {
-  const { user, isLoading: isAuthLoading } = useAuth();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -133,22 +130,6 @@ export default function Attivisti() {
   };
 
   // Pagina pubblica - non richiede autenticazione
-  // if (isAuthLoading) {
-  //   return (
-  //     <PageTransition location="/attivisti" type="fade-up">
-  //       <PageContainer>
-  //         <div className="flex items-center justify-center min-h-screen">
-  //           <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-  //         </div>
-  //       </PageContainer>
-  //     </PageTransition>
-  //   );
-  // }
-
-  // Redirect se non autenticato - RIMOSSO per rendere la pagina pubblica
-  // if (!user) {
-  //   return <Redirect to="/auth" />;
-  // }
 
   // Funzione per ottenere le iniziali del nome
   const getInitials = (nome: string, cognome: string) => {
