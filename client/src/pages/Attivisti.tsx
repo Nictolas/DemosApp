@@ -167,6 +167,8 @@ export default function Attivisti() {
   };
 
   console.log('🎨 Attivisti render - isLoading:', isLoading, 'isError:', isError, 'attivisti.length:', attivisti.length);
+  console.log('🎨 Attivisti render - attivisti data:', attivisti);
+  console.log('🎨 Attivisti render - should show table:', !isLoading && !isError && attivisti.length > 0);
   
   return (
     <PageTransition location="/attivisti" type="fade-up">
