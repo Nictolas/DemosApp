@@ -1,5 +1,5 @@
 // Service Worker per DEMOS PWA
-const CACHE_NAME = 'demos-v3';
+const CACHE_NAME = 'demos-v4';
 const urlsToCache = [
   '/',
   '/static/js/bundle.js',
@@ -41,6 +41,11 @@ self.addEventListener('activate', (event) => {
 
 // Intercettazione delle richieste
 self.addEventListener('fetch', (event) => {
+  // Non cachare i file JavaScript per evitare problemi di aggiornamento
+  if (event.request.url.includes('.js') || event.request.url.includes('.css')) {
+    return fetch(event.request);
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
