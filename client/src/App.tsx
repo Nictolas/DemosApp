@@ -511,9 +511,7 @@ export default function App() {
 
               {/* Route attivisti - PAGINA PUBBLICA */}
               <Route path="/attivisti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <Attivisti />
-                </PageTransition>
+                <Attivisti />
               </Route>
 
               {/* Route siti */}

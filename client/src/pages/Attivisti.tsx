@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, Users, User, Search, X } from "lucide-react";
-import { PageTransition } from "@/components/PageTransition";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -210,12 +209,21 @@ export default function Attivisti() {
   console.log('🎨 Attivisti render - filteredAttivisti data:', filteredAttivisti);
   console.log('🎨 Attivisti render - searchTerm:', searchTerm);
   console.log('🎨 Attivisti render - should show table:', !isLoading && !isError && filteredAttivisti.length > 0);
+  console.log('🎨 Attivisti render - RENDERING PAGE NOW!');
   
   return (
-    <PageTransition location="/attivisti" type="fade-up">
-      <PageContainer>
-        <div className="min-h-screen bg-gray-50 py-8">
+    <PageContainer>
+      <div className="min-h-screen bg-gray-50 py-8">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* TEST DEBUG */}
+            <div className="bg-red-500 text-white p-4 mb-4 rounded">
+              <h1>🔴 DEBUG: PAGINA ATTIVISTI FUNZIONA!</h1>
+              <p>isLoading: {isLoading.toString()}</p>
+              <p>isError: {isError.toString()}</p>
+              <p>attivisti.length: {attivisti.length}</p>
+              <p>filteredAttivisti.length: {filteredAttivisti.length}</p>
+            </div>
+            
             {/* Header */}
             <div className="text-center mb-8">
               <div className="flex items-center justify-center mb-4">
@@ -422,6 +430,5 @@ export default function Attivisti() {
           onClose={handleCloseModal}
         />
       </PageContainer>
-    </PageTransition>
   );
 }
