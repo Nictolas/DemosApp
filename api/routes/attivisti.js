@@ -45,7 +45,9 @@ router.get('/', async (req, res) => {
               instagram_url,
               linkedin_url,
               telegram_url,
-              website_url
+              website_url,
+              twitch_url,
+              youtube_url
             FROM users
             WHERE ruolo = 'Attivista'
             ORDER BY created_at DESC
