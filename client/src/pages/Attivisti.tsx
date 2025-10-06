@@ -439,9 +439,9 @@ export default function Attivisti() {
   console.log('🎨 Attivisti render - RENDERING PAGE NOW!');
   
   return (
-    <PageContainer>
-      <div className="min-h-screen bg-gray-50 py-8">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+    <PageContainer className="overflow-x-hidden">
+      <div className="min-h-screen bg-gray-50 py-8 overflow-x-hidden">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
             {/* Header */}
             <div className="text-center mb-8">
               <div className="flex items-center justify-center mb-4">
@@ -456,16 +456,16 @@ export default function Attivisti() {
             {/* Barra di Ricerca e Filtri */}
             {!isLoading && !isError && attivisti.length > 0 && (
               <div className="mb-6">
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl mx-auto w-full max-w-full">
                   {/* Ricerca Testuale */}
-                  <div className="relative mb-4">
+                  <div className="relative mb-4 w-full max-w-full">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       type="text"
                       placeholder="Cerca per nome o cognome..."
                       value={searchTerm}
                       onChange={handleSearchChange}
-                      className="pl-10 pr-10 py-2 w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="pl-10 pr-10 py-2 w-full max-w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     {searchTerm && (
                       <Button
@@ -505,8 +505,8 @@ export default function Attivisti() {
 
                   {/* Pannello Filtri Avanzati */}
                   {showAdvancedFilters && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border overflow-x-hidden">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                         {/* Filtro Regione */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -627,16 +627,24 @@ export default function Attivisti() {
             {/* Attivisti List */}
             {!isLoading && !isError && attivisti.length > 0 && filteredAttivisti.length > 0 && (
               <div className="space-y-6">
-                {/* Tabella Attivisti */}
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                {/* Desktop Table View */}
+                <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
+                  <div className="overflow-x-auto max-w-full">
+                    <table className="w-full divide-y divide-gray-200 min-w-0">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3"></th>
-                          <th className="px-6 py-3"></th>
-                          <th className="px-6 py-3"></th>
-                          <th className="px-6 py-3"></th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Avatar
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Nome
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sostenitori
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Azione
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -657,10 +665,11 @@ export default function Attivisti() {
                                 </Avatar>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-4 whitespace-nowrap min-w-0">
                               <button
                                 onClick={() => handleAttivistaClick(attivista)}
-                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors"
+                                className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors truncate max-w-xs"
+                                title={`${attivista.nome} ${attivista.cognome}`}
                               >
                                 {attivista.nome} {attivista.cognome}
                               </button>
@@ -686,6 +695,53 @@ export default function Attivisti() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
+                  {filteredAttivisti.map((attivista) => (
+                    <div key={attivista.id} className="bg-white rounded-lg shadow p-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex-shrink-0">
+                          {parseAvatarConfig(attivista.avatar_config) ? (
+                            <CustomAvatar 
+                              config={parseAvatarConfig(attivista.avatar_config) as any}
+                              size={48}
+                              className="h-12 w-12"
+                            />
+                          ) : (
+                            <Avatar className="h-12 w-12">
+                              <AvatarFallback className="bg-blue-100 text-blue-600 text-lg">
+                                {getInitials(attivista.nome, attivista.cognome)}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => handleAttivistaClick(attivista)}
+                            className="text-base font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors text-left"
+                          >
+                            {attivista.nome} {attivista.cognome}
+                          </button>
+                          <div className="mt-1 text-sm text-gray-500">
+                            {(attivista as any).supporters_count ?? 0} sostenitori
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                            onClick={() => handleFollowUser(attivista.id)}
+                            disabled={!user?.id}
+                          >
+                            {followingUsers.has(attivista.id) ? 'Seguito' : 'Segui'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
