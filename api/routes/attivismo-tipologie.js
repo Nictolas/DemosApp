@@ -3,30 +3,14 @@ const { Pool } = require('pg');
 const router = express.Router();
 require('dotenv').config();
 
+// Importa il middleware di autenticazione corretto
+const { verifyToken } = require('../middleware/auth');
+
 // Configurazione database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
-
-// Middleware per verificare il token JWT
-const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      error: 'Token mancante',
-      message: 'Token di autenticazione richiesto'
-    });
-  }
-
-  // Qui dovresti verificare il token JWT
-  // Per ora accettiamo qualsiasi token
-  req.user = { id: 'user-id-from-token' };
-  next();
-};
 
 // GET /api/attivismo-tipologie - Lista tutte le tipologie disponibili
 router.get('/', async (req, res) => {
@@ -205,6 +189,22 @@ router.put('/:userId', verifyToken, async (req, res) => {
     
     const user = userCheck.rows[0];
     console.log(`👤 Utente trovato: ${user.nome} ${user.cognome} (${user.ruolo})`);
+    
+    // Verifica che l'utente possa modificare le tipologie
+    // L'utente può modificare le proprie tipologie o essere admin
+    const requestingUserId = req.user?.id;
+    const isOwnProfile = requestingUserId === userId;
+    const isAdmin = req.user?.role === 'Admin';
+    
+    if (!isOwnProfile && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato',
+        message: 'Puoi modificare solo le tue tipologie di attivismo'
+      });
+    }
+    
+    console.log(`🔐 Autorizzazione: isOwnProfile=${isOwnProfile}, isAdmin=${isAdmin}`);
     
     // Prepara le tipologie per il database
     const tipologiePerDB = tipologie.map(tipo => {
