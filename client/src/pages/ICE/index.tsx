@@ -46,7 +46,7 @@ export default function ICE() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card className="w-full rounded-2xl shadow-lg">
+      <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
           
