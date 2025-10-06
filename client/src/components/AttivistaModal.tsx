@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Facebook, Twitter, Instagram, Linkedin, MessageCircle, Globe, Twitch, Youtube } from 'lucide-react';
+import { CustomAvatar } from '@/components/avatar/CustomAvatar';
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -139,6 +140,20 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
     }
   ].filter(link => link.url); // Filtra solo i social con URL
 
+  // Parsing robusto di avatar_config (gestisce doppia serializzazione)
+  const parseAvatarConfig = (config?: string) => {
+    if (!config) return null;
+    try {
+      let parsed: any = typeof config === 'string' ? JSON.parse(config) : config;
+      if (typeof parsed === 'string') {
+        parsed = JSON.parse(parsed);
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Overlay */}
@@ -170,11 +185,11 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
             {/* Avatar e Info Base */}
             <div className="text-center mb-6">
               <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                {attivista.avatar_config ? (
-                  <img
-                    src={attivista.avatar_config}
-                    alt={`${attivista.nome} ${attivista.cognome}`}
-                    className="h-20 w-20 rounded-full object-cover"
+                {parseAvatarConfig(attivista.avatar_config) ? (
+                  <CustomAvatar 
+                    config={parseAvatarConfig(attivista.avatar_config) as any}
+                    size={80}
+                    className="h-20 w-20"
                   />
                 ) : (
                   <span className="text-2xl font-bold text-blue-600">

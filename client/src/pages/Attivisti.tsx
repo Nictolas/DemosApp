@@ -3,7 +3,8 @@ import { Loader2, Users, User, Search, X } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import AttivistaModal from "@/components/AttivistaModal";
@@ -133,6 +134,20 @@ export default function Attivisti() {
   // Funzione per ottenere le iniziali del nome
   const getInitials = (nome: string, cognome: string) => {
     return `${nome.charAt(0)}${cognome.charAt(0)}`.toUpperCase();
+  };
+
+  // Parsing robusto di avatar_config (gestisce doppia serializzazione)
+  const parseAvatarConfig = (config?: string) => {
+    if (!config) return null;
+    try {
+      let parsed: any = typeof config === 'string' ? JSON.parse(config) : config;
+      if (typeof parsed === 'string') {
+        parsed = JSON.parse(parsed);
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
   };
 
   // Funzione per formattare la data
@@ -375,12 +390,19 @@ export default function Attivisti() {
                         {filteredAttivisti.map((attivista) => (
                           <tr key={attivista.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={attivista.avatar_config} />
-                                <AvatarFallback className="bg-blue-100 text-blue-600">
-                                  {getInitials(attivista.nome, attivista.cognome)}
-                                </AvatarFallback>
-                              </Avatar>
+                              {parseAvatarConfig(attivista.avatar_config) ? (
+                                <CustomAvatar 
+                                  config={parseAvatarConfig(attivista.avatar_config) as any}
+                                  size={40}
+                                  className="h-10 w-10"
+                                />
+                              ) : (
+                                <Avatar className="h-10 w-10">
+                                  <AvatarFallback className="bg-blue-100 text-blue-600">
+                                    {getInitials(attivista.nome, attivista.cognome)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <button
