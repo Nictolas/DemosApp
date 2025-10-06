@@ -57,6 +57,7 @@ interface AttivistiResponse {
 export default function Attivisti() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const API_BASE = 'https://demos-c7k0.onrender.com';
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -133,20 +134,11 @@ export default function Attivisti() {
         const entries = await Promise.all(
           filteredAttivisti.map(async (a) => {
             try {
-              const [repRes, candRes] = await Promise.all([
-                fetch(`/api/rappresentanti/sostenitori?sostenuto_id=${a.id}`, { signal: controller.signal }),
-                fetch(`/api/candidati/sostenitori?sostenuto_id=${a.id}`, { signal: controller.signal })
-              ]);
-              let repCount = 0; let candCount = 0;
-              if (repRes.ok) {
-                const repData = await repRes.json();
-                repCount = repData?.data?.count ?? repData?.count ?? 0;
-              }
-              if (candRes.ok) {
-                const candData = await candRes.json();
-                candCount = candData?.data?.count ?? candData?.count ?? 0;
-              }
-              return [a.id, repCount + candCount] as const;
+              const res = await fetch(`${API_BASE}/api/sostenitori/totale?sostenuto_id=${a.id}`, { signal: controller.signal });
+              if (!res.ok) return [a.id, 0] as const;
+              const data = await res.json();
+              const total = data?.stats?.totalSupporters ?? data?.data?.count ?? 0;
+              return [a.id, total] as const;
             } catch {
               return [a.id, 0] as const;
             }
@@ -259,7 +251,7 @@ export default function Attivisti() {
     }
 
     try {
-      const response = await fetch('/api/sostenitori/follow', {
+      const response = await fetch(`${API_BASE}/api/sostenitori/follow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,7 +262,8 @@ export default function Attivisti() {
         })
       });
 
-      const data = await response.json();
+      let data: any = null;
+      try { data = await response.json(); } catch { /* body vuoto o non JSON */ }
 
       if (data.success) {
         toast({
@@ -284,20 +277,11 @@ export default function Attivisti() {
         // Ricarica i conteggi sostenitori
         const loadCounts = async () => {
           try {
-            const [repRes, candRes] = await Promise.all([
-              fetch(`/api/rappresentanti/sostenitori?sostenuto_id=${attivistaId}`),
-              fetch(`/api/candidati/sostenitori?sostenuto_id=${attivistaId}`)
-            ]);
-            let repCount = 0; let candCount = 0;
-            if (repRes.ok) {
-              const repData = await repRes.json();
-              repCount = repData?.data?.count ?? repData?.count ?? 0;
-            }
-            if (candRes.ok) {
-              const candData = await candRes.json();
-              candCount = candData?.data?.count ?? candData?.count ?? 0;
-            }
-            setSupportersCount(prev => ({ ...prev, [attivistaId]: repCount + candCount }));
+            const res = await fetch(`${API_BASE}/api/sostenitori/totale?sostenuto_id=${attivistaId}`);
+            if (!res.ok) return;
+            const json = await res.json();
+            const total = json?.stats?.totalSupporters ?? json?.data?.count ?? 0;
+            setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
           } catch (error) {
             console.error('Errore nel ricaricare conteggi:', error);
           }
