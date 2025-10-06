@@ -8,6 +8,7 @@ import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import AttivistaModal from "@/components/AttivistaModal";
+import { Link } from "wouter";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -61,6 +62,7 @@ export default function Attivisti() {
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedAttivista, setSelectedAttivista] = useState<Attivista | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
 
   // Carica gli attivisti
   useEffect(() => {
@@ -118,6 +120,44 @@ export default function Attivisti() {
       setFilteredAttivisti(filtered);
     }
   }, [searchTerm, attivisti]);
+
+  // Carica conteggi sostenitori per gli attivisti visibili
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadCounts = async () => {
+      try {
+        const entries = await Promise.all(
+          filteredAttivisti.map(async (a) => {
+            try {
+              const [repRes, candRes] = await Promise.all([
+                fetch(`/api/rappresentanti/sostenitori?sostenuto_id=${a.id}`, { signal: controller.signal }),
+                fetch(`/api/candidati/sostenitori?sostenuto_id=${a.id}`, { signal: controller.signal })
+              ]);
+              let repCount = 0; let candCount = 0;
+              if (repRes.ok) {
+                const repData = await repRes.json();
+                repCount = repData?.data?.count ?? repData?.count ?? 0;
+              }
+              if (candRes.ok) {
+                const candData = await candRes.json();
+                candCount = candData?.data?.count ?? candData?.count ?? 0;
+              }
+              return [a.id, repCount + candCount] as const;
+            } catch {
+              return [a.id, 0] as const;
+            }
+          })
+        );
+        const next: Record<string, number> = {};
+        for (const [id, count] of entries) next[id] = count;
+        setSupportersCount(next);
+      } catch {
+        // ignore
+      }
+    };
+    if (filteredAttivisti.length > 0) loadCounts();
+    return () => controller.abort();
+  }, [filteredAttivisti]);
 
   // Funzione per gestire il cambio del termine di ricerca
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -336,36 +376,6 @@ export default function Attivisti() {
             {/* Attivisti List */}
             {!isLoading && !isError && attivisti.length > 0 && filteredAttivisti.length > 0 && (
               <div className="space-y-6">
-                {/* Stats */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        {searchTerm ? 'Risultati Ricerca' : 'Statistiche Attivisti'}
-                      </h2>
-                      <p className="text-gray-600">
-                        {searchTerm ? (
-                          <>
-                            {filteredAttivisti.length} attivista{filteredAttivisti.length !== 1 ? 'i' : ''} trovato{filteredAttivisti.length !== 1 ? 'i' : ''} su {attivisti.length} totali
-                          </>
-                        ) : (
-                          <>
-                            {attivisti.length} attivista{attivisti.length !== 1 ? 'i' : ''} registrato{attivisti.length !== 1 ? 'i' : ''}
-                          </>
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {filteredAttivisti.length}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {searchTerm ? 'Trovati' : 'Totale'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Tabella Attivisti */}
                 <div className="bg-white rounded-lg shadow overflow-hidden">
                   <div className="overflow-x-auto">
@@ -382,7 +392,10 @@ export default function Attivisti() {
                             Regione di Residenza
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tipologie di Attivismo
+                            Sostenitori
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Segui
                           </th>
                         </tr>
                       </thead>
@@ -418,12 +431,16 @@ export default function Attivisti() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div 
-                                className="text-lg cursor-help"
-                                title={getTipologieTooltip(attivista.tipologie_attivismo)}
-                              >
-                                {getTipologieEmoji(attivista.tipologie_attivismo)}
+                              <div className="text-sm text-gray-900">
+                                {supportersCount[attivista.id] ?? 0}
                               </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Link href="/sostenitori">
+                                <Button size="sm" variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
+                                  Segui
+                                </Button>
+                              </Link>
                             </td>
                           </tr>
                         ))}
