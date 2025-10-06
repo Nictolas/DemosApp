@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
     });
     
     // Costruisci la query con filtri dinamici
-    // Mostra Attivisti e Admin che hanno tipologie di attivismo
+    // Mostra solo Attivisti e Admin che hanno effettivamente tipologie di attivismo selezionate (non array vuoti)
     let whereConditions = [
       "(u.ruolo = 'Attivista' OR (u.ruolo = 'Admin' AND u.tipologie_attivismo IS NOT NULL AND jsonb_array_length(u.tipologie_attivismo) > 0))"
     ];
