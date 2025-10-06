@@ -296,7 +296,8 @@ router.put('/:userId', verifyToken, requireAdmin, async (req, res) => {
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
-      'comune_candidatura', 'grado_candidatura', 'avatar_config'
+      'comune_candidatura', 'grado_candidatura', 'avatar_config',
+      'facebook', 'twitter', 'instagram', 'linkedin', 'telegram', 'sito_web', 'twitch', 'youtube'
     ];
     
     // Normalizza i gradi di elezione e candidatura (prima lettera maiuscola)
