@@ -56,5 +56,6 @@ export interface PreferenzeRappresentanti {
   deputato: boolean;
   consigliere_regionale: boolean;
   consigliere_comunale: boolean;
+  attivisti: boolean;
   demos: boolean;
 }
