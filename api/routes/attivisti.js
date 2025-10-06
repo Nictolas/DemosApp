@@ -21,37 +21,43 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
-    // Query per ottenere tutti gli utenti con ruolo "Attivista"
+    // Query per ottenere tutti gli utenti con ruolo "Attivista" con conteggio sostenitori e ordinati
           const result = await pool.query(`
             SELECT
-              id,
-              nome,
-              cognome,
-              email,
-              ruolo,
-              status,
-              created_at,
-              updated_at,
-              avatar_config,
-              genere,
-              data_nascita,
-              cittadinanza,
-              paese_residenza,
-              regione_residenza,
-              provincia_residenza,
-              comune_residenza,
-              facebook_url,
-              twitter_url,
-              instagram_url,
-              linkedin_url,
-              telegram_url,
-              website_url,
-              twitch_url,
-              youtube_url,
-              tipologie_attivismo
-            FROM users
-            WHERE ruolo = 'Attivista'
-            ORDER BY created_at DESC
+              u.id,
+              u.nome,
+              u.cognome,
+              u.email,
+              u.ruolo,
+              u.status,
+              u.created_at,
+              u.updated_at,
+              u.avatar_config,
+              u.genere,
+              u.data_nascita,
+              u.cittadinanza,
+              u.paese_residenza,
+              u.regione_residenza,
+              u.provincia_residenza,
+              u.comune_residenza,
+              u.facebook_url,
+              u.twitter_url,
+              u.instagram_url,
+              u.linkedin_url,
+              u.telegram_url,
+              u.website_url,
+              u.twitch_url,
+              u.youtube_url,
+              u.tipologie_attivismo,
+              COALESCE(us.cnt, 0)::int AS supporters_count
+            FROM users u
+            LEFT JOIN LATERAL (
+              SELECT COUNT(*) AS cnt
+              FROM user_supports s
+              WHERE s.supported_id = u.id
+            ) us ON TRUE
+            WHERE u.ruolo = 'Attivista'
+            ORDER BY supporters_count DESC, u.created_at DESC
           `);
     
     const attivisti = result.rows;

@@ -92,8 +92,12 @@ export default function Attivisti() {
         
         if (data.success) {
           console.log('✅ fetchAttivisti - Successo, attivisti:', data.data.length);
-          setAttivisti(data.data);
-          setFilteredAttivisti(data.data);
+          // I dati arrivano già ordinati per supporters_count DESC
+          setAttivisti(data.data as any);
+          setFilteredAttivisti(data.data as any);
+          const next: Record<string, number> = {};
+          (data.data as any[]).forEach((a) => { next[a.id] = (a as any).supporters_count ?? 0; });
+          setSupportersCount(next);
         } else {
           throw new Error(data.message || 'Errore nel caricamento degli attivisti');
         }
@@ -272,18 +276,15 @@ export default function Attivisti() {
         // Aggiorna lo stato locale
         setFollowingUsers(prev => new Set([...prev, attivistaId]));
         
-        // Ricarica i conteggi sostenitori
-        const loadCounts = async () => {
-          try {
-            // Per ora, incrementa di 1 il conteggio locale
-            const currentCount = supportersCount[attivistaId] || 0;
-            const total = currentCount + 1;
-            setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
-          } catch (error) {
-            console.error('Errore nel ricaricare conteggi:', error);
-          }
-        };
-        loadCounts();
+        // Aggiorna conteggio locale + riordina lista
+        const currentCount = supportersCount[attivistaId] || 0;
+        const total = currentCount + 1;
+        setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
+        setFilteredAttivisti(prev => {
+          const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
+          (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+          return next;
+        });
       } else {
         toast({
           title: "Errore",
