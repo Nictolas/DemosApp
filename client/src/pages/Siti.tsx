@@ -45,7 +45,7 @@ export default function Siti() {
     queryFn: async () => {
       if (!user?.id) return null;
       // Carica i siti specifici dell'utente
-      const response = await apiRequest("GET", `/api/users/${user.id}`);
+      const response = await apiRequest("GET", "/api/users/me");
       if (!response.ok) {
         throw new Error('Failed to fetch data');
       }
@@ -76,7 +76,7 @@ export default function Siti() {
   // 2. Mutazione per salvare i siti
   const saveMutation = useMutation({
     mutationFn: async (values: SitiData) => {
-      const response = await apiRequest("PUT", `/api/users/${user?.id}`, {
+      const response = await apiRequest("PUT", "/api/users/me", {
         facebook_url: values.facebook_url,
         twitter_url: values.twitter_url,
         instagram_url: values.instagram_url,

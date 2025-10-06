@@ -208,7 +208,8 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
              genere, data_nascita, cittadinanza, paese_residenza, regione_residenza,
              provincia_residenza, comune_residenza, avatar_config, grado_elezione, grado_candidatura,
              paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
-             paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura
+             paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
+             facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url, website_url, twitch_url, youtube_url
       FROM users 
       WHERE id = $1
     `, [userId]);
