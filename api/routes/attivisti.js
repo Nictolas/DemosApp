@@ -12,7 +12,8 @@ const pool = new Pool({
 // GET /api/attivisti - Lista tutti gli utenti con ruolo "Attivista"
 router.get('/', async (req, res) => {
   try {
-    console.log('🔍 GET /api/attivisti - Lista attivisti richiesta');
+    const { search, regione, tipologia } = req.query;
+    console.log('🔍 GET /api/attivisti - Lista attivisti richiesta', { search, regione, tipologia });
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -21,44 +22,76 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
+    // Costruisci la query con filtri dinamici
+    let whereConditions = ["u.ruolo = 'Attivista'"];
+    let queryParams = [];
+    let paramIndex = 1;
+
+    // Filtro per ricerca testuale (nome/cognome)
+    if (search && search.trim()) {
+      whereConditions.push(`(
+        LOWER(u.nome) LIKE LOWER($${paramIndex}) OR 
+        LOWER(u.cognome) LIKE LOWER($${paramIndex}) OR
+        LOWER(CONCAT(u.nome, ' ', u.cognome)) LIKE LOWER($${paramIndex})
+      )`);
+      queryParams.push(`%${search.trim()}%`);
+      paramIndex++;
+    }
+
+    // Filtro per regione
+    if (regione && regione.trim()) {
+      whereConditions.push(`u.regione_residenza = $${paramIndex}`);
+      queryParams.push(regione.trim());
+      paramIndex++;
+    }
+
+    // Filtro per tipologia di attivismo
+    if (tipologia && tipologia.trim()) {
+      whereConditions.push(`u.tipologie_attivismo @> $${paramIndex}`);
+      queryParams.push(JSON.stringify([{ tipo: tipologia.trim() }]));
+      paramIndex++;
+    }
+
+    const whereClause = whereConditions.join(' AND ');
+
     // Query per ottenere tutti gli utenti con ruolo "Attivista" con conteggio sostenitori e ordinati
-          const result = await pool.query(`
-            SELECT
-              u.id,
-              u.nome,
-              u.cognome,
-              u.email,
-              u.ruolo,
-              u.status,
-              u.created_at,
-              u.updated_at,
-              u.avatar_config,
-              u.genere,
-              u.data_nascita,
-              u.cittadinanza,
-              u.paese_residenza,
-              u.regione_residenza,
-              u.provincia_residenza,
-              u.comune_residenza,
-              u.facebook_url,
-              u.twitter_url,
-              u.instagram_url,
-              u.linkedin_url,
-              u.telegram_url,
-              u.website_url,
-              u.twitch_url,
-              u.youtube_url,
-              u.tipologie_attivismo,
-              COALESCE(us.cnt, 0)::int AS supporters_count
-            FROM users u
-            LEFT JOIN LATERAL (
-              SELECT COUNT(*) AS cnt
-              FROM user_supports s
-              WHERE s.supported_id = u.id
-            ) us ON TRUE
-            WHERE u.ruolo = 'Attivista'
-            ORDER BY supporters_count DESC, u.created_at DESC
-          `);
+    const result = await pool.query(`
+      SELECT
+        u.id,
+        u.nome,
+        u.cognome,
+        u.email,
+        u.ruolo,
+        u.status,
+        u.created_at,
+        u.updated_at,
+        u.avatar_config,
+        u.genere,
+        u.data_nascita,
+        u.cittadinanza,
+        u.paese_residenza,
+        u.regione_residenza,
+        u.provincia_residenza,
+        u.comune_residenza,
+        u.facebook_url,
+        u.twitter_url,
+        u.instagram_url,
+        u.linkedin_url,
+        u.telegram_url,
+        u.website_url,
+        u.twitch_url,
+        u.youtube_url,
+        u.tipologie_attivismo,
+        COALESCE(us.cnt, 0)::int AS supporters_count
+      FROM users u
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS cnt
+        FROM user_supports s
+        WHERE s.supported_id = u.id
+      ) us ON TRUE
+      WHERE ${whereClause}
+      ORDER BY supporters_count DESC, u.created_at DESC
+    `, queryParams);
     
     const attivisti = result.rows;
     
@@ -197,6 +230,55 @@ router.get('/statistiche', async (req, res) => {
       success: false,
       error: 'Errore interno del server',
       message: 'Impossibile calcolare le statistiche delle tipologie'
+    });
+  }
+});
+
+// GET /api/attivisti/filtri - Ottieni regioni e tipologie disponibili per i filtri
+router.get('/filtri', async (req, res) => {
+  try {
+    console.log('🔍 GET /api/attivisti/filtri - Filtri disponibili richiesti');
+    
+    // Ottieni regioni uniche
+    const regioniResult = await pool.query(`
+      SELECT DISTINCT regione_residenza
+      FROM users 
+      WHERE ruolo = 'Attivista' 
+      AND regione_residenza IS NOT NULL 
+      AND regione_residenza != ''
+      ORDER BY regione_residenza
+    `);
+    
+    // Ottieni tipologie uniche
+    const tipologieResult = await pool.query(`
+      SELECT DISTINCT jsonb_array_elements(tipologie_attivismo)->>'tipo' as tipo
+      FROM users 
+      WHERE ruolo = 'Attivista'
+      AND tipologie_attivismo IS NOT NULL
+      AND jsonb_array_length(tipologie_attivismo) > 0
+      ORDER BY tipo
+    `);
+    
+    const regioni = regioniResult.rows.map(row => row.regione_residenza);
+    const tipologie = tipologieResult.rows.map(row => row.tipo);
+    
+    console.log(`✅ Filtri disponibili: ${regioni.length} regioni, ${tipologie.length} tipologie`);
+    
+    res.json({
+      success: true,
+      data: {
+        regioni,
+        tipologie
+      },
+      message: `Filtri disponibili: ${regioni.length} regioni, ${tipologie.length} tipologie`
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recupero dei filtri:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare i filtri disponibili'
     });
   }
 });
