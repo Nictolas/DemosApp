@@ -350,7 +350,7 @@ export default function Attivisti() {
           });
           
           // Decrementa conteggio locale + riordina lista
-          const currentCount = supportersCount[attivistaId] || 0;
+          const currentCount = (attivisti.find(a => a.id === attivistaId) as any)?.supporters_count || 0;
           const total = Math.max(0, currentCount - 1);
           setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
           setFilteredAttivisti(prev => {
@@ -373,7 +373,7 @@ export default function Attivisti() {
           setFollowingUsers(prev => new Set([...prev, attivistaId]));
           
           // Aggiorna conteggio locale + riordina lista
-          const currentCount = supportersCount[attivistaId] || 0;
+          const currentCount = (attivisti.find(a => a.id === attivistaId) as any)?.supporters_count || 0;
           const total = currentCount + 1;
           setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
           setFilteredAttivisti(prev => {
@@ -665,7 +665,7 @@ export default function Attivisti() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
-                                {supportersCount[attivista.id] ?? 0}
+                                {(attivista as any).supporters_count ?? 0}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
