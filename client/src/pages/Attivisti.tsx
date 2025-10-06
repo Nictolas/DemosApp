@@ -674,7 +674,7 @@ export default function Attivisti() {
                                 variant="outline" 
                                 className="text-blue-600 border-blue-600 hover:bg-blue-50"
                                 onClick={() => handleFollowUser(attivista.id)}
-                                disabled={!user?.id || followingUsers.has(attivista.id)}
+                                disabled={!user?.id}
                               >
                                 {followingUsers.has(attivista.id) ? 'Seguito' : 'Segui'}
                               </Button>
