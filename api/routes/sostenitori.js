@@ -339,4 +339,46 @@ router.get('/count', async (req, res) => {
   }
 });
 
+// GET /api/sostenitori/following - Ottieni tutti gli utenti che un supporter sta seguendo
+router.get('/following', async (req, res) => {
+  try {
+    const { supporter_id } = req.query;
+    
+    if (!supporter_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'supporter_id richiesto'
+      });
+    }
+
+    console.log('🔍 DEBUG: Recupero following per supporter:', supporter_id);
+
+    const result = await pool.query(`
+      SELECT 
+        us.supported_id,
+        us.created_at,
+        u.nome,
+        u.cognome
+      FROM user_supports us
+      INNER JOIN users u ON us.supported_id = u.id
+      WHERE us.supporter_id = $1
+      ORDER BY us.created_at DESC
+    `, [supporter_id]);
+
+    console.log('🔍 DEBUG: Trovati following:', result.rows.length);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel recupero following:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;

@@ -75,7 +75,7 @@ export default function Attivisti() {
   const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
-  // Carica filtri disponibili
+  // Carica filtri disponibili e stato following
   useEffect(() => {
     const fetchFiltri = async () => {
       try {
@@ -91,8 +91,27 @@ export default function Attivisti() {
         console.error('Errore nel caricamento dei filtri:', error);
       }
     };
+
+    const fetchFollowingStatus = async () => {
+      if (!user?.id) return;
+      try {
+        // Carica tutti gli attivisti che stai già seguendo
+        const response = await fetch(`${API_BASE}/api/sostenitori/following?supporter_id=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            const followingSet = new Set(data.data.map((item: any) => item.supported_id));
+            setFollowingUsers(followingSet);
+          }
+        }
+      } catch (error) {
+        console.error('Errore nel caricamento stato following:', error);
+      }
+    };
+
     fetchFiltri();
-  }, []);
+    fetchFollowingStatus();
+  }, [user?.id]);
 
   // Carica gli attivisti
   useEffect(() => {
@@ -311,6 +330,20 @@ export default function Attivisti() {
           (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
           return next;
         });
+        setAttivisti(prev => {
+          const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
+          (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+          return next;
+        });
+      } else if (response.status === 409) {
+        // Già stai seguendo questo utente
+        toast({
+          title: "Info",
+          description: "Stai già seguendo questo attivista",
+        });
+        
+        // Aggiorna lo stato locale anche se già seguito
+        setFollowingUsers(prev => new Set([...prev, attivistaId]));
       } else {
         toast({
           title: "Errore",
@@ -546,21 +579,10 @@ export default function Attivisti() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Avatar
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Nome Cognome
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Regione di Residenza
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Sostenitori
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Segui
-                          </th>
+                          <th className="px-6 py-3"></th>
+                          <th className="px-6 py-3"></th>
+                          <th className="px-6 py-3"></th>
+                          <th className="px-6 py-3"></th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -588,11 +610,6 @@ export default function Attivisti() {
                               >
                                 {attivista.nome} {attivista.cognome}
                               </button>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {attivista.regione_residenza || 'Non specificata'}
-                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
