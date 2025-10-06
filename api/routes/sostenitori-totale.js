@@ -13,6 +13,8 @@ router.get('/totale', async (req, res) => {
   try {
     const { sostenuto_id } = req.query;
     
+    console.log('🔍 DEBUG: sostenitori-totale chiamato con sostenuto_id:', sostenuto_id);
+    
     if (!sostenuto_id) {
       return res.status(400).json({
         success: false,
@@ -20,9 +22,10 @@ router.get('/totale', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come rappresentante O candidato O lo seguono genericamente
+    // Per ora, conta solo i sostenitori generici per test
+    console.log('🔍 DEBUG: Contando solo sostenitori generici per test');
     const result = await pool.query(`
-      SELECT DISTINCT
+      SELECT 
         u.id,
         u.nome,
         u.cognome,
@@ -34,36 +37,14 @@ router.get('/totale', async (req, res) => {
         u.provincia_residenza,
         u.comune_residenza,
         u.created_at,
-        CASE 
-          WHEN u.rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
-          WHEN u.rappresentante_camera = $1 THEN 'Rappresentante Camera'
-          WHEN u.rappresentante_senato = $1 THEN 'Rappresentante Senato'
-          WHEN u.rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
-          WHEN u.rappresentante_comune = $1 THEN 'Rappresentante Comunale'
-          WHEN u.candidato_europeo = $1 THEN 'Candidato Europeo'
-          WHEN u.candidato_camera = $1 THEN 'Candidato Camera'
-          WHEN u.candidato_senato = $1 THEN 'Candidato Senato'
-          WHEN u.candidato_regionale = $1 THEN 'Candidato Regionale'
-          WHEN u.candidato_comune = $1 THEN 'Candidato Comunale'
-          WHEN us.supported_id = $1 THEN 'Sostenitore Generico'
-        END as supporter_role
+        'Sostenitore Generico' as supporter_role
       FROM users u
-      LEFT JOIN user_supports us ON u.id = us.supporter_id AND us.supported_id = $1
-      WHERE (
-        u.rappresentante_europeo = $1 OR
-        u.rappresentante_camera = $1 OR
-        u.rappresentante_senato = $1 OR
-        u.rappresentante_regionale = $1 OR
-        u.rappresentante_comune = $1 OR
-        u.candidato_europeo = $1 OR
-        u.candidato_camera = $1 OR
-        u.candidato_senato = $1 OR
-        u.candidato_regionale = $1 OR
-        u.candidato_comune = $1 OR
-        us.supported_id = $1
-      )
+      INNER JOIN user_supports us ON u.id = us.supporter_id
+      WHERE us.supported_id = $1
       ORDER BY u.created_at DESC
     `, [sostenuto_id]);
+    
+    console.log('🔍 DEBUG: Trovati sostenitori generici:', result.rows.length);
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
     const supportersMap = new Map();

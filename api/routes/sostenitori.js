@@ -297,4 +297,46 @@ router.delete('/unfollow', async (req, res) => {
   }
 });
 
+// GET /api/sostenitori/count - Endpoint semplice per conteggio sostenitori
+router.get('/count', async (req, res) => {
+  try {
+    const { sostenuto_id } = req.query;
+    
+    if (!sostenuto_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID sostenuto richiesto'
+      });
+    }
+
+    console.log('🔍 DEBUG: Conteggio sostenitori per:', sostenuto_id);
+
+    // Conta sostenitori generici
+    const genericResult = await pool.query(`
+      SELECT COUNT(*) as count
+      FROM user_supports 
+      WHERE supported_id = $1
+    `, [sostenuto_id]);
+
+    const genericCount = parseInt(genericResult.rows[0].count);
+
+    console.log('🔍 DEBUG: Sostenitori generici:', genericCount);
+
+    res.json({
+      success: true,
+      data: {
+        totalSupporters: genericCount,
+        genericSupporters: genericCount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel conteggio sostenitori:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;
