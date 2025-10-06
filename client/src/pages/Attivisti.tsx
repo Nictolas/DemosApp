@@ -142,15 +142,20 @@ export default function Attivisti() {
         const data: AttivistiResponse = await response.json();
         console.log('📊 fetchAttivisti - Data ricevuta:', data);
         
-        if (data.success) {
-          console.log('✅ fetchAttivisti - Successo, attivisti:', data.data.length);
-          // I dati arrivano già ordinati per supporters_count DESC
-          setAttivisti(data.data as any);
-          setFilteredAttivisti(data.data as any);
-          const next: Record<string, number> = {};
-          (data.data as any[]).forEach((a) => { next[a.id] = (a as any).supporters_count ?? 0; });
-          setSupportersCount(next);
-        } else {
+              if (data.success) {
+                console.log('✅ fetchAttivisti - Successo, attivisti:', data.data.length);
+                console.log('📊 fetchAttivisti - Dati attivisti:', data.data);
+                // I dati arrivano già ordinati per supporters_count DESC
+                setAttivisti(data.data as any);
+                setFilteredAttivisti(data.data as any);
+                const next: Record<string, number> = {};
+                (data.data as any[]).forEach((a) => { 
+                  console.log(`📊 Attivista ${a.nome} ${a.cognome}: supporters_count = ${a.supporters_count}`);
+                  next[a.id] = (a as any).supporters_count ?? 0; 
+                });
+                console.log('📊 supportersCount finale:', next);
+                setSupportersCount(next);
+              } else {
           throw new Error(data.message || 'Errore nel caricamento degli attivisti');
         }
       } catch (error) {
