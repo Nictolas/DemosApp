@@ -127,7 +127,6 @@ export default function Attivisti() {
         if (searchTerm.trim()) params.append('search', searchTerm.trim());
         if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
-        if (user?.id) params.append('exclude_user_id', user.id);
         
         const url = `${API_BASE}/api/attivisti${params.toString() ? '?' + params.toString() : ''}`;
         console.log('📡 fetchAttivisti - Chiamata API:', url);
@@ -440,7 +439,7 @@ export default function Attivisti() {
   
   return (
     <PageContainer className="overflow-x-hidden">
-      <div className="min-h-screen bg-gray-50 py-8 overflow-x-hidden">
+      <div className="min-h-screen bg-gray-50 py-8 overflow-x-hidden" style={{ touchAction: 'pan-y' }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
             {/* Header */}
             <div className="text-center mb-8">
@@ -698,9 +697,9 @@ export default function Attivisti() {
                 </div>
 
                 {/* Mobile Card View */}
-                <div className="md:hidden space-y-4">
+                <div className="md:hidden space-y-4" style={{ touchAction: 'pan-y' }}>
                   {filteredAttivisti.map((attivista) => (
-                    <div key={attivista.id} className="bg-white rounded-lg shadow p-4">
+                    <div key={attivista.id} className="bg-white rounded-lg shadow p-4" style={{ touchAction: 'pan-y' }}>
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
                           {parseAvatarConfig(attivista.avatar_config) ? (

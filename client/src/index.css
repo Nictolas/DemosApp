@@ -18,9 +18,21 @@ html, body, #root {
   height: 100%;
   overscroll-behavior: none;
   overflow-x: hidden;
+  touch-action: pan-y;
   overflow-y: auto;
   background: linear-gradient(to bottom, #f0f4ff, #b3c6ff); /* Personalizza se vuoi altri colori */
   /* La navbar fissa in basso deve essere sempre visibile, non tagliata da overflow! */
+}
+
+/* Prevenzione scroll orizzontale su mobile */
+@media (max-width: 768px) {
+  * {
+    touch-action: pan-y !important;
+  }
+  
+  .overflow-x-auto {
+    touch-action: pan-y !important;
+  }
 }
 
 body {
