@@ -92,6 +92,9 @@ export default function Sostenitori() {
         return rappresentantiData;
       case "candidato":
         return candidatiData;
+      case "attivista":
+        // Per ora riutilizziamo i totali (stessa vista e metriche)
+        return totaleData;
       case "totale":
         return totaleData;
       default:
@@ -150,12 +153,14 @@ export default function Sostenitori() {
     if (user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
     if (user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
     if (user.ruolo === "Admin" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
+    // nuova scheda Attivista
+    if (user.ruolo === "Admin" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
     
     switch (tabCount) {
       case 1: return "grid-cols-1";
       case 2: return "grid-cols-2";
       case 3: return "grid-cols-3";
-      default: return "grid-cols-1";
+      default: return "grid-cols-4";
     }
   };
 
@@ -189,10 +194,20 @@ export default function Sostenitori() {
                 {(user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
                   <TabsTrigger value="candidato">Candidato</TabsTrigger>
                 )}
+                {(user.ruolo === "Admin" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+                  <TabsTrigger value="attivista">Attivista</TabsTrigger>
+                )}
                 {(user.ruolo === "Admin" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
                   <TabsTrigger value="totale">Totale</TabsTrigger>
                 )}
               </TabsList>
+              {(user.ruolo === "Admin" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+                <TabsContent value="attivista" className="space-y-8">
+                  {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
+                  {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={setShowSupportersList ? showSupportersList : false} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                </TabsContent>
+              )}
 
               {(user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
                 <TabsContent value="politico" className="space-y-8">
