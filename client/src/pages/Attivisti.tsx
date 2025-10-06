@@ -286,7 +286,7 @@ export default function Attivisti() {
     setSelectedAttivista(null);
   };
 
-  // Funzione per seguire un attivista
+  // Funzione per seguire/unfollow un attivista
   const handleFollowUser = async (attivistaId: string) => {
     if (!user?.id) {
       toast({
@@ -297,44 +297,91 @@ export default function Attivisti() {
       return;
     }
 
+    const isCurrentlyFollowing = followingUsers.has(attivistaId);
+
     try {
-      const response = await fetch(`${API_BASE}/api/sostenitori/follow`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          supporter_id: user.id,
-          supported_id: attivistaId
-        })
-      });
+      let response;
+      if (isCurrentlyFollowing) {
+        // Unfollow
+        response = await fetch(`${API_BASE}/api/sostenitori/unfollow`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supporter_id: user.id,
+            supported_id: attivistaId
+          })
+        });
+      } else {
+        // Follow
+        response = await fetch(`${API_BASE}/api/sostenitori/follow`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supporter_id: user.id,
+            supported_id: attivistaId
+          })
+        });
+      }
 
       let data: any = null;
       try { data = await response.json(); } catch { /* body vuoto o non JSON */ }
 
       if (data.success) {
-        toast({
-          title: "Successo",
-          description: "Hai iniziato a seguire questo attivista",
-        });
-        
-        // Aggiorna lo stato locale
-        setFollowingUsers(prev => new Set([...prev, attivistaId]));
-        
-        // Aggiorna conteggio locale + riordina lista
-        const currentCount = supportersCount[attivistaId] || 0;
-        const total = currentCount + 1;
-        setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
-        setFilteredAttivisti(prev => {
-          const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
-          (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
-          return next;
-        });
-        setAttivisti(prev => {
-          const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
-          (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
-          return next;
-        });
+        if (isCurrentlyFollowing) {
+          toast({
+            title: "Successo",
+            description: "Hai smesso di seguire questo attivista",
+          });
+          
+          // Rimuovi dallo stato locale
+          setFollowingUsers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(attivistaId);
+            return newSet;
+          });
+          
+          // Decrementa conteggio locale + riordina lista
+          const currentCount = supportersCount[attivistaId] || 0;
+          const total = Math.max(0, currentCount - 1);
+          setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
+          setFilteredAttivisti(prev => {
+            const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
+            (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+            return next;
+          });
+          setAttivisti(prev => {
+            const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
+            (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+            return next;
+          });
+        } else {
+          toast({
+            title: "Successo",
+            description: "Hai iniziato a seguire questo attivista",
+          });
+          
+          // Aggiorna lo stato locale
+          setFollowingUsers(prev => new Set([...prev, attivistaId]));
+          
+          // Aggiorna conteggio locale + riordina lista
+          const currentCount = supportersCount[attivistaId] || 0;
+          const total = currentCount + 1;
+          setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
+          setFilteredAttivisti(prev => {
+            const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
+            (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+            return next;
+          });
+          setAttivisti(prev => {
+            const next = prev.map(a => (a.id === attivistaId ? ({ ...(a as any), supporters_count: total } as any) : a));
+            (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+            return next;
+          });
+        }
       } else if (response.status === 409) {
         // Già stai seguendo questo utente
         toast({
