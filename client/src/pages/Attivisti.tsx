@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Loader2, Users, User, Search, X } from "lucide-react";
+import { Loader2, Users, User, Search, X, Filter, ChevronDown } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import AttivistaModal from "@/components/AttivistaModal";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +62,11 @@ export default function Attivisti() {
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRegione, setSelectedRegione] = useState("");
+  const [selectedTipologia, setSelectedTipologia] = useState("");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [regioni, setRegioni] = useState<string[]>([]);
+  const [tipologie, setTipologie] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -68,6 +74,25 @@ export default function Attivisti() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
+
+  // Carica filtri disponibili
+  useEffect(() => {
+    const fetchFiltri = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/attivisti/filtri`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setRegioni(data.data.regioni);
+            setTipologie(data.data.tipologie);
+          }
+        }
+      } catch (error) {
+        console.error('Errore nel caricamento dei filtri:', error);
+      }
+    };
+    fetchFiltri();
+  }, []);
 
   // Carica gli attivisti
   useEffect(() => {
@@ -78,8 +103,16 @@ export default function Attivisti() {
         setIsLoading(true);
         setIsError(false);
         
-        console.log('📡 fetchAttivisti - Chiamata API...');
-        const response = await fetch('https://demos-c7k0.onrender.com/api/attivisti');
+        // Costruisci URL con parametri di ricerca
+        const params = new URLSearchParams();
+        if (searchTerm.trim()) params.append('search', searchTerm.trim());
+        if (selectedRegione) params.append('regione', selectedRegione);
+        if (selectedTipologia) params.append('tipologia', selectedTipologia);
+        
+        const url = `${API_BASE}/api/attivisti${params.toString() ? '?' + params.toString() : ''}`;
+        console.log('📡 fetchAttivisti - Chiamata API:', url);
+        
+        const response = await fetch(url);
         console.log('📡 fetchAttivisti - Response status:', response.status);
         
         if (!response.ok) {
@@ -112,23 +145,9 @@ export default function Attivisti() {
     };
 
     fetchAttivisti();
-  }, []);
+  }, [searchTerm, selectedRegione, selectedTipologia]);
 
-  // Filtra gli attivisti in base al termine di ricerca
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredAttivisti(attivisti);
-    } else {
-      const filtered = attivisti.filter(attivista => {
-        const fullName = `${attivista.nome} ${attivista.cognome}`.toLowerCase();
-        const searchLower = searchTerm.toLowerCase();
-        return fullName.includes(searchLower) || 
-               attivista.nome.toLowerCase().includes(searchLower) || 
-               attivista.cognome.toLowerCase().includes(searchLower);
-      });
-      setFilteredAttivisti(filtered);
-    }
-  }, [searchTerm, attivisti]);
+  // I filtri sono ora gestiti lato server, non serve più filtrare lato client
 
   // Carica conteggi sostenitori per gli attivisti visibili
   useEffect(() => {
@@ -162,7 +181,14 @@ export default function Attivisti() {
     setSearchTerm(e.target.value);
   };
 
-  // Funzione per cancellare la ricerca
+  // Funzione per cancellare tutti i filtri
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setSelectedRegione("");
+    setSelectedTipologia("");
+  };
+
+  // Funzione per cancellare solo la ricerca testuale
   const clearSearch = () => {
     setSearchTerm("");
   };
@@ -340,11 +366,12 @@ export default function Attivisti() {
               </p>
             </div>
 
-            {/* Barra di Ricerca */}
+            {/* Barra di Ricerca e Filtri */}
             {!isLoading && !isError && attivisti.length > 0 && (
               <div className="mb-6">
-                <div className="max-w-md mx-auto relative">
-                  <div className="relative">
+                <div className="max-w-4xl mx-auto">
+                  {/* Ricerca Testuale */}
+                  <div className="relative mb-4">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
                       type="text"
@@ -364,13 +391,91 @@ export default function Attivisti() {
                       </Button>
                     )}
                   </div>
-                  {searchTerm && (
-                    <div className="mt-2 text-sm text-gray-600 text-center">
+
+                  {/* Filtri Avanzati */}
+                  <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                      className="flex items-center gap-2"
+                    >
+                      <Filter className="h-4 w-4" />
+                      Filtri Avanzati
+                      <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+                    </Button>
+
+                    {(searchTerm || selectedRegione || selectedTipologia) && (
+                      <Button
+                        variant="ghost"
+                        onClick={clearAllFilters}
+                        className="text-gray-600 hover:text-gray-800"
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Cancella tutti i filtri
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Pannello Filtri Avanzati */}
+                  {showAdvancedFilters && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Filtro Regione */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Regione di Residenza
+                          </label>
+                          <Select value={selectedRegione} onValueChange={setSelectedRegione}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleziona una regione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Tutte le regioni</SelectItem>
+                              {regioni.map((regione) => (
+                                <SelectItem key={regione} value={regione}>
+                                  {regione}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Filtro Tipologia */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Tipologia di Attivismo
+                          </label>
+                          <Select value={selectedTipologia} onValueChange={setSelectedTipologia}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleziona una tipologia" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Tutte le tipologie</SelectItem>
+                              {tipologie.map((tipologia) => (
+                                <SelectItem key={tipologia} value={tipologia}>
+                                  {tipologia}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Risultati Filtri */}
+                  {(searchTerm || selectedRegione || selectedTipologia) && (
+                    <div className="mt-3 text-sm text-gray-600 text-center">
                       {filteredAttivisti.length === 0 ? (
-                        <span className="text-red-600">Nessun attivista trovato per "{searchTerm}"</span>
+                        <span className="text-red-600">
+                          Nessun attivista trovato con i filtri selezionati
+                        </span>
                       ) : (
                         <span>
-                          {filteredAttivisti.length} attivista{filteredAttivisti.length !== 1 ? 'i' : ''} trovato{filteredAttivisti.length !== 1 ? 'i' : ''} per "{searchTerm}"
+                          {filteredAttivisti.length} attivista{filteredAttivisti.length !== 1 ? 'i' : ''} trovato{filteredAttivisti.length !== 1 ? 'i' : ''}
+                          {searchTerm && ` per "${searchTerm}"`}
+                          {selectedRegione && ` in ${selectedRegione}`}
+                          {selectedTipologia && ` con tipologia ${selectedTipologia}`}
                         </span>
                       )}
                     </div>
