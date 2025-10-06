@@ -8,7 +8,8 @@ import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import AttivistaModal from "@/components/AttivistaModal";
-import { Link } from "wouter";
+import { useAuth } from "@/hooks/use-auth-neon";
+import { useToast } from "@/hooks/use-toast";
 
 interface TipologiaAttivismo {
   tipo: string;
@@ -54,6 +55,8 @@ interface AttivistiResponse {
 }
 
 export default function Attivisti() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,6 +66,7 @@ export default function Attivisti() {
   const [selectedAttivista, setSelectedAttivista] = useState<Attivista | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [supportersCount, setSupportersCount] = useState<Record<string, number>>({});
+  const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
 
   // Carica gli attivisti
   useEffect(() => {
@@ -241,6 +245,79 @@ export default function Attivisti() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedAttivista(null);
+  };
+
+  // Funzione per seguire un attivista
+  const handleFollowUser = async (attivistaId: string) => {
+    if (!user?.id) {
+      toast({
+        title: "Errore",
+        description: "Devi essere autenticato per seguire un utente",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/sostenitori/follow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supporter_id: user.id,
+          supported_id: attivistaId
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: "Successo",
+          description: "Hai iniziato a seguire questo attivista",
+        });
+        
+        // Aggiorna lo stato locale
+        setFollowingUsers(prev => new Set([...prev, attivistaId]));
+        
+        // Ricarica i conteggi sostenitori
+        const loadCounts = async () => {
+          try {
+            const [repRes, candRes] = await Promise.all([
+              fetch(`/api/rappresentanti/sostenitori?sostenuto_id=${attivistaId}`),
+              fetch(`/api/candidati/sostenitori?sostenuto_id=${attivistaId}`)
+            ]);
+            let repCount = 0; let candCount = 0;
+            if (repRes.ok) {
+              const repData = await repRes.json();
+              repCount = repData?.data?.count ?? repData?.count ?? 0;
+            }
+            if (candRes.ok) {
+              const candData = await candRes.json();
+              candCount = candData?.data?.count ?? candData?.count ?? 0;
+            }
+            setSupportersCount(prev => ({ ...prev, [attivistaId]: repCount + candCount }));
+          } catch (error) {
+            console.error('Errore nel ricaricare conteggi:', error);
+          }
+        };
+        loadCounts();
+      } else {
+        toast({
+          title: "Errore",
+          description: data.error || "Impossibile seguire questo utente",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Errore nel seguire utente:', error);
+      toast({
+        title: "Errore",
+        description: "Errore di connessione",
+        variant: "destructive"
+      });
+    }
   };
 
   // Funzione per ottenere le emoji delle tipologie di attivismo
@@ -436,11 +513,15 @@ export default function Attivisti() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <Link href="/sostenitori">
-                                <Button size="sm" variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50">
-                                  Segui
-                                </Button>
-                              </Link>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                onClick={() => handleFollowUser(attivista.id)}
+                                disabled={!user?.id || followingUsers.has(attivista.id)}
+                              >
+                                {followingUsers.has(attivista.id) ? 'Seguito' : 'Segui'}
+                              </Button>
                             </td>
                           </tr>
                         ))}
