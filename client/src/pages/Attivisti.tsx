@@ -62,8 +62,8 @@ export default function Attivisti() {
   const [attivisti, setAttivisti] = useState<Attivista[]>([]);
   const [filteredAttivisti, setFilteredAttivisti] = useState<Attivista[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedRegione, setSelectedRegione] = useState("");
-  const [selectedTipologia, setSelectedTipologia] = useState("");
+  const [selectedRegione, setSelectedRegione] = useState("all");
+  const [selectedTipologia, setSelectedTipologia] = useState("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [regioni, setRegioni] = useState<string[]>([]);
   const [tipologie, setTipologie] = useState<string[]>([]);
@@ -106,8 +106,8 @@ export default function Attivisti() {
         // Costruisci URL con parametri di ricerca
         const params = new URLSearchParams();
         if (searchTerm.trim()) params.append('search', searchTerm.trim());
-        if (selectedRegione) params.append('regione', selectedRegione);
-        if (selectedTipologia) params.append('tipologia', selectedTipologia);
+        if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
+        if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
         
         const url = `${API_BASE}/api/attivisti${params.toString() ? '?' + params.toString() : ''}`;
         console.log('📡 fetchAttivisti - Chiamata API:', url);
@@ -184,8 +184,8 @@ export default function Attivisti() {
   // Funzione per cancellare tutti i filtri
   const clearAllFilters = () => {
     setSearchTerm("");
-    setSelectedRegione("");
-    setSelectedTipologia("");
+    setSelectedRegione("all");
+    setSelectedTipologia("all");
   };
 
   // Funzione per cancellare solo la ricerca testuale
@@ -404,7 +404,7 @@ export default function Attivisti() {
                       <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
                     </Button>
 
-                    {(searchTerm || selectedRegione || selectedTipologia) && (
+                    {(searchTerm || (selectedRegione && selectedRegione !== 'all') || (selectedTipologia && selectedTipologia !== 'all')) && (
                       <Button
                         variant="ghost"
                         onClick={clearAllFilters}
@@ -430,7 +430,7 @@ export default function Attivisti() {
                               <SelectValue placeholder="Seleziona una regione" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Tutte le regioni</SelectItem>
+                              <SelectItem value="all">Tutte le regioni</SelectItem>
                               {regioni.map((regione) => (
                                 <SelectItem key={regione} value={regione}>
                                   {regione}
@@ -450,7 +450,7 @@ export default function Attivisti() {
                               <SelectValue placeholder="Seleziona una tipologia" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Tutte le tipologie</SelectItem>
+                              <SelectItem value="all">Tutte le tipologie</SelectItem>
                               {tipologie.map((tipologia) => (
                                 <SelectItem key={tipologia} value={tipologia}>
                                   {tipologia}
@@ -464,7 +464,7 @@ export default function Attivisti() {
                   )}
 
                   {/* Risultati Filtri */}
-                  {(searchTerm || selectedRegione || selectedTipologia) && (
+                  {(searchTerm || (selectedRegione && selectedRegione !== 'all') || (selectedTipologia && selectedTipologia !== 'all')) && (
                     <div className="mt-3 text-sm text-gray-600 text-center">
                       {filteredAttivisti.length === 0 ? (
                         <span className="text-red-600">
@@ -474,8 +474,8 @@ export default function Attivisti() {
                         <span>
                           {filteredAttivisti.length} attivista{filteredAttivisti.length !== 1 ? 'i' : ''} trovato{filteredAttivisti.length !== 1 ? 'i' : ''}
                           {searchTerm && ` per "${searchTerm}"`}
-                          {selectedRegione && ` in ${selectedRegione}`}
-                          {selectedTipologia && ` con tipologia ${selectedTipologia}`}
+                          {selectedRegione && selectedRegione !== 'all' && ` in ${selectedRegione}`}
+                          {selectedTipologia && selectedTipologia !== 'all' && ` con tipologia ${selectedTipologia}`}
                         </span>
                       )}
                     </div>
