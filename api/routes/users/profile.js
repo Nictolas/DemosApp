@@ -17,7 +17,8 @@ router.get('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
              paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
              ruolo, grado_elezione, paese_elezione, regione_elezione, provincia_elezione, comune_elezione,
              grado_candidatura, paese_candidatura, regione_candidatura, provincia_candidatura, comune_candidatura,
-             status, avatar_config, created_at, updated_at
+             status, avatar_config, created_at, updated_at,
+             facebook_url, twitter_url, instagram_url, linkedin_url, telegram_url, website_url, twitch_url, youtube_url
       FROM users 
       WHERE id = $1
     `, [userId]);
@@ -152,7 +153,8 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
       'paese_elezione', 'regione_elezione', 'provincia_elezione', 'comune_elezione',
       'grado_elezione', 'paese_candidatura', 'regione_candidatura', 'provincia_candidatura',
-      'comune_candidatura', 'grado_candidatura'
+      'comune_candidatura', 'grado_candidatura',
+      'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url'
     ];
     
     // Filtra solo i campi consentiti
