@@ -202,12 +202,8 @@ router.post('/follow', async (req, res) => {
       });
     }
 
-    if (supporter_id === supported_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Non puoi seguire te stesso'
-      });
-    }
+    // Rimosso il controllo che impediva di seguire se stessi
+    // Ora è permesso seguire se stessi
 
     // Verifica che entrambi gli utenti esistano
     const usersCheck = await pool.query(`

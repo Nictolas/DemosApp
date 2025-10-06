@@ -12,8 +12,8 @@ const pool = new Pool({
 // GET /api/attivisti - Lista tutti gli utenti con ruolo "Attivista"
 router.get('/', async (req, res) => {
   try {
-    const { search, regione, tipologia } = req.query;
-    console.log('🔍 GET /api/attivisti - Lista attivisti richiesta', { search, regione, tipologia });
+    const { search, regione, tipologia, exclude_user_id } = req.query;
+    console.log('🔍 GET /api/attivisti - Lista attivisti richiesta', { search, regione, tipologia, exclude_user_id });
     
     // Disabilita il caching per questo endpoint
     res.set({
@@ -52,6 +52,13 @@ router.get('/', async (req, res) => {
     if (tipologia && tipologia.trim()) {
       whereConditions.push(`u.tipologie_attivismo @> $${paramIndex}`);
       queryParams.push(JSON.stringify([{ tipo: tipologia.trim() }]));
+      paramIndex++;
+    }
+
+    // Filtro per escludere utente corrente
+    if (exclude_user_id && exclude_user_id.trim()) {
+      whereConditions.push(`u.id != $${paramIndex}`);
+      queryParams.push(exclude_user_id.trim());
       paramIndex++;
     }
 

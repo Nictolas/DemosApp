@@ -127,6 +127,7 @@ export default function Attivisti() {
         if (searchTerm.trim()) params.append('search', searchTerm.trim());
         if (selectedRegione && selectedRegione !== 'all') params.append('regione', selectedRegione);
         if (selectedTipologia && selectedTipologia !== 'all') params.append('tipologia', selectedTipologia);
+        if (user?.id) params.append('exclude_user_id', user.id);
         
         const url = `${API_BASE}/api/attivisti${params.toString() ? '?' + params.toString() : ''}`;
         console.log('📡 fetchAttivisti - Chiamata API:', url);
@@ -145,6 +146,7 @@ export default function Attivisti() {
               if (data.success) {
                 console.log('✅ fetchAttivisti - Successo, attivisti:', data.data.length);
                 console.log('📊 fetchAttivisti - Dati attivisti:', data.data);
+                
                 // I dati arrivano già ordinati per supporters_count DESC
                 setAttivisti(data.data as any);
                 setFilteredAttivisti(data.data as any);
