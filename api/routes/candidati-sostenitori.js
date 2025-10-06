@@ -20,9 +20,9 @@ router.get('/sostenitori', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come candidato
+    // Trova tutti gli utenti che hanno scelto questo utente come candidato O lo seguono genericamente
     const result = await pool.query(`
-      SELECT 
+      SELECT DISTINCT
         u.id,
         u.nome,
         u.cognome,
@@ -40,14 +40,17 @@ router.get('/sostenitori', async (req, res) => {
           WHEN u.candidato_senato = $1 THEN 'Candidato Senato'
           WHEN u.candidato_regionale = $1 THEN 'Candidato Regionale'
           WHEN u.candidato_comune = $1 THEN 'Candidato Comunale'
+          WHEN us.supported_id = $1 THEN 'Sostenitore Generico'
         END as supporter_role
       FROM users u
+      LEFT JOIN user_supports us ON u.id = us.supporter_id AND us.supported_id = $1
       WHERE (
         u.candidato_europeo = $1 OR
         u.candidato_camera = $1 OR
         u.candidato_senato = $1 OR
         u.candidato_regionale = $1 OR
-        u.candidato_comune = $1
+        u.candidato_comune = $1 OR
+        us.supported_id = $1
       )
       ORDER BY u.created_at DESC
     `, [sostenuto_id]);

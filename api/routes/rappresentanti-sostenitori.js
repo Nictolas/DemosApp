@@ -20,9 +20,9 @@ router.get('/sostenitori', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come rappresentante
+    // Trova tutti gli utenti che hanno scelto questo utente come rappresentante O lo seguono genericamente
     const result = await pool.query(`
-      SELECT 
+      SELECT DISTINCT
         u.id,
         u.nome,
         u.cognome,
@@ -40,14 +40,17 @@ router.get('/sostenitori', async (req, res) => {
           WHEN u.rappresentante_senato = $1 THEN 'Rappresentante Senato'
           WHEN u.rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
           WHEN u.rappresentante_comune = $1 THEN 'Rappresentante Comunale'
+          WHEN us.supported_id = $1 THEN 'Sostenitore Generico'
         END as supporter_role
       FROM users u
+      LEFT JOIN user_supports us ON u.id = us.supporter_id AND us.supported_id = $1
       WHERE (
         u.rappresentante_europeo = $1 OR
         u.rappresentante_camera = $1 OR
         u.rappresentante_senato = $1 OR
         u.rappresentante_regionale = $1 OR
-        u.rappresentante_comune = $1
+        u.rappresentante_comune = $1 OR
+        us.supported_id = $1
       )
       ORDER BY u.created_at DESC
     `, [sostenuto_id]);

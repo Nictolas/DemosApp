@@ -190,4 +190,111 @@ router.get('/check', async (req, res) => {
   }
 });
 
+// POST /api/sostenitori/follow - Segui un utente (relazione generica)
+router.post('/follow', async (req, res) => {
+  try {
+    const { supporter_id, supported_id } = req.body;
+    
+    if (!supporter_id || !supported_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'supporter_id e supported_id sono obbligatori'
+      });
+    }
+
+    if (supporter_id === supported_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Non puoi seguire te stesso'
+      });
+    }
+
+    // Verifica che entrambi gli utenti esistano
+    const usersCheck = await pool.query(`
+      SELECT id FROM users WHERE id IN ($1, $2)
+    `, [supporter_id, supported_id]);
+
+    if (usersCheck.rows.length !== 2) {
+      return res.status(404).json({
+        success: false,
+        error: 'Uno o entrambi gli utenti non esistono'
+      });
+    }
+
+    // Inserisci la relazione di sostegno
+    const result = await pool.query(`
+      INSERT INTO user_supports (supporter_id, supported_id)
+      VALUES ($1, $2)
+      ON CONFLICT (supporter_id, supported_id) DO NOTHING
+      RETURNING id, created_at
+    `, [supporter_id, supported_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'Stai già seguendo questo utente'
+      });
+    }
+
+    console.log('✅ Nuovo sostegno creato:', result.rows[0]);
+
+    res.json({
+      success: true,
+      message: 'Utente seguito con successo',
+      data: {
+        id: result.rows[0].id,
+        created_at: result.rows[0].created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel seguire utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// DELETE /api/sostenitori/unfollow - Smetti di seguire un utente
+router.delete('/unfollow', async (req, res) => {
+  try {
+    const { supporter_id, supported_id } = req.body;
+    
+    if (!supporter_id || !supported_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'supporter_id e supported_id sono obbligatori'
+      });
+    }
+
+    const result = await pool.query(`
+      DELETE FROM user_supports 
+      WHERE supporter_id = $1 AND supported_id = $2
+      RETURNING id
+    `, [supporter_id, supported_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Relazione di sostegno non trovata'
+      });
+    }
+
+    console.log('✅ Sostegno rimosso:', result.rows[0].id);
+
+    res.json({
+      success: true,
+      message: 'Hai smesso di seguire questo utente'
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel smettere di seguire utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;
