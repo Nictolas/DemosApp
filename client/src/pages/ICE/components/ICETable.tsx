@@ -51,14 +51,15 @@ export const ICETable: React.FC<ICETableProps> = ({
     }
   };
 
+
   return (
     <Table>
       <TableHeader>
-        <TableRow>
-          <TableHead>Nome</TableHead>
-          <TableHead>Firme</TableHead>
-          <TableHead>Azioni</TableHead>
-        </TableRow>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Firme</TableHead>
+                <TableHead>Azioni</TableHead>
+              </TableRow>
       </TableHeader>
       <TableBody>
         {listaICE.map((ice) => {
@@ -78,6 +79,18 @@ export const ICETable: React.FC<ICETableProps> = ({
                           : ice.quorum === 'no'
                             ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
                             : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-400'
+                    }
+                    aria-hidden="true"
+                  />
+                  <span
+                    className={
+                      ice.esito === 'Attuata'
+                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
+                        : ice.esito === 'In Attesa'
+                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
+                        : ice.esito === 'Non Accolta'
+                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
+                        : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-300' // Fallback for no esito
                     }
                     aria-hidden="true"
                   />

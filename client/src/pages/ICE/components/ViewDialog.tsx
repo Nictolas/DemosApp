@@ -20,6 +20,11 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose }) => {
               ice.quorum === 'ok' ? 'text-green-700' : ice.quorum === 'pending' ? 'text-yellow-700' : 'text-red-700'
             }>
               {ice.quorum === 'ok' ? 'Raggiunto' : ice.quorum === 'pending' ? 'In corso' : 'Non raggiunto'}
+              {ice.quorum === 'ok' && ice.esito && (
+                <span className="ml-2 text-gray-600">
+                  - Esito: {ice.esito === 'Attuata' ? '🟢 Attuata' : ice.esito === 'In Attesa' ? '🟡 In Attesa' : ice.esito === 'Non Accolta' ? '🔴 Non Accolta' : ice.esito}
+                </span>
+              )}
             </div>
           </div>
           <div>
