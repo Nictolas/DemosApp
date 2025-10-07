@@ -2,6 +2,8 @@ import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import { Header } from "./components/Header";
 import { CreateButton } from "./components/CreateButton";
 import { ICEForm } from "./components/ICEForm";
@@ -11,9 +13,12 @@ import { ViewDialog } from "./components/ViewDialog";
 import { useICEData } from "./hooks/useICEData";
 import { useICEActions } from "./hooks/useICEActions";
 import { useICEForms } from "./hooks/useICEForms";
+import { useQueryClient } from "@tanstack/react-query";
+import { QUERY_KEYS } from "./constants";
 
 export default function ICE() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const queryClient = useQueryClient();
 
   const { listaICE, mieiVoti, isLoading, isError } = useICEData(user);
   const {
@@ -34,6 +39,10 @@ export default function ICE() {
 
   const { createForm, editForm, resetCreateForm } = useICEForms();
 
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ICE_LIST });
+  };
+
   // Redirect se non autenticato
   if (isAuthLoading) {
     return (
@@ -53,7 +62,18 @@ export default function ICE() {
         <CardContent className="p-6">
           <Header />
           
-          <CreateButton onClick={showCreateForm} />
+          <div className="flex justify-between items-center mb-4">
+            <CreateButton onClick={showCreateForm} />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Aggiorna
+            </Button>
+          </div>
           
           {state.showForm && (
             <ICEForm
