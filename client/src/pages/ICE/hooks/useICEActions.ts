@@ -11,7 +11,8 @@ export const useICEActions = () => {
 
   const [state, setState] = useState<ICEState>({
     showForm: false,
-    editICE: null
+    editICE: null,
+    viewICE: null
   });
 
   // Funzione helper per ricaricare i dati
@@ -52,6 +53,8 @@ export const useICEActions = () => {
   const hideCreateForm = () => setState(prev => ({ ...prev, showForm: false }));
   const startEdit = (ice: ICE) => setState(prev => ({ ...prev, editICE: ice }));
   const cancelEdit = () => setState(prev => ({ ...prev, editICE: null }));
+  const startEditView = (ice: ICE) => setState(prev => ({ ...prev, viewICE: ice }));
+  const closeView = () => setState(prev => ({ ...prev, viewICE: null }));
 
   // Funzioni per gestire le azioni
   const handleCreate = (data: ICEFormData) => addMutation.mutate(data);
@@ -67,6 +70,8 @@ export const useICEActions = () => {
     hideCreateForm,
     startEdit,
     cancelEdit,
+    startEditView,
+    closeView,
     handleCreate,
     handleUpdate,
     handleDelete

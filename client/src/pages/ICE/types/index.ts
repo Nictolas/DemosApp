@@ -28,6 +28,7 @@ export interface ICEData {
 export interface ICEState {
   showForm: boolean;
   editICE: ICE | null;
+  viewICE?: ICE | null;
 }
 
 export interface ICETableProps {
@@ -35,6 +36,7 @@ export interface ICETableProps {
   mieiVoti: string[];
   isLoading: boolean;
   isError: boolean;
+  onView?: (ice: ICE) => void;
   onEdit: (ice: ICE) => void;
   onDelete: (id: string) => void;
   deleteMutation: any;
@@ -52,4 +54,9 @@ export interface EditDialogProps {
   onClose: () => void;
   onSubmit: (data: ICEFormData) => void;
   isLoading: boolean;
+}
+
+export interface ViewDialogProps {
+  ice: ICE | null;
+  onClose: () => void;
 }
