@@ -17,11 +17,11 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
-    // Restituisce TUTTE le ICE indipendentemente dallo stato di quorum
+    // Restituisce TUTTE le ICE ordinate per data di inizio (più recenti in alto)
     const query = `
       SELECT *
       FROM ice
-      ORDER BY data_creazione DESC
+      ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
     `;
     
     const result = await pool.query(query);

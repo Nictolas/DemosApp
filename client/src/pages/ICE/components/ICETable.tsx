@@ -90,9 +90,6 @@ export const ICETable: React.FC<ICETableProps> = ({
                   ) : (
                     <span>{ice.nome}</span>
                   )}
-                  {ice.quorum === 'no' && (
-                    <span className="ml-2 text-sm text-red-600">non raggiunto</span>
-                  )}
                 </div>
               </TableCell>
               <TableCell>
