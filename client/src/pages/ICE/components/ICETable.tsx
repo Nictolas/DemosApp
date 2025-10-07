@@ -56,6 +56,7 @@ export const ICETable: React.FC<ICETableProps> = ({
       <TableHeader>
         <TableRow>
           <TableHead>Nome</TableHead>
+          <TableHead>Firme</TableHead>
           <TableHead>Azioni</TableHead>
         </TableRow>
       </TableHeader>
@@ -91,6 +92,11 @@ export const ICETable: React.FC<ICETableProps> = ({
                     <span>{ice.nome}</span>
                   )}
                 </div>
+              </TableCell>
+              <TableCell>
+                <span className="font-medium">
+                  {ice.firme ? ice.firme.toLocaleString('it-IT') : '0'}
+                </span>
               </TableCell>
               <TableCell>
                 <div className="flex space-x-2">

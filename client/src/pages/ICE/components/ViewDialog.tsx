@@ -22,6 +22,12 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose }) => {
               {ice.quorum === 'ok' ? 'Raggiunto' : ice.quorum === 'pending' ? 'In corso' : 'Non raggiunto'}
             </div>
           </div>
+          <div>
+            <div className="text-sm text-gray-500">Firme raccolte</div>
+            <div className="text-gray-800 font-medium">
+              {ice.firme ? ice.firme.toLocaleString('it-IT') : '0'}
+            </div>
+          </div>
           {ice.descrizione && (
             <div>
               <div className="text-sm text-gray-500">Descrizione</div>
