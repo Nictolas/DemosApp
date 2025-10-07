@@ -40,10 +40,9 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose }) => {
           </div>
           {ice.sitoWeb && (
             <div>
-              <div className="text-sm text-gray-500 mb-1">Pagina Commissione Europea</div>
               <a href={ice.sitoWeb} target="_blank" rel="noopener noreferrer">
-                <Button className="w-full sm:w-auto" variant="default">
-                  Apri pagina Commissione Europea
+                <Button className="w-full sm:w-auto shadow-md hover:shadow-lg" variant="default">
+                  Apri pagina iniziativa
                 </Button>
               </a>
             </div>
