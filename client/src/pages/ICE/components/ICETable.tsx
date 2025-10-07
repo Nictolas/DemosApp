@@ -9,6 +9,7 @@ export const ICETable: React.FC<ICETableProps> = ({
   mieiVoti,
   isLoading,
   isError,
+  onView,
   onEdit,
   onDelete,
   deleteMutation
@@ -55,11 +56,7 @@ export const ICETable: React.FC<ICETableProps> = ({
       <TableHeader>
         <TableRow>
           <TableHead>Nome</TableHead>
-          <TableHead>Descrizione</TableHead>
           <TableHead>Quorum</TableHead>
-          <TableHead>Data Inizio</TableHead>
-          <TableHead>Data Fine</TableHead>
-          <TableHead>Sito Web</TableHead>
           <TableHead>Azioni</TableHead>
         </TableRow>
       </TableHeader>
@@ -70,24 +67,23 @@ export const ICETable: React.FC<ICETableProps> = ({
           
           return (
             <TableRow key={ice.id}>
-              <TableCell className="font-medium">{ice.nome}</TableCell>
-              <TableCell className="max-w-xs truncate">{ice.descrizione}</TableCell>
+              <TableCell className="font-medium">
+                {onView ? (
+                  <button
+                    className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                    onClick={() => onView(ice)}
+                  >
+                    {ice.nome}
+                  </button>
+                ) : (
+                  <span>{ice.nome}</span>
+                )}
+              </TableCell>
               <TableCell>
                 <div className="flex items-center space-x-2">
                   {quorumStatus.icon}
                   <span className={quorumStatus.color}>{quorumStatus.text}</span>
                 </div>
-              </TableCell>
-              <TableCell>{ice.dataInizio ? new Date(ice.dataInizio).toLocaleDateString('it-IT') : '-'}</TableCell>
-              <TableCell>{ice.dataFine ? new Date(ice.dataFine).toLocaleDateString('it-IT') : '-'}</TableCell>
-              <TableCell>
-                {ice.sitoWeb && (
-                  <a href={ice.sitoWeb} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="sm">
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </a>
-                )}
               </TableCell>
               <TableCell>
                 <div className="flex space-x-2">

@@ -7,6 +7,7 @@ import { CreateButton } from "./components/CreateButton";
 import { ICEForm } from "./components/ICEForm";
 import { ICETable } from "./components/ICETable";
 import { EditDialog } from "./components/EditDialog";
+import { ViewDialog } from "./components/ViewDialog";
 import { useICEData } from "./hooks/useICEData";
 import { useICEActions } from "./hooks/useICEActions";
 import { useICEForms } from "./hooks/useICEForms";
@@ -65,6 +66,7 @@ export default function ICE() {
             mieiVoti={mieiVoti}
             isLoading={isLoading}
             isError={isError}
+            onView={(ice) => startEditView(ice)}
             onEdit={startEdit}
             onDelete={handleDelete}
             deleteMutation={deleteMutation}
@@ -77,6 +79,11 @@ export default function ICE() {
         onClose={cancelEdit}
         onSubmit={handleUpdate}
         isLoading={editMutation.isPending}
+      />
+
+      <ViewDialog
+        ice={state.viewICE}
+        onClose={closeView}
       />
     </div>
   );
