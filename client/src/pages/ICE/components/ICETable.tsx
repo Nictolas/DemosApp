@@ -72,7 +72,9 @@ export const ICETable: React.FC<ICETableProps> = ({
                     className={
                       ice.quorum === 'ok'
                         ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
-                        : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
+                        : ice.quorum === 'pending'
+                          ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
+                          : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
                     }
                     aria-hidden="true"
                   />
@@ -86,7 +88,7 @@ export const ICETable: React.FC<ICETableProps> = ({
                   ) : (
                     <span>{ice.nome}</span>
                   )}
-                  {ice.nome === 'Save bees and farmers' && (
+                  {ice.quorum === 'no' && (
                     <span className="ml-2 text-sm text-red-600">non raggiunto</span>
                   )}
                 </div>
