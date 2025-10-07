@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import { ICEFormProps } from "../types";
 import { iceSchema, DEFAULT_FORM_VALUES } from "../constants/schema";
 
@@ -25,6 +27,13 @@ export const ICEForm: React.FC<ICEFormProps> = ({ onSubmit, onCancel, isLoading,
         <CardTitle>Proponi ICE</CardTitle>
       </CardHeader>
       <CardContent>
+        <Alert className="mb-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>ATTENZIONE:</strong> Per proporre una ICE bisogna inserirla nel sito dell'Unione Europea. 
+            In questo modulo puoi aggiungere le ICE che hanno la raccolta firme già in corso.
+          </AlertDescription>
+        </Alert>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
@@ -94,7 +103,7 @@ export const ICEForm: React.FC<ICEFormProps> = ({ onSubmit, onCancel, isLoading,
               name="sitoWeb"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sito Web (opzionale)</FormLabel>
+                  <FormLabel>Sito Web</FormLabel>
                   <FormControl>
                     <Input placeholder="https://..." {...field} />
                   </FormControl>
