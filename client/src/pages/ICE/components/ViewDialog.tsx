@@ -14,6 +14,14 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose }) => {
           <DialogDescription>Dettagli dell'iniziativa dei cittadini europei</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 bg-white">
+          <div>
+            <div className="text-sm text-gray-500">Quorum</div>
+            <div className={
+              ice.quorum === 'ok' ? 'text-green-700' : ice.quorum === 'pending' ? 'text-yellow-700' : 'text-red-700'
+            }>
+              {ice.quorum === 'ok' ? 'Raggiunto' : ice.quorum === 'pending' ? 'In corso' : 'Non raggiunto'}
+            </div>
+          </div>
           {ice.descrizione && (
             <div>
               <div className="text-sm text-gray-500">Descrizione</div>
