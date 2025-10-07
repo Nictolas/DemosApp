@@ -8,6 +8,7 @@ export interface ICE {
   dataFine?: string;
   data_creazione: string;
   votiIces?: number;
+  firme?: number;
 }
 
 export interface ICEFormData {
