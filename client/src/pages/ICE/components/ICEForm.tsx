@@ -27,9 +27,9 @@ export const ICEForm: React.FC<ICEFormProps> = ({ onSubmit, onCancel, isLoading,
         <CardTitle>Proponi ICE</CardTitle>
       </CardHeader>
       <CardContent>
-        <Alert className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
+        <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
             <strong>ATTENZIONE:</strong> Per proporre una ICE bisogna inserirla nel sito dell'Unione Europea. 
             In questo modulo puoi aggiungere le ICE che hanno la raccolta firme già in corso.
           </AlertDescription>
