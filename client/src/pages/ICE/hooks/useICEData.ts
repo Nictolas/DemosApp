@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { ICEData } from "../types";
+import { ICE, ICEData } from "../types";
 import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
 
 export const useICEData = (user: any) => {
@@ -14,7 +14,13 @@ export const useICEData = (user: any) => {
     enabled: !!user,
   });
 
-  const listaICE = iceData?.richieste || [];
+  const listaICE: ICE[] = (iceData?.richieste || []).map((item: any) => ({
+    // normalizzazione chiavi dal backend (es. datainizio -> dataInizio)
+    ...item,
+    dataInizio: item.dataInizio ?? item.datainizio ?? item.data_inizio ?? item.data_inizio_raccolta ?? item.dataInizioRaccolta ?? null,
+    dataFine: item.dataFine ?? item.datafine ?? item.data_fine ?? item.data_fine_raccolta ?? item.dataFineRaccolta ?? null,
+    sitoWeb: item.sitoWeb ?? item.sitoweb ?? item.sito_web ?? null,
+  }));
   const mieiVoti = iceData?.mieiVoti || [];
 
   return {
