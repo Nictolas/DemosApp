@@ -74,7 +74,9 @@ export const ICETable: React.FC<ICETableProps> = ({
                         ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
                         : ice.quorum === 'pending'
                           ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
-                          : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
+                          : ice.quorum === 'no'
+                            ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
+                            : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-400'
                     }
                     aria-hidden="true"
                   />
