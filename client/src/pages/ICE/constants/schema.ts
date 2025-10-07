@@ -5,7 +5,7 @@ export const iceSchema = z.object({
   descrizione: z.string().min(1, "La descrizione è obbligatoria"),
   dataInizio: z.string().min(1, "La data di inizio è obbligatoria"),
   dataFine: z.string().min(1, "La data di fine è obbligatoria"),
-  sitoWeb: z.string().url("Inserisci un URL valido").or(z.literal("")).optional(),
+  sitoWeb: z.string().url("Inserisci un URL valido").min(1, "Il sito web è obbligatorio"),
 });
 
 export const DEFAULT_FORM_VALUES = {

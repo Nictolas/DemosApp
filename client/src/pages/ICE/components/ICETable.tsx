@@ -56,7 +56,6 @@ export const ICETable: React.FC<ICETableProps> = ({
       <TableHeader>
         <TableRow>
           <TableHead>Nome</TableHead>
-          <TableHead>Quorum</TableHead>
           <TableHead>Azioni</TableHead>
         </TableRow>
       </TableHeader>
@@ -68,21 +67,28 @@ export const ICETable: React.FC<ICETableProps> = ({
           return (
             <TableRow key={ice.id}>
               <TableCell className="font-medium">
-                {onView ? (
-                  <button
-                    className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
-                    onClick={() => onView(ice)}
-                  >
-                    {ice.nome}
-                  </button>
-                ) : (
-                  <span>{ice.nome}</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center space-x-2">
-                  {quorumStatus.icon}
-                  <span className={quorumStatus.color}>{quorumStatus.text}</span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={
+                      ice.quorum === 'ok'
+                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
+                        : 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
+                    }
+                    aria-hidden="true"
+                  />
+                  {onView ? (
+                    <button
+                      className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                      onClick={() => onView(ice)}
+                    >
+                      {ice.nome}
+                    </button>
+                  ) : (
+                    <span>{ice.nome}</span>
+                  )}
+                  {ice.nome === 'Save bees and farmers' && (
+                    <span className="ml-2 text-sm text-red-600">non raggiunto</span>
+                  )}
                 </div>
               </TableCell>
               <TableCell>
