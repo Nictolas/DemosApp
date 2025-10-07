@@ -10,12 +10,17 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     console.log('🔍 DEBUG: Chiamata endpoint /api/ice');
+    // Disabilita caching per evitare dati stantii lato client/proxy
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     
-    // Usa la tabella ice esistente senza JOIN problematico
+    // Restituisce TUTTE le ICE indipendentemente dallo stato di quorum
     const query = `
       SELECT *
       FROM ice
-      WHERE quorum = 'ok' OR quorum = 'pending'
       ORDER BY data_creazione DESC
     `;
     
