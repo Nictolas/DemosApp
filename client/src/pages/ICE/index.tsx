@@ -25,6 +25,8 @@ export default function ICE() {
     hideCreateForm,
     startEdit,
     cancelEdit,
+    startEditView,
+    closeView,
     handleCreate,
     handleUpdate,
     handleDelete
@@ -66,7 +68,7 @@ export default function ICE() {
             mieiVoti={mieiVoti}
             isLoading={isLoading}
             isError={isError}
-            onView={(ice) => startEditView(ice)}
+            onView={startEditView}
             onEdit={startEdit}
             onDelete={handleDelete}
             deleteMutation={deleteMutation}
