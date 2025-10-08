@@ -52,7 +52,7 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose, onEdit, on
           </div>
           {ice.sitoWeb && (
             <div>
-              <a href={ice.sitoWeb} target="_blank" rel="noopener noreferrer">
+              <a href={ice.sitoWeb.startsWith('http') ? ice.sitoWeb : `https://${ice.sitoWeb}`} target="_blank" rel="noopener noreferrer">
                 <Button className="w-full sm:w-auto shadow-md hover:shadow-lg bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700" variant="default">
                   Apri pagina iniziativa
                 </Button>

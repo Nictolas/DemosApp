@@ -10,12 +10,23 @@ export const EditDialog: React.FC<EditDialogProps> = ({ ice, onClose, onSubmit, 
 
   const [quorum, setQuorum] = React.useState(ice.quorum || 'pending');
 
+  // Funzione helper per convertire le date nel formato corretto per input date
+  const formatDateForInput = (dateString: string) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      return date.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    } catch {
+      return "";
+    }
+  };
+
   const defaultValues = {
     nome: ice.nome,
     descrizione: ice.descrizione,
-    dataInizio: ice.dataInizio || "",
-    dataFine: ice.dataFine || "",
-    sitoWeb: ice.sitoWeb || ""
+    dataInizio: formatDateForInput(ice.dataInizio || ice.datainizio || ""),
+    dataFine: formatDateForInput(ice.dataFine || ice.datafine || ""),
+    sitoWeb: ice.sitoWeb || ice.sitoweb || ""
   };
 
   const handleSubmit = (data: any) => {
