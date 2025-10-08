@@ -58,7 +58,6 @@ export const ICETable: React.FC<ICETableProps> = ({
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Firme</TableHead>
-                <TableHead>Azioni</TableHead>
               </TableRow>
       </TableHeader>
       <TableBody>
@@ -69,67 +68,67 @@ export const ICETable: React.FC<ICETableProps> = ({
           return (
             <TableRow key={ice.id}>
               <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={
-                      ice.quorum === 'ok'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
-                        : ice.quorum === 'pending'
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={
+                        ice.quorum === 'ok'
+                          ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
+                          : ice.quorum === 'pending'
+                            ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
+                            : ice.quorum === 'no'
+                              ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
+                              : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-400'
+                      }
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={
+                        ice.esito === 'Attuata'
+                          ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
+                          : ice.esito === 'In Attesa'
                           ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
-                          : ice.quorum === 'no'
-                            ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
-                            : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-400'
-                    }
-                    aria-hidden="true"
-                  />
-                  <span
-                    className={
-                      ice.esito === 'Attuata'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
-                        : ice.esito === 'In Attesa'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
-                        : ice.esito === 'Non Accolta'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
-                        : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-300' // Fallback for no esito
-                    }
-                    aria-hidden="true"
-                  />
-                  {onView ? (
-                    <button
-                      className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
-                      onClick={() => onView(ice)}
+                          : ice.esito === 'Non Accolta'
+                          ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
+                          : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-300' // Fallback for no esito
+                      }
+                      aria-hidden="true"
+                    />
+                    {onView ? (
+                      <button
+                        className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                        onClick={() => onView(ice)}
+                      >
+                        {ice.nome}
+                      </button>
+                    ) : (
+                      <span>{ice.nome}</span>
+                    )}
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit(ice)}
+                      disabled={deleteMutation.isPending}
                     >
-                      {ice.nome}
-                    </button>
-                  ) : (
-                    <span>{ice.nome}</span>
-                  )}
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => onDelete(ice.id)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </TableCell>
               <TableCell>
                 <span className="font-medium">
                   {ice.firme ? ice.firme.toLocaleString('it-IT') : '0'}
                 </span>
-              </TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEdit(ice)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => onDelete(ice.id)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
               </TableCell>
             </TableRow>
           );
