@@ -63,26 +63,26 @@ export const ICETable: React.FC<ICETableProps> = ({
                 <span
                   className={
                     ice.quorum === 'ok'
-                      ? 'inline-block w-3 h-3 rounded-full bg-green-500'
+                      ? 'inline-block w-3 h-3 rounded-full bg-green-500 flex-shrink-0'
                       : ice.quorum === 'pending'
-                        ? 'inline-block w-3 h-3 rounded-full bg-yellow-500'
+                        ? 'inline-block w-3 h-3 rounded-full bg-yellow-500 flex-shrink-0'
                         : ice.quorum === 'no'
-                          ? 'inline-block w-3 h-3 rounded-full bg-red-500'
-                          : ice.quorum === 'proposta'
-                            ? 'inline-block w-3 h-3 rounded-full bg-blue-500'
-                            : 'inline-block w-3 h-3 rounded-full bg-gray-400'
+                          ? 'inline-block w-3 h-3 rounded-full bg-red-500 flex-shrink-0'
+                        : ice.quorum === 'proposta'
+                          ? 'inline-block w-3 h-3 rounded-full bg-blue-500 flex-shrink-0'
+                          : 'inline-block w-3 h-3 rounded-full bg-gray-400 flex-shrink-0'
                   }
                   aria-hidden="true"
                 />
                 <span
                   className={
                     ice.esito === 'Attuata'
-                      ? 'inline-block w-3 h-3 rounded-full bg-green-500'
+                      ? 'inline-block w-3 h-3 rounded-full bg-green-500 flex-shrink-0'
                       : ice.esito === 'In Attesa'
-                      ? 'inline-block w-3 h-3 rounded-full bg-yellow-500'
+                      ? 'inline-block w-3 h-3 rounded-full bg-yellow-500 flex-shrink-0'
                       : ice.esito === 'Non Accolta'
-                      ? 'inline-block w-3 h-3 rounded-full bg-red-500'
-                      : 'inline-block w-3 h-3 rounded-full bg-gray-300'
+                      ? 'inline-block w-3 h-3 rounded-full bg-red-500 flex-shrink-0'
+                      : 'inline-block w-3 h-3 rounded-full bg-gray-300 flex-shrink-0'
                   }
                   aria-hidden="true"
                 />
