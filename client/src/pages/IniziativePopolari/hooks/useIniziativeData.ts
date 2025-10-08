@@ -1,3 +1,4 @@
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { IniziativaPopolare } from "../types";
@@ -17,8 +18,18 @@ export const useIniziativeData = (user: any) => {
     enabled: !!user,
   });
 
+  // Ordina le iniziative per data di inizio (più recenti in alto)
+  const listaIniziative = React.useMemo(() => {
+    const iniziative = data?.richieste || [];
+    return iniziative.sort((a, b) => {
+      const dateA = new Date(a.dataInizio || a.datainizio || a.data_inizio || 0);
+      const dateB = new Date(b.dataInizio || b.datainizio || b.data_inizio || 0);
+      return dateB.getTime() - dateA.getTime(); // Più recenti in alto
+    });
+  }, [data?.richieste]);
+
   return {
-    listaIniziative: data?.richieste || [],
+    listaIniziative,
     mieiVoti: data?.mieiVoti || [],
     isLoading,
     isError,

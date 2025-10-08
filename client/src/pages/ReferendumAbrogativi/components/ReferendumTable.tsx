@@ -88,38 +88,7 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                 <span>
                   Firme raccolte: <strong>{referendum.firme || 0}</strong>
                 </span>
-                {referendum.dataInizio && (
-                  <span>
-                    Inizio: {new Date(referendum.dataInizio).toLocaleDateString('it-IT')}
-                  </span>
-                )}
-                {referendum.dataFine && (
-                  <span>
-                    Fine: {new Date(referendum.dataFine).toLocaleDateString('it-IT')}
-                  </span>
-                )}
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2 ml-4">
-              {referendum.sitoWeb && (
-                <a 
-                  href={referendum.sitoWeb.startsWith('http') ? referendum.sitoWeb : `https://${referendum.sitoWeb}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Sito web
-                </a>
-              )}
-              
-              <button
-                onClick={() => onView?.(referendum)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium shadow-md hover:shadow-lg transition-all"
-              >
-                Apri pagina referendum
-              </button>
             </div>
           </div>
         </div>
