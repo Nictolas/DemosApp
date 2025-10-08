@@ -24,11 +24,11 @@ export const EditDialog: React.FC<EditDialogProps> = ({ ice, onClose, onSubmit, 
 
   return (
     <Dialog open={!!ice} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl bg-white">
+        <DialogHeader className="bg-white">
           <DialogTitle>Modifica ICE</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 bg-white">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="quorum">Stato Quorum</Label>
