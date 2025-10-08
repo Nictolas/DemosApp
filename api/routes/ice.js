@@ -17,35 +17,41 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
-    // Prima verifica se la colonna status esiste
-    let hasStatusColumn = false;
-    try {
-      const checkColumnQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'ice' AND column_name = 'status'
-      `;
-      const checkResult = await pool.query(checkColumnQuery);
-      hasStatusColumn = checkResult.rows.length > 0;
-      console.log(`🔍 Colonna status presente: ${hasStatusColumn}`);
-    } catch (checkError) {
-      console.log('⚠️ Errore nel controllo colonna status:', checkError.message);
+    // Ottieni il ruolo dell'utente se autenticato
+    let userRole = null;
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+        
+        // Ottieni il ruolo dell'utente
+        const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+        const userResult = await pool.query(userQuery, [userId]);
+        if (userResult.rows.length > 0) {
+          userRole = userResult.rows[0].ruolo;
+          console.log(`🔍 Ruolo utente: ${userRole}`);
+        }
+      } catch (authError) {
+        console.log('⚠️ Errore nel recupero ruolo utente:', authError.message);
+      }
     }
     
-    // Query dinamica basata sulla presenza della colonna status
+    // Query con filtro basato sul ruolo
     let query;
-    if (hasStatusColumn) {
+    if (userRole === 'Admin' || userRole === 'Moderatore') {
+      // Admin e Moderatori vedono tutte le ICE
       query = `
-        SELECT *, 
-               COALESCE(status, 'ufficiale') as status
+        SELECT *
         FROM ice
         ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
       `;
     } else {
+      // Altri utenti vedono solo le ICE ufficiali (quorum != 'proposta')
       query = `
-        SELECT *,
-               'ufficiale' as status
+        SELECT *
         FROM ice
+        WHERE quorum != 'proposta'
         ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
       `;
     }
@@ -131,37 +137,14 @@ router.post('/', verifyToken, async (req, res) => {
     // Genera un ID univoco per la richiesta ICE
     const iceId = `ice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Verifica se la colonna status esiste
-    let hasStatusColumn = false;
-    try {
-      const checkColumnQuery = `
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'ice' AND column_name = 'status'
-      `;
-      const checkResult = await pool.query(checkColumnQuery);
-      hasStatusColumn = checkResult.rows.length > 0;
-    } catch (checkError) {
-      console.log('⚠️ Errore nel controllo colonna status:', checkError.message);
-    }
+    // Usa la colonna quorum per distinguere le ICE proposte
+    const query = `
+      INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, data_creazione)
+      VALUES ($1, $2, $3, $4, $5, $6, 'proposta', NOW())
+      RETURNING *
+    `;
     
-    // Query dinamica basata sulla presenza della colonna status
-    let query, params;
-    if (hasStatusColumn) {
-      query = `
-        INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, status, data_creazione)
-        VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'proposta', NOW())
-        RETURNING *
-      `;
-      params = [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb];
-    } else {
-      query = `
-        INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, data_creazione)
-        VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW())
-        RETURNING *
-      `;
-      params = [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb];
-    }
+    const params = [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb];
     
     const result = await pool.query(query, params);
     
