@@ -1,5 +1,4 @@
 import React from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Check, Hourglass, X as XIcon } from "lucide-react";
 import { ICETableProps } from "../types";
 
@@ -47,69 +46,61 @@ export const ICETable: React.FC<ICETableProps> = ({
     }
   };
 
-
   return (
-    <Table>
-      <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Firme</TableHead>
-              </TableRow>
-      </TableHeader>
-      <TableBody>
-        {listaICE.map((ice) => {
-          const quorumStatus = getQuorumStatus(ice.quorum);
-          const hasVoted = mieiVoti.includes(ice.id);
-          
-          return (
-            <TableRow key={ice.id}>
-              <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={
-                      ice.quorum === 'ok'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
-                        : ice.quorum === 'pending'
-                          ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
-                          : ice.quorum === 'no'
-                            ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
-                            : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-400'
-                    }
-                    aria-hidden="true"
-                  />
-                  <span
-                    className={
-                      ice.esito === 'Attuata'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-green-500'
-                        : ice.esito === 'In Attesa'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-yellow-500'
-                        : ice.esito === 'Non Accolta'
-                        ? 'inline-block w-2.5 h-2.5 rounded-full bg-red-500'
-                        : 'inline-block w-2.5 h-2.5 rounded-full bg-gray-300' // Fallback for no esito
-                    }
-                    aria-hidden="true"
-                  />
-                  {onView ? (
-                    <button
-                      className="text-blue-700 underline hover:text-blue-900 cursor-pointer"
-                      onClick={() => onView(ice)}
-                    >
-                      {ice.nome}
-                    </button>
-                  ) : (
-                    <span>{ice.nome}</span>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <span className="font-medium">
+    <div className="space-y-4">
+      {listaICE.map((ice) => {
+        const quorumStatus = getQuorumStatus(ice.quorum);
+        const hasVoted = mieiVoti.includes(ice.id);
+        
+        return (
+          <div key={ice.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span
+                  className={
+                    ice.quorum === 'ok'
+                      ? 'inline-block w-3 h-3 rounded-full bg-green-500'
+                      : ice.quorum === 'pending'
+                        ? 'inline-block w-3 h-3 rounded-full bg-yellow-500'
+                        : ice.quorum === 'no'
+                          ? 'inline-block w-3 h-3 rounded-full bg-red-500'
+                          : 'inline-block w-3 h-3 rounded-full bg-gray-400'
+                  }
+                  aria-hidden="true"
+                />
+                <span
+                  className={
+                    ice.esito === 'Attuata'
+                      ? 'inline-block w-3 h-3 rounded-full bg-green-500'
+                      : ice.esito === 'In Attesa'
+                      ? 'inline-block w-3 h-3 rounded-full bg-yellow-500'
+                      : ice.esito === 'Non Accolta'
+                      ? 'inline-block w-3 h-3 rounded-full bg-red-500'
+                      : 'inline-block w-3 h-3 rounded-full bg-gray-300'
+                  }
+                  aria-hidden="true"
+                />
+                {onView ? (
+                  <button
+                    className="text-blue-700 underline hover:text-blue-900 cursor-pointer text-lg font-medium"
+                    onClick={() => onView(ice)}
+                  >
+                    {ice.nome}
+                  </button>
+                ) : (
+                  <span className="text-lg font-medium">{ice.nome}</span>
+                )}
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Firme raccolte</div>
+                <div className="text-xl font-bold text-gray-800">
                   {ice.firme ? ice.firme.toLocaleString('it-IT') : '0'}
-                </span>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 };
