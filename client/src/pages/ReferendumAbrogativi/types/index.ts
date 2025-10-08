@@ -65,3 +65,28 @@ export interface QuorumChangeData {
   id: string;
   quorum: 'ok' | 'pending' | 'no';
 }
+
+// Costanti
+export const QUERY_KEYS = {
+  REFERENDUM_LIST: ['referendumAbrogativi'],
+};
+
+export const API_ENDPOINTS = {
+  REFERENDUM_LIST: "/api/referendum-abrogativi",
+  REFERENDUM_CREATE: "/api/referendum-abrogativi",
+  REFERENDUM_UPDATE: (id: string) => `/api/referendum-abrogativi/${id}`,
+  REFERENDUM_DELETE: (id: string) => `/api/referendum-abrogativi/${id}`,
+};
+
+export const MESSAGES = {
+  SUCCESS: {
+    CREATED: "Referendum abrogativo proposto con successo!",
+    UPDATED: "Referendum abrogativo aggiornato con successo!",
+    DELETED: "Referendum abrogativo eliminato con successo!",
+  },
+  ERROR: {
+    CREATE: "Errore nella creazione del referendum abrogativo",
+    UPDATE: "Errore nell'aggiornamento del referendum abrogativo",
+    DELETE: "Errore nell'eliminazione del referendum abrogativo",
+  },
+};

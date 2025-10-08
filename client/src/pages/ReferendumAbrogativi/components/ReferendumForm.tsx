@@ -1,56 +1,71 @@
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import { ReferendumFormProps } from "../types";
+import { referendumSchema } from "../types";
 
-export const ReferendumForm: React.FC<ReferendumFormProps> = ({
-  form,
-  onSubmit,
-  onCancel,
-  isPending,
-  title
-}) => {
+export const ReferendumForm: React.FC<ReferendumFormProps> = ({ onSubmit, onCancel, isLoading }) => {
+  const form = useForm({
+    resolver: zodResolver(referendumSchema),
+    defaultValues: {
+      nome: "",
+      descrizione: "",
+      dataInizio: "",
+      dataFine: "",
+      sitoWeb: ""
+    }
+  });
+
+  const handleSubmit = (data: any) => {
+    onSubmit(data);
+  };
+
   return (
-    <Card className="bg-white">
+    <Card className="mb-6">
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Plus className="mr-2 h-5 w-5" />
-          {title}
-        </CardTitle>
-        <CardDescription>
-          Compila i campi per creare un nuovo referendum abrogativo
-        </CardDescription>
+        <CardTitle>Proponi Referendum Abrogativo</CardTitle>
       </CardHeader>
       <CardContent>
+        <Alert className="mb-4 bg-yellow-50 border-yellow-200">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            <strong>ATTENZIONE:</strong> Per proporre un referendum abrogativo bisogna seguire le procedure 
+            legali stabilite. In questo modulo puoi aggiungere i referendum abrogativi che hanno la raccolta 
+            firme già in corso.
+          </AlertDescription>
+        </Alert>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome del Referendum *</FormLabel>
+                  <FormLabel>Nome</FormLabel>
                   <FormControl>
-                    <Input placeholder="Inserisci il nome del referendum" {...field} />
+                    <Input placeholder="Nome del referendum abrogativo" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
+            
             <FormField
               control={form.control}
               name="descrizione"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Descrizione *</FormLabel>
+                  <FormLabel>Descrizione</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Descrivi brevemente il referendum abrogativo"
+                      placeholder="Descrizione del referendum abrogativo" 
                       className="min-h-[100px]"
                       {...field} 
                     />
@@ -59,14 +74,14 @@ export const ReferendumForm: React.FC<ReferendumFormProps> = ({
                 </FormItem>
               )}
             />
-
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="dataInizio"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data di Inizio *</FormLabel>
+                    <FormLabel>Data Inizio</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -74,13 +89,13 @@ export const ReferendumForm: React.FC<ReferendumFormProps> = ({
                   </FormItem>
                 )}
               />
-
+              
               <FormField
                 control={form.control}
                 name="dataFine"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data di Fine *</FormLabel>
+                    <FormLabel>Data Fine</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -89,38 +104,27 @@ export const ReferendumForm: React.FC<ReferendumFormProps> = ({
                 )}
               />
             </div>
-
+            
             <FormField
               control={form.control}
               name="sitoWeb"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sito Web (opzionale)</FormLabel>
+                  <FormLabel>Sito Web</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="url" 
-                      placeholder="https://esempio.com" 
-                      {...field} 
-                    />
+                    <Input placeholder="https://..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <div className="flex justify-end space-x-2 pt-4">
+            
+            <div className="flex justify-end space-x-2">
               <Button type="button" variant="outline" onClick={onCancel}>
                 Annulla
               </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvataggio...
-                  </>
-                ) : (
-                  "Salva Referendum"
-                )}
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Salvando..." : "Salva"}
               </Button>
             </div>
           </form>
