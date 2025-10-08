@@ -30,7 +30,7 @@ export const useICEActions = () => {
   });
 
   const editMutation = useMutation({
-    mutationFn: (data: ICEFormData) => apiRequest("PUT", API_ENDPOINTS.ICE_UPDATE(state.editICE?.id || ""), data),
+    mutationFn: (data: ICEFormData & { quorum?: string }) => apiRequest("PUT", API_ENDPOINTS.ICE_UPDATE(state.editICE?.id || ""), data),
     onSuccess: () => {
       toast({ title: "Successo", description: MESSAGES.SUCCESS.UPDATED });
       setState(prev => ({ ...prev, editICE: null }));

@@ -126,6 +126,8 @@ router.post('/', verifyToken, async (req, res) => {
     const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
+    console.log('🔍 DEBUG: Dati ricevuti:', { nome, descrizione, dataInizio, dataFine, sitoWeb });
+    
     // Validazione campi obbligatori
     if (!nome || !descrizione) {
       return res.status(400).json({
@@ -136,6 +138,21 @@ router.post('/', verifyToken, async (req, res) => {
     
     // Genera un ID univoco per la richiesta ICE
     const iceId = `ice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('🔍 DEBUG: ICE ID generato:', iceId);
+    
+    // Prima verifica la struttura della tabella
+    try {
+      const tableInfoQuery = `
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'ice'
+        ORDER BY ordinal_position
+      `;
+      const tableInfo = await pool.query(tableInfoQuery);
+      console.log('🔍 DEBUG: Struttura tabella ice:', tableInfo.rows);
+    } catch (tableError) {
+      console.log('⚠️ Errore nel controllo struttura tabella:', tableError.message);
+    }
     
     // Usa la colonna quorum per distinguere le ICE proposte
     const query = `
@@ -145,8 +162,10 @@ router.post('/', verifyToken, async (req, res) => {
     `;
     
     const params = [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+    console.log('🔍 DEBUG: Parametri query:', params);
     
     const result = await pool.query(query, params);
+    console.log('🔍 DEBUG: Risultato inserimento:', result.rows[0]);
     
     console.log(`✅ ICE proposta creata: ${iceId}`);
     
@@ -156,9 +175,65 @@ router.post('/', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nella creazione richiesta ICE:', error);
+    console.error('❌ Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
     res.status(500).json({
       success: false,
-      error: 'Errore nella creazione richiesta ICE'
+      error: 'Errore nella creazione richiesta ICE',
+      details: error.message
+    });
+  }
+});
+
+// PUT /api/ice/:id - Aggiorna ICE (per admin)
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, descrizione, dataInizio, dataFine, sitoWeb, quorum } = req.body;
+    
+    // Verifica che l'utente sia admin o moderatore
+    const userId = req.userId;
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0 || !['Admin', 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo Admin e Moderatori possono modificare le ICE.'
+      });
+    }
+    
+    const updateQuery = `
+      UPDATE ice 
+      SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6
+      WHERE id = $7
+      RETURNING *
+    `;
+    
+    const result = await pool.query(updateQuery, [nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'ICE non trovata'
+      });
+    }
+    
+    console.log(`✅ ICE aggiornata: ${id}, nuovo quorum: ${quorum}`);
+    
+    res.json({
+      success: true,
+      richiesta: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento ICE:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento ICE'
     });
   }
 });
