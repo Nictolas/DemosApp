@@ -10,6 +10,7 @@ export interface ICE {
   votiIces?: number;
   firme?: number;
   esito?: string;
+  status?: string;
 }
 
 export interface ICEFormData {

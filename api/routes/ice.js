@@ -19,7 +19,8 @@ router.get('/', async (req, res) => {
     
     // Restituisce TUTTE le ICE ordinate per data di inizio (più recenti in alto)
     const query = `
-      SELECT *
+      SELECT *, 
+             COALESCE(status, 'ufficiale') as status
       FROM ice
       ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
     `;
@@ -89,21 +90,31 @@ router.get('/richieste', verifyToken, async (req, res) => {
 });
 
 // POST /api/ice - Crea richiesta ICE
-router.post('/', verifyToken, validateInput(['titolo', 'descrizione', 'tipo']), async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
-    const { titolo, descrizione, tipo } = req.body;
+    const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
+    
+    // Validazione campi obbligatori
+    if (!nome || !descrizione) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nome e descrizione sono obbligatori'
+      });
+    }
     
     // Genera un ID univoco per la richiesta ICE
     const iceId = `ice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const query = `
-      INSERT INTO ice (id, nome, descrizione, quorum, data_creazione)
-      VALUES ($1, $2, $3, 'pending', NOW())
+      INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, status, data_creazione)
+      VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'proposta', NOW())
       RETURNING *
     `;
     
-    const result = await pool.query(query, [iceId, titolo, descrizione]);
+    const result = await pool.query(query, [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb]);
+    
+    console.log(`✅ ICE proposta creata: ${iceId}`);
     
     res.json({
       success: true,
