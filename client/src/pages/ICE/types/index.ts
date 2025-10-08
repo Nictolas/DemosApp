@@ -39,9 +39,6 @@ export interface ICETableProps {
   isLoading: boolean;
   isError: boolean;
   onView?: (ice: ICE) => void;
-  onEdit: (ice: ICE) => void;
-  onDelete: (id: string) => void;
-  deleteMutation: any;
 }
 
 export interface ICEFormProps {
@@ -61,4 +58,7 @@ export interface EditDialogProps {
 export interface ViewDialogProps {
   ice: ICE | null;
   onClose: () => void;
+  onEdit?: (ice: ICE) => void;
+  onDelete?: (id: string) => void;
+  deleteMutation?: any;
 }
