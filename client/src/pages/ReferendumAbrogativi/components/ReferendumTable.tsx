@@ -61,9 +61,18 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
                   }
                   aria-hidden="true"
                 />
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {referendum.nome}
-                </h3>
+                {onView ? (
+                  <button
+                    className="text-blue-700 underline hover:text-blue-900 cursor-pointer text-lg font-semibold"
+                    onClick={() => onView(referendum)}
+                  >
+                    {referendum.nome}
+                  </button>
+                ) : (
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {referendum.nome}
+                  </h3>
+                )}
                 {referendum.quorum === 'proposta' && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     Proposta
