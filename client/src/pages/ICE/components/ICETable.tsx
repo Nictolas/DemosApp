@@ -53,7 +53,11 @@ export const ICETable: React.FC<ICETableProps> = ({
         const hasVoted = mieiVoti.includes(ice.id);
         
         return (
-          <div key={ice.id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div key={ice.id} className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow ${
+            ice.status === 'proposta' 
+              ? 'border-blue-200 bg-blue-50' 
+              : 'border-gray-200'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span
@@ -80,6 +84,11 @@ export const ICETable: React.FC<ICETableProps> = ({
                   }
                   aria-hidden="true"
                 />
+                {ice.status === 'proposta' && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Proposta
+                  </span>
+                )}
                 {onView ? (
                   <button
                     className="text-blue-700 underline hover:text-blue-900 cursor-pointer text-lg font-medium"
