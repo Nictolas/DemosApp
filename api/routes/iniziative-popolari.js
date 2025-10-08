@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -11,111 +12,232 @@ const pool = new Pool({
 
 // ===== ENDPOINTS PER INIZIATIVE POPOLARI =====
 
-// GET /api/iniziative-popolari - Lista iniziative popolari con classifica voti
-router.get('/', verifyToken, async (req, res) => {
+// GET /api/iniziative-popolari - Lista iniziative popolari (come ICE)
+router.get('/', async (req, res) => {
   try {
-    const userId = req.user.id;
-    console.log('🔍 DEBUG /api/iniziative-popolari - Utente autenticato:', userId);
+    console.log('🔍 DEBUG: Chiamata endpoint /api/iniziative-popolari');
+    // Disabilita caching per evitare dati stantii lato client/proxy
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
     
-    // Query per ottenere le iniziative
-    const iniziativeResult = await pool.query(
-      'SELECT id, nome, sito_web as "sitoWeb", quorum FROM iniziative_popolari ORDER BY created_at DESC'
-    );
+    // Ottieni il ruolo dell'utente se autenticato
+    let userRole = null;
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+        
+        // Ottieni il ruolo dell'utente
+        const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+        const userResult = await pool.query(userQuery, [userId]);
+        if (userResult.rows.length > 0) {
+          userRole = userResult.rows[0].ruolo;
+          console.log(`🔍 Ruolo utente: ${userRole}`);
+        }
+      } catch (authError) {
+        console.log('⚠️ Errore nel recupero ruolo utente:', authError.message);
+      }
+    }
     
-    // Query per ottenere la classifica dei voti
-    const classificaQuery = `
-      SELECT 
-        i.nome,
-        i.sito_web as "sitoWeb",
-        COUNT(v.id) as voti
-      FROM iniziative_popolari i
-      LEFT JOIN voti_iniziative_popolari v ON i.id::text = v.iniziativa_id
-      GROUP BY i.id, i.nome, i.sito_web
-      ORDER BY voti DESC, i.nome ASC
-    `;
+    // Query con filtro basato sul ruolo
+    let query;
+    if (userRole === 'Admin' || userRole === 'Moderatore') {
+      // Admin e Moderatori vedono tutte le iniziative
+      query = `
+        SELECT *
+        FROM iniziative_popolari
+        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+      `;
+    } else {
+      // Altri utenti vedono solo le iniziative ufficiali (quorum != 'proposta')
+      query = `
+        SELECT *
+        FROM iniziative_popolari
+        WHERE quorum != 'proposta'
+        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+      `;
+    }
     
-    const classificaResult = await pool.query(classificaQuery);
+    const result = await pool.query(query);
+    console.log(`✅ Recuperati ${result.rows.length} record da iniziative_popolari`);
     
-    // Query per ottenere i voti dell'utente corrente
-    const mieiVotiQuery = `
-      SELECT iniziativa_id 
-      FROM voti_iniziative_popolari 
-      WHERE userid = $1
-    `;
+    // Se l'utente è autenticato, ottieni i suoi voti
+    let mieiVoti = [];
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+        
+        const userVotiQuery = `
+          SELECT iniziativa_id FROM voti_iniziative_popolari 
+          WHERE userid = $1
+        `;
+        const userVotiResult = await pool.query(userVotiQuery, [userId]);
+        mieiVoti = userVotiResult.rows.map(v => v.iniziativa_id);
+        console.log(`✅ Recuperati ${mieiVoti.length} voti utente`);
+      } catch (authError) {
+        // Se il token non è valido, continua senza autenticazione
+        console.log('⚠️ Token non valido per iniziative popolari, continuando senza autenticazione');
+      }
+    }
     
-    const mieiVotiResult = await pool.query(mieiVotiQuery, [userId]);
-    const mieiVoti = mieiVotiResult.rows.map(row => row.iniziativa_id);
-    
-    console.log('🔍 DEBUG /api/iniziative-popolari - Iniziative trovate:', iniziativeResult.rows.length);
-    console.log('🔍 DEBUG /api/iniziative-popolari - Classifica trovata:', classificaResult.rows.length);
-    console.log('🔍 DEBUG /api/iniziative-popolari - Voti utente trovati:', mieiVoti.length);
-    console.log('🔍 DEBUG /api/iniziative-popolari - ID iniziative disponibili:', iniziativeResult.rows.map(i => i.id));
-    
-    // Debug per verificare la struttura delle tabelle
-    const votiEsistentiQuery = 'SELECT DISTINCT iniziativa_id FROM voti_iniziative_popolari LIMIT 5';
-    const votiEsistentiResult = await pool.query(votiEsistentiQuery);
-    console.log('🔍 DEBUG /api/iniziative-popolari - ID voti esistenti nella tabella:', votiEsistentiResult.rows.map(v => v.iniziativa_id));
-    
-    // Processa la classifica per il frontend
-    const classifica = classificaResult.rows.map(item => ({
-      nome: item.nome,
-      sitoWeb: item.sitoWeb,
-      voti: parseInt(item.voti)
-    }));
-    
-    // Per ora, restituiamo dati mock per blocco
-    // TODO: Implementare la logica per il blocco
-    const blocco = {
-      isBlocked: false,
-      unlockDate: null
-    };
-    
-    const responseData = {
-      iniziative: iniziativeResult.rows,
-      classifica,
-      mieiVoti,
-      blocco
-    };
-    
-    res.json(responseData);
+    res.json({
+      success: true,
+      richieste: result.rows,
+      mieiVoti: mieiVoti,
+      blocco: { isBlocked: false, unlockDate: null }
+    });
   } catch (error) {
-    console.error('❌ Errore nel recupero iniziative popolari:', error);
+    console.error('❌ Errore nel recuperare iniziative popolari:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore nel recuperare iniziative popolari',
+      details: error.message
     });
   }
 });
 
-// POST /api/iniziative-popolari - Crea nuova iniziativa popolare
-router.post('/', async (req, res) => {
+// POST /api/iniziative-popolari - Crea richiesta iniziativa popolare (come ICE)
+router.post('/', verifyToken, async (req, res) => {
   try {
-    const { nome, userid, data_inizio, data_fine, sito_web, status, quorum } = req.body;
+    const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
+    const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
-    if (!nome || !userid) {
+    console.log('🔍 DEBUG: Dati ricevuti:', { nome, descrizione, dataInizio, dataFine, sitoWeb });
+    
+    // Validazione campi obbligatori
+    if (!nome || !descrizione) {
       return res.status(400).json({
         success: false,
-        error: 'Nome e userid sono obbligatori'
+        error: 'Nome e descrizione sono obbligatori'
       });
     }
     
-    // Genera un ID univoco per l'iniziativa
+    // Genera un ID univoco per la richiesta iniziativa
     const iniziativaId = `iniziativa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log('🔍 DEBUG: Iniziativa ID generato:', iniziativaId);
     
-    const result = await pool.query(
-      'INSERT INTO iniziative_popolari (id, userid, nome, data_inizio, data_fine, sito_web, status, quorum, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()) RETURNING *',
-      [iniziativaId, userid, nome, data_inizio, data_fine, sito_web, status, quorum]
-    );
+    // Usa la colonna quorum per distinguere le iniziative proposte
+    const query = `
+      INSERT INTO iniziative_popolari (id, nome, descrizione, datainizio, datafine, sitoweb, quorum, data_creazione)
+      VALUES ($1, $2, $3, $4, $5, $6, 'proposta', NOW())
+      RETURNING *
+    `;
     
-    res.status(201).json({
+    const params = [iniziativaId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+    console.log('🔍 DEBUG: Parametri query:', params);
+    
+    const result = await pool.query(query, params);
+    console.log('🔍 DEBUG: Risultato inserimento:', result.rows[0]);
+    
+    console.log(`✅ Iniziativa proposta creata: ${iniziativaId}`);
+    
+    res.json({
       success: true,
-      data: result.rows[0]
+      richiesta: result.rows[0]
     });
   } catch (error) {
     console.error('❌ Errore nella creazione iniziativa popolare:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore nella creazione iniziativa popolare',
+      details: error.message
+    });
+  }
+});
+
+// PUT /api/iniziative-popolari/:id - Aggiorna iniziativa popolare (per admin)
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, descrizione, dataInizio, dataFine, sitoWeb, quorum } = req.body;
+    
+    // Verifica che l'utente sia admin o moderatore
+    const userId = req.userId;
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0 || !['Admin', 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo Admin e Moderatori possono modificare le iniziative popolari.'
+      });
+    }
+    
+    const updateQuery = `
+      UPDATE iniziative_popolari
+      SET nome = $1, descrizione = $2, datainizio = $3, datafine = $4, sitoweb = $5, quorum = $6
+      WHERE id = $7
+      RETURNING *
+    `;
+    
+    const result = await pool.query(updateQuery, [nome, descrizione, dataInizio, dataFine, sitoWeb, quorum, id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Iniziativa popolare non trovata'
+      });
+    }
+    
+    console.log(`✅ Iniziativa popolare aggiornata: ${id}, nuovo quorum: ${quorum}`);
+    
+    res.json({
+      success: true,
+      richiesta: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiornamento iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiornamento iniziativa popolare'
+    });
+  }
+});
+
+// DELETE /api/iniziative-popolari/:id - Elimina iniziativa popolare (per admin)
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verifica che l'utente sia admin o moderatore
+    const userId = req.userId;
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0 || !['Admin', 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo Admin e Moderatori possono eliminare le iniziative popolari.'
+      });
+    }
+    
+    const deleteQuery = `DELETE FROM iniziative_popolari WHERE id = $1 RETURNING *`;
+    const result = await pool.query(deleteQuery, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Iniziativa popolare non trovata'
+      });
+    }
+    
+    console.log(`✅ Iniziativa popolare eliminata: ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Iniziativa popolare eliminata con successo'
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'eliminazione iniziativa popolare:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'eliminazione iniziativa popolare'
     });
   }
 });

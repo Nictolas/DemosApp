@@ -15,42 +15,49 @@ export type ReferendumFormData = z.infer<typeof referendumSchema>;
 // Interfaccia per i referendum
 export interface Referendum extends ReferendumFormData {
   id: string;
-  quorum: 'ok' | 'pending' | 'no';
+  quorum: 'ok' | 'pending' | 'no' | 'proposta';
+  data_creazione: string;
+  votiices?: number;
+  firme?: number;
+  esito?: string;
+  status?: string;
 }
 
 // Interfaccia per lo stato del componente
 export interface ReferendumAbrogativiState {
   showForm: boolean;
   editReferendum: Referendum | null;
+  viewReferendum: Referendum | null;
 }
 
 // Interfaccia per le props dei componenti
 export interface ReferendumTableProps {
   listaReferendum: Referendum[];
+  mieiVoti: string[];
   isLoading: boolean;
   isError: boolean;
-  onEdit: (referendum: Referendum) => void;
-  onDelete: (id: string) => void;
-  onQuorumChange: (id: string, quorum: 'ok' | 'pending' | 'no') => void;
-  deleteMutation: any;
-  quorumMutation: any;
+  onView?: (referendum: Referendum) => void;
 }
 
 export interface ReferendumFormProps {
-  form: any;
   onSubmit: (data: ReferendumFormData) => void;
   onCancel: () => void;
-  isPending: boolean;
-  title: string;
+  isLoading: boolean;
 }
 
 export interface EditDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   referendum: Referendum | null;
-  form: any;
-  onSubmit: (data: ReferendumFormData) => void;
-  isPending: boolean;
+  onClose: () => void;
+  onSubmit: (data: ReferendumFormData & { quorum?: string }) => void;
+  isLoading: boolean;
+}
+
+export interface ViewDialogProps {
+  referendum: Referendum | null;
+  onClose: () => void;
+  onEdit?: (referendum: Referendum) => void;
+  onDelete?: (id: string) => void;
+  deleteMutation?: any;
 }
 
 // Interfaccia per il cambio quorum
