@@ -88,38 +88,7 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
                 <span>
                   Firme raccolte: <strong>{iniziativa.firme || 0}</strong>
                 </span>
-                {iniziativa.dataInizio && (
-                  <span>
-                    Inizio: {new Date(iniziativa.dataInizio).toLocaleDateString('it-IT')}
-                  </span>
-                )}
-                {iniziativa.dataFine && (
-                  <span>
-                    Fine: {new Date(iniziativa.dataFine).toLocaleDateString('it-IT')}
-                  </span>
-                )}
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2 ml-4">
-              {iniziativa.sitoWeb && (
-                <a 
-                  href={iniziativa.sitoWeb.startsWith('http') ? iniziativa.sitoWeb : `https://${iniziativa.sitoWeb}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Sito web
-                </a>
-              )}
-              
-              <button
-                onClick={() => onView?.(iniziativa)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium shadow-md hover:shadow-lg transition-all"
-              >
-                Apri pagina iniziativa
-              </button>
             </div>
           </div>
         </div>
