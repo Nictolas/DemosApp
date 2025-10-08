@@ -17,13 +17,38 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
-    // Restituisce TUTTE le ICE ordinate per data di inizio (più recenti in alto)
-    const query = `
-      SELECT *, 
-             COALESCE(status, 'ufficiale') as status
-      FROM ice
-      ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
-    `;
+    // Prima verifica se la colonna status esiste
+    let hasStatusColumn = false;
+    try {
+      const checkColumnQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'ice' AND column_name = 'status'
+      `;
+      const checkResult = await pool.query(checkColumnQuery);
+      hasStatusColumn = checkResult.rows.length > 0;
+      console.log(`🔍 Colonna status presente: ${hasStatusColumn}`);
+    } catch (checkError) {
+      console.log('⚠️ Errore nel controllo colonna status:', checkError.message);
+    }
+    
+    // Query dinamica basata sulla presenza della colonna status
+    let query;
+    if (hasStatusColumn) {
+      query = `
+        SELECT *, 
+               COALESCE(status, 'ufficiale') as status
+        FROM ice
+        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+      `;
+    } else {
+      query = `
+        SELECT *,
+               'ufficiale' as status
+        FROM ice
+        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+      `;
+    }
     
     const result = await pool.query(query);
     console.log(`✅ Recuperati ${result.rows.length} record da ice`);
@@ -106,13 +131,39 @@ router.post('/', verifyToken, async (req, res) => {
     // Genera un ID univoco per la richiesta ICE
     const iceId = `ice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    const query = `
-      INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, status, data_creazione)
-      VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'proposta', NOW())
-      RETURNING *
-    `;
+    // Verifica se la colonna status esiste
+    let hasStatusColumn = false;
+    try {
+      const checkColumnQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'ice' AND column_name = 'status'
+      `;
+      const checkResult = await pool.query(checkColumnQuery);
+      hasStatusColumn = checkResult.rows.length > 0;
+    } catch (checkError) {
+      console.log('⚠️ Errore nel controllo colonna status:', checkError.message);
+    }
     
-    const result = await pool.query(query, [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb]);
+    // Query dinamica basata sulla presenza della colonna status
+    let query, params;
+    if (hasStatusColumn) {
+      query = `
+        INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, status, data_creazione)
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'proposta', NOW())
+        RETURNING *
+      `;
+      params = [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+    } else {
+      query = `
+        INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, data_creazione)
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW())
+        RETURNING *
+      `;
+      params = [iceId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+    }
+    
+    const result = await pool.query(query, params);
     
     console.log(`✅ ICE proposta creata: ${iceId}`);
     
