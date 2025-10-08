@@ -1,4 +1,10 @@
-const { pool } = require('./api/middleware/auth');
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+});
 
 async function updateIniziativePopolariTable() {
   try {
@@ -98,8 +104,9 @@ async function updateIniziativePopolariTable() {
     
   } catch (error) {
     console.log('❌ Errore nell\'aggiornamento della tabella:', error.message);
+  } finally {
+    await pool.end();
   }
-  process.exit(0);
 }
 
 updateIniziativePopolariTable();

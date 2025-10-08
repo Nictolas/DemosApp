@@ -92,7 +92,12 @@ router.get('/', async (req, res) => {
       dataInizio: row.datainizio || row.data_inizio,
       dataFine: row.datafine || row.data_fine,
       sitoWeb: row.sitoweb || row.sito_web,
-      data_creazione: row.data_creazione || row.created_at
+      data_creazione: row.data_creazione || row.created_at,
+      // Assicurati che i campi obbligatori esistano
+      descrizione: row.descrizione || '',
+      firme: row.firme || 0,
+      votiices: row.votiices || 0,
+      esito: row.esito || null
     }));
 
     res.json({
