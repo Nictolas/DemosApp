@@ -61,7 +61,7 @@ import Governo from "./pages/Governo";
 import MinisteroPage from "./pages/Governo/[slug]";
 import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
-import IniziativePopolare from "./pages/IniziativePopolare";
+import IniziativePopolari from "./pages/IniziativePopolari";
 import GestisciUtenti from "./pages/GestisciUtenti";
 import GestisciElezioni from "./pages/GestisciElezioni";
 import GestisciGrazia from "./pages/GestisciGrazia";
@@ -745,7 +745,7 @@ export default function App() {
               {/* Route iniziative popolari */}
               <Route path="/iniziative-popolari">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/iniziative-popolari" component={IniziativePopolare} />
+                  <ProtectedRoute path="/iniziative-popolari" component={IniziativePopolari} />
                 </PageTransition>
               </Route>
 
