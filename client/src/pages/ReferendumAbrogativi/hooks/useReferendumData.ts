@@ -1,26 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Referendum } from "../types";
-import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
 
 export const useReferendumData = (user: any) => {
-  // Query per caricare la lista dei referendum
-  const { data: responseData, isLoading, isError } = useQuery<{success: boolean, referendum: Referendum[], classifica: any[], mieiVoti: string[]}>({
-    queryKey: QUERY_KEYS.REFERENDUM_LIST,
+  const { data, isLoading, isError } = useQuery<{
+    richieste: Referendum[];
+    mieiVoti: string[];
+  }>({
+    queryKey: ['referendumAbrogativi'],
     queryFn: async () => {
-      const response = await apiRequest("GET", API_ENDPOINTS.REFERENDUM_LIST);
-      if (!response.ok) throw new Error(MESSAGES.ERROR.LOAD);
-      return response.json();
+      const response = await apiRequest("GET", "/api/referendum-abrogativi");
+      if (!response.ok) throw new Error("Errore nel caricamento dei referendum abrogativi");
+      const result = await response.json();
+      return result;
     },
     enabled: !!user,
   });
 
-  // Estrai l'array referendum dalla risposta
-  const listaReferendum = responseData?.referendum || [];
-
   return {
-    listaReferendum,
+    listaReferendum: data?.richieste || [],
+    mieiVoti: data?.mieiVoti || [],
     isLoading,
-    isError
+    isError,
   };
 };
