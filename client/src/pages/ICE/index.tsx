@@ -8,6 +8,7 @@ import { ICEForm } from "./components/ICEForm";
 import { ICETable } from "./components/ICETable";
 import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
+import { ICEStatsChart } from "./components/ICEStatsChart";
 import { useICEData } from "./hooks/useICEData";
 import { useICEActions } from "./hooks/useICEActions";
 import { useICEForms } from "./hooks/useICEForms";
@@ -53,6 +54,9 @@ export default function ICE() {
       <Card className="w-full rounded-2xl shadow-lg bg-white">
         <CardContent className="p-6">
           <Header />
+          
+          {/* Grafico statistiche ICE */}
+          <ICEStatsChart listaICE={listaICE} />
           
           <div className="flex justify-start items-center mb-4">
             <CreateButton onClick={showCreateForm} />
