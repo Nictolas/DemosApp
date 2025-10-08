@@ -53,26 +53,6 @@ export const gestisciSections: GestisciSection[] = [
     buttonText: "Gestisci Opinioni"
   },
   {
-    id: "iniziative-popolari",
-    title: "Gestisci Iniziative Popolari",
-    description: "Gestisci le richieste di iniziative popolari proposte dagli utenti",
-    icon: ClipboardList,
-    color: "text-indigo-600 group-hover:text-indigo-800",
-    buttonColor: "bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700",
-    route: "/gestisci-iniziative-popolari",
-    buttonText: "Gestisci Iniziative Popolari"
-  },
-  {
-    id: "referendum-abrogativi",
-    title: "Gestisci Referendum Abrogativi",
-    description: "Gestisci le richieste di referendum abrogativi proposte dagli utenti",
-    icon: Vote,
-    color: "text-orange-600 group-hover:text-orange-800",
-    buttonColor: "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700",
-    route: "/gestisci-referendum-abrogativi",
-    buttonText: "Gestisci Referendum Abrogativi"
-  },
-  {
     id: "sondaggi",
     title: "Sondaggi",
     description: "Gestisci e visualizza i sondaggi della piattaforma",
