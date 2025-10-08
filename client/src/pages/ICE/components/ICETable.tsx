@@ -54,7 +54,7 @@ export const ICETable: React.FC<ICETableProps> = ({
         
         return (
           <div key={ice.id} className={`bg-white border rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow ${
-            ice.status === 'proposta' 
+            ice.quorum === 'proposta' 
               ? 'border-blue-200 bg-blue-50' 
               : 'border-gray-200'
           }`}>
@@ -68,7 +68,9 @@ export const ICETable: React.FC<ICETableProps> = ({
                         ? 'inline-block w-3 h-3 rounded-full bg-yellow-500'
                         : ice.quorum === 'no'
                           ? 'inline-block w-3 h-3 rounded-full bg-red-500'
-                          : 'inline-block w-3 h-3 rounded-full bg-gray-400'
+                          : ice.quorum === 'proposta'
+                            ? 'inline-block w-3 h-3 rounded-full bg-blue-500'
+                            : 'inline-block w-3 h-3 rounded-full bg-gray-400'
                   }
                   aria-hidden="true"
                 />
@@ -84,7 +86,7 @@ export const ICETable: React.FC<ICETableProps> = ({
                   }
                   aria-hidden="true"
                 />
-                {ice.status === 'proposta' && (
+                {ice.quorum === 'proposta' && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     Proposta
                   </span>

@@ -5,7 +5,13 @@ export const iceSchema = z.object({
   descrizione: z.string().min(1, "La descrizione è obbligatoria"),
   dataInizio: z.string().min(1, "La data di inizio è obbligatoria"),
   dataFine: z.string().min(1, "La data di fine è obbligatoria"),
-  sitoWeb: z.string().url("Inserisci un URL valido").min(1, "Il sito web è obbligatorio"),
+  sitoWeb: z.string().min(1, "Il sito web è obbligatorio").refine((val) => {
+    // Validazione URL più permissiva
+    if (!val) return false;
+    // Accetta URL con o senza protocollo
+    const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+    return urlPattern.test(val);
+  }, "Inserisci un URL valido"),
 });
 
 export const DEFAULT_FORM_VALUES = {
