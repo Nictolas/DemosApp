@@ -93,16 +93,6 @@ export const gestisciSections: GestisciSection[] = [
     buttonText: "Gestisci Governo"
   },
   {
-    id: "ice",
-    title: "Gestisci ICE",
-    description: "Gestisci le richieste di ICE proposte dagli utenti",
-    icon: Globe2,
-    color: "text-teal-600 group-hover:text-teal-800",
-    buttonColor: "bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700",
-    route: "/gestisci-ice",
-    buttonText: "Gestisci ICE"
-  },
-  {
     id: "statistiche-utenti",
     title: "Statistiche Utenti",
     description: "Visualizza dati demografici e statistiche degli utenti registrati",
