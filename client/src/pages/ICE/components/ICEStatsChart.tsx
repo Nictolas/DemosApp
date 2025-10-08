@@ -33,10 +33,11 @@ export const ICEStatsChart: React.FC<ICEStatsChartProps> = ({ listaICE }) => {
     });
 
     return Object.entries(counts).map(([esito, count]) => ({
-      esito,
-      count,
+      name: esito,
+      value: count,
+      color: COLORS[esito as keyof typeof COLORS],
       percentage: listaICE.length > 0 ? Math.round((count / listaICE.length) * 100) : 0
-    }));
+    })).filter(item => item.value > 0); // Mostra solo le categorie con ICE
   }, [listaICE]);
 
   const total = listaICE.length;
@@ -69,72 +70,56 @@ export const ICEStatsChart: React.FC<ICEStatsChartProps> = ({ listaICE }) => {
         </p>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col lg:flex-row items-center gap-6">
-          {/* Grafico a torta */}
-          <div className="w-full lg:w-1/2 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={stats}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
-                  dataKey="count"
-                >
-                  {stats.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={COLORS[entry.esito as keyof typeof COLORS]} 
-                    />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: any, name: any, props: any) => [
-                    `${value} ICE (${props.payload.percentage}%)`,
-                    props.payload.esito
-                  ]}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36}
-                  formatter={(value: any, entry: any) => (
-                    <span style={{ color: entry.color }}>
-                      {value} ({entry.payload.percentage}%)
-                    </span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Legenda dettagliata */}
-          <div className="w-full lg:w-1/2 space-y-3">
-            {stats.map((stat) => (
-              <div key={stat.esito} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-4 h-4 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: COLORS[stat.esito as keyof typeof COLORS] }}
+        {total > 0 && (
+          <div className="flex justify-center">
+            <div className="w-full max-w-md h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {stats.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value: number) => [`${value} ICE`, '']}
+                    labelFormatter={(label: string) => `Esito: ${label}`}
                   />
-                  <span className="font-medium text-gray-900">{stat.esito}</span>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold text-gray-900">{stat.count}</div>
-                  <div className="text-sm text-gray-600">{stat.percentage}%</div>
-                </div>
-              </div>
-            ))}
-            
-            <div className="pt-3 border-t border-gray-200">
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-gray-900">Totale ICE</span>
-                <span className="font-bold text-lg text-blue-600">{total}</span>
-              </div>
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    formatter={(value: string) => (
+                      <span className="text-sm font-medium">{value}</span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Statistiche testuali */}
+        {total > 0 && (
+          <div className="text-center space-y-2 mt-4">
+            <div className="text-sm text-gray-600">
+              Totale ICE: <span className="font-semibold text-gray-900">{total}</span>
+            </div>
+            <div className="flex justify-center gap-4 text-xs text-gray-500">
+              {stats.map((stat) => (
+                <span key={stat.name}>
+                  {stat.name}: {stat.value} ({stat.percentage}%)
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
