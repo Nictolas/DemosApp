@@ -10,7 +10,6 @@ import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useReferendumData } from "./hooks/useReferendumData";
 import { useReferendumActions } from "./hooks/useReferendumActions";
-import { useReferendumForms } from "./hooks/useReferendumForms";
 
 export default function ReferendumAbrogativi() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -32,7 +31,6 @@ export default function ReferendumAbrogativi() {
     handleDelete
   } = useReferendumActions();
 
-  const { createForm, editForm, resetCreateForm } = useReferendumForms();
 
   // Redirect se non autenticato
   if (isAuthLoading) {

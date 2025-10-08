@@ -86,9 +86,18 @@ router.get('/', async (req, res) => {
       }
     }
     
+    // Normalizza i dati per il frontend
+    const normalizedData = result.rows.map(row => ({
+      ...row,
+      dataInizio: row.datainizio || row.data_inizio,
+      dataFine: row.datafine || row.data_fine,
+      sitoWeb: row.sitoweb || row.sito_web,
+      data_creazione: row.data_creazione || row.created_at
+    }));
+
     res.json({
       success: true,
-      richieste: result.rows,
+      richieste: normalizedData,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
