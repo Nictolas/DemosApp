@@ -18,7 +18,7 @@ export interface ICEFormData {
   descrizione: string;
   dataInizio: string;
   dataFine: string;
-  siteWeb?: string;
+  sitoWeb?: string;
 }
 
 export interface ICEData {
@@ -52,7 +52,7 @@ export interface ICEFormProps {
 export interface EditDialogProps {
   ice: ICE | null;
   onClose: () => void;
-  onSubmit: (data: ICEFormData) => void;
+  onSubmit: (data: ICEFormData & { quorum?: string }) => void;
   isLoading: boolean;
 }
 
