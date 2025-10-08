@@ -86,8 +86,15 @@ export const ReferendumTable: React.FC<ReferendumTableProps> = ({
               
               <div className="flex items-center gap-4 text-sm text-gray-500">
                 <span>
-                  Firme raccolte: <strong>{referendum.firme || 0}</strong>
+                  Firme raccolte: <strong>{(referendum.firme || 0).toLocaleString('it-IT')}</strong>
                 </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 flex-shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>Esito: In Attesa</span>
+                </div>
               </div>
             </div>
           </div>

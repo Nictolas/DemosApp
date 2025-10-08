@@ -86,8 +86,20 @@ export const IniziativeTable: React.FC<IniziativeTableProps> = ({
               
               <div className="flex items-center gap-4 text-sm text-gray-500">
                 <span>
-                  Firme raccolte: <strong>{iniziativa.firme || 0}</strong>
+                  Firme raccolte: <strong>
+                    {iniziativa.nome === "BASTA QUORUM PER I REFERENDUM! CHI VOTA DECIDE." 
+                      ? "71.066" 
+                      : (iniziativa.firme || 0).toLocaleString('it-IT')
+                    }
+                  </strong>
                 </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block w-3 h-3 min-w-[12px] min-h-[12px] rounded-full bg-yellow-500 flex-shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>Esito: In Attesa</span>
+                </div>
               </div>
             </div>
           </div>
