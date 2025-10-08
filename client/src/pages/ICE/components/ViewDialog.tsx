@@ -1,9 +1,10 @@
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Pencil, Trash2 } from "lucide-react";
 import { ViewDialogProps } from "../types";
 
-export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose }) => {
+export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose, onEdit, onDelete, deleteMutation }) => {
   if (!ice) return null;
 
   return (
@@ -59,7 +60,37 @@ export const ViewDialog: React.FC<ViewDialogProps> = ({ ice, onClose }) => {
             </div>
           )}
         </div>
-        <div className="flex justify-end mt-4 bg-white">
+        <div className="flex justify-between mt-4 bg-white">
+          <div className="flex space-x-2">
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onEdit(ice);
+                  onClose();
+                }}
+                disabled={deleteMutation?.isPending}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Modifica
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  onDelete(ice.id);
+                  onClose();
+                }}
+                disabled={deleteMutation?.isPending}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Cestina
+              </Button>
+            )}
+          </div>
           <Button variant="outline" onClick={onClose}>Chiudi</Button>
         </div>
       </DialogContent>

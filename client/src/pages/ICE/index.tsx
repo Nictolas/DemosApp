@@ -89,9 +89,6 @@ export default function ICE() {
             isLoading={isLoading}
             isError={isError}
             onView={startEditView}
-            onEdit={startEdit}
-            onDelete={handleDelete}
-            deleteMutation={deleteMutation}
           />
         </CardContent>
       </Card>
@@ -106,6 +103,9 @@ export default function ICE() {
       <ViewDialog
         ice={state.viewICE}
         onClose={closeView}
+        onEdit={startEdit}
+        onDelete={handleDelete}
+        deleteMutation={deleteMutation}
       />
     </div>
   );
