@@ -10,7 +10,6 @@ import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeActions } from "./hooks/useIniziativeActions";
-import { useIniziativeForms } from "./hooks/useIniziativeForms";
 
 export default function IniziativePopolari() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -32,7 +31,6 @@ export default function IniziativePopolari() {
     handleDelete
   } = useIniziativeActions();
 
-  const { createForm, editForm, resetCreateForm } = useIniziativeForms();
 
   // Redirect se non autenticato
   if (isAuthLoading) {
