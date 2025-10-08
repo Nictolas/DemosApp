@@ -156,7 +156,7 @@ router.post('/', verifyToken, async (req, res) => {
     
     // Usa la colonna quorum per distinguere le ICE proposte
     const query = `
-      INSERT INTO ice (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum, data_creazione)
+      INSERT INTO ice (id, nome, descrizione, datainizio, datafine, sitoweb, quorum, data_creazione)
       VALUES ($1, $2, $3, $4, $5, $6, 'proposta', NOW())
       RETURNING *
     `;
@@ -209,7 +209,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     
     const updateQuery = `
       UPDATE ice 
-      SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6
+      SET nome = $1, descrizione = $2, datainizio = $3, datafine = $4, sitoweb = $5, quorum = $6
       WHERE id = $7
       RETURNING *
     `;
