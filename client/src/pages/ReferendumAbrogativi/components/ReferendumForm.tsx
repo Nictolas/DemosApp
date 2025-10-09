@@ -36,9 +36,8 @@ export const ReferendumForm: React.FC<ReferendumFormProps> = ({ onSubmit, onCanc
         <Alert className="mb-4 bg-yellow-50 border-yellow-200">
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-yellow-800">
-            <strong>ATTENZIONE:</strong> Per proporre un referendum abrogativo bisogna seguire le procedure 
-            legali stabilite. In questo modulo puoi aggiungere i referendum abrogativi che hanno la raccolta 
-            firme già in corso.
+            <strong>ATTENZIONE:</strong> Per proporre un'iniziativa popolare farlo sul sito del Ministero di Giustizia. 
+            In questo modulo puoi aggiungere i referendum abrogativi che hanno la raccolta firme già in corso.
           </AlertDescription>
         </Alert>
         <Form {...form}>
