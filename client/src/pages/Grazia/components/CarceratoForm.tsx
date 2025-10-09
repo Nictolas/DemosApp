@@ -27,16 +27,15 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
   };
 
   return (
-    <Card className="mb-6">
+    <Card className="mb-6 bg-white">
       <CardHeader>
         <CardTitle>Proponi Carcerato</CardTitle>
       </CardHeader>
       <CardContent>
-        <Alert className="mb-4 bg-yellow-50 border-yellow-200">
-          <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            <strong>ATTENZIONE:</strong> Per proporre un carcerato per la grazia, assicurati di avere 
-            informazioni verificate e documentate sul caso.
+        <Alert className="mb-4 bg-blue-50 border-blue-200">
+          <AlertTriangle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>INFORMAZIONI IMPORTANTI:</strong> Sarai contattato via email dallo staff. Sarà necessario inviare una Copia della Sentenza di Condanna Definitiva per accertarsi che la persona proposta sia reale. Dopo la conferma e l'aggiunta sull'app, il documento ricevuto sarà cancellato dal nostro archivio.
           </AlertDescription>
         </Alert>
         <Form {...form}>
@@ -73,32 +72,14 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
             
             <FormField
               control={form.control}
-              name="motivo"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Motivo della richiesta di grazia</FormLabel>
+                  <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Descrivi il motivo per cui chiedi la grazia per questo carcerato" 
-                      className="min-h-[100px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="dettagli"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dettagli aggiuntivi (opzionale)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Aggiungi dettagli aggiuntivi sul caso" 
-                      className="min-h-[80px]"
+                    <Input 
+                      type="email"
+                      placeholder="La tua email per essere contattato" 
                       {...field} 
                     />
                   </FormControl>

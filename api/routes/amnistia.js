@@ -149,4 +149,79 @@ router.post('/', verifyToken, validateInput(['legge', 'articolo', 'descrizione']
   }
 });
 
+// POST /api/amnistia/migrate - Migra dati da voti_amnistia
+router.post('/migrate', async (req, res) => {
+  try {
+    console.log('🔄 Avviando migrazione dati amnistia...');
+    
+    // 1. Aggiungi colonne se non esistono
+    await pool.query(`
+      ALTER TABLE amnistia 
+      ADD COLUMN IF NOT EXISTS articolo VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS descrizione TEXT
+    `);
+    console.log('✅ Colonne aggiunte alla tabella amnistia');
+    
+    // 2. Ottieni leggi distinte da voti_amnistia
+    const votiData = await pool.query(`
+      SELECT DISTINCT legge, COUNT(*) as voti_count
+      FROM voti_amnistia 
+      GROUP BY legge
+      ORDER BY voti_count DESC
+    `);
+    
+    console.log(`📊 Trovate ${votiData.rows.length} leggi distinte in voti_amnistia`);
+    
+    let inserted = 0;
+    let skipped = 0;
+    
+    // 3. Inserisci i dati nella tabella amnistia
+    for (const row of votiData.rows) {
+      // Controlla se la legge esiste già in amnistia
+      const existing = await pool.query(
+        'SELECT id FROM amnistia WHERE legge = $1',
+        [row.legge]
+      );
+      
+      if (existing.rows.length === 0) {
+        // Inserisci la nuova legge
+        await pool.query(`
+          INSERT INTO amnistia (legge, articolo, descrizione) 
+          VALUES ($1, $2, $3)
+        `, [
+          row.legge,
+          'Art. 1', // Articolo di default
+          `Amnistia per ${row.legge}` // Descrizione di default
+        ]);
+        inserted++;
+        console.log(`✅ Inserita: ${row.legge}`);
+      } else {
+        skipped++;
+        console.log(`⚠️ Già esistente: ${row.legge}`);
+      }
+    }
+    
+    // 4. Verifica il risultato
+    const finalCount = await pool.query('SELECT COUNT(*) FROM amnistia');
+    
+    res.json({
+      success: true,
+      message: 'Migrazione completata con successo',
+      data: {
+        leggiTrovate: votiData.rows.length,
+        inserite: inserted,
+        saltate: skipped,
+        totaleInAmnistia: parseInt(finalCount.rows[0].count)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore durante la migrazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante la migrazione'
+    });
+  }
+});
+
 module.exports = router;
