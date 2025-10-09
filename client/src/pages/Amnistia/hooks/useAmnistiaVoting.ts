@@ -84,14 +84,40 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
     }));
   };
 
-  const handleCreateAmnistia = (data: any) => {
-    // Qui implementerai la logica per creare una nuova amnistia
-    console.log('Nuova amnistia:', data);
-    toast({
-      title: "Amnistia proposta",
-      description: "La proposta è stata inviata per la revisione."
-    });
-    hideForm();
+  const handleCreateAmnistia = async (data: any) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/amnistia', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Amnistia proposta",
+          description: "La proposta è stata inviata per la revisione."
+        });
+        hideForm();
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Errore",
+          description: errorData.error || "Impossibile creare l'amnistia",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Errore nel creare amnistia:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile creare l'amnistia",
+        variant: "destructive"
+      });
+    }
   };
 
   return {

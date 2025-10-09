@@ -33,14 +33,14 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
   const showForm = () => {
     setVotingState(prev => ({
       ...prev,
-      showConfirmDialog: true
+      showForm: true
     }));
   };
 
   const hideForm = () => {
     setVotingState(prev => ({
       ...prev,
-      showConfirmDialog: false
+      showForm: false
     }));
   };
 

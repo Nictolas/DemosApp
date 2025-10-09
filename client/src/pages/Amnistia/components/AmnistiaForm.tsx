@@ -20,7 +20,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
   onHideSuggestions
 }) => {
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Plus className="h-5 w-5" />
