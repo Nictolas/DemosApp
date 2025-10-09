@@ -103,25 +103,31 @@ router.get('/', async (req, res) => {
     // Genera la classifica basata sui voti
     let classifica = [];
     if (result.rows.length > 0) {
-      const classificaQuery = `
-        SELECT 
-          ip.nome,
-          ip.sitoweb as sitoWeb,
-          COUNT(vip.iniziativa_id) as voti
-        FROM iniziative_popolari ip
-        LEFT JOIN voti_iniziative_popolari vip ON ip.id = vip.iniziativa_id
-        WHERE ip.quorum != 'proposta' AND (ip.esito = 'In Attesa' OR ip.esito IS NULL)
-        GROUP BY ip.id, ip.nome, ip.sitoweb
-        ORDER BY voti DESC, ip.nome ASC
-      `;
-      
-      const classificaResult = await pool.query(classificaQuery);
-      classifica = classificaResult.rows.map(row => ({
-        nome: row.nome,
-        sitoWeb: row.sitoweb,
-        voti: parseInt(row.voti) || 0
-      }));
-      console.log(`✅ Generata classifica con ${classifica.length} iniziative`);
+      try {
+        const classificaQuery = `
+          SELECT 
+            ip.nome,
+            ip.sitoweb as sitoWeb,
+            COUNT(vip.iniziativa_id) as voti
+          FROM iniziative_popolari ip
+          LEFT JOIN voti_iniziative_popolari vip ON ip.id::text = vip.iniziativa_id
+          WHERE ip.quorum != 'proposta' AND (ip.esito = 'In Attesa' OR ip.esito IS NULL)
+          GROUP BY ip.id, ip.nome, ip.sitoweb
+          ORDER BY voti DESC, ip.nome ASC
+        `;
+        
+        const classificaResult = await pool.query(classificaQuery);
+        classifica = classificaResult.rows.map(row => ({
+          nome: row.nome,
+          sitoWeb: row.sitoweb,
+          voti: parseInt(row.voti) || 0
+        }));
+        console.log(`✅ Generata classifica con ${classifica.length} iniziative`);
+      } catch (classificaError) {
+        console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
+        // Se la classifica fallisce, continua senza di essa
+        classifica = [];
+      }
     }
 
     res.json({
