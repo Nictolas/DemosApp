@@ -12,6 +12,7 @@ export interface AmnistiaVotingState {
   leggeInput: string;
   showSuggestions: boolean;
   showAllClassifica: boolean;
+  showForm: boolean;
 }
 
 export interface AmnistiaVotingActions {

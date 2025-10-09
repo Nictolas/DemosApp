@@ -9,7 +9,8 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
     nomeInput: "",
     selectedVoti: [],
     showConfirmDialog: false,
-    showAllClassifica: false
+    showAllClassifica: false,
+    showForm: false
   });
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
@@ -90,6 +91,16 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
     }));
   };
 
+  const handleCreateCarcerato = (data: any) => {
+    // Qui implementerai la logica per creare un nuovo carcerato
+    console.log('Nuovo carcerato:', data);
+    toast({
+      title: "Carcerato proposto",
+      description: "La proposta è stata inviata per la revisione."
+    });
+    hideForm();
+  };
+
   return {
     votingState,
     updateField,
@@ -99,6 +110,7 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
     removeLocal,
     toggleSelezioneClassifica,
     showClassifica,
-    saveVoti
+    saveVoti,
+    handleCreateCarcerato
   };
 };

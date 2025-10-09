@@ -17,6 +17,7 @@ export interface GraziaVotingState {
   selectedVoti: string[];
   showConfirmDialog: boolean;
   showAllClassifica: boolean;
+  showForm: boolean;
 }
 
 export interface GraziaVotingActions {

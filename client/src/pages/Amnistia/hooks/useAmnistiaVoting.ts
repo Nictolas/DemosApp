@@ -8,7 +8,8 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
   const [votingState, setVotingState] = useState<AmnistiaVotingState>({
     leggeInput: "",
     showSuggestions: false,
-    showAllClassifica: false
+    showAllClassifica: false,
+    showForm: false
   });
 
   const updateField = (field: keyof AmnistiaVotingState, value: string | boolean) => {
@@ -69,6 +70,30 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
     removeVoteMutation.mutate(legge);
   };
 
+  const showForm = () => {
+    setVotingState(prev => ({
+      ...prev,
+      showForm: true
+    }));
+  };
+
+  const hideForm = () => {
+    setVotingState(prev => ({
+      ...prev,
+      showForm: false
+    }));
+  };
+
+  const handleCreateAmnistia = (data: any) => {
+    // Qui implementerai la logica per creare una nuova amnistia
+    console.log('Nuova amnistia:', data);
+    toast({
+      title: "Amnistia proposta",
+      description: "La proposta è stata inviata per la revisione."
+    });
+    hideForm();
+  };
+
   return {
     votingState,
     updateField,
@@ -77,6 +102,9 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
     showClassifica,
     selectSuggestion,
     handleAddVote,
-    handleRemoveVote
+    handleRemoveVote,
+    showForm,
+    hideForm,
+    handleCreateAmnistia
   };
 };
