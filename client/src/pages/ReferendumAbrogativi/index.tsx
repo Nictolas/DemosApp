@@ -10,6 +10,7 @@ import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useReferendumData } from "./hooks/useReferendumData";
 import { useReferendumActions } from "./hooks/useReferendumActions";
+import { ReferendumStatsChart } from "./components/ReferendumStatsChart";
 
 export default function ReferendumAbrogativi() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -62,6 +63,8 @@ export default function ReferendumAbrogativi() {
               isLoading={addMutation.isPending}
             />
           )}
+          
+          <ReferendumStatsChart listaReferendum={listaReferendum} />
           
           <ReferendumTable
             listaReferendum={listaReferendum}

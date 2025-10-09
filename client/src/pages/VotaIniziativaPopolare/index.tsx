@@ -10,7 +10,6 @@ import { UserPreferences } from "./components/UserPreferences";
 import { IniziativeRanking } from "./components/IniziativeRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
-import { AdminIniziativeManager } from "./components/AdminIniziativeManager";
 
 export default function VotaIniziativaPopolare() {
   const authReady = useAuthReady();
@@ -60,13 +59,6 @@ export default function VotaIniziativaPopolare() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Sezione Admin - Gestisci Iniziative Popolari */}
-            <AdminIniziativeManager 
-              userRole={user?.ruolo || user?.role} 
-              userEmail={user?.email}
-            />
-
-
             {/* Le tue preferenze */}
             <UserPreferences
               selectedVoti={selectedVoti}

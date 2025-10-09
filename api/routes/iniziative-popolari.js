@@ -53,11 +53,11 @@ router.get('/', async (req, res) => {
         ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
       `;
     } else {
-      // Altri utenti vedono solo le iniziative ufficiali (quorum != 'proposta')
+      // Altri utenti vedono solo le iniziative ufficiali (quorum != 'proposta') e con esito 'In Attesa'
       query = `
         SELECT *
         FROM iniziative_popolari
-        WHERE quorum != 'proposta'
+        WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
         ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
       `;
     }
@@ -100,9 +100,34 @@ router.get('/', async (req, res) => {
       esito: row.esito || null
     }));
 
+    // Genera la classifica basata sui voti
+    let classifica = [];
+    if (result.rows.length > 0) {
+      const classificaQuery = `
+        SELECT 
+          ip.nome,
+          ip.sitoweb as sitoWeb,
+          COUNT(vip.iniziativa_id) as voti
+        FROM iniziative_popolari ip
+        LEFT JOIN voti_iniziative_popolari vip ON ip.id = vip.iniziativa_id
+        WHERE ip.quorum != 'proposta' AND (ip.esito = 'In Attesa' OR ip.esito IS NULL)
+        GROUP BY ip.id, ip.nome, ip.sitoweb
+        ORDER BY voti DESC, ip.nome ASC
+      `;
+      
+      const classificaResult = await pool.query(classificaQuery);
+      classifica = classificaResult.rows.map(row => ({
+        nome: row.nome,
+        sitoWeb: row.sitoweb,
+        voti: parseInt(row.voti) || 0
+      }));
+      console.log(`✅ Generata classifica con ${classifica.length} iniziative`);
+    }
+
     res.json({
       success: true,
-      richieste: normalizedData,
+      iniziative: normalizedData,
+      classifica: classifica,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
