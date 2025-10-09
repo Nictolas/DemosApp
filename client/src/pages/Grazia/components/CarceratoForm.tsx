@@ -40,36 +40,6 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
         </Alert>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="nome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nome del carcerato" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="cognome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cognome</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Cognome del carcerato" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
             <FormField
               control={form.control}
               name="email"
