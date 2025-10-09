@@ -53,11 +53,11 @@ router.get('/', async (req, res) => {
         ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
       `;
     } else {
-      // Altri utenti vedono solo i referendum ufficiali (quorum != 'proposta')
+      // Altri utenti vedono solo i referendum ufficiali (quorum != 'proposta') e con esito 'In Attesa'
       query = `
         SELECT *
         FROM referendum_abrogativi
-        WHERE quorum != 'proposta'
+        WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
         ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
       `;
     }
@@ -95,9 +95,41 @@ router.get('/', async (req, res) => {
       data_creazione: row.data_creazione || row.created_at
     }));
 
+    // Genera la classifica basata sui voti
+    let classifica = [];
+    if (result.rows.length > 0) {
+      try {
+        const classificaQuery = `
+          SELECT 
+            ra.nome,
+            ra.sitoweb as sitoWeb,
+            COUNT(vra.referendum_id) as voti
+          FROM referendum_abrogativi ra
+          LEFT JOIN voti_referendum_abrogativi vra ON ra.id::text = vra.referendum_id
+          WHERE ra.quorum != 'proposta' AND (ra.esito = 'In Attesa' OR ra.esito IS NULL)
+          GROUP BY ra.id, ra.nome, ra.sitoweb
+          ORDER BY voti DESC, ra.nome ASC
+        `;
+        
+        const classificaResult = await pool.query(classificaQuery);
+        classifica = classificaResult.rows.map(row => ({
+          nome: row.nome,
+          sitoWeb: row.sitoweb,
+          voti: parseInt(row.voti) || 0
+        }));
+        console.log(`✅ Generata classifica con ${classifica.length} referendum`);
+      } catch (classificaError) {
+        console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
+        // Se la classifica fallisce, continua senza di essa
+        classifica = [];
+      }
+    }
+
     res.json({
       success: true,
       richieste: normalizedData,
+      referendum: normalizedData,
+      classifica: classifica,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });

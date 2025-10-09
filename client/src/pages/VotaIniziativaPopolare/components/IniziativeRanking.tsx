@@ -9,6 +9,7 @@ interface IniziativeRankingProps {
   iniziative: Iniziativa[];
   selectedVoti: string[];
   onToggleSelezioneClassifica: (nome: string) => void;
+  onViewIniziativa?: (iniziativa: Iniziativa) => void;
   isBlocked: boolean;
   isPending: boolean;
 }
@@ -18,6 +19,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
   iniziative,
   selectedVoti,
   onToggleSelezioneClassifica,
+  onViewIniziativa,
   isBlocked,
   isPending
 }) => {
@@ -70,7 +72,15 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
             {classifica.slice(0, 3).map((item, index) => (
               <div 
                 key={item.nome} 
-                className="group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                className={`group flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-yellow-200 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${
+                  onViewIniziativa ? 'cursor-pointer' : ''
+                }`}
+                onClick={() => {
+                  if (onViewIniziativa) {
+                    const iniziativa = iniziative.find(i => i.nome === item.nome);
+                    if (iniziativa) onViewIniziativa(iniziativa);
+                  }
+                }}
               >
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-yellow-500 group-hover:to-yellow-700 transition-all duration-300">
@@ -101,7 +111,10 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onToggleSelezioneClassifica(item.nome)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSelezioneClassifica(item.nome);
+                  }}
                   disabled={isPending || isBlocked}
                   className={`transition-all duration-300 ${
                     iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id)
@@ -150,7 +163,15 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                   {classifica.slice(3).map((item, index) => (
                     <div 
                       key={item.nome} 
-                      className="group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg"
+                      className={`group flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 hover:from-blue-100 hover:to-indigo-100 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg ${
+                        onViewIniziativa ? 'cursor-pointer' : ''
+                      }`}
+                      onClick={() => {
+                        if (onViewIniziativa) {
+                          const iniziativa = iniziative.find(i => i.nome === item.nome);
+                          if (iniziativa) onViewIniziativa(iniziativa);
+                        }
+                      }}
                     >
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 text-white rounded-full font-bold text-lg shadow-md group-hover:from-blue-500 group-hover:to-indigo-700 transition-all duration-300">
@@ -181,7 +202,10 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onToggleSelezioneClassifica(item.nome)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSelezioneClassifica(item.nome);
+                        }}
                         disabled={isPending || isBlocked}
                         className={`transition-all duration-300 ${
                           iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id)
