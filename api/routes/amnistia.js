@@ -9,23 +9,30 @@ const router = express.Router();
 // GET /api/amnistia - Ottieni leggi per amnistia
 router.get('/', async (req, res) => {
   try {
-    // 1. Ottieni tutti i voti per amnistia (senza timestamp)
-    const votiQuery = `
-      SELECT id, userid, firestore_userid, legge FROM voti_amnistia 
-      ORDER BY id DESC
+    // 1. Ottieni tutte le amnistie dalla tabella amnistia
+    const amnistieQuery = `
+      SELECT id, legge, articolo, descrizione, data_creazione
+      FROM amnistia 
+      ORDER BY data_creazione DESC
     `;
-    const votiResult = await pool.query(votiQuery);
+    const amnistieResult = await pool.query(amnistieQuery);
     
-    // 2. Genera classifica basata sui voti
+    // 2. Genera classifica basata sui voti usando la relazione amnistia_id
     const classificaQuery = `
-      SELECT legge, COUNT(*) as voti
-      FROM voti_amnistia 
-      GROUP BY legge 
-      ORDER BY voti DESC
+      SELECT 
+        a.id,
+        a.legge,
+        a.articolo,
+        a.descrizione,
+        COUNT(va.amnistia_id) as voti
+      FROM amnistia a
+      LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id
+      GROUP BY a.id, a.legge, a.articolo, a.descrizione
+      ORDER BY voti DESC, a.legge ASC
     `;
     const classificaResult = await pool.query(classificaQuery);
     
-    // 3. Se l'utente è autenticato, ottieni i suoi voti
+    // 3. Se l'utente è autenticato, ottieni i suoi voti usando amnistia_id
     let mieiVoti = [];
     if (req.headers.authorization) {
       try {
@@ -34,8 +41,10 @@ router.get('/', async (req, res) => {
         const userId = decoded.userId;
         
         const userVotiQuery = `
-          SELECT legge FROM voti_amnistia 
-          WHERE userid = $1
+          SELECT a.legge 
+          FROM voti_amnistia va
+          JOIN amnistia a ON va.amnistia_id = a.id
+          WHERE va.userid = $1
         `;
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.legge);
@@ -45,8 +54,11 @@ router.get('/', async (req, res) => {
       }
     }
     
+    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie e ${classificaResult.rows.length} voci in classifica`);
+    
     res.json({
       success: true,
+      amnistie: amnistieResult.rows,
       classifica: classificaResult.rows,
       mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
@@ -66,9 +78,25 @@ router.post('/vota', verifyToken, validateInput(['legge']), async (req, res) => 
     const { legge } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
+    // Prima trova l'ID di amnistia corrispondente alla legge
+    const amnistiaResult = await pool.query(
+      'SELECT id FROM amnistia WHERE legge = $1',
+      [legge]
+    );
+    
+    if (amnistiaResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Amnistia non trovata'
+      });
+    }
+    
+    const amnistiaId = amnistiaResult.rows[0].id;
+    
+    // Inserisci il voto usando l'ID di amnistia
     await pool.query(
-      'INSERT INTO voti_amnistia (userid, legge) VALUES ($1, $2) ON CONFLICT (userid, legge) DO NOTHING',
-      [userId, legge]
+      'INSERT INTO voti_amnistia (userid, amnistia_id, legge) VALUES ($1, $2, $3) ON CONFLICT (userid, amnistia_id) DO NOTHING',
+      [userId, amnistiaId, legge]
     );
     
     res.json({ success: true, message: 'Voto amnistia salvato' });
@@ -87,9 +115,25 @@ router.delete('/vota', verifyToken, validateInput(['legge']), async (req, res) =
     const { legge } = req.body;
     const userId = req.userId;
     
+    // Prima trova l'ID di amnistia corrispondente alla legge
+    const amnistiaResult = await pool.query(
+      'SELECT id FROM amnistia WHERE legge = $1',
+      [legge]
+    );
+    
+    if (amnistiaResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Amnistia non trovata'
+      });
+    }
+    
+    const amnistiaId = amnistiaResult.rows[0].id;
+    
+    // Rimuovi il voto usando l'ID di amnistia
     const result = await pool.query(
-      'DELETE FROM voti_amnistia WHERE userid = $1 AND legge = $2',
-      [userId, legge]
+      'DELETE FROM voti_amnistia WHERE userid = $1 AND amnistia_id = $2',
+      [userId, amnistiaId]
     );
     
     if (result.rowCount === 0) {
