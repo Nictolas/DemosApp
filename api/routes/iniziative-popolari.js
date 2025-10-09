@@ -132,6 +132,7 @@ router.get('/', async (req, res) => {
 
     res.json({
       success: true,
+      richieste: normalizedData,
       iniziative: normalizedData,
       classifica: classifica,
       mieiVoti: mieiVoti,
