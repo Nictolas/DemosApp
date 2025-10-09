@@ -12,6 +12,9 @@ interface IniziativaViewDialogProps {
 export const IniziativaViewDialog: React.FC<IniziativaViewDialogProps> = ({ iniziativa, onClose }) => {
   if (!iniziativa) return null;
 
+  // Debug: log dei dati ricevuti
+  console.log('🔍 DEBUG IniziativaViewDialog - Dati iniziativa:', iniziativa);
+
   return (
     <Dialog open={!!iniziativa} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl bg-white">
@@ -25,14 +28,12 @@ export const IniziativaViewDialog: React.FC<IniziativaViewDialogProps> = ({ iniz
         </DialogHeader>
         
         <div className="space-y-4 bg-white">
-          {iniziativa.descrizione && (
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Descrizione</h4>
-              <p className="text-gray-700 whitespace-pre-wrap">
-                {iniziativa.descrizione}
-              </p>
-            </div>
-          )}
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-2">Descrizione</h4>
+            <p className="text-gray-700 whitespace-pre-wrap">
+              {iniziativa.descrizione || 'Descrizione non disponibile'}
+            </p>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {iniziativa.dataInizio && (
@@ -62,31 +63,18 @@ export const IniziativaViewDialog: React.FC<IniziativaViewDialogProps> = ({ iniz
           </div>
           
           {iniziativa.sitoWeb && (
-            <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Sito Web</h4>
+            <div className="pt-4 border-t">
               <a 
                 href={iniziativa.sitoWeb.startsWith('http') ? iniziativa.sitoWeb : `https://${iniziativa.sitoWeb}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 underline"
               >
-                <ExternalLink className="h-4 w-4" />
-                Visita il sito
+                <Button className="w-full sm:w-auto shadow-md hover:shadow-lg bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700" variant="default">
+                  Apri pagina iniziativa
+                </Button>
               </a>
             </div>
           )}
-          
-          <div className="pt-4 border-t">
-            <a 
-              href={iniziativa.sitoWeb?.startsWith('http') ? iniziativa.sitoWeb : `https://${iniziativa.sitoWeb}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-            >
-              <Button className="w-full sm:w-auto shadow-md hover:shadow-lg bg-blue-600 hover:bg-blue-700 text-white border-blue-600 hover:border-blue-700" variant="default">
-                Apri pagina iniziativa
-              </Button>
-            </a>
-          </div>
         </div>
         
         <div className="flex justify-end mt-4 bg-white">
