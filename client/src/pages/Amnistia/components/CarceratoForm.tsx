@@ -8,21 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
-import { carceratoSchema, DEFAULT_FORM_VALUES, CarceratoFormData } from "../constants/schema";
+import { amnistiaSchema, DEFAULT_FORM_VALUES, AmnistiaFormData } from "../constants/schema";
 
 interface CarceratoFormProps {
-  onSubmit: (data: CarceratoFormData) => void;
+  onSubmit: (data: AmnistiaFormData) => void;
   onCancel: () => void;
   isLoading: boolean;
 }
 
 export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel, isLoading }) => {
   const form = useForm({
-    resolver: zodResolver(carceratoSchema),
+    resolver: zodResolver(amnistiaSchema),
     defaultValues: DEFAULT_FORM_VALUES
   });
 
-  const handleSubmit = (data: CarceratoFormData) => {
+  const handleSubmit = (data: AmnistiaFormData) => {
     onSubmit(data);
   };
 
@@ -41,48 +41,14 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
         </Alert>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="nome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nome del carcerato" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="cognome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cognome</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Cognome del carcerato" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
             <FormField
               control={form.control}
-              name="motivo"
+              name="legge"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Motivo della richiesta di amnistia</FormLabel>
+                  <FormLabel>Legge</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="Descrivi il motivo per cui chiedi l'amnistia" 
-                      className="min-h-[100px]"
-                      {...field} 
-                    />
+                    <Input placeholder="Nome della legge" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -91,14 +57,28 @@ export const CarceratoForm: React.FC<CarceratoFormProps> = ({ onSubmit, onCancel
             
             <FormField
               control={form.control}
-              name="dettagli"
+              name="articolo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dettagli aggiuntivi (opzionale)</FormLabel>
+                  <FormLabel>Articolo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Numero dell'articolo" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="descrizione"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrizione</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Aggiungi dettagli aggiuntivi sul caso" 
-                      className="min-h-[80px]"
+                      placeholder="Descrivi l'amnistia richiesta" 
+                      className="min-h-[100px]"
                       {...field} 
                     />
                   </FormControl>

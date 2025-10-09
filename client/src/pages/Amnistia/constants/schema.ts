@@ -1,17 +1,15 @@
 import { z } from "zod";
 
-export const carceratoSchema = z.object({
-  nome: z.string().min(1, "Il nome è obbligatorio"),
-  cognome: z.string().min(1, "Il cognome è obbligatorio"),
-  motivo: z.string().min(10, "Il motivo deve essere di almeno 10 caratteri"),
-  dettagli: z.string().optional()
+export const amnistiaSchema = z.object({
+  legge: z.string().min(1, "La legge è obbligatoria"),
+  articolo: z.string().min(1, "L'articolo è obbligatorio"),
+  descrizione: z.string().min(10, "La descrizione deve essere di almeno 10 caratteri")
 });
 
-export type CarceratoFormData = z.infer<typeof carceratoSchema>;
+export type AmnistiaFormData = z.infer<typeof amnistiaSchema>;
 
-export const DEFAULT_FORM_VALUES: CarceratoFormData = {
-  nome: "",
-  cognome: "",
-  motivo: "",
-  dettagli: ""
+export const DEFAULT_FORM_VALUES: AmnistiaFormData = {
+  legge: "",
+  articolo: "",
+  descrizione: ""
 };
