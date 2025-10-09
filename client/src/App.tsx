@@ -63,8 +63,6 @@ import ICE from "./pages/ICE";
 import ReferendumAbrogativi from "./pages/ReferendumAbrogativi";
 import IniziativePopolari from "./pages/IniziativePopolari";
 import GestisciUtenti from "./pages/GestisciUtenti";
-import GestisciElezioni from "./pages/GestisciElezioni";
-import GestisciGrazia from "./pages/GestisciGrazia";
 import GestisciOpinioni from "./pages/GestisciOpinioni";
 import GestisciGoverno from "./pages/GestisciGoverno";
 import ModificaImmagine from "./pages/ModificaImmagine";
@@ -754,19 +752,6 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route gestisci elezioni */}
-              <Route path="/gestisci-elezioni">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/gestisci-elezioni" component={GestisciElezioni} />
-                </PageTransition>
-              </Route>
-
-              {/* Route gestisci grazia */}
-              <Route path="/gestisci-grazia">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
-                  <ProtectedRoute path="/gestisci-grazia" component={GestisciGrazia} />
-                </PageTransition>
-              </Route>
 
               {/* Route gestisci opinioni */}
               <Route path="/gestisci-opinioni">

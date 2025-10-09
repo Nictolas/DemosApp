@@ -1,8 +1,12 @@
 export interface Iniziativa {
   id: string;
   nome: string;
+  descrizione?: string;
   sitoWeb?: string;
   quorum: string;
+  firme?: number;
+  dataInizio?: string;
+  dataFine?: string;
 }
 
 export interface Classifica {

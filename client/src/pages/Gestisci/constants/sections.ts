@@ -1,4 +1,4 @@
-import { Users, Vote, Heart, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive } from "lucide-react";
+import { Users, BookOpen, ClipboardList, Trophy, Globe2, BarChart3, Shield, Lock, HardDrive } from "lucide-react";
 
 export interface GestisciSection {
   id: string;
@@ -21,26 +21,6 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
     route: "/gestisci-utenti",
     buttonText: "Gestisci Utenti"
-  },
-  {
-    id: "elezioni",
-    title: "Gestisci Elezioni",
-    description: "Crea, modifica ed elimina elezioni e candidature",
-    icon: Vote,
-    color: "text-pink-600 group-hover:text-pink-800",
-    buttonColor: "bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700",
-    route: "/gestisci-elezioni",
-    buttonText: "Gestisci Elezioni"
-  },
-  {
-    id: "grazia",
-    title: "Gestisci Grazia",
-    description: "Gestisci le richieste di grazia e i voti associati",
-    icon: Heart,
-    color: "text-emerald-600 group-hover:text-emerald-800",
-    buttonColor: "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700",
-    route: "/gestisci-grazia",
-    buttonText: "Gestisci Grazia"
   },
   {
     id: "opinioni",
