@@ -10,6 +10,7 @@ import { UserPreferences } from "./components/UserPreferences";
 import { ReferendumTable } from "./components/ReferendumTable";
 import { ReferendumRanking } from "./components/ReferendumRanking";
 import { SaveButton } from "./components/SaveButton";
+import { ReferendumViewDialog } from "./components/ReferendumViewDialog";
 
 export default function VotaReferendumAbrogativo() {
   const authReady = useAuthReady();
@@ -26,6 +27,19 @@ export default function VotaReferendumAbrogativo() {
     toggleSelezioneClassifica,
     votiCambiati
   } = useReferendumVoting(data);
+
+  // Stato per il dialog di visualizzazione referendum
+  const [viewReferendum, setViewReferendum] = React.useState<any>(null);
+
+  // Funzione per gestire la visualizzazione del referendum
+  const handleViewReferendum = (referendum: any) => {
+    setViewReferendum(referendum);
+  };
+
+  // Funzione per chiudere il dialog
+  const handleCloseView = () => {
+    setViewReferendum(null);
+  };
 
   // Loading states
   if (!authReady || isLoading) {
@@ -70,6 +84,7 @@ export default function VotaReferendumAbrogativo() {
               referendum={data?.referendum || []}
               selectedVoti={selectedVoti}
               onToggleSelezioneClassifica={toggleSelezioneClassifica}
+              onViewReferendum={handleViewReferendum}
               isBlocked={data?.blocco?.isBlocked || false}
               isPending={saveVotiMutation.isPending}
             />
@@ -84,6 +99,12 @@ export default function VotaReferendumAbrogativo() {
           </div>
         )}
       </div>
+
+      {/* Dialog di visualizzazione referendum */}
+      <ReferendumViewDialog
+        referendum={viewReferendum}
+        onClose={handleCloseView}
+      />
     </div>
   );
 }

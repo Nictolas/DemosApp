@@ -10,6 +10,7 @@ import { UserPreferences } from "./components/UserPreferences";
 import { IniziativeRanking } from "./components/IniziativeRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { IniziativaViewDialog } from "./components/IniziativaViewDialog";
 
 export default function VotaIniziativaPopolare() {
   const authReady = useAuthReady();
@@ -28,6 +29,19 @@ export default function VotaIniziativaPopolare() {
     toggleSelezioneClassifica,
     votiCambiati
   } = useIniziativeVoting(data);
+
+  // Stato per il dialog di visualizzazione iniziativa
+  const [viewIniziativa, setViewIniziativa] = React.useState<any>(null);
+
+  // Funzione per gestire la visualizzazione dell'iniziativa
+  const handleViewIniziativa = (iniziativa: any) => {
+    setViewIniziativa(iniziativa);
+  };
+
+  // Funzione per chiudere il dialog
+  const handleCloseView = () => {
+    setViewIniziativa(null);
+  };
 
   // Loading states
   if (!authReady || isLoading) {
@@ -72,6 +86,7 @@ export default function VotaIniziativaPopolare() {
               iniziative={data?.iniziative || []}
               selectedVoti={selectedVoti}
               onToggleSelezioneClassifica={toggleSelezioneClassifica}
+              onViewIniziativa={handleViewIniziativa}
               isBlocked={data?.blocco?.isBlocked || false}
               isPending={saveVotiMutation.isPending}
             />
@@ -94,6 +109,12 @@ export default function VotaIniziativaPopolare() {
         onOpenChange={setShowConfirmDialog}
         onConfirm={() => saveVotiMutation.mutate(selectedVoti)}
         isPending={saveVotiMutation.isPending}
+      />
+
+      {/* Dialog di visualizzazione iniziativa */}
+      <IniziativaViewDialog
+        iniziativa={viewIniziativa}
+        onClose={handleCloseView}
       />
     </div>
   );
