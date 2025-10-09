@@ -8,6 +8,8 @@ import { Header } from "./components/Header";
 import { AmnistiaForm } from "./components/AmnistiaForm";
 import { ClassificaLeggi } from "./components/ClassificaLeggi";
 import { LoadingStates } from "./components/LoadingStates";
+import { CreateButton } from "./components/CreateButton";
+import { CarceratoForm } from "./components/CarceratoForm";
 import { getSuggestions } from "./utils/amnistiaUtils";
 
 export default function Amnistia() {
@@ -23,7 +25,10 @@ export default function Amnistia() {
     showClassifica, 
     selectSuggestion,
     handleAddVote,
-    handleRemoveVote
+    handleRemoveVote,
+    showForm,
+    hideForm,
+    handleCreateAmnistia
   } = useAmnistiaVoting(data);
 
   const suggestions = getSuggestions(data?.classifica || [], votingState.leggeInput, votingState.showSuggestions);
@@ -52,6 +57,18 @@ export default function Amnistia() {
         <Header />
 
         <div className="space-y-6">
+          <div className="flex justify-start items-center mb-4">
+            <CreateButton onClick={showForm} />
+          </div>
+          
+          {votingState.showForm && (
+            <CarceratoForm
+              onSubmit={handleCreateAmnistia}
+              onCancel={hideForm}
+              isLoading={false}
+            />
+          )}
+
           <AmnistiaForm
             leggeInput={votingState.leggeInput}
             showSuggestions={votingState.showSuggestions}

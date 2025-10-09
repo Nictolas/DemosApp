@@ -13,6 +13,8 @@ import { BlockedWarning } from "./components/BlockedWarning";
 import { GraziaForm } from "./components/GraziaForm";
 import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { CreateButton } from "./components/CreateButton";
+import { CarceratoForm } from "./components/CarceratoForm";
 
 export default function Grazia() {
   const authReady = useAuthReady();
@@ -27,7 +29,10 @@ export default function Grazia() {
     removeLocal, 
     toggleSelezioneClassifica, 
     showClassifica, 
-    saveVoti 
+    saveVoti,
+    showForm,
+    hideForm,
+    handleCreateCarcerato
   } = useGraziaVoting(data);
 
   // Gestione salvataggio voti
@@ -84,6 +89,18 @@ export default function Grazia() {
           </div>
         ) : (
           <div className="space-y-6">
+            <div className="flex justify-start items-center mb-4">
+              <CreateButton onClick={showForm} />
+            </div>
+            
+            {votingState.showForm && (
+              <CarceratoForm
+                onSubmit={handleCreateCarcerato}
+                onCancel={hideForm}
+                isLoading={false}
+              />
+            )}
+
             <GraziaForm
               nomeInput={votingState.nomeInput}
               selectedVoti={votingState.selectedVoti}
