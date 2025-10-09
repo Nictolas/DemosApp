@@ -224,4 +224,80 @@ router.post('/migrate', async (req, res) => {
   }
 });
 
+// POST /api/amnistia/migrate-ids - Migra voti_amnistia per usare ID di amnistia
+router.post('/migrate-ids', async (req, res) => {
+  try {
+    console.log('🔄 Migrando voti_amnistia per usare ID di amnistia...');
+    
+    // 1. Aggiungi colonna amnistia_id a voti_amnistia
+    await pool.query(`
+      ALTER TABLE voti_amnistia 
+      ADD COLUMN IF NOT EXISTS amnistia_id UUID
+    `);
+    console.log('✅ Colonna amnistia_id aggiunta');
+    
+    // 2. Popola la colonna amnistia_id con gli ID corretti
+    const votiData = await pool.query(`
+      SELECT DISTINCT legge FROM voti_amnistia WHERE amnistia_id IS NULL
+    `);
+    
+    console.log(`📊 Trovate ${votiData.rows.length} leggi da aggiornare`);
+    
+    let updated = 0;
+    let notFound = 0;
+    
+    for (const row of votiData.rows) {
+      // Trova l'ID corrispondente in amnistia
+      const amnistiaResult = await pool.query(
+        'SELECT id FROM amnistia WHERE legge = $1',
+        [row.legge]
+      );
+      
+      if (amnistiaResult.rows.length > 0) {
+        // Aggiorna voti_amnistia con l'ID corretto
+        const updateResult = await pool.query(
+          'UPDATE voti_amnistia SET amnistia_id = $1 WHERE legge = $2 AND amnistia_id IS NULL',
+          [amnistiaResult.rows[0].id, row.legge]
+        );
+        updated += updateResult.rowCount;
+        console.log(`✅ Aggiornati ${updateResult.rowCount} voti per: ${row.legge}`);
+      } else {
+        notFound++;
+        console.log(`⚠️ Legge non trovata in amnistia: ${row.legge}`);
+      }
+    }
+    
+    // 3. Verifica il risultato
+    const finalCheck = await pool.query(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(amnistia_id) as with_id,
+        COUNT(*) - COUNT(amnistia_id) as without_id
+      FROM voti_amnistia
+    `);
+    
+    const stats = finalCheck.rows[0];
+    
+    res.json({
+      success: true,
+      message: 'Migrazione ID completata con successo',
+      data: {
+        leggiProcessate: votiData.rows.length,
+        votiAggiornati: updated,
+        leggiNonTrovate: notFound,
+        totaleVoti: parseInt(stats.total),
+        conAmnistiaId: parseInt(stats.with_id),
+        senzaAmnistiaId: parseInt(stats.without_id)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore durante la migrazione ID:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore durante la migrazione ID'
+    });
+  }
+});
+
 module.exports = router;
