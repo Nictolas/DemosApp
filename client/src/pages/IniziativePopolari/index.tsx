@@ -10,6 +10,7 @@ import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeActions } from "./hooks/useIniziativeActions";
+import { IniziativeStatsChart } from "./components/IniziativeStatsChart";
 
 export default function IniziativePopolari() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -62,6 +63,8 @@ export default function IniziativePopolari() {
               isLoading={addMutation.isPending}
             />
           )}
+          
+          <IniziativeStatsChart listaIniziative={listaIniziative} />
           
           <IniziativeTable
             listaIniziative={listaIniziative}
