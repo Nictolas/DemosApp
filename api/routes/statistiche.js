@@ -16,7 +16,7 @@ router.get('/utenti', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         COUNT(*) as totale_utenti,
-        COUNT(CASE WHEN email_verificata = true THEN 1 END) as utenti_verificati,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as utenti_verificati,
         COUNT(CASE WHEN ruolo = 'admin' THEN 1 END) as admin
       FROM users
     `);
@@ -40,7 +40,7 @@ router.get('/opinioni', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         COUNT(*) as totale_opinioni,
-        COUNT(CASE WHEN approvata = true THEN 1 END) as opinioni_approvate
+        COUNT(*) as opinioni_approvate
       FROM opinioni
     `);
     
