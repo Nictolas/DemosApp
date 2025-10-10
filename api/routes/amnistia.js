@@ -11,16 +11,8 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/amnistia chiamato');
     
-    // Query semplificata per test
-    const simpleQuery = `
-      SELECT 
-        id,
-        legge,
-        articolo,
-        descrizione
-      FROM amnistia 
-      ORDER BY legge ASC
-    `;
+    // Query ancora più semplice
+    const simpleQuery = `SELECT * FROM amnistia LIMIT 5`;
     
     const result = await pool.query(simpleQuery);
     console.log(`✅ Recuperate ${result.rows.length} amnistie`);
@@ -29,8 +21,8 @@ router.get('/', async (req, res) => {
     const classificaResult = result.rows.map(amnistia => ({
       id: amnistia.id,
       legge: amnistia.legge,
-      articolo: amnistia.articolo,
-      descrizione: amnistia.descrizione,
+      articolo: amnistia.articolo || '',
+      descrizione: amnistia.descrizione || '',
       voti: 0
     }));
     
