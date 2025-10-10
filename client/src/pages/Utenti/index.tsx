@@ -373,11 +373,6 @@ export default function Utenti() {
     }
   };
 
-  // Funzione per preparare i dati per i grafici a torta
-  const preparePieData = (data: Record<string, number>) => {
-    return Object.entries(data).map(([name, value]) => ({ name, value }));
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-full px-4 py-4 md:px-6 md:py-6">
