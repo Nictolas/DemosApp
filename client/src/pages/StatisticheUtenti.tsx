@@ -47,25 +47,25 @@ export default function StatisticheUtenti() {
     }, {} as Record<string, number>);
     
     const usersByGender = utenti.reduce((acc, user) => {
-      const gender = user.genere || user.sesso || 'N/A';
+      const gender = user.genere || 'N/A';
       acc[gender] = (acc[gender] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
     const usersByCitizenship = utenti.reduce((acc, user) => {
-      const citizenship = user.paese || user.paese_residenza || 'N/A';
+      const citizenship = user.paese_residenza || user.paese_elezione || 'N/A';
       acc[citizenship] = (acc[citizenship] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
     const usersByRegion = utenti.reduce((acc, user) => {
-      const region = user.regione || user.regione_residenza || 'N/A';
+      const region = user.regione_residenza || user.regione_elezione || 'N/A';
       acc[region] = (acc[region] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
     const usersByCity = utenti.reduce((acc, user) => {
-      const city = user.comune || user.comune_residenza || 'N/A';
+      const city = user.comune_residenza || user.comune_candidatura || 'N/A';
       acc[city] = (acc[city] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
