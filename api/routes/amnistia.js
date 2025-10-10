@@ -413,4 +413,49 @@ router.get('/test', (req, res) => {
   });
 });
 
+// GET /api/amnistia/debug - Debug endpoint per verificare database
+router.get('/debug', async (req, res) => {
+  try {
+    console.log('🔍 Debug endpoint amnistia chiamato');
+    
+    // Test connessione database
+    const testQuery = await pool.query('SELECT NOW() as current_time');
+    console.log('✅ Database connesso:', testQuery.rows[0].current_time);
+    
+    // Test tabella amnistia
+    const amnistiaCount = await pool.query('SELECT COUNT(*) as count FROM amnistia');
+    console.log('✅ Righe in amnistia:', amnistiaCount.rows[0].count);
+    
+    // Test tabella voti_amnistia
+    const votiCount = await pool.query('SELECT COUNT(*) as count FROM voti_amnistia');
+    console.log('✅ Righe in voti_amnistia:', votiCount.rows[0].count);
+    
+    // Test colonna amnistia_id
+    let amnistiaIdExists = false;
+    try {
+      const amnistiaIdTest = await pool.query('SELECT amnistia_id FROM voti_amnistia LIMIT 1');
+      amnistiaIdExists = true;
+      console.log('✅ Colonna amnistia_id esiste');
+    } catch (error) {
+      console.log('⚠️ Colonna amnistia_id non esiste:', error.message);
+    }
+    
+    res.json({
+      success: true,
+      database_connected: true,
+      amnistia_count: amnistiaCount.rows[0].count,
+      voti_count: votiCount.rows[0].count,
+      amnistia_id_exists: amnistiaIdExists,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Errore nel debug:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;
