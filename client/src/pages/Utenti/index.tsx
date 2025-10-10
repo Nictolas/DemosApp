@@ -600,7 +600,7 @@ export default function Utenti() {
             
             {stats && (
               <div className="space-y-8">
-                <Card>
+                <Card className="bg-white">
                   <CardHeader>
                     <CardTitle>Utenti Totali</CardTitle>
                   </CardHeader>
@@ -610,7 +610,7 @@ export default function Utenti() {
                 </Card>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card>
+                  <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Ruolo</CardTitle>
                     </CardHeader>
@@ -638,7 +638,7 @@ export default function Utenti() {
                     </CardContent>
                   </Card>
                   
-                  <Card>
+                  <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Genere</CardTitle>
                     </CardHeader>
@@ -666,7 +666,7 @@ export default function Utenti() {
                     </CardContent>
                   </Card>
                   
-                  <Card>
+                  <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Cittadinanza</CardTitle>
                     </CardHeader>
@@ -694,7 +694,7 @@ export default function Utenti() {
                     </CardContent>
                   </Card>
                   
-                  <Card>
+                  <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Regione</CardTitle>
                     </CardHeader>
@@ -723,7 +723,7 @@ export default function Utenti() {
                   </Card>
                 </div>
                 
-                <Card>
+                <Card className="bg-white">
                   <CardHeader>
                     <CardTitle>Le 10 città con più utenti</CardTitle>
                   </CardHeader>
