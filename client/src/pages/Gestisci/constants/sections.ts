@@ -14,12 +14,12 @@ export interface GestisciSection {
 export const gestisciSections: GestisciSection[] = [
   {
     id: "utenti",
-    title: "Gestisci Utenti",
-    description: "Amministra gli utenti registrati e le loro informazioni",
+    title: "Utenti",
+    description: "Gestisci utenti e visualizza statistiche",
     icon: Users,
     color: "text-purple-600 group-hover:text-purple-800",
     buttonColor: "bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700",
-    route: "/gestisci-utenti",
+    route: "/utenti",
     buttonText: "Gestisci Utenti"
   },
   {
@@ -33,16 +33,6 @@ export const gestisciSections: GestisciSection[] = [
     buttonText: "Gestisci Opinioni"
   },
   {
-    id: "sondaggi",
-    title: "Sondaggi",
-    description: "Gestisci e visualizza i sondaggi della piattaforma",
-    icon: BarChart3,
-    color: "text-violet-600 group-hover:text-violet-800",
-    buttonColor: "bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700",
-    route: "/sondaggi",
-    buttonText: "Gestisci Sondaggi"
-  },
-  {
     id: "governo",
     title: "Gestisci Governo",
     description: "Gestisci i dati e le funzionalità relative al Governo ideale",
@@ -51,16 +41,6 @@ export const gestisciSections: GestisciSection[] = [
     buttonColor: "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700",
     route: "/gestisci-governo",
     buttonText: "Gestisci Governo"
-  },
-  {
-    id: "statistiche-utenti",
-    title: "Statistiche Utenti",
-    description: "Visualizza dati demografici e statistiche degli utenti registrati",
-    icon: Users,
-    color: "text-sky-600 group-hover:text-sky-800",
-    buttonColor: "bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700",
-    route: "/statistiche-utenti",
-    buttonText: "Visualizza Statistiche Utenti"
   },
   // Sezioni consolidate
   {

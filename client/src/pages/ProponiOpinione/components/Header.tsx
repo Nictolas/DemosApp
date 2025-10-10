@@ -24,7 +24,8 @@ export const Header: React.FC = () => {
             Proponi Opinione
           </CardTitle>
           <CardDescription className="text-lg">
-            Proponi nuove opinioni per Demos. L'admin valuterà le proposte più votate.
+            Proponi nuove opinioni per Demos.<br />
+            Gli admin valuteranno le proposte più votate.
           </CardDescription>
         </CardHeader>
       </Card>
