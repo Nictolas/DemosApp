@@ -11,26 +11,83 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/amnistia chiamato');
     
-    // Query semplificata per test
-    const simpleQuery = `
+    // Query per ottenere amnistie dalla tabella amnistia
+    const amnistieQuery = `
       SELECT 
-        a.id,
-        a.legge,
-        a.articolo,
-        a.descrizione,
-        0 as voti
-      FROM amnistia a
-      ORDER BY a.legge ASC
+        id,
+        legge,
+        articolo,
+        descrizione,
+        data_creazione
+      FROM amnistia 
+      ORDER BY legge ASC
     `;
     
-    const result = await pool.query(simpleQuery);
-    console.log(`✅ Recuperate ${result.rows.length} amnistie`);
+    const amnistieResult = await pool.query(amnistieQuery);
+    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
+    
+    // Query per contare i voti dalla tabella voti_amnistia (senza JOIN)
+    let classificaResult = [];
+    try {
+      const votiQuery = `
+        SELECT legge, COUNT(*) as voti
+        FROM voti_amnistia 
+        GROUP BY legge 
+        ORDER BY voti DESC
+      `;
+      const votiResult = await pool.query(votiQuery);
+      console.log(`✅ Recuperati ${votiResult.rows.length} voti`);
+      
+      // Combina amnistie con voti
+      classificaResult = amnistieResult.rows.map(amnistia => {
+        const voto = votiResult.rows.find(v => v.legge === amnistia.legge);
+        return {
+          id: amnistia.id,
+          legge: amnistia.legge,
+          articolo: amnistia.articolo,
+          descrizione: amnistia.descrizione,
+          voti: voto ? parseInt(voto.voti) : 0
+        };
+      }).sort((a, b) => b.voti - a.voti);
+    } catch (votiError) {
+      console.log('⚠️ Errore nel recuperare voti, uso solo amnistie:', votiError.message);
+      classificaResult = amnistieResult.rows.map(amnistia => ({
+        id: amnistia.id,
+        legge: amnistia.legge,
+        articolo: amnistia.articolo,
+        descrizione: amnistia.descrizione,
+        voti: 0
+      }));
+    }
+    
+    // Recupera voti utente se autenticato
+    let mieiVoti = [];
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decoded.userId;
+        
+        const userVotiQuery = `
+          SELECT legge 
+          FROM voti_amnistia 
+          WHERE userid = $1
+        `;
+        const userVotiResult = await pool.query(userVotiQuery, [userId]);
+        mieiVoti = userVotiResult.rows.map(v => v.legge);
+        console.log(`✅ Recuperati ${mieiVoti.length} voti utente`);
+      } catch (authError) {
+        console.log('⚠️ Errore autenticazione:', authError.message);
+      }
+    }
+    
+    console.log(`✅ Risposta: ${amnistieResult.rows.length} amnistie, ${classificaResult.length} classifica, ${mieiVoti.length} voti utente`);
     
     res.json({
       success: true,
-      amnistie: result.rows,
-      classifica: result.rows,
-      mieiVoti: [],
+      amnistie: amnistieResult.rows,
+      classifica: classificaResult,
+      mieiVoti: mieiVoti,
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
