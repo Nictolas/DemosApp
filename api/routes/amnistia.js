@@ -326,16 +326,27 @@ router.post('/migrate-ids', async (req, res) => {
   try {
     console.log('🔄 Migrando voti_amnistia per usare ID di amnistia...');
     
-    // 1. Aggiungi colonna amnistia_id a voti_amnistia
+    // 1. Rimuovi colonna amnistia_id se esiste (per ricrearla con il tipo corretto)
+    try {
+      await pool.query(`
+        ALTER TABLE voti_amnistia 
+        DROP COLUMN IF EXISTS amnistia_id
+      `);
+      console.log('✅ Colonna amnistia_id rimossa (se esisteva)');
+    } catch (dropError) {
+      console.log('⚠️ Errore nel rimuovere colonna (probabilmente non esiste):', dropError.message);
+    }
+    
+    // 2. Aggiungi colonna amnistia_id come INTEGER (per corrispondere a amnistia.id)
     await pool.query(`
       ALTER TABLE voti_amnistia 
-      ADD COLUMN IF NOT EXISTS amnistia_id UUID
+      ADD COLUMN amnistia_id INTEGER
     `);
-    console.log('✅ Colonna amnistia_id aggiunta');
+    console.log('✅ Colonna amnistia_id aggiunta come INTEGER');
     
-    // 2. Popola la colonna amnistia_id con gli ID corretti
+    // 3. Popola la colonna amnistia_id con gli ID corretti
     const votiData = await pool.query(`
-      SELECT DISTINCT legge FROM voti_amnistia WHERE amnistia_id IS NULL
+      SELECT DISTINCT legge FROM voti_amnistia
     `);
     
     console.log(`📊 Trovate ${votiData.rows.length} leggi da aggiornare`);
@@ -353,7 +364,7 @@ router.post('/migrate-ids', async (req, res) => {
       if (amnistiaResult.rows.length > 0) {
         // Aggiorna voti_amnistia con l'ID corretto
         const updateResult = await pool.query(
-          'UPDATE voti_amnistia SET amnistia_id = $1 WHERE legge = $2 AND amnistia_id IS NULL',
+          'UPDATE voti_amnistia SET amnistia_id = $1 WHERE legge = $2',
           [amnistiaResult.rows[0].id, row.legge]
         );
         updated += updateResult.rowCount;
