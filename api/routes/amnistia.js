@@ -9,15 +9,37 @@ const router = express.Router();
 // GET /api/amnistia - Ottieni leggi per amnistia
 router.get('/', async (req, res) => {
   try {
+    console.log('🔍 GET /api/amnistia chiamato');
+    
+    // Prima verifica se la tabella amnistia esiste
+    const tableCheck = await pool.query(`
+      SELECT COUNT(*) as count FROM information_schema.tables 
+      WHERE table_name = 'amnistia'
+    `);
+    
+    if (tableCheck.rows[0].count === 0) {
+      console.log('⚠️ Tabella amnistia non esiste, restituisco array vuoto');
+      return res.json({
+        success: true,
+        amnistie: [],
+        classifica: [],
+        mieiVoti: [],
+        blocco: { isBlocked: false, unlockDate: null }
+      });
+    }
+    
     // 1. Ottieni tutte le amnistie dalla tabella amnistia
+    console.log('📊 Recuperando amnistie...');
     const amnistieQuery = `
       SELECT id, legge, articolo, descrizione, data_creazione
       FROM amnistia 
       ORDER BY data_creazione DESC
     `;
     const amnistieResult = await pool.query(amnistieQuery);
+    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
     
     // 2. Genera classifica basata sui voti usando la relazione amnistia_id
+    console.log('📊 Generando classifica...');
     const classificaQuery = `
       SELECT 
         a.id,
@@ -31,6 +53,7 @@ router.get('/', async (req, res) => {
       ORDER BY voti DESC, a.legge ASC
     `;
     const classificaResult = await pool.query(classificaQuery);
+    console.log(`✅ Classifica generata con ${classificaResult.rows.length} voci`);
     
     // 3. Se l'utente è autenticato, ottieni i suoi voti usando amnistia_id
     let mieiVoti = [];
@@ -48,13 +71,14 @@ router.get('/', async (req, res) => {
         `;
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
         mieiVoti = userVotiResult.rows.map(v => v.legge);
+        console.log(`✅ Recuperati ${mieiVoti.length} voti utente`);
       } catch (authError) {
         // Se il token non è valido, continua senza autenticazione
         console.log('⚠️ Token non valido per amnistia, continuando senza autenticazione');
       }
     }
     
-    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie e ${classificaResult.rows.length} voci in classifica`);
+    console.log(`✅ Risposta completa: ${amnistieResult.rows.length} amnistie, ${classificaResult.rows.length} classifica, ${mieiVoti.length} voti utente`);
     
     res.json({
       success: true,
@@ -65,9 +89,11 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare leggi amnistia:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare leggi amnistia'
+      error: 'Errore nel recuperare leggi amnistia',
+      details: error.message
     });
   }
 });
@@ -342,6 +368,16 @@ router.post('/migrate-ids', async (req, res) => {
       error: 'Errore durante la migrazione ID'
     });
   }
+});
+
+// GET /api/amnistia/test - Test endpoint per debug
+router.get('/test', (req, res) => {
+  console.log('🔍 Test endpoint amnistia chiamato');
+  res.json({
+    success: true,
+    message: 'Test endpoint funziona',
+    timestamp: new Date().toISOString()
+  });
 });
 
 module.exports = router;
