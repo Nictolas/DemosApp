@@ -39,18 +39,20 @@ export const SectionCard: React.FC<SectionCardProps> = ({ section }) => {
   // Estrai i colori dal gradient per creare il colore di sfondo
   const getBackgroundColor = (buttonColor: string) => {
     if (buttonColor.includes('purple')) return '#8b5cf6';
-    if (buttonColor.includes('blue')) return '#3b82f6';
+    if (buttonColor.includes('cyan')) return '#06b6d4';
     if (buttonColor.includes('amber')) return '#f59e0b';
-    if (buttonColor.includes('green')) return '#10b981';
+    if (buttonColor.includes('red')) return '#ef4444';
+    if (buttonColor.includes('emerald')) return '#10b981';
     if (buttonColor.includes('indigo')) return '#6366f1';
     return '#6b7280';
   };
 
   const getIconColor = (buttonColor: string) => {
     if (buttonColor.includes('purple')) return '#8b5cf6';
-    if (buttonColor.includes('blue')) return '#3b82f6';
+    if (buttonColor.includes('cyan')) return '#06b6d4';
     if (buttonColor.includes('amber')) return '#f59e0b';
-    if (buttonColor.includes('green')) return '#10b981';
+    if (buttonColor.includes('red')) return '#ef4444';
+    if (buttonColor.includes('emerald')) return '#10b981';
     if (buttonColor.includes('indigo')) return '#6366f1';
     return '#6b7280';
   };

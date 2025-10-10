@@ -35,11 +35,25 @@ type StatisticheUtenti = {
   usersByCitizenship: Record<string, number>;
   usersByRegion: Record<string, number>;
   usersByCity: Record<string, number>;
+  usersByAge: Record<string, number>;
 };
 
 // Colori per i grafici - più colori per evitare duplicati
-// Colori specifici per genere: uomo=azzurro, donna=rosa
 const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F4A460', '#87CEFA', '#D8BFD8', '#F5DEB3'];
+
+// Funzione per assegnare colori specifici per genere
+const getGenderColor = (gender: string, index: number) => {
+  switch (gender.toLowerCase()) {
+    case 'donna':
+    case 'femmina':
+      return '#FFB6C1'; // Rosa
+    case 'uomo':
+    case 'maschio':
+      return '#87CEEB'; // Azzurro
+    default:
+      return COLORS[index % COLORS.length];
+  }
+};
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -130,13 +144,43 @@ export default function Utenti() {
       return acc;
     }, {} as Record<string, number>);
     
+    // Calcola distribuzione per età
+    const usersByAge = utenti.reduce((acc, user) => {
+      if (user.data_nascita) {
+        const birthDate = new Date(user.data_nascita);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        // Aggiusta l'età se il compleanno non è ancora arrivato quest'anno
+        const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) 
+          ? age - 1 
+          : age;
+        
+        let ageGroup = 'N/A';
+        if (actualAge < 18) ageGroup = 'Under 18';
+        else if (actualAge >= 18 && actualAge <= 25) ageGroup = '18-25';
+        else if (actualAge >= 26 && actualAge <= 35) ageGroup = '26-35';
+        else if (actualAge >= 36 && actualAge <= 45) ageGroup = '36-45';
+        else if (actualAge >= 46 && actualAge <= 55) ageGroup = '46-55';
+        else if (actualAge >= 56 && actualAge <= 65) ageGroup = '56-65';
+        else if (actualAge > 65) ageGroup = '65+';
+        
+        acc[ageGroup] = (acc[ageGroup] || 0) + 1;
+      } else {
+        acc['N/A'] = (acc['N/A'] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+    
     return {
       totalUsers: utenti.length,
       usersByRole,
       usersByGender,
       usersByCitizenship,
       usersByRegion,
-      usersByCity
+      usersByCity,
+      usersByAge
     };
   }, [responseData?.utenti]);
   
@@ -380,11 +424,7 @@ export default function Utenti() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 page-with-navbar" style={{ paddingBottom: '6rem' }}>
       <div className="container mx-auto max-w-full px-4 py-4 md:px-6 md:py-6">
         {/* Header */}
-        <Header 
-          lastUpdateTime={lastUpdateTime}
-          onRefresh={handleRefresh}
-          isLoading={isLoadingUsers}
-        />
+        <Header />
 
         {/* Tabs per Gestisci e Statistiche */}
         <Tabs defaultValue="gestisci" className="w-full">
@@ -612,7 +652,7 @@ export default function Utenti() {
                   </CardContent>
                 </Card>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <Card className="bg-white">
                     <CardHeader>
                       <CardTitle>Distribuzione per Ruolo</CardTitle>
@@ -659,6 +699,34 @@ export default function Utenti() {
                             label
                           >
                             {preparePieData(stats.usersByGender).map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={getGenderColor(entry.name, index)} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle>Distribuzione per Età</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie 
+                            data={preparePieData(stats.usersByAge)} 
+                            dataKey="value" 
+                            nameKey="name" 
+                            cx="50%" 
+                            cy="50%" 
+                            outerRadius={80} 
+                            fill="#8884d8" 
+                            label
+                          >
+                            {preparePieData(stats.usersByAge).map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
@@ -726,34 +794,67 @@ export default function Utenti() {
                   </Card>
                 </div>
                 
-                <Card className="bg-white">
-                  <CardHeader>
-                    <CardTitle>Le 10 città con più utenti</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr>
-                            <th className="p-2 text-left">Città</th>
-                            <th className="p-2 text-left">Numero Utenti</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stats.usersByCity && Object.entries(stats.usersByCity)
-                            .sort(([,a], [,b]) => b - a)
-                            .slice(0, 10)
-                            .map(([city, count]) => (
-                              <tr key={city}>
-                                <td className="p-2 font-medium">{city}</td>
-                                <td className="p-2">{count}</td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle>Distribuzione per Età (Dettaglio)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr>
+                              <th className="p-2 text-left">Fascia d'Età</th>
+                              <th className="p-2 text-left">Numero Utenti</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {stats.usersByAge && Object.entries(stats.usersByAge)
+                              .sort(([a], [b]) => {
+                                const order = ['Under 18', '18-25', '26-35', '36-45', '46-55', '56-65', '65+', 'N/A'];
+                                return order.indexOf(a) - order.indexOf(b);
+                              })
+                              .map(([ageGroup, count]) => (
+                                <tr key={ageGroup}>
+                                  <td className="p-2 font-medium">{ageGroup}</td>
+                                  <td className="p-2">{count}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-white">
+                    <CardHeader>
+                      <CardTitle>Le 10 città con più utenti</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr>
+                              <th className="p-2 text-left">Città</th>
+                              <th className="p-2 text-left">Numero Utenti</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {stats.usersByCity && Object.entries(stats.usersByCity)
+                              .sort(([,a], [,b]) => b - a)
+                              .slice(0, 10)
+                              .map(([city, count]) => (
+                                <tr key={city}>
+                                  <td className="p-2 font-medium">{city}</td>
+                                  <td className="p-2">{count}</td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             )}
           </TabsContent>
