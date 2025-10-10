@@ -9,78 +9,96 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// GET /api/opinioni-proposte - Ottieni tutte le opinioni proposte
+// Funzione per creare la tabella voti se non esiste
+async function ensureVotiTableExists() {
+  try {
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS voti_opinioni_proposte (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        opinione_id VARCHAR(255) NOT NULL,
+        data_voto TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, opinione_id)
+      );
+    `;
+    
+    await pool.query(createTableQuery);
+    
+    // Crea indici per performance
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_voti_opinioni_user_id 
+      ON voti_opinioni_proposte(user_id);
+    `);
+    
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_voti_opinioni_opinione_id 
+      ON voti_opinioni_proposte(opinione_id);
+    `);
+    
+    console.log('✅ Tabella voti_opinioni_proposte verificata/creata');
+  } catch (error) {
+    console.error('❌ Errore nella creazione tabella voti:', error);
+  }
+}
+
+// Inizializza la tabella all'avvio
+ensureVotiTableExists();
+
+// GET /api/opinioni-proposte - Ottieni opinioni da approvare dalla tabella opinioni
 router.get('/', async (req, res) => {
   try {
-    console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni proposte');
+    console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
     
-    // Dati mock per test (dalla tabella Neon che hai mostrato)
-    const mockData = [
-      {
-        id: '5LXAHC94Uu9C9jmAlksR',
-        testo: 'Allevamenti Intensivi',
-        utente_id: null,
-        titolo: null,
-        descrizione: null,
-        categoria: null,
-        fonte: 'unknown',
-        data_creazione: '2025-07-08T10:30:00Z',
-        data_aggiornamento: '2025-07-08T10:30:00Z',
-        nome: null,
-        cognome: null,
-        email: null,
-        voti: 0
-      },
-      {
-        id: '80vikZzToLOLMEmfTFSB',
-        testo: 'Sanzioni per Israele',
-        utente_id: null,
-        titolo: null,
-        descrizione: null,
-        categoria: null,
-        fonte: 'unknown',
-        data_creazione: '2025-07-08T11:15:00Z',
-        data_aggiornamento: '2025-07-08T11:15:00Z',
-        nome: null,
-        cognome: null,
-        email: null,
-        voti: 0
-      },
-      {
-        id: 'qRGx0laCQAgLmHOV5gT3',
-        testo: 'Finanziamenti ai Giornali',
-        utente_id: null,
-        titolo: null,
-        descrizione: null,
-        categoria: null,
-        fonte: 'unknown',
-        data_creazione: '2025-07-08T12:00:00Z',
-        data_aggiornamento: '2025-07-08T12:00:00Z',
-        nome: null,
-        cognome: null,
-        email: null,
-        voti: 0
-      }
-    ];
+    // Query per ottenere opinioni con gradi_opinione contenente "da approvare"
+    const query = `
+      SELECT o.id, o.text as testo, o.gradi_opinione, o.approfondimento,
+             COALESCE(voti_count.count, 0) as voti
+      FROM opinioni o
+      LEFT JOIN (
+        SELECT opinione_id, COUNT(*) as count
+        FROM voti_opinioni_proposte
+        GROUP BY opinione_id
+      ) voti_count ON o.id = voti_count.opinione_id
+      WHERE 'da approvare' = ANY(o.gradi_opinione)
+      ORDER BY o.text
+    `;
     
-    console.log(`✅ Trovate ${mockData.length} opinioni proposte (dati mock)`);
+    const result = await pool.query(query);
+    console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
+    
+    // Mappa i dati per compatibilità con il frontend
+    const mappedData = result.rows.map(row => ({
+      id: row.id,
+      testo: row.testo,
+      utente_id: null,
+      titolo: null,
+      descrizione: null,
+      categoria: null,
+      fonte: 'proposta',
+      data_creazione: new Date().toISOString(),
+      data_aggiornamento: new Date().toISOString(),
+      nome: null,
+      cognome: null,
+      email: null,
+      voti: parseInt(row.voti) || 0
+    }));
     
     res.json({
       success: true,
-      data: mockData
+      data: mappedData
     });
     
   } catch (error) {
-    console.error('❌ Errore nel caricare opinioni proposte:', error);
+    console.error('❌ Errore nel recuperare opinioni da approvare:', error);
     res.status(500).json({
       success: false,
-      error: 'Errore nel caricare opinioni proposte',
+      error: 'Errore nel recuperare opinioni da approvare',
       message: error.message
     });
   }
 });
 
-// POST /api/opinioni-proposte - Crea una nuova opinione proposta
+// POST /api/opinioni-proposte - Crea una nuova opinione proposta nella tabella opinioni
 router.post('/', async (req, res) => {
   try {
     const { testo, titolo, descrizione, categoria } = req.body;
@@ -100,26 +118,23 @@ router.post('/', async (req, res) => {
     // Genera ID univoco
     const id = require('crypto').randomUUID();
     
+    // Inserisce nella tabella opinioni con gradi_opinione contenente "da approvare"
     const insertQuery = `
-      INSERT INTO opinioni_proposte (
-        id, utente_id, testo, titolo, descrizione, categoria, fonte, data_creazione, data_aggiornamento
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO opinioni (id, text, gradi_opinione, approfondimento)
+      VALUES ($1, $2, $3, $4)
     `;
     
-    const now = new Date();
+    const gradiOpinione = ['da approvare'];
+    const approfondimento = `## Proposta da approvare\n\n${testo.trim()}`;
+    
     await pool.query(insertQuery, [
       id,
-      userId,
       testo.trim(),
-      titolo || null,
-      descrizione || null,
-      categoria || null,
-      'user_proposal',
-      now,
-      now
+      gradiOpinione,
+      approfondimento
     ]);
     
-    console.log('✅ Opinione proposta creata con successo:', id);
+    console.log('✅ Opinione proposta creata con successo nella tabella opinioni:', id);
     
     res.json({
       success: true,
@@ -147,18 +162,31 @@ router.post('/:id/vota', async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    // Verifica se l'opinione esiste (dati mock)
-    const validIds = ['5LXAHC94Uu9C9jmAlksR', '80vikZzToLOLMEmfTFSB', 'qRGx0laCQAgLmHOV5gT3'];
+    // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
+    const checkQuery = `
+      SELECT id FROM opinioni 
+      WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
+    `;
     
-    if (!validIds.includes(id)) {
+    const checkResult = await pool.query(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Opinione non trovata'
+        error: 'Opinione non trovata o non in stato da approvare'
       });
     }
     
-    // Simula controllo voto esistente (per ora sempre permetti)
-    console.log('✅ Voto simulato registrato con successo per opinione:', id);
+    // Inserisci il voto nella tabella voti_opinioni_proposte
+    const insertVotoQuery = `
+      INSERT INTO voti_opinioni_proposte (user_id, opinione_id)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id, opinione_id) DO NOTHING
+    `;
+    
+    await pool.query(insertVotoQuery, [userId, id]);
+    
+    console.log('✅ Voto registrato con successo per opinione:', id);
     
     res.json({
       success: true,
@@ -185,18 +213,37 @@ router.delete('/:id/vota', async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
-    // Verifica se l'opinione esiste (dati mock)
-    const validIds = ['5LXAHC94Uu9C9jmAlksR', '80vikZzToLOLMEmfTFSB', 'qRGx0laCQAgLmHOV5gT3'];
+    // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
+    const checkQuery = `
+      SELECT id FROM opinioni 
+      WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
+    `;
     
-    if (!validIds.includes(id)) {
+    const checkResult = await pool.query(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Opinione non trovata'
+        error: 'Opinione non trovata o non in stato da approvare'
       });
     }
     
-    // Simula rimozione voto
-    console.log('✅ Voto simulato rimosso con successo per opinione:', id);
+    // Rimuovi il voto dalla tabella voti_opinioni_proposte
+    const deleteVotoQuery = `
+      DELETE FROM voti_opinioni_proposte 
+      WHERE user_id = $1 AND opinione_id = $2
+    `;
+    
+    const result = await pool.query(deleteVotoQuery, [userId, id]);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Voto non trovato'
+      });
+    }
+    
+    console.log('✅ Voto rimosso con successo per opinione:', id);
     
     res.json({
       success: true,
