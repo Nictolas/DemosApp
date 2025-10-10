@@ -42,6 +42,8 @@ export default function StatisticheUtenti() {
     // Calcola distribuzioni
     const usersByRole = utenti.reduce((acc, user) => {
       const role = user.ruolo || 'N/A';
+      // Filtra il ruolo "Utente" che non esiste
+      if (role === 'Utente') return acc;
       acc[role] = (acc[role] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
