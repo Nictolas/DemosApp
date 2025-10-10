@@ -26,9 +26,27 @@ router.get('/', async (req, res) => {
     const amnistieResult = await pool.query(amnistieQuery);
     console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
     
-    // Query per contare i voti dalla tabella voti_amnistia (senza JOIN)
+    // Query per contare i voti usando JOIN con amnistia_id
     let classificaResult = [];
     try {
+      const classificaQuery = `
+        SELECT 
+          a.id,
+          a.legge,
+          a.articolo,
+          a.descrizione,
+          COUNT(va.amnistia_id) as voti
+        FROM amnistia a
+        LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id
+        GROUP BY a.id, a.legge, a.articolo, a.descrizione
+        ORDER BY voti DESC, a.legge ASC
+      `;
+      const classificaQueryResult = await pool.query(classificaQuery);
+      classificaResult = classificaQueryResult.rows;
+      console.log(`✅ Classifica generata con JOIN: ${classificaResult.length} voci`);
+    } catch (joinError) {
+      console.log('⚠️ JOIN fallito, provo con query separata:', joinError.message);
+      // Fallback: query separata se JOIN fallisce
       const votiQuery = `
         SELECT legge, COUNT(*) as voti
         FROM voti_amnistia 
@@ -49,15 +67,6 @@ router.get('/', async (req, res) => {
           voti: voto ? parseInt(voto.voti) : 0
         };
       }).sort((a, b) => b.voti - a.voti);
-    } catch (votiError) {
-      console.log('⚠️ Errore nel recuperare voti, uso solo amnistie:', votiError.message);
-      classificaResult = amnistieResult.rows.map(amnistia => ({
-        id: amnistia.id,
-        legge: amnistia.legge,
-        articolo: amnistia.articolo,
-        descrizione: amnistia.descrizione,
-        voti: 0
-      }));
     }
     
     // Recupera voti utente se autenticato
@@ -68,14 +77,29 @@ router.get('/', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.userId;
         
-        const userVotiQuery = `
-          SELECT legge 
-          FROM voti_amnistia 
-          WHERE userid = $1
-        `;
-        const userVotiResult = await pool.query(userVotiQuery, [userId]);
-        mieiVoti = userVotiResult.rows.map(v => v.legge);
-        console.log(`✅ Recuperati ${mieiVoti.length} voti utente`);
+        try {
+          // Prima prova con JOIN
+          const userVotiQuery = `
+            SELECT a.legge 
+            FROM voti_amnistia va
+            JOIN amnistia a ON va.amnistia_id = a.id
+            WHERE va.userid = $1
+          `;
+          const userVotiResult = await pool.query(userVotiQuery, [userId]);
+          mieiVoti = userVotiResult.rows.map(v => v.legge);
+          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con JOIN`);
+        } catch (joinError) {
+          console.log('⚠️ JOIN voti utente fallito, provo con fallback:', joinError.message);
+          // Fallback: query senza JOIN
+          const fallbackVotiQuery = `
+            SELECT legge 
+            FROM voti_amnistia 
+            WHERE userid = $1
+          `;
+          const userVotiResult = await pool.query(fallbackVotiQuery, [userId]);
+          mieiVoti = userVotiResult.rows.map(v => v.legge);
+          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con fallback`);
+        }
       } catch (authError) {
         console.log('⚠️ Errore autenticazione:', authError.message);
       }
