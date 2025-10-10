@@ -373,6 +373,15 @@ router.get('/debug', async (req, res) => {
       console.log('⚠️ Colonna amnistia_id non esiste:', error.message);
     }
     
+    // Test primary key di voti_amnistia
+    const primaryKeyCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.key_column_usage 
+      WHERE table_name = 'voti_amnistia' 
+      AND constraint_name LIKE '%_pkey'
+    `);
+    console.log('🔑 Primary key voti_amnistia:', primaryKeyCheck.rows);
+    
     res.json({
       success: true,
       database_connected: true,
@@ -380,6 +389,8 @@ router.get('/debug', async (req, res) => {
       amnistia_columns: amnistiaStructure.rows,
       voti_count: votiCount.rows[0].count,
       amnistia_id_exists: amnistiaIdExists,
+      primary_key_exists: primaryKeyCheck.rows.length > 0,
+      primary_key_columns: primaryKeyCheck.rows,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -388,6 +399,58 @@ router.get('/debug', async (req, res) => {
       success: false,
       error: error.message,
       timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/amnistia/fix-primary-key - Aggiungi primary key a voti_amnistia
+router.post('/fix-primary-key', async (req, res) => {
+  try {
+    console.log('🔧 Aggiungendo primary key a voti_amnistia...');
+    
+    // 1. Verifica se esiste già una primary key
+    const existingPK = await pool.query(`
+      SELECT constraint_name 
+      FROM information_schema.table_constraints 
+      WHERE table_name = 'voti_amnistia' 
+      AND constraint_type = 'PRIMARY KEY'
+    `);
+    
+    if (existingPK.rows.length > 0) {
+      console.log('✅ Primary key già esistente:', existingPK.rows[0].constraint_name);
+      return res.json({
+        success: true,
+        message: 'Primary key già esistente',
+        constraint_name: existingPK.rows[0].constraint_name
+      });
+    }
+    
+    // 2. Aggiungi primary key alla colonna id
+    await pool.query(`
+      ALTER TABLE voti_amnistia 
+      ADD CONSTRAINT voti_amnistia_pkey PRIMARY KEY (id)
+    `);
+    console.log('✅ Primary key aggiunta alla colonna id');
+    
+    // 3. Verifica il risultato
+    const verifyPK = await pool.query(`
+      SELECT constraint_name, column_name 
+      FROM information_schema.key_column_usage 
+      WHERE table_name = 'voti_amnistia' 
+      AND constraint_name LIKE '%_pkey'
+    `);
+    
+    res.json({
+      success: true,
+      message: 'Primary key aggiunta con successo',
+      primary_key: verifyPK.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'aggiungere primary key:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nell\'aggiungere primary key',
+      details: error.message
     });
   }
 });
