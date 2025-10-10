@@ -69,7 +69,7 @@ export const gestisciSections: GestisciSection[] = [
       description: "Gestisci backup automatici e manuali del database per continuità operativa",
       icon: HardDrive,
       color: "text-indigo-600 group-hover:text-indigo-800",
-      buttonColor: "bg-gray-700 hover:bg-gray-800",
+      buttonColor: "bg-yellow-600 hover:bg-yellow-700",
       route: "/backup-dashboard",
       buttonText: "Gestisci Backup"
     },
