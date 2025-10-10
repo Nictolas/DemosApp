@@ -90,16 +90,23 @@ export default function Utenti() {
   // Hook per rilevare se siamo su mobile
   const [isMobile, setIsMobile] = useState(false);
 
-  // Query per le statistiche
-  const { data: stats, isLoading: isLoadingStats, isError: isErrorStats } = useQuery<StatisticheUtenti>({
-    queryKey: ['statisticheUtenti'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/statistiche/utenti");
-      if (!response.ok) throw new Error("Errore nel caricamento delle statistiche");
-      return response.json();
-    },
-    enabled: !!user && user.ruolo === "Admin",
-  });
+  // Calcola le statistiche direttamente dai dati degli utenti già caricati
+  const stats = useMemo(() => {
+    if (!responseData?.utenti) return null;
+    
+    const utenti = responseData.utenti;
+    return {
+      success: true,
+      data: {
+        totale_utenti: utenti.length.toString(),
+        utenti_verificati: utenti.filter(u => u.status === 'approved').length.toString(),
+        admin: utenti.filter(u => u.ruolo === 'admin').length.toString()
+      }
+    };
+  }, [responseData?.utenti]);
+  
+  const isLoadingStats = isLoadingUsers;
+  const isErrorStats = isError;
   
   useEffect(() => {
     const checkMobile = () => {
@@ -140,7 +147,6 @@ export default function Utenti() {
       if (!document.hidden && user?.ruolo === 'Admin') {
         console.log('🔄 Pagina diventata visibile, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-        queryClient.invalidateQueries({ queryKey: ['statisticheUtenti'] });
         updateLastUpdateTime();
       }
     };
@@ -149,7 +155,6 @@ export default function Utenti() {
       if (user?.ruolo === 'Admin') {
         console.log('🔄 Finestra riprende focus, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
-        queryClient.invalidateQueries({ queryKey: ['statisticheUtenti'] });
         updateLastUpdateTime();
       }
     };
