@@ -37,8 +37,8 @@ type StatisticheUtenti = {
   usersByCity: Record<string, number>;
 };
 
-// Colori per i grafici
-const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F', '#8884d8', '#82ca9d'];
+// Colori per i grafici - più colori per evitare duplicati
+const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F', '#8884d8', '#82ca9d', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -99,6 +99,8 @@ export default function Utenti() {
     // Calcola distribuzioni per i grafici
     const usersByRole = utenti.reduce((acc, user) => {
       const role = user.ruolo || 'N/A';
+      // Filtra il ruolo "Utente" che non esiste
+      if (role === 'Utente') return acc;
       acc[role] = (acc[role] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
