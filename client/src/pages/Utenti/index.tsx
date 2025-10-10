@@ -95,18 +95,56 @@ export default function Utenti() {
     if (!responseData?.utenti) return null;
     
     const utenti = responseData.utenti;
+    
+    // Calcola distribuzioni per i grafici
+    const usersByRole = utenti.reduce((acc, user) => {
+      const role = user.ruolo || 'N/A';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByGender = utenti.reduce((acc, user) => {
+      const gender = user.genere || user.sesso || 'N/A';
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByCitizenship = utenti.reduce((acc, user) => {
+      const citizenship = user.paese || user.paese_residenza || 'N/A';
+      acc[citizenship] = (acc[citizenship] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByRegion = utenti.reduce((acc, user) => {
+      const region = user.regione || user.regione_residenza || 'N/A';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByCity = utenti.reduce((acc, user) => {
+      const city = user.comune || user.comune_residenza || 'N/A';
+      acc[city] = (acc[city] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
     return {
-      success: true,
-      data: {
-        totale_utenti: utenti.length.toString(),
-        utenti_verificati: utenti.filter(u => u.status === 'approved').length.toString(),
-        admin: utenti.filter(u => u.ruolo === 'admin').length.toString()
-      }
+      totalUsers: utenti.length,
+      usersByRole,
+      usersByGender,
+      usersByCitizenship,
+      usersByRegion,
+      usersByCity
     };
   }, [responseData?.utenti]);
   
   const isLoadingStats = isLoadingUsers;
   const isErrorStats = isError;
+  
+  // Funzione per preparare i dati per i grafici a torta
+  const preparePieData = (data: Record<string, number> | null | undefined) => {
+    if (!data) return [];
+    return Object.entries(data).map(([name, value]) => ({ name, value }));
+  };
   
   useEffect(() => {
     const checkMobile = () => {
@@ -704,7 +742,7 @@ export default function Utenti() {
                           </tr>
                         </thead>
                         <tbody>
-                          {Object.entries(stats.usersByCity)
+                          {stats.usersByCity && Object.entries(stats.usersByCity)
                             .sort(([,a], [,b]) => b - a)
                             .slice(0, 10)
                             .map(([city, count]) => (
