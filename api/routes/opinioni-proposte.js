@@ -44,6 +44,78 @@ async function ensureVotiTableExists() {
 // Inizializza la tabella all'avvio
 ensureVotiTableExists();
 
+// GET /api/opinioni-proposte/debug - Debug endpoint per verificare database
+router.get('/debug', async (req, res) => {
+  try {
+    console.log('🔍 Debug endpoint opinioni-proposte chiamato');
+    
+    // Test connessione database
+    const testQuery = await pool.query('SELECT NOW() as current_time');
+    console.log('✅ Database connesso:', testQuery.rows[0].current_time);
+    
+    // Test tabella opinioni
+    const opinioniCount = await pool.query('SELECT COUNT(*) as count FROM opinioni');
+    console.log('✅ Righe in opinioni:', opinioniCount.rows[0].count);
+    
+    // Test opinioni da approvare
+    const daApprovareQuery = `
+      SELECT COUNT(*) as count FROM opinioni 
+      WHERE 'da approvare' = ANY(gradi_opinione)
+    `;
+    const daApprovareCount = await pool.query(daApprovareQuery);
+    console.log('✅ Righe da approvare:', daApprovareCount.rows[0].count);
+    
+    // Test tabella voti_opinioni_proposte
+    let votiTableExists = false;
+    let votiCount = 0;
+    try {
+      const votiCountQuery = await pool.query('SELECT COUNT(*) as count FROM voti_opinioni_proposte');
+      votiTableExists = true;
+      votiCount = votiCountQuery.rows[0].count;
+      console.log('✅ Righe in voti_opinioni_proposte:', votiCount);
+    } catch (error) {
+      console.log('⚠️ Tabella voti_opinioni_proposte non esiste:', error.message);
+    }
+    
+    // Test struttura tabella voti se esiste
+    let votiStructure = [];
+    if (votiTableExists) {
+      try {
+        const structureQuery = `
+          SELECT column_name, data_type, is_nullable
+          FROM information_schema.columns 
+          WHERE table_name = 'voti_opinioni_proposte'
+          ORDER BY ordinal_position
+        `;
+        const structure = await pool.query(structureQuery);
+        votiStructure = structure.rows;
+        console.log('📋 Struttura tabella voti:', votiStructure);
+      } catch (error) {
+        console.log('⚠️ Errore nel recuperare struttura tabella voti:', error.message);
+      }
+    }
+    
+    res.json({
+      success: true,
+      database_connected: true,
+      opinioni_count: opinioniCount.rows[0].count,
+      da_approvare_count: daApprovareCount.rows[0].count,
+      voti_table_exists: votiTableExists,
+      voti_count: votiCount,
+      voti_structure: votiStructure,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel debug:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // GET /api/opinioni-proposte - Ottieni opinioni da approvare dalla tabella opinioni
 router.get('/', async (req, res) => {
   try {
@@ -162,20 +234,27 @@ router.post('/:id/vota', async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
+    // Prima assicurati che la tabella voti esista
+    await ensureVotiTableExists();
+    
     // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
     const checkQuery = `
       SELECT id FROM opinioni 
       WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
     `;
     
+    console.log('🔍 Verifica esistenza opinione...');
     const checkResult = await pool.query(checkQuery, [id]);
     
     if (checkResult.rows.length === 0) {
+      console.log('❌ Opinione non trovata o non in stato da approvare');
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
+    
+    console.log('✅ Opinione trovata, procedo con il voto...');
     
     // Inserisci il voto nella tabella voti_opinioni_proposte
     const insertVotoQuery = `
@@ -184,7 +263,9 @@ router.post('/:id/vota', async (req, res) => {
       ON CONFLICT (user_id, opinione_id) DO NOTHING
     `;
     
-    await pool.query(insertVotoQuery, [userId, id]);
+    console.log('🔍 Inserimento voto...');
+    const insertResult = await pool.query(insertVotoQuery, [userId, id]);
+    console.log('📊 Risultato inserimento:', insertResult);
     
     console.log('✅ Voto registrato con successo per opinione:', id);
     
@@ -195,10 +276,12 @@ router.post('/:id/vota', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel voto:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Errore nel voto',
-      message: error.message
+      message: error.message,
+      details: error.stack
     });
   }
 });
@@ -213,20 +296,27 @@ router.delete('/:id/vota', async (req, res) => {
     console.log('🔍 ID opinione:', id);
     console.log('🔍 User ID:', userId);
     
+    // Prima assicurati che la tabella voti esista
+    await ensureVotiTableExists();
+    
     // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
     const checkQuery = `
       SELECT id FROM opinioni 
       WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
     `;
     
+    console.log('🔍 Verifica esistenza opinione...');
     const checkResult = await pool.query(checkQuery, [id]);
     
     if (checkResult.rows.length === 0) {
+      console.log('❌ Opinione non trovata o non in stato da approvare');
       return res.status(404).json({
         success: false,
         error: 'Opinione non trovata o non in stato da approvare'
       });
     }
+    
+    console.log('✅ Opinione trovata, procedo con la rimozione del voto...');
     
     // Rimuovi il voto dalla tabella voti_opinioni_proposte
     const deleteVotoQuery = `
@@ -234,9 +324,12 @@ router.delete('/:id/vota', async (req, res) => {
       WHERE user_id = $1 AND opinione_id = $2
     `;
     
+    console.log('🔍 Rimozione voto...');
     const result = await pool.query(deleteVotoQuery, [userId, id]);
+    console.log('📊 Righe rimosse:', result.rowCount);
     
     if (result.rowCount === 0) {
+      console.log('❌ Voto non trovato');
       return res.status(404).json({
         success: false,
         error: 'Voto non trovato'
@@ -252,10 +345,12 @@ router.delete('/:id/vota', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nella rimozione voto:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Errore nella rimozione voto',
-      message: error.message
+      message: error.message,
+      details: error.stack
     });
   }
 });

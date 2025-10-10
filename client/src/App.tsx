@@ -67,6 +67,7 @@ import GestisciOpinioni from "./pages/GestisciOpinioni";
 import GestisciGoverno from "./pages/GestisciGoverno";
 import ModificaImmagine from "./pages/ModificaImmagine";
 import StatisticheUtenti from "./pages/StatisticheUtenti";
+import Utenti from "./pages/Utenti";
 import StatisticheOpinione from "./pages/StatisticheOpinione";
 import SondaggiRegione from "./pages/SondaggiRegione";
 import SondaggiProvincia from "./pages/SondaggiProvincia";
@@ -749,6 +750,13 @@ export default function App() {
               <Route path="/gestisci-utenti">
                 <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
                   <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
+                </PageTransition>
+              </Route>
+
+              {/* Route utenti unificata */}
+              <Route path="/utenti">
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                  <ProtectedRoute path="/utenti" component={Utenti} />
                 </PageTransition>
               </Route>
 
