@@ -11,107 +11,34 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/amnistia chiamato');
     
-    // Query per ottenere amnistie dalla tabella amnistia
-    const amnistieQuery = `
+    // Query semplificata per test
+    const simpleQuery = `
       SELECT 
         id,
         legge,
         articolo,
-        descrizione,
-        data_creazione
+        descrizione
       FROM amnistia 
       ORDER BY legge ASC
     `;
     
-    const amnistieResult = await pool.query(amnistieQuery);
-    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
+    const result = await pool.query(simpleQuery);
+    console.log(`✅ Recuperate ${result.rows.length} amnistie`);
     
-    // Query per contare i voti usando JOIN con amnistia_id
-    let classificaResult = [];
-    try {
-      const classificaQuery = `
-        SELECT 
-          a.id,
-          a.legge,
-          a.articolo,
-          a.descrizione,
-          COUNT(va.amnistia_id) as voti
-        FROM amnistia a
-        LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id AND va.amnistia_id IS NOT NULL
-        GROUP BY a.id, a.legge, a.articolo, a.descrizione
-        ORDER BY voti DESC, a.legge ASC
-      `;
-      const classificaQueryResult = await pool.query(classificaQuery);
-      classificaResult = classificaQueryResult.rows;
-      console.log(`✅ Classifica generata con JOIN: ${classificaResult.length} voci`);
-    } catch (joinError) {
-      console.log('⚠️ JOIN fallito, provo con query separata:', joinError.message);
-      // Fallback: query separata se JOIN fallisce
-      const votiQuery = `
-        SELECT legge, COUNT(*) as voti
-        FROM voti_amnistia 
-        GROUP BY legge 
-        ORDER BY voti DESC
-      `;
-      const votiResult = await pool.query(votiQuery);
-      console.log(`✅ Recuperati ${votiResult.rows.length} voti`);
-      
-      // Combina amnistie con voti
-      classificaResult = amnistieResult.rows.map(amnistia => {
-        const voto = votiResult.rows.find(v => v.legge === amnistia.legge);
-        return {
-          id: amnistia.id,
-          legge: amnistia.legge,
-          articolo: amnistia.articolo,
-          descrizione: amnistia.descrizione,
-          voti: voto ? parseInt(voto.voti) : 0
-        };
-      }).sort((a, b) => b.voti - a.voti);
-    }
-    
-    // Recupera voti utente se autenticato
-    let mieiVoti = [];
-    if (req.headers.authorization) {
-      try {
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
-        
-        try {
-          // Prima prova con JOIN
-          const userVotiQuery = `
-            SELECT a.legge 
-            FROM voti_amnistia va
-            JOIN amnistia a ON va.amnistia_id = a.id
-            WHERE va.userid = $1
-          `;
-          const userVotiResult = await pool.query(userVotiQuery, [userId]);
-          mieiVoti = userVotiResult.rows.map(v => v.legge);
-          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con JOIN`);
-        } catch (joinError) {
-          console.log('⚠️ JOIN voti utente fallito, provo con fallback:', joinError.message);
-          // Fallback: query senza JOIN
-          const fallbackVotiQuery = `
-            SELECT legge 
-            FROM voti_amnistia 
-            WHERE userid = $1
-          `;
-          const userVotiResult = await pool.query(fallbackVotiQuery, [userId]);
-          mieiVoti = userVotiResult.rows.map(v => v.legge);
-          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con fallback`);
-        }
-      } catch (authError) {
-        console.log('⚠️ Errore autenticazione:', authError.message);
-      }
-    }
-    
-    console.log(`✅ Risposta: ${amnistieResult.rows.length} amnistie, ${classificaResult.length} classifica, ${mieiVoti.length} voti utente`);
+    // Crea classifica con voti a 0 per ora
+    const classificaResult = result.rows.map(amnistia => ({
+      id: amnistia.id,
+      legge: amnistia.legge,
+      articolo: amnistia.articolo,
+      descrizione: amnistia.descrizione,
+      voti: 0
+    }));
     
     res.json({
       success: true,
-      amnistie: amnistieResult.rows,
+      amnistie: result.rows,
       classifica: classificaResult,
-      mieiVoti: mieiVoti,
+      mieiVoti: [],
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
