@@ -25,7 +25,7 @@ import { User } from "./types";
 import { apiRequest } from "@/lib/queryClient";
 import { clearAllTokens, forceTokenRefresh } from "@/utils/tokenUtils";
 import { useQuery } from "@tanstack/react-query";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 // Import per le statistiche
 type StatisticheUtenti = {
@@ -41,17 +41,19 @@ type StatisticheUtenti = {
 // Colori per i grafici - più colori per evitare duplicati
 const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F4A460', '#87CEFA', '#D8BFD8', '#F5DEB3'];
 
-// Funzione per assegnare colori specifici per genere
+// Funzione per assegnare colori specifici per genere (stessi colori di statistiche-opinione)
 const getGenderColor = (gender: string, index: number) => {
   switch (gender.toLowerCase()) {
-    case 'donna':
-    case 'femmina':
-      return '#FFB6C1'; // Rosa
     case 'uomo':
     case 'maschio':
-      return '#87CEEB'; // Azzurro
+      return '#3b82f6'; // Blu
+    case 'donna':
+    case 'femmina':
+      return '#ec4899'; // Rosa
+    case 'altro':
+      return '#eab308'; // Giallo
     default:
-      return COLORS[index % COLORS.length];
+      return '#6b7280'; // Grigio per N/A
   }
 };
 
@@ -191,6 +193,15 @@ export default function Utenti() {
   const preparePieData = (data: Record<string, number> | null | undefined) => {
     if (!data) return [];
     return Object.entries(data).map(([name, value]) => ({ name, value }));
+  };
+  
+  // Funzione per preparare i dati per il bar chart delle età
+  const prepareAgeBarData = (data: Record<string, number> | null | undefined) => {
+    if (!data) return [];
+    const order = ['Under 18', '18-25', '26-35', '36-45', '46-55', '56-65', '65+', 'N/A'];
+    return Object.entries(data)
+      .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
+      .map(([name, value]) => ({ name, value }));
   };
   
   useEffect(() => {
@@ -715,24 +726,13 @@ export default function Utenti() {
                     </CardHeader>
                     <CardContent className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie 
-                            data={preparePieData(stats.usersByAge)} 
-                            dataKey="value" 
-                            nameKey="name" 
-                            cx="50%" 
-                            cy="50%" 
-                            outerRadius={80} 
-                            fill="#8884d8" 
-                            label
-                          >
-                            {preparePieData(stats.usersByAge).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
+                        <BarChart data={prepareAgeBarData(stats.usersByAge)}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
                           <Tooltip />
-                          <Legend />
-                        </PieChart>
+                          <Bar dataKey="value" fill="#3b82f6" />
+                        </BarChart>
                       </ResponsiveContainer>
                     </CardContent>
                   </Card>
