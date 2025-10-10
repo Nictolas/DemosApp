@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Link, Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ArrowLeft, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useUsers } from "./Utenti/hooks/useUsers";
 // === INIZIO MODIFICHE ===
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 // === FINE MODIFICHE ===
@@ -24,16 +25,63 @@ const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F', '#8884d8', '#82ca9d'
 
 export default function StatisticheUtenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  
+  // Usa i dati degli utenti già caricati
+  const {
+    responseData,
+    isLoading: isLoadingUsers,
+    isError: isErrorUsers
+  } = useUsers(user);
 
-  const { data: stats, isLoading, isError } = useQuery<StatisticheUtenti>({
-    queryKey: ['statisticheUtenti'],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/statistiche/utenti");
-      if (!response.ok) throw new Error("Errore nel caricamento delle statistiche");
-      return response.json();
-    },
-    enabled: !!user && user.ruolo === "Admin",
-  });
+  // Calcola le statistiche dai dati degli utenti
+  const stats = useMemo(() => {
+    if (!responseData?.utenti) return null;
+    
+    const utenti = responseData.utenti;
+    
+    // Calcola distribuzioni
+    const usersByRole = utenti.reduce((acc, user) => {
+      const role = user.ruolo || 'N/A';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByGender = utenti.reduce((acc, user) => {
+      const gender = user.genere || user.sesso || 'N/A';
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByCitizenship = utenti.reduce((acc, user) => {
+      const citizenship = user.paese || user.paese_residenza || 'N/A';
+      acc[citizenship] = (acc[citizenship] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByRegion = utenti.reduce((acc, user) => {
+      const region = user.regione || user.regione_residenza || 'N/A';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const usersByCity = utenti.reduce((acc, user) => {
+      const city = user.comune || user.comune_residenza || 'N/A';
+      acc[city] = (acc[city] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return {
+      totalUsers: utenti.length,
+      usersByRole,
+      usersByGender,
+      usersByCitizenship,
+      usersByRegion,
+      usersByCity
+    };
+  }, [responseData?.utenti]);
+  
+  const isLoading = isLoadingUsers;
+  const isError = isErrorUsers;
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
