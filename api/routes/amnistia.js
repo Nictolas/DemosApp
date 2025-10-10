@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
           a.descrizione,
           COUNT(va.amnistia_id) as voti
         FROM amnistia a
-        LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id
+        LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id AND va.amnistia_id IS NOT NULL
         GROUP BY a.id, a.legge, a.articolo, a.descrizione
         ORDER BY voti DESC, a.legge ASC
       `;
