@@ -38,7 +38,8 @@ type StatisticheUtenti = {
 };
 
 // Colori per i grafici - più colori per evitare duplicati
-const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F', '#8884d8', '#82ca9d', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
+// Colori specifici per genere: uomo=azzurro, donna=rosa
+const COLORS = ['#87CEEB', '#FFB6C1', '#FFD700', '#98FB98', '#DDA0DD', '#F0E68C', '#FFA07A', '#20B2AA', '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F4A460', '#87CEFA', '#D8BFD8', '#F5DEB3'];
 
 export default function Utenti() {
   const { user, isLoading: isAuthLoading } = useAuth();
