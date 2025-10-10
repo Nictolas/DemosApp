@@ -358,6 +358,15 @@ router.get('/debug', async (req, res) => {
     const amnistiaCount = await pool.query('SELECT COUNT(*) as count FROM amnistia');
     console.log('✅ Righe in amnistia:', amnistiaCount.rows[0].count);
     
+    // Test struttura tabella amnistia
+    const amnistiaStructure = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'amnistia'
+      ORDER BY ordinal_position
+    `);
+    console.log('📋 Colonne tabella amnistia:', amnistiaStructure.rows);
+    
     // Test tabella voti_amnistia
     const votiCount = await pool.query('SELECT COUNT(*) as count FROM voti_amnistia');
     console.log('✅ Righe in voti_amnistia:', votiCount.rows[0].count);
@@ -376,6 +385,7 @@ router.get('/debug', async (req, res) => {
       success: true,
       database_connected: true,
       amnistia_count: amnistiaCount.rows[0].count,
+      amnistia_columns: amnistiaStructure.rows,
       voti_count: votiCount.rows[0].count,
       amnistia_id_exists: amnistiaIdExists,
       timestamp: new Date().toISOString()
