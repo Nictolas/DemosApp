@@ -11,113 +11,26 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/amnistia chiamato');
     
-    // Prima verifica se la tabella amnistia esiste
-    const tableCheck = await pool.query(`
-      SELECT COUNT(*) as count FROM information_schema.tables 
-      WHERE table_name = 'amnistia'
-    `);
-    
-    if (tableCheck.rows[0].count === 0) {
-      console.log('⚠️ Tabella amnistia non esiste, restituisco array vuoto');
-      return res.json({
-        success: true,
-        amnistie: [],
-        classifica: [],
-        mieiVoti: [],
-        blocco: { isBlocked: false, unlockDate: null }
-      });
-    }
-    
-    // 1. Ottieni tutte le amnistie dalla tabella amnistia
-    console.log('📊 Recuperando amnistie...');
-    const amnistieQuery = `
-      SELECT id, legge, articolo, descrizione, data_creazione
-      FROM amnistia 
-      ORDER BY data_creazione DESC
+    // Query semplificata per test
+    const simpleQuery = `
+      SELECT 
+        a.id,
+        a.legge,
+        a.articolo,
+        a.descrizione,
+        0 as voti
+      FROM amnistia a
+      ORDER BY a.legge ASC
     `;
-    const amnistieResult = await pool.query(amnistieQuery);
-    console.log(`✅ Recuperate ${amnistieResult.rows.length} amnistie`);
     
-    // 2. Genera classifica basata sui voti usando la relazione amnistia_id
-    console.log('📊 Generando classifica...');
-    let classificaResult;
-    try {
-      // Prima prova con la query con JOIN
-      const classificaQuery = `
-        SELECT 
-          a.id,
-          a.legge,
-          a.articolo,
-          a.descrizione,
-          COUNT(va.amnistia_id) as voti
-        FROM amnistia a
-        LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id
-        GROUP BY a.id, a.legge, a.articolo, a.descrizione
-        ORDER BY voti DESC, a.legge ASC
-      `;
-      classificaResult = await pool.query(classificaQuery);
-      console.log(`✅ Classifica generata con JOIN: ${classificaResult.rows.length} voci`);
-    } catch (joinError) {
-      console.log('⚠️ JOIN fallito, provo con query semplificata:', joinError.message);
-      // Fallback: query senza JOIN se la colonna amnistia_id non esiste
-      const fallbackQuery = `
-        SELECT 
-          a.id,
-          a.legge,
-          a.articolo,
-          a.descrizione,
-          0 as voti
-        FROM amnistia a
-        ORDER BY a.legge ASC
-      `;
-      classificaResult = await pool.query(fallbackQuery);
-      console.log(`✅ Classifica generata con fallback: ${classificaResult.rows.length} voci`);
-    }
-    
-    // 3. Se l'utente è autenticato, ottieni i suoi voti usando amnistia_id
-    let mieiVoti = [];
-    if (req.headers.authorization) {
-      try {
-        const token = req.headers.authorization.replace('Bearer ', '');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
-        
-        try {
-          // Prima prova con JOIN
-          const userVotiQuery = `
-            SELECT a.legge 
-            FROM voti_amnistia va
-            JOIN amnistia a ON va.amnistia_id = a.id
-            WHERE va.userid = $1
-          `;
-          const userVotiResult = await pool.query(userVotiQuery, [userId]);
-          mieiVoti = userVotiResult.rows.map(v => v.legge);
-          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con JOIN`);
-        } catch (joinError) {
-          console.log('⚠️ JOIN voti utente fallito, provo con fallback:', joinError.message);
-          // Fallback: query senza JOIN se la colonna amnistia_id non esiste
-          const fallbackVotiQuery = `
-            SELECT legge 
-            FROM voti_amnistia 
-            WHERE userid = $1
-          `;
-          const userVotiResult = await pool.query(fallbackVotiQuery, [userId]);
-          mieiVoti = userVotiResult.rows.map(v => v.legge);
-          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con fallback`);
-        }
-      } catch (authError) {
-        // Se il token non è valido, continua senza autenticazione
-        console.log('⚠️ Token non valido per amnistia, continuando senza autenticazione');
-      }
-    }
-    
-    console.log(`✅ Risposta completa: ${amnistieResult.rows.length} amnistie, ${classificaResult.rows.length} classifica, ${mieiVoti.length} voti utente`);
+    const result = await pool.query(simpleQuery);
+    console.log(`✅ Recuperate ${result.rows.length} amnistie`);
     
     res.json({
       success: true,
-      amnistie: amnistieResult.rows,
-      classifica: classificaResult.rows,
-      mieiVoti: mieiVoti,
+      amnistie: result.rows,
+      classifica: result.rows,
+      mieiVoti: [],
       blocco: { isBlocked: false, unlockDate: null }
     });
   } catch (error) {
