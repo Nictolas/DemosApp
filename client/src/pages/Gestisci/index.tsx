@@ -1,8 +1,6 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
-import { Header } from "./components/Header";
-import { Title } from "./components/Title";
 import { SectionsGrid } from "./components/SectionsGrid";
 import { PageContainer } from "@/components/PageContainer";
 
@@ -22,11 +20,13 @@ export default function Gestisci() {
   }
 
   return (
-    <PageContainer className="bg-gradient-to-br from-purple-50 to-pink-100">
-      <div className="w-full px-4 py-6 space-y-8">
-        <Header />
-        <Title />
-        <SectionsGrid />
+    <PageContainer className="menu-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
+      <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
+        <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col min-h-0">
+          <div className="mt-4">
+            <SectionsGrid />
+          </div>
+        </div>
       </div>
     </PageContainer>
   );
