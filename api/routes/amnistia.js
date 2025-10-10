@@ -40,20 +40,39 @@ router.get('/', async (req, res) => {
     
     // 2. Genera classifica basata sui voti usando la relazione amnistia_id
     console.log('📊 Generando classifica...');
-    const classificaQuery = `
-      SELECT 
-        a.id,
-        a.legge,
-        a.articolo,
-        a.descrizione,
-        COUNT(va.amnistia_id) as voti
-      FROM amnistia a
-      LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id
-      GROUP BY a.id, a.legge, a.articolo, a.descrizione
-      ORDER BY voti DESC, a.legge ASC
-    `;
-    const classificaResult = await pool.query(classificaQuery);
-    console.log(`✅ Classifica generata con ${classificaResult.rows.length} voci`);
+    let classificaResult;
+    try {
+      // Prima prova con la query con JOIN
+      const classificaQuery = `
+        SELECT 
+          a.id,
+          a.legge,
+          a.articolo,
+          a.descrizione,
+          COUNT(va.amnistia_id) as voti
+        FROM amnistia a
+        LEFT JOIN voti_amnistia va ON a.id = va.amnistia_id
+        GROUP BY a.id, a.legge, a.articolo, a.descrizione
+        ORDER BY voti DESC, a.legge ASC
+      `;
+      classificaResult = await pool.query(classificaQuery);
+      console.log(`✅ Classifica generata con JOIN: ${classificaResult.rows.length} voci`);
+    } catch (joinError) {
+      console.log('⚠️ JOIN fallito, provo con query semplificata:', joinError.message);
+      // Fallback: query senza JOIN se la colonna amnistia_id non esiste
+      const fallbackQuery = `
+        SELECT 
+          a.id,
+          a.legge,
+          a.articolo,
+          a.descrizione,
+          0 as voti
+        FROM amnistia a
+        ORDER BY a.legge ASC
+      `;
+      classificaResult = await pool.query(fallbackQuery);
+      console.log(`✅ Classifica generata con fallback: ${classificaResult.rows.length} voci`);
+    }
     
     // 3. Se l'utente è autenticato, ottieni i suoi voti usando amnistia_id
     let mieiVoti = [];
@@ -63,15 +82,29 @@ router.get('/', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.userId;
         
-        const userVotiQuery = `
-          SELECT a.legge 
-          FROM voti_amnistia va
-          JOIN amnistia a ON va.amnistia_id = a.id
-          WHERE va.userid = $1
-        `;
-        const userVotiResult = await pool.query(userVotiQuery, [userId]);
-        mieiVoti = userVotiResult.rows.map(v => v.legge);
-        console.log(`✅ Recuperati ${mieiVoti.length} voti utente`);
+        try {
+          // Prima prova con JOIN
+          const userVotiQuery = `
+            SELECT a.legge 
+            FROM voti_amnistia va
+            JOIN amnistia a ON va.amnistia_id = a.id
+            WHERE va.userid = $1
+          `;
+          const userVotiResult = await pool.query(userVotiQuery, [userId]);
+          mieiVoti = userVotiResult.rows.map(v => v.legge);
+          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con JOIN`);
+        } catch (joinError) {
+          console.log('⚠️ JOIN voti utente fallito, provo con fallback:', joinError.message);
+          // Fallback: query senza JOIN se la colonna amnistia_id non esiste
+          const fallbackVotiQuery = `
+            SELECT legge 
+            FROM voti_amnistia 
+            WHERE userid = $1
+          `;
+          const userVotiResult = await pool.query(fallbackVotiQuery, [userId]);
+          mieiVoti = userVotiResult.rows.map(v => v.legge);
+          console.log(`✅ Recuperati ${mieiVoti.length} voti utente con fallback`);
+        }
       } catch (authError) {
         // Se il token non è valido, continua senza autenticazione
         console.log('⚠️ Token non valido per amnistia, continuando senza autenticazione');
