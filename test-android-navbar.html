@@ -111,47 +111,47 @@
         /* Dispositivi Android con risoluzione 720x1600 */
         @media screen and (max-width: 720px) and (max-height: 1600px) {
             .app-navbar {
-                height: 7rem !important; /* 112px - più alto per Android */
-                min-height: 7rem !important;
+                height: 6rem !important; /* 96px - altezza originale */
+                min-height: 6rem !important;
             }
             
             .navbar-content {
-                height: 7rem !important;
-                padding: 1.25rem 0 !important;
-                padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)) !important;
+                height: 6rem !important;
+                padding: 1rem 0 !important;
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
             }
             
             /* Aggiungi padding extra al contenuto */
             .app-main {
-                padding-bottom: 2rem !important;
+                padding-bottom: 1rem !important;
             }
         }
         
         /* Dispositivi Android con risoluzione 1080x2400 */
         @media screen and (max-width: 1080px) and (max-height: 2400px) {
             .app-navbar {
-                height: 7.5rem !important; /* 120px */
-                min-height: 7.5rem !important;
+                height: 6rem !important; /* 96px - altezza originale */
+                min-height: 6rem !important;
             }
             
             .navbar-content {
-                height: 7.5rem !important;
-                padding: 1.5rem 0 !important;
-                padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)) !important;
+                height: 6rem !important;
+                padding: 1rem 0 !important;
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
             }
         }
         
         /* Dispositivi Android con risoluzione 1080x2340 */
         @media screen and (max-width: 1080px) and (max-height: 2340px) {
             .app-navbar {
-                height: 7.5rem !important;
-                min-height: 7.5rem !important;
+                height: 6rem !important; /* 96px - altezza originale */
+                min-height: 6rem !important;
             }
             
             .navbar-content {
-                height: 7.5rem !important;
-                padding: 1.5rem 0 !important;
-                padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)) !important;
+                height: 6rem !important;
+                padding: 1rem 0 !important;
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
             }
         }
 
@@ -170,21 +170,7 @@
         /* Dispositivi Android con navbar di sistema alta */
         @media screen and (max-width: 768px) and (min-height: 600px) {
             .app-navbar {
-                height: 8rem !important; /* 128px - extra alto per Android con navbar sistema */
-                min-height: 8rem !important;
-            }
-            
-            .navbar-content {
-                height: 8rem !important;
-                padding: 1.5rem 0 !important;
-                padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)) !important;
-            }
-        }
-
-        /* Dispositivi Android con schermo molto piccolo */
-        @media screen and (max-width: 768px) and (max-height: 600px) {
-            .app-navbar {
-                height: 6rem !important; /* 96px - ridotto per schermi piccoli */
+                height: 6rem !important; /* 96px - altezza originale */
                 min-height: 6rem !important;
             }
             
@@ -192,6 +178,20 @@
                 height: 6rem !important;
                 padding: 1rem 0 !important;
                 padding-bottom: calc(1rem + env(safe-area-inset-bottom)) !important;
+            }
+        }
+
+        /* Dispositivi Android con schermo molto piccolo */
+        @media screen and (max-width: 768px) and (max-height: 600px) {
+            .app-navbar {
+                height: 5rem !important; /* 80px - ridotto per schermi piccoli */
+                min-height: 5rem !important;
+            }
+            
+            .navbar-content {
+                height: 5rem !important;
+                padding: 0.75rem 0 !important;
+                padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)) !important;
             }
         }
 
