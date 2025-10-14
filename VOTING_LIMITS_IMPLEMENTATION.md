@@ -124,6 +124,21 @@ export const VOTING_LIMITS = {
 - **Funzionalità**: Voto/rimozione, contatore, feedback, sistema centralizzato
 - **File**: `client/src/pages/VotaReferendumAbrogativo/`
 
+### 7. **Iniziative Popolari Proposte** ✅
+- **Limite**: 1 proposta massima (solo 1 iniziativa popolare)
+- **Funzionalità**: Proposta/rimozione, contatore, feedback, sistema centralizzato
+- **File**: `client/src/pages/IniziativePopolari/`
+
+### 8. **Referendum Abrogativi Proposti** ✅
+- **Limite**: 1 proposta massima (solo 1 referendum abrogativo)
+- **Funzionalità**: Proposta/rimozione, contatore, feedback, sistema centralizzato
+- **File**: `client/src/pages/ReferendumAbrogativi/`
+
+### 9. **ICE Proposti** ✅
+- **Limite**: 1 proposta massima (solo 1 ICE)
+- **Funzionalità**: Proposta/rimozione, contatore, feedback, sistema centralizzato
+- **File**: `client/src/pages/ICE/`
+
 ## 🔄 **PROSSIMI PASSI**
 
 1. **Applicare limiti** alle altre categorie (comunicazioni, etc.)

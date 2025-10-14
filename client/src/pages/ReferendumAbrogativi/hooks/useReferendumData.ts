@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Referendum } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useReferendumData = (user: any) => {
   const { data, isLoading, isError } = useQuery<{
@@ -28,10 +29,21 @@ export const useReferendumData = (user: any) => {
     });
   }, [data?.richieste]);
 
+  // Informazioni sui limiti di proposte
+  const currentProposals = listaReferendum.filter(referendum => referendum.utente_id === user?.id).length;
+  const limit = getVotingLimit('referendum_abrogativi_proposti');
+  const remainingProposals = getRemainingVotes('referendum_abrogativi_proposti', currentProposals);
+  const hasReachedLimit = hasReachedVotingLimit('referendum_abrogativi_proposti', currentProposals);
+
   return {
     listaReferendum,
     mieiVoti: data?.mieiVoti || [],
     isLoading,
     isError,
+    // Informazioni sui limiti
+    currentProposals,
+    limit,
+    remainingProposals,
+    hasReachedLimit
   };
 };

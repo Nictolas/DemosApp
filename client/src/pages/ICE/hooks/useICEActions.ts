@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { ICE, ICEFormData, ICEState } from "../types";
 import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useICEActions = () => {
   const { toast } = useToast();
@@ -57,7 +58,19 @@ export const useICEActions = () => {
   const closeView = () => setState(prev => ({ ...prev, viewICE: null }));
 
   // Funzioni per gestire le azioni
-  const handleCreate = (data: ICEFormData) => addMutation.mutate(data);
+  const handleCreate = (data: ICEFormData, currentProposals: number = 0) => {
+    // Controlla il limite di proposte
+    const limit = getVotingLimit('ice_proposti');
+    if (hasReachedVotingLimit('ice_proposti', currentProposals)) {
+      toast({ 
+        title: "Limite proposte raggiunto", 
+        description: `Puoi proporre solo ${limit} ICE. Rimuovi una proposta esistente per proporne una nuova.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    addMutation.mutate(data);
+  };
   const handleUpdate = (data: ICEFormData) => editMutation.mutate(data);
   const handleDelete = (id: string) => deleteMutation.mutate(id);
 

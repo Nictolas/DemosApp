@@ -2,6 +2,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { IniziativaPopolare } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useIniziativeData = (user: any) => {
   const { data, isLoading, isError } = useQuery<{
@@ -28,10 +29,21 @@ export const useIniziativeData = (user: any) => {
     });
   }, [data?.richieste]);
 
+  // Informazioni sui limiti di proposte
+  const currentProposals = listaIniziative.filter(iniziativa => iniziativa.utente_id === user?.id).length;
+  const limit = getVotingLimit('iniziative_popolari_proposte');
+  const remainingProposals = getRemainingVotes('iniziative_popolari_proposte', currentProposals);
+  const hasReachedLimit = hasReachedVotingLimit('iniziative_popolari_proposte', currentProposals);
+
   return {
     listaIniziative,
     mieiVoti: data?.mieiVoti || [],
     isLoading,
     isError,
+    // Informazioni sui limiti
+    currentProposals,
+    limit,
+    remainingProposals,
+    hasReachedLimit
   };
 };
