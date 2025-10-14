@@ -17,7 +17,8 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
   onRemoveVote,
   onSelectSuggestion,
   onShowSuggestions,
-  onHideSuggestions
+  onHideSuggestions,
+  hasReachedLimit
 }) => {
   return (
     <Card className="bg-white">
@@ -60,7 +61,7 @@ export const AmnistiaForm: React.FC<AmnistiaFormProps> = ({
                 </div>
               )}
             </div>
-            <Button type="submit" disabled={isPending || !leggeInput.trim()}>
+            <Button type="submit" disabled={isPending || !leggeInput.trim() || hasReachedLimit}>
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (

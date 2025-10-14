@@ -41,6 +41,7 @@ export interface OpinioniListProps {
   userVoti: string[];
   isVoting: boolean;
   onVota: (id: string) => void;
+  onRimuoviVoto: (id: string) => void;
 }
 
 export interface ConfirmDialogProps {

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { IniziativePopolariData } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useIniziativeVoting = (data: IniziativePopolariData | undefined) => {
   const { toast } = useToast();
@@ -26,9 +27,10 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
       return apiRequest("POST", "/api/iniziative-popolari/vota", { voti });
     },
     onSuccess: () => {
+      const remainingVotes = getRemainingVotes('iniziative_popolari', selectedVoti.length);
       toast({ 
         title: "Preferenze salvate", 
-        description: "Le tue preferenze per le iniziative popolari sono state aggiornate." 
+        description: `Le tue preferenze per le iniziative popolari sono state aggiornate. Voti rimanenti: ${remainingVotes}` 
       });
       queryClient.invalidateQueries({ queryKey: ['iniziativePopolariData'] });
     },
@@ -47,11 +49,29 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
   // Logica locale per gestire i voti
   const toggleSelezione = (id: string) => {
     if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
-    setSelectedVoti(prev =>
-      prev.includes(id)
-        ? prev.filter(n => n !== id)
-        : [...prev, id]
-    );
+    
+    setSelectedVoti(prev => {
+      // Se l'iniziativa è già selezionata, rimuovila
+      if (prev.includes(id)) {
+        return prev.filter(n => n !== id);
+      }
+      
+      // Se l'iniziativa non è selezionata, controlla il limite
+      const currentVotes = prev.length;
+      const limit = getVotingLimit('iniziative_popolari');
+      
+      if (hasReachedVotingLimit('iniziative_popolari', currentVotes)) {
+        toast({ 
+          title: "Limite voti raggiunto", 
+          description: `Puoi votare solo ${limit} iniziativa popolare. Rimuovi il voto esistente per votarne una diversa.`,
+          variant: "destructive"
+        });
+        return prev; // Non aggiungere il voto
+      }
+      
+      // Aggiungi il voto
+      return [...prev, id];
+    });
   };
 
   const toggleSelezioneClassifica = (nome: string) => {
@@ -65,6 +85,12 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
   // Calcola se i voti sono cambiati
   const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
 
+  // Informazioni sui limiti di voto
+  const currentVotes = selectedVoti.length;
+  const limit = getVotingLimit('iniziative_popolari');
+  const remainingVotes = getRemainingVotes('iniziative_popolari', currentVotes);
+  const hasReachedLimit = hasReachedVotingLimit('iniziative_popolari', currentVotes);
+
   return {
     selectedVoti,
     showConfirmDialog,
@@ -72,6 +98,11 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
     saveVotiMutation,
     toggleSelezione,
     toggleSelezioneClassifica,
-    votiCambiati
+    votiCambiati,
+    // Informazioni sui limiti
+    currentVotes,
+    limit,
+    remainingVotes,
+    hasReachedLimit
   };
 };

@@ -19,6 +19,7 @@ export default function ProponiOpinione() {
     userVoti,
     handleProponi,
     handleVota,
+    handleRimuoviVoto,
     handleSalvaVoti
   } = useProponiOpinioneData(user);
 
@@ -52,6 +53,12 @@ export default function ProponiOpinione() {
   const handleVotaOpinione = async (id: string) => {
     setIsVoting(true);
     await handleVota(id);
+    setIsVoting(false);
+  };
+
+  const handleRimuoviVotoOpinione = async (id: string) => {
+    setIsVoting(true);
+    await handleRimuoviVoto(id);
     setIsVoting(false);
   };
 
@@ -96,6 +103,7 @@ export default function ProponiOpinione() {
                   userVoti={userVoti}
                   isVoting={proponiOpinioneState.isVoting}
                   onVota={handleVotaOpinione}
+                  onRimuoviVoto={handleRimuoviVotoOpinione}
                 />
               </div>
             )}

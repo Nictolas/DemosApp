@@ -12,6 +12,7 @@ interface VotingFormProps {
   isBlocked: boolean;
   onAddNome: (nome: string) => void;
   onRemoveNome: (nome: string) => void;
+  hasReachedLimit: boolean;
 }
 
 export const VotingForm: React.FC<VotingFormProps> = ({
@@ -19,7 +20,8 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   classifica,
   isBlocked,
   onAddNome,
-  onRemoveNome
+  onRemoveNome,
+  hasReachedLimit
 }) => {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -90,7 +92,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             </div>
             <Button 
               type="submit" 
-              disabled={!nomeInput.trim() || isBlocked}
+              disabled={!nomeInput.trim() || isBlocked || hasReachedLimit}
             >
               <Plus className="h-4 w-4 mr-2" />
               Aggiungi

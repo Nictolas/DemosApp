@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { AmnistiaVotingState, AmnistiaData } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
   const { toast } = useToast();
@@ -58,6 +59,18 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
       toast({ title: "Voto già registrato", description: `Hai già votato per l'amnistia di: ${leggePulita}` });
       return;
     }
+    
+    // Controlla il limite di voti
+    const limit = getVotingLimit('amnistia');
+    if (hasReachedVotingLimit('amnistia', data?.mieiVoti.length || 0)) {
+      toast({ 
+        title: "Limite voti raggiunto", 
+        description: `Puoi votare solo ${limit} amnistia. Rimuovi il voto esistente per votarne una diversa.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     addVoteMutation.mutate(leggePulita);
     setVotingState(prev => ({
       ...prev,
@@ -120,6 +133,12 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
     }
   };
 
+  // Informazioni sui limiti di voto
+  const currentVotes = data?.mieiVoti.length || 0;
+  const limit = getVotingLimit('amnistia');
+  const remainingVotes = getRemainingVotes('amnistia', currentVotes);
+  const hasReachedLimit = hasReachedVotingLimit('amnistia', currentVotes);
+
   return {
     votingState,
     updateField,
@@ -131,6 +150,11 @@ export const useAmnistiaVoting = (data: AmnistiaData | undefined) => {
     handleRemoveVote,
     showForm,
     hideForm,
-    handleCreateAmnistia
+    handleCreateAmnistia,
+    // Informazioni sui limiti
+    currentVotes,
+    limit,
+    remainingVotes,
+    hasReachedLimit
   };
 };

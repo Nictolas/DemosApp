@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { GraziaVotingState, GraziaData } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useGraziaVoting = (data: GraziaData | undefined) => {
   const { toast } = useToast();
@@ -52,6 +53,18 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
       toast({ title: "Richiesta già selezionata" });
       return;
     }
+    
+    // Controlla il limite di voti
+    const limit = getVotingLimit('grazia');
+    if (hasReachedVotingLimit('grazia', votingState.selectedVoti.length)) {
+      toast({ 
+        title: "Limite voti raggiunto", 
+        description: `Puoi richiedere grazia per al massimo ${limit} carcerat${limit > 1 ? 'i' : 'o'}. Rimuovi una richiesta esistente per aggiungerne una nuova.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setVotingState(prev => ({
       ...prev,
       selectedVoti: [...prev.selectedVoti, nomePulito],
@@ -69,12 +82,32 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
   
   const toggleSelezioneClassifica = (nome: string) => {
     if (data?.blocco.isBlocked) return;
-    setVotingState(prev => ({
-      ...prev,
-      selectedVoti: prev.selectedVoti.includes(nome) 
-        ? prev.selectedVoti.filter(n => n !== nome) 
-        : [...prev.selectedVoti, nome]
-    }));
+    setVotingState(prev => {
+      // Se il carcerato è già selezionato, rimuovilo
+      if (prev.selectedVoti.includes(nome)) {
+        return {
+          ...prev,
+          selectedVoti: prev.selectedVoti.filter(n => n !== nome)
+        };
+      }
+      
+      // Se il carcerato non è selezionato, controlla il limite
+      const limit = getVotingLimit('grazia');
+      if (hasReachedVotingLimit('grazia', prev.selectedVoti.length)) {
+        toast({ 
+          title: "Limite voti raggiunto", 
+          description: `Puoi richiedere grazia per al massimo ${limit} carcerat${limit > 1 ? 'i' : 'o'}. Rimuovi una richiesta esistente per aggiungerne una nuova.`,
+          variant: "destructive"
+        });
+        return prev; // Non aggiungere il voto
+      }
+      
+      // Aggiungi il voto
+      return {
+        ...prev,
+        selectedVoti: [...prev.selectedVoti, nome]
+      };
+    });
   };
 
   const showClassifica = () => {
@@ -101,6 +134,12 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
     hideForm();
   };
 
+  // Informazioni sui limiti di voto
+  const currentVotes = votingState.selectedVoti.length;
+  const limit = getVotingLimit('grazia');
+  const remainingVotes = getRemainingVotes('grazia', currentVotes);
+  const hasReachedLimit = hasReachedVotingLimit('grazia', currentVotes);
+
   return {
     votingState,
     updateField,
@@ -111,6 +150,11 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
     toggleSelezioneClassifica,
     showClassifica,
     saveVoti,
-    handleCreateCarcerato
+    handleCreateCarcerato,
+    // Informazioni sui limiti
+    currentVotes,
+    limit,
+    remainingVotes,
+    hasReachedLimit
   };
 };

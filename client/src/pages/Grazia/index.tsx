@@ -15,6 +15,7 @@ import { ClassificaCarcerati } from "./components/ClassificaCarcerati";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { CreateButton } from "./components/CreateButton";
 import { CarceratoForm } from "./components/CarceratoForm";
+import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function Grazia() {
   const authReady = useAuthReady();
@@ -32,7 +33,11 @@ export default function Grazia() {
     saveVoti,
     showForm,
     hideForm,
-    handleCreateCarcerato
+    handleCreateCarcerato,
+    currentVotes,
+    limit,
+    remainingVotes,
+    hasReachedLimit
   } = useGraziaVoting(data);
 
   // Gestione salvataggio voti
@@ -41,7 +46,7 @@ export default function Grazia() {
       onSuccess: () => {
         toast({ 
           title: "Preferenze salvate", 
-          description: "Le tue richieste di grazia sono state aggiornate." 
+          description: `Le tue richieste di grazia sono state aggiornate. Voti rimanenti: ${remainingVotes}` 
         });
         saveVoti();
       },
@@ -101,6 +106,12 @@ export default function Grazia() {
               />
             )}
 
+            {/* Informazioni sui limiti di voto */}
+            <VotingLimitsInfo
+              category="grazia"
+              currentVotes={currentVotes}
+            />
+
             <GraziaForm
               nomeInput={votingState.nomeInput}
               selectedVoti={votingState.selectedVoti}
@@ -109,6 +120,7 @@ export default function Grazia() {
               onUpdateField={updateField}
               onSubmit={addNomeLocal}
               onRemoveLocal={removeLocal}
+              hasReachedLimit={hasReachedLimit}
             />
 
             <ClassificaCarcerati
@@ -119,6 +131,7 @@ export default function Grazia() {
               isPending={saveVotiMutation.isPending}
               onToggleSelezione={toggleSelezioneClassifica}
               onShowClassifica={showClassifica}
+              hasReachedLimit={hasReachedLimit}
             />
 
             <div className="flex justify-end mt-4">

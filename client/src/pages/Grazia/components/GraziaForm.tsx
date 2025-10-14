@@ -13,6 +13,7 @@ interface GraziaFormProps {
   onUpdateField: (field: string, value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   onRemoveLocal: (nome: string) => void;
+  hasReachedLimit: boolean;
 }
 
 export const GraziaForm: React.FC<GraziaFormProps> = ({
@@ -22,7 +23,8 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
   isPending,
   onUpdateField,
   onSubmit,
-  onRemoveLocal
+  onRemoveLocal,
+  hasReachedLimit
 }) => {
   return (
     <Card className="bg-white">
@@ -46,7 +48,7 @@ export const GraziaForm: React.FC<GraziaFormProps> = ({
             />
             <Button 
               type="submit" 
-              disabled={isPending || !nomeInput.trim() || isBlocked}
+              disabled={isPending || !nomeInput.trim() || isBlocked || hasReachedLimit}
             >
               <Plus className="h-4 w-4 mr-2" />
               Chiedi Grazia

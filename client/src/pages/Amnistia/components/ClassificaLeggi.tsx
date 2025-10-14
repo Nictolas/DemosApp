@@ -16,6 +16,7 @@ interface ClassificaLeggiProps {
   isPending: boolean;
   onVote: (legge: string) => void;
   onShowClassifica: () => void;
+  hasReachedLimit: boolean;
 }
 
 export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
@@ -23,7 +24,8 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
   showAllClassifica,
   isPending,
   onVote,
-  onShowClassifica
+  onShowClassifica,
+  hasReachedLimit
 }) => {
   if (!classifica || classifica.length === 0) {
     return (
@@ -76,6 +78,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
                 isTopThree={isTopThree(index)}
                 onVote={onVote}
                 isPending={isPending}
+                hasReachedLimit={hasReachedLimit}
               />
             ))}
           </div>
@@ -110,6 +113,7 @@ export const ClassificaLeggi: React.FC<ClassificaLeggiProps> = ({
                       isTopThree={isTopThree(index + 3)}
                       onVote={onVote}
                       isPending={isPending}
+                      hasReachedLimit={hasReachedLimit}
                     />
                   ))}
                 </div>

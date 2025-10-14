@@ -12,6 +12,7 @@ interface IniziativeRankingProps {
   onViewIniziativa?: (iniziativa: Iniziativa) => void;
   isBlocked: boolean;
   isPending: boolean;
+  hasReachedLimit: boolean;
 }
 
 export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
@@ -21,7 +22,8 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
   onToggleSelezioneClassifica,
   onViewIniziativa,
   isBlocked,
-  isPending
+  isPending,
+  hasReachedLimit
 }) => {
   const [showAllClassifica, setShowAllClassifica] = useState(false);
 
@@ -115,7 +117,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                     e.stopPropagation();
                     onToggleSelezioneClassifica(item.nome);
                   }}
-                  disabled={isPending || isBlocked}
+                  disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(iniziative.find(i => i.nome === item.nome)?.id || ''))}
                   className={`transition-all duration-300 ${
                     iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id)
                       ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
@@ -206,7 +208,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                           e.stopPropagation();
                           onToggleSelezioneClassifica(item.nome);
                         }}
-                        disabled={isPending || isBlocked}
+                        disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(iniziative.find(i => i.nome === item.nome)?.id || ''))}
                         className={`transition-all duration-300 ${
                           iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id)
                             ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
