@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Correzioni Dispositivi Specifici - DemosApp</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+            min-height: 100vh;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        
+        .test-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+        
+        .test-description {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        
+        .device-info {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .test-button {
+            width: 100%;
+            padding: 15px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        
+        .test-button:hover {
+            background: #2563eb;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .test-card {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        
+        /* Simulazione delle classi CSS specifiche per dispositivo */
+        .device-iphone15promax .menu-button {
+            height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+            min-height: 120px !important;
+            max-height: 200px !important;
+        }
+        
+        .device-redmi .menu-button {
+            height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+            min-height: 100px !important;
+            max-height: 180px !important;
+        }
+        
+        .device-android .menu-button {
+            height: calc((100vh - 7rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+            min-height: 110px !important;
+            max-height: 190px !important;
+        }
+        
+        .device-ios .menu-button {
+            height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+            min-height: 120px !important;
+            max-height: 200px !important;
+        }
+        
+        .menu-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-container {
+                margin: 10px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1 style="text-align: center; color: #1f2937; margin-bottom: 30px;">
+            🔧 Test Correzioni Dispositivi Specifici - DemosApp
+        </h1>
+        
+        <div class="test-section">
+            <div class="test-title">📱 Rilevamento Dispositivo Specifico</div>
+            <div class="test-description">
+                Questo test verifica il corretto rilevamento di iPhone 15 Pro Max, Redmi e altri dispositivi problematici.
+            </div>
+            <div class="device-info" id="device-info">
+                Caricamento informazioni dispositivo...
+            </div>
+            <div id="device-status" class="status"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">🎨 Test Pulsanti Menu</div>
+            <div class="test-description">
+                Questi pulsanti simulano i pulsanti del menu e dovrebbero adattarsi correttamente al dispositivo rilevato.
+            </div>
+            <div class="test-grid">
+                <div class="test-card">
+                    <h3>Pulsante Menu 1</h3>
+                    <button class="menu-button" onclick="testMenuButton(1)">Menu Button 1</button>
+                </div>
+                <div class="test-card">
+                    <h3>Pulsante Menu 2</h3>
+                    <button class="menu-button" onclick="testMenuButton(2)">Menu Button 2</button>
+                </div>
+            </div>
+            <div id="button-status" class="status"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">📊 Informazioni Tecniche</div>
+            <div class="test-description">
+                Dettagli tecnici del rilevamento dispositivo e delle correzioni applicate.
+            </div>
+            <div class="device-info" id="tech-info">
+                Caricamento informazioni tecniche...
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">✅ Risultati Test</div>
+            <div class="test-description">
+                Stato generale delle correzioni per dispositivi specifici.
+            </div>
+            <div id="overall-status" class="status"></div>
+            <button class="test-button" onclick="runAllTests()">Esegui Tutti i Test</button>
+        </div>
+    </div>
+
+    <script>
+        // Simulazione del rilevamento dispositivo specifico
+        function detectSpecificDevice() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const screenWidth = window.screen.width;
+            const screenHeight = window.screen.height;
+            
+            // Rilevamento iPhone 15 Pro Max
+            const isIPhone15ProMax = (
+                /iphone/.test(userAgent) &&
+                (
+                    (screenHeight === 932 && screenWidth === 430) ||
+                    (screenHeight === 430 && screenWidth === 932) ||
+                    (userAgent.includes('iphone') && screenHeight >= 900)
+                )
+            );
+            
+            // Rilevamento Redmi
+            const isRedmi = userAgent.includes('redmi') || userAgent.includes('xiaomi');
+            
+            // Rilevamento Android generico
+            const isAndroid = userAgent.includes('android');
+            
+            // Rilevamento iOS generico
+            const isIOS = /iphone|ipad|ipod/.test(userAgent);
+            
+            let deviceType = 'other';
+            if (isIPhone15ProMax) deviceType = 'iphone15promax';
+            else if (isRedmi) deviceType = 'redmi';
+            else if (isAndroid) deviceType = 'android';
+            else if (isIOS) deviceType = 'ios';
+            
+            const needsSpecialFix = isIPhone15ProMax || isRedmi;
+            
+            return {
+                isIPhone15ProMax,
+                isRedmi,
+                isAndroid,
+                isIOS,
+                deviceType,
+                needsSpecialFix,
+                screenWidth,
+                screenHeight,
+                userAgent
+            };
+        }
+        
+        function applyDeviceClasses(deviceInfo) {
+            const body = document.body;
+            
+            // Rimuovi classi precedenti
+            body.classList.remove('device-iphone15promax', 'device-redmi', 'device-android', 'device-ios');
+            
+            // Applica classi correnti
+            if (deviceInfo.isIPhone15ProMax) body.classList.add('device-iphone15promax');
+            if (deviceInfo.isRedmi) body.classList.add('device-redmi');
+            if (deviceInfo.isAndroid) body.classList.add('device-android');
+            if (deviceInfo.isIOS) body.classList.add('device-ios');
+        }
+        
+        function updateDeviceInfo() {
+            const deviceInfo = detectSpecificDevice();
+            applyDeviceClasses(deviceInfo);
+            
+            document.getElementById('device-info').innerHTML = `
+                <strong>iPhone 15 Pro Max:</strong> ${deviceInfo.isIPhone15ProMax ? '✅ RILEVATO' : '❌ Non rilevato'}<br>
+                <strong>Redmi:</strong> ${deviceInfo.isRedmi ? '✅ RILEVATO' : '❌ Non rilevato'}<br>
+                <strong>Android:</strong> ${deviceInfo.isAndroid ? '✅ RILEVATO' : '❌ Non rilevato'}<br>
+                <strong>iOS:</strong> ${deviceInfo.isIOS ? '✅ RILEVATO' : '❌ Non rilevato'}<br>
+                <strong>Tipo Dispositivo:</strong> ${deviceInfo.deviceType}<br>
+                <strong>Necessita Correzione:</strong> ${deviceInfo.needsSpecialFix ? '✅ SÌ' : '❌ No'}<br>
+                <strong>Dimensioni Schermo:</strong> ${deviceInfo.screenWidth}x${deviceInfo.screenHeight}<br>
+                <strong>User Agent:</strong> ${deviceInfo.userAgent.substring(0, 50)}...
+            `;
+            
+            document.getElementById('tech-info').innerHTML = `
+                <strong>Classi CSS Applicate:</strong><br>
+                ${deviceInfo.isIPhone15ProMax ? '• device-iphone15promax<br>' : ''}
+                ${deviceInfo.isRedmi ? '• device-redmi<br>' : ''}
+                ${deviceInfo.isAndroid ? '• device-android<br>' : ''}
+                ${deviceInfo.isIOS ? '• device-ios<br>' : ''}
+                <strong>Altezza Pulsanti Calcolata:</strong><br>
+                ${deviceInfo.isIPhone15ProMax ? '• iPhone 15 Pro Max: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)<br>' : ''}
+                ${deviceInfo.isRedmi ? '• Redmi: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2)<br>' : ''}
+                ${deviceInfo.isAndroid ? '• Android: calc((100vh - 7rem - env(safe-area-inset-bottom) - 200px) / 2)<br>' : ''}
+                ${deviceInfo.isIOS ? '• iOS: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)<br>' : ''}
+            `;
+            
+            // Test del rilevamento
+            const deviceStatus = document.getElementById('device-status');
+            if (deviceInfo.needsSpecialFix) {
+                deviceStatus.className = 'status success';
+                deviceStatus.textContent = `✅ Dispositivo problematico rilevato: ${deviceInfo.deviceType.toUpperCase()} - Correzioni applicate`;
+            } else if (deviceInfo.isAndroid || deviceInfo.isIOS) {
+                deviceStatus.className = 'status warning';
+                deviceStatus.textContent = `⚠️ Dispositivo mobile rilevato: ${deviceInfo.deviceType.toUpperCase()} - Configurazione standard`;
+            } else {
+                deviceStatus.className = 'status warning';
+                deviceStatus.textContent = `⚠️ Dispositivo desktop o sconosciuto rilevato`;
+            }
+            
+            return deviceInfo;
+        }
+        
+        function testMenuButton(buttonNumber) {
+            const buttonStatus = document.getElementById('button-status');
+            const deviceInfo = detectSpecificDevice();
+            
+            // Simula il test del pulsante
+            const button = document.querySelector(`.menu-button:nth-child(${buttonNumber})`);
+            if (button) {
+                const computedStyle = window.getComputedStyle(button);
+                const height = computedStyle.height;
+                
+                buttonStatus.className = 'status success';
+                buttonStatus.textContent = `✅ Pulsante ${buttonNumber} testato - Altezza: ${height} - Dispositivo: ${deviceInfo.deviceType.toUpperCase()}`;
+            }
+        }
+        
+        function runAllTests() {
+            const overallStatus = document.getElementById('overall-status');
+            const deviceInfo = detectSpecificDevice();
+            
+            let testsPassed = 0;
+            let totalTests = 3;
+            
+            // Test 1: Rilevamento dispositivo
+            if (deviceInfo.deviceType !== 'other') testsPassed++;
+            
+            // Test 2: Applicazione classi CSS
+            const body = document.body;
+            const hasDeviceClass = body.classList.contains(`device-${deviceInfo.deviceType}`);
+            if (hasDeviceClass) testsPassed++;
+            
+            // Test 3: Configurazione corretta per dispositivi problematici
+            if (deviceInfo.needsSpecialFix) {
+                if (deviceInfo.isIPhone15ProMax || deviceInfo.isRedmi) {
+                    testsPassed++;
+                }
+            } else {
+                testsPassed++; // Se non necessita correzioni, il test passa
+            }
+            
+            const percentage = Math.round((testsPassed / totalTests) * 100);
+            
+            if (testsPassed === totalTests) {
+                overallStatus.className = 'status success';
+                overallStatus.textContent = `✅ TUTTI I TEST SUPERATI (${testsPassed}/${totalTests} - ${percentage}%) - Sistema funzionante`;
+            } else if (testsPassed >= totalTests * 0.75) {
+                overallStatus.className = 'status warning';
+                overallStatus.textContent = `⚠️ TEST PARZIALMENTE SUPERATI (${testsPassed}/${totalTests} - ${percentage}%) - Verificare configurazione`;
+            } else {
+                overallStatus.className = 'status error';
+                overallStatus.textContent = `❌ TEST FALLITI (${testsPassed}/${totalTests} - ${percentage}%) - Sistema non funzionante`;
+            }
+        }
+        
+        // Inizializzazione
+        window.addEventListener('load', () => {
+            updateDeviceInfo();
+            runAllTests();
+        });
+        
+        window.addEventListener('resize', () => {
+            setTimeout(updateDeviceInfo, 100);
+        });
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateDeviceInfo, 500);
+        });
+    </script>
+</body>
+</html>

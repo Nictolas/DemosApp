@@ -937,3 +937,101 @@ body {
   transition: height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease, padding-bottom 0.3s ease;
 }
 
+/* ===== CORREZIONI SPECIFICHE PER DISPOSITIVI PROBLEMATICI ===== */
+
+/* iPhone 15 Pro Max - Ripristina configurazione originale */
+.device-iphone15promax .menu-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-iphone15promax .opinioni-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-iphone15promax .candidato-card {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 200px !important;
+  max-height: 300px !important;
+}
+
+.device-iphone15promax .page-with-navbar {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+}
+
+.device-iphone15promax .menu-page .container {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important;
+}
+
+/* Redmi - Correzione specifica per pulsanti tagliati */
+.device-redmi .menu-button {
+  height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 100px !important;
+  max-height: 180px !important;
+}
+
+.device-redmi .opinioni-button {
+  height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 100px !important;
+  max-height: 180px !important;
+}
+
+.device-redmi .candidato-card {
+  height: calc((100vh - 8rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 150px !important;
+  max-height: 250px !important;
+}
+
+.device-redmi .page-with-navbar {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom) + 1rem) !important;
+}
+
+.device-redmi .menu-page .container {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom) + 3rem) !important;
+}
+
+/* Android generico - Miglioramenti per dispositivi con navbar alta */
+.device-android .menu-button {
+  height: calc((100vh - 7rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 110px !important;
+  max-height: 190px !important;
+}
+
+.device-android .opinioni-button {
+  height: calc((100vh - 7rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 110px !important;
+  max-height: 190px !important;
+}
+
+.device-android .page-with-navbar {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom) + 1rem) !important;
+}
+
+.device-android .menu-page .container {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom) + 2rem) !important;
+}
+
+/* iOS generico - Configurazione ottimizzata */
+.device-ios .menu-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-ios .opinioni-button {
+  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-ios .page-with-navbar {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+}
+
+.device-ios .menu-page .container {
+  padding-bottom: calc(6rem + env(safe-area-inset-bottom) + 2rem) !important;
+}
+
