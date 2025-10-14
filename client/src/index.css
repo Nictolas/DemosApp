@@ -566,7 +566,14 @@ body {
 
 /* Padding dinamico per le pagine con navbar fissa in basso */
 .page-with-navbar {
-  padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important; /* 96px + safe area per dispositivi con notch */
+  padding-bottom: var(--container-padding-bottom, calc(6rem + env(safe-area-inset-bottom))) !important;
+  transition: padding-bottom 0.3s ease;
+}
+
+/* Classi responsive per i container */
+.responsive-container {
+  padding-bottom: var(--container-padding-bottom, calc(6rem + env(safe-area-inset-bottom))) !important;
+  transition: padding-bottom 0.3s ease;
 }
 
 /* Assicura che il contenuto non finisca dietro la navbar */
@@ -639,16 +646,26 @@ body {
 
 /* Assicura che i pulsanti del menu si adattino dinamicamente all'altezza dello schermo */
 .menu-button {
-  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important; /* Calcola altezza disponibile divisa per 2 righe */
-  min-height: 120px !important; /* Altezza minima per garantire usabilità */
-  max-height: 200px !important; /* Altezza massima per evitare pulsanti troppo grandi */
+  height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--menu-button-min-height, 120px) !important;
+  max-height: var(--menu-button-max-height, 200px) !important;
+  transition: height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease;
+}
+
+/* Classi responsive per i pulsanti */
+.responsive-button {
+  height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--menu-button-min-height, 120px) !important;
+  max-height: var(--menu-button-max-height, 200px) !important;
+  transition: all 0.3s ease;
 }
 
 /* Stili per pulsanti delle opinioni */
 .opinioni-button {
-  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
-  min-height: 120px !important;
-  max-height: 200px !important;
+  height: var(--menu-button-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--menu-button-min-height, 120px) !important;
+  max-height: var(--menu-button-max-height, 200px) !important;
+  transition: all 0.3s ease;
 }
 
 /* Stili per pagine di opinione con contenuto scrollabile */
@@ -663,16 +680,26 @@ body {
 
 /* Stili per card dei candidati */
 .candidato-card {
-  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2) !important;
-  min-height: 200px !important;
-  max-height: 300px !important;
+  height: var(--card-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--card-min-height, 200px) !important;
+  max-height: var(--card-max-height, 300px) !important;
+  transition: all 0.3s ease;
+}
+
+/* Classi responsive per le card */
+.responsive-card {
+  height: var(--card-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 200px) / 2)) !important;
+  min-height: var(--card-min-height, 200px) !important;
+  max-height: var(--card-max-height, 300px) !important;
+  transition: all 0.3s ease;
 }
 
 /* Stili per card dei ministeri */
 .ministero-card {
-  height: calc((100vh - 6rem - env(safe-area-inset-bottom) - 100px) / 3) !important;
-  min-height: 120px !important;
-  max-height: 200px !important;
+  height: var(--card-height, calc((100vh - 6rem - env(safe-area-inset-bottom) - 100px) / 3)) !important;
+  min-height: var(--card-min-height, 120px) !important;
+  max-height: var(--card-max-height, 200px) !important;
+  transition: all 0.3s ease;
 }
 
 /* Ottimizzazioni per schermi molto piccoli */
@@ -752,5 +779,161 @@ body {
     height: 1.75rem !important;
     width: 1.75rem !important;
   }
+}
+
+/* ===== CLASSI RESPONSIVE PER TIPI DI DISPOSITIVO ===== */
+
+/* Dispositivi molto piccoli (altezza < 600px) */
+.device-small-mobile {
+  --menu-button-height: 80px;
+  --menu-button-min-height: 80px;
+  --menu-button-max-height: 120px;
+  --card-height: 100px;
+  --card-min-height: 100px;
+  --card-max-height: 150px;
+  --container-padding-bottom: 120px;
+}
+
+.device-small-mobile .menu-button,
+.device-small-mobile .opinioni-button {
+  height: 80px !important;
+  min-height: 80px !important;
+  max-height: 120px !important;
+}
+
+.device-small-mobile .candidato-card,
+.device-small-mobile .rappresentante-card {
+  height: 100px !important;
+  min-height: 100px !important;
+  max-height: 150px !important;
+}
+
+.device-small-mobile .text-3xl {
+  font-size: 1.25rem !important; /* text-xl */
+}
+
+.device-small-mobile .text-2xl {
+  font-size: 1.125rem !important; /* text-lg */
+}
+
+.device-small-mobile .h-16.w-16 {
+  width: 3rem !important;
+  height: 3rem !important;
+}
+
+.device-small-mobile .h-14.w-14 {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+}
+
+.device-small-mobile .h-10.w-10 {
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+}
+
+/* Dispositivi mobili standard */
+.device-mobile {
+  --menu-button-height: 120px;
+  --menu-button-min-height: 120px;
+  --menu-button-max-height: 200px;
+  --card-height: 150px;
+  --card-min-height: 150px;
+  --card-max-height: 250px;
+  --container-padding-bottom: 140px;
+}
+
+.device-mobile .menu-button,
+.device-mobile .opinioni-button {
+  height: 120px !important;
+  min-height: 120px !important;
+  max-height: 200px !important;
+}
+
+.device-mobile .candidato-card,
+.device-mobile .rappresentante-card {
+  height: 150px !important;
+  min-height: 150px !important;
+  max-height: 250px !important;
+}
+
+/* Dispositivi Android - padding extra */
+.device-android .page-with-navbar,
+.device-android .menu-page .container {
+  padding-bottom: calc(var(--container-padding-bottom) + 24px) !important;
+}
+
+.device-android .menu-button,
+.device-android .opinioni-button {
+  height: calc(var(--menu-button-height) - 20px) !important;
+  min-height: calc(var(--menu-button-min-height) - 20px) !important;
+}
+
+/* Dispositivi con notch - padding extra per safe area */
+.device-has-notch .page-with-navbar,
+.device-has-notch .menu-page .container {
+  padding-bottom: calc(var(--container-padding-bottom) + var(--safe-area-inset-bottom)) !important;
+}
+
+/* Dispositivi tablet */
+.device-tablet {
+  --menu-button-height: 150px;
+  --menu-button-min-height: 150px;
+  --menu-button-max-height: 250px;
+  --card-height: 200px;
+  --card-min-height: 200px;
+  --card-max-height: 300px;
+  --container-padding-bottom: 160px;
+}
+
+.device-tablet .menu-button,
+.device-tablet .opinioni-button {
+  height: 150px !important;
+  min-height: 150px !important;
+  max-height: 250px !important;
+}
+
+.device-tablet .candidato-card,
+.device-tablet .rappresentante-card {
+  height: 200px !important;
+  min-height: 200px !important;
+  max-height: 300px !important;
+}
+
+/* Dispositivi desktop */
+.device-desktop {
+  --menu-button-height: 200px;
+  --menu-button-min-height: 200px;
+  --menu-button-max-height: 300px;
+  --card-height: 250px;
+  --card-min-height: 250px;
+  --card-max-height: 350px;
+  --container-padding-bottom: 180px;
+}
+
+.device-desktop .menu-button,
+.device-desktop .opinioni-button {
+  height: 200px !important;
+  min-height: 200px !important;
+  max-height: 300px !important;
+}
+
+.device-desktop .candidato-card,
+.device-desktop .rappresentante-card {
+  height: 250px !important;
+  min-height: 250px !important;
+  max-height: 350px !important;
+}
+
+/* Transizioni fluide per tutti i cambiamenti */
+.menu-button,
+.opinioni-button,
+.candidato-card,
+.rappresentante-card,
+.ministero-card,
+.page-with-navbar,
+.responsive-button,
+.responsive-card,
+.responsive-container {
+  transition: height 0.3s ease, min-height 0.3s ease, max-height 0.3s ease, padding-bottom 0.3s ease;
 }
 
