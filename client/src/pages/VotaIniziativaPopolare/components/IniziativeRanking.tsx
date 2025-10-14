@@ -117,7 +117,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                     e.stopPropagation();
                     onToggleSelezioneClassifica(item.nome);
                   }}
-                  disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(iniziative.find(i => i.nome === item.nome)?.id || ''))}
+                  disabled={isPending || isBlocked}
                   className={`transition-all duration-300 ${
                     iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id)
                       ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
@@ -208,7 +208,7 @@ export const IniziativeRanking: React.FC<IniziativeRankingProps> = ({
                           e.stopPropagation();
                           onToggleSelezioneClassifica(item.nome);
                         }}
-                        disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(iniziative.find(i => i.nome === item.nome)?.id || ''))}
+                        disabled={isPending || isBlocked}
                         className={`transition-all duration-300 ${
                           iniziative.find(i => i.nome === item.nome) && selectedVoti.includes(iniziative.find(i => i.nome === item.nome)!.id)
                             ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"

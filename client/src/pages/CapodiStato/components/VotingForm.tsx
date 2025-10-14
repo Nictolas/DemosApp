@@ -111,7 +111,7 @@ export const VotingForm: React.FC<VotingFormProps> = ({
             </div>
             <Button 
               type="submit" 
-              disabled={!nomeInput.trim() || isBlocked || hasReachedLimit}
+              disabled={!nomeInput.trim() || isBlocked}
             >
               <Plus className="h-4 w-4 mr-2" />
               Aggiungi
