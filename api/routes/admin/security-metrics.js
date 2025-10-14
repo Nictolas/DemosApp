@@ -40,22 +40,38 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
     // Stima token attivi: login - logout - expired (con un minimo di 1 se ci sono login recenti)
     let activeTokens = Math.max(0, loginSuccesses - logoutSuccesses - expiredTokens);
     
-    // Se ci sono login recenti ma 0 token attivi, considera almeno 1 token attivo
+    // Se ci sono login recenti ma 0 token attivi, controlla le sessioni attive
     if (loginSuccesses > 0 && activeTokens === 0) {
-      // Controlla se ci sono login molto recenti (ultime 24h)
-      const recentLoginQuery = `
-        SELECT COUNT(*) as recent_logins
-        FROM audit_logs 
-        WHERE action = 'LOGIN' 
-          AND success = true 
-          AND timestamp >= NOW() - INTERVAL '24 hours'
+      // Controlla sessioni attive nella tabella active_sessions
+      const activeSessionsQuery = `
+        SELECT COUNT(*) as active_sessions_count
+        FROM active_sessions 
+        WHERE is_active = true 
+          AND expires_at > NOW()
+          AND last_activity >= NOW() - INTERVAL '2 hours'
       `;
       
-      const recentResult = await pool.query(recentLoginQuery);
-      const recentLogins = parseInt(recentResult.rows[0].recent_logins) || 0;
+      const activeSessionsResult = await pool.query(activeSessionsQuery);
+      const activeSessionsCount = parseInt(activeSessionsResult.rows[0].active_sessions_count) || 0;
       
-      if (recentLogins > 0) {
-        activeTokens = 1; // Almeno 1 token attivo se ci sono login recenti
+      if (activeSessionsCount > 0) {
+        activeTokens = activeSessionsCount;
+      } else {
+        // Fallback: controlla se ci sono login molto recenti (ultime 24h)
+        const recentLoginQuery = `
+          SELECT COUNT(*) as recent_logins
+          FROM audit_logs 
+          WHERE action = 'LOGIN' 
+            AND success = true 
+            AND timestamp >= NOW() - INTERVAL '24 hours'
+        `;
+        
+        const recentResult = await pool.query(recentLoginQuery);
+        const recentLogins = parseInt(recentResult.rows[0].recent_logins) || 0;
+        
+        if (recentLogins > 0) {
+          activeTokens = 1; // Almeno 1 token attivo se ci sono login recenti
+        }
       }
     }
     
@@ -246,27 +262,42 @@ router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
     const result = await pool.query(systemQuery);
     const stats = result.rows[0];
     
-    // Se non ci sono utenti attivi negli audit_logs, controlla se ci sono utenti con sessioni valide
+    // Controlla sessioni attive nella tabella active_sessions
     let activeUsers = parseInt(stats.active_users) || 0;
     
+    // Se non ci sono utenti attivi negli audit_logs, controlla le sessioni attive
     if (activeUsers === 0) {
-      // Controlla se ci sono utenti con token validi (ultimi 24h)
-      const tokenQuery = `
-        SELECT COUNT(DISTINCT user_id) as users_with_tokens
-        FROM audit_logs 
-        WHERE timestamp >= NOW() - INTERVAL '24 hours'
-          AND action IN ('LOGIN', 'DATA_ACCESS', 'PROFILE_UPDATE')
-          AND success = true
-          AND user_id IS NOT NULL
-          AND user_id != 'anonymous'
+      const activeSessionsQuery = `
+        SELECT COUNT(DISTINCT user_id) as active_sessions_count
+        FROM active_sessions 
+        WHERE is_active = true 
+          AND expires_at > NOW()
+          AND last_activity >= NOW() - INTERVAL '2 hours'
       `;
       
-      const tokenResult = await pool.query(tokenQuery);
-      const usersWithTokens = parseInt(tokenResult.rows[0].users_with_tokens) || 0;
+      const activeSessionsResult = await pool.query(activeSessionsQuery);
+      const activeSessionsCount = parseInt(activeSessionsResult.rows[0].active_sessions_count) || 0;
       
-      // Se ci sono utenti con token recenti, considera almeno 1 utente attivo
-      if (usersWithTokens > 0) {
-        activeUsers = Math.max(1, usersWithTokens);
+      if (activeSessionsCount > 0) {
+        activeUsers = activeSessionsCount;
+      } else {
+        // Fallback: controlla se ci sono utenti con token validi (ultimi 24h)
+        const tokenQuery = `
+          SELECT COUNT(DISTINCT user_id) as users_with_tokens
+          FROM audit_logs 
+          WHERE timestamp >= NOW() - INTERVAL '24 hours'
+            AND action IN ('LOGIN', 'DATA_ACCESS', 'PROFILE_UPDATE')
+            AND success = true
+            AND user_id IS NOT NULL
+            AND user_id != 'anonymous'
+        `;
+        
+        const tokenResult = await pool.query(tokenQuery);
+        const usersWithTokens = parseInt(tokenResult.rows[0].users_with_tokens) || 0;
+        
+        if (usersWithTokens > 0) {
+          activeUsers = Math.max(1, usersWithTokens);
+        }
       }
     }
     
