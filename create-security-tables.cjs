@@ -1,11 +1,10 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
 // Configurazione database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { 
-    rejectUnauthorized: process.env.NODE_ENV === 'production'
-  }
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function createSecurityTables() {
