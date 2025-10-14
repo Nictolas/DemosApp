@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth-neon';
+import { DeviceSpecificProvider } from './DeviceSpecificProvider';
 import Navbar from './Navbar';
 
 interface RobustAppLayoutProps {
@@ -57,30 +58,25 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   }, [location, shouldShowNavbar]);
 
   return (
-    <div className="robust-app-layout">
-      {/* Header area */}
-      <header className="app-header">
-        {/* Header content se necessario */}
-      </header>
-      
-      {/* Main content area */}
-      <main className="app-main">
-        {children}
-      </main>
-      
-      {/* Navbar area - SEMPRE FISSA */}
-      {shouldShowNavbar && (
-        <nav className="app-navbar" style={{
-          position: 'sticky',
-          bottom: 0,
-          zIndex: 9999,
-          flexShrink: 0,
-          width: '100%',
-          overflow: 'visible'
-        }}>
-          <Navbar />
-        </nav>
-      )}
-    </div>
+    <DeviceSpecificProvider>
+      <div className="modern-app-layout">
+        {/* Header area */}
+        <header className="app-header">
+          {/* Header content se necessario */}
+        </header>
+        
+        {/* Main content area */}
+        <main className="app-main">
+          {children}
+        </main>
+        
+        {/* Navbar area - SEMPRE FISSA */}
+        {shouldShowNavbar && (
+          <nav className="app-navbar">
+            <Navbar />
+          </nav>
+        )}
+      </div>
+    </DeviceSpecificProvider>
   );
 };

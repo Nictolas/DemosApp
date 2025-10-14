@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Test Navbar Fix - DemosApp</title>
+    <style>
+        /* CSS Variables per altezza navbar dinamica */
+        :root {
+            --navbar-height: 6rem; /* 96px - altezza base */
+            --navbar-height-mobile: 6rem; /* 96px - mobile */
+            --navbar-height-tablet: 5rem; /* 80px - tablet */
+            --navbar-height-desktop: 4rem; /* 64px - desktop */
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+            --navbar-total-height: calc(var(--navbar-height) + var(--safe-area-bottom));
+        }
+
+        /* Layout principale con CSS Grid */
+        .modern-app-layout {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            height: 100dvh; /* Nuovo standard per viewport dinamico */
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Header area */
+        .app-header {
+            grid-row: 1;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            z-index: 1000;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        /* Main content area */
+        .app-main {
+            grid-row: 2;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            padding: 1rem;
+        }
+
+        /* Navbar area */
+        .app-navbar {
+            grid-row: 3;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            z-index: 1000;
+            position: relative;
+            flex-shrink: 0;
+            height: var(--navbar-total-height);
+            min-height: var(--navbar-total-height);
+        }
+
+        /* Navbar content */
+        .navbar-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: var(--navbar-height);
+            padding: 1rem 0;
+            padding-bottom: calc(1rem + var(--safe-area-bottom));
+        }
+
+        .navbar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            margin: 0 1rem;
+            text-decoration: none;
+            color: #374151;
+            transition: all 0.2s;
+        }
+
+        .navbar-item:hover {
+            color: #3b82f6;
+            transform: scale(1.05);
+        }
+
+        .navbar-icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 0.25rem;
+        }
+
+        .navbar-text {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Test content */
+        .test-content {
+            background: white;
+            padding: 2rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 0.5rem;
+        }
+
+        /* Responsive breakpoints */
+        @media (max-width: 767px) {
+            :root {
+                --navbar-height: var(--navbar-height-mobile);
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            :root {
+                --navbar-height: var(--navbar-height-tablet);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            :root {
+                --navbar-height: var(--navbar-height-desktop);
+            }
+        }
+
+        /* Device specific classes */
+        .device-android-mobile {
+            --navbar-height: 7rem !important;
+            --navbar-total-height: calc(7rem + var(--safe-area-bottom)) !important;
+        }
+
+        .device-ios-mobile-notch {
+            --navbar-height: 6rem !important;
+            --navbar-total-height: calc(6rem + var(--safe-area-bottom)) !important;
+        }
+
+        /* Debug info */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: monospace;
+            z-index: 10000;
+            max-width: 200px;
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+    <div class="modern-app-layout">
+        <!-- Header area -->
+        <header class="app-header">
+            <h1>Test Navbar Fix - DemosApp</h1>
+            <p>Test della soluzione per la sovrapposizione della navbar</p>
+        </header>
+        
+        <!-- Main content area -->
+        <main class="app-main">
+            <div class="test-content">
+                <h2>Contenuto di Test</h2>
+                <p>Questo è un contenuto di test per verificare che la navbar non si sovrapponga al contenuto.</p>
+                
+                <div class="test-section">
+                    <h3>Sezione 1</h3>
+                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 2</h3>
+                    <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 3</h3>
+                    <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 4</h3>
+                    <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 5</h3>
+                    <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 6</h3>
+                    <p>Totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 7</h3>
+                    <p>Explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 8</h3>
+                    <p>Sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 9</h3>
+                    <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit.</p>
+                </div>
+                
+                <div class="test-section">
+                    <h3>Sezione 10</h3>
+                    <p>Sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Navbar area -->
+        <nav class="app-navbar">
+            <div class="navbar-content">
+                <a href="#" class="navbar-item">
+                    <div class="navbar-icon">🏠</div>
+                    <span class="navbar-text">Menu</span>
+                </a>
+                <a href="#" class="navbar-item">
+                    <div class="navbar-icon">📅</div>
+                    <span class="navbar-text">Eventi</span>
+                </a>
+                <a href="#" class="navbar-item">
+                    <div class="navbar-icon">❤️</div>
+                    <span class="navbar-text">Preferiti</span>
+                </a>
+                <a href="#" class="navbar-item">
+                    <div class="navbar-icon">🔔</div>
+                    <span class="navbar-text">Notifiche</span>
+                </a>
+                <a href="#" class="navbar-item">
+                    <div class="navbar-icon">⚙️</div>
+                    <span class="navbar-text">Impostazioni</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Debug info -->
+    <div class="debug-info" id="debugInfo">
+        <div><strong>Device Debug:</strong></div>
+        <div>Screen: <span id="screenSize"></span></div>
+        <div>Navbar: <span id="navbarHeight"></span></div>
+        <div>Safe Area: <span id="safeArea"></span></div>
+        <div>Total: <span id="totalHeight"></span></div>
+    </div>
+
+    <script>
+        // Device detection
+        function detectDevice() {
+            const userAgent = navigator.userAgent.toLowerCase();
+            const screenHeight = window.innerHeight;
+            const screenWidth = window.innerWidth;
+            
+            const isAndroid = /android/.test(userAgent);
+            const isIOS = /iphone|ipad|ipod/.test(userAgent);
+            const isMobile = screenWidth <= 767;
+            const isTablet = screenWidth >= 768 && screenWidth <= 1023;
+            const isDesktop = screenWidth >= 1024;
+            
+            const hasNotch = isIOS && (
+                screenHeight >= 812 || // iPhone X, XS, 11 Pro, 12 mini
+                screenHeight >= 844 || // iPhone 12, 12 Pro
+                screenHeight >= 926 || // iPhone 12 Pro Max
+                screenHeight >= 932    // iPhone 14 Pro Max
+            );
+            
+            let deviceClass = 'unknown';
+            if (isMobile) {
+                if (isAndroid) {
+                    deviceClass = 'android-mobile';
+                } else if (isIOS) {
+                    deviceClass = hasNotch ? 'ios-mobile-notch' : 'ios-mobile';
+                } else {
+                    deviceClass = 'mobile';
+                }
+            } else if (isTablet) {
+                deviceClass = 'tablet';
+            } else if (isDesktop) {
+                deviceClass = 'desktop';
+            }
+            
+            return {
+                deviceClass,
+                isMobile,
+                isAndroid,
+                isIOS,
+                hasNotch,
+                screenHeight,
+                screenWidth
+            };
+        }
+
+        // Apply device-specific styles
+        function applyDeviceStyles() {
+            const deviceInfo = detectDevice();
+            const root = document.documentElement;
+            
+            // Apply device class to body
+            document.body.className = document.body.className.replace(/device-\w+/g, '');
+            document.body.classList.add(`device-${deviceInfo.deviceClass}`);
+            
+            // Update debug info
+            document.getElementById('screenSize').textContent = `${deviceInfo.screenWidth}x${deviceInfo.screenHeight}`;
+            document.getElementById('navbarHeight').textContent = getComputedStyle(root).getPropertyValue('--navbar-height');
+            document.getElementById('safeArea').textContent = getComputedStyle(root).getPropertyValue('--safe-area-bottom');
+            document.getElementById('totalHeight').textContent = getComputedStyle(root).getPropertyValue('--navbar-total-height');
+            
+            console.log('🔧 Device Detection:', deviceInfo);
+        }
+
+        // Initialize
+        applyDeviceStyles();
+        
+        // Reapply on resize
+        window.addEventListener('resize', applyDeviceStyles);
+        window.addEventListener('orientationchange', applyDeviceStyles);
+    </script>
+</body>
+</html>
