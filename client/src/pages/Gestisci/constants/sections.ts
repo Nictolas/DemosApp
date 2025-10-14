@@ -63,6 +63,16 @@ export const gestisciSections: GestisciSection[] = [
     route: "/admin/gdpr-legal",
     buttonText: "Apri Gestione GDPR"
   },
+  {
+    id: "data-export",
+    title: "Export Dati su Hard Disk",
+    description: "Esporta dati storici dal database Neon su hard disk esterno per alleggerire il database",
+    icon: HardDrive,
+    color: "text-blue-600 group-hover:text-blue-800",
+    buttonColor: "bg-blue-500 hover:bg-blue-600",
+    route: "/admin/data-export",
+    buttonText: "Gestisci Export"
+  },
     {
       id: "backup-recovery",
       title: "Backup e Recovery",

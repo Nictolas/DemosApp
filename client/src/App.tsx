@@ -102,6 +102,7 @@ import MonitoringDashboard from "./pages/MonitoringDashboard";
 import AuditDashboard from "./pages/AuditDashboard";
 import AdminSecurityDashboard from "./pages/Admin/SecurityDashboard";
 import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
+import DataExport from "./pages/DataExport";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -362,6 +363,13 @@ export default function App() {
                 <Route path="/admin/gdpr-legal">
                   <PageTransition location={location} type="fade-up">
                     <GDPRLegalManagement />
+                  </PageTransition>
+                </Route>
+
+                {/* Route per Export Dati */}
+                <Route path="/admin/data-export">
+                  <PageTransition location={location} type="fade-up">
+                    <DataExport />
                   </PageTransition>
                 </Route>
 

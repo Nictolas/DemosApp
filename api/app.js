@@ -57,6 +57,7 @@ const validationRoutes = require('./routes/admin/validation');
 const loggingRoutes = require('./routes/admin/logging');
 const monitoringRoutes = require('./routes/admin/monitoring');
 const securityMetricsRoutes = require('./routes/admin/security-metrics');
+const dataExportRoutes = require('./routes/admin/data-export');
 const cleanupRoutes = require('./routes/cleanup');
 const cleanupRateLimitRoutes = require('./routes/cleanup-reset-rate-limit');
 const segnalazioniRoutes = require('./routes/segnalazioni');
@@ -295,6 +296,9 @@ app.use('/api/admin/validation', adminLimiter, validationRoutes);
 
 // Route per logging centralizzato
 app.use('/api/admin/logging', adminLimiter, loggingRoutes);
+
+// Route per export dati
+app.use('/api/admin/data-export', adminLimiter, dataExportRoutes);
 
 // Route per monitoraggio performance e salute
 app.use('/api/admin/monitoring', adminLimiter, monitoringRoutes);
