@@ -357,43 +357,6 @@ export default function SecurityDashboard() {
           </Alert>
         )}
 
-          {/* Guida Generale per Neofiti */}
-          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-800">
-                <Shield className="h-6 w-6" />
-                🎓 Benvenuto nella Dashboard di Sicurezza DEMOS
-              </CardTitle>
-              <CardDescription className="text-blue-700 text-base">
-                Questa dashboard ti aiuta a monitorare la sicurezza del sistema DEMOS. Non preoccuparti se non capisci tutto subito!
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-blue-800">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-semibold mb-2">🟢 Cosa significa "Tutto OK":</h4>
-                  <ul className="space-y-1 ml-4">
-                    <li>• Uptime sopra 99%</li>
-                    <li>• Poche violazioni di sicurezza</li>
-                    <li>• Tempo di risposta veloce</li>
-                    <li>• Nessun attacco critico</li>
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2">🔴 Quando preoccuparsi:</h4>
-                  <ul className="space-y-1 ml-4">
-                    <li>• Uptime sotto 95%</li>
-                    <li>• Molte violazioni in poco tempo</li>
-                    <li>• Attacchi di severità "Critical"</li>
-                    <li>• Errori frequenti</li>
-                  </ul>
-                </div>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <strong>💡 Suggerimento:</strong> Inizia dalla scheda "Panoramica" per avere una visione generale, poi esplora le altre sezioni per i dettagli specifici.
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Statistiche Generali Migliorate */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
