@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { 
   Download, 
   HardDrive, 
@@ -17,7 +18,8 @@ import {
   AlertCircle,
   Clock,
   BarChart3,
-  Settings
+  Settings,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 
 interface ExportStatus {
@@ -47,6 +49,73 @@ interface TableInfo {
   sizeMB: number;
 }
 
+interface DatabaseAnalysis {
+  totalDatabaseSizeMB: number;
+  totalDatabaseSizePretty: string;
+  categories: {
+    exportable: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      percentage: number;
+      color: string;
+    };
+    users: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      percentage: number;
+      color: string;
+    };
+    content: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      percentage: number;
+      color: string;
+    };
+    system: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      percentage: number;
+      color: string;
+    };
+    other: {
+      name: string;
+      tables: Array<{
+        name: string;
+        sizeMB: number;
+        sizePretty: string;
+        columnCount: number;
+      }>;
+      totalSizeMB: number;
+      percentage: number;
+      color: string;
+    };
+  };
+}
+
 export default function DataExport() {
   const [exportStatus, setExportStatus] = useState<ExportStatus>({
     isRunning: false,
@@ -63,11 +132,14 @@ export default function DataExport() {
   const [deleteAfterExport, setDeleteAfterExport] = useState(false);
   const [dryRun, setDryRun] = useState(false);
   const [loadingTables, setLoadingTables] = useState(true);
+  const [databaseAnalysis, setDatabaseAnalysis] = useState<DatabaseAnalysis | null>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(true);
 
   // Carica dati iniziali
   useEffect(() => {
     loadExportHistory();
     loadTableInfo();
+    loadDatabaseAnalysis();
   }, []);
 
   const loadExportHistory = async () => {
@@ -323,6 +395,23 @@ export default function DataExport() {
     );
   };
 
+  const loadDatabaseAnalysis = async () => {
+    setLoadingAnalysis(true);
+    try {
+      const response = await fetch('/api/admin/data-export/database-analysis');
+      if (response.ok) {
+        const data = await response.json();
+        setDatabaseAnalysis(data);
+      } else {
+        console.error('Errore caricamento analisi database');
+      }
+    } catch (error) {
+      console.error('Errore caricamento analisi database:', error);
+    } finally {
+      setLoadingAnalysis(false);
+    }
+  };
+
   const getTableDescription = (tableName: string) => {
     const descriptions: { [key: string]: string } = {
       'centralized_logs': 'Log centralizzati di tutte le operazioni del sistema',
@@ -354,6 +443,7 @@ export default function DataExport() {
       <Tabs defaultValue="export" className="space-y-6">
         <TabsList>
           <TabsTrigger value="export">Export</TabsTrigger>
+          <TabsTrigger value="analysis">Analisi</TabsTrigger>
           <TabsTrigger value="history">Cronologia</TabsTrigger>
           <TabsTrigger value="settings">Impostazioni</TabsTrigger>
         </TabsList>
@@ -524,6 +614,160 @@ export default function DataExport() {
               {dryRun ? 'Simula Export' : 'Avvia Export'}
             </Button>
           </div>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="space-y-6">
+          {/* Analisi Database */}
+          <Card className="bg-white shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChartIcon className="h-5 w-5" />
+                    Analisi Peso Database
+                  </CardTitle>
+                  <CardDescription>
+                    Distribuzione del peso del database per categorie
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadDatabaseAnalysis}
+                  disabled={loadingAnalysis}
+                >
+                  {loadingAnalysis ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  ) : (
+                    'Aggiorna'
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingAnalysis ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-gray-600">Caricamento analisi...</span>
+                </div>
+              ) : databaseAnalysis ? (
+                <div className="space-y-6">
+                  {/* Dimensione Totale */}
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <h3 className="text-2xl font-bold text-blue-800">
+                      {databaseAnalysis.totalDatabaseSizePretty}
+                    </h3>
+                    <p className="text-blue-600">Dimensione totale database</p>
+                  </div>
+
+                  {/* Grafico a Torta */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-lg">Distribuzione per Categorie</h4>
+                      <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={Object.values(databaseAnalysis.categories).map(category => ({
+                                name: category.name,
+                                value: category.totalSizeMB,
+                                percentage: category.percentage,
+                                color: category.color
+                              }))}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percentage }) => `${name}: ${percentage}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {Object.values(databaseAnalysis.categories).map((category, index) => (
+                                <Cell key={`cell-${index}`} fill={category.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value: number) => [`${value} MB`, 'Dimensione']}
+                              labelFormatter={(label) => `Categoria: ${label}`}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Dettagli Categorie */}
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-lg">Dettagli Categorie</h4>
+                      <div className="space-y-3">
+                        {Object.values(databaseAnalysis.categories).map((category) => (
+                          <div key={category.name} className="p-3 border rounded-lg bg-gray-50">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div 
+                                  className="w-4 h-4 rounded-full" 
+                                  style={{ backgroundColor: category.color }}
+                                ></div>
+                                <span className="font-medium">{category.name}</span>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">{category.totalSizeMB} MB</div>
+                                <div className="text-sm text-gray-600">{category.percentage}%</div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {category.tables.length} tabelle
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tabelle da Esportare - Dettaglio */}
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-lg flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full bg-red-500"></span>
+                      Tabelle da Esportare (Dettaglio)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {databaseAnalysis.categories.exportable.tables.map((table) => (
+                        <div key={table.name} className="p-3 border rounded-lg bg-red-50">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="font-medium text-red-800">{table.name}</h5>
+                              <p className="text-sm text-red-600">{table.columnCount} colonne</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold text-red-800">{table.sizePretty}</div>
+                              <div className="text-sm text-red-600">{table.sizeMB} MB</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Potenziale Risparmio */}
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">
+                      💾 Potenziale Risparmio
+                    </h4>
+                    <p className="text-green-700">
+                      Esportando le tabelle di monitoraggio, potresti liberare{' '}
+                      <strong>{databaseAnalysis.categories.exportable.totalSizeMB} MB</strong>{' '}
+                      ({databaseAnalysis.categories.exportable.percentage}% del database totale)
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <PieChartIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Errore nel caricamento dell'analisi</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="history" className="space-y-6">
