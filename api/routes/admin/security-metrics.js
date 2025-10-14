@@ -357,4 +357,71 @@ router.get('/real-time-events', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
+/**
+ * 🚨 REAL SECURITY VIOLATIONS
+ * GET /api/admin/security/real-violations
+ */
+router.get('/real-violations', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    
+    // Calcola solo le vere violazioni di sicurezza (escludendo errori tecnici)
+    const realViolationsQuery = `
+      SELECT 
+        COUNT(*) as total_real_violations,
+        COUNT(CASE WHEN action = 'AUTH_FAILED' AND error_message NOT LIKE '%HTTP 500%' THEN 1 END) as auth_failures,
+        COUNT(CASE WHEN error_message LIKE '%Unauthorized%' OR error_message LIKE '%Forbidden%' THEN 1 END) as access_denied,
+        COUNT(CASE WHEN error_message LIKE '%Invalid credentials%' THEN 1 END) as invalid_credentials,
+        COUNT(CASE WHEN error_message LIKE '%Token expired%' OR error_message LIKE '%Invalid token%' THEN 1 END) as token_issues,
+        COUNT(CASE WHEN action LIKE '%SECURITY%' THEN 1 END) as security_events
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+        AND success = false
+        AND NOT (
+          error_message LIKE '%HTTP 500%' OR 
+          error_message LIKE '%Errore nella registrazione%' OR
+          error_message LIKE '%Internal Server Error%' OR
+          error_message LIKE '%Database Error%'
+        )
+        AND (
+          action LIKE '%SECURITY%' OR 
+          action LIKE '%AUTH%' OR 
+          action LIKE '%PERMISSION%' OR
+          error_message LIKE '%Unauthorized%' OR
+          error_message LIKE '%Forbidden%' OR
+          error_message LIKE '%Invalid credentials%' OR
+          error_message LIKE '%Access denied%' OR
+          error_message LIKE '%Token expired%' OR
+          error_message LIKE '%Invalid token%'
+        )
+    `;
+    
+    const result = await pool.query(realViolationsQuery);
+    const stats = result.rows[0];
+    
+    const realViolations = {
+      totalRealViolations: parseInt(stats.total_real_violations) || 0,
+      authFailures: parseInt(stats.auth_failures) || 0,
+      accessDenied: parseInt(stats.access_denied) || 0,
+      invalidCredentials: parseInt(stats.invalid_credentials) || 0,
+      tokenIssues: parseInt(stats.token_issues) || 0,
+      securityEvents: parseInt(stats.security_events) || 0
+    };
+
+    res.json({
+      success: true,
+      data: realViolations,
+      message: 'Vere violazioni di sicurezza recuperate con successo'
+    });
+
+  } catch (error) {
+    console.error('Errore nel recupero violazioni reali:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le violazioni di sicurezza reali'
+    });
+  }
+});
+
 module.exports = router;
