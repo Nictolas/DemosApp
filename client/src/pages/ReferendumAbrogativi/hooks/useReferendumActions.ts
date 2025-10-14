@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Referendum, ReferendumFormData, ReferendumAbrogativiState, QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useReferendumActions = () => {
   const { toast } = useToast();
@@ -56,7 +57,19 @@ export const useReferendumActions = () => {
   const closeView = () => setState(prev => ({ ...prev, viewReferendum: null }));
 
   // Funzioni per gestire le azioni
-  const handleCreate = (data: ReferendumFormData) => addMutation.mutate(data);
+  const handleCreate = (data: ReferendumFormData, currentProposals: number = 0) => {
+    // Controlla il limite di proposte
+    const limit = getVotingLimit('referendum_abrogativi_proposti');
+    if (hasReachedVotingLimit('referendum_abrogativi_proposti', currentProposals)) {
+      toast({ 
+        title: "Limite proposte raggiunto", 
+        description: `Puoi proporre solo ${limit} referendum abrogativo. Rimuovi una proposta esistente per proporne una nuova.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    addMutation.mutate(data);
+  };
   const handleUpdate = (data: ReferendumFormData) => editMutation.mutate(data);
   const handleDelete = (id: string) => deleteMutation.mutate(id);
 

@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { IniziativaPopolare, IniziativaFormData, IniziativaState } from "../types";
 import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useIniziativeActions = () => {
   const { toast } = useToast();
@@ -57,7 +58,19 @@ export const useIniziativeActions = () => {
   const closeView = () => setState(prev => ({ ...prev, viewIniziativa: null }));
 
   // Funzioni per gestire le azioni
-  const handleCreate = (data: IniziativaFormData) => addMutation.mutate(data);
+  const handleCreate = (data: IniziativaFormData, currentProposals: number = 0) => {
+    // Controlla il limite di proposte
+    const limit = getVotingLimit('iniziative_popolari_proposte');
+    if (hasReachedVotingLimit('iniziative_popolari_proposte', currentProposals)) {
+      toast({ 
+        title: "Limite proposte raggiunto", 
+        description: `Puoi proporre solo ${limit} iniziativa popolare. Rimuovi una proposta esistente per proporne una nuova.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    addMutation.mutate(data);
+  };
   const handleUpdate = (data: IniziativaFormData) => editMutation.mutate(data);
   const handleDelete = (id: string) => deleteMutation.mutate(id);
 

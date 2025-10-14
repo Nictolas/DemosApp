@@ -11,11 +11,21 @@ import { ViewDialog } from "./components/ViewDialog";
 import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeActions } from "./hooks/useIniziativeActions";
 import { IniziativeStatsChart } from "./components/IniziativeStatsChart";
+import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function IniziativePopolari() {
   const { user, isLoading: isAuthLoading } = useAuth();
 
-  const { listaIniziative, mieiVoti, isLoading, isError } = useIniziativeData(user);
+  const { 
+    listaIniziative, 
+    mieiVoti, 
+    isLoading, 
+    isError,
+    currentProposals,
+    limit,
+    remainingProposals,
+    hasReachedLimit
+  } = useIniziativeData(user);
   const {
     state,
     addMutation,
@@ -52,13 +62,19 @@ export default function IniziativePopolari() {
         <CardContent className="p-6">
           <Header />
           
+          {/* Informazioni sui limiti di proposte */}
+          <VotingLimitsInfo
+            category="iniziative_popolari_proposte"
+            currentVotes={currentProposals}
+          />
+          
           <div className="flex justify-start items-center mb-4">
-            <CreateButton onClick={showCreateForm} />
+            <CreateButton onClick={showCreateForm} disabled={hasReachedLimit} />
           </div>
           
           {state.showForm && (
             <IniziativaForm
-              onSubmit={handleCreate}
+              onSubmit={(data) => handleCreate(data, currentProposals)}
               onCancel={hideCreateForm}
               isLoading={addMutation.isPending}
             />

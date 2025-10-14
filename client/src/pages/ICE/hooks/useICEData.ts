@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ICE, ICEData } from "../types";
 import { QUERY_KEYS, API_ENDPOINTS, MESSAGES } from "../constants";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useICEData = (user: any) => {
   const { data: iceData, isLoading, isError } = useQuery<ICEData>({
@@ -23,10 +24,21 @@ export const useICEData = (user: any) => {
   }));
   const mieiVoti = iceData?.mieiVoti || [];
 
+  // Informazioni sui limiti di proposte
+  const currentProposals = listaICE.filter(ice => ice.utente_id === user?.id).length;
+  const limit = getVotingLimit('ice_proposti');
+  const remainingProposals = getRemainingVotes('ice_proposti', currentProposals);
+  const hasReachedLimit = hasReachedVotingLimit('ice_proposti', currentProposals);
+
   return {
     listaICE,
     mieiVoti,
     isLoading,
-    isError
+    isError,
+    // Informazioni sui limiti
+    currentProposals,
+    limit,
+    remainingProposals,
+    hasReachedLimit
   };
 };

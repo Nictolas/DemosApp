@@ -13,11 +13,20 @@ export const VOTING_LIMITS = {
   // Iniziative popolari - solo 1 voto per iniziative esistenti
   iniziative_popolari: 1,
   
+  // Iniziative popolari proposte - solo 1 proposta
+  iniziative_popolari_proposte: 1,
+  
   // Referendum abrogativi - limite ragionevole
   referendum_abrogativi: 3,
   
+  // Referendum abrogativi proposti - solo 1 proposta
+  referendum_abrogativi_proposti: 1,
+  
   // ICE - 1 voto per ICE (ma può votare più ICE)
   ice: 1,
+  
+  // ICE proposti - solo 1 proposta
+  ice_proposti: 1,
   
   // Ministri - 1 voto per ministero (14 ministeri totali)
   ministri: 1,
