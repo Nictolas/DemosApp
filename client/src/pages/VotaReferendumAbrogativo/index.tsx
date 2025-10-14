@@ -11,7 +11,6 @@ import { ReferendumTable } from "./components/ReferendumTable";
 import { ReferendumRanking } from "./components/ReferendumRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ReferendumViewDialog } from "./components/ReferendumViewDialog";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function VotaReferendumAbrogativo() {
   const authReady = useAuthReady();
@@ -76,13 +75,7 @@ export default function VotaReferendumAbrogativo() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Informazioni sui limiti di voto */}
-            <VotingLimitsInfo
-              category="referendum_abrogativi"
-              currentVotes={currentVotes}
-            />
-
-            {/* Le tue preferenze */}
+            {/* Il tuo voto */}
             <UserPreferences
               selectedVoti={selectedVoti}
               referendum={data?.referendum || []}

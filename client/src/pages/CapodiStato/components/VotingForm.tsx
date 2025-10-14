@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Vote, Plus, X } from "lucide-react";
+import { Vote, Plus, X, Info } from "lucide-react";
 import { Classifica } from "../types";
 
 interface VotingFormProps {
@@ -13,6 +13,9 @@ interface VotingFormProps {
   onAddNome: (nome: string) => void;
   onRemoveNome: (nome: string) => void;
   hasReachedLimit: boolean;
+  currentVotes: number;
+  limit: number;
+  remainingVotes: number;
 }
 
 export const VotingForm: React.FC<VotingFormProps> = ({
@@ -21,7 +24,10 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   isBlocked,
   onAddNome,
   onRemoveNome,
-  hasReachedLimit
+  hasReachedLimit,
+  currentVotes,
+  limit,
+  remainingVotes
 }) => {
   const [nomeInput, setNomeInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -48,12 +54,25 @@ export const VotingForm: React.FC<VotingFormProps> = ({
   return (
     <Card className="bg-white">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Vote className="h-5 w-5" />
-          <span>I tuoi voti</span>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Vote className="h-5 w-5" />
+            <span className="text-lg font-semibold">Il tuo voto</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Badge variant={hasReachedLimit ? "destructive" : "secondary"} className="flex items-center space-x-1">
+              <Info className="h-3 w-3" />
+              <span>{currentVotes}/{limit}</span>
+            </Badge>
+          </div>
+        </div>
         <CardDescription>
-          Aggiungi un nome alla tua lista o selezionalo dalla classifica.
+          Puoi votare solo {limit} candidato per Capo di Stato. Aggiungi un nome alla tua lista o selezionalo dalla classifica.
+          {hasReachedLimit && (
+            <span className="block mt-1 text-red-600 font-medium">
+              Hai già votato. Rimuovi il voto esistente per votarne uno diverso.
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>

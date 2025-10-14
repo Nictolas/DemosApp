@@ -11,7 +11,6 @@ import { ViewDialog } from "./components/ViewDialog";
 import { useReferendumData } from "./hooks/useReferendumData";
 import { useReferendumActions } from "./hooks/useReferendumActions";
 import { ReferendumStatsChart } from "./components/ReferendumStatsChart";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function ReferendumAbrogativi() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -62,14 +61,14 @@ export default function ReferendumAbrogativi() {
         <CardContent className="p-6">
           <Header />
           
-          {/* Informazioni sui limiti di proposte */}
-          <VotingLimitsInfo
-            category="referendum_abrogativi_proposti"
-            currentVotes={currentProposals}
-          />
           
           <div className="flex justify-start items-center mb-4">
-            <CreateButton onClick={showCreateForm} disabled={hasReachedLimit} />
+            <CreateButton 
+              onClick={showCreateForm} 
+              disabled={hasReachedLimit}
+              currentProposals={currentProposals}
+              limit={limit}
+            />
           </div>
           
           {state.showForm && (

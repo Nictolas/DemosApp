@@ -11,7 +11,6 @@ import { ViewDialog } from "./components/ViewDialog";
 import { useIniziativeData } from "./hooks/useIniziativeData";
 import { useIniziativeActions } from "./hooks/useIniziativeActions";
 import { IniziativeStatsChart } from "./components/IniziativeStatsChart";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function IniziativePopolari() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -62,14 +61,14 @@ export default function IniziativePopolari() {
         <CardContent className="p-6">
           <Header />
           
-          {/* Informazioni sui limiti di proposte */}
-          <VotingLimitsInfo
-            category="iniziative_popolari_proposte"
-            currentVotes={currentProposals}
-          />
           
           <div className="flex justify-start items-center mb-4">
-            <CreateButton onClick={showCreateForm} disabled={hasReachedLimit} />
+            <CreateButton 
+              onClick={showCreateForm} 
+              disabled={hasReachedLimit}
+              currentProposals={currentProposals}
+              limit={limit}
+            />
           </div>
           
           {state.showForm && (
