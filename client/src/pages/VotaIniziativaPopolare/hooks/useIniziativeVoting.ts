@@ -56,17 +56,14 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
         return prev.filter(n => n !== id);
       }
       
-      // Se l'iniziativa non è selezionata, controlla il limite
+      // Se l'utente ha già votato e prova a votare un'altra iniziativa, sostituisci e apri conferma
       const currentVotes = prev.length;
       const limit = getVotingLimit('iniziative_popolari');
       
       if (hasReachedVotingLimit('iniziative_popolari', currentVotes)) {
-        toast({ 
-          title: "Limite voti raggiunto", 
-          description: `Puoi votare solo ${limit} iniziativa popolare. Rimuovi il voto esistente per votarne una diversa.`,
-          variant: "destructive"
-        });
-        return prev; // Non aggiungere il voto
+        // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
+        setShowConfirmDialog(true);
+        return [id]; // Sostituisci con il nuovo voto
       }
       
       // Aggiungi il voto

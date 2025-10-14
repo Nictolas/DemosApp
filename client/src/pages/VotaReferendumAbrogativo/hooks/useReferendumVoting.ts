@@ -53,12 +53,9 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
       const limit = getVotingLimit('referendum_abrogativi');
       
       if (hasReachedVotingLimit('referendum_abrogativi', currentVotes)) {
-        toast({ 
-          title: "Limite voti raggiunto", 
-          description: `Puoi votare solo ${limit} referendum abrogativo. Rimuovi il voto esistente per votarne uno diverso.`,
-          variant: "destructive"
-        });
-        return prev; // Non aggiungere il voto
+        // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
+        setShowConfirmDialog(true);
+        return [referendumId]; // Sostituisci con il nuovo voto
       }
       
       // Aggiungi il voto

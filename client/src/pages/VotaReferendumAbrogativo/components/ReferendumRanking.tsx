@@ -105,7 +105,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                     e.stopPropagation();
                     onToggleSelezioneClassifica(item.nome);
                   }}
-                  disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(referendum.find(r => r.nome === item.nome)?.id || ''))}
+                  disabled={isPending || isBlocked}
                   className={`transition-all duration-300 ${
                     referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id)
                       ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
@@ -184,7 +184,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                           e.stopPropagation();
                           onToggleSelezioneClassifica(item.nome);
                         }}
-                        disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(referendum.find(r => r.nome === item.nome)?.id || ''))}
+                        disabled={isPending || isBlocked}
                         className={`transition-all duration-300 ${
                           referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id)
                             ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"

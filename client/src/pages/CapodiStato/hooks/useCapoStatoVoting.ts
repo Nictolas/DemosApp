@@ -75,14 +75,12 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
         // Rimuovi il voto
         return prev.filter(n => n !== nome);
       } else {
-        // Aggiungi il voto solo se non si supera il limite
+        // Se l'utente ha già votato e prova a votare qualcun altro, sostituisci e apri conferma
         const limit = getVotingLimit('capo_stato');
         if (hasReachedVotingLimit('capo_stato', prev.length)) {
-          toast({ 
-            title: "Limite voti raggiunto", 
-            description: `Puoi selezionare al massimo ${limit} candidato${limit > 1 ? 'i' : ''}` 
-          });
-          return prev;
+          // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
+          setShowConfirmDialog(true);
+          return [nome]; // Sostituisci con il nuovo voto
         }
         return [...prev, nome];
       }

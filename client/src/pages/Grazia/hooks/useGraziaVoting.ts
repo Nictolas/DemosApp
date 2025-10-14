@@ -94,12 +94,12 @@ export const useGraziaVoting = (data: GraziaData | undefined) => {
       // Se il carcerato non è selezionato, controlla il limite
       const limit = getVotingLimit('grazia');
       if (hasReachedVotingLimit('grazia', prev.selectedVoti.length)) {
-        toast({ 
-          title: "Limite voti raggiunto", 
-          description: `Puoi richiedere grazia per al massimo ${limit} carcerat${limit > 1 ? 'i' : 'o'}. Rimuovi una richiesta esistente per aggiungerne una nuova.`,
-          variant: "destructive"
-        });
-        return prev; // Non aggiungere il voto
+        // Sostituisci il voto esistente con il nuovo e apri il dialog di conferma
+        setShowConfirmDialog(true);
+        return {
+          ...prev,
+          selectedVoti: [nome] // Sostituisci con il nuovo voto
+        };
       }
       
       // Aggiungi il voto
