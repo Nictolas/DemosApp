@@ -7,6 +7,13 @@
   height: 100vh;
   height: 100dvh; /* Nuovo standard per viewport dinamico */
   overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  z-index: 1;
 }
 
 /* Header area */
@@ -34,11 +41,23 @@
   background: white;
   border-top: 1px solid #e5e7eb;
   z-index: 1000;
+  position: relative;
+  flex-shrink: 0;
 }
 
 /* ===== CORREZIONI PER NAVBAR ===== */
 
-/* Rimuovi il fixed positioning dalla navbar */
+/* Garantisci che la navbar sia sempre fissa e mai scrollabile */
+.app-navbar {
+  position: sticky !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  flex-shrink: 0 !important;
+  order: 999 !important;
+}
+
 .app-navbar nav {
   position: static !important;
   bottom: auto !important;
@@ -47,6 +66,7 @@
   width: 100% !important;
   height: auto !important;
   box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
+  flex-shrink: 0 !important;
 }
 
 /* ===== PADDING AUTOMATICO PER CONTENUTO ===== */
@@ -185,6 +205,48 @@
   border: 2px dashed blue;
 }
 
+/* ===== PREVENZIONE SCROLL NAVBAR ===== */
+
+/* Forza la navbar a non essere mai scrollabile */
+.app-navbar,
+.app-navbar * {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Preveni scroll su tutti i dispositivi */
+@media (max-width: 767px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Forza la navbar a rimanere fissa anche in landscape */
+@media (orientation: landscape) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+  }
+}
+
 /* ===== FALLBACK PER BROWSER VECCHI ===== */
 
 /* Fallback per browser che non supportano CSS Grid */
@@ -206,6 +268,9 @@
   
   .app-navbar {
     flex-shrink: 0;
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
   }
 }
 

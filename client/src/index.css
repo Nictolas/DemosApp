@@ -1,5 +1,5 @@
-/* Import del layout moderno */
-@import './modern-layout.css';
+/* Import del layout robusto */
+@import './robust-layout.css';
 
 @tailwind base;
 @tailwind components;

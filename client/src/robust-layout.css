@@ -1,0 +1,296 @@
+/* ===== LAYOUT ROBUSTO CON FLEXBOX ===== */
+
+/* Layout principale con Flexbox (più compatibile) */
+.robust-app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* Nuovo standard per viewport dinamico */
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  z-index: 1;
+}
+
+/* Header area */
+.app-header {
+  flex-shrink: 0;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1000;
+}
+
+/* Main content area */
+.app-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+  /* Scroll behavior moderno */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0; /* Importante per Flexbox */
+}
+
+/* Navbar area - SEMPRE FISSA */
+.app-navbar {
+  flex-shrink: 0;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  z-index: 9999;
+  position: sticky !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+  order: 999 !important;
+}
+
+/* ===== CORREZIONI FORZATE PER NAVBAR ===== */
+
+/* Forza la navbar a non essere mai scrollabile */
+.app-navbar,
+.app-navbar * {
+  overflow: visible !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  flex-shrink: 0 !important;
+  z-index: 9999 !important;
+}
+
+/* Rimuovi il fixed positioning dalla navbar interna */
+.app-navbar nav {
+  position: static !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
+  flex-shrink: 0 !important;
+  overflow: visible !important;
+}
+
+/* ===== PADDING AUTOMATICO PER CONTENUTO ===== */
+
+/* Assicura che il contenuto non venga coperto */
+.app-main .container,
+.app-main .page-container,
+.app-main .menu-page {
+  padding-bottom: 0 !important; /* Rimuovi padding manuale */
+  margin-bottom: 0 !important;
+}
+
+/* ===== SUPPORTO PER SAFE AREAS ===== */
+
+/* Supporto per dispositivi con notch */
+@supports (padding: max(0px)) {
+  .app-navbar {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  
+  .app-header {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Mobile first */
+@media (max-width: 767px) {
+  .robust-app-layout {
+    height: 100vh;
+    height: 100dvh;
+  }
+  
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .app-navbar nav {
+    height: 6rem !important; /* 96px */
+    padding: 1rem 0 !important;
+  }
+}
+
+/* Tablet */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .app-navbar nav {
+    height: 5rem !important; /* 80px */
+    padding: 0.75rem 0 !important;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .app-navbar nav {
+    height: 4rem !important; /* 64px */
+    padding: 0.5rem 0 !important;
+  }
+}
+
+/* ===== ORIENTAMENTO LANDSCAPE ===== */
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .app-navbar nav {
+    height: 4rem !important; /* 64px */
+    padding: 0.5rem 0 !important;
+  }
+  
+  .app-main {
+    /* Riduci margini in landscape */
+    padding: 0.5rem;
+  }
+}
+
+/* ===== PREVENZIONE SCROLL NAVBAR SU TUTTI I DISPOSITIVI ===== */
+
+/* Forza la navbar a non essere mai scrollabile */
+.app-navbar {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 9999 !important;
+  flex-shrink: 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+  order: 999 !important;
+}
+
+/* Preveni scroll su tutti i dispositivi */
+@media (max-width: 767px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+  }
+}
+
+/* Forza la navbar a rimanere fissa anche in landscape */
+@media (orientation: landscape) {
+  .app-navbar {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+  }
+}
+
+/* ===== SCROLL PERSONALIZZATO ===== */
+
+.app-main::-webkit-scrollbar {
+  width: 4px;
+}
+
+.app-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-main::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.app-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== ANIMAZIONI FLUIDE ===== */
+
+.robust-app-layout,
+.app-header,
+.app-main,
+.app-navbar {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== FOCUS E ACCESSIBILITÀ ===== */
+
+.app-main:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* ===== SUPPORTO PER PREFERENZE DI MOVIMENTO ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .robust-app-layout,
+  .app-header,
+  .app-main,
+  .app-navbar {
+    transition: none;
+  }
+  
+  .app-main {
+    scroll-behavior: auto;
+  }
+}
+
+/* ===== DEBUG MODE ===== */
+
+/* Mostra le zone del layout in modalità debug */
+.debug-layout .app-header {
+  background: rgba(255, 0, 0, 0.1);
+  border: 2px dashed red;
+}
+
+.debug-layout .app-main {
+  background: rgba(0, 255, 0, 0.1);
+  border: 2px dashed green;
+}
+
+.debug-layout .app-navbar {
+  background: rgba(0, 0, 255, 0.1);
+  border: 2px dashed blue;
+}
+
+/* ===== FALLBACK PER BROWSER CHE NON SUPPORTANO DVH ===== */
+
+@supports not (height: 100dvh) {
+  .robust-app-layout {
+    height: 100vh;
+  }
+}
