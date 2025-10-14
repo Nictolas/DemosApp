@@ -29,7 +29,7 @@ export const UserPreferences: React.FC<UserPreferencesProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <ThumbsUp className="h-5 w-5" />
-            <span className="text-lg font-semibold">Le tue preferenze per le iniziative popolari</span>
+            <span className="text-lg font-semibold">Il tuo voto</span>
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant={hasReachedLimit ? "destructive" : "secondary"} className="flex items-center space-x-1">

@@ -13,7 +13,6 @@ import { VotingForm } from "./components/VotingForm";
 import { CandidatesRanking } from "./components/CandidatesRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function CapodiStato() {
   const authReady = useAuthReady();
@@ -84,13 +83,7 @@ export default function CapodiStato() {
               />
             )}
 
-            {/* Informazioni sui limiti di voto */}
-            <VotingLimitsInfo
-              category="capo_stato"
-              currentVotes={currentVotes}
-            />
-
-            {/* Form di voto */}
+            {/* Il tuo voto */}
             <VotingForm
               selectedVoti={selectedVoti}
               classifica={data?.classifica || []}
@@ -98,6 +91,9 @@ export default function CapodiStato() {
               onAddNome={handleAddNomeLocal}
               onRemoveNome={handleRemoveLocal}
               hasReachedLimit={hasReachedLimit}
+              currentVotes={currentVotes}
+              limit={limit}
+              remainingVotes={remainingVotes}
             />
 
             {/* Classifica candidati */}

@@ -11,7 +11,6 @@ import { IniziativeRanking } from "./components/IniziativeRanking";
 import { SaveButton } from "./components/SaveButton";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { IniziativaViewDialog } from "./components/IniziativaViewDialog";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function VotaIniziativaPopolare() {
   const authReady = useAuthReady();
@@ -78,13 +77,7 @@ export default function VotaIniziativaPopolare() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Informazioni sui limiti di voto */}
-            <VotingLimitsInfo
-              category="iniziative_popolari"
-              currentVotes={currentVotes}
-            />
-
-            {/* Le tue preferenze */}
+            {/* Il tuo voto */}
             <UserPreferences
               selectedVoti={selectedVoti}
               iniziative={data?.iniziative || []}

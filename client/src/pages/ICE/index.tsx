@@ -12,7 +12,6 @@ import { ICEStatsChart } from "./components/ICEStatsChart";
 import { useICEData } from "./hooks/useICEData";
 import { useICEActions } from "./hooks/useICEActions";
 import { useICEForms } from "./hooks/useICEForms";
-import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 
 export default function ICE() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -68,14 +67,14 @@ export default function ICE() {
           {/* Grafico statistiche ICE */}
           <ICEStatsChart listaICE={listaICE} />
           
-          {/* Informazioni sui limiti di proposte */}
-          <VotingLimitsInfo
-            category="ice_proposti"
-            currentVotes={currentProposals}
-          />
           
           <div className="flex justify-start items-center mb-4">
-            <CreateButton onClick={showCreateForm} disabled={hasReachedLimit} />
+            <CreateButton 
+              onClick={showCreateForm} 
+              disabled={hasReachedLimit}
+              currentProposals={currentProposals}
+              limit={limit}
+            />
           </div>
           
           {state.showForm && (
