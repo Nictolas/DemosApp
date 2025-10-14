@@ -403,14 +403,17 @@ export default function DataExport() {
         const data = await response.json();
         setDatabaseAnalysis(data);
       } else {
-        console.error('Errore caricamento analisi database');
+        console.error('Errore caricamento analisi database - Server risponde ma database non connesso');
+        setDatabaseAnalysis(null);
       }
     } catch (error) {
       console.error('Errore caricamento analisi database:', error);
+      setDatabaseAnalysis(null);
     } finally {
       setLoadingAnalysis(false);
     }
   };
+
 
   const getTableDescription = (tableName: string) => {
     const descriptions: { [key: string]: string } = {
@@ -763,7 +766,18 @@ export default function DataExport() {
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <PieChartIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Errore nel caricamento dell'analisi</p>
+                  <p>Impossibile caricare l'analisi del database</p>
+                  <p className="text-sm mt-2">Il server è attivo ma il database non è connesso</p>
+                  <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800 text-sm">
+                      <strong>Nota:</strong> Per vedere i dati reali, assicurati che:
+                    </p>
+                    <ul className="text-yellow-700 text-sm mt-2 text-left">
+                      <li>• Il database Neon sia configurato nel file .env</li>
+                      <li>• La connessione al database sia attiva</li>
+                      <li>• Le tabelle di monitoraggio esistano nel database</li>
+                    </ul>
+                  </div>
                 </div>
               )}
             </CardContent>
