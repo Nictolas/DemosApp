@@ -106,8 +106,8 @@ import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 import { AppWrapper } from "./components/AppWrapper";
-import { ResponsiveLayoutProvider } from "./components/ResponsiveLayoutProvider";
-import { DeviceInfoDisplay } from "./components/DeviceInfoDisplay";
+import { DeviceSpecificProvider } from "./components/DeviceSpecificProvider";
+import { DeviceDebugInfo } from "./components/DeviceDebugInfo";
 
 // Hook per la navigazione touch migliorato
 function useTouchNavigation() {
@@ -241,7 +241,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="App">
-        <ResponsiveLayoutProvider>
+        <DeviceSpecificProvider>
           <AuthProvider>
             <RegistrationProvider>
               <AppWrapper>
@@ -923,11 +923,11 @@ export default function App() {
             
             <Toaster />
             <PWAInstallBanner />
-            <DeviceInfoDisplay />
+            <DeviceDebugInfo />
               </AppWrapper>
             </RegistrationProvider>
           </AuthProvider>
-        </ResponsiveLayoutProvider>
+        </DeviceSpecificProvider>
       </div>
     </QueryClientProvider>
   );
