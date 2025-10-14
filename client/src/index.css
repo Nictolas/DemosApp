@@ -1,3 +1,6 @@
+/* Import del layout moderno */
+@import './modern-layout.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

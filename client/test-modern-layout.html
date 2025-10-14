@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Layout Moderno a 3 Zone - DemosApp</title>
+    <style>
+        /* Import del layout moderno */
+        @import url('./modern-layout.css');
+        
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f0f4ff;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .test-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+        
+        .test-description {
+            color: #6b7280;
+            margin-bottom: 20px;
+        }
+        
+        .test-button {
+            width: 100%;
+            padding: 15px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        
+        .test-button:hover {
+            background: #2563eb;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+        
+        .status.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        
+        .device-info {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 20px 0;
+        }
+        
+        /* Simulazione della navbar */
+        .test-navbar {
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+            box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03);
+        }
+        
+        .test-navbar button {
+            background: none;
+            border: none;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        
+        .test-navbar button:hover {
+            background: #f3f4f6;
+        }
+        
+        .test-navbar button.active {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        /* Simulazione del contenuto */
+        .test-content {
+            padding: 2rem;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .test-card {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        /* Debug mode toggle */
+        .debug-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1f2937;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            z-index: 10000;
+        }
+        
+        .debug-toggle:hover {
+            background: #374151;
+        }
+        
+        @media (max-width: 768px) {
+            .test-container {
+                margin: 10px;
+                padding: 15px;
+            }
+            
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="debug-toggle" onclick="toggleDebug()">🔍 Debug Layout</button>
+    
+    <div class="modern-app-layout">
+        <!-- Header area -->
+        <header class="app-header">
+            <div class="test-container">
+                <h1 style="text-align: center; color: #1f2937; margin: 0; padding: 1rem 0;">
+                    🚀 Test Layout Moderno a 3 Zone
+                </h1>
+            </div>
+        </header>
+        
+        <!-- Main content area -->
+        <main class="app-main">
+            <div class="test-container">
+                <div class="test-section">
+                    <div class="test-title">📱 Test Layout a 3 Zone</div>
+                    <div class="test-description">
+                        Questo test verifica che il layout a 3 zone funzioni correttamente:
+                        Header fisso in alto, contenuto scrollabile al centro, navbar fissa in basso.
+                    </div>
+                    
+                    <div class="test-grid">
+                        <div class="test-card">
+                            <h3>Card 1</h3>
+                            <p>Contenuto della prima card</p>
+                        </div>
+                        <div class="test-card">
+                            <h3>Card 2</h3>
+                            <p>Contenuto della seconda card</p>
+                        </div>
+                        <div class="test-card">
+                            <h3>Card 3</h3>
+                            <p>Contenuto della terza card</p>
+                        </div>
+                        <div class="test-card">
+                            <h3>Card 4</h3>
+                            <p>Contenuto della quarta card</p>
+                        </div>
+                    </div>
+                    
+                    <div class="test-button" onclick="testLayout()">🧪 Test Layout</div>
+                    <div id="layout-status" class="status"></div>
+                </div>
+                
+                <div class="test-section">
+                    <div class="test-title">📊 Informazioni Dispositivo</div>
+                    <div class="test-description">
+                        Informazioni sul dispositivo e sul layout applicato.
+                    </div>
+                    <div class="device-info" id="device-info">
+                        Caricamento informazioni dispositivo...
+                    </div>
+                </div>
+                
+                <div class="test-section">
+                    <div class="test-title">🔍 Test Scroll</div>
+                    <div class="test-description">
+                        Scrolla verso il basso per testare che il contenuto non venga coperto dalla navbar.
+                    </div>
+                    
+                    <!-- Contenuto extra per testare lo scroll -->
+                    <div style="height: 200vh; background: linear-gradient(to bottom, #f0f4ff, #b3c6ff); padding: 2rem; border-radius: 8px;">
+                        <h3>Contenuto Extra per Test Scroll</h3>
+                        <p>Questo contenuto è molto alto per testare lo scroll.</p>
+                        <p>La navbar dovrebbe rimanere fissa in basso senza coprire il contenuto.</p>
+                        <p>Scrolla verso il basso per verificare che tutto funzioni correttamente.</p>
+                        
+                        <div style="margin-top: 50vh; padding: 2rem; background: white; border-radius: 8px;">
+                            <h4>Sezione Finale</h4>
+                            <p>Se riesci a vedere questa sezione senza che sia coperta dalla navbar, il layout funziona correttamente!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Navbar area -->
+        <nav class="app-navbar">
+            <div class="test-navbar">
+                <button class="active" onclick="setActive(this)">🏠 Menu</button>
+                <button onclick="setActive(this)">📅 Eventi</button>
+                <button onclick="setActive(this)">❤️ Preferiti</button>
+                <button onclick="setActive(this)">🔔 Notifiche</button>
+                <button onclick="setActive(this)">⚙️ Impostazioni</button>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        function updateDeviceInfo() {
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const screenWidth = window.screen.width;
+            const screenHeight = window.screen.height;
+            const userAgent = navigator.userAgent;
+            
+            document.getElementById('device-info').innerHTML = `
+                <strong>Viewport:</strong> ${viewportWidth}x${viewportHeight}<br>
+                <strong>Screen:</strong> ${screenWidth}x${screenHeight}<br>
+                <strong>Device Pixel Ratio:</strong> ${window.devicePixelRatio}<br>
+                <strong>User Agent:</strong> ${userAgent.substring(0, 50)}...<br>
+                <strong>Orientation:</strong> ${viewportHeight > viewportWidth ? 'Portrait' : 'Landscape'}<br>
+                <strong>Layout:</strong> CSS Grid a 3 zone<br>
+                <strong>Navbar:</strong> Fissa in basso, non copre contenuto
+            `;
+        }
+        
+        function testLayout() {
+            const status = document.getElementById('layout-status');
+            const layout = document.querySelector('.modern-app-layout');
+            const header = document.querySelector('.app-header');
+            const main = document.querySelector('.app-main');
+            const navbar = document.querySelector('.app-navbar');
+            
+            if (layout && header && main && navbar) {
+                const layoutStyle = window.getComputedStyle(layout);
+                const headerStyle = window.getComputedStyle(header);
+                const mainStyle = window.getComputedStyle(main);
+                const navbarStyle = window.getComputedStyle(navbar);
+                
+                const isGrid = layoutStyle.display === 'grid';
+                const hasOverflow = mainStyle.overflowY === 'auto';
+                const isNavbarFixed = navbarStyle.position === 'static';
+                
+                if (isGrid && hasOverflow && isNavbarFixed) {
+                    status.className = 'status success';
+                    status.textContent = '✅ Layout a 3 zone funzionante correttamente!';
+                } else {
+                    status.className = 'status error';
+                    status.textContent = '❌ Layout non configurato correttamente';
+                }
+            } else {
+                status.className = 'status error';
+                status.textContent = '❌ Elementi del layout non trovati';
+            }
+        }
+        
+        function setActive(button) {
+            document.querySelectorAll('.test-navbar button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+        }
+        
+        function toggleDebug() {
+            const layout = document.querySelector('.modern-app-layout');
+            if (layout) {
+                layout.classList.toggle('debug-layout');
+            }
+        }
+        
+        // Inizializzazione
+        window.addEventListener('load', () => {
+            updateDeviceInfo();
+            testLayout();
+        });
+        
+        window.addEventListener('resize', updateDeviceInfo);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateDeviceInfo, 500);
+        });
+    </script>
+</body>
+</html>
