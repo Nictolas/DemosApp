@@ -106,7 +106,6 @@ import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 import { AppWrapper } from "./components/AppWrapper";
-import { DeviceDebugInfo } from "./components/DeviceDebugInfo";
 import { RobustAppLayout } from "./components/RobustAppLayout";
 
 // Hook per la navigazione touch migliorato
@@ -910,7 +909,6 @@ export default function App() {
             
             <Toaster />
             <PWAInstallBanner />
-            <DeviceDebugInfo />
                 </AppWrapper>
               </RobustAppLayout>
             </RegistrationProvider>

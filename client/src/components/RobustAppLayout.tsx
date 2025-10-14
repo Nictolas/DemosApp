@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth-neon';
-import { DeviceSpecificProvider } from './DeviceSpecificProvider';
+import { useAndroidDetection } from '@/hooks/useAndroidDetection';
 import Navbar from './Navbar';
 
 interface RobustAppLayoutProps {
@@ -12,6 +12,9 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   const [location] = useLocation();
   const { user } = useAuth();
   const [isLayoutReady, setIsLayoutReady] = useState(false);
+  
+  // Rileva dispositivi Android
+  useAndroidDetection();
 
   // Determina se mostrare la navbar
   const shouldShowNavbar = location !== '/' && 
@@ -58,25 +61,30 @@ export const RobustAppLayout: React.FC<RobustAppLayoutProps> = ({ children }) =>
   }, [location, shouldShowNavbar]);
 
   return (
-    <DeviceSpecificProvider>
-      <div className="modern-app-layout">
-        {/* Header area */}
-        <header className="app-header">
-          {/* Header content se necessario */}
-        </header>
-        
-        {/* Main content area */}
-        <main className="app-main">
-          {children}
-        </main>
-        
-        {/* Navbar area - SEMPRE FISSA */}
-        {shouldShowNavbar && (
-          <nav className="app-navbar">
-            <Navbar />
-          </nav>
-        )}
-      </div>
-    </DeviceSpecificProvider>
+    <div className="robust-app-layout">
+      {/* Header area */}
+      <header className="app-header">
+        {/* Header content se necessario */}
+      </header>
+      
+      {/* Main content area */}
+      <main className="app-main">
+        {children}
+      </main>
+      
+      {/* Navbar area - SEMPRE FISSA */}
+      {shouldShowNavbar && (
+        <nav className="app-navbar" style={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 9999,
+          flexShrink: 0,
+          width: '100%',
+          overflow: 'visible'
+        }}>
+          <Navbar />
+        </nav>
+      )}
+    </div>
   );
 };
