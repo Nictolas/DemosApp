@@ -108,6 +108,7 @@ import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 import { AppWrapper } from "./components/AppWrapper";
 import { DeviceSpecificProvider } from "./components/DeviceSpecificProvider";
 import { DeviceDebugInfo } from "./components/DeviceDebugInfo";
+import { ModernAppLayout } from "./components/ModernAppLayout";
 
 // Hook per la navigazione touch migliorato
 function useTouchNavigation() {
@@ -244,8 +245,9 @@ export default function App() {
         <DeviceSpecificProvider>
           <AuthProvider>
             <RegistrationProvider>
-              <AppWrapper>
-            <Switch>
+              <ModernAppLayout>
+                <AppWrapper>
+              <Switch>
               {/* Route di verifica email - fuori dall'AuthProvider */}
               <Route path="/verifica-email">
                 <PageTransition location={location} type="fade-up">
@@ -908,23 +910,11 @@ export default function App() {
               </Route>
             </Switch>
             
-            {/* Navbar condizionale */}
-            {location !== '/' && 
-             !location.startsWith('/auth') && 
-             !location.startsWith('/reset-password') && 
-             !location.startsWith('/registrazione') && 
-             !location.startsWith('/verifica-email') && 
-             !location.startsWith('/conferma-email') && 
-             !location.startsWith('/privacy-policy') && 
-             !location.startsWith('/terms-of-service') && 
-             !location.startsWith('/cookie-policy') && 
-             location !== '/gdpr' &&
-             <Navbar />}
-            
             <Toaster />
             <PWAInstallBanner />
             <DeviceDebugInfo />
-              </AppWrapper>
+                </AppWrapper>
+              </ModernAppLayout>
             </RegistrationProvider>
           </AuthProvider>
         </DeviceSpecificProvider>

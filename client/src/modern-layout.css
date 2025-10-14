@@ -1,0 +1,218 @@
+/* ===== LAYOUT MODERNO A 3 ZONE ===== */
+
+/* Layout principale con CSS Grid */
+.modern-app-layout {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  height: 100dvh; /* Nuovo standard per viewport dinamico */
+  overflow: hidden;
+}
+
+/* Header area */
+.app-header {
+  grid-row: 1;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1000;
+}
+
+/* Main content area */
+.app-main {
+  grid-row: 2;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: linear-gradient(to bottom, #f0f4ff, #b3c6ff);
+  /* Scroll behavior moderno */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Navbar area */
+.app-navbar {
+  grid-row: 3;
+  background: white;
+  border-top: 1px solid #e5e7eb;
+  z-index: 1000;
+}
+
+/* ===== CORREZIONI PER NAVBAR ===== */
+
+/* Rimuovi il fixed positioning dalla navbar */
+.app-navbar nav {
+  position: static !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  height: auto !important;
+  box-shadow: 0 -1px 8px 0 rgba(0,0,0,0.03) !important;
+}
+
+/* ===== PADDING AUTOMATICO PER CONTENUTO ===== */
+
+/* Assicura che il contenuto non venga coperto */
+.app-main .container,
+.app-main .page-container,
+.app-main .menu-page {
+  padding-bottom: 0 !important; /* Rimuovi padding manuale */
+  margin-bottom: 0 !important;
+}
+
+/* ===== SUPPORTO PER SAFE AREAS ===== */
+
+/* Supporto per dispositivi con notch */
+@supports (padding: max(0px)) {
+  .app-navbar {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+  
+  .app-header {
+    padding-top: max(0px, env(safe-area-inset-top));
+  }
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Mobile first */
+@media (max-width: 767px) {
+  .modern-app-layout {
+    height: 100vh;
+    height: 100dvh;
+  }
+  
+  .app-navbar nav {
+    height: 6rem !important; /* 96px */
+    padding: 1rem 0 !important;
+  }
+}
+
+/* Tablet */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .app-navbar nav {
+    height: 5rem !important; /* 80px */
+    padding: 0.75rem 0 !important;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .app-navbar nav {
+    height: 4rem !important; /* 64px */
+    padding: 0.5rem 0 !important;
+  }
+}
+
+/* ===== ORIENTAMENTO LANDSCAPE ===== */
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-navbar nav {
+    height: 4rem !important; /* 64px */
+    padding: 0.5rem 0 !important;
+  }
+  
+  .app-main {
+    /* Riduci margini in landscape */
+    padding: 0.5rem;
+  }
+}
+
+/* ===== SCROLL PERSONALIZZATO ===== */
+
+.app-main::-webkit-scrollbar {
+  width: 4px;
+}
+
+.app-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-main::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.app-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== ANIMAZIONI FLUIDE ===== */
+
+.modern-app-layout,
+.app-header,
+.app-main,
+.app-navbar {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== FOCUS E ACCESSIBILITÀ ===== */
+
+.app-main:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* ===== SUPPORTO PER PREFERENZE DI MOVIMENTO ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .modern-app-layout,
+  .app-header,
+  .app-main,
+  .app-navbar {
+    transition: none;
+  }
+  
+  .app-main {
+    scroll-behavior: auto;
+  }
+}
+
+/* ===== DEBUG MODE ===== */
+
+/* Mostra le zone del layout in modalità debug */
+.debug-layout .app-header {
+  background: rgba(255, 0, 0, 0.1);
+  border: 2px dashed red;
+}
+
+.debug-layout .app-main {
+  background: rgba(0, 255, 0, 0.1);
+  border: 2px dashed green;
+}
+
+.debug-layout .app-navbar {
+  background: rgba(0, 0, 255, 0.1);
+  border: 2px dashed blue;
+}
+
+/* ===== FALLBACK PER BROWSER VECCHI ===== */
+
+/* Fallback per browser che non supportano CSS Grid */
+@supports not (display: grid) {
+  .modern-app-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  
+  .app-header {
+    flex-shrink: 0;
+  }
+  
+  .app-main {
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  .app-navbar {
+    flex-shrink: 0;
+  }
+}
+
+/* ===== FALLBACK PER BROWSER CHE NON SUPPORTANO DVH ===== */
+
+@supports not (height: 100dvh) {
+  .modern-app-layout {
+    height: 100vh;
+  }
+}

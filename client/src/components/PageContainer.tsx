@@ -18,12 +18,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
 
   return (
     <div 
-      className={`min-h-screen page-with-navbar flex flex-col ${className}`}
-      style={{
-        paddingBottom: isAndroid 
-          ? `calc(${navbarHeight}px + 2rem)` 
-          : `calc(${navbarHeight}px + 1rem + env(safe-area-inset-bottom))`
-      }}
+      className={`min-h-screen flex flex-col ${className}`}
     >
       <div className="flex-1">
         {children}
