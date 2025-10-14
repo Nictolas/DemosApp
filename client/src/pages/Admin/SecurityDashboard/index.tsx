@@ -170,50 +170,69 @@ export default function SecurityDashboard() {
     }
   };
 
-  // Carica dati aggiuntivi realistici
+  // Carica dati reali dal sistema
   const loadAdditionalData = async () => {
     try {
-      // Simula dati realistici per il sistema
-      setSystemHealth({
-        uptime: '99.9%',
-        responseTime: '120ms',
-        errorRate: '0.1%',
-        activeUsers: Math.floor(Math.random() * 50) + 20,
-        totalRequests: Math.floor(Math.random() * 10000) + 50000
-      });
+      // Carica dati di salute del sistema reali
+      const systemHealthResponse = await apiRequest('GET', '/api/admin/security/system-health');
+      if (systemHealthResponse.ok) {
+        const systemData = await systemHealthResponse.json();
+        setSystemHealth({
+          uptime: systemData.data.uptime,
+          responseTime: systemData.data.responseTime,
+          errorRate: systemData.data.errorRate,
+          activeUsers: systemData.data.activeUsers,
+          totalRequests: systemData.data.totalRequests
+        });
+      }
 
-      // Simula trend di sicurezza
-      setSecurityTrends({
-        dailyViolations: [
-          { day: 'Lun', violations: 2 },
-          { day: 'Mar', violations: 1 },
-          { day: 'Mer', violations: 3 },
-          { day: 'Gio', violations: 0 },
-          { day: 'Ven', violations: 1 },
-          { day: 'Sab', violations: 0 },
-          { day: 'Dom', violations: 1 }
-        ],
-        weeklyTrend: 'stable',
-        monthlyComparison: '+5%'
-      });
+      // Carica trend di sicurezza reali dai log di audit
+      const trendsResponse = await apiRequest('GET', '/admin/audit-dashboard/stats?days=7');
+      if (trendsResponse.ok) {
+        const trendsData = await trendsResponse.json();
+        const dailyActivity = trendsData.data.daily_activity || [];
+        
+        // Converte i dati giornalieri in formato per il grafico
+        const dailyViolations = dailyActivity.map((day: any) => ({
+          day: new Date(day.date).toLocaleDateString('it-IT', { weekday: 'short' }),
+          violations: day.failed || 0
+        }));
 
-      // Simula intelligence sulle minacce
-      setThreatIntelligence({
-        blockedIPs: [
-          { ip: '192.168.1.100', country: 'Russia', reason: 'Brute Force', timestamp: '2 ore fa' },
-          { ip: '10.0.0.50', country: 'Cina', reason: 'SQL Injection', timestamp: '5 ore fa' },
-          { ip: '172.16.0.25', country: 'USA', reason: 'DDoS', timestamp: '1 giorno fa' }
-        ],
-        suspiciousCountries: ['Russia', 'Cina', 'Corea del Nord'],
-        attackTypes: [
-          { type: 'Brute Force', count: 15, severity: 'medium' },
-          { type: 'SQL Injection', count: 3, severity: 'high' },
-          { type: 'XSS', count: 2, severity: 'high' },
-          { type: 'DDoS', count: 1, severity: 'critical' }
-        ]
-      });
+        setSecurityTrends({
+          dailyViolations,
+          weeklyTrend: 'stable',
+          monthlyComparison: '+5%'
+        });
+      }
 
-      // Simula status di compliance
+      // Carica intelligence sulle minacce reali
+      const threatsResponse = await apiRequest('GET', '/admin/audit-dashboard/suspicious?days=7');
+      if (threatsResponse.ok) {
+        const threatsData = await threatsResponse.json();
+        
+        // Converte IP sospetti in formato per la visualizzazione
+        const blockedIPs = threatsData.data.suspicious_ips?.map((ip: any) => ({
+          ip: ip.ip_address,
+          country: 'Sconosciuto', // In produzione si dovrebbe usare un servizio di geolocalizzazione
+          reason: 'Attività sospetta',
+          timestamp: 'Recentemente'
+        })) || [];
+
+        // Converte fallimenti in tipi di attacco
+        const attackTypes = threatsData.data.failed_actions?.map((action: any) => ({
+          type: 'Tentativo di accesso fallito',
+          count: action.failed_count,
+          severity: action.failed_count > 20 ? 'high' : 'medium'
+        })) || [];
+
+        setThreatIntelligence({
+          blockedIPs,
+          suspiciousCountries: ['Sconosciuto'],
+          attackTypes
+        });
+      }
+
+      // Status di compliance (per ora statico, in futuro si potrebbe calcolare dinamicamente)
       setComplianceStatus({
         gdpr: 'compliant',
         dataRetention: 'compliant',
@@ -338,8 +357,46 @@ export default function SecurityDashboard() {
           </Alert>
         )}
 
-        {/* Statistiche Generali Migliorate */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          {/* Guida Generale per Neofiti */}
+          <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-800">
+                <Shield className="h-6 w-6" />
+                🎓 Benvenuto nella Dashboard di Sicurezza DEMOS
+              </CardTitle>
+              <CardDescription className="text-blue-700 text-base">
+                Questa dashboard ti aiuta a monitorare la sicurezza del sistema DEMOS. Non preoccuparti se non capisci tutto subito!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm text-blue-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold mb-2">🟢 Cosa significa "Tutto OK":</h4>
+                  <ul className="space-y-1 ml-4">
+                    <li>• Uptime sopra 99%</li>
+                    <li>• Poche violazioni di sicurezza</li>
+                    <li>• Tempo di risposta veloce</li>
+                    <li>• Nessun attacco critico</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">🔴 Quando preoccuparsi:</h4>
+                  <ul className="space-y-1 ml-4">
+                    <li>• Uptime sotto 95%</li>
+                    <li>• Molte violazioni in poco tempo</li>
+                    <li>• Attacchi di severità "Critical"</li>
+                    <li>• Errori frequenti</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <strong>💡 Suggerimento:</strong> Inizia dalla scheda "Panoramica" per avere una visione generale, poi esplora le altre sezioni per i dettagli specifici.
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Statistiche Generali Migliorate */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -437,6 +494,36 @@ export default function SecurityDashboard() {
 
           {/* Scheda Panoramica */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Spiegazione per Neofiti */}
+            <Card className="bg-blue-50 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-800">
+                  <Eye className="h-5 w-5" />
+                  📚 Guida per Principianti - Panoramica Sicurezza
+                </CardTitle>
+                <CardDescription className="text-blue-700">
+                  Questa sezione ti aiuta a capire lo stato generale di sicurezza del sistema DEMOS
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-blue-800">
+                <div>
+                  <strong>🟢 Uptime:</strong> Percentuale di tempo in cui il sistema è operativo. 99.9% significa che il sistema è down solo 8.76 ore all'anno.
+                </div>
+                <div>
+                  <strong>⚡ Tempo di Risposta:</strong> Quanto tempo impiega il sistema a rispondere alle richieste. Meno è meglio (ideale: sotto 200ms).
+                </div>
+                <div>
+                  <strong>📊 Tasso di Errore:</strong> Percentuale di richieste che falliscono. Sotto 1% è considerato buono.
+                </div>
+                <div>
+                  <strong>👥 Utenti Attivi:</strong> Numero di persone che stanno usando il sistema in questo momento.
+                </div>
+                <div>
+                  <strong>🛡️ Violazioni:</strong> Tentativi di accesso non autorizzati o attività sospette rilevate dal sistema.
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Stato Sistema */}
               <Card>
@@ -446,7 +533,7 @@ export default function SecurityDashboard() {
                     Stato Sistema
                   </CardTitle>
                   <CardDescription>
-                    Monitoraggio in tempo reale delle performance
+                    Monitoraggio in tempo reale delle performance del sistema DEMOS
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -550,6 +637,36 @@ export default function SecurityDashboard() {
 
           {/* Scheda Sicurezza */}
           <TabsContent value="security" className="space-y-6">
+            {/* Spiegazione per Neofiti - Sicurezza */}
+            <Card className="bg-purple-50 border-purple-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-purple-800">
+                  <Shield className="h-5 w-5" />
+                  🔐 Guida per Principianti - Sicurezza
+                </CardTitle>
+                <CardDescription className="text-purple-700">
+                  Questa sezione monitora le misure di sicurezza attive per proteggere il sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-purple-800">
+                <div>
+                  <strong>🔑 Token JWT:</strong> Chiavi digitali che permettono agli utenti di accedere al sistema. Quando un utente fa login, riceve un token valido per un certo periodo.
+                </div>
+                <div>
+                  <strong>⚡ Rate Limiting:</strong> Limita il numero di richieste che un utente può fare per prevenire attacchi o abusi del sistema.
+                </div>
+                <div>
+                  <strong>🔒 SSL/TLS:</strong> Crittografia che protegge le comunicazioni tra il browser e il server. Il lucchetto verde nel browser indica una connessione sicura.
+                </div>
+                <div>
+                  <strong>🛡️ Validazione Input:</strong> Controlla che i dati inseriti dagli utenti siano sicuri e non contengano codice malevolo.
+                </div>
+                <div>
+                  <strong>🚫 IP Bloccati:</strong> Indirizzi di computer che sono stati bloccati per attività sospette o tentativi di attacco.
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* JWT Token Management */}
               <Card>
@@ -739,6 +856,39 @@ export default function SecurityDashboard() {
 
           {/* Scheda Minacce */}
           <TabsContent value="threats" className="space-y-6">
+            {/* Spiegazione per Neofiti - Minacce */}
+            <Card className="bg-red-50 border-red-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-800">
+                  <AlertTriangle className="h-5 w-5" />
+                  ⚠️ Guida per Principianti - Minacce e Attacchi
+                </CardTitle>
+                <CardDescription className="text-red-700">
+                  Questa sezione mostra le minacce rilevate e gli attacchi bloccati dal sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-red-800">
+                <div>
+                  <strong>🌍 IP Bloccati:</strong> Indirizzi di computer che hanno tentato di attaccare il sistema. Ogni computer ha un indirizzo IP unico (es. 192.168.1.100).
+                </div>
+                <div>
+                  <strong>🔍 Tipi di Attacco:</strong> Diversi modi in cui i criminali informatici cercano di compromettere il sistema:
+                  <ul className="ml-4 mt-1 space-y-1">
+                    <li>• <strong>Brute Force:</strong> Tentativi di indovinare password</li>
+                    <li>• <strong>SQL Injection:</strong> Inserimento di codice malevolo nei form</li>
+                    <li>• <strong>XSS:</strong> Attacchi tramite script dannosi</li>
+                    <li>• <strong>DDoS:</strong> Sovraccarico del sistema con troppe richieste</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>🚨 Severità:</strong> Livello di pericolosità dell'attacco (Critical = molto pericoloso, High = pericoloso, Medium = moderato).
+                </div>
+                <div>
+                  <strong>🌐 Paesi Sospetti:</strong> Nazioni da cui provengono molti attacchi. Non significa che tutti gli utenti di quel paese siano malintenzionati.
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* IP Bloccati */}
               <Card>
@@ -827,6 +977,36 @@ export default function SecurityDashboard() {
 
           {/* Scheda Compliance */}
           <TabsContent value="compliance" className="space-y-6">
+            {/* Spiegazione per Neofiti - Compliance */}
+            <Card className="bg-green-50 border-green-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <Lock className="h-5 w-5" />
+                  📋 Guida per Principianti - Compliance e Normative
+                </CardTitle>
+                <CardDescription className="text-green-700">
+                  Questa sezione verifica che il sistema rispetti le leggi sulla privacy e la protezione dei dati
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-green-800">
+                <div>
+                  <strong>📜 GDPR:</strong> Regolamento Generale sulla Protezione dei Dati dell'Unione Europea. Protegge la privacy degli utenti e i loro dati personali.
+                </div>
+                <div>
+                  <strong>🗄️ Data Retention:</strong> Politiche su quanto tempo conservare i dati degli utenti. Non possiamo tenere i dati per sempre per rispettare la privacy.
+                </div>
+                <div>
+                  <strong>📝 Audit Trail:</strong> Registro completo di tutte le azioni compiute nel sistema. Come un "libro mastro" che traccia chi ha fatto cosa e quando.
+                </div>
+                <div>
+                  <strong>✅ Compliant:</strong> Significa che il sistema rispetta tutte le regole e le leggi applicabili.
+                </div>
+                <div>
+                  <strong>🔍 Complete:</strong> Significa che tutti i controlli e le verifiche sono stati completati con successo.
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
@@ -886,6 +1066,36 @@ export default function SecurityDashboard() {
 
           {/* Scheda Logs */}
           <TabsContent value="logs" className="space-y-6">
+            {/* Spiegazione per Neofiti - Logs */}
+            <Card className="bg-gray-50 border-gray-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-gray-800">
+                  <FileText className="h-5 w-5" />
+                  📊 Guida per Principianti - Log di Audit
+                </CardTitle>
+                <CardDescription className="text-gray-700">
+                  Questa sezione mostra il registro completo di tutte le attività nel sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-gray-800">
+                <div>
+                  <strong>📝 Log di Audit:</strong> Registro dettagliato di tutte le azioni compiute nel sistema. Come un "diario" che tiene traccia di chi ha fatto cosa, quando e da dove.
+                </div>
+                <div>
+                  <strong>🔍 Monitoraggio:</strong> Controllo continuo delle attività per identificare comportamenti sospetti o violazioni di sicurezza.
+                </div>
+                <div>
+                  <strong>📋 Conformità:</strong> I log aiutano a dimostrare che il sistema rispetta le leggi sulla privacy e la sicurezza dei dati.
+                </div>
+                <div>
+                  <strong>🕵️ Investigazione:</strong> In caso di problemi, i log permettono di ricostruire cosa è successo e chi è stato coinvolto.
+                </div>
+                <div>
+                  <strong>📤 Esportazione:</strong> I log possono essere esportati per analisi approfondite o per soddisfare richieste legali.
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
