@@ -62,6 +62,7 @@ export default function DataExport() {
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [deleteAfterExport, setDeleteAfterExport] = useState(false);
   const [dryRun, setDryRun] = useState(false);
+  const [loadingTables, setLoadingTables] = useState(true);
 
   // Carica dati iniziali
   useEffect(() => {
@@ -82,6 +83,7 @@ export default function DataExport() {
   };
 
   const loadTableInfo = async () => {
+    setLoadingTables(true);
     try {
       const response = await fetch('/api/admin/data-export/tables');
       if (response.ok) {
@@ -89,9 +91,106 @@ export default function DataExport() {
         setTables(data);
         // Seleziona tutte le tabelle abilitate di default
         setSelectedTables(data.filter((t: TableInfo) => t.enabled).map((t: TableInfo) => t.name));
+      } else {
+        // Fallback: usa dati mock se l'API non è disponibile
+        const mockTables: TableInfo[] = [
+          {
+            name: 'centralized_logs',
+            enabled: true,
+            retentionDays: 14,
+            recordCount: 0,
+            sizeMB: 0
+          },
+          {
+            name: 'security_events',
+            enabled: true,
+            retentionDays: 30,
+            recordCount: 0,
+            sizeMB: 0
+          },
+          {
+            name: 'performance_metrics',
+            enabled: true,
+            retentionDays: 7,
+            recordCount: 0,
+            sizeMB: 0
+          },
+          {
+            name: 'health_checks',
+            enabled: true,
+            retentionDays: 7,
+            recordCount: 0,
+            sizeMB: 0
+          },
+          {
+            name: 'access_audit',
+            enabled: true,
+            retentionDays: 30,
+            recordCount: 0,
+            sizeMB: 0
+          },
+          {
+            name: 'audit_logs',
+            enabled: true,
+            retentionDays: 30,
+            recordCount: 0,
+            sizeMB: 0
+          }
+        ];
+        setTables(mockTables);
+        setSelectedTables(mockTables.map(t => t.name));
       }
     } catch (error) {
       console.error('Errore caricamento tabelle:', error);
+      // Usa dati mock in caso di errore
+      const mockTables: TableInfo[] = [
+        {
+          name: 'centralized_logs',
+          enabled: true,
+          retentionDays: 14,
+          recordCount: 0,
+          sizeMB: 0
+        },
+        {
+          name: 'security_events',
+          enabled: true,
+          retentionDays: 30,
+          recordCount: 0,
+          sizeMB: 0
+        },
+        {
+          name: 'performance_metrics',
+          enabled: true,
+          retentionDays: 7,
+          recordCount: 0,
+          sizeMB: 0
+        },
+        {
+          name: 'health_checks',
+          enabled: true,
+          retentionDays: 7,
+          recordCount: 0,
+          sizeMB: 0
+        },
+        {
+          name: 'access_audit',
+          enabled: true,
+          retentionDays: 30,
+          recordCount: 0,
+          sizeMB: 0
+        },
+        {
+          name: 'audit_logs',
+          enabled: true,
+          retentionDays: 30,
+          recordCount: 0,
+          sizeMB: 0
+        }
+      ];
+      setTables(mockTables);
+      setSelectedTables(mockTables.map(t => t.name));
+    } finally {
+      setLoadingTables(false);
     }
   };
 
@@ -224,6 +323,19 @@ export default function DataExport() {
     );
   };
 
+  const getTableDescription = (tableName: string) => {
+    const descriptions: { [key: string]: string } = {
+      'centralized_logs': 'Log centralizzati di tutte le operazioni del sistema',
+      'security_events': 'Eventi di sicurezza e tentativi di accesso',
+      'performance_metrics': 'Metriche di performance del sistema (CPU, memoria, DB)',
+      'health_checks': 'Controlli di salute del sistema e servizi',
+      'access_audit': 'Audit di tutti gli accessi e operazioni utente',
+      'audit_logs': 'Log di audit per conformità e sicurezza'
+    };
+    
+    return descriptions[tableName] || 'Tabella di monitoraggio e logging';
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -249,7 +361,7 @@ export default function DataExport() {
         <TabsContent value="export" className="space-y-6">
           {/* Status Export */}
           {exportStatus.isRunning && (
-            <Card>
+            <Card className="bg-white shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <Play className="h-5 w-5 text-blue-500" />
@@ -295,17 +407,39 @@ export default function DataExport() {
           )}
 
           {/* Selezione Tabelle */}
-          <Card>
+          <Card className="bg-white shadow-lg">
             <CardHeader>
-              <CardTitle>Seleziona Tabelle da Esportare</CardTitle>
-              <CardDescription>
-                Scegli quali tabelle esportare. I dati più vecchi di 30 giorni verranno esportati.
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Seleziona Tabelle da Esportare</CardTitle>
+                  <CardDescription>
+                    Scegli quali tabelle esportare. I dati più vecchi di 30 giorni verranno esportati.
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadTableInfo}
+                  disabled={loadingTables}
+                >
+                  {loadingTables ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  ) : (
+                    'Aggiorna'
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {tables.map((table) => (
-                  <div key={table.name} className="flex items-center justify-between p-4 border rounded-lg">
+              {loadingTables ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-3 text-gray-600">Caricamento tabelle...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {tables.map((table) => (
+                  <div key={table.name} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
                     <div className="flex items-center space-x-3">
                       <input
                         type="checkbox"
@@ -324,6 +458,9 @@ export default function DataExport() {
                         <p className="text-sm text-gray-600">
                           {table.recordCount.toLocaleString()} record • {table.sizeMB.toFixed(1)} MB
                         </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {getTableDescription(table.name)}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -335,13 +472,14 @@ export default function DataExport() {
                       </Badge>
                     </div>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Opzioni Export */}
-          <Card>
+          <Card className="bg-white shadow-lg">
             <CardHeader>
               <CardTitle>Opzioni Export</CardTitle>
             </CardHeader>
@@ -389,7 +527,7 @@ export default function DataExport() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-6">
-          <Card>
+          <Card className="bg-white shadow-lg">
             <CardHeader>
               <CardTitle>Cronologia Export</CardTitle>
               <CardDescription>
@@ -405,7 +543,7 @@ export default function DataExport() {
               ) : (
                 <div className="space-y-4">
                   {exportHistory.map((exportItem) => (
-                    <div key={exportItem.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={exportItem.id} className="flex items-center justify-between p-4 border rounded-lg bg-white shadow-sm">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(exportItem.status)}
                         <div>
@@ -437,7 +575,7 @@ export default function DataExport() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <Card>
+          <Card className="bg-white shadow-lg">
             <CardHeader>
               <CardTitle>Impostazioni Export</CardTitle>
               <CardDescription>
