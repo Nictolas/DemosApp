@@ -1,5 +1,6 @@
 import React from "react";
 import { MenuButtonProps } from "../types";
+import { useResponsiveLayoutContext } from "@/components/ResponsiveLayoutProvider";
 
 export const MenuButton: React.FC<MenuButtonProps> = ({
   path,
@@ -8,6 +9,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
   color,
   onNavigate
 }) => {
+  const { getResponsiveClass, deviceInfo } = useResponsiveLayoutContext();
   const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.currentTarget.classList.add('scale-95', 'shadow-md');
   };
@@ -39,7 +41,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
   return (
     <button
       type="button"
-      className="menu-button relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform"
+      className={getResponsiveClass("menu-button relative w-full rounded-2xl shadow-lg overflow-hidden cursor-pointer transition-transform", "button")}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
@@ -57,7 +59,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
           <Icon className="h-14 w-14 text-white absolute" style={{ filter: 'drop-shadow(0 0 0 #fff)' }} />
           <Icon className="h-10 w-10 relative z-10" style={{ color: color.icon }} />
         </span>
-        <div className="text-gray-700 font-semibold text-3xl select-none">{label}</div>
+        <div className={getResponsiveClass("text-gray-700 font-semibold select-none", "text")}>{label}</div>
       </div>
     </button>
   );

@@ -106,6 +106,8 @@ import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 import { AppWrapper } from "./components/AppWrapper";
+import { ResponsiveLayoutProvider } from "./components/ResponsiveLayoutProvider";
+import { DeviceInfoDisplay } from "./components/DeviceInfoDisplay";
 
 // Hook per la navigazione touch migliorato
 function useTouchNavigation() {
@@ -239,9 +241,10 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="App">
-        <AuthProvider>
-          <RegistrationProvider>
-            <AppWrapper>
+        <ResponsiveLayoutProvider>
+          <AuthProvider>
+            <RegistrationProvider>
+              <AppWrapper>
             <Switch>
               {/* Route di verifica email - fuori dall'AuthProvider */}
               <Route path="/verifica-email">
@@ -920,9 +923,11 @@ export default function App() {
             
             <Toaster />
             <PWAInstallBanner />
-            </AppWrapper>
-          </RegistrationProvider>
-        </AuthProvider>
+            <DeviceInfoDisplay />
+              </AppWrapper>
+            </RegistrationProvider>
+          </AuthProvider>
+        </ResponsiveLayoutProvider>
       </div>
     </QueryClientProvider>
   );
