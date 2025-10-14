@@ -19,12 +19,23 @@ router.get('/stats', async (req, res) => {
   try {
     const { days = 30 } = req.query;
     
-    // Statistiche generali
+    // Statistiche generali (escludendo errori tecnici HTTP 500)
     const statsQuery = `
       SELECT 
         COUNT(*) as total_actions,
         COUNT(CASE WHEN success = true THEN 1 END) as successful_actions,
-        COUNT(CASE WHEN success = false THEN 1 END) as failed_actions,
+        COUNT(CASE WHEN success = false AND NOT (
+          error_message LIKE '%HTTP 500%' OR 
+          error_message LIKE '%Errore nella registrazione%' OR
+          error_message LIKE '%Internal Server Error%' OR
+          error_message LIKE '%Database Error%'
+        ) THEN 1 END) as failed_actions,
+        COUNT(CASE WHEN success = false AND (
+          error_message LIKE '%HTTP 500%' OR 
+          error_message LIKE '%Errore nella registrazione%' OR
+          error_message LIKE '%Internal Server Error%' OR
+          error_message LIKE '%Database Error%'
+        ) THEN 1 END) as technical_errors,
         COUNT(DISTINCT user_id) as unique_users,
         COUNT(DISTINCT action) as unique_actions,
         COUNT(DISTINCT resource) as unique_resources
@@ -354,7 +365,7 @@ router.get('/violations', async (req, res) => {
   try {
     const { days = 7 } = req.query;
     
-    // Violazioni di sicurezza
+    // Violazioni di sicurezza (escludendo errori tecnici HTTP 500)
     const violationsQuery = `
       SELECT 
         al.id,
@@ -373,14 +384,30 @@ router.get('/violations', async (req, res) => {
       LEFT JOIN users u ON al.user_id = u.id
       WHERE al.success = false 
         AND al.timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
-        AND (al.action LIKE '%SECURITY%' OR al.action LIKE '%AUTH%' OR al.action LIKE '%PERMISSION%')
+        AND NOT (
+          al.error_message LIKE '%HTTP 500%' OR 
+          al.error_message LIKE '%Errore nella registrazione%' OR
+          al.error_message LIKE '%Internal Server Error%' OR
+          al.error_message LIKE '%Database Error%'
+        )
+        AND (
+          al.action LIKE '%SECURITY%' OR 
+          al.action LIKE '%AUTH%' OR 
+          al.action LIKE '%PERMISSION%' OR
+          al.error_message LIKE '%Unauthorized%' OR
+          al.error_message LIKE '%Forbidden%' OR
+          al.error_message LIKE '%Invalid credentials%' OR
+          al.error_message LIKE '%Access denied%' OR
+          al.error_message LIKE '%Token expired%' OR
+          al.error_message LIKE '%Invalid token%'
+        )
       ORDER BY al.timestamp DESC
       LIMIT 20
     `;
     
     const violationsResult = await pool.query(violationsQuery);
     
-    // Conteggio violazioni per tipo
+    // Conteggio violazioni per tipo (escludendo errori tecnici HTTP 500)
     const violationStatsQuery = `
       SELECT 
         COUNT(*) as total_violations,
@@ -390,6 +417,23 @@ router.get('/violations', async (req, res) => {
       FROM audit_logs 
       WHERE success = false 
         AND timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
+        AND NOT (
+          error_message LIKE '%HTTP 500%' OR 
+          error_message LIKE '%Errore nella registrazione%' OR
+          error_message LIKE '%Internal Server Error%' OR
+          error_message LIKE '%Database Error%'
+        )
+        AND (
+          action LIKE '%SECURITY%' OR 
+          action LIKE '%AUTH%' OR 
+          action LIKE '%PERMISSION%' OR
+          error_message LIKE '%Unauthorized%' OR
+          error_message LIKE '%Forbidden%' OR
+          error_message LIKE '%Invalid credentials%' OR
+          error_message LIKE '%Access denied%' OR
+          error_message LIKE '%Token expired%' OR
+          error_message LIKE '%Invalid token%'
+        )
     `;
     
     const statsResult = await pool.query(violationStatsQuery);
