@@ -108,7 +108,7 @@ import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 import { AppWrapper } from "./components/AppWrapper";
 import { DeviceSpecificProvider } from "./components/DeviceSpecificProvider";
 import { DeviceDebugInfo } from "./components/DeviceDebugInfo";
-import { ModernAppLayout } from "./components/ModernAppLayout";
+import { RobustAppLayout } from "./components/RobustAppLayout";
 
 // Hook per la navigazione touch migliorato
 function useTouchNavigation() {
@@ -245,7 +245,7 @@ export default function App() {
         <DeviceSpecificProvider>
           <AuthProvider>
             <RegistrationProvider>
-              <ModernAppLayout>
+              <RobustAppLayout>
                 <AppWrapper>
               <Switch>
               {/* Route di verifica email - fuori dall'AuthProvider */}
@@ -914,7 +914,7 @@ export default function App() {
             <PWAInstallBanner />
             <DeviceDebugInfo />
                 </AppWrapper>
-              </ModernAppLayout>
+              </RobustAppLayout>
             </RegistrationProvider>
           </AuthProvider>
         </DeviceSpecificProvider>
