@@ -18,12 +18,25 @@ const pool = new Pool({
  */
 router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Per ora restituiamo dati mock, in produzione si dovrebbero calcolare dai log
+    // Calcola statistiche JWT reali dai log di audit
+    const jwtStatsQuery = `
+      SELECT 
+        COUNT(CASE WHEN action = 'LOGIN' AND success = true THEN 1 END) as active_tokens,
+        COUNT(CASE WHEN action = 'LOGOUT' AND success = true THEN 1 END) as revoked_tokens,
+        COUNT(CASE WHEN action = 'TOKEN_EXPIRED' OR (action = 'AUTH_FAILED' AND details LIKE '%expired%') THEN 1 END) as expired_tokens,
+        COUNT(CASE WHEN action = 'AUTH_FAILED' AND success = false THEN 1 END) as suspicious_activity
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '7 days'
+    `;
+    
+    const result = await pool.query(jwtStatsQuery);
+    const stats = result.rows[0];
+    
     const jwtStats = {
-      activeTokens: Math.floor(Math.random() * 100) + 50, // Mock: 50-150 token attivi
-      revokedTokens: Math.floor(Math.random() * 20) + 5,  // Mock: 5-25 token revocati
-      expiredTokens: Math.floor(Math.random() * 30) + 10, // Mock: 10-40 token scaduti
-      suspiciousActivity: Math.floor(Math.random() * 5)   // Mock: 0-5 attività sospette
+      activeTokens: parseInt(stats.active_tokens) || 0,
+      revokedTokens: parseInt(stats.revoked_tokens) || 0,
+      expiredTokens: parseInt(stats.expired_tokens) || 0,
+      suspiciousActivity: parseInt(stats.suspicious_activity) || 0
     };
 
     res.json({
@@ -48,16 +61,39 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/rate-limiting-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Per ora restituiamo dati mock, in produzione si dovrebbero calcolare dai log
+    // Calcola statistiche rate limiting reali dai log
+    const rateLimitQuery = `
+      SELECT 
+        COUNT(DISTINCT ip_address) as blocked_ips,
+        COUNT(*) as total_requests,
+        COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 minute' THEN 1 END) as requests_per_minute
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '1 hour'
+        AND ip_address IS NOT NULL
+    `;
+    
+    const topEndpointsQuery = `
+      SELECT resource, COUNT(*) as count
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '1 hour'
+        AND resource IS NOT NULL
+      GROUP BY resource
+      ORDER BY count DESC
+      LIMIT 5
+    `;
+    
+    const [rateLimitResult, endpointsResult] = await Promise.all([
+      pool.query(rateLimitQuery),
+      pool.query(topEndpointsQuery)
+    ]);
+    
+    const stats = rateLimitResult.rows[0];
+    const topEndpoints = endpointsResult.rows.map(row => row.resource);
+    
     const rateLimitingStats = {
-      blockedIPs: Math.floor(Math.random() * 10) + 2, // Mock: 2-12 IP bloccati
-      requestsPerMinute: Math.floor(Math.random() * 1000) + 500, // Mock: 500-1500 req/min
-      topBlockedEndpoints: [
-        '/api/auth/login',
-        '/api/auth/register',
-        '/api/admin/users',
-        '/api/upload'
-      ].slice(0, Math.floor(Math.random() * 4) + 1) // Mock: 1-4 endpoint bloccati
+      blockedIPs: parseInt(stats.blocked_ips) || 0,
+      requestsPerMinute: parseInt(stats.requests_per_minute) || 0,
+      topBlockedEndpoints: topEndpoints
     };
 
     res.json({
@@ -82,11 +118,25 @@ router.get('/rate-limiting-stats', verifyToken, requireAdmin, async (req, res) =
  */
 router.get('/ssl-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Per ora restituiamo dati mock, in produzione si dovrebbero calcolare dai log
+    // Calcola statistiche SSL reali dai log
+    const sslQuery = `
+      SELECT 
+        COUNT(CASE WHEN success = true THEN 1 END) as secure_connections,
+        COUNT(CASE WHEN success = false AND (details LIKE '%SSL%' OR details LIKE '%TLS%' OR details LIKE '%certificate%') THEN 1 END) as insecure_connections
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '24 hours'
+    `;
+    
+    const result = await pool.query(sslQuery);
+    const stats = result.rows[0];
+    
+    // Per il certificato, usiamo una data fissa (in produzione si dovrebbe controllare il certificato reale)
+    const certificateExpiry = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 giorni da ora
+    
     const sslStats = {
-      secureConnections: Math.floor(Math.random() * 1000) + 800, // Mock: 800-1800 connessioni sicure
-      insecureConnections: Math.floor(Math.random() * 50) + 5,   // Mock: 5-55 connessioni insecure
-      certificateExpiry: new Date(Date.now() + (Math.random() * 365 + 30) * 24 * 60 * 60 * 1000) // Mock: 30-395 giorni
+      secureConnections: parseInt(stats.secure_connections) || 0,
+      insecureConnections: parseInt(stats.insecure_connections) || 0,
+      certificateExpiry: certificateExpiry
     };
 
     res.json({
@@ -111,11 +161,23 @@ router.get('/ssl-stats', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/validation-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Per ora restituiamo dati mock, in produzione si dovrebbero calcolare dai log
+    // Calcola statistiche validazione reali dai log
+    const validationQuery = `
+      SELECT 
+        COUNT(CASE WHEN action = 'VALIDATION_FAILED' AND success = false THEN 1 END) as validation_failures,
+        COUNT(CASE WHEN details LIKE '%injection%' OR details LIKE '%XSS%' OR details LIKE '%SQL%' THEN 1 END) as blocked_injection_attempts,
+        COUNT(CASE WHEN action = 'INPUT_SANITIZED' THEN 1 END) as sanitized_inputs
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '7 days'
+    `;
+    
+    const result = await pool.query(validationQuery);
+    const stats = result.rows[0];
+    
     const validationStats = {
-      blockedInjectionAttempts: Math.floor(Math.random() * 20) + 5, // Mock: 5-25 tentativi bloccati
-      sanitizedInputs: Math.floor(Math.random() * 500) + 200,       // Mock: 200-700 input sanitizzati
-      validationFailures: Math.floor(Math.random() * 30) + 10       // Mock: 10-40 fallimenti validazione
+      blockedInjectionAttempts: parseInt(stats.blocked_injection_attempts) || 0,
+      sanitizedInputs: parseInt(stats.sanitized_inputs) || 0,
+      validationFailures: parseInt(stats.validation_failures) || 0
     };
 
     res.json({
@@ -135,31 +197,95 @@ router.get('/validation-stats', verifyToken, requireAdmin, async (req, res) => {
 });
 
 /**
+ * 📊 SYSTEM HEALTH STATS
+ * GET /api/admin/security/system-health
+ */
+router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    // Calcola statistiche di salute del sistema reali
+    const systemQuery = `
+      SELECT 
+        COUNT(DISTINCT user_id) as active_users,
+        COUNT(*) as total_requests,
+        COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 minute' THEN 1 END) as requests_per_minute,
+        COUNT(CASE WHEN success = true THEN 1 END) as successful_requests,
+        COUNT(CASE WHEN success = false THEN 1 END) as failed_requests
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '1 hour'
+    `;
+    
+    const result = await pool.query(systemQuery);
+    const stats = result.rows[0];
+    
+    const totalRequests = parseInt(stats.total_requests) || 1;
+    const successfulRequests = parseInt(stats.successful_requests) || 0;
+    const errorRate = ((parseInt(stats.failed_requests) || 0) / totalRequests * 100).toFixed(1);
+    
+    const systemHealth = {
+      activeUsers: parseInt(stats.active_users) || 0,
+      totalRequests: totalRequests,
+      requestsPerMinute: parseInt(stats.requests_per_minute) || 0,
+      uptime: '99.9%', // In produzione si dovrebbe calcolare dal sistema
+      responseTime: '120ms', // In produzione si dovrebbe calcolare dalle metriche reali
+      errorRate: `${errorRate}%`
+    };
+
+    res.json({
+      success: true,
+      data: systemHealth,
+      message: 'Statistiche salute sistema recuperate con successo'
+    });
+
+  } catch (error) {
+    console.error('Errore nel recupero statistiche sistema:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le statistiche del sistema'
+    });
+  }
+});
+
+/**
  * 📊 REAL-TIME SECURITY EVENTS
  * GET /api/admin/security/real-time-events
  */
 router.get('/real-time-events', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Per ora restituiamo dati mock, in produzione si dovrebbero calcolare dai log real-time
-    const eventTypes = [
-      'Login Attempt',
-      'Rate Limit Exceeded',
-      'Invalid Token',
-      'Suspicious Request',
-      'SSL Handshake Failed',
-      'Input Validation Failed'
-    ];
-
-    const severities = ['low', 'medium', 'high'];
+    // Recupera eventi di sicurezza reali dagli ultimi 5 minuti
+    const eventsQuery = `
+      SELECT 
+        id,
+        action,
+        resource,
+        details,
+        ip_address,
+        user_agent,
+        timestamp,
+        success,
+        error_message,
+        CASE 
+          WHEN success = false AND action LIKE '%AUTH%' THEN 'high'
+          WHEN success = false AND action LIKE '%SECURITY%' THEN 'medium'
+          ELSE 'low'
+        END as severity
+      FROM audit_logs 
+      WHERE timestamp >= NOW() - INTERVAL '5 minutes'
+        AND (success = false OR action LIKE '%SECURITY%' OR action LIKE '%AUTH%')
+      ORDER BY timestamp DESC
+      LIMIT 20
+    `;
     
-    const realTimeEvents = Array.from({ length: Math.floor(Math.random() * 10) + 1 }, (_, index) => ({
-      id: `event_${Date.now()}_${index}`,
-      type: eventTypes[Math.floor(Math.random() * eventTypes.length)],
-      description: `Evento di sicurezza rilevato alle ${new Date().toLocaleTimeString('it-IT')}`,
-      severity: severities[Math.floor(Math.random() * severities.length)],
-      timestamp: new Date(Date.now() - Math.random() * 300000).toISOString(), // Ultimi 5 minuti
-      ip: `192.168.1.${Math.floor(Math.random() * 255)}`,
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    const result = await pool.query(eventsQuery);
+    
+    const realTimeEvents = result.rows.map(row => ({
+      id: row.id,
+      type: row.action,
+      description: row.error_message || row.details || `Evento ${row.action} rilevato`,
+      severity: row.severity,
+      timestamp: row.timestamp,
+      ip: row.ip_address || 'N/A',
+      userAgent: row.user_agent || 'N/A'
     }));
 
     res.json({
