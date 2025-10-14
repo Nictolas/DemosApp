@@ -10,32 +10,43 @@ interface AppWrapperProps {
 export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
   const [location, setLocation] = useLocation();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
   const [isAppReady, setIsAppReady] = useState(false);
-  const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  const [hasShownSplash, setHasShownSplash] = useState(false);
 
-  // Debug logging rimosso per evitare re-render
-
-  // Timer minimo per la splash screen (4 secondi)
+  // Controlla se è il primo caricamento dell'app
   useEffect(() => {
-    const minTimer = setTimeout(() => {
-      setMinSplashTimeElapsed(true);
-    }, 4000);
-
-    return () => clearTimeout(minTimer);
-  }, []);
-
-  // Controlla se l'app è pronta (auth completato + tempo minimo trascorso)
-  useEffect(() => {
-    if (minSplashTimeElapsed && !isAuthLoading) {
-      const finalTimer = setTimeout(() => {
+    const isFirstLoad = !sessionStorage.getItem('app_loaded');
+    const hasToken = localStorage.getItem('auth_token');
+    
+    // Mostra splash screen solo se:
+    // 1. È il primo caricamento dell'app
+    // 2. L'utente ha un token (login recente)
+    // 3. Non abbiamo ancora mostrato lo splash in questa sessione
+    if (isFirstLoad || (hasToken && !hasShownSplash)) {
+      setShowSplash(true);
+      setHasShownSplash(true);
+      sessionStorage.setItem('app_loaded', 'true');
+      
+      // Timer per la splash screen (2 secondi invece di 8)
+      const splashTimer = setTimeout(() => {
         setShowSplash(false);
         setIsAppReady(true);
-      }, 500); // 500ms per transizione fluida
+      }, 2000);
 
-      return () => clearTimeout(finalTimer);
+      return () => clearTimeout(splashTimer);
+    } else {
+      // Se non dobbiamo mostrare lo splash, l'app è subito pronta
+      setIsAppReady(true);
     }
-  }, [minSplashTimeElapsed, isAuthLoading]);
+  }, []);
+
+  // Controlla se l'app è pronta (auth completato)
+  useEffect(() => {
+    if (!isAuthLoading && isAppReady) {
+      // L'app è pronta, non serve altro
+    }
+  }, [isAuthLoading, isAppReady]);
 
   // Redirect automatico se l'utente è autenticato e siamo sulla home
   useEffect(() => {
@@ -44,19 +55,9 @@ export const AppWrapper: React.FC<AppWrapperProps> = ({ children }) => {
     }
   }, [isAuthLoading, user, location, setLocation]);
 
-  // Timer di sicurezza (massimo 8 secondi)
-  useEffect(() => {
-    const safetyTimer = setTimeout(() => {
-      setShowSplash(false);
-      setIsAppReady(true);
-    }, 8000);
-
-    return () => clearTimeout(safetyTimer);
-  }, []);
-
-  // Mostra la splash screen finché l'app non è pronta
+  // Mostra la splash screen solo quando necessario
   if (showSplash) {
-    return <SplashScreen onComplete={() => {}} duration={8000} />;
+    return <SplashScreen onComplete={() => {}} duration={2000} />;
   }
 
   // Mostra l'app quando è pronta
