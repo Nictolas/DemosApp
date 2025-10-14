@@ -106,7 +106,6 @@ import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
 import { AppWrapper } from "./components/AppWrapper";
-import { DeviceSpecificProvider } from "./components/DeviceSpecificProvider";
 import { DeviceDebugInfo } from "./components/DeviceDebugInfo";
 import { RobustAppLayout } from "./components/RobustAppLayout";
 
@@ -242,11 +241,10 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="App">
-        <DeviceSpecificProvider>
-          <AuthProvider>
-            <RegistrationProvider>
-              <RobustAppLayout>
-                <AppWrapper>
+        <AuthProvider>
+          <RegistrationProvider>
+            <RobustAppLayout>
+              <AppWrapper>
               <Switch>
               {/* Route di verifica email - fuori dall'AuthProvider */}
               <Route path="/verifica-email">
@@ -917,7 +915,6 @@ export default function App() {
               </RobustAppLayout>
             </RegistrationProvider>
           </AuthProvider>
-        </DeviceSpecificProvider>
       </div>
     </QueryClientProvider>
   );

@@ -1,5 +1,15 @@
 /* ===== LAYOUT MODERNO A 3 ZONE ===== */
 
+/* CSS Variables per altezza navbar dinamica */
+:root {
+  --navbar-height: 6rem; /* 96px - altezza base */
+  --navbar-height-mobile: 6rem; /* 96px - mobile */
+  --navbar-height-tablet: 5rem; /* 80px - tablet */
+  --navbar-height-desktop: 4rem; /* 64px - desktop */
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --navbar-total-height: calc(var(--navbar-height) + var(--safe-area-bottom));
+}
+
 /* Layout principale con CSS Grid */
 .modern-app-layout {
   display: grid;
@@ -43,6 +53,8 @@
   z-index: 1000;
   position: relative;
   flex-shrink: 0;
+  height: var(--navbar-total-height);
+  min-height: var(--navbar-total-height);
 }
 
 /* ===== CORREZIONI PER NAVBAR ===== */
@@ -96,39 +108,79 @@
 
 /* Mobile first */
 @media (max-width: 767px) {
+  :root {
+    --navbar-height: var(--navbar-height-mobile);
+  }
+  
   .modern-app-layout {
     height: 100vh;
     height: 100dvh;
   }
   
+  .app-navbar {
+    height: var(--navbar-total-height);
+    min-height: var(--navbar-total-height);
+  }
+  
   .app-navbar nav {
-    height: 6rem !important; /* 96px */
+    height: var(--navbar-height) !important;
     padding: 1rem 0 !important;
+    padding-bottom: calc(1rem + var(--safe-area-bottom)) !important;
   }
 }
 
 /* Tablet */
 @media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --navbar-height: var(--navbar-height-tablet);
+  }
+  
+  .app-navbar {
+    height: var(--navbar-total-height);
+    min-height: var(--navbar-total-height);
+  }
+  
   .app-navbar nav {
-    height: 5rem !important; /* 80px */
+    height: var(--navbar-height) !important;
     padding: 0.75rem 0 !important;
+    padding-bottom: calc(0.75rem + var(--safe-area-bottom)) !important;
   }
 }
 
 /* Desktop */
 @media (min-width: 1024px) {
+  :root {
+    --navbar-height: var(--navbar-height-desktop);
+  }
+  
+  .app-navbar {
+    height: var(--navbar-total-height);
+    min-height: var(--navbar-total-height);
+  }
+  
   .app-navbar nav {
-    height: 4rem !important; /* 64px */
+    height: var(--navbar-height) !important;
     padding: 0.5rem 0 !important;
+    padding-bottom: calc(0.5rem + var(--safe-area-bottom)) !important;
   }
 }
 
 /* ===== ORIENTAMENTO LANDSCAPE ===== */
 
 @media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --navbar-height: 4rem; /* 64px - ridotto per landscape */
+  }
+  
+  .app-navbar {
+    height: var(--navbar-total-height);
+    min-height: var(--navbar-total-height);
+  }
+  
   .app-navbar nav {
-    height: 4rem !important; /* 64px */
+    height: var(--navbar-height) !important;
     padding: 0.5rem 0 !important;
+    padding-bottom: calc(0.5rem + var(--safe-area-bottom)) !important;
   }
   
   .app-main {

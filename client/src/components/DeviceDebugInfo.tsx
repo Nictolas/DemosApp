@@ -1,8 +1,8 @@
 import React from 'react';
-import { useDeviceSpecificFixes } from '@/hooks/useDeviceSpecificFixes';
+import { useDeviceDetection } from '@/hooks/useDeviceDetection';
 
 export const DeviceDebugInfo: React.FC = () => {
-  const deviceInfo = useDeviceSpecificFixes();
+  const deviceInfo = useDeviceDetection();
 
   // Mostra solo in modalità sviluppo
   if (process.env.NODE_ENV !== 'development') {
@@ -10,19 +10,31 @@ export const DeviceDebugInfo: React.FC = () => {
   }
 
   return (
-    <div className="fixed top-4 right-4 bg-black bg-opacity-75 text-white p-4 rounded-lg text-xs z-50 max-w-xs">
-      <h3 className="font-bold mb-2">Device Debug Info</h3>
-      <div className="space-y-1">
-        <div><strong>iPhone 15 Pro Max:</strong> {deviceInfo.isIPhone15ProMax ? '✅' : '❌'}</div>
-        <div><strong>Redmi:</strong> {deviceInfo.isRedmi ? '✅' : '❌'}</div>
-        <div><strong>Android:</strong> {deviceInfo.isAndroid ? '✅' : '❌'}</div>
-        <div><strong>iOS:</strong> {deviceInfo.isIOS ? '✅' : '❌'}</div>
-        <div><strong>Device Type:</strong> {deviceInfo.deviceType}</div>
-        <div><strong>Needs Fix:</strong> {deviceInfo.needsSpecialFix ? '✅' : '❌'}</div>
-        <div><strong>Screen:</strong> {window.screen.width}x{window.screen.height}</div>
-        <div><strong>Viewport:</strong> {window.innerWidth}x{window.innerHeight}</div>
-        <div><strong>User Agent:</strong> {navigator.userAgent.substring(0, 30)}...</div>
-      </div>
+    <div 
+      style={{
+        position: 'fixed',
+        top: '10px',
+        right: '10px',
+        background: 'rgba(0, 0, 0, 0.8)',
+        color: 'white',
+        padding: '8px',
+        borderRadius: '4px',
+        fontSize: '10px',
+        fontFamily: 'monospace',
+        zIndex: 10000,
+        maxWidth: '200px',
+        lineHeight: '1.2',
+      }}
+    >
+      <div><strong>Device Debug:</strong></div>
+      <div>Class: {deviceInfo.deviceClass}</div>
+      <div>Mobile: {deviceInfo.isMobile ? 'Yes' : 'No'}</div>
+      <div>Android: {deviceInfo.isAndroid ? 'Yes' : 'No'}</div>
+      <div>iOS: {deviceInfo.isIOS ? 'Yes' : 'No'}</div>
+      <div>Notch: {deviceInfo.hasNotch ? 'Yes' : 'No'}</div>
+      <div>Size: {deviceInfo.screenWidth}x{deviceInfo.screenHeight}</div>
+      <div>Navbar: {getComputedStyle(document.documentElement).getPropertyValue('--navbar-height')}</div>
+      <div>Safe Area: {getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom')}</div>
     </div>
   );
 };
