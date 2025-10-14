@@ -314,6 +314,119 @@ router.get('/download/:exportId', requireAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/data-export/database-analysis
+ * Ottiene analisi dettagliata del database per grafico a torta
+ */
+router.get('/database-analysis', requireAdmin, async (req, res) => {
+  try {
+    // Dimensione totale database
+    const dbSizeQuery = `
+      SELECT pg_size_pretty(pg_database_size(current_database())) as size_pretty,
+             pg_database_size(current_database()) as size_bytes
+    `;
+    const dbSizeResult = await pool.query(dbSizeQuery);
+    const totalDbSizeMB = Math.round(parseInt(dbSizeResult.rows[0].size_bytes) / 1024 / 1024);
+
+    // Ottieni tutte le tabelle del database con le loro dimensioni
+    const tablesQuery = `
+      SELECT 
+        schemaname,
+        tablename,
+        pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size_pretty,
+        pg_total_relation_size(schemaname||'.'||tablename) as size_bytes,
+        (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = tablename AND table_schema = schemaname) as column_count
+      FROM pg_tables 
+      WHERE schemaname = 'public'
+      ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+    `;
+    
+    const tablesResult = await pool.query(tablesQuery);
+    
+    // Categorizza le tabelle
+    const exportableTables = [
+      'centralized_logs', 'security_events', 'performance_metrics', 
+      'health_checks', 'access_audit', 'audit_logs'
+    ];
+    
+    const analysis = {
+      totalDatabaseSizeMB: totalDbSizeMB,
+      totalDatabaseSizePretty: dbSizeResult.rows[0].size_pretty,
+      categories: {
+        exportable: {
+          name: 'Tabelle da Esportare',
+          tables: [],
+          totalSizeMB: 0,
+          color: '#ef4444' // rosso
+        },
+        users: {
+          name: 'Dati Utenti',
+          tables: [],
+          totalSizeMB: 0,
+          color: '#3b82f6' // blu
+        },
+        content: {
+          name: 'Contenuti App',
+          tables: [],
+          totalSizeMB: 0,
+          color: '#10b981' // verde
+        },
+        system: {
+          name: 'Sistema',
+          tables: [],
+          totalSizeMB: 0,
+          color: '#f59e0b' // arancione
+        },
+        other: {
+          name: 'Altro',
+          tables: [],
+          totalSizeMB: 0,
+          color: '#6b7280' // grigio
+        }
+      }
+    };
+
+    // Categorizza ogni tabella
+    for (const table of tablesResult.rows) {
+      const tableSizeMB = Math.round(parseInt(table.size_bytes) / 1024 / 1024);
+      const tableInfo = {
+        name: table.tablename,
+        sizeMB: tableSizeMB,
+        sizePretty: table.size_pretty,
+        columnCount: parseInt(table.column_count)
+      };
+
+      if (exportableTables.includes(table.tablename)) {
+        analysis.categories.exportable.tables.push(tableInfo);
+        analysis.categories.exportable.totalSizeMB += tableSizeMB;
+      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile')) {
+        analysis.categories.users.tables.push(tableInfo);
+        analysis.categories.users.totalSizeMB += tableSizeMB;
+      } else if (table.tablename.includes('opinion') || table.tablename.includes('vote') || table.tablename.includes('candidate') || table.tablename.includes('election')) {
+        analysis.categories.content.tables.push(tableInfo);
+        analysis.categories.content.totalSizeMB += tableSizeMB;
+      } else if (table.tablename.includes('migration') || table.tablename.includes('session') || table.tablename.includes('cache')) {
+        analysis.categories.system.tables.push(tableInfo);
+        analysis.categories.system.totalSizeMB += tableSizeMB;
+      } else {
+        analysis.categories.other.tables.push(tableInfo);
+        analysis.categories.other.totalSizeMB += tableSizeMB;
+      }
+    }
+
+    // Calcola percentuali
+    for (const category of Object.values(analysis.categories)) {
+      category.percentage = totalDbSizeMB > 0 ? Math.round((category.totalSizeMB / totalDbSizeMB) * 100) : 0;
+    }
+
+    res.json(analysis);
+
+  } catch (error) {
+    console.error('Errore analisi database:', error);
+    res.status(500).json({ error: 'Errore analisi database' });
+  }
+});
+
+/**
  * GET /api/admin/data-export/stats
  * Ottiene statistiche generali
  */
