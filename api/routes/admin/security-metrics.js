@@ -18,12 +18,12 @@ const pool = new Pool({
  */
 router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Calcola statistiche JWT reali dai log di audit
+    // Calcola statistiche JWT reali dai log di audit con logica migliorata
     const jwtStatsQuery = `
       SELECT 
-        COUNT(CASE WHEN action = 'LOGIN' AND success = true THEN 1 END) as active_tokens,
-        COUNT(CASE WHEN action = 'LOGOUT' AND success = true THEN 1 END) as revoked_tokens,
-        COUNT(CASE WHEN action = 'TOKEN_EXPIRED' OR (action = 'AUTH_FAILED' AND details LIKE '%expired%') THEN 1 END) as expired_tokens,
+        COUNT(CASE WHEN action = 'LOGIN' AND success = true THEN 1 END) as login_successes,
+        COUNT(CASE WHEN action = 'LOGOUT' AND success = true THEN 1 END) as logout_successes,
+        COUNT(CASE WHEN action = 'TOKEN_EXPIRED' OR (action = 'AUTH_FAILED' AND error_message LIKE '%expired%') THEN 1 END) as expired_tokens,
         COUNT(CASE WHEN action = 'AUTH_FAILED' AND success = false THEN 1 END) as suspicious_activity
       FROM audit_logs 
       WHERE timestamp >= NOW() - INTERVAL '7 days'
@@ -32,10 +32,37 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
     const result = await pool.query(jwtStatsQuery);
     const stats = result.rows[0];
     
+    // Calcola token attivi come differenza tra login e logout degli ultimi 7 giorni
+    const loginSuccesses = parseInt(stats.login_successes) || 0;
+    const logoutSuccesses = parseInt(stats.logout_successes) || 0;
+    const expiredTokens = parseInt(stats.expired_tokens) || 0;
+    
+    // Stima token attivi: login - logout - expired (con un minimo di 1 se ci sono login recenti)
+    let activeTokens = Math.max(0, loginSuccesses - logoutSuccesses - expiredTokens);
+    
+    // Se ci sono login recenti ma 0 token attivi, considera almeno 1 token attivo
+    if (loginSuccesses > 0 && activeTokens === 0) {
+      // Controlla se ci sono login molto recenti (ultime 24h)
+      const recentLoginQuery = `
+        SELECT COUNT(*) as recent_logins
+        FROM audit_logs 
+        WHERE action = 'LOGIN' 
+          AND success = true 
+          AND timestamp >= NOW() - INTERVAL '24 hours'
+      `;
+      
+      const recentResult = await pool.query(recentLoginQuery);
+      const recentLogins = parseInt(recentResult.rows[0].recent_logins) || 0;
+      
+      if (recentLogins > 0) {
+        activeTokens = 1; // Almeno 1 token attivo se ci sono login recenti
+      }
+    }
+    
     const jwtStats = {
-      activeTokens: parseInt(stats.active_tokens) || 0,
-      revokedTokens: parseInt(stats.revoked_tokens) || 0,
-      expiredTokens: parseInt(stats.expired_tokens) || 0,
+      activeTokens: activeTokens,
+      revokedTokens: logoutSuccesses,
+      expiredTokens: expiredTokens,
       suspiciousActivity: parseInt(stats.suspicious_activity) || 0
     };
 
@@ -202,7 +229,7 @@ router.get('/validation-stats', verifyToken, requireAdmin, async (req, res) => {
  */
 router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // Calcola statistiche di salute del sistema reali
+    // Calcola statistiche di salute del sistema reali con logica migliorata
     const systemQuery = `
       SELECT 
         COUNT(DISTINCT user_id) as active_users,
@@ -211,18 +238,44 @@ router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
         COUNT(CASE WHEN success = true THEN 1 END) as successful_requests,
         COUNT(CASE WHEN success = false THEN 1 END) as failed_requests
       FROM audit_logs 
-      WHERE timestamp >= NOW() - INTERVAL '1 hour'
+      WHERE timestamp >= NOW() - INTERVAL '2 hours'
+        AND user_id IS NOT NULL
+        AND user_id != 'anonymous'
     `;
     
     const result = await pool.query(systemQuery);
     const stats = result.rows[0];
+    
+    // Se non ci sono utenti attivi negli audit_logs, controlla se ci sono utenti con sessioni valide
+    let activeUsers = parseInt(stats.active_users) || 0;
+    
+    if (activeUsers === 0) {
+      // Controlla se ci sono utenti con token validi (ultimi 24h)
+      const tokenQuery = `
+        SELECT COUNT(DISTINCT user_id) as users_with_tokens
+        FROM audit_logs 
+        WHERE timestamp >= NOW() - INTERVAL '24 hours'
+          AND action IN ('LOGIN', 'DATA_ACCESS', 'PROFILE_UPDATE')
+          AND success = true
+          AND user_id IS NOT NULL
+          AND user_id != 'anonymous'
+      `;
+      
+      const tokenResult = await pool.query(tokenQuery);
+      const usersWithTokens = parseInt(tokenResult.rows[0].users_with_tokens) || 0;
+      
+      // Se ci sono utenti con token recenti, considera almeno 1 utente attivo
+      if (usersWithTokens > 0) {
+        activeUsers = Math.max(1, usersWithTokens);
+      }
+    }
     
     const totalRequests = parseInt(stats.total_requests) || 1;
     const successfulRequests = parseInt(stats.successful_requests) || 0;
     const errorRate = ((parseInt(stats.failed_requests) || 0) / totalRequests * 100).toFixed(1);
     
     const systemHealth = {
-      activeUsers: parseInt(stats.active_users) || 0,
+      activeUsers: activeUsers,
       totalRequests: totalRequests,
       requestsPerMinute: parseInt(stats.requests_per_minute) || 0,
       uptime: '99.9%', // In produzione si dovrebbe calcolare dal sistema
