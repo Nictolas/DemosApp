@@ -427,34 +427,34 @@ export default function App() {
 
               {/* Route del profilo - URL diretto */}
               <Route path="/profilo">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/profilo" component={Profilo} />
                 </PageTransition>
               </Route>
 
               {/* Route del profilo - URL con menu */}
               <Route path="/menu/profilo">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/menu/profilo" component={Profilo} />
                 </PageTransition>
               </Route>
 
               {/* Route del profilo utente specifico - URL diretto */}
               <Route path="/profilo/:userId">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/profilo/:userId" component={Profilo} />
                 </PageTransition>
               </Route>
 
               {/* Route del profilo utente specifico - URL con menu */}
               <Route path="/menu/profilo/:userId">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/menu/profilo/:userId" component={Profilo} />
                 </PageTransition>
               </Route>
 
               <Route path="/modifica-immagine">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/modifica-immagine" component={ModificaImmagine} />
                 </PageTransition>
               </Route>
@@ -486,21 +486,21 @@ export default function App() {
 
               {/* Route rappresentanti */}
               <Route path="/rappresentanti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/rappresentanti" component={Rappresentanti} />
                 </PageTransition>
               </Route>
 
               {/* Route preferiti */}
               <Route path="/preferiti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/preferiti" component={Preferiti} />
                 </PageTransition>
               </Route>
 
               {/* Route candidati */}
               <Route path="/candidati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/candidati" component={Candidati} />
                 </PageTransition>
               </Route>
@@ -512,35 +512,35 @@ export default function App() {
 
               {/* Route siti */}
               <Route path="/siti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/siti" component={Siti} />
                 </PageTransition>
               </Route>
 
               {/* Route organizzazioni */}
               <Route path="/organizzazioni">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/organizzazioni" component={Organizzazioni} />
                 </PageTransition>
               </Route>
 
               {/* Route scegli rappresentante - identica a candidati */}
               <Route path="/scegli-rappresentante/:categoria">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/scegli-rappresentante/:categoria" component={ScegliRappresentante} />
                 </PageTransition>
               </Route>
 
       {/* Route candidati - COPIA IDENTICA DI RAPPRESENTANTI */}
       <Route path="/candidati">
-        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+        <PageTransition location={location} type="fade-up" showLoader={false}>
           <ProtectedRoute path="/candidati" component={Candidati} />
         </PageTransition>
       </Route>
 
       {/* Route scegli candidato - USA LO STESSO COMPONENTE DI RAPPRESENTANTI */}
       <Route path="/candidati/:categoria">
-        <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+        <PageTransition location={location} type="fade-up" showLoader={false}>
           <ProtectedRoute path="/candidati/:categoria" component={ScegliRappresentante} />
         </PageTransition>
       </Route>
@@ -549,14 +549,14 @@ export default function App() {
 
               {/* Route notifiche */}
               <Route path="/notifiche">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/notifiche" component={Notifiche} />
                 </PageTransition>
               </Route>
 
               {/* Route vota */}
               <Route path="/vota">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/vota" component={Vota} />
                 </PageTransition>
               </Route>
@@ -564,198 +564,198 @@ export default function App() {
 
               {/* Route eventi */}
               <Route path="/eventi">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/eventi" component={Eventi} />
                 </PageTransition>
               </Route>
 
               {/* Route strumenti */}
               <Route path="/strumenti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/strumenti" component={Strumenti} />
                 </PageTransition>
               </Route>
 
               {/* Route gestisci */}
               <Route path="/gestisci">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci" component={Gestisci} />
                 </PageTransition>
               </Route>
 
               {/* Route impostazioni */}
               <Route path="/impostazioni">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni" component={Impostazioni} />
                 </PageTransition>
               </Route>
 
               {/* Route segnala problema */}
               <Route path="/segnala-problema">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/segnala-problema" component={SegnalaProblema} />
                 </PageTransition>
               </Route>
 
               {/* Route sottopagine impostazioni */}
               <Route path="/impostazioni/scarica-dati">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/scarica-dati" component={ScaricaDati} />
                 </PageTransition>
               </Route>
 
               <Route path="/impostazioni/cancella-account">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/cancella-account" component={CancellaAccount} />
                 </PageTransition>
               </Route>
 
               <Route path="/impostazioni/gestione-privacy">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/gestione-privacy" component={GestionePrivacy} />
                 </PageTransition>
               </Route>
 
               <Route path="/impostazioni/limitazione-trattamento">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/limitazione-trattamento" component={LimitazioneTrattamento} />
                 </PageTransition>
               </Route>
 
               <Route path="/impostazioni/opposizione-trattamento">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/opposizione-trattamento" component={OpposizioneTrattamento} />
                 </PageTransition>
               </Route>
 
               <Route path="/impostazioni/copyright">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/impostazioni/copyright" component={Copyright} />
                 </PageTransition>
               </Route>
 
               {/* Route GDPR */}
               <Route path="/gdpr">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gdpr" component={GDPR} />
                 </PageTransition>
               </Route>
 
               {/* Route sondaggi */}
               <Route path="/sondaggi">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/sondaggi" component={Sondaggi} />
                 </PageTransition>
               </Route>
 
               {/* Route sondaggi per regione */}
               <Route path="/sondaggi/:regione">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/sondaggi/:regione" component={SondaggiRegione} />
                 </PageTransition>
               </Route>
 
               {/* Route sondaggi per provincia */}
               <Route path="/sondaggi/:regione/:provincia">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/sondaggi/:regione/:provincia" component={SondaggiProvincia} />
                 </PageTransition>
               </Route>
 
               {/* Route sondaggi per comune */}
               <Route path="/sondaggi/:regione/:provincia/:comune">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/sondaggi/:regione/:provincia/:comune" component={SondaggiComune} />
                 </PageTransition>
               </Route>
 
               {/* Route proponi */}
               <Route path="/proponi">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/proponi" component={Proponi} />
                 </PageTransition>
               </Route>
 
               {/* Route proponi opinione */}
               <Route path="/proponi-opinione">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/proponi-opinione" component={ProponiOpinione} />
                 </PageTransition>
               </Route>
 
               {/* Route capo di stato */}
               <Route path="/capo-stato">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/capo-stato" component={CapodiStato} />
                 </PageTransition>
               </Route>
 
               {/* Route capo di stato (alternativa) */}
               <Route path="/capo-di-stato">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/capo-di-stato" component={CapodiStato} />
                 </PageTransition>
               </Route>
 
               {/* Route amnistia */}
               <Route path="/amnistia">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/amnistia" component={Amnistia} />
                 </PageTransition>
               </Route>
 
               {/* Route grazia */}
               <Route path="/grazia">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/grazia" component={Grazia} />
                 </PageTransition>
               </Route>
 
               {/* Route governo */}
               <Route path="/governo">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/governo" component={Governo} />
                 </PageTransition>
               </Route>
 
               {/* Route ministeri specifici */}
               <Route path="/governo/:slug">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/governo/:slug" component={MinisteroPage} />
                 </PageTransition>
               </Route>
 
               {/* Route ICE */}
               <Route path="/ice">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/ice" component={ICE} />
                 </PageTransition>
               </Route>
 
               {/* Route referendum abrogativi */}
               <Route path="/referendum-abrogativi">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/referendum-abrogativi" component={ReferendumAbrogativi} />
                 </PageTransition>
               </Route>
 
               {/* Route iniziative popolari */}
               <Route path="/iniziative-popolari">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/iniziative-popolari" component={IniziativePopolari} />
                 </PageTransition>
               </Route>
 
               {/* Route gestisci utenti */}
               <Route path="/gestisci-utenti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci-utenti" component={GestisciUtenti} />
                 </PageTransition>
               </Route>
 
               {/* Route utenti unificata */}
               <Route path="/utenti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={500}>
                   <ProtectedRoute path="/utenti" component={Utenti} />
                 </PageTransition>
               </Route>
@@ -763,7 +763,7 @@ export default function App() {
 
               {/* Route gestisci opinioni */}
               <Route path="/gestisci-opinioni">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci-opinioni" component={GestisciOpinioni} />
                 </PageTransition>
               </Route>
@@ -779,63 +779,63 @@ export default function App() {
 
               {/* Route gestisci governo */}
               <Route path="/gestisci-governo">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/gestisci-governo" component={GestisciGoverno} />
                 </PageTransition>
               </Route>
 
               {/* Route statistiche utenti */}
               <Route path="/statistiche-utenti">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/statistiche-utenti" component={StatisticheUtenti} />
                 </PageTransition>
               </Route>
 
               {/* Route statistiche opinione */}
               <Route path="/statistiche-opinione">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/statistiche-opinione" component={StatisticheOpinione} />
                 </PageTransition>
               </Route>
 
               {/* Route statistiche opinione specifica */}
               <Route path="/statistiche-opinione/:id">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/statistiche-opinione/:id" component={StatisticheOpinione} />
                 </PageTransition>
               </Route>
 
               {/* Route statistiche opinione per regione */}
               <Route path="/statistiche-opinione/:id/regione/:regione">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/statistiche-opinione/:id/regione/:regione" component={StatisticheOpinione} />
                 </PageTransition>
               </Route>
 
               {/* Route vota iniziativa popolare */}
               <Route path="/vota-iniziativa-popolare">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/vota-iniziativa-popolare" component={VotaIniziativaPopolare} />
                 </PageTransition>
               </Route>
 
               {/* Route vota referendum abrogativo */}
               <Route path="/vota-referendum-abrogativo">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/vota-referendum-abrogativo" component={VotaReferendumAbrogativo} />
                 </PageTransition>
               </Route>
 
               {/* Route vota ICE */}
               <Route path="/vota-ice">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/vota-ice" component={VotaICE} />
                 </PageTransition>
               </Route>
 
               {/* Route votazione */}
               <Route path="/votazione">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/votazione" component={Votazione} />
                 </PageTransition>
               </Route>
@@ -843,63 +843,63 @@ export default function App() {
 
               {/* Route sostenitori */}
               <Route path="/sostenitori">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/sostenitori" component={Sostenitori} />
                 </PageTransition>
               </Route>
 
               {/* Route comunica */}
               <Route path="/comunica">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/comunica" component={Comunica} />
                 </PageTransition>
               </Route>
 
               {/* Route evento */}
               <Route path="/evento">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/evento" component={Evento} />
                 </PageTransition>
               </Route>
 
               {/* Route programma */}
               <Route path="/programma">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/programma" component={Programma} />
                 </PageTransition>
               </Route>
 
               {/* Route riscontro */}
               <Route path="/riscontro">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/riscontro" component={Riscontro} />
                 </PageTransition>
               </Route>
 
               {/* Route opinioni europee */}
               <Route path="/opinioni-europee">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/opinioni-europee" component={OpinioniEuropee} />
                 </PageTransition>
               </Route>
 
               {/* Route proponi referendum abrogativi */}
               <Route path="/proponi-referendum-abrogativi">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/proponi-referendum-abrogativi" component={ProponiReferendumAbrogativi} />
                 </PageTransition>
               </Route>
 
               {/* Route proponi iniziativa popolare */}
               <Route path="/proponi-iniziativa-popolare">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/proponi-iniziativa-popolare" component={ProponiIniziativaPopolare} />
                 </PageTransition>
               </Route>
 
               {/* Route proponi ICE */}
               <Route path="/proponi-ice">
-                <PageTransition location={location} type="fade-up" showLoader={true} loaderDuration={300}>
+                <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/proponi-ice" component={ProponiICE} />
                 </PageTransition>
               </Route>
