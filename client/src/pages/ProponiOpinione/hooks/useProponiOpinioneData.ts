@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { apiRequest } from "@/lib/queryClient";
 import { OpinioneProposta } from "../types";
 import { useToast } from "@/hooks/use-toast";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useProponiOpinioneData = (user: any) => {
   const { toast } = useToast();
@@ -101,6 +102,19 @@ export const useProponiOpinioneData = (user: any) => {
       return false;
     }
     
+    // Controlla il limite di voti per opinioni proposte
+    const currentVotes = userVoti.length;
+    const limit = getVotingLimit('opinioni_proposte');
+    
+    if (hasReachedVotingLimit('opinioni_proposte', currentVotes)) {
+      toast({ 
+        title: "Limite voti raggiunto", 
+        description: `Puoi votare al massimo ${limit} opinioni proposte. Rimuovi un voto esistente per votarne una nuova.`,
+        variant: "destructive"
+      });
+      return false;
+    }
+    
     try {
       console.log('👍 Invio voto per opinione:', id);
       const response = await apiRequest('POST', `/api/opinioni-proposte/${id}/vota`);
@@ -112,9 +126,10 @@ export const useProponiOpinioneData = (user: any) => {
       
       console.log('✅ Voto registrato con successo');
       
+      const remainingVotes = getRemainingVotes('opinioni_proposte', currentVotes + 1);
       toast({ 
         title: "Successo", 
-        description: "Il tuo voto è stato registrato!" 
+        description: `Il tuo voto è stato registrato! Voti rimanenti: ${remainingVotes}` 
       });
       
       // Ricarica i dati per aggiornare i voti
@@ -175,6 +190,44 @@ export const useProponiOpinioneData = (user: any) => {
     loadData(); 
   }, [loadData]);
 
+  // Rimuovi voto da un'opinione
+  const handleRimuoviVoto = async (id: string) => {
+    if (!userVoti.includes(id)) {
+      toast({ title: "Voto non trovato", description: "Non hai votato questa opinione." });
+      return false;
+    }
+    
+    try {
+      console.log('👎 Rimozione voto per opinione:', id);
+      const response = await apiRequest('DELETE', `/api/opinioni-proposte/${id}/vota`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Errore nella rimozione del voto');
+      }
+      
+      console.log('✅ Voto rimosso con successo');
+      
+      const remainingVotes = getRemainingVotes('opinioni_proposte', userVoti.length - 1);
+      toast({ 
+        title: "Successo", 
+        description: `Il tuo voto è stato rimosso! Voti rimanenti: ${remainingVotes}` 
+      });
+      
+      // Ricarica i dati per aggiornare i voti
+      await loadData();
+      return true;
+    } catch (error) {
+      console.error('❌ Errore nella rimozione voto:', error);
+      toast({ 
+        title: "Errore", 
+        description: error instanceof Error ? error.message : "Errore nella rimozione del voto", 
+        variant: "destructive" 
+      });
+      return false;
+    }
+  };
+
   return {
     opinioni,
     loadingData,
@@ -182,6 +235,7 @@ export const useProponiOpinioneData = (user: any) => {
     loadData,
     handleProponi,
     handleVota,
+    handleRimuoviVoto,
     handleSalvaVoti
   };
 };

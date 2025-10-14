@@ -12,6 +12,7 @@ interface ReferendumRankingProps {
   onViewReferendum?: (referendum: Referendum) => void;
   isBlocked: boolean;
   isPending: boolean;
+  hasReachedLimit: boolean;
 }
 
 export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
@@ -21,7 +22,8 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
   onToggleSelezioneClassifica,
   onViewReferendum,
   isBlocked,
-  isPending
+  isPending,
+  hasReachedLimit
 }) => {
   const [showAllClassifica, setShowAllClassifica] = useState(false);
 
@@ -103,7 +105,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                     e.stopPropagation();
                     onToggleSelezioneClassifica(item.nome);
                   }}
-                  disabled={isPending || isBlocked}
+                  disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(referendum.find(r => r.nome === item.nome)?.id || ''))}
                   className={`transition-all duration-300 ${
                     referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id)
                       ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"
@@ -182,7 +184,7 @@ export const ReferendumRanking: React.FC<ReferendumRankingProps> = ({
                           e.stopPropagation();
                           onToggleSelezioneClassifica(item.nome);
                         }}
-                        disabled={isPending || isBlocked}
+                        disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(referendum.find(r => r.nome === item.nome)?.id || ''))}
                         className={`transition-all duration-300 ${
                           referendum.find(r => r.nome === item.nome) && selectedVoti.includes(referendum.find(r => r.nome === item.nome)!.id)
                             ? "bg-blue-100 border-blue-500 text-blue-700 hover:bg-blue-200 shadow-md"

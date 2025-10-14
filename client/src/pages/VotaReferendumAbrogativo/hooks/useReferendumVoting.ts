@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ReferendumAbrogativiData } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) => {
   const { toast } = useToast();
@@ -21,9 +22,10 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
   const saveVotiMutation = useMutation({
     mutationFn: (voti: string[]) => apiRequest("POST", "/api/referendum-abrogativi/vota", { voti }),
     onSuccess: () => {
+      const remainingVotes = getRemainingVotes('referendum_abrogativi', selectedVoti.length);
       toast({ 
         title: "Preferenze salvate", 
-        description: "Le tue preferenze per i referendum abrogativi sono state aggiornate." 
+        description: `Le tue preferenze per i referendum abrogativi sono state aggiornate. Voti rimanenti: ${remainingVotes}` 
       });
       queryClient.invalidateQueries({ queryKey: ['referendumAbrogativiData'] });
     },
@@ -39,11 +41,29 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
   // Logica locale per gestire i voti
   const toggleSelezione = (referendumId: string) => {
     if (saveVotiMutation.isPending || data?.blocco?.isBlocked) return;
-    setSelectedVoti(prev => 
-      prev.includes(referendumId) 
-        ? prev.filter(id => id !== referendumId)
-        : [...prev, referendumId]
-    );
+    
+    setSelectedVoti(prev => {
+      // Se il referendum è già selezionato, rimuovilo
+      if (prev.includes(referendumId)) {
+        return prev.filter(id => id !== referendumId);
+      }
+      
+      // Se il referendum non è selezionato, controlla il limite
+      const currentVotes = prev.length;
+      const limit = getVotingLimit('referendum_abrogativi');
+      
+      if (hasReachedVotingLimit('referendum_abrogativi', currentVotes)) {
+        toast({ 
+          title: "Limite voti raggiunto", 
+          description: `Puoi votare solo ${limit} referendum abrogativo. Rimuovi il voto esistente per votarne uno diverso.`,
+          variant: "destructive"
+        });
+        return prev; // Non aggiungere il voto
+      }
+      
+      // Aggiungi il voto
+      return [...prev, referendumId];
+    });
   };
 
   const toggleSelezioneClassifica = (nome: string) => {
@@ -57,11 +77,22 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
   // Calcola se i voti sono cambiati
   const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
 
+  // Informazioni sui limiti di voto
+  const currentVotes = selectedVoti.length;
+  const limit = getVotingLimit('referendum_abrogativi');
+  const remainingVotes = getRemainingVotes('referendum_abrogativi', currentVotes);
+  const hasReachedLimit = hasReachedVotingLimit('referendum_abrogativi', currentVotes);
+
   return {
     selectedVoti,
     saveVotiMutation,
     toggleSelezione,
     toggleSelezioneClassifica,
-    votiCambiati
+    votiCambiati,
+    // Informazioni sui limiti
+    currentVotes,
+    limit,
+    remainingVotes,
+    hasReachedLimit
   };
 };

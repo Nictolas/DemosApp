@@ -10,6 +10,7 @@ import { ClassificaLeggi } from "./components/ClassificaLeggi";
 import { LoadingStates } from "./components/LoadingStates";
 import { CreateButton } from "./components/CreateButton";
 import { CarceratoForm } from "./components/CarceratoForm";
+import { VotingLimitsInfo } from "@/components/VotingLimitsInfo";
 import { getSuggestions } from "./utils/amnistiaUtils";
 
 export default function Amnistia() {
@@ -28,7 +29,11 @@ export default function Amnistia() {
     handleRemoveVote,
     showForm,
     hideForm,
-    handleCreateAmnistia
+    handleCreateAmnistia,
+    currentVotes,
+    limit,
+    remainingVotes,
+    hasReachedLimit
   } = useAmnistiaVoting(data);
 
   const suggestions = getSuggestions(data?.classifica || [], votingState.leggeInput, votingState.showSuggestions);
@@ -69,6 +74,12 @@ export default function Amnistia() {
             />
           )}
 
+          {/* Informazioni sui limiti di voto */}
+          <VotingLimitsInfo
+            category="amnistia"
+            currentVotes={currentVotes}
+          />
+
           <AmnistiaForm
             leggeInput={votingState.leggeInput}
             showSuggestions={votingState.showSuggestions}
@@ -81,6 +92,7 @@ export default function Amnistia() {
             onSelectSuggestion={selectSuggestion}
             onShowSuggestions={showSuggestions}
             onHideSuggestions={hideSuggestions}
+            hasReachedLimit={hasReachedLimit}
           />
 
           <ClassificaLeggi
@@ -89,6 +101,7 @@ export default function Amnistia() {
             isPending={addVoteMutation.isPending}
             onVote={onVote}
             onShowClassifica={showClassifica}
+            hasReachedLimit={hasReachedLimit}
           />
         </div>
       </div>

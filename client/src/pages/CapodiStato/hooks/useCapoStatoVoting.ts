@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { CapoStatoData } from "../types";
+import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   const { toast } = useToast();
@@ -26,7 +27,11 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
       return apiRequest("POST", "/api/capo-stato/vota", { voti });
     },
     onSuccess: () => {
-      toast({ title: "Preferenze salvate", description: "I tuoi voti sono stati aggiornati." });
+      const remainingVotes = getRemainingVotes('capo_stato', selectedVoti.length);
+      toast({ 
+        title: "Preferenze salvate", 
+        description: `I tuoi voti sono stati aggiornati. Voti rimanenti: ${remainingVotes}` 
+      });
       queryClient.invalidateQueries({ queryKey: ['capoStatoData'] });
     },
     onError: (error: any) => {
@@ -44,11 +49,12 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
       return;
     }
     
-    // Controlla il limite di 3 voti massimi
-    if (selectedVoti.length >= 3) {
+    // Controlla il limite di voti massimi
+    const limit = getVotingLimit('capo_stato');
+    if (hasReachedVotingLimit('capo_stato', selectedVoti.length)) {
       toast({ 
         title: "Limite voti raggiunto", 
-        description: "Puoi selezionare al massimo 3 candidati" 
+        description: `Puoi selezionare al massimo ${limit} candidato${limit > 1 ? 'i' : ''}` 
       });
       return;
     }
@@ -69,11 +75,12 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
         // Rimuovi il voto
         return prev.filter(n => n !== nome);
       } else {
-        // Aggiungi il voto solo se non si supera il limite di 3
-        if (prev.length >= 3) {
+        // Aggiungi il voto solo se non si supera il limite
+        const limit = getVotingLimit('capo_stato');
+        if (hasReachedVotingLimit('capo_stato', prev.length)) {
           toast({ 
             title: "Limite voti raggiunto", 
-            description: "Puoi selezionare al massimo 3 candidati" 
+            description: `Puoi selezionare al massimo ${limit} candidato${limit > 1 ? 'i' : ''}` 
           });
           return prev;
         }
@@ -85,6 +92,12 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
   // Calcola se i voti sono cambiati
   const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
 
+  // Informazioni sui limiti di voto
+  const currentVotes = selectedVoti.length;
+  const limit = getVotingLimit('capo_stato');
+  const remainingVotes = getRemainingVotes('capo_stato', currentVotes);
+  const hasReachedLimit = hasReachedVotingLimit('capo_stato', currentVotes);
+
   return {
     selectedVoti,
     showConfirmDialog,
@@ -93,6 +106,11 @@ export const useCapoStatoVoting = (data: CapoStatoData | undefined) => {
     handleAddNomeLocal,
     handleRemoveLocal,
     toggleSelezione,
-    votiCambiati
+    votiCambiati,
+    // Informazioni sui limiti
+    currentVotes,
+    limit,
+    remainingVotes,
+    hasReachedLimit
   };
 };

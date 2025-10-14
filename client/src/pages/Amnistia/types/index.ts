@@ -29,6 +29,7 @@ export interface LeggeItemProps {
   isTopThree: boolean;
   onVote: (legge: string) => void;
   isPending: boolean;
+  hasReachedLimit: boolean;
 }
 
 export interface AmnistiaFormProps {
@@ -43,4 +44,5 @@ export interface AmnistiaFormProps {
   onSelectSuggestion: (legge: string) => void;
   onShowSuggestions: () => void;
   onHideSuggestions: () => void;
+  hasReachedLimit: boolean;
 }

@@ -10,6 +10,7 @@ interface CandidatesRankingProps {
   isBlocked: boolean;
   isPending: boolean;
   onToggleSelezione: (nome: string) => void;
+  hasReachedLimit: boolean;
 }
 
 export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
@@ -17,7 +18,8 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
   selectedVoti,
   isBlocked,
   isPending,
-  onToggleSelezione
+  onToggleSelezione,
+  hasReachedLimit
 }) => {
   const [showAllClassifica, setShowAllClassifica] = useState(false);
 
@@ -88,7 +90,7 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => onToggleSelezione(item.nome)}
-                  disabled={isPending || isBlocked || (!selectedVoti.includes(item.nome) && selectedVoti.length >= 3)}
+                  disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
                   className={`transition-all duration-300 ${
                     selectedVoti.includes(item.nome) 
                       ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 
@@ -158,7 +160,7 @@ export const CandidatesRanking: React.FC<CandidatesRankingProps> = ({
                         variant="outline"
                         size="sm"
                         onClick={() => onToggleSelezione(item.nome)}
-                        disabled={isPending || isBlocked || (!selectedVoti.includes(item.nome) && selectedVoti.length >= 3)}
+                        disabled={isPending || isBlocked || (hasReachedLimit && !selectedVoti.includes(item.nome))}
                         className={`transition-all duration-300 ${
                           selectedVoti.includes(item.nome) 
                             ? "bg-green-100 border-green-500 text-green-700 hover:bg-green-200 shadow-md" 

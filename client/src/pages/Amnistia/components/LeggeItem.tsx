@@ -15,7 +15,8 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
   index,
   isTopThree,
   onVote,
-  isPending
+  isPending,
+  hasReachedLimit
 }) => {
   const leggeStyle = getLeggeStyle(isTopThree);
   const numberStyle = getLeggeNumberStyle(isTopThree);
@@ -43,7 +44,7 @@ export const LeggeItem: React.FC<LeggeItemProps> = ({
         variant="outline"
         size="sm"
         onClick={() => onVote(item.legge)}
-        disabled={isPending}
+        disabled={isPending || hasReachedLimit}
         className={`transition-all duration-300 ${buttonStyle}`}
       >
         <ThumbsUp className="h-4 w-4 mr-2" />
