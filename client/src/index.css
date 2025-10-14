@@ -1,6 +1,9 @@
 /* Import del layout robusto */
 @import './robust-layout.css';
 
+/* Import del fix specifico per Android */
+@import './css/android-navbar-fix.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -785,70 +788,6 @@ body {
 }
 
 /* ===== CLASSI RESPONSIVE PER TIPI DI DISPOSITIVO ===== */
-
-/* Dispositivi Android Mobile */
-.device-android-mobile {
-  --navbar-height: 7rem !important; /* 112px - più alto per Android */
-  --navbar-total-height: calc(7rem + var(--safe-area-bottom)) !important;
-}
-
-.device-android-mobile .app-navbar {
-  height: var(--navbar-total-height) !important;
-  min-height: var(--navbar-total-height) !important;
-}
-
-.device-android-mobile .app-navbar nav {
-  height: 7rem !important;
-  padding-bottom: calc(1rem + var(--safe-area-bottom)) !important;
-}
-
-/* Dispositivi iOS Mobile con Notch */
-.device-ios-mobile-notch {
-  --navbar-height: 6rem !important; /* 96px */
-  --navbar-total-height: calc(6rem + var(--safe-area-bottom)) !important;
-}
-
-.device-ios-mobile-notch .app-navbar {
-  height: var(--navbar-total-height) !important;
-  min-height: var(--navbar-total-height) !important;
-}
-
-.device-ios-mobile-notch .app-navbar nav {
-  height: 6rem !important;
-  padding-bottom: calc(1rem + var(--safe-area-bottom)) !important;
-}
-
-/* Dispositivi iOS Mobile standard */
-.device-ios-mobile {
-  --navbar-height: 6rem !important; /* 96px */
-  --navbar-total-height: calc(6rem + var(--safe-area-bottom)) !important;
-}
-
-.device-ios-mobile .app-navbar {
-  height: var(--navbar-total-height) !important;
-  min-height: var(--navbar-total-height) !important;
-}
-
-.device-ios-mobile .app-navbar nav {
-  height: 6rem !important;
-  padding-bottom: calc(1rem + var(--safe-area-bottom)) !important;
-}
-
-/* Dispositivi Mobile generici */
-.device-mobile {
-  --navbar-height: 6rem !important; /* 96px */
-  --navbar-total-height: calc(6rem + var(--safe-area-bottom)) !important;
-}
-
-.device-mobile .app-navbar {
-  height: var(--navbar-total-height) !important;
-  min-height: var(--navbar-total-height) !important;
-}
-
-.device-mobile .app-navbar nav {
-  height: 6rem !important;
-  padding-bottom: calc(1rem + var(--safe-area-bottom)) !important;
-}
 
 /* Dispositivi molto piccoli (altezza < 600px) */
 .device-small-mobile {
