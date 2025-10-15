@@ -461,7 +461,7 @@ export default function DataExport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="w-full p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Export Dati su Hard Disk</h1>
@@ -475,15 +475,15 @@ export default function DataExport() {
         </div>
       </div>
 
-      <Tabs defaultValue="export" className="space-y-6">
+      <Tabs defaultValue="analysis" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="export">Export</TabsTrigger>
           <TabsTrigger value="analysis">Analisi</TabsTrigger>
+          <TabsTrigger value="export">Export</TabsTrigger>
           <TabsTrigger value="history">Cronologia</TabsTrigger>
           <TabsTrigger value="settings">Impostazioni</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="export" className="space-y-6">
+        <TabsContent value="analysis" className="space-y-6">
           {/* Status Export */}
           {exportStatus.isRunning && (
             <Card className="bg-white shadow-lg">
@@ -659,7 +659,7 @@ export default function DataExport() {
           </div>
         </TabsContent>
 
-        <TabsContent value="analysis" className="space-y-6">
+        <TabsContent value="export" className="space-y-6">
           {/* Analisi Database */}
           <Card className="bg-white shadow-lg">
             <CardHeader>
@@ -704,7 +704,7 @@ export default function DataExport() {
                   </div>
 
                   {/* Grafico a Torta */}
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="space-y-4">
                       <h4 className="font-semibold text-lg">Distribuzione per Categorie</h4>
                       <div className="h-96 xl:h-80">
@@ -782,7 +782,7 @@ export default function DataExport() {
                         <span className="w-4 h-4 rounded-full bg-red-500"></span>
                         Tabelle da Esportare ({databaseAnalysis.categories.exportable.tables.length} tabelle)
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                         {databaseAnalysis.categories.exportable.tables.map((table) => {
                           const isCentralizedLogs = table.name === 'centralized_logs';
                           const CardComponent = isCentralizedLogs ? Link : 'div';
@@ -825,7 +825,7 @@ export default function DataExport() {
                           <span className="w-4 h-4 rounded-full bg-blue-500"></span>
                           Dati Utenti ({databaseAnalysis.categories.users.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                           {databaseAnalysis.categories.users.tables.map((table) => (
                             <div 
                               key={table.name} 
@@ -859,7 +859,7 @@ export default function DataExport() {
                           <span className="w-4 h-4 rounded-full bg-green-500"></span>
                           Contenuti App ({databaseAnalysis.categories.content.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                           {databaseAnalysis.categories.content.tables.map((table) => (
                             <div 
                               key={table.name} 
@@ -893,7 +893,7 @@ export default function DataExport() {
                           <span className="w-4 h-4 rounded-full bg-yellow-500"></span>
                           Sistema ({databaseAnalysis.categories.system.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                           {databaseAnalysis.categories.system.tables.map((table) => (
                             <div 
                               key={table.name} 
@@ -927,7 +927,7 @@ export default function DataExport() {
                           <span className="w-4 h-4 rounded-full bg-gray-500"></span>
                           Tabelle Temporanee ({databaseAnalysis.categories.other.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                           {databaseAnalysis.categories.other.tables.map((table) => (
                             <div 
                               key={table.name} 
