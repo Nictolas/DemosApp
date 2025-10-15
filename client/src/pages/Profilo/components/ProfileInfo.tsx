@@ -57,7 +57,7 @@ export const ProfileInfo = ({
 
   return (
     <div className="transform hover:scale-[1.02] transition-all duration-300">
-      <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/50 backdrop-blur-sm rounded-2xl">
+      <Card className="relative overflow-hidden border-0 shadow-2xl bg-white rounded-2xl">
         {/* Decorative background */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full -translate-y-16 translate-x-16"></div>
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full translate-y-12 -translate-x-12"></div>
@@ -218,7 +218,7 @@ export const ProfileInfo = ({
                   onClick={onEditClick}
                   className="flex-1 h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
                 >
-                  <div className="h-6 w-6 rounded-md bg-white/20 flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
+                  <div className="h-6 w-6 rounded-md bg-white flex items-center justify-center mr-3 group-hover:scale-110 transition-transform duration-300">
                     <Edit className="h-3 w-3 text-white" />
                   </div>
                   <span className="font-semibold text-white">Modifica Profilo</span>

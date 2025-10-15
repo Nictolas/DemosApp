@@ -15,7 +15,7 @@ export const Header: React.FC = () => {
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-12 w-12 rounded-full bg-white/80 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300"
+            className="h-12 w-12 rounded-full bg-white border border-white/20 shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300"
           >
             <Home className="h-5 w-5 text-gray-700" />
           </Button>

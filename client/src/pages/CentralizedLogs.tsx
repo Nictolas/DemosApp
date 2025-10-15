@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Database, Clock, User, Globe, Code } from 'lucide-react';
+import { RefreshCw, Database, Clock, User, Globe, Code, ArrowLeft } from 'lucide-react';
+import { useLocation } from 'wouter';
 import apiRequest from '@/lib/api-request';
 
 interface LogEntry {
@@ -82,6 +83,7 @@ const truncateMessage = (message: string, maxLength: number = 100): string => {
 };
 
 export default function CentralizedLogs() {
+  const [, setLocation] = useLocation();
   const [data, setData] = useState<CentralizedLogsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +114,17 @@ export default function CentralizedLogs() {
   if (loading) {
     return (
       <div className="container mx-auto p-6">
+        <div className="mb-4">
+          <Button 
+            onClick={() => setLocation('/gestisci')} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Torna Indietro
+          </Button>
+        </div>
         <div className="flex items-center justify-center h-64">
           <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
           <span className="ml-2 text-lg">Caricamento log centralizzati...</span>
@@ -123,6 +136,17 @@ export default function CentralizedLogs() {
   if (error) {
     return (
       <div className="container mx-auto p-6">
+        <div className="mb-4">
+          <Button 
+            onClick={() => setLocation('/gestisci')} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Torna Indietro
+          </Button>
+        </div>
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6">
             <div className="flex items-center text-red-800">
@@ -142,6 +166,17 @@ export default function CentralizedLogs() {
   if (!data) {
     return (
       <div className="container mx-auto p-6">
+        <div className="mb-4">
+          <Button 
+            onClick={() => setLocation('/gestisci')} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Torna Indietro
+          </Button>
+        </div>
         <Card>
           <CardContent className="p-6">
             <p>Nessun dato disponibile</p>
@@ -155,11 +190,22 @@ export default function CentralizedLogs() {
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Log Centralizzati</h1>
-          <p className="text-gray-600 mt-2">
-            Visualizzazione dei log più recenti con glossario dei livelli ottimizzati
-          </p>
+        <div className="flex items-center gap-4">
+          <Button 
+            onClick={() => setLocation('/gestisci')} 
+            variant="outline" 
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Torna Indietro
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Log Centralizzati</h1>
+            <p className="text-gray-600 mt-2">
+              Visualizzazione dei log più recenti con glossario dei livelli ottimizzati
+            </p>
+          </div>
         </div>
         <Button onClick={fetchData} variant="outline">
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -177,25 +223,25 @@ export default function CentralizedLogs() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <div className="text-center p-4 bg-white border border-blue-200 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">
                 {data.stats.total_logs.toLocaleString()}
               </div>
               <div className="text-sm text-blue-800">Log Totali</div>
             </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="text-center p-4 bg-white border border-green-200 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
                 {data.stats.unique_levels}
               </div>
               <div className="text-sm text-green-800">Livelli Unici</div>
             </div>
-            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+            <div className="text-center p-4 bg-white border border-yellow-200 rounded-lg">
               <div className="text-sm font-bold text-yellow-600">
                 {formatTimestamp(data.stats.oldest_log)}
               </div>
               <div className="text-sm text-yellow-800">Log Più Vecchio</div>
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <div className="text-center p-4 bg-white border border-purple-200 rounded-lg">
               <div className="text-sm font-bold text-purple-600">
                 {formatTimestamp(data.stats.newest_log)}
               </div>
@@ -216,7 +262,7 @@ export default function CentralizedLogs() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.glossary.map((entry) => (
-              <div key={entry.code} className="p-4 border rounded-lg bg-gray-50">
+              <div key={entry.code} className="p-4 border rounded-lg bg-white">
                 <div className="flex items-center gap-2 mb-2">
                   <Badge className={getLevelColor(entry.code)}>
                     {entry.code}
@@ -241,7 +287,7 @@ export default function CentralizedLogs() {
         <CardContent>
           <div className="space-y-4">
             {data.recentLogs.map((log) => (
-              <div key={log.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+              <div key={log.id} className="p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Badge className={getLevelColor(log.level)}>

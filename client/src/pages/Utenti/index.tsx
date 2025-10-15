@@ -575,7 +575,7 @@ export default function Utenti() {
 
                 {/* Sezione Utenti in Attesa */}
                 {pendingUsers.length > 0 && (
-                  <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg mb-6 w-full">
+                  <Card className="bg-white border-0 shadow-lg mb-6 w-full">
                     <CardHeader className="pb-4">
                       <CardTitle className="flex items-center text-2xl text-gray-800">
                         <Users className="h-6 w-6 mr-3 text-yellow-600" />
@@ -606,7 +606,7 @@ export default function Utenti() {
                 )}
 
                 {/* Tabella utenti attivi */}
-                <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg w-full">
+                <Card className="bg-white border-0 shadow-lg w-full">
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div>
