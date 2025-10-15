@@ -361,30 +361,35 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
           name: 'Tabelle da Esportare',
           tables: [],
           totalSizeMB: 0,
+          totalSizeKB: 0,
           color: '#ef4444' // rosso
         },
         users: {
           name: 'Dati Utenti',
           tables: [],
           totalSizeMB: 0,
+          totalSizeKB: 0,
           color: '#3b82f6' // blu
         },
         content: {
           name: 'Contenuti App',
           tables: [],
           totalSizeMB: 0,
+          totalSizeKB: 0,
           color: '#10b981' // verde
         },
         system: {
           name: 'Sistema',
           tables: [],
           totalSizeMB: 0,
+          totalSizeKB: 0,
           color: '#f59e0b' // arancione
         },
         other: {
           name: 'Altro',
           tables: [],
           totalSizeMB: 0,
+          totalSizeKB: 0,
           color: '#6b7280' // grigio
         }
       }
@@ -392,10 +397,13 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
 
     // Categorizza ogni tabella
     for (const table of tablesResult.rows) {
-      const tableSizeMB = Math.round(parseInt(table.size_bytes) / 1024 / 1024);
+      const tableSizeBytes = parseInt(table.size_bytes);
+      const tableSizeMB = Math.round(tableSizeBytes / 1024 / 1024);
+      const tableSizeKB = Math.round(tableSizeBytes / 1024);
       const tableInfo = {
         name: table.tablename,
         sizeMB: tableSizeMB,
+        sizeKB: tableSizeKB,
         sizePretty: table.size_pretty,
         columnCount: parseInt(table.column_count)
       };
@@ -403,18 +411,23 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
       if (exportableTables.includes(table.tablename)) {
         analysis.categories.exportable.tables.push(tableInfo);
         analysis.categories.exportable.totalSizeMB += tableSizeMB;
-      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile')) {
+        analysis.categories.exportable.totalSizeKB += tableSizeKB;
+      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users') {
         analysis.categories.users.tables.push(tableInfo);
         analysis.categories.users.totalSizeMB += tableSizeMB;
+        analysis.categories.users.totalSizeKB += tableSizeKB;
       } else if (table.tablename.includes('opinion') || table.tablename.includes('vote') || table.tablename.includes('candidate') || table.tablename.includes('election')) {
         analysis.categories.content.tables.push(tableInfo);
         analysis.categories.content.totalSizeMB += tableSizeMB;
+        analysis.categories.content.totalSizeKB += tableSizeKB;
       } else if (table.tablename.includes('migration') || table.tablename.includes('session') || table.tablename.includes('cache')) {
         analysis.categories.system.tables.push(tableInfo);
         analysis.categories.system.totalSizeMB += tableSizeMB;
+        analysis.categories.system.totalSizeKB += tableSizeKB;
       } else {
         analysis.categories.other.tables.push(tableInfo);
         analysis.categories.other.totalSizeMB += tableSizeMB;
+        analysis.categories.other.totalSizeKB += tableSizeKB;
       }
     }
 

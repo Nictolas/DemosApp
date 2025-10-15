@@ -706,7 +706,14 @@ export default function DataExport() {
                                 <span className="font-medium">{category.name}</span>
                               </div>
                               <div className="text-right">
-                                <div className="font-semibold">{category.totalSizeMB} MB</div>
+                                <div className="font-semibold">
+                                  {category.totalSizeMB === 0 && category.totalSizeKB > 0 ? 
+                                    category.totalSizeKB + ' kB' :
+                                    category.totalSizeMB > 0 ? 
+                                      category.totalSizeMB + ' MB' : 
+                                      '0 MB'
+                                  }
+                                </div>
                                 <div className="text-sm text-gray-600">{category.percentage}%</div>
                               </div>
                             </div>
