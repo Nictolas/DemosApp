@@ -20,8 +20,10 @@ import {
   Clock,
   BarChart3,
   Settings,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  List
 } from 'lucide-react';
+import { Link } from 'wouter';
 
 interface ExportStatus {
   isRunning: boolean;
@@ -538,18 +540,26 @@ export default function DataExport() {
                     Scegli quali tabelle esportare. I dati più vecchi di 30 giorni verranno esportati.
                   </CardDescription>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={loadTableInfo}
-                  disabled={loadingTables}
-                >
-                  {loadingTables ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  ) : (
-                    'Aggiorna'
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Link href="/admin/data-export/centralized-logs">
+                    <Button variant="outline" size="sm">
+                      <List className="h-4 w-4 mr-2" />
+                      Visualizza Log
+                    </Button>
+                  </Link>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={loadTableInfo}
+                    disabled={loadingTables}
+                  >
+                    {loadingTables ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    ) : (
+                      'Aggiorna'
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -770,20 +780,33 @@ export default function DataExport() {
                       Tabelle da Esportare (Dettaglio)
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {databaseAnalysis.categories.exportable.tables.map((table) => (
-                        <div key={table.name} className="p-3 border rounded-lg bg-red-50">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h5 className="font-medium text-red-800">{table.name}</h5>
-                              <p className="text-sm text-red-600">{table.columnCount} colonne</p>
+                      {databaseAnalysis.categories.exportable.tables.map((table) => {
+                        const isCentralizedLogs = table.name === 'centralized_logs';
+                        const CardComponent = isCentralizedLogs ? Link : 'div';
+                        const cardProps = isCentralizedLogs ? { href: '/admin/data-export/centralized-logs' } : {};
+                        
+                        return (
+                          <CardComponent 
+                            key={table.name} 
+                            {...cardProps}
+                            className={`p-3 border rounded-lg bg-red-50 ${isCentralizedLogs ? 'cursor-pointer hover:bg-red-100 transition-colors' : ''}`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h5 className="font-medium text-red-800 flex items-center gap-2">
+                                  {table.name}
+                                  {isCentralizedLogs && <List className="h-4 w-4" />}
+                                </h5>
+                                <p className="text-sm text-red-600">{table.columnCount} colonne</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold text-red-800">{table.sizePretty}</div>
+                                <div className="text-sm text-red-600">{table.sizeMB} MB</div>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <div className="font-semibold text-red-800">{table.sizePretty}</div>
-                              <div className="text-sm text-red-600">{table.sizeMB} MB</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                          </CardComponent>
+                        );
+                      })}
                     </div>
                   </div>
 

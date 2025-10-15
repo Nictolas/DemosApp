@@ -13,6 +13,23 @@ class CentralizedLogger {
       TRACE: 4
     };
     
+    // Mappatura per codici ottimizzati
+    this.levelMapping = {
+      'ERROR': 'E',
+      'WARN': 'W',
+      'INFO': 'I',
+      'DEBUG': 'D',
+      'TRACE': 'T'
+    };
+    
+    this.reverseMapping = {
+      'E': 'ERROR',
+      'W': 'WARN',
+      'I': 'INFO',
+      'D': 'DEBUG',
+      'T': 'TRACE'
+    };
+    
     this.currentLevel = process.env.LOG_LEVEL || 'INFO';
     this.logToFile = process.env.LOG_TO_FILE === 'true';
     this.logToDatabase = process.env.LOG_TO_DATABASE !== 'false';
@@ -99,7 +116,7 @@ class CentralizedLogger {
       
       const values = [
         logEntry.timestamp,
-        logEntry.level,
+        this.levelMapping[logEntry.level] || 'U', // Usa codice ottimizzato
         logEntry.pid,
         logEntry.hostname,
         logEntry.message,
@@ -376,6 +393,23 @@ class CentralizedLogger {
       console.error('❌ Errore esportazione log:', error);
       return [];
     }
+  }
+
+  // Funzioni helper per conversione codici
+  encodeLevel(fullName) {
+    return this.levelMapping[fullName] || 'U';
+  }
+
+  decodeLevel(code) {
+    return this.reverseMapping[code] || 'UNKNOWN';
+  }
+
+  // Funzione per ottenere tutti i mapping
+  getLevelMappings() {
+    return {
+      forward: this.levelMapping,
+      reverse: this.reverseMapping
+    };
   }
 }
 
