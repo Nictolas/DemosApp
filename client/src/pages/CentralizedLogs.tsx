@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Database, Clock, User, Globe, Code } from 'lucide-react';
-import axios from 'axios';
+import apiRequest from '@/lib/api-request';
 
 interface LogEntry {
   id: string;
@@ -91,8 +91,12 @@ export default function CentralizedLogs() {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get('/api/admin/data-export/centralized-logs');
-      setData(response.data);
+      const response = await apiRequest.get('/admin/data-export/centralized-logs');
+      if (response.success) {
+        setData(response.data);
+      } else {
+        setError('Errore nel caricamento dei dati');
+      }
     } catch (err) {
       console.error('Errore caricamento log centralizzati:', err);
       setError('Errore nel caricamento dei dati');
