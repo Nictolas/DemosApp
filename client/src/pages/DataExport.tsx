@@ -52,6 +52,7 @@ interface TableInfo {
 interface DatabaseAnalysis {
   totalDatabaseSizeMB: number;
   totalDatabaseSizePretty: string;
+  isDemoData?: boolean;
   categories: {
     exportable: {
       name: string;
@@ -661,6 +662,13 @@ export default function DataExport() {
                       {databaseAnalysis.totalDatabaseSizePretty}
                     </h3>
                     <p className="text-blue-600">Dimensione totale database</p>
+                    {databaseAnalysis.isDemoData && (
+                      <div className="mt-2">
+                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                          📊 Dati di Esempio - Configura il database per vedere i dati reali
+                        </Badge>
+                      </div>
+                    )}
                   </div>
 
                   {/* Grafico a Torta */}
