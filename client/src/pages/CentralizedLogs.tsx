@@ -116,7 +116,7 @@ export default function CentralizedLogs() {
       <div className="container mx-auto p-6">
         <div className="mb-4">
           <Button 
-            onClick={() => setLocation('/gestisci')} 
+            onClick={() => setLocation('/admin/data-export?tab=analisi')} 
             variant="outline" 
             size="sm"
             className="flex items-center gap-2"
@@ -138,7 +138,7 @@ export default function CentralizedLogs() {
       <div className="container mx-auto p-6">
         <div className="mb-4">
           <Button 
-            onClick={() => setLocation('/gestisci')} 
+            onClick={() => setLocation('/admin/data-export?tab=analisi')} 
             variant="outline" 
             size="sm"
             className="flex items-center gap-2"
@@ -168,7 +168,7 @@ export default function CentralizedLogs() {
       <div className="container mx-auto p-6">
         <div className="mb-4">
           <Button 
-            onClick={() => setLocation('/gestisci')} 
+            onClick={() => setLocation('/admin/data-export?tab=analisi')} 
             variant="outline" 
             size="sm"
             className="flex items-center gap-2"
@@ -192,7 +192,7 @@ export default function CentralizedLogs() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button 
-            onClick={() => setLocation('/gestisci')} 
+            onClick={() => setLocation('/admin/data-export?tab=analisi')} 
             variant="outline" 
             size="sm"
             className="flex items-center gap-2"

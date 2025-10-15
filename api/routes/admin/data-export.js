@@ -457,7 +457,7 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
           color: '#f59e0b' // arancione
         },
         other: {
-          name: 'Altro',
+          name: 'Tabelle Temporanee',
           tables: [],
           totalSizeMB: 0,
           totalSizeKB: 0,
@@ -483,19 +483,26 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
         analysis.categories.exportable.tables.push(tableInfo);
         analysis.categories.exportable.totalSizeMB += tableSizeMB;
         analysis.categories.exportable.totalSizeKB += tableSizeKB;
-      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users') {
+      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users' || table.tablename.includes('utente')) {
         analysis.categories.users.tables.push(tableInfo);
         analysis.categories.users.totalSizeMB += tableSizeMB;
         analysis.categories.users.totalSizeKB += tableSizeKB;
-      } else if (table.tablename.includes('opinion') || table.tablename.includes('vote') || table.tablename.includes('candidate') || table.tablename.includes('election')) {
+      } else if (table.tablename.includes('opinion') || table.tablename.includes('vote') || table.tablename.includes('candidate') || table.tablename.includes('election') || 
+                 table.tablename.includes('ice') || table.tablename.includes('iniziativa') || table.tablename.includes('referendum') || 
+                 table.tablename.includes('capo_stato') || table.tablename.includes('ministro') || table.tablename.includes('rappresentante') ||
+                 table.tablename.includes('amnistia') || table.tablename.includes('grazia') || table.tablename.includes('consenso')) {
         analysis.categories.content.tables.push(tableInfo);
         analysis.categories.content.totalSizeMB += tableSizeMB;
         analysis.categories.content.totalSizeKB += tableSizeKB;
-      } else if (table.tablename.includes('migration') || table.tablename.includes('session') || table.tablename.includes('cache')) {
+      } else if (table.tablename.includes('migration') || table.tablename.includes('session') || table.tablename.includes('cache') ||
+                 table.tablename.includes('security') || table.tablename.includes('audit') || table.tablename.includes('performance') ||
+                 table.tablename.includes('health') || table.tablename.includes('rate_limit') || table.tablename.includes('validation') ||
+                 table.tablename.includes('active_sessions') || table.tablename.includes('suspicious_ips') || table.tablename.includes('security_config')) {
         analysis.categories.system.tables.push(tableInfo);
         analysis.categories.system.totalSizeMB += tableSizeMB;
         analysis.categories.system.totalSizeKB += tableSizeKB;
       } else {
+        // Solo tabelle veramente temporanee o non categorizzabili
         analysis.categories.other.tables.push(tableInfo);
         analysis.categories.other.totalSizeMB += tableSizeMB;
         analysis.categories.other.totalSizeKB += tableSizeKB;
