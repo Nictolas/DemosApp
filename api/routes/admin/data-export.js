@@ -324,6 +324,67 @@ router.get('/download/:exportId', requireAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/admin/data-export/centralized-logs
+ * Ottiene i 10 log più recenti e il glossario dei livelli
+ */
+router.get('/centralized-logs', requireAdmin, async (req, res) => {
+  try {
+    // Ottieni i 10 log più recenti
+    const recentLogsQuery = `
+      SELECT 
+        id,
+        timestamp,
+        level,
+        message,
+        user_id,
+        ip_address,
+        endpoint,
+        request_id,
+        meta_data
+      FROM centralized_logs 
+      ORDER BY timestamp DESC 
+      LIMIT 10
+    `;
+    
+    const recentLogsResult = await pool.query(recentLogsQuery);
+    
+    // Ottieni il glossario dei livelli
+    const glossaryQuery = `
+      SELECT 
+        code,
+        full_name,
+        description
+      FROM log_level_mapping 
+      ORDER BY code
+    `;
+    
+    const glossaryResult = await pool.query(glossaryQuery);
+    
+    // Statistiche rapide
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total_logs,
+        COUNT(DISTINCT level) as unique_levels,
+        MIN(timestamp) as oldest_log,
+        MAX(timestamp) as newest_log
+      FROM centralized_logs
+    `;
+    
+    const statsResult = await pool.query(statsQuery);
+    
+    res.json({
+      recentLogs: recentLogsResult.rows,
+      glossary: glossaryResult.rows,
+      stats: statsResult.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Errore ottenendo log centralizzati:', error);
+    res.status(500).json({ error: 'Errore ottenendo log centralizzati' });
+  }
+});
+
+/**
  * GET /api/admin/data-export/database-analysis
  * Ottiene analisi dettagliata del database per grafico a torta
  */

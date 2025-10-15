@@ -103,6 +103,7 @@ import AuditDashboard from "./pages/AuditDashboard";
 import AdminSecurityDashboard from "./pages/Admin/SecurityDashboard";
 import GDPRLegalManagement from "./pages/Admin/GDPRLegalManagement";
 import DataExport from "./pages/DataExport";
+import CentralizedLogs from "./pages/CentralizedLogs";
 import Approfondimento from "./pages/Approfondimento";
 import Navbar from "./components/Navbar";
 import { useBrowserNavigation } from "./hooks/useBrowserNavigation";
@@ -370,6 +371,13 @@ export default function App() {
                 <Route path="/admin/data-export">
                   <PageTransition location={location} type="fade-up">
                     <DataExport />
+                  </PageTransition>
+                </Route>
+
+                {/* Route per Log Centralizzati */}
+                <Route path="/admin/data-export/centralized-logs">
+                  <PageTransition location={location} type="fade-up">
+                    <CentralizedLogs />
                   </PageTransition>
                 </Route>
 
