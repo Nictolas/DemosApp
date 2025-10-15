@@ -48,6 +48,8 @@ interface TableInfo {
   retentionDays: number;
   recordCount: number;
   sizeMB: number;
+  sizeKB: number;
+  sizeBytes: number;
 }
 
 interface DatabaseAnalysis {
@@ -117,6 +119,17 @@ interface DatabaseAnalysis {
   };
 }
 
+// Funzione helper per formattare le dimensioni
+const formatSize = (sizeMB: number, sizeKB: number): string => {
+  if (sizeMB >= 1) {
+    return `${sizeMB.toFixed(1)} MB`;
+  } else if (sizeKB >= 1) {
+    return `${sizeKB} KB`;
+  } else {
+    return '0 KB';
+  }
+};
+
 export default function DataExport() {
   const [exportStatus, setExportStatus] = useState<ExportStatus>({
     isRunning: false,
@@ -170,42 +183,54 @@ export default function DataExport() {
             enabled: true,
             retentionDays: 14,
             recordCount: 0,
-            sizeMB: 0
+            sizeMB: 0,
+            sizeKB: 0,
+            sizeBytes: 0
           },
           {
             name: 'security_events',
             enabled: true,
             retentionDays: 30,
             recordCount: 0,
-            sizeMB: 0
+            sizeMB: 0,
+            sizeKB: 0,
+            sizeBytes: 0
           },
           {
             name: 'performance_metrics',
             enabled: true,
             retentionDays: 7,
             recordCount: 0,
-            sizeMB: 0
+            sizeMB: 0,
+            sizeKB: 0,
+            sizeBytes: 0
           },
           {
             name: 'health_checks',
             enabled: true,
             retentionDays: 7,
             recordCount: 0,
-            sizeMB: 0
+            sizeMB: 0,
+            sizeKB: 0,
+            sizeBytes: 0
           },
           {
             name: 'access_audit',
             enabled: true,
             retentionDays: 30,
             recordCount: 0,
-            sizeMB: 0
+            sizeMB: 0,
+            sizeKB: 0,
+            sizeBytes: 0
           },
           {
             name: 'audit_logs',
             enabled: true,
             retentionDays: 30,
             recordCount: 0,
-            sizeMB: 0
+            sizeMB: 0,
+            sizeKB: 0,
+            sizeBytes: 0
           }
         ];
         setTables(mockTables);
@@ -220,42 +245,54 @@ export default function DataExport() {
           enabled: true,
           retentionDays: 14,
           recordCount: 0,
-          sizeMB: 0
+          sizeMB: 0,
+          sizeKB: 0,
+          sizeBytes: 0
         },
         {
           name: 'security_events',
           enabled: true,
           retentionDays: 30,
           recordCount: 0,
-          sizeMB: 0
+          sizeMB: 0,
+          sizeKB: 0,
+          sizeBytes: 0
         },
         {
           name: 'performance_metrics',
           enabled: true,
           retentionDays: 7,
           recordCount: 0,
-          sizeMB: 0
+          sizeMB: 0,
+          sizeKB: 0,
+          sizeBytes: 0
         },
         {
           name: 'health_checks',
           enabled: true,
           retentionDays: 7,
           recordCount: 0,
-          sizeMB: 0
+          sizeMB: 0,
+          sizeKB: 0,
+          sizeBytes: 0
         },
         {
           name: 'access_audit',
           enabled: true,
           retentionDays: 30,
           recordCount: 0,
-          sizeMB: 0
+          sizeMB: 0,
+          sizeKB: 0,
+          sizeBytes: 0
         },
         {
           name: 'audit_logs',
           enabled: true,
           retentionDays: 30,
           recordCount: 0,
-          sizeMB: 0
+          sizeMB: 0,
+          sizeKB: 0,
+          sizeBytes: 0
         }
       ];
       setTables(mockTables);
@@ -541,7 +578,7 @@ export default function DataExport() {
                       <div>
                         <h4 className="font-medium">{table.name}</h4>
                         <p className="text-sm text-gray-600">
-                          {table.recordCount.toLocaleString()} record • {table.sizeMB.toFixed(1)} MB
+                          {table.recordCount.toLocaleString()} record • {formatSize(table.sizeMB, table.sizeKB)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {getTableDescription(table.name)}
