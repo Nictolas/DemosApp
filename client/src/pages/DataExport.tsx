@@ -461,7 +461,7 @@ export default function DataExport() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="w-full p-6 space-y-6">
+      <div className="w-full p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Export Dati su Hard Disk</h1>
@@ -483,7 +483,7 @@ export default function DataExport() {
           <TabsTrigger value="settings">Impostazioni</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="analysis" className="space-y-6">
+        <TabsContent value="export" className="space-y-6">
           {/* Status Export */}
           {exportStatus.isRunning && (
             <Card className="bg-white shadow-lg">
@@ -542,7 +542,7 @@ export default function DataExport() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Link href="/admin/data-export/centralized-logs">
+                  <Link to="/admin/data-export/centralized-logs">
                     <Button variant="outline" size="sm">
                       <List className="h-4 w-4 mr-2" />
                       Visualizza Log
@@ -659,7 +659,7 @@ export default function DataExport() {
           </div>
         </TabsContent>
 
-        <TabsContent value="export" className="space-y-6">
+        <TabsContent value="analysis" className="space-y-6">
           {/* Analisi Database */}
           <Card className="bg-white shadow-lg">
             <CardHeader>
@@ -694,9 +694,9 @@ export default function DataExport() {
                   <span className="ml-3 text-gray-600">Caricamento analisi...</span>
                 </div>
               ) : databaseAnalysis ? (
-                <div className="space-y-6">
+                    <div className="space-y-4">
                   {/* Dimensione Totale */}
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
                     <h3 className="text-2xl font-bold text-blue-800">
                       {databaseAnalysis.totalDatabaseSizePretty}
                     </h3>
@@ -704,10 +704,10 @@ export default function DataExport() {
                   </div>
 
                   {/* Grafico a Torta */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="space-y-4">
                       <h4 className="font-semibold text-lg">Distribuzione per Categorie</h4>
-                      <div className="h-96 xl:h-80">
+                      <div className="h-64 xl:h-56">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
@@ -755,11 +755,9 @@ export default function DataExport() {
                               </div>
                               <div className="text-right">
                                 <div className="font-semibold">
-                                  {category.totalSizeMB === 0 && category.totalSizeKB > 0 ? 
-                                    category.totalSizeKB + ' kB' :
-                                    category.totalSizeMB > 0 ? 
-                                      category.totalSizeMB + ' MB' : 
-                                      '0 MB'
+                                  {category.totalSizeMB > 0 ? 
+                                    category.totalSizeMB + ' MB' : 
+                                    '0 MB'
                                   }
                                 </div>
                                 <div className="text-sm text-gray-600">{category.percentage}%</div>
@@ -775,44 +773,57 @@ export default function DataExport() {
                   </div>
 
                   {/* Card per tutte le categorie di tabelle */}
-                  <div className="space-y-8">
+                  <div className="space-y-6">
                     {/* Tabelle da Esportare */}
-                    <div className="space-y-4">
-                      <h4 className="font-semibold text-lg flex items-center gap-2">
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-base flex items-center gap-2">
                         <span className="w-4 h-4 rounded-full bg-red-500"></span>
                         Tabelle da Esportare ({databaseAnalysis.categories.exportable.tables.length} tabelle)
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                         {databaseAnalysis.categories.exportable.tables.map((table) => {
                           const isCentralizedLogs = table.name === 'centralized_logs';
-                          const CardComponent = isCentralizedLogs ? Link : 'div';
-                          const cardProps = isCentralizedLogs ? { href: '/admin/data-export/centralized-logs' } : {};
+                          
+                          const cardContent = (
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <h5 className="font-medium text-red-800 flex items-center gap-1 text-xs">
+                                  {table.name}
+                                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                                </h5>
+                                <Badge variant="outline" className="text-xs px-1 py-0">
+                                  {table.columnCount}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                <div className="font-medium">{table.sizePretty}</div>
+                                <div className="text-xs text-gray-500">{table.sizeMB} MB</div>
+                              </div>
+                              <div className="text-xs text-gray-500 truncate">
+                                {getTableDescription(table.name)}
+                              </div>
+                            </div>
+                          );
+                          
+                          if (isCentralizedLogs) {
+                            return (
+                              <Link 
+                                key={table.name}
+                                to="/admin/data-export/centralized-logs"
+                                className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all cursor-pointer hover:border-red-300"
+                              >
+                                {cardContent}
+                              </Link>
+                            );
+                          }
                           
                           return (
-                            <CardComponent 
-                              key={table.name} 
-                              {...cardProps}
-                              className={`p-4 border rounded-lg bg-white border-red-200 hover:shadow-md transition-all ${isCentralizedLogs ? 'cursor-pointer hover:border-red-300' : ''}`}
+                            <div 
+                              key={table.name}
+                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
                             >
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-red-800 flex items-center gap-2 text-sm">
-                                    {table.name}
-                                    {isCentralizedLogs && <List className="h-3 w-3" />}
-                                  </h5>
-                                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                </div>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-xs text-gray-600">{table.columnCount} colonne</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="font-semibold text-red-800 text-sm">{table.sizePretty}</div>
-                                    <div className="text-xs text-red-600">{table.sizeMB} MB</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardComponent>
+                              {cardContent}
+                            </div>
                           );
                         })}
                       </div>
@@ -820,21 +831,21 @@ export default function DataExport() {
 
                     {/* Dati Utenti */}
                     {databaseAnalysis.categories.users.tables.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="font-semibold text-lg flex items-center gap-2">
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
                           <span className="w-4 h-4 rounded-full bg-blue-500"></span>
                           Dati Utenti ({databaseAnalysis.categories.users.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                           {databaseAnalysis.categories.users.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-4 border rounded-lg bg-white border-blue-200 hover:shadow-md transition-all"
+                              className="p-3 border rounded-md bg-white border-blue-200 hover:shadow-sm transition-all"
                             >
-                              <div className="space-y-2">
+                              <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-blue-800 text-sm">{table.name}</h5>
-                                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                  <h5 className="font-medium text-blue-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                                 </div>
                                 <div className="flex justify-between items-end">
                                   <div>
@@ -854,21 +865,21 @@ export default function DataExport() {
 
                     {/* Contenuti App */}
                     {databaseAnalysis.categories.content.tables.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="font-semibold text-lg flex items-center gap-2">
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
                           <span className="w-4 h-4 rounded-full bg-green-500"></span>
                           Contenuti App ({databaseAnalysis.categories.content.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                           {databaseAnalysis.categories.content.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-4 border rounded-lg bg-white border-green-200 hover:shadow-md transition-all"
+                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
                             >
-                              <div className="space-y-2">
+                              <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-green-800 text-sm">{table.name}</h5>
-                                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                  <h5 className="font-medium text-green-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                                 </div>
                                 <div className="flex justify-between items-end">
                                   <div>
@@ -888,21 +899,21 @@ export default function DataExport() {
 
                     {/* Sistema */}
                     {databaseAnalysis.categories.system.tables.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="font-semibold text-lg flex items-center gap-2">
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
                           <span className="w-4 h-4 rounded-full bg-yellow-500"></span>
                           Sistema ({databaseAnalysis.categories.system.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                           {databaseAnalysis.categories.system.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-4 border rounded-lg bg-white border-yellow-200 hover:shadow-md transition-all"
+                              className="p-3 border rounded-md bg-white border-yellow-200 hover:shadow-sm transition-all"
                             >
-                              <div className="space-y-2">
+                              <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-yellow-800 text-sm">{table.name}</h5>
-                                  <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                  <h5 className="font-medium text-yellow-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
                                 </div>
                                 <div className="flex justify-between items-end">
                                   <div>
@@ -922,21 +933,21 @@ export default function DataExport() {
 
                     {/* Tabelle Temporanee */}
                     {databaseAnalysis.categories.other.tables.length > 0 && (
-                      <div className="space-y-4">
-                        <h4 className="font-semibold text-lg flex items-center gap-2">
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
                           <span className="w-4 h-4 rounded-full bg-gray-500"></span>
                           Tabelle Temporanee ({databaseAnalysis.categories.other.tables.length} tabelle)
                         </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                           {databaseAnalysis.categories.other.tables.map((table) => (
                             <div 
                               key={table.name} 
-                              className="p-4 border rounded-lg bg-white border-gray-200 hover:shadow-md transition-all"
+                              className="p-3 border rounded-md bg-white border-gray-200 hover:shadow-sm transition-all"
                             >
-                              <div className="space-y-2">
+                              <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <h5 className="font-medium text-gray-800 text-sm">{table.name}</h5>
-                                  <span className="w-2 h-2 rounded-full bg-gray-500"></span>
+                                  <h5 className="font-medium text-gray-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-gray-500"></span>
                                 </div>
                                 <div className="flex justify-between items-end">
                                   <div>
