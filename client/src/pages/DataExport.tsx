@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import apiRequest from '@/lib/api-request';
 import { 
   Download, 
   HardDrive, 
@@ -144,10 +145,9 @@ export default function DataExport() {
 
   const loadExportHistory = async () => {
     try {
-      const response = await fetch('/api/admin/data-export/history');
-      if (response.ok) {
-        const data = await response.json();
-        setExportHistory(data);
+      const response = await apiRequest.get('/admin/data-export/history');
+      if (response.success) {
+        setExportHistory(response.data);
       }
     } catch (error) {
       console.error('Errore caricamento cronologia:', error);
@@ -157,12 +157,11 @@ export default function DataExport() {
   const loadTableInfo = async () => {
     setLoadingTables(true);
     try {
-      const response = await fetch('/api/admin/data-export/tables');
-      if (response.ok) {
-        const data = await response.json();
-        setTables(data);
+      const response = await apiRequest.get('/admin/data-export/tables');
+      if (response.success) {
+        setTables(response.data);
         // Seleziona tutte le tabelle abilitate di default
-        setSelectedTables(data.filter((t: TableInfo) => t.enabled).map((t: TableInfo) => t.name));
+        setSelectedTables(response.data.filter((t: TableInfo) => t.enabled).map((t: TableInfo) => t.name));
       } else {
         // Fallback: usa dati mock se l'API non è disponibile
         const mockTables: TableInfo[] = [
@@ -282,20 +281,14 @@ export default function DataExport() {
     });
 
     try {
-      const response = await fetch('/api/admin/data-export/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tables: selectedTables,
-          deleteAfterExport,
-          dryRun
-        }),
+      const response = await apiRequest.post('/admin/data-export/start', {
+        tables: selectedTables,
+        deleteAfterExport,
+        dryRun
       });
 
-      if (!response.ok) {
-        throw new Error('Errore avvio export');
+      if (!response.success) {
+        throw new Error(response.error || 'Errore avvio export');
       }
 
       // Polling per aggiornare lo stato
@@ -313,12 +306,11 @@ export default function DataExport() {
   const pollExportStatus = async () => {
     const poll = async () => {
       try {
-        const response = await fetch('/api/admin/data-export/status');
-        if (response.ok) {
-          const status = await response.json();
-          setExportStatus(status);
+        const response = await apiRequest.get('/admin/data-export/status');
+        if (response.success) {
+          setExportStatus(response.data);
 
-          if (status.isRunning) {
+          if (response.data.isRunning) {
             setTimeout(poll, 2000); // Poll ogni 2 secondi
           } else {
             // Export completato, ricarica cronologia
@@ -340,7 +332,7 @@ export default function DataExport() {
 
   const stopExport = async () => {
     try {
-      await fetch('/api/admin/data-export/stop', { method: 'POST' });
+      await apiRequest.post('/admin/data-export/stop');
       setExportStatus(prev => ({ ...prev, isRunning: false }));
     } catch (error) {
       console.error('Errore stop export:', error);
@@ -349,7 +341,8 @@ export default function DataExport() {
 
   const downloadExport = async (exportId: string) => {
     try {
-      const response = await fetch(`/api/admin/data-export/download/${exportId}`);
+      // Per il download, usiamo fetch diretto perché apiRequest non gestisce blob
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://demos-c7k0.onrender.com/api'}/admin/data-export/download/${exportId}`);
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -398,12 +391,11 @@ export default function DataExport() {
   const loadDatabaseAnalysis = async () => {
     setLoadingAnalysis(true);
     try {
-      const response = await fetch('/api/admin/data-export/database-analysis');
-      if (response.ok) {
-        const data = await response.json();
-        setDatabaseAnalysis(data);
+      const response = await apiRequest.get('/admin/data-export/database-analysis');
+      if (response.success) {
+        setDatabaseAnalysis(response.data);
       } else {
-        console.error('Errore caricamento analisi database - Server risponde ma database non connesso');
+        console.error('Errore caricamento analisi database:', response.error);
         setDatabaseAnalysis(null);
       }
     } catch (error) {
