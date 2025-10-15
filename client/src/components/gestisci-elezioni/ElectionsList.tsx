@@ -16,7 +16,7 @@ export function ElectionsList({ elezioni, loading, onEdit, onDelete }: Elections
   }
 
   return (
-    <Card className="bg-white/50 backdrop-blur-sm border-0 shadow-lg">
+    <Card className="bg-white border-0 shadow-lg">
       <CardHeader className="pb-4">
         <CardTitle className="flex items-center text-2xl text-gray-800">
           <Calendar className="h-6 w-6 mr-3 text-blue-600" />

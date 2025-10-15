@@ -351,7 +351,7 @@ export default function SecurityDashboard() {
         </div>
 
         {error && (
-          <Alert className="mb-6 border-red-200 bg-red-50">
+          <Alert className="mb-6 border-red-200 bg-white">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -360,7 +360,7 @@ export default function SecurityDashboard() {
 
           {/* Statistiche Generali Migliorate */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200 hover:shadow-lg transition-shadow">
+          <Card className="bg-white border-red-200 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -373,7 +373,7 @@ export default function SecurityDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-shadow">
+          <Card className="bg-white border-green-200 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -386,7 +386,7 @@ export default function SecurityDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-shadow">
+          <Card className="bg-white border-blue-200 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -399,7 +399,7 @@ export default function SecurityDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-shadow">
+          <Card className="bg-white border-purple-200 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -412,7 +412,7 @@ export default function SecurityDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-shadow">
+          <Card className="bg-white border-orange-200 hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -458,7 +458,7 @@ export default function SecurityDashboard() {
           {/* Scheda Panoramica */}
           <TabsContent value="overview" className="space-y-6">
             {/* Spiegazione per Neofiti */}
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-white border-blue-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-blue-800">
                   <Eye className="h-5 w-5" />
@@ -550,7 +550,7 @@ export default function SecurityDashboard() {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <div className="mt-4 p-3 bg-white border border-blue-200 rounded-lg">
                     <p className="text-sm text-blue-700">
                       <strong>Trend settimanale:</strong> {securityTrends.weeklyTrend} 
                       <span className="ml-2 text-green-600">({securityTrends.monthlyComparison})</span>
@@ -573,22 +573,22 @@ export default function SecurityDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                  <div className="text-center p-4 bg-white border border-purple-200 rounded-lg">
                     <Shield className="h-8 w-8 text-purple-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-purple-700">{jwtStats.activeTokens}</p>
                     <p className="text-sm text-purple-600">Token JWT Attivi</p>
                   </div>
-                  <div className="text-center p-4 bg-indigo-50 rounded-lg">
+                  <div className="text-center p-4 bg-white border border-indigo-200 rounded-lg">
                     <Zap className="h-8 w-8 text-indigo-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-indigo-700">{rateLimitingStats.blockedIPs}</p>
                     <p className="text-sm text-indigo-600">IP Bloccati</p>
                   </div>
-                  <div className="text-center p-4 bg-emerald-50 rounded-lg">
+                  <div className="text-center p-4 bg-white border border-emerald-200 rounded-lg">
                     <CheckCircle className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-emerald-700">{sslStats.secureConnections}</p>
                     <p className="text-sm text-emerald-600">Connessioni SSL</p>
                   </div>
-                  <div className="text-center p-4 bg-rose-50 rounded-lg">
+                  <div className="text-center p-4 bg-white border border-rose-200 rounded-lg">
                     <Search className="h-8 w-8 text-rose-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-rose-700">{validationStats.blockedInjectionAttempts}</p>
                     <p className="text-sm text-rose-600">Injection Bloccati</p>
@@ -601,7 +601,7 @@ export default function SecurityDashboard() {
           {/* Scheda Sicurezza */}
           <TabsContent value="security" className="space-y-6">
             {/* Spiegazione per Neofiti - Sicurezza */}
-            <Card className="bg-purple-50 border-purple-200">
+            <Card className="bg-white border-purple-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-purple-800">
                   <Shield className="h-5 w-5" />
@@ -721,17 +721,17 @@ export default function SecurityDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-emerald-50 rounded-lg">
+                  <div className="text-center p-4 bg-white border border-emerald-200 rounded-lg">
                     <CheckCircle className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-emerald-700">{sslStats.secureConnections}</p>
                     <p className="text-sm text-emerald-600">Connessioni Sicure</p>
                   </div>
-                  <div className="text-center p-4 bg-red-50 rounded-lg">
+                  <div className="text-center p-4 bg-white border border-red-200 rounded-lg">
                     <AlertTriangle className="h-8 w-8 text-red-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-red-700">{sslStats.insecureConnections}</p>
                     <p className="text-sm text-red-600">Connessioni Insecure</p>
                   </div>
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <div className="text-center p-4 bg-white border border-blue-200 rounded-lg">
                     <Clock className="h-8 w-8 text-blue-600 mx-auto mb-2" />
                     <p className="text-sm font-bold text-blue-700">
                       {sslStats.certificateExpiry ? formatItalianDate(sslStats.certificateExpiry) : 'N/A'}
@@ -820,7 +820,7 @@ export default function SecurityDashboard() {
           {/* Scheda Minacce */}
           <TabsContent value="threats" className="space-y-6">
             {/* Spiegazione per Neofiti - Minacce */}
-            <Card className="bg-red-50 border-red-200">
+            <Card className="bg-white border-red-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-red-800">
                   <AlertTriangle className="h-5 w-5" />
@@ -867,7 +867,7 @@ export default function SecurityDashboard() {
                 <CardContent>
                   <div className="space-y-3">
                     {threatIntelligence.blockedIPs.map((ip, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                      <div key={index} className="flex items-center justify-between p-3 bg-white border border-red-200 rounded-lg">
                         <div>
                           <p className="font-medium text-red-800">{ip.ip}</p>
                           <p className="text-sm text-red-600">{ip.country} • {ip.reason}</p>
@@ -896,7 +896,7 @@ export default function SecurityDashboard() {
                 <CardContent>
                   <div className="space-y-3">
                     {threatIntelligence.attackTypes.map((attack, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
                         <div>
                           <p className="font-medium">{attack.type}</p>
                           <p className="text-sm text-gray-500">{attack.count} tentativi</p>
@@ -929,7 +929,7 @@ export default function SecurityDashboard() {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {threatIntelligence.suspiciousCountries.map((country, index) => (
-                    <Badge key={index} variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                    <Badge key={index} variant="outline" className="bg-white text-yellow-800 border-yellow-200">
                       {country}
                     </Badge>
                   ))}
@@ -941,7 +941,7 @@ export default function SecurityDashboard() {
           {/* Scheda Compliance */}
           <TabsContent value="compliance" className="space-y-6">
             {/* Spiegazione per Neofiti - Compliance */}
-            <Card className="bg-green-50 border-green-200">
+            <Card className="bg-white border-green-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-green-800">
                   <Lock className="h-5 w-5" />
@@ -1030,7 +1030,7 @@ export default function SecurityDashboard() {
           {/* Scheda Logs */}
           <TabsContent value="logs" className="space-y-6">
             {/* Spiegazione per Neofiti - Logs */}
-            <Card className="bg-gray-50 border-gray-200">
+            <Card className="bg-white border-gray-200">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-gray-800">
                   <FileText className="h-5 w-5" />
