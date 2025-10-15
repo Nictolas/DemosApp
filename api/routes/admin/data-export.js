@@ -68,7 +68,9 @@ router.get('/tables', requireAdmin, async (req, res) => {
             enabled: false,
             retentionDays: 30,
             recordCount: 0,
-            sizeMB: 0
+            sizeMB: 0,
+            sizeKB: 0,
+            sizeBytes: 0
           });
           continue;
         }
@@ -92,13 +94,19 @@ router.get('/tables', requireAdmin, async (req, res) => {
         `;
         const exportCountResult = await pool.query(exportCountQuery);
 
+        const sizeBytes = parseInt(sizeResult.rows[0].size_bytes);
+        const sizeMB = Math.round(sizeBytes / 1024 / 1024);
+        const sizeKB = Math.round(sizeBytes / 1024);
+        
         tableInfo.push({
           name: tableName,
           enabled: true,
           retentionDays: 30,
           recordCount: parseInt(countResult.rows[0].count),
           exportableRecords: parseInt(exportCountResult.rows[0].count),
-          sizeMB: Math.round(parseInt(sizeResult.rows[0].size_bytes) / 1024 / 1024)
+          sizeMB: sizeMB,
+          sizeKB: sizeKB,
+          sizeBytes: sizeBytes
         });
 
       } catch (error) {
@@ -110,6 +118,8 @@ router.get('/tables', requireAdmin, async (req, res) => {
           recordCount: 0,
           exportableRecords: 0,
           sizeMB: 0,
+          sizeKB: 0,
+          sizeBytes: 0,
           error: error.message
         });
       }
