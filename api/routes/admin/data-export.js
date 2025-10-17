@@ -527,7 +527,8 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
         analysis.categories.ministries.totalSizeMB += tableSizeMB;
         analysis.categories.ministries.totalSizeKB += tableSizeKB;
       } else if (table.tablename === 'reazioni' || table.tablename === 'programmi' ||
-                 table.tablename === 'sostenitori' || table.tablename === 'eventi') {
+                 table.tablename === 'sostenitori' || table.tablename === 'eventi' ||
+                 table.tablename === 'comunicazioni') {
         // Tabelle per strumenti
         analysis.categories.tools.tables.push(tableInfo);
         analysis.categories.tools.totalSizeMB += tableSizeMB;
