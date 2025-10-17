@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
 const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
+const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
 
 const router = express.Router();
 
@@ -433,14 +434,18 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
         userAnswer: userAnswer
       });
       
-      // Converti le risposte del database al formato frontend
+      // Converti le risposte del database al formato frontend usando decompressione
       let frontendAnswer = null;
-      if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
+      if (userAnswer === 'f') frontendAnswer = 'Favorevole';
+      else if (userAnswer === 'c') frontendAnswer = 'Contrario';
+      else if (userAnswer === 'i') frontendAnswer = 'Indeciso';
+      else if (userAnswer === null) frontendAnswer = 'Astenuto';
+      // Gestisci valori legacy per compatibilità
+      else if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
       else if (userAnswer === 'No') frontendAnswer = 'Contrario';
       else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
       else if (userAnswer === 'Contrario') frontendAnswer = 'Contrario';
       else if (userAnswer === 'Favorevole') frontendAnswer = 'Favorevole';
-      else if (userAnswer === null) frontendAnswer = 'Astenuto';
       
       return {
         id: opinionId,
@@ -549,9 +554,9 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       
       if (dbField) {
         let dbValue = null;
-        if (risposta === 'Favorevole') dbValue = 'Favorevole';
-        else if (risposta === 'Contrario') dbValue = 'Contrario';
-        else if (risposta === 'Indeciso') dbValue = 'Indeciso';
+        if (risposta === 'Favorevole') dbValue = 'f';
+        else if (risposta === 'Contrario') dbValue = 'c';
+        else if (risposta === 'Indeciso') dbValue = 'i';
         else if (risposta === 'Astenuto') dbValue = null;
         
         updateFields.push(`${dbField} = $${paramIndex}`);

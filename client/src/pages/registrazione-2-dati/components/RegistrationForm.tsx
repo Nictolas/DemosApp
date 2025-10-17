@@ -8,9 +8,9 @@ import { NavigationButtons } from './NavigationButtons';
 import { useRegistrationForm } from '../hooks/useRegistrationForm';
 
 const genereOptions = [
-  { id: 'maschio', nome: 'Maschio' },
-  { id: 'femmina', nome: 'Femmina' },
-  { id: 'altro', nome: 'Altro' }
+  { id: 'Uomo', nome: 'Uomo' },
+  { id: 'Donna', nome: 'Donna' },
+  { id: 'Altro', nome: 'Altro' }
 ];
 
 const cittadinanzaOptions = [

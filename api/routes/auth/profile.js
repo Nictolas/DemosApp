@@ -1,6 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../../middleware/auth');
+const { decompressGender } = require('../../utils/genderUtils');
+const { decompressUserLocation } = require('../../utils/locationUtils');
 
 const router = express.Router();
 
@@ -76,10 +78,10 @@ router.get('/me', async (req, res) => {
         email: user.email,
         nome: user.nome,
         cognome: user.cognome,
-        genere: user.genere,
+        genere: decompressGender(user.genere),
         data_nascita: dataNascitaFormattata,
-        cittadinanza: user.cittadinanza,
-        paese_residenza: user.paese_residenza,
+        cittadinanza: decompressUserLocation(user).cittadinanza,
+        paese_residenza: decompressUserLocation(user).paese_residenza,
         regione_residenza: user.regione_residenza,
         provincia_residenza: user.provincia_residenza,
         comune_residenza: user.comune_residenza,
