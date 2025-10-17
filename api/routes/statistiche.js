@@ -17,7 +17,7 @@ router.get('/utenti', async (req, res) => {
       SELECT 
         COUNT(*) as totale_utenti,
         COUNT(CASE WHEN status = 'approved' THEN 1 END) as utenti_verificati,
-        COUNT(CASE WHEN ruolo = 'admin' THEN 1 END) as admin
+        COUNT(CASE WHEN ruolo = 'AD' THEN 1 END) as admin
       FROM users
     `);
     

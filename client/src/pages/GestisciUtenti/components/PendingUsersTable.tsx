@@ -48,11 +48,11 @@ export const PendingUsersTable: React.FC<PendingUsersTableProps> = ({
               </TableCell>
               <TableCell>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  user.ruolo === 'Admin' 
+                  user.ruolo === "AD" 
                     ? 'bg-green-100 text-green-800' 
-                    : user.ruolo === 'Politico' 
+                    : user.ruolo === "P" 
                     ? 'bg-red-100 text-red-800'
-                    : user.ruolo === 'Candidato'
+                    : user.ruolo === "C"
                     ? 'bg-blue-100 text-blue-800'
                     : 'bg-gray-100 text-gray-800'
                 }`}>

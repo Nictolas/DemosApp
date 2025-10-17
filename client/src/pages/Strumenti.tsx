@@ -220,7 +220,7 @@ export default function Strumenti() {
   // Check if user has the right role for advanced features
   // Use the user object from useAuth() which should contain the ruolo field
   const userRole = user?.ruolo || user?.role;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "Admin";
 
   // Debug logging
   // Debug logging rimosso per evitare re-render
@@ -294,7 +294,7 @@ export default function Strumenti() {
         {/* Pulsanti Navigazione - Nuova estetica */}
         <div className="flex-1 grid grid-cols-2 gap-6">
           {/* Votazione (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
-          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -334,7 +334,7 @@ export default function Strumenti() {
             </div>
           </button>
           {/* Programma (solo Admin/Candidato) */}
-          {user?.ruolo === 'Admin' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' ? (
+          {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -355,7 +355,7 @@ export default function Strumenti() {
             </button>
           ) : null}
           {/* Sostenitori (Politico/Candidato/Admin/Attivista/Organizzazione) */}
-          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin' || user?.ruolo === 'Attivista' || user?.ruolo === 'Organizzazione') && (
+          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD" || user?.ruolo === "A" || user?.ruolo === "O") && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -376,7 +376,7 @@ export default function Strumenti() {
             </button>
           )}
           {/* Riscontro (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
-          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -397,7 +397,7 @@ export default function Strumenti() {
             </button>
           )}
           {/* Sondaggi (solo per Politico/Candidato/Admin, NON per Attivista/Organizzazione) */}
-          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"

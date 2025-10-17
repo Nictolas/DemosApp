@@ -22,7 +22,7 @@ export const useProponiOpinioneActions = (user: any) => {
   // Blocco settimanale
   useEffect(() => {
     if (!user) return;
-    if (user.ruolo === "Admin") {
+    if (user.ruolo === "AD") {
       setProponiOpinioneState(prev => ({
         ...prev,
         isBlocked: false,

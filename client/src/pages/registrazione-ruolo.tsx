@@ -194,8 +194,8 @@ export default function RegistrazioneRuolo() {
     }
   };
 
-  const showElezioneFields = selectedRuolo === "Politico" || selectedRuolo === "Candidato Politico";
-  const showCandidaturaFields = selectedRuolo === "Candidato" || selectedRuolo === "Candidato Politico";
+  const showElezioneFields = selectedRuolo === "P" || selectedRuolo === "Candidato Politico";
+  const showCandidaturaFields = selectedRuolo === "C" || selectedRuolo === "Candidato Politico";
 
   // Reset dei campi dipendenti quando cambia il paese elezione
   React.useEffect(() => {

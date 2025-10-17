@@ -63,7 +63,7 @@ export default function ProponiOpinione() {
   // Blocco settimanale
   useEffect(() => {
     if (!user) return;
-    if (user.ruolo === "Admin") {
+    if (user.ruolo === "AD") {
       setIsBlocked(false);
       setUnlockDate(null);
       return;

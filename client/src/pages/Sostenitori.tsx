@@ -58,7 +58,7 @@ export default function Sostenitori() {
       if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori rappresentanti");
       return response.json();
     },
-    enabled: !!user && (user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione"),
+    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
 
   // Query per sostenitori Candidati (Candidato)
@@ -70,7 +70,7 @@ export default function Sostenitori() {
       if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori candidati");
       return response.json();
     },
-    enabled: !!user && (user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione"),
+    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
 
   // Query per sostenitori Totali (Admin e Candidato Politico)
@@ -82,7 +82,7 @@ export default function Sostenitori() {
       if (!response.ok) throw new Error("Errore nel caricamento dei dati totali");
       return response.json();
     },
-    enabled: !!user && (user.ruolo === "Admin" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione"),
+    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
 
   // Dati correnti basati sulla tab attiva
@@ -150,11 +150,11 @@ export default function Sostenitori() {
   // Funzione per determinare la classe CSS delle tabs
   const getTabsGridClass = () => {
     let tabCount = 0;
-    if (user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
-    if (user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
-    if (user.ruolo === "Admin" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
+    if (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    if (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    if (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
     // nuova scheda Attivista
-    if (user.ruolo === "Admin" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") tabCount++;
+    if (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
     
     switch (tabCount) {
       case 1: return "grid-cols-1";
@@ -167,7 +167,7 @@ export default function Sostenitori() {
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
-  const isAuthorized = ["Politico", "Candidato", "Candidato Politico", "Admin"].includes(user.ruolo);
+  const isAuthorized = ["P", "Candidato", "Candidato Politico", "Admin"].includes(user.ruolo);
   if (!isAuthorized) {
     return (
         <div className="min-h-screen p-4 flex items-center justify-center">
@@ -188,20 +188,20 @@ export default function Sostenitori() {
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className={`grid w-full ${getTabsGridClass()}`}>
-                {(user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+                {(user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                   <TabsTrigger value="politico">Politico</TabsTrigger>
                 )}
-                {(user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+                {(user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                   <TabsTrigger value="candidato">Candidato</TabsTrigger>
                 )}
-                {(user.ruolo === "Admin" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+                {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
                   <TabsTrigger value="attivista">Attivista</TabsTrigger>
                 )}
-                {(user.ruolo === "Admin" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+                {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                   <TabsTrigger value="totale">Totale</TabsTrigger>
                 )}
               </TabsList>
-              {(user.ruolo === "Admin" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+              {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
                 <TabsContent value="attivista" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
@@ -209,7 +209,7 @@ export default function Sostenitori() {
                 </TabsContent>
               )}
 
-              {(user.ruolo === "Admin" || user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+              {(user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                 <TabsContent value="politico" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
@@ -217,7 +217,7 @@ export default function Sostenitori() {
                 </TabsContent>
               )}
 
-              {(user.ruolo === "Admin" || user.ruolo === "Candidato" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+              {(user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                 <TabsContent value="candidato" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
@@ -225,7 +225,7 @@ export default function Sostenitori() {
                 </TabsContent>
               )}
 
-              {(user.ruolo === "Admin" || user.ruolo === "Candidato Politico" || user.ruolo === "Attivista" || user.ruolo === "Organizzazione") && (
+              {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                 <TabsContent value="totale" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}

@@ -65,7 +65,7 @@ export default function Eventi() {
   const { user, isLoading } = useAuth();
 
   // Check if user is admin
-  const isAdmin = user?.role === 'Admin' || user?.ruolo === 'Admin';
+  const isAdmin = user?.role === "AD" || user?.ruolo === "AD";
 
   // Fetch eventi data from API
   const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({

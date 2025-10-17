@@ -64,7 +64,7 @@ router.post('/check-admin', async (req, res) => {
       });
     }
     
-    const isAdmin = result.rows[0].ruolo === 'admin';
+    const isAdmin = result.rows[0].ruolo === "AD";
     
     res.json({
       success: true,

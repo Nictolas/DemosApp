@@ -813,7 +813,7 @@ export default function AuthPage() {
                    </div>
 
                    {/* Sezione Elezione - visibile solo per "Politico" e "Candidato Politico" */}
-                   {(registerForm.watch("ruolo") === "Politico" || registerForm.watch("ruolo") === "Candidato Politico") && (
+                   {(registerForm.watch("ruolo") === "P" || registerForm.watch("ruolo") === "Candidato Politico") && (
                      <div className="space-y-4">
                        <h3 className="text-lg font-medium border-b pb-2">Dati di Elezione</h3>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -932,7 +932,7 @@ export default function AuthPage() {
                    )}
 
                    {/* Sezione Candidatura - visibile solo per "Candidato" e "Candidato Politico" */}
-                   {(registerForm.watch("ruolo") === "Candidato" || registerForm.watch("ruolo") === "Candidato Politico") && (
+                   {(registerForm.watch("ruolo") === "C" || registerForm.watch("ruolo") === "Candidato Politico") && (
                      <div className="space-y-4">
                        <h3 className="text-lg font-medium border-b pb-2">Dati di Candidatura</h3>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

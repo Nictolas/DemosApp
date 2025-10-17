@@ -19,9 +19,9 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
   const { formData, isSubmitting, handleChange, handleSubmit } = useProfileForm(userData, onProfileUpdated, isAdmin);
 
   // Determina se mostrare le sezioni in base al ruolo
-  const shouldShowElectionSection = formData.ruolo === "Politico" || formData.ruolo === "Candidato Politico";
-  const shouldShowCandidacySection = formData.ruolo === "Candidato" || formData.ruolo === "Candidato Politico";
-  const shouldShowActivismSection = formData.ruolo === "Attivista" || formData.ruolo === "Admin";
+  const shouldShowElectionSection = formData.ruolo === "P" || formData.ruolo === "CP";
+  const shouldShowCandidacySection = formData.ruolo === "C" || formData.ruolo === "CP";
+  const shouldShowActivismSection = formData.ruolo === "A" || formData.ruolo === "AD";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

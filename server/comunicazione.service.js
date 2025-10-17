@@ -167,7 +167,7 @@ class ComunicazioneService extends FirebaseService {
         let include = false;
         switch (tipoPodio) {
           case 'europeo':
-            include = data.ruolo === 'Politico' || data.ruolo === 'Candidato Politico';
+            include = data.ruolo === "P" || data.ruolo === "CP";
             break;
           case 'senato':
             include = data.ruolo === 'Senatore' || data.ruolo === 'Candidato Senatore';

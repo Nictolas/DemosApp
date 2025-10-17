@@ -39,7 +39,7 @@ export default function Riscontro() {
     return <Redirect to="/auth" />;
   }
   
-  const canView = user.ruolo === "Politico" || user.ruolo === "Candidato Politico" || user.ruolo === "Admin";
+  const canView = user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "AD";
 
   if (!canView) {
       return (

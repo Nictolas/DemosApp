@@ -5,10 +5,10 @@ export const useAccessControl = () => {
 
   // Check if user has the right role for advanced features
   const userRole = user?.ruolo || user?.role;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "Admin";
 
   // Check specific role access
-  const canAccessProgramma = user?.ruolo === 'Admin' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico';
+  const canAccessProgramma = user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP";
 
   return {
     user,

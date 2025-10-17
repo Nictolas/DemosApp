@@ -126,15 +126,15 @@ export default function ReferendumAbrogativi() {
                     : (
                         <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Periodo</TableHead><TableHead>Quorum</TableHead>{user.ruolo === 'Admin' && <TableHead className="text-right">Azioni</TableHead>}</TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Periodo</TableHead><TableHead>Quorum</TableHead>{user.ruolo === "AD" && <TableHead className="text-right">Azioni</TableHead>}</TableRow></TableHeader>
                                 <TableBody>
-                                    {listaReferendum.length === 0 ? <TableRow><TableCell colSpan={user.ruolo === 'Admin' ? 4 : 3} className="text-center text-gray-500">Nessun referendum presente.</TableCell></TableRow>
+                                    {listaReferendum.length === 0 ? <TableRow><TableCell colSpan={user.ruolo === "AD" ? 4 : 3} className="text-center text-gray-500">Nessun referendum presente.</TableCell></TableRow>
                                     : listaReferendum.map((r) => (
                                         <TableRow key={r.id}>
                                             <TableCell className="font-medium">{r.sitoWeb ? <a href={r.sitoWeb} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{r.nome}</a> : r.nome}</TableCell>
                                             <TableCell>{new Date(r.dataInizio).toLocaleDateString('it-IT')} - {new Date(r.dataFine).toLocaleDateString('it-IT')}</TableCell>
                                             <TableCell>
-                                                {user.ruolo === 'Admin' ? (
+                                                {user.ruolo === "AD" ? (
                                                     <select className="border rounded px-2 py-1 bg-white" value={r.quorum} disabled={quorumMutation.isPending} onChange={e => quorumMutation.mutate({id: r.id, quorum: e.target.value as any})}>
                                                         {quorumOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                     </select>
@@ -142,7 +142,7 @@ export default function ReferendumAbrogativi() {
                                                     <span className="flex items-center gap-1">{quorumOptions.find(opt => opt.value === r.quorum)?.icon} {quorumOptions.find(opt => opt.value === r.quorum)?.label}</span>
                                                 )}
                                             </TableCell>
-                                            {user.ruolo === 'Admin' && (
+                                            {user.ruolo === "AD" && (
                                                 <TableCell className="text-right">
                                                     <Button size="sm" variant="outline" className="mr-2" onClick={() => openEditDialog(r)}><Pencil className="h-4 w-4" /></Button>
                                                     <Button size="sm" variant="destructive" disabled={deleteMutation.isPending && deleteMutation.variables === r.id} onClick={() => deleteMutation.mutate(r.id)}>
