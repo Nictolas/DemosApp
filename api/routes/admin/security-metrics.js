@@ -25,7 +25,7 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
         COUNT(CASE WHEN action = 'LOGOUT' AND success = true THEN 1 END) as logout_successes,
         COUNT(CASE WHEN action = 'TOKEN_EXPIRED' OR (action = 'AUTH_FAILED' AND error_message LIKE '%expired%') THEN 1 END) as expired_tokens,
         COUNT(CASE WHEN action = 'AUTH_FAILED' AND success = false THEN 1 END) as suspicious_activity
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '7 days'
     `;
     
@@ -60,7 +60,7 @@ router.get('/jwt-stats', verifyToken, requireAdmin, async (req, res) => {
         // Fallback: controlla se ci sono login molto recenti (ultime 24h)
         const recentLoginQuery = `
           SELECT COUNT(*) as recent_logins
-          FROM audit_logs 
+          FROM audit_logs_decompressed 
           WHERE action = 'LOGIN' 
             AND success = true 
             AND timestamp >= NOW() - INTERVAL '24 hours'
@@ -110,14 +110,14 @@ router.get('/rate-limiting-stats', verifyToken, requireAdmin, async (req, res) =
         COUNT(DISTINCT ip_address) as blocked_ips,
         COUNT(*) as total_requests,
         COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 minute' THEN 1 END) as requests_per_minute
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '1 hour'
         AND ip_address IS NOT NULL
     `;
     
     const topEndpointsQuery = `
       SELECT resource, COUNT(*) as count
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '1 hour'
         AND resource IS NOT NULL
       GROUP BY resource
@@ -166,7 +166,7 @@ router.get('/ssl-stats', verifyToken, requireAdmin, async (req, res) => {
       SELECT 
         COUNT(CASE WHEN success = true THEN 1 END) as secure_connections,
         COUNT(CASE WHEN success = false AND (details LIKE '%SSL%' OR details LIKE '%TLS%' OR details LIKE '%certificate%') THEN 1 END) as insecure_connections
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '24 hours'
     `;
     
@@ -210,7 +210,7 @@ router.get('/validation-stats', verifyToken, requireAdmin, async (req, res) => {
         COUNT(CASE WHEN action = 'VALIDATION_FAILED' AND success = false THEN 1 END) as validation_failures,
         COUNT(CASE WHEN details LIKE '%injection%' OR details LIKE '%XSS%' OR details LIKE '%SQL%' THEN 1 END) as blocked_injection_attempts,
         COUNT(CASE WHEN action = 'INPUT_SANITIZED' THEN 1 END) as sanitized_inputs
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '7 days'
     `;
     
@@ -253,7 +253,7 @@ router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
         COUNT(CASE WHEN timestamp >= NOW() - INTERVAL '1 minute' THEN 1 END) as requests_per_minute,
         COUNT(CASE WHEN success = true THEN 1 END) as successful_requests,
         COUNT(CASE WHEN success = false THEN 1 END) as failed_requests
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '2 hours'
         AND user_id IS NOT NULL
         AND user_id != 'anonymous'
@@ -284,7 +284,7 @@ router.get('/system-health', verifyToken, requireAdmin, async (req, res) => {
         // Fallback: controlla se ci sono utenti con token validi (ultimi 24h)
         const tokenQuery = `
           SELECT COUNT(DISTINCT user_id) as users_with_tokens
-          FROM audit_logs 
+          FROM audit_logs_decompressed 
           WHERE timestamp >= NOW() - INTERVAL '24 hours'
             AND action IN ('LOGIN', 'DATA_ACCESS', 'PROFILE_UPDATE')
             AND success = true
@@ -353,7 +353,7 @@ router.get('/real-time-events', verifyToken, requireAdmin, async (req, res) => {
           WHEN success = false AND action LIKE '%SECURITY%' THEN 'medium'
           ELSE 'low'
         END as severity
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '5 minutes'
         AND (success = false OR action LIKE '%SECURITY%' OR action LIKE '%AUTH%')
       ORDER BY timestamp DESC
@@ -405,7 +405,7 @@ router.get('/real-violations', verifyToken, requireAdmin, async (req, res) => {
         COUNT(CASE WHEN error_message LIKE '%Invalid credentials%' THEN 1 END) as invalid_credentials,
         COUNT(CASE WHEN error_message LIKE '%Token expired%' OR error_message LIKE '%Invalid token%' THEN 1 END) as token_issues,
         COUNT(CASE WHEN action LIKE '%SECURITY%' THEN 1 END) as security_events
-      FROM audit_logs 
+      FROM audit_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '${parseInt(days)} days'
         AND success = false
         AND NOT (

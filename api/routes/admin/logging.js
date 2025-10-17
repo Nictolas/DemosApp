@@ -8,6 +8,55 @@ const { auditMiddleware } = require('../../middleware/auditMiddleware');
 const router = express.Router();
 router.use(verifyToken, requireAdmin);
 
+// Funzioni helper per la ricerca
+const searchByIP = async (ipAddress, hours = 24, limit = 100) => {
+  try {
+    const query = `
+      SELECT * FROM find_logs_by_ip($1)
+      WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
+      ORDER BY log_timestamp DESC 
+      LIMIT $2
+    `;
+    const result = await pool.query(query, [ipAddress, limit]);
+    return result.rows;
+  } catch (error) {
+    console.error('❌ Errore ricerca per IP:', error);
+    return [];
+  }
+};
+
+const searchByUserAgent = async (userAgent, hours = 24, limit = 100) => {
+  try {
+    const query = `
+      SELECT * FROM find_logs_by_user_agent($1)
+      WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
+      ORDER BY log_timestamp DESC 
+      LIMIT $2
+    `;
+    const result = await pool.query(query, [userAgent, limit]);
+    return result.rows;
+  } catch (error) {
+    console.error('❌ Errore ricerca per User Agent:', error);
+    return [];
+  }
+};
+
+const searchByEndpoint = async (endpoint, hours = 24, limit = 100) => {
+  try {
+    const query = `
+      SELECT * FROM find_logs_by_endpoint($1)
+      WHERE log_timestamp >= NOW() - INTERVAL '${hours} hours'
+      ORDER BY log_timestamp DESC 
+      LIMIT $2
+    `;
+    const result = await pool.query(query, [endpoint, limit]);
+    return result.rows;
+  } catch (error) {
+    console.error('❌ Errore ricerca per Endpoint:', error);
+    return [];
+  }
+};
+
 // GET /api/admin/logging/stats - Statistiche log
 router.get('/stats', auditMiddleware, async (req, res) => {
   try {
@@ -57,7 +106,7 @@ router.get('/recent', auditMiddleware, async (req, res) => {
     const hours = parseInt(req.query.hours) || 24;
     
     let query = `
-      SELECT * FROM centralized_logs 
+      SELECT * FROM centralized_logs_decompressed 
       WHERE timestamp >= NOW() - INTERVAL '${hours} hours'
     `;
     const params = [];
@@ -99,7 +148,7 @@ router.get('/search', auditMiddleware, async (req, res) => {
       limit = 100
     } = req.query;
     
-    let query = 'SELECT * FROM centralized_logs WHERE 1=1';
+    let query = 'SELECT * FROM centralized_logs_decompressed WHERE 1=1';
     const params = [];
     let paramCount = 0;
     
@@ -297,7 +346,7 @@ router.get('/errors', auditMiddleware, async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     
     const query = `
-      SELECT * FROM centralized_logs 
+      SELECT * FROM centralized_logs_decompressed 
       WHERE level = 'ERROR' 
       AND timestamp >= NOW() - INTERVAL '${hours} hours'
       ORDER BY timestamp DESC 
@@ -327,7 +376,7 @@ router.get('/performance', auditMiddleware, async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     
     const query = `
-      SELECT * FROM centralized_logs 
+      SELECT * FROM centralized_logs_decompressed 
       WHERE meta_data->>'performanceEvent' = 'true'
       AND timestamp >= NOW() - INTERVAL '${hours} hours'
       ORDER BY timestamp DESC 
@@ -346,6 +395,100 @@ router.get('/performance', auditMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore recupero performance log'
+    });
+  }
+});
+
+// GET /api/admin/logging/by-ip/:ipAddress - Ricerca log per IP specifico
+router.get('/by-ip/:ipAddress', auditMiddleware, async (req, res) => {
+  try {
+    const { ipAddress } = req.params;
+    const hours = parseInt(req.query.hours) || 24;
+    const limit = parseInt(req.query.limit) || 100;
+    
+    const logs = await searchByIP(ipAddress, hours, limit);
+    
+    res.json({
+      success: true,
+      data: logs,
+      count: logs.length,
+      searchParams: {
+        ipAddress,
+        hours,
+        limit
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore ricerca log per IP:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore ricerca log per IP'
+    });
+  }
+});
+
+// GET /api/admin/logging/by-user-agent - Ricerca log per User Agent
+router.get('/by-user-agent', auditMiddleware, async (req, res) => {
+  try {
+    const { userAgent, hours = 24, limit = 100 } = req.query;
+    
+    if (!userAgent) {
+      return res.status(400).json({
+        success: false,
+        error: 'userAgent è richiesto'
+      });
+    }
+    
+    const logs = await searchByUserAgent(userAgent, parseInt(hours), parseInt(limit));
+    
+    res.json({
+      success: true,
+      data: logs,
+      count: logs.length,
+      searchParams: {
+        userAgent,
+        hours: parseInt(hours),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore ricerca log per User Agent:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore ricerca log per User Agent'
+    });
+  }
+});
+
+// GET /api/admin/logging/by-endpoint - Ricerca log per Endpoint
+router.get('/by-endpoint', auditMiddleware, async (req, res) => {
+  try {
+    const { endpoint, hours = 24, limit = 100 } = req.query;
+    
+    if (!endpoint) {
+      return res.status(400).json({
+        success: false,
+        error: 'endpoint è richiesto'
+      });
+    }
+    
+    const logs = await searchByEndpoint(endpoint, parseInt(hours), parseInt(limit));
+    
+    res.json({
+      success: true,
+      data: logs,
+      count: logs.length,
+      searchParams: {
+        endpoint,
+        hours: parseInt(hours),
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore ricerca log per Endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore ricerca log per Endpoint'
     });
   }
 });

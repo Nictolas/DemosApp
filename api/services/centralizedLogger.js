@@ -97,41 +97,43 @@ class CentralizedLogger {
     if (!this.logToDatabase) return;
 
     try {
-      // Verifica se la tabella esiste prima di scrivere
-      const tableExists = await this.checkTableExists();
-      if (!tableExists) {
-        console.warn('⚠️ Tabella centralized_logs non esiste, salto scrittura database');
+      // Verifica se la tabella compressa esiste prima di scrivere
+      const compressedTableExists = await this.checkCompressedTableExists();
+      if (!compressedTableExists) {
+        console.warn('⚠️ Tabella centralized_logs_compressed non esiste, salto scrittura database');
         return;
       }
 
       const logEntry = this.formatMessage(level, message, meta);
       
+      // Usa la tabella compressa con compressione automatica
       const query = `
-        INSERT INTO centralized_logs (
+        INSERT INTO centralized_logs_compressed (
           timestamp, level, pid, hostname, message, 
           user_id, ip_address, user_agent, endpoint, 
-          request_id, session_id, meta_data
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          request_id, session_id, meta_data, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       `;
       
       const values = [
-        logEntry.timestamp,
+        Math.floor(new Date(logEntry.timestamp).getTime()), // Timestamp come BIGINT
         this.levelMapping[logEntry.level] || 'U', // Usa codice ottimizzato
         logEntry.pid,
-        logEntry.hostname,
+        logEntry.hostname?.substring(0, 50) || null, // Tronca hostname
         logEntry.message,
         meta.userId || null,
-        meta.ipAddress || null,
-        meta.userAgent || null,
-        meta.endpoint || null,
+        meta.ipAddress ? this.compressIPAddress(meta.ipAddress) : null, // Comprimi IP
+        meta.userAgent ? this.compressUserAgent(meta.userAgent) : null, // Comprimi User Agent
+        meta.endpoint ? this.compressEndpoint(meta.endpoint) : null, // Comprimi Endpoint
         meta.requestId || null,
         meta.sessionId || null,
-        JSON.stringify(meta)
+        JSON.stringify(meta),
+        Math.floor(new Date().getTime()) // created_at come BIGINT
       ];
       
       await pool.query(query, values);
     } catch (error) {
-      console.error('❌ Errore scrittura log su database:', error);
+      console.error('❌ Errore scrittura log su database compresso:', error);
     }
   }
 
@@ -151,6 +153,99 @@ class CentralizedLogger {
       console.error('❌ Errore verifica tabella centralized_logs:', error);
       return false;
     }
+  }
+
+  async checkCompressedTableExists() {
+    try {
+      const { pool } = require('../middleware/auth');
+      const query = `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'centralized_logs_compressed'
+        );
+      `;
+      const result = await pool.query(query);
+      return result.rows[0].exists;
+    } catch (error) {
+      console.error('❌ Errore verifica tabella centralized_logs_compressed:', error);
+      return false;
+    }
+  }
+
+  // Funzioni di compressione per i dati
+  compressIPAddress(ipAddress) {
+    if (!ipAddress || ipAddress === 'unknown' || ipAddress === '') {
+      return null;
+    }
+    
+    // Gestisce formato CIDR (es. "192.168.1.1/32")
+    const cleanIP = ipAddress.includes('/') ? ipAddress.split('/')[0] : ipAddress;
+    
+    // Skip IPv6 per ora
+    if (cleanIP.includes('::')) {
+      return null;
+    }
+    
+    const parts = cleanIP.split('.');
+    if (parts.length !== 4) {
+      return null;
+    }
+    
+    return (parseInt(parts[0]) << 24) + 
+           (parseInt(parts[1]) << 16) + 
+           (parseInt(parts[2]) << 8) + 
+           parseInt(parts[3]);
+  }
+
+  compressUserAgent(userAgent) {
+    if (!userAgent || userAgent === '') {
+      return 'UNK';
+    }
+    
+    const ua = userAgent.toLowerCase();
+    
+    if (ua.includes('chrome') && ua.includes('windows')) return 'CHR-WIN';
+    if (ua.includes('chrome') && ua.includes('mac')) return 'CHR-MAC';
+    if (ua.includes('chrome') && ua.includes('linux')) return 'CHR-LIN';
+    if (ua.includes('firefox') && ua.includes('windows')) return 'FF-WIN';
+    if (ua.includes('firefox') && ua.includes('mac')) return 'FF-MAC';
+    if (ua.includes('firefox') && ua.includes('linux')) return 'FF-LIN';
+    if (ua.includes('safari') && ua.includes('mac')) return 'SAF-MAC';
+    if (ua.includes('safari') && ua.includes('iphone')) return 'SAF-IOS';
+    if (ua.includes('edge') && ua.includes('windows')) return 'EDG-WIN';
+    if (ua.includes('opera') && ua.includes('windows')) return 'OPR-WIN';
+    if (ua.includes('mobile') && ua.includes('chrome')) return 'MOB-CHR';
+    if (ua.includes('mobile') && ua.includes('safari')) return 'MOB-SAF';
+    if (ua.includes('googlebot')) return 'BOT-GGL';
+    if (ua.includes('bingbot')) return 'BOT-BNG';
+    
+    return 'UNK';
+  }
+
+  compressEndpoint(endpoint) {
+    if (!endpoint || endpoint === '') {
+      return null;
+    }
+    
+    // Compressione endpoint comuni
+    if (endpoint.includes('/api/users/profile')) return '/u/p';
+    if (endpoint.includes('/api/users/update')) return '/u/u';
+    if (endpoint.includes('/api/opinioni/create')) return '/o/c';
+    if (endpoint.includes('/api/opinioni/update')) return '/o/u';
+    if (endpoint.includes('/api/comunicazioni/create')) return '/c/c';
+    if (endpoint.includes('/api/voti/capo-stato')) return '/v/cs';
+    if (endpoint.includes('/api/voti/iniziative-popolari')) return '/v/ip';
+    if (endpoint.includes('/api/voti/ice')) return '/v/ice';
+    if (endpoint.includes('/api/voti/referendum')) return '/v/r';
+    if (endpoint.includes('/api/notifiche')) return '/n';
+    if (endpoint.includes('/api/auth/login')) return '/a/l';
+    if (endpoint.includes('/api/auth/logout')) return '/a/lo';
+    if (endpoint.includes('/api/admin/users')) return '/ad/u';
+    if (endpoint.includes('/api/admin/security')) return '/ad/s';
+    
+    // Per altri endpoint, tronca a 100 caratteri
+    return endpoint.substring(0, 100);
   }
 
   writeToConsole(level, message, meta = {}) {
@@ -334,12 +429,13 @@ class CentralizedLogger {
   // Statistiche log
   async getLogStats(days = 7) {
     try {
+      // Usa la vista decompressa per leggere i dati
       const query = `
         SELECT 
           level,
           COUNT(*) as count,
           DATE(timestamp) as date
-        FROM centralized_logs 
+        FROM centralized_logs_decompressed 
         WHERE timestamp >= NOW() - INTERVAL '${days} days'
         GROUP BY level, DATE(timestamp)
         ORDER BY date DESC, level
@@ -357,8 +453,8 @@ class CentralizedLogger {
   async cleanupOldLogs(retentionDays = 30) {
     try {
       const query = `
-        DELETE FROM centralized_logs 
-        WHERE timestamp < NOW() - INTERVAL '${retentionDays} days'
+        DELETE FROM centralized_logs_compressed 
+        WHERE timestamp < (EXTRACT(EPOCH FROM NOW() - INTERVAL '${retentionDays} days') * 1000)::BIGINT
       `;
       
       const result = await pool.query(query);
@@ -375,7 +471,7 @@ class CentralizedLogger {
   async exportLogs(startDate, endDate, level = null) {
     try {
       let query = `
-        SELECT * FROM centralized_logs 
+        SELECT * FROM centralized_logs_decompressed 
         WHERE timestamp BETWEEN $1 AND $2
       `;
       const params = [startDate, endDate];
