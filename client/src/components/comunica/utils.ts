@@ -58,7 +58,7 @@ export const getNavigationButtons = (): NavigationButton[] => [
     icon: BookOpen,
     color: "text-purple-600",
     bgColor: "#ede9fe",
-    showForRoles: ["Admin", "Candidato", "Candidato Politico"]
+    showForRoles: ["AD", "C", "Candidato Politico"]
   },
   {
     id: "sostenitori",
@@ -67,7 +67,7 @@ export const getNavigationButtons = (): NavigationButton[] => [
     icon: Users,
     color: "text-pink-600",
     bgColor: "#fbcfe8",
-    showForRoles: ["Politico", "Candidato", "Candidato Politico", "Admin"]
+    showForRoles: ["P", "C", "CP", "Admin"]
   },
   {
     id: "riscontro",

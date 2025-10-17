@@ -285,7 +285,7 @@ export function Phase4Role({ onSubmit, onBack, defaultValues }: Phase4RoleProps)
         </div>
 
         {/* Luogo di Candidatura */}
-        {(watchRuolo === "candidato" || watchRuolo === "candidato_politico") && (
+        {(watchRuolo === "C" || watchRuolo === "CP") && (
           <div className="space-y-4">
             <h4 className="font-medium text-sm">Luogo di Candidatura</h4>
             

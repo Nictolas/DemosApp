@@ -45,8 +45,8 @@ router.get('/', async (req, res) => {
     
     // Query con filtro basato sul ruolo
     let query;
-    if (userRole === "AD" || userRole === 'Moderatore') {
-      // Admin e Moderatori vedono tutti i referendum
+    if (userRole === "AD") {
+      // Admin vedono tutti i referendum
       query = `
         SELECT *
         FROM referendum_abrogativi
@@ -203,10 +203,10 @@ router.put('/:id', verifyToken, async (req, res) => {
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     
-    if (userResult.rows.length === 0 || !["AD", 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+    if (userResult.rows.length === 0 || !["AD"].includes(userResult.rows[0].ruolo)) {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato. Solo Admin e Moderatori possono modificare i referendum abrogativi.'
+        error: 'Accesso negato. Solo Admin possono modificare i referendum abrogativi.'
       });
     }
     
@@ -251,10 +251,10 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     
-    if (userResult.rows.length === 0 || !["AD", 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+    if (userResult.rows.length === 0 || !["AD"].includes(userResult.rows[0].ruolo)) {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato. Solo Admin e Moderatori possono eliminare i referendum abrogativi.'
+        error: 'Accesso negato. Solo Admin possono eliminare i referendum abrogativi.'
       });
     }
     

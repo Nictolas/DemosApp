@@ -97,7 +97,7 @@ const verifyToken = async (req, res, next) => {
 // Middleware per richiedere ruolo admin
 const requireAdmin = async (req, res, next) => {
   try {
-    if (!req.userRole || req.userRole !== 'Admin') {
+    if (!req.userRole || req.userRole !== 'AD') {
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',
