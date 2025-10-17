@@ -27,29 +27,33 @@ class AuditService {
   }) {
     try {
       const query = `
-        INSERT INTO audit_logs (
-          user_id, action, resource, resource_id, details, 
-          ip_address, user_agent, success, error_message
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, timestamp
+        INSERT INTO audit_logs_compressed (
+          id, user_id, action, resource, resource_id, details, 
+          ip_address, user_agent, timestamp, success, error_message, created_at
+        ) VALUES (gen_random_uuid(), $1, compress_audit_action($2), compress_audit_resource($3), $4, $5, compress_ip_address($6), compress_audit_user_agent($7), $8, $9, $10, $11)
+        RETURNING id
       `;
+      
+      const now = Date.now(); // Timestamp in millisecondi
       
       const values = [
         userId,
-        action,
-        resource,
+        action, // Sarà compresso dalla funzione compress_audit_action
+        resource, // Sarà compresso dalla funzione compress_audit_resource
         resourceId,
         JSON.stringify(details),
-        ipAddress,
-        userAgent,
+        ipAddress, // Sarà compresso dalla funzione compress_ip_address
+        userAgent, // Sarà compresso dalla funzione compress_audit_user_agent
+        now, // timestamp
         success,
-        errorMessage
+        errorMessage,
+        now // created_at
       ];
 
       const result = await pool.query(query, values);
       
       console.log(`📝 Audit log creato: ${action} su ${resource} per utente ${userId}`);
-      return result.rows[0];
+      return { id: result.rows[0].id, timestamp: new Date(now) };
     } catch (error) {
       console.error('❌ Errore nel logging audit:', error);
       // Non lanciare errore per non bloccare l'operazione principale
@@ -73,7 +77,7 @@ class AuditService {
       let query = `
         SELECT id, action, resource, resource_id, details, 
                ip_address, user_agent, timestamp, success, error_message
-        FROM audit_logs 
+        FROM audit_logs_decompressed 
         WHERE user_id = $1
       `;
       
@@ -141,7 +145,7 @@ class AuditService {
           COUNT(CASE WHEN success = false THEN 1 END) as error_count,
           MIN(timestamp) as first_action,
           MAX(timestamp) as last_action
-        FROM audit_logs 
+        FROM audit_logs_decompressed 
         WHERE user_id = $1
         GROUP BY action
         ORDER BY count DESC
@@ -161,12 +165,13 @@ class AuditService {
    */
   static async cleanupOldLogs(daysToKeep = 365) {
     try {
+      const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000); // Converti in millisecondi
       const query = `
-        DELETE FROM audit_logs 
-        WHERE timestamp < NOW() - INTERVAL '${daysToKeep} days'
+        DELETE FROM audit_logs_compressed 
+        WHERE timestamp < $1
       `;
       
-      const result = await pool.query(query);
+      const result = await pool.query(query, [cutoffTime]);
       console.log(`🧹 Puliti ${result.rowCount} log di audit più vecchi di ${daysToKeep} giorni`);
       return result.rowCount;
     } catch (error) {
@@ -240,20 +245,21 @@ class AuditService {
    */
   static async detectSuspiciousActivity(days = 7) {
     try {
+      const cutoffTime = Date.now() - (days * 24 * 60 * 60 * 1000); // Converti in millisecondi
       const query = `
         SELECT 
           user_id,
           ip_address,
           COUNT(*) as action_count,
           COUNT(CASE WHEN success = false THEN 1 END) as failed_count
-        FROM audit_logs 
-        WHERE timestamp >= NOW() - INTERVAL '${days} days'
+        FROM audit_logs_decompressed 
+        WHERE timestamp >= $1
         GROUP BY user_id, ip_address
         HAVING COUNT(*) > 50 OR COUNT(CASE WHEN success = false THEN 1 END) > 10
         ORDER BY action_count DESC
       `;
       
-      const result = await pool.query(query);
+      const result = await pool.query(query, [new Date(cutoffTime)]);
       return result.rows;
     } catch (error) {
       console.error('❌ Errore nel rilevamento attività sospette:', error);
@@ -273,7 +279,7 @@ class AuditService {
           COUNT(CASE WHEN success = false THEN 1 END) as failed_actions,
           COUNT(DISTINCT user_id) as unique_users,
           COUNT(DISTINCT action) as unique_actions
-        FROM audit_logs 
+        FROM audit_logs_decompressed 
         WHERE timestamp >= NOW() - INTERVAL '${days} days'
       `;
       
