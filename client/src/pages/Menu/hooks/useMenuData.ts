@@ -9,11 +9,11 @@ export const useMenuData = (): MenuData => {
   useNoScroll(true);
   
   // Determina se l'utente è admin direttamente dai dati dell'utente
-  const isAdmin = user?.role === 'Admin' || user?.ruolo === 'Admin';
+  const isAdmin = user?.role === "AD" || user?.ruolo === "AD";
   
   // Determina se l'utente ha accesso agli strumenti avanzati
   const userRole = user?.role || user?.ruolo;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin" || userRole === "Attivista" || userRole === "Organizzazione";
+  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "AD" || userRole === "Attivista" || userRole === "Organizzazione";
   
   // Determina se l'utente ha accesso limitato (solo Evento e Sostenitori)
   const hasLimitedAccess = userRole === "Attivista" || userRole === "Organizzazione";

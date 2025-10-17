@@ -208,7 +208,7 @@ class UserService {
   static async getCandidati() {
     const allUsers = await this.getAllUsers();
     return allUsers.filter(user => 
-      user.ruolo === 'Candidato' || user.ruolo === 'Candidato Politico'
+      user.ruolo === "C" || user.ruolo === "CP"
     );
   }
 
@@ -216,7 +216,7 @@ class UserService {
     const allUsers = await this.getAllUsers();
     const q = searchTerm.toLowerCase();
     return allUsers.filter(user =>
-      (user.ruolo === 'Politico' || user.ruolo === 'Candidato' || user.ruolo === 'Candidato Politico') &&
+      (user.ruolo === "P" || user.ruolo === "C" || user.ruolo === "CP") &&
       (`${user.nome} ${user.cognome}`.toLowerCase().includes(q))
     );
   }

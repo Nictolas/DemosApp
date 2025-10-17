@@ -259,7 +259,7 @@ export default function Utenti() {
       isAuthLoading,
       userRole: user?.role,
       userRuolo: (user as any)?.ruolo,
-      isAdmin: user?.role === 'Admin' || (user as any)?.ruolo === 'Admin'
+      isAdmin: user?.role === "AD" || (user as any)?.ruolo === "AD"
     });
   }, [user, isAuthLoading]);
 
@@ -277,7 +277,7 @@ export default function Utenti() {
   // Hook per forzare il refresh quando la pagina diventa visibile
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && user?.ruolo === 'Admin') {
+      if (!document.hidden && user?.ruolo === "AD") {
         console.log('🔄 Pagina diventata visibile, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
@@ -285,7 +285,7 @@ export default function Utenti() {
     };
 
     const handleFocus = () => {
-      if (user?.ruolo === 'Admin') {
+      if (user?.ruolo === "AD") {
         console.log('🔄 Finestra riprende focus, forzando refresh dati...');
         queryClient.invalidateQueries({ queryKey: ['allUsers'] });
         updateLastUpdateTime();
@@ -315,7 +315,7 @@ export default function Utenti() {
     );
   }
 
-  if (!user || (user.role !== 'Admin' && (user as any).ruolo !== 'Admin')) {
+  if (!user || (user.role !== 'Admin' && (user as any).ruolo !== "AD")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-red-100 to-red-200 page-with-navbar flex items-center justify-center">
         <div className="text-center p-8 bg-white rounded-lg shadow-xl">

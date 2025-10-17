@@ -202,7 +202,7 @@ export default function Profilo() {
                 ) : (
                   <div className="space-y-6">
                     {/* Sezione Avatar (solo per utenti autorizzati) */}
-                    {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
+                    {(userInfo.ruolo === "P" || userInfo.ruolo === "C" || userInfo.ruolo === "CP") && (
                       <div className="flex justify-center">
                         <div className="text-center">
                           <h3 className="text-lg font-medium mb-4">Il Tuo Avatar</h3>
@@ -276,7 +276,7 @@ export default function Profilo() {
             <CardFooter className="flex justify-end gap-2">
               {userInfo && user && !isEditing && (
                 <>
-                  {(userInfo.ruolo === 'Politico' || userInfo.ruolo === 'Candidato' || userInfo.ruolo === 'Candidato Politico') && (
+                  {(userInfo.ruolo === "P" || userInfo.ruolo === "C" || userInfo.ruolo === "CP") && (
                     <Button 
                       variant="outline"
                       onClick={() => window.location.href = "/modifica-immagine"}

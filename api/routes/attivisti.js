@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
     // Costruisci la query con filtri dinamici
     // Mostra solo Attivisti e Admin che hanno effettivamente tipologie di attivismo selezionate (non array vuoti)
     let whereConditions = [
-      "(u.ruolo = 'Attivista' OR (u.ruolo = 'Admin' AND u.tipologie_attivismo IS NOT NULL AND jsonb_array_length(u.tipologie_attivismo) > 0))"
+      "(u.ruolo = 'Attivista' OR (u.ruolo = 'AD' AND u.tipologie_attivismo IS NOT NULL AND jsonb_array_length(u.tipologie_attivismo) > 0))"
     ];
     let queryParams = [];
     let paramIndex = 1;

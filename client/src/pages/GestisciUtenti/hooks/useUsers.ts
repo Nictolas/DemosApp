@@ -29,7 +29,7 @@ export const useUsers = (user: any) => {
       };
     },
     // Uso user.ruolo che è il campo restituito dall'API
-    enabled: !!user && user.ruolo === 'Admin',
+    enabled: !!user && user.ruolo === "AD",
     // Configurazione per aggiornamento automatico
     refetchOnWindowFocus: true,        // Ricarica quando la finestra riprende il focus
     refetchOnMount: true,              // Ricarica ogni volta che il componente viene montato

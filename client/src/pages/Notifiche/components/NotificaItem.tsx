@@ -258,7 +258,7 @@ export const NotificaItem: React.FC<NotificaItemProps> = ({
         </div>
         
         {/* Pulsante di cancellazione per segnalazioni (solo per admin) */}
-        {notifica.tipo_notifica === 'segnalazione_problema' && (user?.ruolo === 'Admin' || user?.ruolo === 'admin') && deleteSegnalazioneMutation && (
+        {notifica.tipo_notifica === 'segnalazione_problema' && (user?.ruolo === "AD" || user?.ruolo === "AD") && deleteSegnalazioneMutation && (
           <div className="ml-4">
             <AlertDialog>
               <AlertDialogTrigger asChild>

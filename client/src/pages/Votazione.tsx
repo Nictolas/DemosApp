@@ -403,7 +403,7 @@ const Votazione = React.memo(function Votazione() {
 
   const userRole = userData?.ruolo || user?.ruolo;
   const isAllowed = userRole === "Politico" || userRole === "Candidato Politico" || userRole === "Admin";
-  const canComunicaVoti = userRole === "Admin" || userRole === "Istituzione";
+  const canComunicaVoti = userRole === "AD" || userRole === "Istituzione";
   const canSendDemosNotifications = userRole === "Admin";
   const isAdmin = userRole === "Admin";
   

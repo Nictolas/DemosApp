@@ -89,7 +89,7 @@ export default function StatisticheUtenti() {
 
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
-  if (user.ruolo !== "Admin") return <Redirect to="/menu" />;
+  if (user.ruolo !== "AD") return <Redirect to="/menu" />;
 
   // === INIZIO MODIFICHE LOGICA GRAFICI ===
   // Funzione per preparare i dati per i grafici a torta di Recharts

@@ -145,7 +145,7 @@ export default function ICE() {
                 : (
                   <div className="overflow-x-auto">
                                          <Table>
-                       <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Descrizione</TableHead><TableHead>Quorum</TableHead><TableHead>Periodo</TableHead><TableHead>Voti</TableHead>{user.ruolo === 'Admin' && <TableHead className="text-right">Azioni</TableHead>}</TableRow></TableHeader>
+                       <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Descrizione</TableHead><TableHead>Quorum</TableHead><TableHead>Periodo</TableHead><TableHead>Voti</TableHead>{user.ruolo === "AD" && <TableHead className="text-right">Azioni</TableHead>}</TableRow></TableHeader>
                       <TableBody>
                         {listaICE.map((ice) => (
                           <TableRow key={ice.id}>
@@ -175,7 +175,7 @@ export default function ICE() {
                              <TableCell>
                                {ice.votiIces || 0}
                              </TableCell>
-                            {user.ruolo === 'Admin' && (
+                            {user.ruolo === "AD" && (
                               <TableCell className="text-right">
                                 <Button size="sm" variant="outline" className="mr-2" onClick={() => openEditDialog(ice)} title="Modifica ICE"><Pencil className="h-4 w-4" /></Button>
                                 <Button size="sm" variant="destructive" disabled={deleteMutation.isPending && deleteMutation.variables === ice.id} onClick={() => deleteMutation.mutate(ice.id)} title="Elimina ICE">

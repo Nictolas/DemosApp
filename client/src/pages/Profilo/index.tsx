@@ -152,7 +152,7 @@ export default function Profilo({ userId: propUserId }: ProfiloProps) {
                 userData={{...userInfo, uid: userInfo.id || ''}}
                 onProfileUpdated={handleSaveProfile}
                 onCancel={() => setIsEditing(false)}
-                isAdmin={user?.ruolo === 'Admin'}
+                isAdmin={user?.ruolo === "AD"}
               />
             ) : (
               <ProfileInfo

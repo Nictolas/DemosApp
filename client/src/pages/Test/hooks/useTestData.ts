@@ -17,11 +17,11 @@ export const useTestData = () => {
 
       try {
         // Controlla se l'utente è admin
-        const adminStatus = user.ruolo === 'Admin' || user.ruolo === 'admin';
+        const adminStatus = user.ruolo === "AD" || user.ruolo === "AD";
         setIsAdmin(adminStatus);
         
         // Controlla se l'utente ha accesso avanzato
-        const advancedAccess = adminStatus || user.ruolo === 'Politico' || user.ruolo === 'Candidato';
+        const advancedAccess = adminStatus || user.ruolo === "P" || user.ruolo === "C";
         setHasAdvancedAccess(advancedAccess);
 
       } catch (error) {

@@ -219,7 +219,7 @@ export default function Comunica() {
   // Check if user has the right role for advanced features
   // Use the user object from useAuth() which should contain the ruolo field
   const userRole = user?.ruolo || user?.role;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "Admin";
 
   // Debug logging
   console.log('🔍 DEBUG Comunica - user object:', user);
@@ -342,7 +342,7 @@ export default function Comunica() {
             </div>
           </button>
           {/* Programma (solo Admin/Candidato) */}
-          {user?.ruolo === 'Admin' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' ? (
+          {user?.ruolo === "AD" || user?.ruolo === "C" || user?.ruolo === "CP" ? (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"
@@ -363,7 +363,7 @@ export default function Comunica() {
             </button>
           ) : null}
           {/* Sostenitori (solo Politico/Candidato/Admin) */}
-          {(user?.ruolo === 'Politico' || user?.ruolo === 'Candidato' || user?.ruolo === 'Candidato Politico' || user?.ruolo === 'Admin') && (
+          {(user?.ruolo === "P" || user?.ruolo === "C" || user?.ruolo === "CP" || user?.ruolo === "AD") && (
             <button
               type="button"
               className="relative w-full h-40 rounded-2xl shadow-lg active:shadow overflow-hidden cursor-pointer active:scale-95 transition-transform"

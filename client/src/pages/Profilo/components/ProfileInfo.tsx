@@ -158,7 +158,7 @@ export const ProfileInfo = ({
           )}
           
           {/* Sezione Tipologie di Attivismo - Solo per Attivisti e Admin */}
-          {(userInfo.ruolo === "Attivista" || userInfo.ruolo === "Admin") && userInfo.tipologie_attivismo && userInfo.tipologie_attivismo.length > 0 && (
+          {(userInfo.ruolo === "A" || userInfo.ruolo === "AD") && userInfo.tipologie_attivismo && userInfo.tipologie_attivismo.length > 0 && (
             <div className="mt-8 pt-8 border-t border-gray-200">
               <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
@@ -201,7 +201,7 @@ export const ProfileInfo = ({
                 </div>
                 <span className="font-semibold">Modifica Immagine</span>
               </Button>
-              {(userInfo.ruolo === "Attivista" || userInfo.ruolo === "Admin") && onModificaSiti && (
+              {(userInfo.ruolo === "A" || userInfo.ruolo === "AD") && onModificaSiti && (
                 <Button 
                   onClick={onModificaSiti} 
                   variant="outline"
