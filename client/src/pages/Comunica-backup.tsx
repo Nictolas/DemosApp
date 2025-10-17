@@ -219,7 +219,7 @@ export default function Comunica() {
   // Check if user has the right role for advanced features
   // Use the user object from useAuth() which should contain the ruolo field
   const userRole = user?.ruolo || user?.role;
-  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "Admin";
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
 
   // Debug logging
   console.log('🔍 DEBUG Comunica - user object:', user);
