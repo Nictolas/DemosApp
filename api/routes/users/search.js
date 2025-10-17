@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
+const { decompressGender } = require('../../utils/genderUtils');
 
 const router = express.Router();
 
@@ -261,7 +262,7 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
         nome: responseData.user.nome,
         cognome: responseData.user.cognome,
         email: responseData.user.email,
-        genere: responseData.user.genere,
+        genere: decompressGender(responseData.user.genere),
         ruolo: responseData.user.ruolo,
         data_nascita: responseData.user.data_nascita,
         cittadinanza: responseData.user.cittadinanza

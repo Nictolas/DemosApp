@@ -120,9 +120,45 @@ const validators = {
     if (!value) {
       return { isValid: true, value: null };
     }
-    const validGenres = ['M', 'F', 'Altro'];
+    const validGenres = ['u', 'd', 'a'];
     if (!validGenres.includes(value)) {
-      return { isValid: false, error: 'Genere deve essere M, F o Altro' };
+      return { isValid: false, error: 'Genere deve essere u, d o a' };
+    }
+    return { isValid: true, value };
+  },
+
+  // Validazione opinioni
+  opinion: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    const validOpinions = ['f', 'c', 'i'];
+    if (!validOpinions.includes(value)) {
+      return { isValid: false, error: 'Opinione deve essere f, c o i' };
+    }
+    return { isValid: true, value };
+  },
+
+  // Validazione cittadinanza
+  cittadinanza: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    const validCitizenships = ['it', 'st'];
+    if (!validCitizenships.includes(value)) {
+      return { isValid: false, error: 'Cittadinanza deve essere it o st' };
+    }
+    return { isValid: true, value };
+  },
+
+  // Validazione paese residenza
+  paese_residenza: (value) => {
+    if (!value) {
+      return { isValid: true, value: null };
+    }
+    const validCountries = ['it', 'st'];
+    if (!validCountries.includes(value)) {
+      return { isValid: false, error: 'Paese residenza deve essere it o st' };
     }
     return { isValid: true, value };
   },

@@ -7,6 +7,8 @@ const { authAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { registrationLimiter } = require('../../middleware/rateLimiting');
 const { validationRules, sanitizeInput } = require('../../middleware/inputValidation');
 const ValidationService = require('../../services/validationService');
+const { compressGender } = require('../../utils/genderUtils');
+const { compressUserLocation } = require('../../utils/locationUtils');
 
 const router = express.Router();
 
@@ -160,10 +162,10 @@ router.post('/register',
       ruolo || 'Elettore',
       'pending',
       verificationToken,
-      genere || null,
+      compressGender(genere) || null,
       formattedDataNascita, // Usa la data convertita
-      cittadinanza || null,
-      paese_residenza || null,
+      compressUserLocation({ cittadinanza }).cittadinanza || null,
+      compressUserLocation({ paese_residenza }).paese_residenza || null,
       regione_residenza || null,
       provincia_residenza || null,
       comune_residenza || null,
