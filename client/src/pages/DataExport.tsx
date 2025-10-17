@@ -965,6 +965,40 @@ export default function DataExport() {
                       </div>
                     )}
 
+                    {/* Voti */}
+                    {databaseAnalysis.categories.votes?.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-purple-600"></span>
+                          Voti ({databaseAnalysis.categories.votes.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.votes.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-purple-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-purple-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-purple-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-purple-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-purple-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Strumenti */}
                     {databaseAnalysis.categories.tools?.tables.length > 0 && (
                       <div className="space-y-3">
