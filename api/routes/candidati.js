@@ -203,7 +203,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       FROM users
       WHERE ruolo IN ('Candidato', 'Candidato Politico')
         AND (grado_candidatura = $1 OR grado_candidatura = $2)
-        AND (status = 'attivo' OR status = 'active')
+        AND status = 'A'
       ORDER BY nome, cognome
       LIMIT 4
     `;

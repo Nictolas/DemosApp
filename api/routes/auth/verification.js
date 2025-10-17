@@ -104,7 +104,7 @@ router.post('/resend-verification', validateInput(['email']), validateEmail, asy
     
     const user = userResult.rows[0];
     
-    if (user.status === 'active') {
+    if (user.status === 'A') {
       return res.status(400).json({
         success: false,
         error: 'Account già verificato',

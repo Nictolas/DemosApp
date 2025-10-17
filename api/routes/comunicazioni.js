@@ -12,7 +12,7 @@ async function createNotificheUtente(comunicazioneId) {
     console.log('📝 Creazione record notifiche_utente per comunicazione:', comunicazioneId);
     
     // Trova tutti gli utenti attivi
-    const utenti = await pool.query('SELECT id FROM users WHERE status = $1', ['active']);
+    const utenti = await pool.query('SELECT id FROM users WHERE status = $1', ['A']);
     
     // Crea un record per ogni utente
     for (const utente of utenti.rows) {
@@ -45,7 +45,7 @@ async function updateNotificheUtente(comunicazioneId) {
     const utenti = await pool.query(`
       SELECT u.id 
       FROM users u 
-      WHERE u.status = 'active' 
+      WHERE u.status = 'A' 
       AND NOT EXISTS (
         SELECT 1 FROM notifiche_utente nu 
         WHERE nu.utente_id = u.id AND nu.comunicazione_id = $1

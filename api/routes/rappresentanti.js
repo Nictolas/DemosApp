@@ -70,7 +70,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         riduzione_parcheggi_a_pagamento
       FROM users
       WHERE (ruolo = 'P' OR ruolo = 'CP')
-        AND status = 'active'
+        AND status = 'A'
         ${gradoFilter}
       ORDER BY cognome, nome
     `;
