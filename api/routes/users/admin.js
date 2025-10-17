@@ -33,7 +33,7 @@ router.post('/approve', verifyToken, requireAdmin, async (req, res) => {
     
     const user = userCheck.rows[0];
     
-    if (user.status !== 'pending') {
+    if (user.status !== 'P') {
       return res.status(400).json({
         success: false,
         error: 'Utente non in attesa di approvazione',
@@ -97,7 +97,7 @@ router.post('/reject', verifyToken, requireAdmin, async (req, res) => {
     
     const user = userCheck.rows[0];
     
-    if (user.status !== 'pending') {
+    if (user.status !== 'P') {
       return res.status(400).json({
         success: false,
         error: 'Utente non in attesa di approvazione',
