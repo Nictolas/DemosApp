@@ -26,7 +26,7 @@ export function AdminIniziativeManager({ userRole, userEmail }: AdminIniziativeM
 
   // Solo gli Admin possono vedere questo componente
   // Controlla tutti i possibili formati del ruolo Admin
-  const isAdminByRole = userRole === 'Admin' || 
+  const isAdminByRole = userRole === 'AD' || 
                         userRole === 'admin' || 
                         userRole === 'ADMIN' ||
                         userRole?.toLowerCase() === 'admin';
@@ -53,7 +53,7 @@ export function AdminIniziativeManager({ userRole, userEmail }: AdminIniziativeM
       if (!response.ok) throw new Error("Errore nel recupero delle richieste");
       return response.json();
     },
-    enabled: userRole === 'Admin', // Esegui solo se l'utente è Admin
+    enabled: userRole === 'AD', // Esegui solo se l'utente è Admin
   });
 
   // 2. Mutazione per gestire le azioni (accetta/rifiuta)

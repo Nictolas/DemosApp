@@ -77,7 +77,7 @@ export const categorizeAllOpinions = (
 
 // Check if user can edit image
 export const canEditImage = (userRole: string): boolean => {
-  return userRole === 'Politico' || userRole === 'Candidato' || userRole === 'Candidato Politico' || userRole === 'Admin';
+  return userRole === 'P' || userRole === 'C' || userRole === 'CP' || userRole === 'AD';
 };
 
 // Get back button text

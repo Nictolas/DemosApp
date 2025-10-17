@@ -4,7 +4,7 @@ export const useAccessControl = () => {
   const { user } = useAuth();
 
   // Check if user has the right role for advanced features
-  const userRole = user?.ruolo || user?.role;
+  const userRole = user?.ruolo;
   const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
 
   // Check specific role access

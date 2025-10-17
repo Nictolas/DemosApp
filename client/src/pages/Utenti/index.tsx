@@ -255,11 +255,11 @@ export default function Utenti() {
   // Debug logging per capire il ruolo dell'utente
   useEffect(() => {
     console.log('🔍 DEBUG Utenti - Auth state:', {
-      user: user ? { id: user.id, email: user.email, role: user.role, ruolo: (user as any).ruolo } : null,
+      user: user ? { id: user.id, email: user.email, ruolo: user.ruolo } : null,
       isAuthLoading,
-      userRole: user?.role,
-      userRuolo: (user as any)?.ruolo,
-      isAdmin: user?.role === "AD" || (user as any)?.ruolo === "AD"
+      userRole: user?.ruolo,
+      userRuolo: user?.ruolo,
+      isAdmin: user?.ruolo === "AD"
     });
   }, [user, isAuthLoading]);
 

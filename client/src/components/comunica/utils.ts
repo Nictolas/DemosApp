@@ -24,13 +24,13 @@ export const generateZona = (user: any): string => {
 
 // Check if user has advanced access
 export const hasAdvancedAccess = (user: any): boolean => {
-  const userRole = user?.ruolo || user?.role;
+  const userRole = user?.ruolo;
   return userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
 };
 
 // Get user role
 export const getUserRole = (user: any): string => {
-  return user?.ruolo || user?.role || 'Non definito';
+  return user?.ruolo || 'Non definito';
 };
 
 // Navigation buttons configuration

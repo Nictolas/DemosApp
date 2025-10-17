@@ -106,7 +106,7 @@ export default function Siti() {
     return <Redirect to="/auth" />;
   }
 
-  const canEdit = user && ["AD", "Attivista"].includes(user.ruolo || user.role || '');
+  const canEdit = user && ["AD", "A"].includes(user.ruolo || '');
 
   if (!canEdit) {
     return (
