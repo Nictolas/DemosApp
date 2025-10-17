@@ -52,7 +52,7 @@ router.post('/resend-verification', async (req, res) => {
     console.log('👤 Utente trovato:', user);
     
     // Verifica che l'utente sia in stato pending
-    if (user.status !== 'P') {
+    if (user.status !== 'P' && user.status !== 'p') {
       return res.status(400).json({
         success: false,
         error: 'Email già verificata',

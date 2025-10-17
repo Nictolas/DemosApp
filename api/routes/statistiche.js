@@ -16,7 +16,7 @@ router.get('/utenti', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         COUNT(*) as totale_utenti,
-        COUNT(CASE WHEN status = 'A' THEN 1 END) as utenti_verificati,
+        COUNT(CASE WHEN status = 'A' OR status = 'a' THEN 1 END) as utenti_verificati,
         COUNT(CASE WHEN ruolo = 'AD' THEN 1 END) as admin
       FROM users
     `);

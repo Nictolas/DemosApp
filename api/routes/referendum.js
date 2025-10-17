@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
     const referendumQuery = `
       SELECT DISTINCT r.id, r.nome, r.data_inizio, r.data_fine, r.status, r.quorum, r.firestore_id_backup
       FROM referendum_abrogativi r
-      WHERE r.status = 'A' OR r.status = 'P'
+      WHERE (r.status = 'A' OR r.status = 'a' OR r.status = 'P' OR r.status = 'p')
       ORDER BY r.nome
     `;
     const referendumResult = await pool.query(referendumQuery);
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
       SELECT r.nome, COALESCE(COUNT(v.referendum_id), 0) as voti
       FROM referendum_abrogativi r
       LEFT JOIN voti_referendum_abrogativi v ON v.referendum_id = r.firestore_id_backup
-      WHERE r.status = 'A' OR r.status = 'P'
+      WHERE (r.status = 'A' OR r.status = 'a' OR r.status = 'P' OR r.status = 'p')
       GROUP BY r.id, r.nome
       ORDER BY voti DESC
     `;
@@ -64,7 +64,7 @@ router.get('/abrogativi', async (req, res) => {
     const referendumQuery = `
       SELECT DISTINCT r.id, r.nome, r.data_inizio, r.data_fine, r.status, r.quorum, r.firestore_id_backup
       FROM referendum_abrogativi r
-      WHERE r.status = 'A' OR r.status = 'P'
+      WHERE (r.status = 'A' OR r.status = 'a' OR r.status = 'P' OR r.status = 'p')
       ORDER BY r.nome
     `;
     const referendumResult = await pool.query(referendumQuery);

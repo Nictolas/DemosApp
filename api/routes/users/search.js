@@ -163,7 +163,7 @@ router.get('/pending', verifyToken, requireAdmin, async (req, res) => {
     const result = await pool.query(`
       SELECT id, nome, cognome, email, ruolo, created_at, avatar_config
       FROM users 
-      WHERE status = 'P'
+      WHERE (status = 'P' OR status = 'p')
       ORDER BY created_at ASC
     `);
     
