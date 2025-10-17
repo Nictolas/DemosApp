@@ -931,6 +931,74 @@ export default function DataExport() {
                       </div>
                     )}
 
+                    {/* Ministeri */}
+                    {databaseAnalysis.categories.ministries?.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-red-600"></span>
+                          Ministeri ({databaseAnalysis.categories.ministries.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.ministries.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-red-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-red-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-red-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-red-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-red-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Strumenti */}
+                    {databaseAnalysis.categories.tools?.tables.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full bg-green-600"></span>
+                          Strumenti ({databaseAnalysis.categories.tools.tables.length} tabelle)
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {databaseAnalysis.categories.tools.tables.map((table) => (
+                            <div 
+                              key={table.name} 
+                              className="p-3 border rounded-md bg-white border-green-200 hover:shadow-sm transition-all"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="font-medium text-green-800 text-xs">{table.name}</h5>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+                                </div>
+                                <div className="flex justify-between items-end">
+                                  <div>
+                                    <p className="text-xs text-green-600">{table.columnCount} colonne</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-green-800 text-sm">{table.sizePretty}</div>
+                                    <div className="text-xs text-green-600">{table.sizeMB} MB</div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Tabelle Temporanee */}
                     {databaseAnalysis.categories.other.tables.length > 0 && (
                       <div className="space-y-3">
