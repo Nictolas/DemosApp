@@ -290,7 +290,7 @@ router.get('/candidati', verifyToken, async (req, res) => {
             avatar_config
           FROM users
           WHERE id::text = $1
-          AND ruolo IN ('Candidato', 'Candidato Politico')
+          AND ruolo IN ('C', 'CP')
           AND grado_candidatura = $2
         `;
         

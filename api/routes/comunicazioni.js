@@ -12,7 +12,7 @@ async function createNotificheUtente(comunicazioneId) {
     console.log('📝 Creazione record notifiche_utente per comunicazione:', comunicazioneId);
     
     // Trova tutti gli utenti attivi
-    const utenti = await pool.query('SELECT id FROM users WHERE status = $1', ['A']);
+    const utenti = await pool.query('SELECT id FROM users WHERE status = $1 OR status = $2', ['A', 'a']);
     
     // Crea un record per ogni utente
     for (const utente of utenti.rows) {
@@ -45,7 +45,7 @@ async function updateNotificheUtente(comunicazioneId) {
     const utenti = await pool.query(`
       SELECT u.id 
       FROM users u 
-      WHERE u.status = 'A' 
+      WHERE (u.status = 'A' OR u.status = 'a') 
       AND NOT EXISTS (
         SELECT 1 FROM notifiche_utente nu 
         WHERE nu.utente_id = u.id AND nu.comunicazione_id = $1
@@ -119,7 +119,7 @@ router.post('/', async (req, res) => {
         const utenteResult = await pool.query(
           `SELECT id, nome, cognome, ruolo FROM users 
            WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
-           AND ruolo IN ('Politico', 'Candidato Politico')
+           AND ruolo IN ('P', 'CP')
            LIMIT 1`,
           [`%${voto.nome}%`]
         );

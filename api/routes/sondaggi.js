@@ -133,8 +133,8 @@ router.get('/stats', async (req, res) => {
     const query = `
       SELECT 
         COUNT(*) as totale_utenti,
-        COUNT(CASE WHEN status = 'A' THEN 1 END) as utenti_attivi,
-        COUNT(CASE WHEN status = 'P' THEN 1 END) as utenti_in_attesa
+        COUNT(CASE WHEN status = 'A' OR status = 'a' THEN 1 END) as utenti_attivi,
+        COUNT(CASE WHEN status = 'P' OR status = 'p' THEN 1 END) as utenti_in_attesa
       FROM users
     `;
     

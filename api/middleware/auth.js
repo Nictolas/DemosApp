@@ -38,7 +38,7 @@ const verifyToken = async (req, res, next) => {
       
       const user = userResult.rows[0];
       
-      if (user.status !== 'A') {
+      if (user.status !== 'a') {
         return res.status(401).json({
           success: false,
           error: 'Account non attivo',

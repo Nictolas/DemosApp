@@ -42,7 +42,7 @@ router.post('/login',
         SELECT id, email, password_hash, ruolo, nome, cognome, 
                created_at, status
         FROM users 
-        WHERE email = $1 AND status = 'A'
+        WHERE email = $1 AND (status = 'A' OR status = 'a')
       `;
       
       const queryStart = Date.now();
@@ -152,7 +152,7 @@ router.post('/refresh',
       const userQuery = `
         SELECT id, email, ruolo, nome, cognome, status
         FROM users 
-        WHERE id = $1 AND status = 'A'
+        WHERE id = $1 AND (status = 'A' OR status = 'a')
       `;
       
       const userResult = await pool.query(userQuery, [decoded.userId]);
