@@ -456,6 +456,20 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
           totalSizeKB: 0,
           color: '#f59e0b' // arancione
         },
+        ministries: {
+          name: 'Ministeri',
+          tables: [],
+          totalSizeMB: 0,
+          totalSizeKB: 0,
+          color: '#dc2626' // rosso scuro
+        },
+        tools: {
+          name: 'Strumenti',
+          tables: [],
+          totalSizeMB: 0,
+          totalSizeKB: 0,
+          color: '#059669' // verde scuro
+        },
         other: {
           name: 'Tabelle Temporanee',
           tables: [],
@@ -487,9 +501,9 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
         analysis.categories.users.tables.push(tableInfo);
         analysis.categories.users.totalSizeMB += tableSizeMB;
         analysis.categories.users.totalSizeKB += tableSizeKB;
-      } else if (table.tablename.includes('opinion') || table.tablename.includes('vote') || table.tablename.includes('candidate') || table.tablename.includes('election') || 
+      } else if (table.tablename.includes('opinion') || table.tablename.includes('candidate') || table.tablename.includes('election') || 
                  table.tablename.includes('ice') || table.tablename.includes('iniziativa') || table.tablename.includes('referendum') || 
-                 table.tablename.includes('capo_stato') || table.tablename.includes('ministro') || table.tablename.includes('rappresentante') ||
+                 table.tablename.includes('capo_stato') || table.tablename.includes('rappresentante') ||
                  table.tablename.includes('amnistia') || table.tablename.includes('grazia') || table.tablename.includes('consenso')) {
         analysis.categories.content.tables.push(tableInfo);
         analysis.categories.content.totalSizeMB += tableSizeMB;
@@ -501,6 +515,29 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
         analysis.categories.system.tables.push(tableInfo);
         analysis.categories.system.totalSizeMB += tableSizeMB;
         analysis.categories.system.totalSizeKB += tableSizeKB;
+      } else if (table.tablename === 'voti_istruzione' || table.tablename === 'voti_interno' || 
+                 table.tablename === 'voti_difesa' || table.tablename === 'voti_giustizia' ||
+                 table.tablename === 'voti_economia' || table.tablename === 'voti_esteri' ||
+                 table.tablename === 'voti_lavoro' || table.tablename === 'voti_salute' ||
+                 table.tablename === 'voti_cultura' || table.tablename === 'voti_ministri' ||
+                 table.tablename === 'voti_trasporti' || table.tablename === 'voti_ambiente' ||
+                 table.tablename === 'voti_sport' || table.tablename === 'voti_primo_ministro') {
+        // Tabelle specifiche per i ministeri
+        analysis.categories.ministries.tables.push(tableInfo);
+        analysis.categories.ministries.totalSizeMB += tableSizeMB;
+        analysis.categories.ministries.totalSizeKB += tableSizeKB;
+      } else if (table.tablename === 'reazioni' || table.tablename === 'programmi' ||
+                 table.tablename === 'sostenitori' || table.tablename === 'eventi') {
+        // Tabelle per strumenti
+        analysis.categories.tools.tables.push(tableInfo);
+        analysis.categories.tools.totalSizeMB += tableSizeMB;
+        analysis.categories.tools.totalSizeKB += tableSizeKB;
+      } else if (table.tablename.includes('voti_') || table.tablename.includes('vote') || 
+                 table.tablename.includes('voting') || table.tablename.includes('ballot')) {
+        // Altre tabelle di voto (non ministeri)
+        analysis.categories.other.tables.push(tableInfo);
+        analysis.categories.other.totalSizeMB += tableSizeMB;
+        analysis.categories.other.totalSizeKB += tableSizeKB;
       } else {
         // Solo tabelle veramente temporanee o non categorizzabili
         analysis.categories.other.tables.push(tableInfo);
