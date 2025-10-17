@@ -341,7 +341,7 @@ router.get('/centralized-logs', requireAdmin, async (req, res) => {
         endpoint,
         request_id,
         meta_data
-      FROM centralized_logs 
+      FROM centralized_logs_decompressed 
       ORDER BY timestamp DESC 
       LIMIT 10
     `;
@@ -367,7 +367,7 @@ router.get('/centralized-logs', requireAdmin, async (req, res) => {
         COUNT(DISTINCT level) as unique_levels,
         MIN(timestamp) as oldest_log,
         MAX(timestamp) as newest_log
-      FROM centralized_logs
+      FROM centralized_logs_decompressed
     `;
     
     const statsResult = await pool.query(statsQuery);
