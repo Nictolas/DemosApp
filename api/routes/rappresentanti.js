@@ -69,7 +69,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
         riduzione_parcheggi_a_pagamento
       FROM users
-      WHERE (ruolo = 'Politico' OR ruolo = 'Candidato Politico')
+      WHERE (ruolo = 'P' OR ruolo = 'CP')
         AND status = 'active'
         ${gradoFilter}
       ORDER BY cognome, nome
@@ -241,7 +241,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado}:`, debugResult.rows[0].count);
     
     // Debug: controlliamo quanti utenti hanno grado_elezione = grado richiesto E ruolo corretto
-    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1 AND (ruolo = 'Politico' OR ruolo = 'Candidato Politico') AND status = 'active'`;
+    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1 AND (ruolo = 'P' OR ruolo = 'CP') AND status = 'active'`;
     const debugResult2 = await pool.query(debugQuery2, [grado]);
     console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado} E ruolo corretto:`, debugResult2.rows[0].count);
     

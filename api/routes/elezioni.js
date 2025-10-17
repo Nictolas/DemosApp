@@ -145,7 +145,7 @@ router.get('/elezioni-utente/disponibili', verifyToken, async (req, res) => {
         sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
         riduzione_parcheggi_a_pagamento
       FROM users
-      WHERE (ruolo = 'Candidato' OR ruolo = 'Candidato Politico')
+      WHERE (ruolo = 'C' OR ruolo = 'CP')
         ${gradoFilter}
       ORDER BY cognome, nome
     `;

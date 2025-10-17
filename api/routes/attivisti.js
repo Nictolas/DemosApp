@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
     // Costruisci la query con filtri dinamici
     // Mostra solo Attivisti e Admin che hanno effettivamente tipologie di attivismo selezionate (non array vuoti)
     let whereConditions = [
-      "(u.ruolo = 'Attivista' OR (u.ruolo = 'AD' AND u.tipologie_attivismo IS NOT NULL AND jsonb_array_length(u.tipologie_attivismo) > 0))"
+      "(u.ruolo = 'A' OR (u.ruolo = 'AD' AND u.tipologie_attivismo IS NOT NULL AND jsonb_array_length(u.tipologie_attivismo) > 0))"
     ];
     let queryParams = [];
     let paramIndex = 1;
@@ -166,7 +166,7 @@ router.get('/tipologia/:tipo', async (req, res) => {
         youtube_url,
         tipologie_attivismo
       FROM users
-      WHERE ruolo = 'Attivista'
+      WHERE ruolo = 'A'
       AND tipologie_attivismo @> $1
       ORDER BY created_at DESC
     `, [JSON.stringify([{ tipo }])]);
@@ -204,7 +204,7 @@ router.get('/statistiche', async (req, res) => {
         jsonb_array_elements(tipologie_attivismo)->>'tipo' as tipo,
         COUNT(*) as count
       FROM users 
-      WHERE ruolo = 'Attivista'
+      WHERE ruolo = 'A'
       AND tipologie_attivismo IS NOT NULL
       AND jsonb_array_length(tipologie_attivismo) > 0
       GROUP BY tipo
@@ -217,7 +217,7 @@ router.get('/statistiche', async (req, res) => {
     const totalResult = await pool.query(`
       SELECT COUNT(*) as total
       FROM users 
-      WHERE ruolo = 'Attivista'
+      WHERE ruolo = 'A'
     `);
     
     const totalAttivisti = parseInt(totalResult.rows[0].total);
@@ -253,7 +253,7 @@ router.get('/filtri', async (req, res) => {
     const regioniResult = await pool.query(`
       SELECT DISTINCT regione_residenza
       FROM users 
-      WHERE ruolo = 'Attivista' 
+      WHERE ruolo = 'A' 
       AND regione_residenza IS NOT NULL 
       AND regione_residenza != ''
       ORDER BY regione_residenza
@@ -263,7 +263,7 @@ router.get('/filtri', async (req, res) => {
     const tipologieResult = await pool.query(`
       SELECT DISTINCT jsonb_array_elements(tipologie_attivismo)->>'tipo' as tipo
       FROM users 
-      WHERE ruolo = 'Attivista'
+      WHERE ruolo = 'A'
       AND tipologie_attivismo IS NOT NULL
       AND jsonb_array_length(tipologie_attivismo) > 0
       ORDER BY tipo
