@@ -463,6 +463,13 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
           totalSizeKB: 0,
           color: '#dc2626' // rosso scuro
         },
+        votes: {
+          name: 'Voti',
+          tables: [],
+          totalSizeMB: 0,
+          totalSizeKB: 0,
+          color: '#7c3aed' // viola
+        },
         tools: {
           name: 'Strumenti',
           tables: [],
@@ -497,14 +504,12 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
         analysis.categories.exportable.tables.push(tableInfo);
         analysis.categories.exportable.totalSizeMB += tableSizeMB;
         analysis.categories.exportable.totalSizeKB += tableSizeKB;
-      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users' || table.tablename.includes('utente')) {
+      } else if (table.tablename.includes('user') || table.tablename.includes('auth') || table.tablename.includes('profile') || table.tablename === 'users' || table.tablename.includes('utente') || table.tablename === 'opinioni') {
         analysis.categories.users.tables.push(tableInfo);
         analysis.categories.users.totalSizeMB += tableSizeMB;
         analysis.categories.users.totalSizeKB += tableSizeKB;
-      } else if (table.tablename.includes('opinion') || table.tablename.includes('candidate') || table.tablename.includes('election') || 
-                 table.tablename.includes('ice') || table.tablename.includes('iniziativa') || table.tablename.includes('referendum') || 
-                 table.tablename.includes('capo_stato') || table.tablename.includes('rappresentante') ||
-                 table.tablename.includes('amnistia') || table.tablename.includes('grazia') || table.tablename.includes('consenso')) {
+      } else if (table.tablename.includes('candidate') || table.tablename.includes('election') || 
+                 table.tablename.includes('rappresentante')) {
         analysis.categories.content.tables.push(tableInfo);
         analysis.categories.content.totalSizeMB += tableSizeMB;
         analysis.categories.content.totalSizeKB += tableSizeKB;
@@ -521,14 +526,27 @@ router.get('/database-analysis', requireAdmin, async (req, res) => {
                  table.tablename === 'voti_lavoro' || table.tablename === 'voti_salute' ||
                  table.tablename === 'voti_cultura' || table.tablename === 'voti_ministri' ||
                  table.tablename === 'voti_trasporti' || table.tablename === 'voti_ambiente' ||
-                 table.tablename === 'voti_sport' || table.tablename === 'voti_primo_ministro') {
+                 table.tablename === 'voti_sport' || table.tablename === 'voti_primo_ministro' ||
+                 table.tablename === 'consenso_governo') {
         // Tabelle specifiche per i ministeri
         analysis.categories.ministries.tables.push(tableInfo);
         analysis.categories.ministries.totalSizeMB += tableSizeMB;
         analysis.categories.ministries.totalSizeKB += tableSizeKB;
+      } else if (table.tablename === 'iniziative_popolari' || table.tablename === 'voti_iniziative_popolari' ||
+                 table.tablename === 'voti_ice' || table.tablename === 'ice' ||
+                 table.tablename === 'amnistia' || table.tablename === 'voti_opinioni_proposte' ||
+                 table.tablename === 'opinioni_proposte' || table.tablename === 'richieste_grazia' ||
+                 table.tablename === 'referendum_abrogativi' || table.tablename === 'grazia_requests' ||
+                 table.tablename === 'voti_referendum_abrogativi' || table.tablename === 'voti_capo_stato' ||
+                 table.tablename === 'voti_grazia' || table.tablename === 'voti_amnistia' ||
+                 table.tablename === 'consenso_capo_stato') {
+        // Tabelle per i voti
+        analysis.categories.votes.tables.push(tableInfo);
+        analysis.categories.votes.totalSizeMB += tableSizeMB;
+        analysis.categories.votes.totalSizeKB += tableSizeKB;
       } else if (table.tablename === 'reazioni' || table.tablename === 'programmi' ||
                  table.tablename === 'sostenitori' || table.tablename === 'eventi' ||
-                 table.tablename === 'comunicazioni') {
+                 table.tablename === 'comunicazioni' || table.tablename === 'segnalazioni') {
         // Tabelle per strumenti
         analysis.categories.tools.tables.push(tableInfo);
         analysis.categories.tools.totalSizeMB += tableSizeMB;
