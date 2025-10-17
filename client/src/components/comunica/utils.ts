@@ -25,7 +25,7 @@ export const generateZona = (user: any): string => {
 // Check if user has advanced access
 export const hasAdvancedAccess = (user: any): boolean => {
   const userRole = user?.ruolo || user?.role;
-  return userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  return userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
 };
 
 // Get user role

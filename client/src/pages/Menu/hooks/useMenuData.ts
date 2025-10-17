@@ -13,10 +13,10 @@ export const useMenuData = (): MenuData => {
   
   // Determina se l'utente ha accesso agli strumenti avanzati
   const userRole = user?.role || user?.ruolo;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "AD" || userRole === "Attivista" || userRole === "Organizzazione";
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD" || userRole === "A" || userRole === "O";
   
   // Determina se l'utente ha accesso limitato (solo Evento e Sostenitori)
-  const hasLimitedAccess = userRole === "Attivista" || userRole === "Organizzazione";
+  const hasLimitedAccess = userRole === "A" || userRole === "O";
 
   return {
     user,
