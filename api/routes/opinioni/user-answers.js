@@ -353,7 +353,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     `;
     const userResult = await pool.query(userQuery, [req.userId]);
     
-    if (userResult.rows.length === 0 || (userResult.rows[0].ruolo !== 'Admin' && userResult.rows[0].ruolo !== 'admin')) {
+    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'AD') {
       return res.status(403).json({
         success: false,
         error: 'Accesso negato',

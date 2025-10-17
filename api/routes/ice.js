@@ -39,8 +39,8 @@ router.get('/', async (req, res) => {
     
     // Query con filtro basato sul ruolo
     let query;
-    if (userRole === "AD" || userRole === 'Moderatore') {
-      // Admin e Moderatori vedono tutte le ICE
+    if (userRole === "AD") {
+      // Admin vedono tutte le ICE
       query = `
         SELECT *
         FROM ice
@@ -200,10 +200,10 @@ router.put('/:id', verifyToken, async (req, res) => {
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     
-    if (userResult.rows.length === 0 || !["AD", 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+    if (userResult.rows.length === 0 || !["AD"].includes(userResult.rows[0].ruolo)) {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato. Solo Admin e Moderatori possono modificare le ICE.'
+        error: 'Accesso negato. Solo Admin possono modificare le ICE.'
       });
     }
     

@@ -35,7 +35,7 @@ export const NavigationButtons: React.FC<NavigationButtonsProps> = ({ canAccessP
       icon: BookOpen,
       color: "indigo",
       route: "/programma",
-      requiresRole: ["Admin", "Candidato", "Candidato Politico"],
+      requiresRole: ["AD", "C", "Candidato Politico"],
       svgPath: "100,0 0,0 0,35 100,20",
       svgFill: "#e0e7ff"
     },

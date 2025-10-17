@@ -45,8 +45,8 @@ router.get('/', async (req, res) => {
     
     // Query con filtro basato sul ruolo
     let query;
-    if (userRole === "AD" || userRole === 'Moderatore') {
-      // Admin e Moderatori vedono tutte le iniziative
+    if (userRole === "AD") {
+      // Admin vedono tutte le iniziative
       query = `
         SELECT *
         FROM iniziative_popolari
@@ -208,10 +208,10 @@ router.put('/:id', verifyToken, async (req, res) => {
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     
-    if (userResult.rows.length === 0 || !["AD", 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+    if (userResult.rows.length === 0 || !["AD"].includes(userResult.rows[0].ruolo)) {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato. Solo Admin e Moderatori possono modificare le iniziative popolari.'
+        error: 'Accesso negato. Solo Admin possono modificare le iniziative popolari.'
       });
     }
     
@@ -256,10 +256,10 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     
-    if (userResult.rows.length === 0 || !["AD", 'Moderatore'].includes(userResult.rows[0].ruolo)) {
+    if (userResult.rows.length === 0 || !["AD"].includes(userResult.rows[0].ruolo)) {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato. Solo Admin e Moderatori possono eliminare le iniziative popolari.'
+        error: 'Accesso negato. Solo Admin possono eliminare le iniziative popolari.'
       });
     }
     

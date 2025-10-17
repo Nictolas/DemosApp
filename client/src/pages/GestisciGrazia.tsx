@@ -82,7 +82,7 @@ export default function GestisciGrazia() {
     return <Redirect to="/auth" />;
   }
 
-  if (user.ruolo !== 'Admin') {
+  if (user.ruolo !== "AD") {
     return <Redirect to="/menu" />;
   }
 
