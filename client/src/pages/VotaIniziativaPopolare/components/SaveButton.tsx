@@ -18,7 +18,7 @@ export const SaveButton: React.FC<SaveButtonProps> = ({
   userRole
 }) => {
   // Gli Admin possono sempre salvare, indipendentemente da isBlocked
-  const isAdmin = userRole === 'Admin';
+  const isAdmin = userRole === 'AD';
   const canSave = isAdmin || (!isBlocked && votiCambiati);
   
   return (

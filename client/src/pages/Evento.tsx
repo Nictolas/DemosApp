@@ -213,7 +213,7 @@ export default function Evento() {
                           <SelectItem value="Dibattito">Dibattito</SelectItem>
                           <SelectItem value="Presentazione">Presentazione</SelectItem>
                           <SelectItem value="Riunione">Riunione</SelectItem>
-                          {user?.role === "AD" || user?.ruolo === "AD" ? (
+                          {user?.ruolo === "AD" ? (
                             <SelectItem value="Elezioni">Elezioni</SelectItem>
                           ) : null}
                         </SelectContent>

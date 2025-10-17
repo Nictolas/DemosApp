@@ -34,8 +34,8 @@ export const useSondaggiData = (): SondaggiState & {
   });
 
   // Controllo più flessibile per l'accesso ai sondaggi
-  const userRole = user?.role || user?.ruolo;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  const userRole = user?.ruolo;
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
 
   return {
     user,

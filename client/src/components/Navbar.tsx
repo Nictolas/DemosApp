@@ -26,7 +26,7 @@ export default function Navbar() {
   };
 
   // Determina se l'utente ha accesso agli strumenti avanzati
-  const userRole = user?.role || user?.ruolo;
+  const userRole = user?.ruolo;
   const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD" || userRole === "A" || userRole === "O";
   
   // Determina se l'utente ha accesso limitato (solo Evento e Sostenitori)

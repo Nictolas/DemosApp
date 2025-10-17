@@ -130,7 +130,7 @@ export default function StatisticheOpinione() {
   
   // Controllo più flessibile per l'accesso alle statistiche
   const userRole = user.role || user.ruolo;
-  const hasAdvancedAccess = userRole === "Politico" || userRole === "Candidato" || userRole === "Candidato Politico" || userRole === "Admin";
+  const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
   if (!hasAdvancedAccess) return <div>Non autorizzato</div>;
 
   const stats = data?.stats || {};

@@ -219,7 +219,7 @@ export default function Strumenti() {
 
   // Check if user has the right role for advanced features
   // Use the user object from useAuth() which should contain the ruolo field
-  const userRole = user?.ruolo || user?.role;
+  const userRole = user?.ruolo;
   const hasAdvancedAccess = userRole === "P" || userRole === "C" || userRole === "CP" || userRole === "AD";
 
   // Debug logging

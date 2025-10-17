@@ -106,7 +106,7 @@ export default function Programma() {
     return <Redirect to="/auth" />;
   }
 
-  const canEdit = user && ["AD", "P", "C", "Candidato Politico"].includes(user.ruolo || user.role || '');
+  const canEdit = user && ["AD", "P", "C", "CP"].includes(user.ruolo || '');
 
   if (!canEdit) {
     return (
