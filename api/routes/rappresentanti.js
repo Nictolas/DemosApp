@@ -19,13 +19,14 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     let queryParams = [];
     
     if (grado) {
-      // Mappa i gradi dal frontend ai valori del database
+      // Mappa i gradi dal frontend ai valori del database (compressi)
       const gradoMapping = {
-        'Europeo': 'Europeo',
-        'Camera': 'Camera',
-        'Senato': 'Senato', 
-        'Regionale': 'Regionale',
-        'Comunale': 'Comunale'
+        'Europeo': 'E',
+        'Nazionale': 'N',
+        'Camera': 'C',
+        'Senato': 'S', 
+        'Regionale': 'R',
+        'Comunale': 'CO'
       };
       
       const mappedGrado = gradoMapping[grado] || grado;
@@ -241,7 +242,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado}:`, debugResult.rows[0].count);
     
     // Debug: controlliamo quanti utenti hanno grado_elezione = grado richiesto E ruolo corretto
-    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1 AND (ruolo = 'P' OR ruolo = 'CP') AND status = 'active'`;
+    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1 AND (ruolo = 'P' OR ruolo = 'CP') AND status = 'a'`;
     const debugResult2 = await pool.query(debugQuery2, [grado]);
     console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado} E ruolo corretto:`, debugResult2.rows[0].count);
     

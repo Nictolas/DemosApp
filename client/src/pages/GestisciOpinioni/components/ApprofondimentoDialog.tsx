@@ -54,10 +54,10 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         // Inizializza i gradi dall'opinione corrente (solo se non in modalità readOnly)
         if (!readOnly && opinione?.gradi_opinione && Array.isArray(opinione.gradi_opinione)) {
           const gradi = {
-            Europeo: opinione.gradi_opinione.includes('Europeo'),
-            Nazionale: opinione.gradi_opinione.includes('Nazionale'),
-            Regionale: opinione.gradi_opinione.includes('Regionale'),
-            Comunale: opinione.gradi_opinione.includes('Comunale')
+            Europeo: opinione.gradi_opinione.includes('E'),
+            Nazionale: opinione.gradi_opinione.includes('N'),
+            Regionale: opinione.gradi_opinione.includes('R'),
+            Comunale: opinione.gradi_opinione.includes('CO')
           };
           setGradiProposta(gradi);
         }
@@ -79,10 +79,10 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         // Carica i gradi della proposta
         if (data.data.gradi_opinione && Array.isArray(data.data.gradi_opinione)) {
           const gradi = {
-            Europeo: data.data.gradi_opinione.includes('Europeo'),
-            Nazionale: data.data.gradi_opinione.includes('Nazionale'),
-            Regionale: data.data.gradi_opinione.includes('Regionale'),
-            Comunale: data.data.gradi_opinione.includes('Comunale')
+            Europeo: data.data.gradi_opinione.includes('E'),
+            Nazionale: data.data.gradi_opinione.includes('N'),
+            Regionale: data.data.gradi_opinione.includes('R'),
+            Comunale: data.data.gradi_opinione.includes('CO')
           };
           setGradiProposta(gradi);
         } else {
@@ -127,10 +127,10 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         } else {
           // Se non ci sono sezioni, metti l'approfondimento generale in tutti i gradi attivi
           const gradiAttivi = data.data.gradi_opinione || [];
-          if (gradiAttivi.includes('Europeo')) approfondimentiSeparati.Europeo = approfondimentoGenerale;
-          if (gradiAttivi.includes('Nazionale')) approfondimentiSeparati.Nazionale = approfondimentoGenerale;
-          if (gradiAttivi.includes('Regionale')) approfondimentiSeparati.Regionale = approfondimentoGenerale;
-          if (gradiAttivi.includes('Comunale')) approfondimentiSeparati.Comunale = approfondimentoGenerale;
+          if (gradiAttivi.includes('E')) approfondimentiSeparati.Europeo = approfondimentoGenerale;
+          if (gradiAttivi.includes('N')) approfondimentiSeparati.Nazionale = approfondimentoGenerale;
+          if (gradiAttivi.includes('R')) approfondimentiSeparati.Regionale = approfondimentoGenerale;
+          if (gradiAttivi.includes('CO')) approfondimentiSeparati.Comunale = approfondimentoGenerale;
         }
         
         setApprofondimentiPerGrado(approfondimentiSeparati);

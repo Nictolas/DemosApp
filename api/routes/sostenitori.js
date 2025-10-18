@@ -178,7 +178,7 @@ router.get('/check', async (req, res) => {
       success: true,
       data: {
         isSostenitore: result.rows.length > 0 && result.rows[0].is_sostenitore,
-        status: result.rows.length > 0 && result.rows[0].is_sostenitore ? 'active' : null
+        status: result.rows.length > 0 && result.rows[0].is_sostenitore ? 'a' : null
       }
     });
   } catch (error) {
