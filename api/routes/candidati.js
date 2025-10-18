@@ -219,10 +219,84 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
     });
     
-    // Aggiungi conteggio opinioni comuni (per ora valore di default)
-    const candidatiConOpinioni = candidati.map(candidato => ({
-      ...candidato,
-      opinioniComuni: Math.floor(Math.random() * 10) + 1 // Valore random per test
+    // Calcola il conteggio reale delle opinioni comuni
+    const candidatiConOpinioni = await Promise.all(candidati.map(async (candidato) => {
+      try {
+        // Ottieni le opinioni del candidato
+        const candidatoOpinions = await pool.query(`
+          SELECT 
+            energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+            carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+            case_chiuse, eutanasia, omobitransfobia, cassonetti_intelligenti_con_tessera
+          FROM users 
+          WHERE id = $1
+        `, [candidato.id]);
+        
+        if (candidatoOpinions.rows.length === 0) {
+          return { ...candidato, opinioniComuni: 0 };
+        }
+        
+        const candidatoData = candidatoOpinions.rows[0];
+        
+        // Ottieni le opinioni dell'utente corrente (se disponibile)
+        let userOpinions = null;
+        if (req.user && req.user.id) {
+          const userOpinionsResult = await pool.query(`
+            SELECT 
+              energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+              carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+              case_chiuse, eutanasia, omobitransfobia, cassonetti_intelligenti_con_tessera
+            FROM users 
+            WHERE id = $1
+          `, [req.user.id]);
+          
+          if (userOpinionsResult.rows.length > 0) {
+            userOpinions = userOpinionsResult.rows[0];
+          }
+        }
+        
+        // Se non c'è un utente corrente, usa un utente di riferimento per il test
+        if (!userOpinions) {
+          const testUserResult = await pool.query(`
+            SELECT 
+              energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
+              carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo,
+              case_chiuse, eutanasia, omobitransfobia, cassonetti_intelligenti_con_tessera
+            FROM users 
+            WHERE id = '500085c6-b593-4231-8966-7663f7474415'
+          `);
+          
+          if (testUserResult.rows.length > 0) {
+            userOpinions = testUserResult.rows[0];
+          }
+        }
+        
+        if (!userOpinions) {
+          return { ...candidato, opinioniComuni: 0 };
+        }
+        
+        // Calcola opinioni comuni
+        let opinioniComuni = 0;
+        const opinioniFields = [
+          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia',
+          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
+          'case_chiuse', 'eutanasia', 'omobitransfobia', 'cassonetti_intelligenti_con_tessera'
+        ];
+        
+        opinioniFields.forEach(field => {
+          const candidatoValue = candidatoData[field];
+          const userValue = userOpinions[field];
+          
+          if (candidatoValue && userValue && candidatoValue === userValue) {
+            opinioniComuni++;
+          }
+        });
+        
+        return { ...candidato, opinioniComuni };
+      } catch (error) {
+        console.error('❌ Errore nel calcolo opinioni comuni per candidato:', candidato.id, error);
+        return { ...candidato, opinioniComuni: 0 };
+      }
     }));
     
     res.json({
