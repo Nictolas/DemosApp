@@ -22,6 +22,18 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     }
     
     // Query per ottenere le opinioni del grado specificato
+    // Mappa i gradi compressi ai gradi completi
+    const gradoMapping = {
+      'E': 'Europeo',
+      'N': 'Nazionale', 
+      'R': 'Regionale',
+      'C': 'Camera',
+      'S': 'Senato',
+      'CO': 'Comunale'
+    };
+    
+    const gradoCompleto = gradoMapping[grado] || grado;
+    
     const opinionQuery = `
       SELECT o.id, o.text, o.gradi_opinione
       FROM opinioni o
@@ -29,10 +41,10 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       ORDER BY o.text
     `;
     
-    const opinionResult = await pool.query(opinionQuery, [grado]);
+    const opinionResult = await pool.query(opinionQuery, [gradoCompleto]);
     
-    console.log(`🔍 DEBUG - Query per grado ${grado}:`, opinionQuery);
-    console.log(`🔍 DEBUG - Parametri query:`, [grado]);
+    console.log(`🔍 DEBUG - Query per grado ${grado} (${gradoCompleto}):`, opinionQuery);
+    console.log(`🔍 DEBUG - Parametri query:`, [gradoCompleto]);
     console.log(`🔍 DEBUG - Risultati trovati:`, opinionResult.rows.length);
     console.log(`🔍 DEBUG - Prime 3 opinioni:`, opinionResult.rows.slice(0, 3).map(o => ({ text: o.text, gradi: o.gradi_opinione })));
     
@@ -124,13 +136,14 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
-      const opinionId = opinion.id; // Usa l'ID corretto dalla tabella opinioni
-      const userAnswer = userAnswers[opinionMapping[opinionId]];
+      // Usa il testo dell'opinione per mappare al campo del database
+      const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
+      const userAnswer = userAnswers[opinionMapping[opinionKey]];
       
       console.log(`🔍 DEBUG - Mappatura opinione:`, {
         text: opinion.text,
-        opinionId: opinionId,
-        mappedField: opinionMapping[opinionId],
+        opinionKey: opinionKey,
+        mappedField: opinionMapping[opinionKey],
         userAnswer: userAnswer
       });
       
@@ -143,7 +156,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       }
       
       return {
-        id: opinionId,
+        id: opinionKey,
         text: opinion.text,
         grado: opinion.gradi_opinione,
         userAnswer: frontendAnswer
