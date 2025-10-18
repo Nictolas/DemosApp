@@ -11,10 +11,15 @@ const pool = new Pool({
 
 // ===== ENDPOINTS PER EVENTI =====
 
-// GET /api/eventi - Lista eventi
-router.get('/', async (req, res) => {
+// GET /api/eventi - Lista eventi (con filtraggio basato su selezioni utente)
+router.get('/', verifyToken, async (req, res) => {
   try {
-    console.log('🔍 GET /api/eventi - Richiesta eventi');
+    console.log('🔍 GET /api/eventi - Richiesta eventi con filtraggio utente');
+    
+    const userId = req.userId;
+    const viewType = req.query.view || 'personal'; // 'personal' o 'global'
+    console.log('👤 ID utente autenticato:', userId);
+    console.log('👁️ Tipo visualizzazione:', viewType);
     
     // Prima controlliamo se la tabella esiste
     const tableExists = await pool.query(`
@@ -35,11 +40,100 @@ router.get('/', async (req, res) => {
       });
     }
     
-    const result = await pool.query(
-      'SELECT id, nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore, created_at FROM eventi ORDER BY giorno_inizio ASC, created_at ASC'
-    );
+    // Ottieni le selezioni dell'utente
+    const userQuery = `
+      SELECT 
+        rappresentante_europeo, rappresentante_camera, rappresentante_senato, rappresentante_regionale, rappresentante_comune,
+        candidato_europeo, candidato_camera, candidato_senato, candidato_regionale, candidato_comune,
+        ruolo, regione_residenza
+      FROM users 
+      WHERE id = $1
+    `;
     
-    console.log('📊 Eventi trovati:', result.rows.length);
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    const isAdmin = user.ruolo === 'AD';
+    
+    console.log('👤 Dati utente:', {
+      ruolo: user.ruolo,
+      regione: user.regione_residenza,
+      isAdmin,
+      viewType
+    });
+    
+    // Se è admin e richiede vista globale, mostra tutti gli eventi
+    if (isAdmin && viewType === 'global') {
+      console.log('🔑 Utente admin - mostrando tutti gli eventi (vista globale)');
+      const result = await pool.query(
+        'SELECT id, nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore, created_at FROM eventi ORDER BY giorno_inizio ASC, created_at ASC'
+      );
+      
+      console.log('📊 Eventi trovati (admin globale):', result.rows.length);
+      
+      return res.json({
+        success: true,
+        data: result.rows
+      });
+    }
+    
+    // Per utenti non-admin o admin in vista "personale", filtra gli eventi
+    const selectedIds = [
+      user.rappresentante_europeo,
+      user.rappresentante_camera,
+      user.rappresentante_senato,
+      user.rappresentante_regionale,
+      user.rappresentante_comune,
+      user.candidato_europeo,
+      user.candidato_camera,
+      user.candidato_senato,
+      user.candidato_regionale,
+      user.candidato_comune
+    ].filter(id => id); // Rimuovi valori null/undefined
+    
+    console.log('🎯 ID selezionati dall\'utente:', selectedIds);
+    
+    let query = `
+      SELECT 
+        e.id, e.nome_evento, e.tipologia_evento, e.paese_evento, e.regione_evento, 
+        e.provincia_evento, e.comune_evento, e.indirizzo_evento, e.giorno_inizio, 
+        e.giorno_fine, e.orario_inizio, e.orario_fine, e.organizzatore, e.created_at
+      FROM eventi e
+      WHERE 1=1
+    `;
+    
+    const queryParams = [];
+    let paramCount = 0;
+    
+    // Filtra per eventi creati da rappresentanti/candidati selezionati
+    if (selectedIds.length > 0) {
+      paramCount++;
+      query += ` AND e.organizzatore IN (SELECT CONCAT(nome, ' ', cognome) FROM users WHERE id = ANY($${paramCount}))`;
+      queryParams.push(selectedIds);
+    }
+    
+    // Filtra eventi "Elezioni" per regione (mantenendo la logica esistente)
+    if (user.regione_residenza) {
+      paramCount++;
+      query += ` AND (e.tipologia_evento != 'Elezioni' OR e.regione_evento = $${paramCount})`;
+      queryParams.push(user.regione_residenza);
+    }
+    
+    query += ` ORDER BY e.giorno_inizio ASC, e.created_at ASC`;
+    
+    console.log('🔍 Query finale:', query);
+    console.log('📋 Parametri query:', queryParams);
+    
+    const result = await pool.query(query, queryParams);
+    
+    console.log('📊 Eventi trovati (filtrati):', result.rows.length);
     
     res.json({
       success: true,
@@ -56,9 +150,33 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/eventi - Crea nuovo evento
-router.post('/', async (req, res) => {
+router.post('/', verifyToken, async (req, res) => {
   try {
     console.log('📤 POST /api/eventi - Dati ricevuti:', JSON.stringify(req.body, null, 2));
+    
+    const userId = req.userId;
+    console.log('👤 ID utente che crea l\'evento:', userId);
+    
+    // Ottieni i dati dell'utente che crea l'evento
+    const userQuery = `
+      SELECT nome, cognome, ruolo 
+      FROM users 
+      WHERE id = $1
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId]);
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    const organizerName = `${user.nome} ${user.cognome}`;
+    
+    console.log('👤 Organizzatore automatico:', organizerName);
     
     const { 
       nome_evento, 
@@ -89,6 +207,9 @@ router.post('/', async (req, res) => {
     const orarioInizio = orario_inizio && orario_inizio.trim() !== '' ? orario_inizio : null;
     const orarioFine = orario_fine && orario_fine.trim() !== '' ? orario_fine : null;
     
+    // Usa il nome dell'utente autenticato come organizzatore
+    const finalOrganizer = organizerName;
+    
     console.log('🔍 Parametri per la query (dopo conversione):', {
       nome_evento,
       tipologia_evento,
@@ -101,12 +222,12 @@ router.post('/', async (req, res) => {
       giorno_fine: giornoFine,
       orario_inizio: orarioInizio,
       orario_fine: orarioFine,
-      organizzatore
+      organizzatore: finalOrganizer
     });
     
     const result = await pool.query(
       'INSERT INTO eventi (nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giorno_inizio, giorno_fine, orario_inizio, orario_fine, organizzatore) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *',
-      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giornoInizio, giornoFine, orarioInizio, orarioFine, organizzatore]
+      [nome_evento, tipologia_evento, paese_evento, regione_evento, provincia_evento, comune_evento, indirizzo_evento, giornoInizio, giornoFine, orarioInizio, orarioFine, finalOrganizer]
     );
     
     console.log('✅ Evento creato con successo:', result.rows[0]);
