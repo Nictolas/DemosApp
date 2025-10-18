@@ -255,7 +255,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           }
         }
         
-        // Se non c'è un utente corrente, usa un utente di riferimento per il test
+        // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
         if (!userOpinions) {
           const testUserResult = await pool.query(`
             SELECT 
@@ -263,11 +263,14 @@ router.get('/disponibili', verifyToken, async (req, res) => {
               carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo,
               case_chiuse, eutanasia, omobitransfobia, cassonetti_intelligenti_con_tessera
             FROM users 
-            WHERE id = '500085c6-b593-4231-8966-7663f7474415'
+            WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
+            ORDER BY nome, cognome
+            LIMIT 1
           `);
           
           if (testUserResult.rows.length > 0) {
             userOpinions = testUserResult.rows[0];
+            console.log('🔍 DEBUG - Usando Nicolas Micheletti come utente di riferimento per opinioni comuni');
           }
         }
         
