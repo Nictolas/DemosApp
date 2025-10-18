@@ -32,6 +32,18 @@ export const useCandidatiData = (user: any, categoria: string) => {
 
         const result = await response.json();
         console.log('🔍 DEBUG Frontend - Risposta API candidati:', result);
+        
+        // Debug dettagliato per ogni candidato ricevuto
+        if (result.success && result.data) {
+          console.log('🔍 DEBUG Frontend - Dettagli candidati ricevuti:');
+          result.data.forEach((candidato, index) => {
+            console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}:`, {
+              opinioniComuni: candidato.opinioniComuni,
+              ruolo: candidato.ruolo,
+              status: candidato.status
+            });
+          });
+        }
 
         if (!result.success) {
           throw new Error(result.error || "Errore nel caricamento dei dati");
