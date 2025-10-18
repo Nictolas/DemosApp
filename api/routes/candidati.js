@@ -150,7 +150,7 @@ router.get('/sostenitori', async (req, res) => {
         u.candidato_regionale = $1 OR
         u.candidato_comune = $1
       )
-      AND u.status = 'attivo'
+      AND u.status = 'a'
       ORDER BY u.created_at DESC
     `, [sostenuto_id]);
 

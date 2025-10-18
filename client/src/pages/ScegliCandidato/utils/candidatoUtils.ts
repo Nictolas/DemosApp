@@ -1,10 +1,10 @@
 export const getTitolo = (categoria: string): string => {
   switch (categoria) {
-    case "europeo": return "Europeo";
-    case "camera": return "Camera";
-    case "senato": return "Senato";
-    case "regione": return "Regionale";
-    case "comune": return "Comunale";
+    case "europeo": return "E";
+    case "camera": return "C";
+    case "senato": return "S";
+    case "regione": return "R";
+    case "comune": return "CO";
     default: return "Candidato";
   }
 };
