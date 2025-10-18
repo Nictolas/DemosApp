@@ -64,7 +64,7 @@ router.get('/', async (req, res) => {
 
     const whereClause = whereConditions.join(' AND ');
 
-    // Query per ottenere tutti gli utenti con ruolo "Attivista" con conteggio sostenitori e ordinati
+    // Query per ottenere tutti gli utenti con ruolo "Attivista" con conteggio voti e ordinati
     const result = await pool.query(`
       SELECT
         u.id,
@@ -96,8 +96,8 @@ router.get('/', async (req, res) => {
       FROM users u
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS cnt
-        FROM user_supports s
-        WHERE s.supported_id = u.id
+        FROM users s
+        WHERE s.attivisti = u.id
       ) us ON TRUE
       WHERE ${whereClause}
       ORDER BY supporters_count DESC, u.created_at DESC

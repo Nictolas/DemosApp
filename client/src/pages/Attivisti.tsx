@@ -95,17 +95,18 @@ export default function Attivisti() {
     const fetchFollowingStatus = async () => {
       if (!user?.id) return;
       try {
-        // Carica tutti gli attivisti che stai già seguendo
+        // Carica l'attivista che stai votando
         const response = await fetch(`${API_BASE}/api/sostenitori/following?supporter_id=${user.id}`);
         if (response.ok) {
           const data = await response.json();
-          if (data.success) {
+          if (data.success && data.data.length > 0) {
+            // Con il nuovo sistema, c'è al massimo 1 attivista votato
             const followingSet = new Set(data.data.map((item: any) => item.supported_id));
             setFollowingUsers(followingSet);
           }
         }
       } catch (error) {
-        console.error('Errore nel caricamento stato following:', error);
+        console.error('Errore nel caricamento stato voto attivista:', error);
       }
     };
 
@@ -292,23 +293,23 @@ export default function Attivisti() {
     setSelectedAttivista(null);
   };
 
-  // Funzione per seguire/unfollow un attivista
-  const handleFollowUser = async (attivistaId: string) => {
+  // Funzione per votare un attivista (limite di 1 voto)
+  const handleVoteAttivista = async (attivistaId: string) => {
     if (!user?.id) {
       toast({
         title: "Errore",
-        description: "Devi essere autenticato per seguire un utente",
+        description: "Devi essere autenticato per votare un attivista",
         variant: "destructive"
       });
       return;
     }
 
-    const isCurrentlyFollowing = followingUsers.has(attivistaId);
+    const isCurrentlyVoting = followingUsers.has(attivistaId);
 
     try {
       let response;
-      if (isCurrentlyFollowing) {
-        // Unfollow
+      if (isCurrentlyVoting) {
+        // Rimuovi voto
         response = await fetch(`${API_BASE}/api/sostenitori/unfollow`, {
           method: 'DELETE',
           headers: {
@@ -320,7 +321,7 @@ export default function Attivisti() {
           })
         });
       } else {
-        // Follow
+        // Vota attivista (sostituisce eventuali altri voti)
         response = await fetch(`${API_BASE}/api/sostenitori/follow`, {
           method: 'POST',
           headers: {
@@ -337,10 +338,10 @@ export default function Attivisti() {
       try { data = await response.json(); } catch { /* body vuoto o non JSON */ }
 
       if (data.success) {
-        if (isCurrentlyFollowing) {
+        if (isCurrentlyVoting) {
           toast({
             title: "Successo",
-            description: "Hai smesso di seguire questo attivista",
+            description: "Hai rimosso il voto per questo attivista",
           });
           
           // Rimuovi dallo stato locale
@@ -367,11 +368,11 @@ export default function Attivisti() {
         } else {
           toast({
             title: "Successo",
-            description: "Hai iniziato a seguire questo attivista",
+            description: "Hai votato per questo attivista",
           });
           
-          // Aggiorna lo stato locale
-          setFollowingUsers(prev => new Set([...prev, attivistaId]));
+          // Aggiorna lo stato locale (rimuovi eventuali altri voti e aggiungi questo)
+          setFollowingUsers(prev => new Set([attivistaId]));
           
           // Aggiorna conteggio locale + riordina lista
           const currentCount = (attivisti.find(a => a.id === attivistaId) as any)?.supporters_count || 0;
@@ -389,23 +390,23 @@ export default function Attivisti() {
           });
         }
       } else if (response.status === 409) {
-        // Già stai seguendo questo utente
+        // Già stai votando questo attivista
         toast({
           title: "Info",
-          description: "Stai già seguendo questo attivista",
+          description: "Stai già votando questo attivista",
         });
         
-        // Aggiorna lo stato locale anche se già seguito
-        setFollowingUsers(prev => new Set([...prev, attivistaId]));
+        // Aggiorna lo stato locale anche se già votato
+        setFollowingUsers(prev => new Set([attivistaId]));
       } else {
         toast({
           title: "Errore",
-          description: data.error || "Impossibile seguire questo utente",
+          description: data.error || "Impossibile votare questo attivista",
           variant: "destructive"
         });
       }
     } catch (error) {
-      console.error('Errore nel seguire utente:', error);
+      console.error('Errore nel votare attivista:', error);
       toast({
         title: "Errore",
         description: "Errore di connessione",
@@ -448,7 +449,9 @@ export default function Attivisti() {
                 <h1 className="text-3xl font-bold text-gray-900">Attivisti</h1>
               </div>
               <p className="text-lg text-gray-600">
-                Lista di tutti gli attivisti registrati nella piattaforma
+                Scegli il tuo Attivista preferito.
+                <br />
+                <span className="text-sm text-gray-500">(In futuro sarà possibile scegliere più attivisti.)</span>
               </p>
             </div>
 
@@ -683,10 +686,10 @@ export default function Attivisti() {
                                 size="sm" 
                                 variant="outline" 
                                 className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                                onClick={() => handleFollowUser(attivista.id)}
+                                onClick={() => handleVoteAttivista(attivista.id)}
                                 disabled={!user?.id}
                               >
-                                {followingUsers.has(attivista.id) ? 'Seguito' : 'Segui'}
+                                {followingUsers.has(attivista.id) ? 'Votato' : 'Vota'}
                               </Button>
                             </td>
                           </tr>
@@ -732,10 +735,10 @@ export default function Attivisti() {
                             size="sm" 
                             variant="outline" 
                             className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                            onClick={() => handleFollowUser(attivista.id)}
+                            onClick={() => handleVoteAttivista(attivista.id)}
                             disabled={!user?.id}
                           >
-                            {followingUsers.has(attivista.id) ? 'Seguito' : 'Segui'}
+                            {followingUsers.has(attivista.id) ? 'Votato' : 'Vota'}
                           </Button>
                         </div>
                       </div>

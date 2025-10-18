@@ -190,7 +190,7 @@ router.get('/check', async (req, res) => {
   }
 });
 
-// POST /api/sostenitori/follow - Segui un utente (relazione generica)
+// POST /api/sostenitori/follow - Vota un attivista (limite di 1 voto)
 router.post('/follow', async (req, res) => {
   try {
     const { supporter_id, supported_id } = req.body;
@@ -202,12 +202,9 @@ router.post('/follow', async (req, res) => {
       });
     }
 
-    // Rimosso il controllo che impediva di seguire se stessi
-    // Ora è permesso seguire se stessi
-
     // Verifica che entrambi gli utenti esistano
     const usersCheck = await pool.query(`
-      SELECT id FROM users WHERE id IN ($1, $2)
+      SELECT id, ruolo FROM users WHERE id IN ($1, $2)
     `, [supporter_id, supported_id]);
 
     if (usersCheck.rows.length !== 2) {
@@ -217,34 +214,49 @@ router.post('/follow', async (req, res) => {
       });
     }
 
-    // Inserisci la relazione di sostegno
-    const result = await pool.query(`
-      INSERT INTO user_supports (supporter_id, supported_id)
-      VALUES ($1, $2)
-      ON CONFLICT (supporter_id, supported_id) DO NOTHING
-      RETURNING id, created_at
-    `, [supporter_id, supported_id]);
-
-    if (result.rows.length === 0) {
-      return res.status(409).json({
+    // Verifica che l'utente supportato sia un attivista
+    const supportedUser = usersCheck.rows.find(u => u.id === supported_id);
+    if (supportedUser.ruolo !== 'A') {
+      return res.status(400).json({
         success: false,
-        error: 'Stai già seguendo questo utente'
+        error: 'Puoi votare solo per gli attivisti'
       });
     }
 
-    console.log('✅ Nuovo sostegno creato:', result.rows[0]);
+    // Verifica se l'utente sta già votando questo attivista
+    const currentVote = await pool.query(`
+      SELECT attivisti FROM users WHERE id = $1
+    `, [supporter_id]);
+
+    if (currentVote.rows.length > 0 && currentVote.rows[0].attivisti === supported_id) {
+      return res.status(409).json({
+        success: false,
+        error: 'Stai già votando questo attivista'
+      });
+    }
+
+    // Aggiorna il voto dell'utente (sostituisce eventuali altri voti)
+    const result = await pool.query(`
+      UPDATE users 
+      SET attivisti = $2, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, attivisti, updated_at
+    `, [supporter_id, supported_id]);
+
+    console.log('✅ Voto attivista aggiornato:', result.rows[0]);
 
     res.json({
       success: true,
-      message: 'Utente seguito con successo',
+      message: 'Attivista votato con successo',
       data: {
-        id: result.rows[0].id,
-        created_at: result.rows[0].created_at
+        user_id: result.rows[0].id,
+        attivista_id: result.rows[0].attivisti,
+        updated_at: result.rows[0].updated_at
       }
     });
 
   } catch (error) {
-    console.error('❌ Errore nel seguire utente:', error);
+    console.error('❌ Errore nel votare attivista:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -252,7 +264,7 @@ router.post('/follow', async (req, res) => {
   }
 });
 
-// DELETE /api/sostenitori/unfollow - Smetti di seguire un utente
+// DELETE /api/sostenitori/unfollow - Rimuovi voto attivista
 router.delete('/unfollow', async (req, res) => {
   try {
     const { supporter_id, supported_id } = req.body;
@@ -264,28 +276,35 @@ router.delete('/unfollow', async (req, res) => {
       });
     }
 
-    const result = await pool.query(`
-      DELETE FROM user_supports 
-      WHERE supporter_id = $1 AND supported_id = $2
-      RETURNING id
-    `, [supporter_id, supported_id]);
+    // Verifica che l'utente stia effettivamente votando questo attivista
+    const currentVote = await pool.query(`
+      SELECT attivisti FROM users WHERE id = $1
+    `, [supporter_id]);
 
-    if (result.rows.length === 0) {
+    if (currentVote.rows.length === 0 || currentVote.rows[0].attivisti !== supported_id) {
       return res.status(404).json({
         success: false,
-        error: 'Relazione di sostegno non trovata'
+        error: 'Non stai votando questo attivista'
       });
     }
 
-    console.log('✅ Sostegno rimosso:', result.rows[0].id);
+    // Rimuovi il voto
+    const result = await pool.query(`
+      UPDATE users 
+      SET attivisti = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, updated_at
+    `, [supporter_id]);
+
+    console.log('✅ Voto attivista rimosso per utente:', result.rows[0].id);
 
     res.json({
       success: true,
-      message: 'Hai smesso di seguire questo utente'
+      message: 'Hai rimosso il voto per questo attivista'
     });
 
   } catch (error) {
-    console.error('❌ Errore nel smettere di seguire utente:', error);
+    console.error('❌ Errore nel rimuovere voto attivista:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
@@ -307,22 +326,22 @@ router.get('/count', async (req, res) => {
 
     console.log('🔍 DEBUG: Conteggio sostenitori per:', sostenuto_id);
 
-    // Conta sostenitori generici
-    const genericResult = await pool.query(`
+    // Conta voti per attivista usando la colonna attivisti
+    const attivistaResult = await pool.query(`
       SELECT COUNT(*) as count
-      FROM user_supports 
-      WHERE supported_id = $1
+      FROM users 
+      WHERE attivisti = $1
     `, [sostenuto_id]);
 
-    const genericCount = parseInt(genericResult.rows[0].count);
+    const attivistaCount = parseInt(attivistaResult.rows[0].count);
 
-    console.log('🔍 DEBUG: Sostenitori generici:', genericCount);
+    console.log('🔍 DEBUG: Voti attivista:', attivistaCount);
 
     res.json({
       success: true,
       data: {
-        totalSupporters: genericCount,
-        genericSupporters: genericCount
+        totalSupporters: attivistaCount,
+        attivistaSupporters: attivistaCount
       }
     });
 
@@ -335,7 +354,7 @@ router.get('/count', async (req, res) => {
   }
 });
 
-// GET /api/sostenitori/following - Ottieni tutti gli utenti che un supporter sta seguendo
+// GET /api/sostenitori/following - Ottieni l'attivista votato da un utente
 router.get('/following', async (req, res) => {
   try {
     const { supporter_id } = req.query;
@@ -347,21 +366,20 @@ router.get('/following', async (req, res) => {
       });
     }
 
-    console.log('🔍 DEBUG: Recupero following per supporter:', supporter_id);
+    console.log('🔍 DEBUG: Recupero attivista votato per supporter:', supporter_id);
 
     const result = await pool.query(`
       SELECT 
-        us.supported_id,
-        us.created_at,
-        u.nome,
-        u.cognome
-      FROM user_supports us
-      INNER JOIN users u ON us.supported_id = u.id
-      WHERE us.supporter_id = $1
-      ORDER BY us.created_at DESC
+        u.attivisti as supported_id,
+        u.updated_at as created_at,
+        a.nome,
+        a.cognome
+      FROM users u
+      LEFT JOIN users a ON u.attivisti = a.id
+      WHERE u.id = $1 AND u.attivisti IS NOT NULL
     `, [supporter_id]);
 
-    console.log('🔍 DEBUG: Trovati following:', result.rows.length);
+    console.log('🔍 DEBUG: Attivista votato trovato:', result.rows.length > 0 ? 'Sì' : 'No');
 
     res.json({
       success: true,
@@ -369,7 +387,7 @@ router.get('/following', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Errore nel recupero following:', error);
+    console.error('❌ Errore nel recupero attivista votato:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'
