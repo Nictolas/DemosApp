@@ -7,6 +7,7 @@ export interface Candidato {
   status: string;
   avatarConfig?: string;
   grado_candidatura?: string;
+  opinioniComuni?: number;
 }
 
 export interface OpinioniDialogData {

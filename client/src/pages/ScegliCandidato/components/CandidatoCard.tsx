@@ -49,6 +49,14 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
           {candidato.ruolo}
         </Badge>
         
+        {/* Opinion Comuni */}
+        <div className="text-center">
+          <p className="text-sm text-gray-600">Opinioni comuni</p>
+          <p className="text-lg font-semibold text-blue-600">
+            {candidato.opinioniComuni || 0}
+          </p>
+        </div>
+        
         {/* Pulsanti */}
         <div className="flex space-x-2 w-full">
           <Button
