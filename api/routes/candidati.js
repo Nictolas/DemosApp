@@ -219,11 +219,17 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
     });
     
+    // Aggiungi conteggio opinioni comuni (per ora valore di default)
+    const candidatiConOpinioni = candidati.map(candidato => ({
+      ...candidato,
+      opinioniComuni: Math.floor(Math.random() * 10) + 1 // Valore random per test
+    }));
+    
     res.json({
       success: true,
-      data: candidati,
-      count: candidati.length,
-      message: `Trovati ${candidati.length} candidati per grado_candidatura: ${grado_candidatura}`
+      data: candidatiConOpinioni,
+      count: candidatiConOpinioni.length,
+      message: `Trovati ${candidatiConOpinioni.length} candidati per grado_candidatura: ${grado_candidatura}`
     });
     
   } catch (error) {
