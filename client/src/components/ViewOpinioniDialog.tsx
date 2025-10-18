@@ -75,7 +75,7 @@ export function ViewOpinioniDialog({
       setIsLoadingQuestions(true);
       try {
         // Chiama direttamente l'endpoint per le opinioni europee
-        const res = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=Europeo`);
+        const res = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=E`);
         if (!res.ok) throw new Error();
         const result = await res.json();
         if (result.success && result.data) {
@@ -129,7 +129,7 @@ export function ViewOpinioniDialog({
       if (!user?.id) return;
       setIsLoadingMyOpinions(true);
       try {
-        const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=Europeo`);
+        const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=E`);
         
         if (response.ok) {
           const data = await response.json();

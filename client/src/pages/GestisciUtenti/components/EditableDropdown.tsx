@@ -14,17 +14,17 @@ const getOptionColors = (option: string) => {
   switch (option) {
     case 'empty':
       return 'bg-white text-black border-gray-300';
-    case 'Europeo':
+    case 'E':
       return 'bg-blue-600 text-yellow-300 border-blue-700';
-    case 'Nazionale':
+    case 'N':
       return 'bg-amber-800 text-white border-amber-900';
-    case 'Camera':
+    case 'C':
       return 'bg-red-600 text-white border-red-700';
-    case 'Senato':
+    case 'S':
       return 'bg-green-600 text-white border-green-700';
-    case 'Regionale':
+    case 'R':
       return 'bg-orange-500 text-black border-orange-600';
-    case 'Comunale':
+    case 'CO':
       return 'bg-yellow-400 text-black border-yellow-500';
     default:
       return 'bg-white text-black border-gray-300';
