@@ -22,6 +22,22 @@ const options = [
   { value: "Contrario", color: "bg-red-600 text-white" }
 ];
 
+// Funzione per normalizzare le risposte (gestisce sia valori compressi che non compressi)
+const normalizeAnswer = (answer: string | undefined) => {
+  if (!answer || answer === null || answer === undefined) return 'Astenuto';
+  if (answer === 'Sì') return 'Favorevole';
+  if (answer === 'No') return 'Contrario';
+  if (answer === 'Indeciso') return 'Indeciso';
+  if (answer === 'Favorevole') return 'Favorevole';
+  if (answer === 'Contrario') return 'Contrario';
+  if (answer === 'Astenuto') return 'Astenuto';
+  // Gestione valori compressi
+  if (answer === 'f') return 'Favorevole';
+  if (answer === 'c') return 'Contrario';
+  if (answer === 'i') return 'Indeciso';
+  return 'Astenuto';
+};
+
 export default function OpinioniRegionali() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { toast } = useToast();
@@ -54,13 +70,19 @@ export default function OpinioniRegionali() {
     console.log('🔍 DEBUG - questions.length:', questions.length);
   }, [questionsData, questions]);
 
-  // Dividi le opinioni in due sezioni
+  // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
   const opinioniEspresse = questions
-    .filter(q => q.userAnswer && ['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
+    .filter(q => {
+      const normalizedAnswer = normalizeAnswer(q.userAnswer);
+      return normalizedAnswer && ['Favorevole', 'Contrario', 'Indeciso'].includes(normalizedAnswer);
+    })
     .sort((a, b) => a.text.localeCompare(b.text));
   
   const opinioniDaInserire = questions
-    .filter(q => !q.userAnswer || q.userAnswer === 'Astenuto' || !['Favorevole', 'Contrario', 'Indeciso'].includes(q.userAnswer))
+    .filter(q => {
+      const normalizedAnswer = normalizeAnswer(q.userAnswer);
+      return !normalizedAnswer || normalizedAnswer === 'Astenuto' || !['Favorevole', 'Contrario', 'Indeciso'].includes(normalizedAnswer);
+    })
     .sort((a, b) => a.text.localeCompare(b.text));
 
   // Sincronizza le opinioni quando le domande vengono caricate
