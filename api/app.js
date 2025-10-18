@@ -95,7 +95,7 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', false); // In sviluppo, non fidarti di proxy per evitare errori di rate limiting
 }
 
-// CORS - DEVE essere PRIMO per evitare problemi con OPTIONS
+// CORS - Configurazione semplificata e robusta
 const corsOptions = {
   origin: function (origin, callback) {
     // Lista degli origin consentiti
@@ -112,6 +112,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS: Origin autorizzato:', origin);
       callback(null, true);
     } else {
       console.log('🚨 CORS: Origin non autorizzato:', origin);
@@ -124,30 +125,37 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-app.use(cors(corsOptions));
-
-// Gestione esplicita delle richieste OPTIONS per CORS
-app.options('*', (req, res) => {
-  console.log('🔍 CORS OPTIONS richiesta da:', req.headers.origin);
-  res.header('Access-Control-Allow-Origin', req.headers.origin || 'https://www.demos.community');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.status(200).end();
-});
-
-// Middleware CORS aggiuntivo per sicurezza
+// Middleware CORS aggiuntivo per garantire che gli header siano sempre impostati
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  console.log('🌐 Richiesta da origin:', origin);
+  console.log('🌐 CORS Middleware - Origin:', origin);
   
   if (origin && (origin.includes('demos.community') || origin.includes('localhost'))) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
   }
   
   next();
 });
+
+// Gestione esplicita delle richieste OPTIONS per CORS
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  console.log('🔍 CORS OPTIONS richiesta da:', origin);
+  
+  if (origin && (origin.includes('demos.community') || origin.includes('localhost'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+  }
+  
+  res.status(200).end();
+});
+
+app.use(cors(corsOptions));
 
 // DEBUG: Middleware di logging universale per catturare TUTTE le richieste
 app.use((req, res, next) => {
