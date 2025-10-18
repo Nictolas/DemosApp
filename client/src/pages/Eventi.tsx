@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { Redirect } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -63,34 +63,29 @@ const formatTime = (timeString: string | null) => {
 
 export default function Eventi() {
   const { user, isLoading } = useAuth();
-
+  
   // Check if user is admin
   const isAdmin = user?.ruolo === "AD";
+  
+  // State for admin tabs
+  const [activeTab, setActiveTab] = useState<'personal' | 'global'>('personal');
 
   // Fetch eventi data from API
   const { data: eventiResponse, isLoading: eventiLoading, refetch } = useQuery<any>({
-    queryKey: ["/api/eventi"],
+    queryKey: ["/api/eventi", isAdmin ? activeTab : 'personal'],
+    queryFn: async () => {
+      const url = isAdmin && activeTab === 'global' 
+        ? "/api/eventi?view=global" 
+        : "/api/eventi?view=personal";
+      const response = await apiRequest("GET", url);
+      if (!response.ok) throw new Error("Errore nel caricamento degli eventi");
+      return response.json();
+    },
     enabled: !!user,
   });
 
-  // Extract eventi array from API response and filter by region for non-admin users
-  const allEventi = eventiResponse?.data || [];
-  
-  // Filter eventi based on user role and region
-  const eventi = allEventi.filter((evento: any) => {
-    // Admin can see all events
-    if (isAdmin) {
-      return true;
-    }
-    
-    // For non-admin users, filter "Elezioni" events by region
-    if (evento.tipologia_evento === 'Elezioni') {
-      return evento.regione_evento === user?.regione_residenza;
-    }
-    
-    // Show all other event types
-    return true;
-  });
+  // Extract eventi array from API response (filtering is now done server-side)
+  const eventi = eventiResponse?.data || [];
 
   // Function to delete event
   const deleteEvent = async (eventId: string) => {
@@ -250,7 +245,10 @@ export default function Eventi() {
             <h1 className="text-3xl font-bold text-gray-900">Eventi</h1>
           </div>
           <p className="text-lg text-gray-600">
-            Calendario degli eventi organizzati dai tuoi rappresentanti e candidati
+            {isAdmin 
+              ? "Gestisci e visualizza tutti gli eventi della piattaforma"
+              : "Calendario degli eventi organizzati dai tuoi rappresentanti e candidati"
+            }
           </p>
           {!isAdmin && (
             <p className="text-sm text-blue-600 mt-2">
@@ -258,6 +256,34 @@ export default function Eventi() {
             </p>
           )}
         </div>
+
+        {/* Admin Tabs */}
+        {isAdmin && (
+          <div className="flex justify-center mb-8">
+            <div className="bg-white rounded-lg p-1 shadow-sm border">
+              <button
+                onClick={() => setActiveTab('personal')}
+                className={`px-6 py-2 rounded-md font-medium transition-colors ${
+                  activeTab === 'personal'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Personali
+              </button>
+              <button
+                onClick={() => setActiveTab('global')}
+                className={`px-6 py-2 rounded-md font-medium transition-colors ${
+                  activeTab === 'global'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Globale
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Schede Eventi */}
         <div className="space-y-4">
