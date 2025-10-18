@@ -23,7 +23,7 @@ router.get('/search', verifyToken, async (req, res) => {
       SELECT id, nome, cognome, email
       FROM users 
       WHERE (nome ILIKE $1 OR cognome ILIKE $1 OR CONCAT(nome, ' ', cognome) ILIKE $1)
-      AND status IN ('verified', 'active')
+      AND status IN ('v', 'a')
       ORDER BY 
         CASE 
           WHEN nome ILIKE $2 THEN 1

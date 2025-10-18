@@ -95,13 +95,14 @@ router.get('/elezioni-utente/disponibili', verifyToken, async (req, res) => {
     let queryParams = [];
     
     if (grado) {
-      // Mappa i gradi dal frontend ai valori del database
+      // Mappa i gradi dal frontend ai valori del database (compressi)
       const gradoMapping = {
-        'Europeo': 'Europeo',
-        'Camera': 'Camera',
-        'Senato': 'Senato', 
-        'Regionale': 'Regionale',
-        'Comunale': 'Comunale'
+        'Europeo': 'E',
+        'Nazionale': 'N',
+        'Camera': 'C',
+        'Senato': 'S', 
+        'Regionale': 'R',
+        'Comunale': 'CO'
       };
       
       const mappedGrado = gradoMapping[grado] || grado;
@@ -267,11 +268,11 @@ router.get('/candidati', verifyToken, async (req, res) => {
     
     // Lista dei campi candidato
     const campiCandidato = [
-      { campo: 'candidato_europeo', categoria: 'europeo', grado: 'Europeo' },
-      { campo: 'candidato_camera', categoria: 'camera', grado: 'Camera' },
-      { campo: 'candidato_senato', categoria: 'senato', grado: 'Senato' },
-      { campo: 'candidato_regionale', categoria: 'regione', grado: 'Regionale' },
-      { campo: 'candidato_comune', categoria: 'comune', grado: 'Comunale' }
+      { campo: 'candidato_europeo', categoria: 'europeo', grado: 'E' },
+      { campo: 'candidato_camera', categoria: 'camera', grado: 'C' },
+      { campo: 'candidato_senato', categoria: 'senato', grado: 'S' },
+      { campo: 'candidato_regionale', categoria: 'regione', grado: 'R' },
+      { campo: 'candidato_comune', categoria: 'comune', grado: 'CO' }
     ];
     
     for (const { campo, categoria, grado } of campiCandidato) {

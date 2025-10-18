@@ -168,7 +168,7 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
                   <EditableDropdown
                     value={userChanges[user.id]?.grado_elezione !== undefined ? userChanges[user.id].grado_elezione : user.grado_elezione}
                     onChange={(value) => onFieldChange?.(user.id, 'grado_elezione', value)}
-                    options={['Europeo', 'Nazionale', 'Camera', 'Senato', 'Regionale', 'Comunale']}
+                    options={['E', 'N', 'C', 'S', 'R', 'CO']}
                     placeholder="Seleziona..."
                     className="w-full text-sm"
                   />
@@ -182,7 +182,7 @@ export const MobileUsersTable: React.FC<MobileUsersTableProps> = ({
                   <EditableDropdown
                     value={userChanges[user.id]?.grado_candidatura !== undefined ? userChanges[user.id].grado_candidatura : user.grado_candidatura}
                     onChange={(value) => onFieldChange?.(user.id, 'grado_candidatura', value)}
-                    options={['Europeo', 'Nazionale', 'Camera', 'Senato', 'Regionale', 'Comunale']}
+                    options={['E', 'N', 'C', 'S', 'R', 'CO']}
                     placeholder="Seleziona..."
                     className="w-full text-sm"
                   />

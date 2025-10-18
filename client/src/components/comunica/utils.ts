@@ -7,15 +7,15 @@ export const generateZona = (user: any): string => {
   
   const { grado_elezione, comune_elezione, provincia_elezione, regione_elezione, paese_elezione } = user;
   
-  if (grado_elezione === "Comunale" && comune_elezione) {
+  if (grado_elezione === "CO" && comune_elezione) {
     return `Comune di ${comune_elezione}`;
-  } else if (grado_elezione === "Provinciale" && provincia_elezione) {
+  } else if (grado_elezione === "P" && provincia_elezione) {
     return `Provincia di ${provincia_elezione}`;
-  } else if (grado_elezione === "Regionale" && regione_elezione) {
+  } else if (grado_elezione === "R" && regione_elezione) {
     return `Regione ${regione_elezione}`;
-  } else if (grado_elezione === "Nazionale" && paese_elezione) {
+  } else if (grado_elezione === "N" && paese_elezione) {
     return `Parlamento ${paese_elezione === "Italia" ? "Italiano" : paese_elezione}`;
-  } else if (grado_elezione === "Europeo") {
+  } else if (grado_elezione === "E") {
     return "Parlamento Europeo";
   }
   

@@ -78,13 +78,13 @@ export function GeographicSection({
                 <SelectValue placeholder="Seleziona il grado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Comunale">Comunale</SelectItem>
-                <SelectItem value="Provinciale">Provinciale</SelectItem>
-                <SelectItem value="Regionale">Regionale</SelectItem>
-                <SelectItem value="Nazionale">Nazionale</SelectItem>
-                <SelectItem value="Camera">Camera dei Deputati</SelectItem>
-                <SelectItem value="Senato">Senato della Repubblica</SelectItem>
-                <SelectItem value="Europeo">Europeo</SelectItem>
+                <SelectItem value="CO">Comunale</SelectItem>
+                <SelectItem value="P">Provinciale</SelectItem>
+                <SelectItem value="R">Regionale</SelectItem>
+                <SelectItem value="N">Nazionale</SelectItem>
+                <SelectItem value="C">Camera dei Deputati</SelectItem>
+                <SelectItem value="S">Senato della Repubblica</SelectItem>
+                <SelectItem value="E">Europeo</SelectItem>
               </SelectContent>
             </Select>
           </div>
