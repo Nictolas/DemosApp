@@ -14,35 +14,31 @@ import { apiRequest } from "@/lib/queryClient";
 // Le domande ora sono dinamiche
 const options = [
   { 
-    value: "Favorevole", 
+    value: "f", 
     color: "bg-green-100 border-green-500 hover:bg-green-200",
-    selectedColor: "bg-green-600 border-green-700 text-white"
+    selectedColor: "bg-green-600 border-green-700 text-white",
+    label: "Favorevole"
   },
   { 
-    value: "Indeciso", 
+    value: "i", 
     color: "bg-white border-yellow-500 hover:bg-yellow-50",
-    selectedColor: "bg-yellow-400 border-yellow-600 text-black"
+    selectedColor: "bg-yellow-400 border-yellow-600 text-black",
+    label: "Indeciso"
   },
   { 
-    value: "Contrario", 
+    value: "c", 
     color: "bg-red-100 border-red-500 hover:bg-red-200",
-    selectedColor: "bg-red-600 border-red-700 text-white"
+    selectedColor: "bg-red-600 border-red-700 text-white",
+    label: "Contrario"
   }
 ];
 
-// Funzione per normalizzare le risposte (gestisce sia valori compressi che non compressi)
+// Funzione per normalizzare le risposte (usa direttamente i valori compressi)
 const normalizeAnswer = (answer: string | undefined) => {
-  if (!answer || answer === null || answer === undefined) return 'Astenuto';
-  // Gestione valori compressi
-  if (answer === 'f') return 'Favorevole';
-  if (answer === 'c') return 'Contrario';
-  if (answer === 'i') return 'Indeciso';
-  // Gestione valori non compressi
-  if (answer === 'Favorevole') return 'Favorevole';
-  if (answer === 'Contrario') return 'Contrario';
-  if (answer === 'Indeciso') return 'Indeciso';
-  if (answer === 'Astenuto') return 'Astenuto';
-  return 'Astenuto';
+  if (!answer || answer === null || answer === undefined) return null;
+  // Usa direttamente i valori compressi
+  if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
+  return null;
 };
 
 interface EditOpinioniDialogProps {
@@ -373,7 +369,7 @@ export function EditOpinioniDialog({
                               borderColor: selected ? "#000" : undefined,
                             }}
                           >
-                            {option.value}
+                            {option.label}
                           </button>
                         );
                       })}

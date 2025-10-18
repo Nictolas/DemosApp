@@ -134,14 +134,13 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
         userAnswer: userAnswer
       });
       
-      // Converti le risposte del database al formato frontend
+      // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;
-      if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
-      else if (userAnswer === 'No') frontendAnswer = 'Contrario';
-      else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
-      else if (userAnswer === 'Contrario') frontendAnswer = 'Contrario'; // Aggiunto per compatibilità
-      else if (userAnswer === 'Favorevole') frontendAnswer = 'Favorevole'; // Aggiunto per compatibilità
-      else if (userAnswer === null) frontendAnswer = 'Astenuto';
+      if (userAnswer === 'f' || userAnswer === 'c' || userAnswer === 'i') {
+        frontendAnswer = userAnswer;
+      } else if (userAnswer === null || userAnswer === undefined || userAnswer === '') {
+        frontendAnswer = null;
+      }
       
       return {
         id: opinionId,
