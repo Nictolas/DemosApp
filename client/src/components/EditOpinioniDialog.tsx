@@ -30,6 +30,22 @@ const options = [
   }
 ];
 
+// Funzione per normalizzare le risposte (gestisce sia valori compressi che non compressi)
+const normalizeAnswer = (answer: string | undefined) => {
+  if (!answer || answer === null || answer === undefined) return 'Astenuto';
+  if (answer === 'Sì') return 'Favorevole';
+  if (answer === 'No') return 'Contrario';
+  if (answer === 'Indeciso') return 'Indeciso';
+  if (answer === 'Favorevole') return 'Favorevole';
+  if (answer === 'Contrario') return 'Contrario';
+  if (answer === 'Astenuto') return 'Astenuto';
+  // Gestione valori compressi
+  if (answer === 'f') return 'Favorevole';
+  if (answer === 'c') return 'Contrario';
+  if (answer === 'i') return 'Indeciso';
+  return 'Astenuto';
+};
+
 interface EditOpinioniDialogProps {
   utenteId: string;
   open: boolean;
@@ -343,7 +359,7 @@ export function EditOpinioniDialog({
                     <h3 className="text-lg font-semibold mb-2">{label}</h3>
                     <div className="flex gap-2 mb-2">
                       {options.map((option) => {
-                        const selected = opinions[key] === option.value;
+                        const selected = normalizeAnswer(opinions[key]) === option.value;
                         return (
                           <button
                             key={option.value}
