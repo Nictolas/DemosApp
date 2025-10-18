@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Rappresentante, OpinioniDialogData } from "../types";
 import { getTitolo, getFieldName } from "../utils/rappresentanteUtils";
+import { getTitolo as getTitoloCandidati } from "../../ScegliCandidato/utils/candidatoUtils";
 import { useRoute } from "wouter";
 
 export const useRappresentantiData = (user: any, categoria: string) => {
@@ -24,7 +25,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         if (isTestRoute) {
           // Use the new API endpoint for test routes (candidati)
           // Mappa la categoria al grado_candidatura corretto
-          const gradoCandidatura = getTitolo(categoria);
+          const gradoCandidatura = getTitoloCandidati(categoria);
           url = `/api/candidati/disponibili?grado_candidatura=${encodeURIComponent(gradoCandidatura)}`;
           console.log('🔍 DEBUG Frontend - Chiamata API CANDIDATI:', url);
           console.log('🔍 DEBUG Frontend - Categoria mappata:', categoria, '->', gradoCandidatura);

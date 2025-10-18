@@ -27,7 +27,7 @@ export default function OpinioniEuropee() {
     queryKey: ['opinioniQuestions', 'Europeo'],
     queryFn: async () => {
       console.log('🔍 DEBUG - Caricamento opinioni europee...');
-      const response = await apiRequest("GET", "/api/opinioni-list?grado=Europeo");
+      const response = await apiRequest("GET", "/api/opinioni-list?grado=E");
       if (!response.ok) throw new Error("Errore nel caricamento delle domande.");
       const data = await response.json();
       console.log('🔍 DEBUG - Risposta API:', data);

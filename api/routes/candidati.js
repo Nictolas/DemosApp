@@ -202,16 +202,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         grado_candidatura
       FROM users
       WHERE ruolo IN ('C', 'CP')
-        AND (grado_candidatura = $1 OR grado_candidatura = $2)
-        AND (status = 'A' OR status = 'a')
+        AND grado_candidatura = $1
+        AND status = 'a'
       ORDER BY nome, cognome
       LIMIT 4
     `;
     
     console.log('🔍 DEBUG - Query candidati:', candidatiQuery);
-    console.log('🔍 DEBUG - Parametri:', [grado_candidatura, grado_candidatura.charAt(0).toUpperCase() + grado_candidatura.slice(1)]);
+    console.log('🔍 DEBUG - Parametri:', [grado_candidatura]);
     
-    const candidatiResult = await pool.query(candidatiQuery, [grado_candidatura, grado_candidatura.charAt(0).toUpperCase() + grado_candidatura.slice(1)]);
+    const candidatiResult = await pool.query(candidatiQuery, [grado_candidatura]);
     const candidati = candidatiResult.rows;
     
     console.log('🔍 DEBUG - Candidati trovati:', candidati.length);

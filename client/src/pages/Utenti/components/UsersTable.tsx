@@ -79,7 +79,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                     <EditableDropdown
                       value={userChanges[user.id]?.[column] !== undefined ? userChanges[user.id][column] : user[column]}
                       onChange={(value) => onFieldChange?.(user.id, column, value)}
-                      options={['Europeo', 'Nazionale', 'Camera', 'Senato', 'Regionale', 'Comunale']}
+                      options={['E', 'N', 'C', 'S', 'R', 'CO']}
                       placeholder="Seleziona..."
                       className="w-full"
                     />
