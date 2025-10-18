@@ -212,21 +212,6 @@ export function ViewOpinioniDialog({
   // Funzione per determinare se due opinioni sono compatibili (stessa logica del backend)
   function isOpinioneComune(val1: string | undefined, val2: string | undefined) {
     // Normalizza le risposte come fa il backend
-    const normalizeAnswer = (answer: string | undefined) => {
-      if (!answer || answer === null || answer === undefined) return 'Astenuto';
-      if (answer === 'Sì') return 'Favorevole';
-      if (answer === 'No') return 'Contrario';
-      if (answer === 'Indeciso') return 'Indeciso';
-      if (answer === 'Favorevole') return 'Favorevole';
-      if (answer === 'Contrario') return 'Contrario';
-      if (answer === 'Astenuto') return 'Astenuto';
-      // Gestione valori compressi
-      if (answer === 'f') return 'Favorevole';
-      if (answer === 'c') return 'Contrario';
-      if (answer === 'i') return 'Indeciso';
-      return 'Astenuto';
-    };
-
     const normalizedVal1 = normalizeAnswer(val1);
     const normalizedVal2 = normalizeAnswer(val2);
 

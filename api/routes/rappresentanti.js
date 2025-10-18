@@ -186,20 +186,19 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       };
       
       // Funzione per normalizzare le risposte al formato frontend
-      const normalizeAnswer = (answer) => {
-        if (!answer || answer === null || answer === undefined) return 'Astenuto';
-        if (answer === 'Sì') return 'Favorevole';
-        if (answer === 'No') return 'Contrario';
-        if (answer === 'Indeciso') return 'Indeciso';
-        if (answer === 'Favorevole') return 'Favorevole';
-        if (answer === 'Contrario') return 'Contrario';
-        if (answer === 'Astenuto') return 'Astenuto';
-        // Gestione valori compressi
-        if (answer === 'f') return 'Favorevole';
-        if (answer === 'c') return 'Contrario';
-        if (answer === 'i') return 'Indeciso';
-        return 'Astenuto'; // Default per valori non riconosciuti
-      };
+    const normalizeAnswer = (answer) => {
+      if (!answer || answer === null || answer === undefined) return 'Astenuto';
+      // Gestione valori compressi
+      if (answer === 'f') return 'Favorevole';
+      if (answer === 'c') return 'Contrario';
+      if (answer === 'i') return 'Indeciso';
+      // Gestione valori non compressi
+      if (answer === 'Favorevole') return 'Favorevole';
+      if (answer === 'Contrario') return 'Contrario';
+      if (answer === 'Indeciso') return 'Indeciso';
+      if (answer === 'Astenuto') return 'Astenuto';
+      return 'Astenuto'; // Default per valori non riconosciuti
+    };
       
       console.log(`🔍 DEBUG calculateCommonOpinions - User opinions sample:`, Object.keys(userOpinions).slice(0, 5).map(key => `${key}: ${userOpinions[key]}`));
       console.log(`🔍 DEBUG calculateCommonOpinions - Candidate opinions sample:`, Object.keys(candidateOpinions).slice(0, 5).map(key => `${key}: ${candidateOpinions[key]}`));

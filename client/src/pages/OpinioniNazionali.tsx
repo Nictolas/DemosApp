@@ -34,16 +34,15 @@ const options = [
 // Funzione per normalizzare le risposte (gestisce sia valori compressi che non compressi)
 const normalizeAnswer = (answer: string | undefined) => {
   if (!answer || answer === null || answer === undefined) return 'Astenuto';
-  if (answer === 'Sì') return 'Favorevole';
-  if (answer === 'No') return 'Contrario';
-  if (answer === 'Indeciso') return 'Indeciso';
-  if (answer === 'Favorevole') return 'Favorevole';
-  if (answer === 'Contrario') return 'Contrario';
-  if (answer === 'Astenuto') return 'Astenuto';
   // Gestione valori compressi
   if (answer === 'f') return 'Favorevole';
   if (answer === 'c') return 'Contrario';
   if (answer === 'i') return 'Indeciso';
+  // Gestione valori non compressi
+  if (answer === 'Favorevole') return 'Favorevole';
+  if (answer === 'Contrario') return 'Contrario';
+  if (answer === 'Indeciso') return 'Indeciso';
+  if (answer === 'Astenuto') return 'Astenuto';
   return 'Astenuto';
 };
 
