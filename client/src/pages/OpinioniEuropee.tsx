@@ -10,24 +10,17 @@ import { useToast } from '@/hooks/use-toast';
 import { ApprofondimentoButton } from '@/components/ApprofondimentoButton';
 
 const options = [
-  { value: 'Favorevole', color: 'bg-green-500 text-white' },
-  { value: 'Indeciso', color: 'bg-yellow-500 text-white' },
-  { value: 'Contrario', color: 'bg-red-500 text-white' }
+  { value: 'f', color: 'bg-green-500 text-white', label: 'Favorevole' },
+  { value: 'i', color: 'bg-yellow-500 text-white', label: 'Indeciso' },
+  { value: 'c', color: 'bg-red-500 text-white', label: 'Contrario' }
 ];
 
-// Funzione per normalizzare le risposte (gestisce sia valori compressi che non compressi)
+// Funzione per normalizzare le risposte (usa direttamente i valori compressi)
 const normalizeAnswer = (answer: string | undefined) => {
-  if (!answer || answer === null || answer === undefined) return 'Astenuto';
-  // Gestione valori compressi
-  if (answer === 'f') return 'Favorevole';
-  if (answer === 'c') return 'Contrario';
-  if (answer === 'i') return 'Indeciso';
-  // Gestione valori non compressi
-  if (answer === 'Favorevole') return 'Favorevole';
-  if (answer === 'Contrario') return 'Contrario';
-  if (answer === 'Indeciso') return 'Indeciso';
-  if (answer === 'Astenuto') return 'Astenuto';
-  return 'Astenuto';
+  if (!answer || answer === null || answer === undefined) return null;
+  // Usa direttamente i valori compressi
+  if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
+  return null;
 };
 
 export default function OpinioniEuropee() {
@@ -63,17 +56,17 @@ export default function OpinioniEuropee() {
   }, [questionsData, questions]);
 
   // Dividi le opinioni in due sezioni (usando la funzione di normalizzazione)
-  const opinioniEspresse = questions
-    .filter(q => {
-      const normalizedAnswer = normalizeAnswer(q.userAnswer);
-      return normalizedAnswer && ['Favorevole', 'Contrario', 'Indeciso'].includes(normalizedAnswer);
-    })
-    .sort((a, b) => a.text.localeCompare(b.text));
+    const opinioniEspresse = questions
+      .filter(q => {
+        const normalizedAnswer = normalizeAnswer(q.userAnswer);
+        return normalizedAnswer && ['f', 'c', 'i'].includes(normalizedAnswer);
+      })
+      .sort((a, b) => a.text.localeCompare(b.text));
   
   const opinioniDaInserire = questions
     .filter(q => {
       const normalizedAnswer = normalizeAnswer(q.userAnswer);
-      return !normalizedAnswer || normalizedAnswer === 'Astenuto' || !['Favorevole', 'Contrario', 'Indeciso'].includes(normalizedAnswer);
+      return !normalizedAnswer || !['f', 'c', 'i'].includes(normalizedAnswer);
     })
     .sort((a, b) => a.text.localeCompare(b.text));
 
@@ -210,7 +203,7 @@ export default function OpinioniEuropee() {
                                 onClick={() => handleOpinionChange(question.id, option.value)}
                                 disabled={blocco?.isBlocked}
                               >
-                                {option.value}
+                                {option.label}
                               </button>
                             ))}
                           </div>
@@ -244,7 +237,7 @@ export default function OpinioniEuropee() {
                                 onClick={() => handleOpinionChange(question.id, option.value)}
                                 disabled={blocco?.isBlocked}
                               >
-                                {option.value}
+                                {option.label}
                               </button>
                             ))}
                           </div>

@@ -12,9 +12,17 @@ import { useLocation } from "wouter";
 
 // Mappa colori per le risposte
 const responseColors = {
-  "Favorevole": "bg-green-100 text-green-800 border-green-500",
-  "Indeciso": "bg-yellow-100 text-yellow-800 border-yellow-500",
-  "Contrario": "bg-red-100 text-red-800 border-red-500"
+  "f": "bg-green-100 text-green-800 border-green-500",
+  "i": "bg-yellow-100 text-yellow-800 border-yellow-500",
+  "c": "bg-red-100 text-red-800 border-red-500"
+};
+
+// Funzione per normalizzare le risposte (usa direttamente i valori compressi)
+const normalizeAnswer = (answer: string | undefined) => {
+  if (!answer || answer === null || answer === undefined) return null;
+  // Usa direttamente i valori compressi
+  if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
+  return null;
 };
 
 interface ViewOpinioniDialogProps {
@@ -202,9 +210,9 @@ export function ViewOpinioniDialog({
     const contrari: { id: string, label: string }[] = [];
     questions.forEach((q: {id: string, text: string}) => {
       const value = opinions[q.id];
-      if (value === "Favorevole") favorevoli.push({ id: q.id, label: q.text });
-      else if (value === "Indeciso") indecisi.push({ id: q.id, label: q.text });
-      else if (value === "Contrario") contrari.push({ id: q.id, label: q.text });
+      if (value === "f") favorevoli.push({ id: q.id, label: q.text });
+      else if (value === "i") indecisi.push({ id: q.id, label: q.text });
+      else if (value === "c") contrari.push({ id: q.id, label: q.text });
     });
     return { favorevoli, indecisi, contrari };
   }
@@ -218,7 +226,6 @@ export function ViewOpinioniDialog({
     // Conta come opinione comune solo se entrambi hanno risposto con una posizione valida e la risposta è identica
     return (
       normalizedVal1 && normalizedVal2 &&
-      normalizedVal1 !== 'Astenuto' && normalizedVal2 !== 'Astenuto' &&
       normalizedVal1 === normalizedVal2
     );
   }

@@ -154,11 +154,14 @@ router.post('/salva', verifyToken, async (req, res) => {
       console.log(`🔍 DEBUG - Campo database: ${dbField}`);
       
       if (dbField) {
-        // Mantieni le risposte originali (le colonne users sono TEXT)
+        // Gestisci i valori compressi dal frontend
         let dbValue = null;
-        if (risposta === 'Favorevole') dbValue = 'Favorevole';
-        else if (risposta === 'Contrario') dbValue = 'Contrario';
-        else if (risposta === 'Indeciso') dbValue = 'Indeciso';
+        if (risposta === 'f') dbValue = 'f';
+        else if (risposta === 'c') dbValue = 'c';
+        else if (risposta === 'i') dbValue = 'i';
+        else if (risposta === 'Favorevole') dbValue = 'f';
+        else if (risposta === 'Contrario') dbValue = 'c';
+        else if (risposta === 'Indeciso') dbValue = 'i';
         else if (risposta === 'Astenuto') dbValue = null;
         
         updateFields.push(`${dbField} = $${paramIndex}`);
