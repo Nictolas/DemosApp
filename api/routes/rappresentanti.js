@@ -194,6 +194,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         if (answer === 'Favorevole') return 'Favorevole';
         if (answer === 'Contrario') return 'Contrario';
         if (answer === 'Astenuto') return 'Astenuto';
+        // Gestione valori compressi
+        if (answer === 'f') return 'Favorevole';
+        if (answer === 'c') return 'Contrario';
+        if (answer === 'i') return 'Indeciso';
         return 'Astenuto'; // Default per valori non riconosciuti
       };
       
