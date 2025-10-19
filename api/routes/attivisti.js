@@ -23,9 +23,9 @@ router.get('/', async (req, res) => {
     });
     
     // Costruisci la query con filtri dinamici
-    // Mostra solo Attivisti e Admin che hanno effettivamente tipologie di attivismo selezionate (non array vuoti)
+    // Mostra Attivisti e Admin (semplificato per includere tutti gli Admin)
     let whereConditions = [
-      "(u.ruolo = 'A' OR (u.ruolo = 'AD' AND u.tipologie_attivismo IS NOT NULL AND jsonb_array_length(u.tipologie_attivismo) > 0))"
+      "(u.ruolo = 'A' OR u.ruolo = 'AD')"
     ];
     let queryParams = [];
     let paramIndex = 1;
@@ -68,6 +68,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query(`
       SELECT
         u.id,
+        u.codice_attivista,
         u.nome,
         u.cognome,
         u.email,
@@ -97,7 +98,11 @@ router.get('/', async (req, res) => {
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS cnt
         FROM users s
-        WHERE s.attivisti = u.id
+        WHERE s.rappresentante_europeo::text = u.id::text
+           OR s.rappresentante_camera::text = u.id::text
+           OR s.rappresentante_senato::text = u.id::text
+           OR s.rappresentante_regionale::text = u.id::text
+           OR s.rappresentante_comune::text = u.id::text
       ) us ON TRUE
       WHERE ${whereClause}
       ORDER BY supporters_count DESC, u.created_at DESC
@@ -292,5 +297,11 @@ router.get('/filtri', async (req, res) => {
     });
   }
 });
+
+// Importa le route per la votazione
+const voteRouter = require('./attivisti-vote');
+
+// Usa le route di votazione
+router.use('/', voteRouter);
 
 module.exports = router;
