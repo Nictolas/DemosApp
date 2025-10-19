@@ -160,7 +160,7 @@ router.post('/register',
       email.toLowerCase(), 
       passwordHash, 
       ruolo || 'Elettore',
-      'pending',
+      'p',
       verificationToken,
       compressGender(genere) || null,
       formattedDataNascita, // Usa la data convertita

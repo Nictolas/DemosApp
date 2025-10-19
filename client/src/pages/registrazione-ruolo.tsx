@@ -199,7 +199,7 @@ export default function RegistrazioneRuolo() {
 
   // Reset dei campi dipendenti quando cambia il paese elezione
   React.useEffect(() => {
-    if (paeseElezione !== "Italia") {
+    if (paeseElezione !== "it") {
       setRegioneElezione("");
       setProvinciaElezione("");
       setComuneElezione("");
@@ -223,7 +223,7 @@ export default function RegistrazioneRuolo() {
 
   // Reset dei campi dipendenti quando cambia il paese candidatura
   React.useEffect(() => {
-    if (paeseCandidatura !== "Italia") {
+    if (paeseCandidatura !== "it") {
       setRegioneCandidatura("");
       setProvinciaCandidatura("");
       setComuneCandidatura("");
@@ -315,7 +315,7 @@ export default function RegistrazioneRuolo() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Seleziona paese</option>
-                      <option value="Italia">Italia</option>
+                      <option value="it">Italia</option>
                     </select>
                   </div>
 
@@ -336,7 +336,7 @@ export default function RegistrazioneRuolo() {
                   </div>
                 </div>
 
-                {paeseElezione === "Italia" && (
+                {paeseElezione === "it" && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Regione</label>
@@ -414,7 +414,7 @@ export default function RegistrazioneRuolo() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Seleziona paese</option>
-                      <option value="Italia">Italia</option>
+                      <option value="it">Italia</option>
                     </select>
                   </div>
 
@@ -435,7 +435,7 @@ export default function RegistrazioneRuolo() {
                   </div>
                 </div>
 
-                {paeseCandidatura === "Italia" && (
+                {paeseCandidatura === "it" && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Regione</label>

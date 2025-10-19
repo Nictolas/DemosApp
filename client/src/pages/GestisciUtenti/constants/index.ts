@@ -5,7 +5,7 @@ export const HIDDEN_COLUMNS = [
   'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
   'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia',
   // Colonne specifiche da nascondere
-  'id', 'nome', 'cognome', 'name', 'password_hash', 'avatar_config', 'fonti_opinioni', 'firestore_uid',
+  'id', 'nome', 'cognome', 'name', 'password_hash', 'avatar_config', 'fonti_opinioni',
   'created_at', 'updated_at',
   // Colonne di candidatura ed elezione (nascoste perché non necessarie per la gestione utenti)
   'candidato_attivo', 'status_candidatura', 'paese_candidatura', 'regione_candidatura', 

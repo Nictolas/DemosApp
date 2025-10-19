@@ -53,7 +53,7 @@ router.post('/verify-email', async (req, res) => {
     // Aggiorna lo status dell'utente e rimuovi il token
     const result = await pool.query(
       'UPDATE users SET status = $1, email_verification_token = NULL, updated_at = NOW() WHERE email = $2 AND email_verification_token = $3',
-      ['active', decoded.email, token]
+      ['a', decoded.email, token]
     );
     
     if (result.rowCount === 0) {
