@@ -5,7 +5,7 @@ export const HIDDEN_COLUMNS = [
   'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
   'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia',
   // Colonne tecniche da nascondere
-  'id', 'password_hash', 'avatar_config', 'fonti_opinioni', 'firestore_uid',
+  'id', 'password_hash', 'avatar_config', 'fonti_opinioni',
   'created_at', 'updated_at', 'reset_token', 'reset_token_expires', 'email_verification_token',
   // Colonne di opinioni locali (troppo specifiche)
   'cassonetti_intelligenti_con_tessera', 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',

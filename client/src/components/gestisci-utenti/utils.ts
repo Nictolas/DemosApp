@@ -7,7 +7,7 @@ const HIDDEN_COLUMNS = [
   'caccia', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
   'carne_coltivata', 'case_chiuse', 'eutanasia', 'omobitransfobia',
   // Colonne specifiche da nascondere
-  'id', 'nome', 'cognome', 'password_hash', 'avatar_config', 'fonti_opinioni', 'firestore_uid'
+  'id', 'nome', 'cognome', 'password_hash', 'avatar_config', 'fonti_opinioni'
 ];
 
 // Funzione per ottenere le colonne da mostrare

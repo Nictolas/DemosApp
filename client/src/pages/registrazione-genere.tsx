@@ -30,7 +30,7 @@ export default function RegistrazioneGenere() {
         <div className="space-y-4">
           {/* Opzione Maschile */}
           <Button
-            onClick={() => handleGenereSelect("uomo")}
+            onClick={() => handleGenereSelect("u")}
             variant="outline"
             className="w-full h-20 text-lg font-medium border-2 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
           >
@@ -42,7 +42,7 @@ export default function RegistrazioneGenere() {
 
           {/* Opzione Femminile */}
           <Button
-            onClick={() => handleGenereSelect("donna")}
+            onClick={() => handleGenereSelect("d")}
             variant="outline"
             className="w-full h-20 text-lg font-medium border-2 hover:border-pink-500 hover:bg-pink-50 transition-all duration-200"
           >
@@ -54,7 +54,7 @@ export default function RegistrazioneGenere() {
 
           {/* Opzione Non Binario */}
           <Button
-            onClick={() => handleGenereSelect("altro")}
+            onClick={() => handleGenereSelect("a")}
             variant="outline"
             className="w-full h-20 text-lg font-medium border-2 hover:border-yellow-500 hover:bg-yellow-50 transition-all duration-200"
           >

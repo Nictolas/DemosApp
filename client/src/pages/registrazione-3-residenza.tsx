@@ -55,7 +55,7 @@ export default function RegistrazioneResidenza() {
 
   // Reset dei campi dipendenti
   React.useEffect(() => {
-    if (watchPaeseResidenza !== "Italia") {
+    if (watchPaeseResidenza !== "it") {
       form.setValue("regione_residenza", "");
       form.setValue("provincia_residenza", "");
       form.setValue("comune_residenza", "");
@@ -97,7 +97,7 @@ export default function RegistrazioneResidenza() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <option value="">Seleziona paese</option>
-                      <option value="Italia">Italia</option>
+                      <option value="it">Italia</option>
                       <option value="Francia">Francia</option>
                       <option value="Germania">Germania</option>
                       <option value="Spagna">Spagna</option>
@@ -110,7 +110,7 @@ export default function RegistrazioneResidenza() {
               )}
             />
 
-            {watchPaeseResidenza === "Italia" && (
+            {watchPaeseResidenza === "it" && (
               <>
                 <FormField
                   control={form.control}

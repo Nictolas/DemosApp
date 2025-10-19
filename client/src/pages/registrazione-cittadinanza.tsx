@@ -30,7 +30,7 @@ export default function RegistrazioneCittadinanza() {
         <div className="space-y-4">
           {/* Cittadinanza Italiana */}
           <Button
-            onClick={() => handleCittadinanzaSelect("italiana")}
+            onClick={() => handleCittadinanzaSelect("it")}
             variant="outline"
             className="w-full h-16 text-lg font-medium border-2 hover:border-green-500 hover:bg-green-50 transition-all duration-200"
           >
@@ -42,7 +42,7 @@ export default function RegistrazioneCittadinanza() {
 
           {/* Cittadinanza Europea */}
           <Button
-            onClick={() => handleCittadinanzaSelect("europea")}
+            onClick={() => handleCittadinanzaSelect("st")}
             variant="outline"
             className="w-full h-16 text-lg font-medium border-2 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200"
           >
@@ -54,7 +54,7 @@ export default function RegistrazioneCittadinanza() {
 
           {/* Cittadinanza Extra-UE */}
           <Button
-            onClick={() => handleCittadinanzaSelect("extra-ue")}
+            onClick={() => handleCittadinanzaSelect("st")}
             variant="outline"
             className="w-full h-16 text-lg font-medium border-2 hover:border-purple-500 hover:bg-purple-50 transition-all duration-200"
           >
