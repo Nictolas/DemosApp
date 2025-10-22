@@ -50,25 +50,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         grado_elezione,
         regione_elezione,
         provincia_elezione,
-        comune_elezione,
-        -- Opinion nazionali/europee
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali (senza prefissi)
-        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
-        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
-        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
-        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
-        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
-        sicurezza_strade_scolastiche, sostegno_commercio_locale,
-        verde_pubblico_e_giardini,
-        -- Opinion regionali (senza prefissi)
-        nuovi_inceneritori, chiusura_ospedali_di_provincia,
-        -- Opinion nazionali/comunali (senza prefissi)
-        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
-        riduzione_parcheggi_a_pagamento
+        comune_elezione
       FROM users
       WHERE (ruolo = 'P' OR ruolo = 'CP')
         AND status = 'a'
@@ -81,37 +63,39 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
     
-    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni
+    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni_domande
     const gradoOpinionsQuery = `
       SELECT o.id, o.text, o.gradi_opinione
-      FROM opinioni o
-      WHERE $1 = ANY(o.gradi_opinione) OR $2 = ANY(o.gradi_opinione)
+      FROM opinioni_domande o
+      WHERE $1 = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
     
-    // Usa sia il grado mappato che quello originale per le opinioni
+    // Usa il grado mappato per le opinioni
     const gradoForOpinions = grado ? (gradoMapping[grado] || grado) : null;
-    const gradoOriginale = grado; // Es. "Europeo" per grado "E"
-    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [gradoForOpinions, gradoOriginale]);
+    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [gradoForOpinions]);
     const gradoOpinions = gradoOpinionsResult.rows;
     
     console.log(`🔍 DEBUG - Opinion per grado ${grado} caricate:`, gradoOpinions.length);
     console.log(`🔍 DEBUG - Opinion per grado ${grado}:`, gradoOpinions.map(o => o.text));
     
     // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
-    const userOpinionsQuery = `
-      SELECT o.text, or.risposta
-      FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
-      WHERE $2 = ANY(o.gradi_opinione)
+    const userAnswersQuery = `
+      SELECT * FROM opinioni_risposte WHERE user_id = $1
     `;
     
-    const userOpinionsResult = await pool.query(userOpinionsQuery, [userId, grado]);
+    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
     const userOpinions = {};
-    userOpinionsResult.rows.forEach(row => {
-      const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-      userOpinions[opinionId] = row.risposta;
-    });
+    
+    if (userAnswersResult.rows.length > 0) {
+      const userRow = userAnswersResult.rows[0];
+      // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+      Object.keys(userRow).forEach(key => {
+        if (key !== 'user_id' && key !== 'fonti_opinioni') {
+          userOpinions[key] = userRow[key];
+        }
+      });
+    }
     
     console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
     console.log('🔍 DEBUG - Opinion utente corrente:', userOpinions);
@@ -137,19 +121,22 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       console.log(`🔍 DEBUG calculateCommonOpinions - Opinion caricate dalla tabella opinioni per grado ${grado}:`, gradoOpinions.length);
       
       // Carica le opinioni del candidato dalla tabella opinioni_risposte
-      const candidateOpinionsQuery = `
-        SELECT o.text, or.risposta
-        FROM opinioni_domande o
-        LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
-        WHERE $2 = ANY(o.gradi_opinione)
+      const candidateAnswersQuery = `
+        SELECT * FROM opinioni_risposte WHERE user_id = $1
       `;
       
-      const candidateOpinionsResult = await pool.query(candidateOpinionsQuery, [candidateOpinions.id, grado]);
+      const candidateAnswersResult = await pool.query(candidateAnswersQuery, [candidateOpinions.id]);
       const candidateOpinionsMap = {};
-      candidateOpinionsResult.rows.forEach(row => {
-        const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-        candidateOpinionsMap[opinionId] = row.risposta;
-      });
+      
+      if (candidateAnswersResult.rows.length > 0) {
+        const candidateRow = candidateAnswersResult.rows[0];
+        // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+        Object.keys(candidateRow).forEach(key => {
+          if (key !== 'user_id' && key !== 'fonti_opinioni') {
+            candidateOpinionsMap[key] = candidateRow[key];
+          }
+        });
+      }
       
       // Funzione per normalizzare le risposte al formato frontend
     const normalizeAnswer = (answer) => {
@@ -171,7 +158,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       
       // Controlla ogni opinione dalla tabella opinioni_domande
       gradoOpinions.forEach(opinion => {
-        const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
+        const opinionId = opinion.id; // Usa l'ID dell'opinione invece del testo
         
         const userAnswer = userOpinions[opinionId];
         const candidateAnswer = candidateOpinionsMap[opinionId];
