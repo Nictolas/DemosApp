@@ -188,8 +188,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       });
     }
     
-    // Query per ottenere utenti con ruolo "Candidato" o "Candidato Politico" 
-    // e grado_candidatura corrispondente, limitato a massimo 4 risultati
+    // Query per ottenere TUTTI gli utenti con ruolo "Candidato" o "Candidato Politico" 
+    // e grado_candidatura corrispondente (senza LIMIT per calcolare opinioni comuni)
     const candidatiQuery = `
       SELECT 
         id,
@@ -204,7 +204,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       WHERE ruolo IN ('C', 'CP')
         AND grado_candidatura = $1
       ORDER BY nome, cognome
-      LIMIT 4
     `;
     
     console.log('🔍 DEBUG - Query candidati:', candidatiQuery);
@@ -319,17 +318,22 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       }
     }));
     
+    // Ordina per opinioni comuni (decrescente) e prendi i primi 4
+    const candidatiOrdinati = candidatiConOpinioni
+      .sort((a, b) => (b.opinioniComuni || 0) - (a.opinioniComuni || 0))
+      .slice(0, 4);
+    
     // Debug finale per vedere cosa stiamo restituendo
-    console.log('🔍 DEBUG - Candidati finali con opinioni comuni:');
-    candidatiConOpinioni.forEach((candidato, index) => {
+    console.log('🔍 DEBUG - Candidati finali ordinati per opinioni comuni (primi 4):');
+    candidatiOrdinati.forEach((candidato, index) => {
       console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: ${candidato.opinioniComuni} opinioni comuni`);
     });
     
     res.json({
       success: true,
-      data: candidatiConOpinioni,
-      count: candidatiConOpinioni.length,
-      message: `Trovati ${candidatiConOpinioni.length} candidati per grado_candidatura: ${grado_candidatura}`
+      data: candidatiOrdinati,
+      count: candidatiOrdinati.length,
+      message: `Trovati ${candidatiOrdinati.length} candidati più compatibili per grado_candidatura: ${grado_candidatura}`
     });
     
   } catch (error) {

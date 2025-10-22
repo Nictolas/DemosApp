@@ -317,30 +317,31 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     const authenticatedUserId = req.userId;
     
     // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
-    // con le risposte dell'utente dalla tabella opinioni_risposte
     let opinioniQuery = `
-      SELECT o.id, o.text, o.gradi_opinione, or.risposta, or.fonte
-      FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+      SELECT id, text, gradi_opinione, informazioni, approfondimenti
+      FROM opinioni_domande
     `;
     
     // Filtra per grado se specificato
     if (grado) {
-      // Usa direttamente il grado compresso
-      opinioniQuery += ` WHERE $2 = ANY(o.gradi_opinione)`;
+      opinioniQuery += ` WHERE $1 = ANY(gradi_opinione)`;
     }
     
-    opinioniQuery += ` ORDER BY o.text`;
+    opinioniQuery += ` ORDER BY text`;
     
-    // Esegui la query con i parametri appropriati
+    // Esegui la query per le opinioni
     let opinioniResult;
     if (grado) {
-      // Usa direttamente il grado compresso
-      opinioniResult = await pool.query(opinioniQuery, [userId, grado]);
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
     } else {
-      opinioniResult = await pool.query(opinioniQuery, [userId]);
+      opinioniResult = await pool.query(opinioniQuery);
     }
     const opinioni = opinioniResult.rows;
+    
+    // Carica le risposte dell'utente dalla tabella opinioni_risposte
+    const userAnswersQuery = `SELECT * FROM opinioni_risposte WHERE user_id = $1`;
+    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
+    const userAnswers = userAnswersResult.rows[0] || {};
     
     console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
     if (grado) {
@@ -356,44 +357,38 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       });
     }
 
-    // Estrai le fonti dalle opinioni caricate
-    const fontiOpinioni = {};
-    opinioni.forEach(opinion => {
-      if (opinion.fonte) {
-        const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
-        fontiOpinioni[opinionId] = opinion.fonte;
-      }
-    });
+    // Estrai le fonti dalle opinioni dell'utente
+    const fontiOpinioni = userAnswers.fonti_opinioni || {};
     console.log('🔍 DEBUG - Fonti opinioni per utente', userId, ':', fontiOpinioni);
     
-    // Formatta le opinioni per il frontend usando direttamente i dati dalla JOIN
+    // Formatta le opinioni per il frontend usando il mapping diretto
     const formattedOpinions = opinioni.map(opinion => {
-      const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
+      const opinionId = opinion.id; // Usa l'ID diretto dalla tabella opinioni_domande
+      const userAnswer = userAnswers[opinionId] || null; // Prende il valore dalla colonna corrispondente
       
       console.log(`🔍 DEBUG - Opinione:`, {
+        id: opinionId,
         text: opinion.text,
-        opinionId: opinionId,
-        risposta: opinion.risposta,
-        fonte: opinion.fonte
+        userAnswer: userAnswer
       });
       
       // Restituisci sempre valori compressi per compatibilità
       let frontendAnswer = null;
-      if (opinion.risposta === 'f') frontendAnswer = 'f';
-      else if (opinion.risposta === 'c') frontendAnswer = 'c';
-      else if (opinion.risposta === 'i') frontendAnswer = 'i';
-      else if (opinion.risposta === null) frontendAnswer = null;
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
       // Gestisci valori legacy convertendoli a compressi
-      else if (opinion.risposta === 'Sì' || opinion.risposta === 'Favorevole') frontendAnswer = 'f';
-      else if (opinion.risposta === 'No' || opinion.risposta === 'Contrario') frontendAnswer = 'c';
-      else if (opinion.risposta === 'Indeciso') frontendAnswer = 'i';
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
       
       return {
-        id: opinionId, // Usa l'ID generato dal testo per compatibilità con il frontend
+        id: opinionId,
         text: opinion.text,
-        grado: opinion.gradi_opinione || ['Europeo'], // Usa i gradi dalla tabella opinioni_domande
+        grado: opinion.gradi_opinione,
         userAnswer: frontendAnswer,
-        source: opinion.fonte || 'unknown' // Usa la fonte dalla tabella opinioni_risposte
+        source: fontiOpinioni[opinionId] || 'unknown'
       };
     });
     
