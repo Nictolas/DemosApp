@@ -8,22 +8,102 @@ router.get('/opinioni-list', async (req, res) => {
     console.log('🔍 GET /api/opinioni-list - Richiesta diretta (compatibilità frontend)');
     console.log('🔑 Headers ricevuti:', req.headers);
     
-    // Chiama direttamente l'endpoint opinioni-list senza reindirizzamento
-    const opinioniCompatibilityRoutes = require('../routes/opinioni/compatibility');
+    // Implementa direttamente la logica invece di reindirizzare
+    const { verifyToken } = require('../middleware/auth');
+    const { pool } = require('../middleware/auth');
     
-    // Crea una richiesta mock per il router con TUTTI gli headers
-    const mockReq = {
-      ...req,
-      url: '/opinioni-list' + req.url.replace('/opinioni-list', ''),
-      headers: { ...req.headers }, // Copia esplicita degli headers
-      get: (name) => req.headers[name], // Metodo get per compatibilità
-      header: (name) => req.headers[name] // Metodo header per compatibilità
-    };
+    // Verifica il token
+    const authResult = await verifyToken(req, res, () => {});
+    if (!authResult) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token non valido'
+      });
+    }
     
-    console.log('🔑 Mock request headers:', mockReq.headers);
+    const { grado } = req.query;
+    const userId = req.userId;
     
-    // Usa il router modulare
-    opinioniCompatibilityRoutes.handle(mockReq, res);
+    console.log('🔍 GET /api/opinioni-list - Richiesta opinioni per grado:', grado);
+    console.log('👤 User ID:', userId);
+    
+    if (!grado) {
+      return res.status(400).json({
+        success: false,
+        error: 'Grado richiesto',
+        message: 'Il parametro grado è obbligatorio'
+      });
+    }
+    
+    // Query per ottenere le opinioni del grado specificato
+    const opinionQuery = `
+      SELECT o.id, o.text, o.gradi_opinione
+      FROM opinioni_domande o
+      WHERE $1 = ANY(o.gradi_opinione)
+      ORDER BY o.text
+    `;
+    
+    const opinionResult = await pool.query(opinionQuery, [grado]);
+    
+    console.log(`🔍 DEBUG - Query per grado ${grado}:`, opinionQuery);
+    console.log(`🔍 DEBUG - Parametri query:`, [grado]);
+    console.log(`🔍 DEBUG - Risultati trovati:`, opinionResult.rows.length);
+    
+    if (opinionResult.rows.length === 0) {
+      console.log(`⚠️ Nessuna opinione trovata per il grado: ${grado}`);
+      return res.json({
+        success: true,
+        data: [],
+        message: `Nessuna opinione trovata per il grado: ${grado}`
+      });
+    }
+    
+    // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
+    const userQuery = `
+      SELECT o.text, or.risposta
+      FROM opinioni_domande o
+      LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+      WHERE $2 = ANY(o.gradi_opinione)
+    `;
+    
+    const userResult = await pool.query(userQuery, [userId, grado]);
+    const userAnswers = {};
+    userResult.rows.forEach(row => {
+      const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
+      userAnswers[opinionKey] = row.risposta;
+    });
+    
+    console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
+    
+    // Formatta le opinioni per il frontend
+    const formattedOpinions = opinionResult.rows.map(opinion => {
+      const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
+      const userAnswer = userAnswers[opinionKey];
+      
+      // Restituisci direttamente i valori compressi dal database
+      let frontendAnswer = null;
+      if (userAnswer === 'f' || userAnswer === 'c' || userAnswer === 'i') {
+        frontendAnswer = userAnswer;
+      } else if (userAnswer === null || userAnswer === undefined || userAnswer === '') {
+        frontendAnswer = null;
+      }
+      
+      return {
+        id: opinionKey,
+        text: opinion.text,
+        grado: opinion.gradi_opinione,
+        userAnswer: frontendAnswer
+      };
+    });
+    
+    console.log(`✅ Trovate ${formattedOpinions.length} opinioni per grado: ${grado}`);
+    
+    res.json({
+      success: true,
+      data: formattedOpinions,
+      grado: grado,
+      total: formattedOpinions.length
+    });
     
   } catch (error) {
     console.error('💥 Errore endpoint diretto opinioni-list:', error);

@@ -96,6 +96,10 @@ class CentralizedLogger {
   async writeToDatabase(level, message, meta = {}) {
     if (!this.logToDatabase) return;
 
+    // Disabilita temporaneamente il logging su database per evitare errori
+    console.log(`📝 LOG [${level}]: ${message}`, meta);
+    return;
+
     try {
       const logEntry = this.formatMessage(level, message, meta);
       
