@@ -66,16 +66,25 @@ export default function ScegliCandidato() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="grid grid-cols-2 gap-4 w-full max-w-2xl" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                {candidati.map((candidato) => (
-                  <CandidatoCard
-                    key={candidato.id}
-                    candidato={candidato}
-                    isSelected={candidato.id === candidatoSelezionato}
-                    isSelezionando={selezionando}
-                    onSeleziona={handleSelezionaCandidato}
-                    onViewOpinioni={openOpinioniDialog}
-                  />
-                ))}
+                {candidati.map((candidato) => {
+                  console.log('🔍 DEBUG - Passando candidato a CandidatoCard:', {
+                    id: candidato.id,
+                    nome: candidato.nome,
+                    opinioniComuni: candidato.opinioniComuni,
+                    tipo: typeof candidato.opinioniComuni,
+                    tutteLeChiavi: Object.keys(candidato)
+                  });
+                  return (
+                    <CandidatoCard
+                      key={candidato.id}
+                      candidato={candidato}
+                      isSelected={candidato.id === candidatoSelezionato}
+                      isSelezionando={selezionando}
+                      onSeleziona={handleSelezionaCandidato}
+                      onViewOpinioni={openOpinioniDialog}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
