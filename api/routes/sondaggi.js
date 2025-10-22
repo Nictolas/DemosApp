@@ -77,16 +77,16 @@ router.get('/', async (req, res) => {
         continue; // Salta questa opinione se non è mappata
       }
       
-      // Query per contare le risposte per questa opinione
+      // Query per contare le risposte per questa opinione dalla tabella opinioni_risposte
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_voti,
-          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-        FROM users 
-        WHERE ${columnName} IS NOT NULL
+          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        WHERE orr.${columnName} IS NOT NULL
       `;
       
       try {
@@ -420,14 +420,15 @@ router.get('/:regione/:provincia', async (req, res) => {
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_utenti,
-          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-        FROM users 
-        WHERE ${columnName} IS NOT NULL
-        AND regione_residenza = $1
-        AND provincia_residenza = $2
+          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr.${columnName} IS NOT NULL
+        AND u.regione_residenza = $1
+        AND u.provincia_residenza = $2
       `;
       
       try {
@@ -545,15 +546,16 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
       const statsQuery = `
         SELECT 
           COUNT(*) as totale_utenti,
-          COUNT(CASE WHEN ${columnName} = 'Favorevole' THEN 1 END) as favorevole,
-          COUNT(CASE WHEN ${columnName} = 'Contrario' THEN 1 END) as contrario,
-          COUNT(CASE WHEN ${columnName} = 'Indeciso' THEN 1 END) as indeciso,
-          COUNT(CASE WHEN ${columnName} = 'Astenuto' THEN 1 END) as astenuto
-        FROM users 
-        WHERE ${columnName} IS NOT NULL
-        AND regione_residenza = $1
-        AND provincia_residenza = $2
-        AND comune_residenza = $3
+          COUNT(CASE WHEN orr.${columnName} = 'f' THEN 1 END) as favorevole,
+          COUNT(CASE WHEN orr.${columnName} = 'c' THEN 1 END) as contrario,
+          COUNT(CASE WHEN orr.${columnName} = 'i' THEN 1 END) as indeciso,
+          COUNT(CASE WHEN orr.${columnName} IS NULL THEN 1 END) as astenuto
+        FROM opinioni_risposte orr
+        JOIN users u ON u.id = orr.user_id
+        WHERE orr.${columnName} IS NOT NULL
+        AND u.regione_residenza = $1
+        AND u.provincia_residenza = $2
+        AND u.comune_residenza = $3
       `;
       
       try {
