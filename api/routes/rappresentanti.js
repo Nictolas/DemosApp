@@ -87,10 +87,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
     
-    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni
+    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni_domande
     const gradoOpinionsQuery = `
       SELECT o.id, o.text, o.gradi_opinione
-      FROM opinioni o
+      FROM opinioni_domande o
       WHERE $1 = ANY(o.gradi_opinione) OR $2 = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
@@ -106,9 +106,21 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
     const userOpinionsQuery = `
-      SELECT o.text, or.risposta
-      FROM opinioni o
-      LEFT JOIN users u ON u.id = $1
+      SELECT o.text, or.energia_nucleare, or.sperimentazione_animale, or.legalizzazione_canapa, or.caccia, or.eutanasia,
+             or.carne_coltivata, or.nato, or.matrimonio_gay, or.salario_minimo, or.case_chiuse, or.omobitransfobia,
+             or.cassonetti_intelligenti_con_tessera, or.concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+             or.divieto_di_nuovi_fast_food_nel_centro_storico, or.estensione_delle_zone_a_traffico_limitato,
+             or.finanziamento_eventi_culturali_gratuiti, or.nuova_biblioteca_comunale,
+             or.nuove_case_popolari, or.nuove_piste_ciclabili, or.nuovi_asili_nido_comunali,
+             or.nuovo_stadio_comunale, or.parcheggi_gratuiti_per_residenti,
+             or.potenziamento_trasporto_pubblico, or.riduzione_tasse_rifiuti,
+             or.sicurezza_strade_scolastiche, or.sostegno_commercio_locale,
+             or.verde_pubblico_e_giardini, or.nuovi_inceneritori, or.chiusura_ospedali_di_provincia,
+             or.raccolta_rifiuti_porta_a_porta, or.riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+             or.sussidi_comunali_per_famiglie_numerose, or.videosorveglianza_in_spazi_pubblici,
+             or.riduzione_parcheggi_a_pagamento
+      FROM opinioni_domande o
+      LEFT JOIN opinioni_risposte or ON or.user_id = $1
       WHERE $2 = ANY(o.gradi_opinione)
     `;
     
@@ -116,7 +128,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const userOpinions = {};
     userOpinionsResult.rows.forEach(row => {
       const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-      userOpinions[opinionId] = row.risposta;
+      // Mappa la risposta dalla colonna corrispondente
+      const opinionField = opinionId.replace(/\s+/g, '_').toLowerCase();
+      userOpinions[opinionId] = row[opinionField];
     });
     
     console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
@@ -142,11 +156,23 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       
       console.log(`🔍 DEBUG calculateCommonOpinions - Opinion caricate dalla tabella opinioni per grado ${grado}:`, gradoOpinions.length);
       
-      // Carica le opinioni del candidato dalla tabella opinioni
+      // Carica le opinioni del candidato dalla tabella opinioni_risposte
       const candidateOpinionsQuery = `
-        SELECT o.text, or.risposta
-        FROM opinioni o
-        LEFT JOIN users u ON u.id = $1
+        SELECT o.text, or.energia_nucleare, or.sperimentazione_animale, or.legalizzazione_canapa, or.caccia, or.eutanasia,
+               or.carne_coltivata, or.nato, or.matrimonio_gay, or.salario_minimo, or.case_chiuse, or.omobitransfobia,
+               or.cassonetti_intelligenti_con_tessera, or.concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+               or.divieto_di_nuovi_fast_food_nel_centro_storico, or.estensione_delle_zone_a_traffico_limitato,
+               or.finanziamento_eventi_culturali_gratuiti, or.nuova_biblioteca_comunale,
+               or.nuove_case_popolari, or.nuove_piste_ciclabili, or.nuovi_asili_nido_comunali,
+               or.nuovo_stadio_comunale, or.parcheggi_gratuiti_per_residenti,
+               or.potenziamento_trasporto_pubblico, or.riduzione_tasse_rifiuti,
+               or.sicurezza_strade_scolastiche, or.sostegno_commercio_locale,
+               or.verde_pubblico_e_giardini, or.nuovi_inceneritori, or.chiusura_ospedali_di_provincia,
+               or.raccolta_rifiuti_porta_a_porta, or.riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+               or.sussidi_comunali_per_famiglie_numerose, or.videosorveglianza_in_spazi_pubblici,
+               or.riduzione_parcheggi_a_pagamento
+        FROM opinioni_domande o
+        LEFT JOIN opinioni_risposte or ON or.user_id = $1
         WHERE $2 = ANY(o.gradi_opinione)
       `;
       
@@ -154,7 +180,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       const candidateOpinionsMap = {};
       candidateOpinionsResult.rows.forEach(row => {
         const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-        candidateOpinionsMap[opinionId] = row.risposta;
+        // Mappa il testo dell'opinione alla colonna corrispondente in opinioni_risposte
+        const opinionColumn = row.text.replace(/\s+/g, '_').toLowerCase();
+        candidateOpinionsMap[opinionId] = row[opinionColumn];
       });
       
       // Funzione per normalizzare le risposte al formato frontend
