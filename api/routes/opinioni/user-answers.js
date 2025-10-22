@@ -9,7 +9,7 @@ router.get('/profile', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni/profile - Richiesta domande opinioni');
     
-    // Query per ottenere le domande delle opinioni dalla tabella opinioni
+    // Query per ottenere le domande delle opinioni dalla tabella opinioni_domande
     const opinionQuery = `
       SELECT DISTINCT 
         CASE 
@@ -18,7 +18,7 @@ router.get('/profile', verifyToken, async (req, res) => {
           ELSE 'Nazionale' 
         END as grado_primario, 
         o.text
-      FROM opinioni o
+      FROM opinioni_domande o
       WHERE o.text IS NOT NULL AND o.text != ''
       ORDER BY grado_primario, o.text
     `;
@@ -28,7 +28,7 @@ router.get('/profile', verifyToken, async (req, res) => {
     console.log(`🔍 DEBUG - Risultati query: ${opinionResult.rows.length} righe`);
     
     if (opinionResult.rows.length === 0) {
-      console.log('⚠️ Nessuna opinione trovata nella tabella opinioni');
+      console.log('⚠️ Nessuna opinione trovata nella tabella opinioni_domande');
       return res.json({
         success: true,
         data: {
@@ -57,13 +57,13 @@ router.get('/profile', verifyToken, async (req, res) => {
     
     // Se la tabella non esiste, restituisci un array vuoto invece di un errore
     if (error.code === '42P01') { // Tabella non esiste
-      console.log('⚠️ Tabella opinioni non esiste, restituisco array vuoto');
+      console.log('⚠️ Tabella opinioni_domande non esiste, restituisco array vuoto');
       return res.json({
         success: true,
         data: {
           questions: []
         },
-        message: 'Tabella opinioni non disponibile'
+        message: 'Tabella opinioni_domande non disponibile'
       });
     }
     
@@ -190,7 +190,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
       // ID numerico
       query = `
         SELECT id, text, approfondimento, gradi_opinione
-        FROM opinioni 
+        FROM opinioni_domande 
         WHERE id = $1
       `;
       params = [id];
@@ -201,7 +201,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
       
       query = `
         SELECT id, text, approfondimento, gradi_opinione
-        FROM opinioni 
+        FROM opinioni_domande 
         WHERE LOWER(TRIM(text)) = LOWER(TRIM($1))
       `;
       params = [textToSearch];
@@ -214,7 +214,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
       // Fallback: prova a cercare per ID diretto
       const fallbackQuery = `
         SELECT id, text, approfondimento, gradi_opinione
-        FROM opinioni 
+        FROM opinioni_domande 
         WHERE id = $1
       `;
       result = await pool.query(fallbackQuery, [id]);
@@ -253,7 +253,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
     
     // Se la tabella non esiste, restituisci dati di default
     if (error.code === '42P01') { // Tabella non esiste
-      console.log('⚠️ Tabella opinioni non esiste, restituisco dati di default');
+      console.log('⚠️ Tabella opinioni_domande non esiste, restituisco dati di default');
       return res.json({
         success: true,
         data: {
@@ -267,7 +267,7 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
     
     // Se la colonna non esiste, restituisci dati di default
     if (error.code === '42703') { // Colonna non esiste
-      console.log('⚠️ Colonna non esiste nella tabella opinioni, restituisco dati di default');
+      console.log('⚠️ Colonna non esiste nella tabella opinioni_domande, restituisco dati di default');
       return res.json({
         success: true,
         data: {
@@ -315,7 +315,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     if (/^\d+$/.test(id)) {
       // ID numerico
       updateQuery = `
-        UPDATE opinioni 
+        UPDATE opinioni_domande 
         SET approfondimento = $1, gradi_opinione = $2
         WHERE id = $3
         RETURNING id, text, approfondimento, gradi_opinione
@@ -327,7 +327,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       console.log('🔍 DEBUG - Aggiornando opinione con testo:', textToSearch);
       
       updateQuery = `
-        UPDATE opinioni 
+        UPDATE opinioni_domande 
         SET approfondimento = $1, gradi_opinione = $2
         WHERE LOWER(TRIM(text)) = LOWER(TRIM($3))
         RETURNING id, text, approfondimento, gradi_opinione
@@ -341,7 +341,7 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       console.log('⚠️ Opinione non trovata con testo per update, provo con ID diretto:', id);
       // Fallback: prova a cercare per ID diretto
       const fallbackUpdateQuery = `
-        UPDATE opinioni 
+        UPDATE opinioni_domande 
         SET approfondimento = $1, gradi_opinione = $2
         WHERE id = $3
         RETURNING id, text, approfondimento, gradi_opinione
@@ -375,11 +375,11 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     
     // Se la colonna non esiste, restituisci un errore specifico
     if (error.code === '42703') { // Colonna non esiste
-      console.log('⚠️ Colonna non esiste nella tabella opinioni');
+      console.log('⚠️ Colonna non esiste nella tabella opinioni_domande');
       return res.status(500).json({
         success: false,
         error: 'Colonna mancante',
-        message: 'Le colonne approfondimento e gradi_opinione devono essere aggiunte alla tabella opinioni'
+        message: 'Le colonne approfondimento e gradi_opinione devono essere aggiunte alla tabella opinioni_domande'
       });
     }
     

@@ -69,7 +69,7 @@ router.delete('/', verifyToken, async (req, res) => {
     // Cancella i dati in ordine per rispettare le foreign key constraints
     
     // 1. Cancella le opinioni
-    await client.query('DELETE FROM opinioni WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM opinioni_risposte WHERE user_id = $1', [userId]);
     
     // 2. Cancella i voti
     await client.query('DELETE FROM voti_capo_stato WHERE user_id = $1', [userId]);

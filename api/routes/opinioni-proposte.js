@@ -54,12 +54,12 @@ router.get('/debug', async (req, res) => {
     console.log('✅ Database connesso:', testQuery.rows[0].current_time);
     
     // Test tabella opinioni
-    const opinioniCount = await pool.query('SELECT COUNT(*) as count FROM opinioni');
+    const opinioniCount = await pool.query('SELECT COUNT(*) as count FROM opinioni_domande');
     console.log('✅ Righe in opinioni:', opinioniCount.rows[0].count);
     
     // Test opinioni da approvare
     const daApprovareQuery = `
-      SELECT COUNT(*) as count FROM opinioni 
+      SELECT COUNT(*) as count FROM opinioni_domande 
       WHERE 'da approvare' = ANY(gradi_opinione)
     `;
     const daApprovareCount = await pool.query(daApprovareQuery);
@@ -125,7 +125,7 @@ router.get('/', async (req, res) => {
     const query = `
       SELECT o.id, o.text as testo, o.gradi_opinione, o.approfondimento,
              COALESCE(voti_count.count, 0) as voti
-      FROM opinioni o
+      FROM opinioni_domande o
       LEFT JOIN (
         SELECT opinione_id, COUNT(*) as count
         FROM voti_opinioni_proposte
@@ -239,7 +239,7 @@ router.post('/:id/vota', async (req, res) => {
     
     // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
     const checkQuery = `
-      SELECT id FROM opinioni 
+      SELECT id FROM opinioni_domande 
       WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
     `;
     
@@ -301,7 +301,7 @@ router.delete('/:id/vota', async (req, res) => {
     
     // Verifica se l'opinione esiste nella tabella opinioni con "da approvare"
     const checkQuery = `
-      SELECT id FROM opinioni 
+      SELECT id FROM opinioni_domande 
       WHERE id = $1 AND 'da approvare' = ANY(gradi_opinione)
     `;
     

@@ -41,7 +41,7 @@ router.get('/opinioni', async (req, res) => {
       SELECT 
         COUNT(*) as totale_opinioni,
         COUNT(*) as opinioni_approvate
-      FROM opinioni
+      FROM opinioni_domande
     `);
     
     res.json({

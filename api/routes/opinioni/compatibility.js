@@ -36,7 +36,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     
     const opinionQuery = `
       SELECT o.id, o.text, o.gradi_opinione
-      FROM opinioni o
+      FROM opinioni_domande o
       WHERE $1 = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
@@ -57,93 +57,33 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente - SOLO COLONNE ESISTENTI
+    // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
     const userQuery = `
-      SELECT 
-        -- Opinion nazionali/europee
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali (senza prefissi)
-        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
-        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
-        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
-        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
-        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
-        sicurezza_strade_scolastiche, sostegno_commercio_locale,
-        verde_pubblico_e_giardini,
-        -- Opinion regionali (senza prefissi)
-        nuovi_inceneritori, chiusura_ospedali_di_provincia,
-        -- Opinion nazionali/comunali (senza prefissi)
-        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
-        riduzione_parcheggi_a_pagamento
-      FROM users
-      WHERE id = $1
+      SELECT o.text, or.risposta
+      FROM opinioni_domande o
+      LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+      WHERE $2 = ANY(o.gradi_opinione)
     `;
     
-    const userResult = await pool.query(userQuery, [userId]);
-    const userAnswers = userResult.rows[0] || {};
+    const userResult = await pool.query(userQuery, [userId, gradoCompleto]);
+    const userAnswers = {};
+    userResult.rows.forEach(row => {
+      const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
+      userAnswers[opinionKey] = row.risposta;
+    });
     
-    // Mappa delle opinioni ai campi del database - SENZA PREFISSI
-    const opinionMapping = {
-      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      
-      // Opinion regionali/comunali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Colonne extra (senza prefissi) - SOLO COLONNE ESISTENTI
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
+    console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
+    console.log('🔍 DEBUG - User answers sample:', Object.keys(userAnswers).slice(0, 5).map(key => `${key}: ${userAnswers[key]}`));
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
-      // Usa il testo dell'opinione per mappare al campo del database
+      // Usa il testo dell'opinione per ottenere la risposta dell'utente
       const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
-      const userAnswer = userAnswers[opinionMapping[opinionKey]];
+      const userAnswer = userAnswers[opinionKey];
       
       console.log(`🔍 DEBUG - Mappatura opinione:`, {
         text: opinion.text,
         opinionKey: opinionKey,
-        mappedField: opinionMapping[opinionKey],
         userAnswer: userAnswer
       });
       
@@ -189,7 +129,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
     
     const query = `
       SELECT id, text, gradi_opinione, approfondimento
-      FROM opinioni
+      FROM opinioni_domande
       ORDER BY text
     `;
     

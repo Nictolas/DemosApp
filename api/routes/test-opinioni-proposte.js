@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
     // Test query
     const result = await pool.query(`
       SELECT id, text, user_id, created_at, status
-      FROM opinioni_proposte
+      FROM opinioni_domande
       ORDER BY created_at DESC
     `);
     

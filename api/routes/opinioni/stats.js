@@ -39,13 +39,13 @@ router.get('/debug', verifyToken, async (req, res) => {
     const structureResult = await pool.query(structureQuery);
     
     // 2. Conta opinioni totali
-    const countQuery = 'SELECT COUNT(*) as total FROM opinioni';
+    const countQuery = 'SELECT COUNT(*) as total FROM opinioni_domande';
     const countResult = await pool.query(countQuery);
     
     // 3. Verifica gradi opinioni
     const degreesQuery = `
       SELECT DISTINCT unnest(gradi_opinione) as grado
-      FROM opinioni
+      FROM opinioni_domande
       ORDER BY grado
     `;
     
@@ -54,7 +54,7 @@ router.get('/debug', verifyToken, async (req, res) => {
     // 4. Esempio opinioni
     const sampleQuery = `
       SELECT id, text, gradi_opinione, created_at, updated_at
-      FROM opinioni
+      FROM opinioni_domande
       LIMIT 5
     `;
     
@@ -159,7 +159,7 @@ router.get('/stats/:opinionId', verifyToken, async (req, res) => {
     // Query per ottenere il testo dell'opinione
     const questionQuery = `
       SELECT text
-      FROM opinioni
+      FROM opinioni_domande
       WHERE id = $1
     `;
     
@@ -482,7 +482,7 @@ router.get('/stats/:opinionId/regione/:regione', verifyToken, async (req, res) =
     // Query per ottenere il testo dell'opinione
     const questionQuery = `
       SELECT text
-      FROM opinioni
+      FROM opinioni_domande
       WHERE id = $1
     `;
     
