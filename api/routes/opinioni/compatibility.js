@@ -22,17 +22,8 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
     }
     
     // Query per ottenere le opinioni del grado specificato
-    // Mappa i gradi compressi ai gradi completi
-    const gradoMapping = {
-      'E': 'Europeo',
-      'N': 'Nazionale', 
-      'R': 'Regionale',
-      'C': 'Camera',
-      'S': 'Senato',
-      'CO': 'Comunale'
-    };
-    
-    const gradoCompleto = gradoMapping[grado] || grado;
+    // I gradi nel database sono già compressi, quindi usiamo direttamente il grado ricevuto
+    const gradoCompleto = grado;
     
     const opinionQuery = `
       SELECT o.id, o.text, o.gradi_opinione
