@@ -8,9 +8,14 @@ const pool = getPool();
 // Middleware per verificare il token JWT
 const verifyToken = async (req, res, next) => {
   try {
+    console.log('🔐 DEBUG verifyToken - Inizio verifica token');
+    console.log('🔐 DEBUG verifyToken - URL:', req.url);
+    console.log('🔐 DEBUG verifyToken - Headers authorization:', req.headers.authorization);
+    
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ DEBUG verifyToken - Token mancante o formato errato');
       return res.status(401).json({
         success: false,
         error: 'Token di accesso richiesto'
@@ -21,12 +26,15 @@ const verifyToken = async (req, res, next) => {
     
     try {
       const decoded = verifyAccessToken(token);
+      console.log('🔐 DEBUG verifyToken - Token decodificato:', decoded);
       
       // Verifica che l'utente esista e sia attivo
+      console.log('🔐 DEBUG verifyToken - Verifica utente nel database...');
       const userResult = await pool.query(
         'SELECT id, email, status, ruolo FROM users WHERE id = $1 OR email = $2',
         [decoded.userId || decoded.email, decoded.email]
       );
+      console.log('🔐 DEBUG verifyToken - Risultato query utente:', userResult.rows.length, 'righe');
       
       if (userResult.rows.length === 0) {
         return res.status(401).json({
@@ -87,9 +95,17 @@ const verifyToken = async (req, res, next) => {
     }
   } catch (error) {
     console.error('❌ Errore nel middleware verifyToken:', error);
+    console.error('❌ Stack trace verifyToken:', error.stack);
+    console.error('❌ Error details verifyToken:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: error.message
     });
   }
 };

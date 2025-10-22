@@ -223,34 +223,42 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const candidatiConOpinioni = await Promise.all(candidati.map(async (candidato) => {
       try {
         // Ottieni le opinioni del candidato dalla tabella opinioni_risposte
-        const candidatoOpinions = await pool.query(`
-          SELECT o.text, or.risposta
-          FROM opinioni_domande o
-          LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
-          WHERE $2 = ANY(o.gradi_opinione)
-        `, [candidato.id, grado_candidatura]);
+        const candidatoAnswersQuery = `
+          SELECT * FROM opinioni_risposte WHERE user_id = $1
+        `;
         
+        const candidatoAnswersResult = await pool.query(candidatoAnswersQuery, [candidato.id]);
         const candidatoData = {};
-        candidatoOpinions.rows.forEach(row => {
-          const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-          candidatoData[opinionId] = row.risposta;
-        });
+        
+        if (candidatoAnswersResult.rows.length > 0) {
+          const candidatoRow = candidatoAnswersResult.rows[0];
+          // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+          Object.keys(candidatoRow).forEach(key => {
+            if (key !== 'user_id' && key !== 'fonti_opinioni') {
+              candidatoData[key] = candidatoRow[key];
+            }
+          });
+        }
         
         // Ottieni le opinioni dell'utente corrente dalla tabella opinioni_risposte
         let userOpinions = null;
         if (req.user && req.user.id) {
-          const userOpinionsResult = await pool.query(`
-            SELECT o.text, or.risposta
-            FROM opinioni_domande o
-            LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
-            WHERE $2 = ANY(o.gradi_opinione)
-          `, [req.user.id, grado_candidatura]);
+          const userAnswersQuery = `
+            SELECT * FROM opinioni_risposte WHERE user_id = $1
+          `;
           
+          const userAnswersResult = await pool.query(userAnswersQuery, [req.user.id]);
           userOpinions = {};
-          userOpinionsResult.rows.forEach(row => {
-            const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-            userOpinions[opinionId] = row.risposta;
-          });
+          
+          if (userAnswersResult.rows.length > 0) {
+            const userRow = userAnswersResult.rows[0];
+            // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+            Object.keys(userRow).forEach(key => {
+              if (key !== 'user_id' && key !== 'fonti_opinioni') {
+                userOpinions[key] = userRow[key];
+              }
+            });
+          }
         }
         
         // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
@@ -265,18 +273,22 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           
           if (testUserResult.rows.length > 0) {
             const testUserId = testUserResult.rows[0].id;
-            const testUserOpinionsResult = await pool.query(`
-              SELECT o.text, or.risposta
-              FROM opinioni_domande o
-              LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
-              WHERE $2 = ANY(o.gradi_opinione)
-            `, [testUserId, grado_candidatura]);
+            const testUserAnswersQuery = `
+              SELECT * FROM opinioni_risposte WHERE user_id = $1
+            `;
             
+            const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
             userOpinions = {};
-            testUserOpinionsResult.rows.forEach(row => {
-              const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-              userOpinions[opinionId] = row.risposta;
-            });
+            
+            if (testUserAnswersResult.rows.length > 0) {
+              const testUserRow = testUserAnswersResult.rows[0];
+              // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+              Object.keys(testUserRow).forEach(key => {
+                if (key !== 'user_id' && key !== 'fonti_opinioni') {
+                  userOpinions[key] = testUserRow[key];
+                }
+              });
+            }
             console.log('🔍 DEBUG - Usando Nicolas Micheletti come utente di riferimento per opinioni comuni');
           }
         }
