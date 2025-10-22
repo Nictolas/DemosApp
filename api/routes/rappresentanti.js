@@ -8,10 +8,13 @@ const router = express.Router();
 // GET /api/rappresentanti/disponibili - Ottieni rappresentanti disponibili per grado e categoria
 router.get('/disponibili', verifyToken, async (req, res) => {
   try {
+    console.log('🚀 ENTRATA in /api/rappresentanti/disponibili');
     const { grado, categoria } = req.query;
     const userId = req.userId;
     
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Headers:', req.headers);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Query params:', req.query);
     
     // Query per ottenere utenti con ruolo "Politico" o "Candidato Politico" dalla tabella users
     // Filtra per grado_elezione in base al parametro grado ricevuto
@@ -58,6 +61,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       ORDER BY cognome, nome
     `;
     
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esecuzione query principale...');
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Query:', query);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Params:', queryParams);
+    
     const result = await pool.query(query, queryParams);
     
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
@@ -73,6 +80,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     // Usa il grado mappato per le opinioni
     const gradoForOpinions = grado ? (gradoMapping[grado] || grado) : null;
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Grado per opinioni:', gradoForOpinions);
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esecuzione query opinioni...');
+    
     const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [gradoForOpinions]);
     const gradoOpinions = gradoOpinionsResult.rows;
     
@@ -83,6 +93,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const userAnswersQuery = `
       SELECT * FROM opinioni_risposte WHERE user_id = $1
     `;
+    
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esecuzione query opinioni utente...');
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - User ID per opinioni:', userId);
     
     const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
     const userOpinions = {};
@@ -363,9 +376,17 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel recuperare rappresentanti disponibili:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      hint: error.hint
+    });
     res.status(500).json({
       success: false,
-      error: 'Errore nel recuperare rappresentanti disponibili'
+      error: 'Errore nel recuperare rappresentanti disponibili',
+      details: error.message
     });
   }
 });
