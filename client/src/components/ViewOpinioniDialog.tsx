@@ -210,6 +210,7 @@ export function ViewOpinioniDialog({
     const contrari: { id: string, label: string }[] = [];
     questions.forEach((q: {id: string, text: string}) => {
       const value = opinions[q.id];
+      // Usa solo valori compressi
       if (value === "f") favorevoli.push({ id: q.id, label: q.text });
       else if (value === "i") indecisi.push({ id: q.id, label: q.text });
       else if (value === "c") contrari.push({ id: q.id, label: q.text });
