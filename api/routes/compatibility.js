@@ -100,9 +100,9 @@ router.get('/opinioni-list', async (req, res) => {
     
     // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
     const userQuery = `
-      SELECT o.text, or.risposta
+      SELECT o.text, orr.risposta
       FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+      LEFT JOIN opinioni_risposte orr ON o.id = orr.opinione_id AND orr.user_id = $1
       WHERE $2 = ANY(o.gradi_opinione)
     `;
     
