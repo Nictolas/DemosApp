@@ -465,18 +465,16 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
         userAnswer: userAnswer
       });
       
-      // Converti le risposte del database al formato frontend usando decompressione
+      // Restituisci sempre valori compressi per compatibilità
       let frontendAnswer = null;
-      if (userAnswer === 'f') frontendAnswer = 'Favorevole';
-      else if (userAnswer === 'c') frontendAnswer = 'Contrario';
-      else if (userAnswer === 'i') frontendAnswer = 'Indeciso';
-      else if (userAnswer === null) frontendAnswer = 'Astenuto';
-      // Gestisci valori legacy per compatibilità
-      else if (userAnswer === 'Sì') frontendAnswer = 'Favorevole';
-      else if (userAnswer === 'No') frontendAnswer = 'Contrario';
-      else if (userAnswer === 'Indeciso') frontendAnswer = 'Indeciso';
-      else if (userAnswer === 'Contrario') frontendAnswer = 'Contrario';
-      else if (userAnswer === 'Favorevole') frontendAnswer = 'Favorevole';
+      if (userAnswer === 'f') frontendAnswer = 'f';
+      else if (userAnswer === 'c') frontendAnswer = 'c';
+      else if (userAnswer === 'i') frontendAnswer = 'i';
+      else if (userAnswer === null) frontendAnswer = null;
+      // Gestisci valori legacy convertendoli a compressi
+      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
+      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
+      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
       
       return {
         id: opinionId, // Usa l'ID generato dal testo per compatibilità con il frontend
