@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
       SELECT id, text
-      FROM opinioni 
+      FROM opinioni_domande 
       ORDER BY text
     `;
     
@@ -192,7 +192,7 @@ router.get('/:regione', async (req, res) => {
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
       SELECT id, text
-      FROM opinioni 
+      FROM opinioni_domande 
       ORDER BY text
     `;
     
@@ -360,7 +360,7 @@ router.get('/:regione/:provincia', async (req, res) => {
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
       SELECT id, text
-      FROM opinioni 
+      FROM opinioni_domande 
       ORDER BY text
     `;
     
@@ -485,7 +485,7 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
       SELECT id, text
-      FROM opinioni 
+      FROM opinioni_domande 
       ORDER BY text
     `;
     

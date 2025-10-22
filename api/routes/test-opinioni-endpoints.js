@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     // Test 1: Verifica tabella opinioni
     const tableCheck = await pool.query(`
       SELECT COUNT(*) as count 
-      FROM opinioni
+      FROM opinioni_domande
     `);
     
     // Test 2: Verifica struttura tabella
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
     // Test 3: Esempio di opinioni
     const sampleOpinions = await pool.query(`
       SELECT id, text, gradi_opinione, approfondimento
-      FROM opinioni 
+      FROM opinioni_domande 
       LIMIT 3
     `);
     

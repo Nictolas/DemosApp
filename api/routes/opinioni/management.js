@@ -9,7 +9,7 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     const query = `
       SELECT o.id, o.text, o.gradi_opinione, o.approfondimento
-      FROM opinioni o
+      FROM opinioni_domande o
       ORDER BY o.text
     `;
     
@@ -47,7 +47,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
     
     const insertQuery = `
-      INSERT INTO opinioni (id, text, gradi_opinione, approfondimento)
+      INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
       VALUES ($1, $2, $3, $4)
       ON CONFLICT (id) DO UPDATE SET
         text = EXCLUDED.text,
@@ -138,7 +138,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     console.log('🗑️ DELETE /api/opinioni/:id - Eliminazione opinione');
     console.log('🔍 ID opinione:', id);
     
-    const deleteQuery = 'DELETE FROM opinioni WHERE id = $1';
+    const deleteQuery = 'DELETE FROM opinioni_domande WHERE id = $1';
     const result = await pool.query(deleteQuery, [id]);
     
     if (result.rowCount === 0) {

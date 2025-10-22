@@ -44,7 +44,7 @@ router.get('/', verifyToken, async (req, res) => {
         SELECT 
           id, categoria, domanda, risposta, grado_opinione,
           created_at, updated_at
-        FROM opinioni 
+        FROM opinioni_domande 
         WHERE user_id = $1
         ORDER BY created_at DESC
       `;
