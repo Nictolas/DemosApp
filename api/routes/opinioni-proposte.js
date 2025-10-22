@@ -190,9 +190,9 @@ router.post('/', async (req, res) => {
     // Genera ID univoco
     const id = require('crypto').randomUUID();
     
-    // Inserisce nella tabella opinioni con gradi_opinione contenente "da approvare"
+    // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
     const insertQuery = `
-      INSERT INTO opinioni (id, text, gradi_opinione, approfondimento)
+      INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
       VALUES ($1, $2, $3, $4)
     `;
     

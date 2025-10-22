@@ -96,7 +96,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     }
     
     const updateQuery = `
-      UPDATE opinioni
+      UPDATE opinioni_domande
       SET text = $1, gradi_opinione = $2, approfondimento = $3
       WHERE id = $4
     `;

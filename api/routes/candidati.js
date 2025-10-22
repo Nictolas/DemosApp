@@ -203,7 +203,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       FROM users
       WHERE ruolo IN ('C', 'CP')
         AND grado_candidatura = $1
-        AND status = 'a'
       ORDER BY nome, cognome
       LIMIT 4
     `;
@@ -242,12 +241,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
         // Ottieni le opinioni dell'utente corrente dalla tabella opinioni_risposte
         let userOpinions = null;
-        if (req.user && req.user.id) {
+        if (req.userId) {
           const userAnswersQuery = `
             SELECT * FROM opinioni_risposte WHERE user_id = $1
           `;
           
-          const userAnswersResult = await pool.query(userAnswersQuery, [req.user.id]);
+          const userAnswersResult = await pool.query(userAnswersQuery, [req.userId]);
           userOpinions = {};
           
           if (userAnswersResult.rows.length > 0) {
