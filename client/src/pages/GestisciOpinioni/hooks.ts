@@ -8,7 +8,7 @@ export const useOpinioniData = () => {
   const { data: opinioniResponse, isLoading, isError: isOpinioniError } = useQuery<{success: boolean, data: Opinione[]}>({
     queryKey: ['opinioni'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/opinioni');
+      const response = await apiRequest('GET', '/api/opinioni/proposte');
       if (!response.ok) throw new Error('Failed to fetch opinioni');
       return response.json();
     }

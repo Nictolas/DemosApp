@@ -55,7 +55,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         u.comune_elezione
       FROM users u
       WHERE (u.ruolo = 'P' OR u.ruolo = 'CP')
-        AND u.status = 'a'
         ${gradoFilter}
       ORDER BY u.cognome, u.nome
     `;
