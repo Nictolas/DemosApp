@@ -46,7 +46,7 @@ export function ViewOpinioniDialog({
 }: ViewOpinioniDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [opinions, setOpinions] = useState<Record<string, string>>({});
+  const [opinions, setOpinions] = useState<Record<string, string | null>>({});
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
   const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
@@ -96,12 +96,12 @@ export function ViewOpinioniDialog({
           setQuestions(questionsArray);
           
           // Carica anche le opinioni dell'utente selezionato
-          const opinioniMap: Record<string, string> = {};
+          const opinioniMap: Record<string, string | null> = {};
           console.log('🔍 DEBUG fetchQuestions - Opinioni raw ricevute:', result.data.opinioni);
           result.data.opinioni.forEach((opinion: any) => {
             console.log(`🔍 DEBUG fetchQuestions - Opinion ${opinion.id}: userAnswer = "${opinion.userAnswer}"`);
-            // Includi tutte le risposte, trattando null come 'Astenuto'
-            opinioniMap[opinion.id] = opinion.userAnswer || 'Astenuto';
+            // Mantieni null come null, non convertire in 'Astenuto'
+            opinioniMap[opinion.id] = opinion.userAnswer;
           });
           console.log('🔍 DEBUG fetchQuestions - OpinionMap creata:', opinioniMap);
           setOpinions(opinioniMap);
@@ -210,10 +210,11 @@ export function ViewOpinioniDialog({
     const contrari: { id: string, label: string }[] = [];
     questions.forEach((q: {id: string, text: string}) => {
       const value = opinions[q.id];
-      // Usa solo valori compressi
+      // Usa solo valori compressi, ignora null
       if (value === "f") favorevoli.push({ id: q.id, label: q.text });
       else if (value === "i") indecisi.push({ id: q.id, label: q.text });
       else if (value === "c") contrari.push({ id: q.id, label: q.text });
+      // Ignora null e altri valori
     });
     return { favorevoli, indecisi, contrari };
   }
