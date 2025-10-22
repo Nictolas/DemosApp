@@ -85,11 +85,14 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const gradoOpinionsQuery = `
       SELECT o.id, o.text, o.gradi_opinione
       FROM opinioni o
-      WHERE $1 = ANY(o.gradi_opinione)
+      WHERE $1 = ANY(o.gradi_opinione) OR $2 = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
     
-    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [grado]);
+    // Usa sia il grado mappato che quello originale per le opinioni
+    const gradoForOpinions = grado ? (gradoMapping[grado] || grado) : null;
+    const gradoOriginale = grado; // Es. "Europeo" per grado "E"
+    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [gradoForOpinions, gradoOriginale]);
     const gradoOpinions = gradoOpinionsResult.rows;
     
     console.log(`🔍 DEBUG - Opinion per grado ${grado} caricate:`, gradoOpinions.length);
