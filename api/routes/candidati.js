@@ -222,54 +222,61 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // Calcola il conteggio reale delle opinioni comuni
     const candidatiConOpinioni = await Promise.all(candidati.map(async (candidato) => {
       try {
-        // Ottieni le opinioni del candidato
+        // Ottieni le opinioni del candidato dalla tabella opinioni_risposte
         const candidatoOpinions = await pool.query(`
-          SELECT 
-            energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-            carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo,
-            case_chiuse, eutanasia, omobitransfobia, cassonetti_intelligenti_con_tessera
-          FROM users 
-          WHERE id = $1
-        `, [candidato.id]);
+          SELECT o.text, or.risposta
+          FROM opinioni_domande o
+          LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+          WHERE $2 = ANY(o.gradi_opinione)
+        `, [candidato.id, grado_candidatura]);
         
-        if (candidatoOpinions.rows.length === 0) {
-          return { ...candidato, opinioniComuni: 0 };
-        }
+        const candidatoData = {};
+        candidatoOpinions.rows.forEach(row => {
+          const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
+          candidatoData[opinionId] = row.risposta;
+        });
         
-        const candidatoData = candidatoOpinions.rows[0];
-        
-        // Ottieni le opinioni dell'utente corrente (se disponibile)
+        // Ottieni le opinioni dell'utente corrente dalla tabella opinioni_risposte
         let userOpinions = null;
         if (req.user && req.user.id) {
           const userOpinionsResult = await pool.query(`
-            SELECT 
-              energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-              carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo,
-              case_chiuse, eutanasia, omobitransfobia, cassonetti_intelligenti_con_tessera
-            FROM users 
-            WHERE id = $1
-          `, [req.user.id]);
+            SELECT o.text, or.risposta
+            FROM opinioni_domande o
+            LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+            WHERE $2 = ANY(o.gradi_opinione)
+          `, [req.user.id, grado_candidatura]);
           
-          if (userOpinionsResult.rows.length > 0) {
-            userOpinions = userOpinionsResult.rows[0];
-          }
+          userOpinions = {};
+          userOpinionsResult.rows.forEach(row => {
+            const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
+            userOpinions[opinionId] = row.risposta;
+          });
         }
         
         // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
         if (!userOpinions) {
+          // Prima trova l'ID di Nicolas Micheletti
           const testUserResult = await pool.query(`
-            SELECT 
-              energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia,
-              carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo,
-              case_chiuse, eutanasia, omobitransfobia, cassonetti_intelligenti_con_tessera
-            FROM users 
+            SELECT id FROM users 
             WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
             ORDER BY nome, cognome
             LIMIT 1
           `);
           
           if (testUserResult.rows.length > 0) {
-            userOpinions = testUserResult.rows[0];
+            const testUserId = testUserResult.rows[0].id;
+            const testUserOpinionsResult = await pool.query(`
+              SELECT o.text, or.risposta
+              FROM opinioni_domande o
+              LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+              WHERE $2 = ANY(o.gradi_opinione)
+            `, [testUserId, grado_candidatura]);
+            
+            userOpinions = {};
+            testUserOpinionsResult.rows.forEach(row => {
+              const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
+              userOpinions[opinionId] = row.risposta;
+            });
             console.log('🔍 DEBUG - Usando Nicolas Micheletti come utente di riferimento per opinioni comuni');
           }
         }
@@ -278,19 +285,18 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           return { ...candidato, opinioniComuni: 0 };
         }
         
-        // Calcola opinioni comuni
+        // Calcola opinioni comuni confrontando tutte le opinioni disponibili
         let opinioniComuni = 0;
-        const opinioniFields = [
-          'energia_nucleare', 'sperimentazione_animale', 'legalizzazione_canapa', 'caccia',
-          'carne_coltivata', 'cittadina_animale', 'nato', 'matrimonio_gay', 'salario_minimo',
-          'case_chiuse', 'eutanasia', 'omobitransfobia', 'cassonetti_intelligenti_con_tessera'
-        ];
+        const allOpinionIds = new Set([...Object.keys(candidatoData), ...Object.keys(userOpinions)]);
         
-        opinioniFields.forEach(field => {
-          const candidatoValue = candidatoData[field];
-          const userValue = userOpinions[field];
+        allOpinionIds.forEach(opinionId => {
+          const candidatoValue = candidatoData[opinionId];
+          const userValue = userOpinions[opinionId];
           
-          if (candidatoValue && userValue && candidatoValue === userValue) {
+          // Conta come opinione comune solo se entrambi hanno risposto con una posizione valida e la risposta è identica
+          if (candidatoValue && userValue && 
+              candidatoValue !== null && userValue !== null &&
+              candidatoValue === userValue) {
             opinioniComuni++;
           }
         });
