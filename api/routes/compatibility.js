@@ -7,6 +7,7 @@ router.get('/opinioni-list', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-list - Richiesta diretta (compatibilità frontend)');
     console.log('🔑 Headers ricevuti:', req.headers);
+    console.log('🔍 Query params:', req.query);
     
     // Implementa direttamente la logica invece di reindirizzare
     const { pool } = require('../middleware/auth');
@@ -66,6 +67,7 @@ router.get('/opinioni-list', async (req, res) => {
     
     console.log('🔍 GET /api/opinioni-list - Richiesta opinioni per grado:', grado);
     console.log('👤 User ID:', userId);
+    console.log('🔍 DEBUG - Inizio query opinioni...');
     
     if (!grado) {
       return res.status(400).json({
@@ -99,26 +101,29 @@ router.get('/opinioni-list', async (req, res) => {
     }
     
     // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
-    const userQuery = `
-      SELECT o.text, orr.risposta
-      FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte orr ON o.id = orr.opinione_id AND orr.user_id = $1
-      WHERE $2 = ANY(o.gradi_opinione)
+    const userAnswersQuery = `
+      SELECT * FROM opinioni_risposte WHERE user_id = $1
     `;
     
-    const userAnswersResult = await pool.query(userQuery, [userId, grado]);
+    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
     const userAnswers = {};
-    userAnswersResult.rows.forEach(row => {
-      const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
-      userAnswers[opinionKey] = row.risposta;
-    });
+    
+    if (userAnswersResult.rows.length > 0) {
+      const userRow = userAnswersResult.rows[0];
+      // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+      Object.keys(userRow).forEach(key => {
+        if (key !== 'user_id' && key !== 'fonti_opinioni') {
+          userAnswers[key] = userRow[key];
+        }
+      });
+    }
     
     console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
       const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
-      const userAnswer = userAnswers[opinionKey];
+      const userAnswer = userAnswers[opinion.id]; // Usa l'ID dell'opinione invece del testo
       
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;
