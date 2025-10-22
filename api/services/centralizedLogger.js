@@ -110,9 +110,9 @@ class CentralizedLogger {
       
       const values = [
         Math.floor(new Date(logEntry.timestamp).getTime()), // Timestamp come BIGINT
-        this.levelMapping[logEntry.level] || 'U', // Usa codice ottimizzato
+        (this.levelMapping[logEntry.level] || 'U').substring(0, 10), // Usa codice ottimizzato, max 10 caratteri
         logEntry.pid,
-        logEntry.hostname?.substring(0, 50) || null, // Tronca hostname
+        (logEntry.hostname || '').substring(0, 50) || null, // Tronca hostname
         logEntry.message,
         meta.userId || null,
         meta.ipAddress ? this.compressIPAddress(meta.ipAddress) : null, // Comprimi IP
@@ -126,7 +126,7 @@ class CentralizedLogger {
       
       await pool.query(query, values);
     } catch (error) {
-      console.error('❌ Errore scrittura log su database compresso:', error);
+      console.error('❌ Errore scrittura log su database:', error);
     }
   }
 

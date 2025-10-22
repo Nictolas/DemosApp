@@ -8,8 +8,8 @@ router.get('/opinioni-list', async (req, res) => {
     console.log('🔍 GET /api/opinioni-list - Richiesta diretta (compatibilità frontend)');
     console.log('🔑 Headers ricevuti:', req.headers);
     
-    // Reindirizza alla route modulare
-    const opinioniRoutes = require('../routes/opinioni');
+    // Chiama direttamente l'endpoint opinioni-list senza reindirizzamento
+    const opinioniCompatibilityRoutes = require('../routes/opinioni/compatibility');
     
     // Crea una richiesta mock per il router con TUTTI gli headers
     const mockReq = {
@@ -23,7 +23,7 @@ router.get('/opinioni-list', async (req, res) => {
     console.log('🔑 Mock request headers:', mockReq.headers);
     
     // Usa il router modulare
-    opinioniRoutes.handle(mockReq, res);
+    opinioniCompatibilityRoutes.handle(mockReq, res);
     
   } catch (error) {
     console.error('💥 Errore endpoint diretto opinioni-list:', error);
