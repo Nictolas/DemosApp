@@ -61,6 +61,18 @@ export default function ScegliCandidato() {
             avatarConfig={opinioniDialogData?.avatarConfig}
           />
           
+          {/* Debug temporaneo */}
+          <div className="bg-yellow-100 p-4 mb-4 rounded border">
+            <h3 className="font-bold text-red-600">DEBUG CANDIDATI:</h3>
+            <p>Numero candidati: {candidati.length}</p>
+            {candidati.map((candidato, index) => (
+              <div key={candidato.id} className="text-sm">
+                {index + 1}. {candidato.nome} {candidato.cognome} - 
+                OpinionComuni: {candidato.opinioniComuni} (tipo: {typeof candidato.opinioniComuni})
+              </div>
+            ))}
+          </div>
+
           {candidati.length === 0 ? (
             <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           ) : (
