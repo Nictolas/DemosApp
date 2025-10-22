@@ -5,12 +5,19 @@ const { getPool } = require('../config/database');
 // Usa il pool centralizzato ottimizzato
 const pool = getPool();
 
+// Debug per verificare la connessione al database
+console.log('🔍 DEBUG - Pool database inizializzato:', pool ? 'OK' : 'ERRORE');
+console.log('🔍 DEBUG - DATABASE_URL presente:', process.env.DATABASE_URL ? 'OK' : 'MANCANTE');
+
 // Middleware per verificare il token JWT
 const verifyToken = async (req, res, next) => {
   try {
+    console.log('🚀 ENTRATA in verifyToken middleware');
     console.log('🔐 DEBUG verifyToken - Inizio verifica token');
     console.log('🔐 DEBUG verifyToken - URL:', req.url);
     console.log('🔐 DEBUG verifyToken - Headers authorization:', req.headers.authorization);
+    console.log('🔐 DEBUG verifyToken - Pool database:', pool ? 'OK' : 'ERRORE');
+    console.log('🔐 DEBUG verifyToken - DATABASE_URL:', process.env.DATABASE_URL ? 'OK' : 'MANCANTE');
     
     const authHeader = req.headers.authorization;
     
@@ -30,11 +37,21 @@ const verifyToken = async (req, res, next) => {
       
       // Verifica che l'utente esista e sia attivo
       console.log('🔐 DEBUG verifyToken - Verifica utente nel database...');
-      const userResult = await pool.query(
-        'SELECT id, email, status, ruolo FROM users WHERE id = $1 OR email = $2',
-        [decoded.userId || decoded.email, decoded.email]
-      );
-      console.log('🔐 DEBUG verifyToken - Risultato query utente:', userResult.rows.length, 'righe');
+      console.log('🔐 DEBUG verifyToken - Pool database:', pool ? 'OK' : 'ERRORE');
+      
+      // Test connessione database
+      let userResult;
+      try {
+        userResult = await pool.query(
+          'SELECT id, email, status, ruolo FROM users WHERE id = $1 OR email = $2',
+          [decoded.userId || decoded.email, decoded.email]
+        );
+        console.log('🔐 DEBUG verifyToken - Risultato query utente:', userResult.rows.length, 'righe');
+      } catch (dbError) {
+        console.error('❌ DEBUG verifyToken - Errore database:', dbError.message);
+        console.error('❌ DEBUG verifyToken - Stack database:', dbError.stack);
+        throw dbError;
+      }
       
       if (userResult.rows.length === 0) {
         return res.status(401).json({

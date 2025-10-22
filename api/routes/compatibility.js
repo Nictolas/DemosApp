@@ -100,30 +100,27 @@ router.get('/opinioni-list', async (req, res) => {
       });
     }
     
-    // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
-    const userAnswersQuery = `
-      SELECT * FROM opinioni_risposte WHERE user_id = $1
+    // Query per ottenere le risposte dell'utente dalla tabella users
+    const userQuery = `
+      SELECT o.text, u.${opinionField} as risposta
+      FROM opinioni o
+      LEFT JOIN users u ON u.id = $1
+      WHERE $2 = ANY(o.gradi_opinione)
     `;
     
-    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
+    const userResult = await pool.query(userQuery, [userId, grado]);
     const userAnswers = {};
-    
-    if (userAnswersResult.rows.length > 0) {
-      const userRow = userAnswersResult.rows[0];
-      // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-      Object.keys(userRow).forEach(key => {
-        if (key !== 'user_id' && key !== 'fonti_opinioni') {
-          userAnswers[key] = userRow[key];
-        }
-      });
-    }
+    userResult.rows.forEach(row => {
+      const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
+      userAnswers[opinionKey] = row.risposta;
+    });
     
     console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
       const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
-      const userAnswer = userAnswers[opinion.id]; // Usa l'ID dell'opinione invece del testo
+      const userAnswer = userAnswers[opinionKey]; // Usa la chiave dell'opinione
       
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;

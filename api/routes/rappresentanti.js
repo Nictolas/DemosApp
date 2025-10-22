@@ -8,7 +8,6 @@ const router = express.Router();
 // GET /api/rappresentanti/disponibili - Ottieni rappresentanti disponibili per grado e categoria
 router.get('/disponibili', verifyToken, async (req, res) => {
   try {
-    console.log('🚀 ENTRATA in /api/rappresentanti/disponibili');
     const { grado, categoria } = req.query;
     const userId = req.userId;
     
@@ -53,7 +52,25 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         grado_elezione,
         regione_elezione,
         provincia_elezione,
-        comune_elezione
+        comune_elezione,
+        -- Opinion nazionali/europee
+        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
+        carne_coltivata, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
+        -- Opinion comunali (senza prefissi)
+        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
+        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
+        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
+        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
+        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
+        sicurezza_strade_scolastiche, sostegno_commercio_locale,
+        verde_pubblico_e_giardini,
+        -- Opinion regionali (senza prefissi)
+        nuovi_inceneritori, chiusura_ospedali_di_provincia,
+        -- Opinion nazionali/comunali (senza prefissi)
+        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
+        riduzione_parcheggi_a_pagamento
       FROM users
       WHERE (ruolo = 'P' OR ruolo = 'CP')
         AND status = 'a'
@@ -70,45 +87,37 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
     
-    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni_domande
+    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni
     const gradoOpinionsQuery = `
       SELECT o.id, o.text, o.gradi_opinione
-      FROM opinioni_domande o
-      WHERE $1 = ANY(o.gradi_opinione)
+      FROM opinioni o
+      WHERE $1 = ANY(o.gradi_opinione) OR $2 = ANY(o.gradi_opinione)
       ORDER BY o.text
     `;
     
-    // Usa il grado mappato per le opinioni
+    // Usa sia il grado mappato che quello originale per le opinioni
     const gradoForOpinions = grado ? (gradoMapping[grado] || grado) : null;
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Grado per opinioni:', gradoForOpinions);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esecuzione query opinioni...');
-    
-    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [gradoForOpinions]);
+    const gradoOriginale = grado; // Es. "Europeo" per grado "E"
+    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [gradoForOpinions, gradoOriginale]);
     const gradoOpinions = gradoOpinionsResult.rows;
     
     console.log(`🔍 DEBUG - Opinion per grado ${grado} caricate:`, gradoOpinions.length);
     console.log(`🔍 DEBUG - Opinion per grado ${grado}:`, gradoOpinions.map(o => o.text));
     
     // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
-    const userAnswersQuery = `
-      SELECT * FROM opinioni_risposte WHERE user_id = $1
+    const userOpinionsQuery = `
+      SELECT o.text, or.risposta
+      FROM opinioni o
+      LEFT JOIN users u ON u.id = $1
+      WHERE $2 = ANY(o.gradi_opinione)
     `;
     
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esecuzione query opinioni utente...');
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - User ID per opinioni:', userId);
-    
-    const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
+    const userOpinionsResult = await pool.query(userOpinionsQuery, [userId, gradoForOpinions]);
     const userOpinions = {};
-    
-    if (userAnswersResult.rows.length > 0) {
-      const userRow = userAnswersResult.rows[0];
-      // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-      Object.keys(userRow).forEach(key => {
-        if (key !== 'user_id' && key !== 'fonti_opinioni') {
-          userOpinions[key] = userRow[key];
-        }
-      });
-    }
+    userOpinionsResult.rows.forEach(row => {
+      const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
+      userOpinions[opinionId] = row.risposta;
+    });
     
     console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
     console.log('🔍 DEBUG - Opinion utente corrente:', userOpinions);
@@ -133,23 +142,20 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       
       console.log(`🔍 DEBUG calculateCommonOpinions - Opinion caricate dalla tabella opinioni per grado ${grado}:`, gradoOpinions.length);
       
-      // Carica le opinioni del candidato dalla tabella opinioni_risposte
-      const candidateAnswersQuery = `
-        SELECT * FROM opinioni_risposte WHERE user_id = $1
+      // Carica le opinioni del candidato dalla tabella opinioni
+      const candidateOpinionsQuery = `
+        SELECT o.text, or.risposta
+        FROM opinioni o
+        LEFT JOIN users u ON u.id = $1
+        WHERE $2 = ANY(o.gradi_opinione)
       `;
       
-      const candidateAnswersResult = await pool.query(candidateAnswersQuery, [candidateOpinions.id]);
+      const candidateOpinionsResult = await pool.query(candidateOpinionsQuery, [candidateOpinions.id, grado]);
       const candidateOpinionsMap = {};
-      
-      if (candidateAnswersResult.rows.length > 0) {
-        const candidateRow = candidateAnswersResult.rows[0];
-        // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-        Object.keys(candidateRow).forEach(key => {
-          if (key !== 'user_id' && key !== 'fonti_opinioni') {
-            candidateOpinionsMap[key] = candidateRow[key];
-          }
-        });
-      }
+      candidateOpinionsResult.rows.forEach(row => {
+        const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
+        candidateOpinionsMap[opinionId] = row.risposta;
+      });
       
       // Funzione per normalizzare le risposte al formato frontend
     const normalizeAnswer = (answer) => {
@@ -169,9 +175,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       console.log(`🔍 DEBUG calculateCommonOpinions - User opinions sample:`, Object.keys(userOpinions).slice(0, 5).map(key => `${key}: ${userOpinions[key]}`));
       console.log(`🔍 DEBUG calculateCommonOpinions - Candidate opinions sample:`, Object.keys(candidateOpinionsMap).slice(0, 5).map(key => `${key}: ${candidateOpinionsMap[key]}`));
       
-      // Controlla ogni opinione dalla tabella opinioni_domande
+      // Controlla ogni opinione dalla tabella opinioni
       gradoOpinions.forEach(opinion => {
-        const opinionId = opinion.id; // Usa l'ID dell'opinione invece del testo
+        const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
         
         const userAnswer = userOpinions[opinionId];
         const candidateAnswer = candidateOpinionsMap[opinionId];
