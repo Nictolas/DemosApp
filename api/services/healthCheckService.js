@@ -242,10 +242,10 @@ class HealthCheckService {
       // Controlla errori di sicurezza recenti
       const securityErrorsQuery = `
         SELECT COUNT(*) as count
-        FROM centralized_logs 
-        WHERE timestamp >= NOW() - INTERVAL '1 hour'
+        FROM centralized_logs_compressed 
+        WHERE timestamp >= (EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour') * 1000)::BIGINT
         AND (message ILIKE '%security%' OR message ILIKE '%attack%' OR message ILIKE '%violation%')
-        AND level IN ('ERROR', 'WARN')
+        AND level IN ('E', 'W')
       `;
       
       const result = await pool.query(securityErrorsQuery);

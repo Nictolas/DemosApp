@@ -244,9 +244,9 @@ class PerformanceMonitor {
         SELECT 
           level,
           COUNT(*) as count
-        FROM centralized_logs 
-        WHERE timestamp >= NOW() - INTERVAL '1 hour'
-        AND level IN ('ERROR', 'WARN')
+        FROM centralized_logs_compressed 
+        WHERE timestamp >= (EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour') * 1000)::BIGINT
+        AND level IN ('E', 'W')
         GROUP BY level
       `;
       
@@ -258,9 +258,9 @@ class PerformanceMonitor {
 
       return {
         timestamp: new Date().toISOString(),
-        errorsLastHour: errorCounts.ERROR || 0,
-        warningsLastHour: errorCounts.WARN || 0,
-        totalIssues: (errorCounts.ERROR || 0) + (errorCounts.WARN || 0)
+        errorsLastHour: errorCounts.E || 0,
+        warningsLastHour: errorCounts.W || 0,
+        totalIssues: (errorCounts.E || 0) + (errorCounts.W || 0)
       };
     } catch (error) {
       console.error('❌ Errore metriche errori:', error);
