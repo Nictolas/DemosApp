@@ -51,8 +51,8 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
         
         {/* Opinion Comuni */}
         <div className="text-center">
-          <p className="text-sm text-gray-600 font-semibold">
-            {candidato.opinioniComuni || 0} opinioni comuni
+          <p className="text-sm text-gray-600">
+            <span className="text-red-700 text-lg font-bold">{candidato.opinioniComuni || 0}</span> opinioni comuni
           </p>
           {/* Debug temporaneo per vedere i dati */}
           <div className="text-xs text-red-500 bg-yellow-100 p-1 rounded">
