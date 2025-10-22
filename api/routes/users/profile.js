@@ -324,17 +324,7 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     
     // Filtra per grado se specificato
     if (grado) {
-      // Mappa i gradi compressi ai gradi completi
-      const gradoMapping = {
-        'E': 'Europeo',
-        'N': 'Nazionale', 
-        'R': 'Regionale',
-        'C': 'Camera',
-        'S': 'Senato',
-        'CO': 'Comunale'
-      };
-      
-      const gradoCompleto = gradoMapping[grado] || grado;
+      // Usa direttamente il grado compresso
       opinioniQuery += ` WHERE $1 = ANY(o.gradi_opinione)`;
     }
     
@@ -343,16 +333,8 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     // Esegui la query con i parametri appropriati
     let opinioniResult;
     if (grado) {
-      const gradoMapping = {
-        'E': 'Europeo',
-        'N': 'Nazionale', 
-        'R': 'Regionale',
-        'C': 'Camera',
-        'S': 'Senato',
-        'CO': 'Comunale'
-      };
-      const gradoCompleto = gradoMapping[grado] || grado;
-      opinioniResult = await pool.query(opinioniQuery, [gradoCompleto]);
+      // Usa direttamente il grado compresso
+      opinioniResult = await pool.query(opinioniQuery, [grado]);
     } else {
       opinioniResult = await pool.query(opinioniQuery);
     }
