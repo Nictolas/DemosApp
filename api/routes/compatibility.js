@@ -108,9 +108,9 @@ router.get('/opinioni-list', async (req, res) => {
       WHERE $2 = ANY(o.gradi_opinione)
     `;
     
-    const userResult = await pool.query(userQuery, [userId, grado]);
+    const userAnswersResult = await pool.query(userQuery, [userId, grado]);
     const userAnswers = {};
-    userResult.rows.forEach(row => {
+    userAnswersResult.rows.forEach(row => {
       const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
       userAnswers[opinionKey] = row.risposta;
     });
