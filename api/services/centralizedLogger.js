@@ -97,18 +97,11 @@ class CentralizedLogger {
     if (!this.logToDatabase) return;
 
     try {
-      // Verifica se la tabella compressa esiste prima di scrivere
-      const compressedTableExists = await this.checkCompressedTableExists();
-      if (!compressedTableExists) {
-        console.warn('⚠️ Tabella centralized_logs_compressed non esiste, salto scrittura database');
-        return;
-      }
-
       const logEntry = this.formatMessage(level, message, meta);
       
-      // Usa la tabella compressa con compressione automatica
+      // Usa la tabella originale centralized_logs
       const query = `
-        INSERT INTO centralized_logs_compressed (
+        INSERT INTO centralized_logs (
           timestamp, level, pid, hostname, message, 
           user_id, ip_address, user_agent, endpoint, 
           request_id, session_id, meta_data, created_at
@@ -155,23 +148,6 @@ class CentralizedLogger {
     }
   }
 
-  async checkCompressedTableExists() {
-    try {
-      const { pool } = require('../middleware/auth');
-      const query = `
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'centralized_logs_compressed'
-        );
-      `;
-      const result = await pool.query(query);
-      return result.rows[0].exists;
-    } catch (error) {
-      console.error('❌ Errore verifica tabella centralized_logs_compressed:', error);
-      return false;
-    }
-  }
 
   // Funzioni di compressione per i dati
   compressIPAddress(ipAddress) {
@@ -453,7 +429,7 @@ class CentralizedLogger {
   async cleanupOldLogs(retentionDays = 30) {
     try {
       const query = `
-        DELETE FROM centralized_logs_compressed 
+        DELETE FROM centralized_logs 
         WHERE timestamp < (EXTRACT(EPOCH FROM NOW() - INTERVAL '${retentionDays} days') * 1000)::BIGINT
       `;
       

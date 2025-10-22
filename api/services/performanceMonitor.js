@@ -244,7 +244,7 @@ class PerformanceMonitor {
         SELECT 
           level,
           COUNT(*) as count
-        FROM centralized_logs_compressed 
+        FROM centralized_logs 
         WHERE timestamp >= (EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour') * 1000)::BIGINT
         AND level IN ('E', 'W')
         GROUP BY level

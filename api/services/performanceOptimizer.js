@@ -216,7 +216,7 @@ class PerformanceOptimizer {
       const pool = getPool();
       const result = await pool.query(`
         SELECT COUNT(*) as error_count 
-        FROM centralized_logs_compressed 
+        FROM centralized_logs 
         WHERE level = 'E' 
         AND created_at > (EXTRACT(EPOCH FROM NOW() - INTERVAL '1 hour') * 1000)::BIGINT
       `);
