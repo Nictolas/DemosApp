@@ -9,20 +9,60 @@ router.get('/opinioni-list', async (req, res) => {
     console.log('🔑 Headers ricevuti:', req.headers);
     
     // Implementa direttamente la logica invece di reindirizzare
-    const { verifyToken } = require('../middleware/auth');
     const { pool } = require('../middleware/auth');
     
-    // Verifica il token
-    const authResult = await verifyToken(req, res, () => {});
-    if (!authResult) {
+    // Verifica manualmente il token
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        error: 'Token non valido'
+        error: 'Token di accesso richiesto'
+      });
+    }
+    
+    const token = authHeader.substring(7);
+    
+    // Decodifica il token per ottenere l'ID utente
+    const { verifyAccessToken } = require('../utils/jwt');
+    let decoded;
+    try {
+      decoded = verifyAccessToken(token);
+    } catch (jwtError) {
+      console.error('❌ Errore verifica JWT:', jwtError.message);
+      return res.status(401).json({
+        success: false,
+        error: 'Token non valido',
+        message: 'Effettua nuovamente il login'
+      });
+    }
+    
+    // Verifica che l'utente esista e sia attivo
+    const userResult = await pool.query(
+      'SELECT id, email, status, ruolo FROM users WHERE id = $1 OR email = $2',
+      [decoded.userId || decoded.email, decoded.email]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non trovato',
+        message: 'Effettua nuovamente il login'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    if (user.status !== 'a') {
+      return res.status(401).json({
+        success: false,
+        error: 'Account non attivo',
+        message: `Il tuo account ha status "${user.status}". Contatta l'amministratore per l'attivazione.`
       });
     }
     
     const { grado } = req.query;
-    const userId = req.userId;
+    const userId = user.id;
     
     console.log('🔍 GET /api/opinioni-list - Richiesta opinioni per grado:', grado);
     console.log('👤 User ID:', userId);
