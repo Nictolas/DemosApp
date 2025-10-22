@@ -318,14 +318,44 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     
     // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni
     let opinioniQuery = `
-      SELECT o.id, o.text
+      SELECT o.id, o.text, o.gradi_opinione
       FROM opinioni o
     `;
-
+    
+    // Filtra per grado se specificato
+    if (grado) {
+      // Mappa i gradi compressi ai gradi completi
+      const gradoMapping = {
+        'E': 'Europeo',
+        'N': 'Nazionale', 
+        'R': 'Regionale',
+        'C': 'Camera',
+        'S': 'Senato',
+        'CO': 'Comunale'
+      };
+      
+      const gradoCompleto = gradoMapping[grado] || grado;
+      opinioniQuery += ` WHERE $1 = ANY(o.gradi_opinione)`;
+    }
     
     opinioniQuery += ` ORDER BY o.text`;
     
-    const opinioniResult = await pool.query(opinioniQuery);
+    // Esegui la query con i parametri appropriati
+    let opinioniResult;
+    if (grado) {
+      const gradoMapping = {
+        'E': 'Europeo',
+        'N': 'Nazionale', 
+        'R': 'Regionale',
+        'C': 'Camera',
+        'S': 'Senato',
+        'CO': 'Comunale'
+      };
+      const gradoCompleto = gradoMapping[grado] || grado;
+      opinioniResult = await pool.query(opinioniQuery, [gradoCompleto]);
+    } else {
+      opinioniResult = await pool.query(opinioniQuery);
+    }
     const opinioni = opinioniResult.rows;
     
     console.log('🔍 DEBUG - Opinion caricate:', opinioni.length);
@@ -424,7 +454,8 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
 
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinioni.map(opinion => {
-      const opinionId = opinion.id; // Usa l'ID corretto dalla tabella opinioni
+      // Usa il testo dell'opinione per mappare al campo del database
+      const opinionId = opinion.text.replace(/\s+/g, '_');
       const userAnswer = userOpinions[opinionMapping[opinionId]];
       
       console.log(`🔍 DEBUG - Mappatura opinione:`, {
@@ -448,7 +479,7 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       else if (userAnswer === 'Favorevole') frontendAnswer = 'Favorevole';
       
       return {
-        id: opinionId,
+        id: opinionId, // Usa l'ID generato dal testo per compatibilità con il frontend
         text: opinion.text,
         grado: opinion.gradi_opinione || ['Europeo'], // Usa i gradi dalla tabella opinioni
         userAnswer: frontendAnswer,
