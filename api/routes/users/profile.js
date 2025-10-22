@@ -455,7 +455,7 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinioni.map(opinion => {
       // Usa il testo dell'opinione per mappare al campo del database
-      const opinionId = opinion.text.replace(/\s+/g, '_');
+      const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
       const userAnswer = userOpinions[opinionMapping[opinionId]];
       
       console.log(`🔍 DEBUG - Mappatura opinione:`, {
