@@ -303,11 +303,17 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           const candidatoValue = candidatoData[opinionId];
           const userValue = userOpinions[opinionId];
           
-          // Conta come opinione comune solo se entrambi hanno risposto con una posizione valida e la risposta è identica
+          // Conta come opinione comune SOLO se:
+          // 1. Entrambi hanno risposto (non null)
+          // 2. Entrambi hanno un valore valido (f, c, i)
+          // 3. I valori sono identici
           if (candidatoValue && userValue && 
               candidatoValue !== null && userValue !== null &&
+              (candidatoValue === 'f' || candidatoValue === 'c' || candidatoValue === 'i') &&
+              (userValue === 'f' || userValue === 'c' || userValue === 'i') &&
               candidatoValue === userValue) {
             opinioniComuni++;
+            console.log(`✅ OPINIONE COMUNE: ${opinionId} = "${candidatoValue}"`);
           }
         });
         
