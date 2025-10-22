@@ -54,6 +54,15 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
           <p className="text-sm text-gray-600">
             {candidato.opinioniComuni !== undefined ? candidato.opinioniComuni : 0} opinioni comuni
           </p>
+          {/* Debug temporaneo */}
+          <p className="text-xs text-red-500">
+            DEBUG: {JSON.stringify({ 
+              nome: candidato.nome, 
+              opinioniComuni: candidato.opinioniComuni,
+              tipo: typeof candidato.opinioniComuni,
+              tutteLeChiavi: Object.keys(candidato)
+            })}
+          </p>
         </div>
         
         {/* Pulsanti */}
