@@ -94,66 +94,32 @@ router.post('/salva', verifyToken, async (req, res) => {
       });
     }
     
-    // Mappa delle opinioni ai campi del database
-    const opinionMapping = {
-      // Opinion nazionali
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion regionali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Colonne extra (senza prefissi)
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
+    // Funzione per ottenere l'ID dell'opinione dal testo
+    const getOpinioneIdByText = async (opinionText) => {
+      const result = await pool.query(`
+        SELECT id FROM opinioni_domande 
+        WHERE text ILIKE $1
+      `, [`%${opinionText.replace(/_/g, ' ')}%`]);
+      return result.rows[0]?.id;
     };
     
-    // Prepara i campi da aggiornare
-    const updateFields = [];
-    const updateValues = [];
-    let paramIndex = 1;
+    // Salva le opinioni nella nuova struttura
+    let savedCount = 0;
+    let errorCount = 0;
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
-      const dbField = opinionMapping[opinionId];
-      console.log(`🔍 DEBUG - Campo database: ${dbField}`);
       
-      if (dbField) {
+      try {
+        // Ottieni l'ID dell'opinione dalla tabella opinioni_domande
+        const opinioneId = await getOpinioneIdByText(opinionId);
+        
+        if (!opinioneId) {
+          console.warn(`⚠️ Opinione non trovata: ${opinionId}`);
+          errorCount++;
+          continue;
+        }
+        
         // Gestisci i valori compressi dal frontend
         let dbValue = null;
         if (risposta === 'f') dbValue = 'f';
@@ -164,52 +130,31 @@ router.post('/salva', verifyToken, async (req, res) => {
         else if (risposta === 'Indeciso') dbValue = 'i';
         else if (risposta === 'Astenuto') dbValue = null;
         
-        updateFields.push(`${dbField} = $${paramIndex}`);
-        updateValues.push(dbValue);
-        paramIndex++;
+        // Inserisci o aggiorna nella tabella opinioni_risposte
+        await pool.query(`
+          INSERT INTO opinioni_risposte (user_id, opinione_id, risposta)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (user_id, opinione_id) DO UPDATE SET
+            risposta = EXCLUDED.risposta
+        `, [userId, opinioneId, dbValue]);
         
-        console.log(`📝 Campo ${dbField} = ${dbValue}`);
-      } else {
-        console.warn(`⚠️ Campo non mappato: ${opinionId}`);
-        console.warn(`⚠️ Chiavi disponibili nella mappatura:`, Object.keys(opinionMapping));
+        savedCount++;
+        console.log(`✅ Salvata opinione ${opinionId} (ID: ${opinioneId}) = ${dbValue}`);
+        
+      } catch (error) {
+        console.error(`❌ Errore nel salvare opinione ${opinionId}:`, error.message);
+        errorCount++;
       }
     }
     
-    console.log(`🔍 DEBUG - Campi da aggiornare: ${updateFields.length}`);
-    console.log(`🔍 DEBUG - Valori:`, updateValues);
+    console.log(`📊 Risultato salvataggio: ${savedCount} salvate, ${errorCount} errori`);
     
-    if (updateFields.length === 0) {
-      console.error('❌ ERRORE: Nessun campo da aggiornare');
+    if (savedCount === 0) {
+      console.error('❌ ERRORE: Nessuna opinione salvata');
       return res.status(400).json({
         success: false,
         error: 'Nessuna opinione valida da salvare',
         message: 'Verifica che le opinioni corrispondano ai campi disponibili'
-      });
-    }
-    
-    // Aggiungi updated_at
-    updateFields.push(`updated_at = $${paramIndex}`);
-    updateValues.push(new Date());
-    
-    // Esegui l'UPDATE
-    const updateQuery = `
-      UPDATE users 
-      SET ${updateFields.join(', ')}
-      WHERE id = $${paramIndex + 1}
-    `;
-    
-    updateValues.push(userId);
-    
-    console.log('📝 Query UPDATE:', updateQuery);
-    console.log('🔍 Valori:', updateValues);
-    
-    const result = await pool.query(updateQuery, updateValues);
-    
-    if (result.rowCount === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Utente non trovato',
-        message: 'Impossibile aggiornare le opinioni'
       });
     }
     
@@ -218,7 +163,8 @@ router.post('/salva', verifyToken, async (req, res) => {
     res.json({
       success: true,
       message: 'Opinioni salvate con successo',
-      updatedFields: updateFields.length - 1, // -1 per escludere updated_at
+      savedCount: savedCount,
+      errorCount: errorCount,
       timestamp: new Date().toISOString()
     });
     

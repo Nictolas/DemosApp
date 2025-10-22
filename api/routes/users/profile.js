@@ -316,16 +316,18 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     // Verifica che l'utente autenticato possa accedere a questi dati
     const authenticatedUserId = req.userId;
     
-    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni
+    // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
+    // con le risposte dell'utente dalla tabella opinioni_risposte
     let opinioniQuery = `
-      SELECT o.id, o.text, o.gradi_opinione
-      FROM opinioni o
+      SELECT o.id, o.text, o.gradi_opinione, or.risposta, or.fonte
+      FROM opinioni_domande o
+      LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
     `;
     
     // Filtra per grado se specificato
     if (grado) {
       // Usa direttamente il grado compresso
-      opinioniQuery += ` WHERE $1 = ANY(o.gradi_opinione)`;
+      opinioniQuery += ` WHERE $2 = ANY(o.gradi_opinione)`;
     }
     
     opinioniQuery += ` ORDER BY o.text`;
@@ -334,9 +336,9 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     let opinioniResult;
     if (grado) {
       // Usa direttamente il grado compresso
-      opinioniResult = await pool.query(opinioniQuery, [grado]);
+      opinioniResult = await pool.query(opinioniQuery, [userId, grado]);
     } else {
-      opinioniResult = await pool.query(opinioniQuery);
+      opinioniResult = await pool.query(opinioniQuery, [userId]);
     }
     const opinioni = opinioniResult.rows;
     
@@ -345,125 +347,53 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
       console.log('🔍 DEBUG - Filtro grado applicato:', grado);
     }
     
-    // Carica le opinioni dell'utente specifico
-    const userOpinionsQuery = `
-      SELECT 
-        -- Opinion nazionali/europee
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-        carne_coltivata, cittadina_animale, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali (senza prefissi)
-        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
-        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
-        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
-        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
-        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
-        sicurezza_strade_scolastiche, sostegno_commercio_locale,
-        verde_pubblico_e_giardini,
-        -- Opinion regionali (senza prefissi)
-        nuovi_inceneritori, chiusura_ospedali_di_provincia,
-        -- Opinion nazionali/comunali (senza prefissi)
-        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
-        riduzione_parcheggi_a_pagamento,
-        -- Fonti delle opinioni
-        fonti_opinioni
-      FROM users
-      WHERE id = $1
-    `;
-    
-    const userOpinionsResult = await pool.query(userOpinionsQuery, [userId]);
-    const userOpinions = userOpinionsResult.rows[0] || {};
-    
-    if (!userOpinionsResult.rows[0]) {
+    // Verifica che l'utente esista
+    const userCheckResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userCheckResult.rows[0]) {
       return res.status(404).json({
         success: false,
         error: 'Utente non trovato'
       });
     }
 
-    // Estrai le fonti delle opinioni
-    const fontiOpinioni = userOpinions.fonti_opinioni || {};
+    // Estrai le fonti dalle opinioni caricate
+    const fontiOpinioni = {};
+    opinioni.forEach(opinion => {
+      if (opinion.fonte) {
+        const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
+        fontiOpinioni[opinionId] = opinion.fonte;
+      }
+    });
     console.log('🔍 DEBUG - Fonti opinioni per utente', userId, ':', fontiOpinioni);
-    console.log('🔍 DEBUG - Tipo fonti opinioni:', typeof fontiOpinioni);
-    console.log('🔍 DEBUG - Chiavi fonti opinioni:', Object.keys(fontiOpinioni));
     
-    // Mappa delle opinioni ai campi del database - SENZA PREFISSI
-    const opinionMapping = {
-      // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
-      'energia_nucleare': 'energia_nucleare',
-      'sperimentazione_animale': 'sperimentazione_animale',
-      'legalizzazione_canapa': 'legalizzazione_canapa',
-      'caccia': 'caccia',
-      'eutanasia': 'eutanasia',
-      'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
-      'nato': 'nato',
-      'matrimonio_gay': 'matrimonio_gay',
-      'salario_minimo': 'salario_minimo',
-      'case_chiuse': 'case_chiuse',
-      'omobitransfobia': 'omobitransfobia',
-      
-      // Opinion regionali/comunali (senza prefissi)
-      'nuovi_inceneritori': 'nuovi_inceneritori',
-      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
-      
-      // Opinion comunali (senza prefissi)
-      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
-      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
-      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
-      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
-      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
-      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento',
-      
-      // Opinion nazionali/comunali (senza prefissi)
-      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
-      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
-      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
-      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
-      'nuove_case_popolari': 'nuove_case_popolari',
-      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
-      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
-      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
-      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
-      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
-      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
-      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
-      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
-      'sostegno_commercio_locale': 'sostegno_commercio_locale',
-      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini'
-    };
-
-    // Formatta le opinioni per il frontend
+    // Formatta le opinioni per il frontend usando direttamente i dati dalla JOIN
     const formattedOpinions = opinioni.map(opinion => {
-      // Usa il testo dell'opinione per mappare al campo del database
       const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
-      const userAnswer = userOpinions[opinionMapping[opinionId]];
       
-      console.log(`🔍 DEBUG - Mappatura opinione:`, {
+      console.log(`🔍 DEBUG - Opinione:`, {
         text: opinion.text,
         opinionId: opinionId,
-        mappedField: opinionMapping[opinionId],
-        userAnswer: userAnswer
+        risposta: opinion.risposta,
+        fonte: opinion.fonte
       });
       
       // Restituisci sempre valori compressi per compatibilità
       let frontendAnswer = null;
-      if (userAnswer === 'f') frontendAnswer = 'f';
-      else if (userAnswer === 'c') frontendAnswer = 'c';
-      else if (userAnswer === 'i') frontendAnswer = 'i';
-      else if (userAnswer === null) frontendAnswer = null;
+      if (opinion.risposta === 'f') frontendAnswer = 'f';
+      else if (opinion.risposta === 'c') frontendAnswer = 'c';
+      else if (opinion.risposta === 'i') frontendAnswer = 'i';
+      else if (opinion.risposta === null) frontendAnswer = null;
       // Gestisci valori legacy convertendoli a compressi
-      else if (userAnswer === 'Sì' || userAnswer === 'Favorevole') frontendAnswer = 'f';
-      else if (userAnswer === 'No' || userAnswer === 'Contrario') frontendAnswer = 'c';
-      else if (userAnswer === 'Indeciso') frontendAnswer = 'i';
+      else if (opinion.risposta === 'Sì' || opinion.risposta === 'Favorevole') frontendAnswer = 'f';
+      else if (opinion.risposta === 'No' || opinion.risposta === 'Contrario') frontendAnswer = 'c';
+      else if (opinion.risposta === 'Indeciso') frontendAnswer = 'i';
       
       return {
         id: opinionId, // Usa l'ID generato dal testo per compatibilità con il frontend
         text: opinion.text,
-        grado: opinion.gradi_opinione || ['Europeo'], // Usa i gradi dalla tabella opinioni
+        grado: opinion.gradi_opinione || ['Europeo'], // Usa i gradi dalla tabella opinioni_domande
         userAnswer: frontendAnswer,
-        source: 'unknown' // Default source since we don't have it in the table
+        source: opinion.fonte || 'unknown' // Usa la fonte dalla tabella opinioni_risposte
       };
     });
     
