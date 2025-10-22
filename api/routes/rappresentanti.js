@@ -38,44 +38,26 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     const query = `
       SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        status,
-        avatar_config,
-        grado_candidatura,
-        regione_candidatura,
-        provincia_candidatura,
-        comune_candidatura,
-        grado_elezione,
-        regione_elezione,
-        provincia_elezione,
-        comune_elezione,
-        -- Opinion nazionali/europee
-        energia_nucleare, sperimentazione_animale, legalizzazione_canapa, caccia, eutanasia,
-        carne_coltivata, nato, matrimonio_gay, salario_minimo, case_chiuse, omobitransfobia,
-        -- Opinion comunali (senza prefissi)
-        cassonetti_intelligenti_con_tessera, concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-        divieto_di_nuovi_fast_food_nel_centro_storico, estensione_delle_zone_a_traffico_limitato,
-        finanziamento_eventi_culturali_gratuiti, nuova_biblioteca_comunale,
-        nuove_case_popolari, nuove_piste_ciclabili, nuovi_asili_nido_comunali,
-        nuovo_stadio_comunale, parcheggi_gratuiti_per_residenti,
-        potenziamento_trasporto_pubblico, riduzione_tasse_rifiuti,
-        sicurezza_strade_scolastiche, sostegno_commercio_locale,
-        verde_pubblico_e_giardini,
-        -- Opinion regionali (senza prefissi)
-        nuovi_inceneritori, chiusura_ospedali_di_provincia,
-        -- Opinion nazionali/comunali (senza prefissi)
-        raccolta_rifiuti_porta_a_porta, riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-        sussidi_comunali_per_famiglie_numerose, videosorveglianza_in_spazi_pubblici,
-        riduzione_parcheggi_a_pagamento
-      FROM users
-      WHERE (ruolo = 'P' OR ruolo = 'CP')
-        AND status = 'a'
+        u.id,
+        u.nome,
+        u.cognome,
+        u.email,
+        u.ruolo,
+        u.status,
+        u.avatar_config,
+        u.grado_candidatura,
+        u.regione_candidatura,
+        u.provincia_candidatura,
+        u.comune_candidatura,
+        u.grado_elezione,
+        u.regione_elezione,
+        u.provincia_elezione,
+        u.comune_elezione
+      FROM users u
+      WHERE (u.ruolo = 'P' OR u.ruolo = 'CP')
+        AND u.status = 'a'
         ${gradoFilter}
-      ORDER BY cognome, nome
+      ORDER BY u.cognome, u.nome
     `;
     
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esecuzione query principale...');
@@ -106,21 +88,21 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
     const userOpinionsQuery = `
-      SELECT o.text, or.energia_nucleare, or.sperimentazione_animale, or.legalizzazione_canapa, or.caccia, or.eutanasia,
-             or.carne_coltivata, or.nato, or.matrimonio_gay, or.salario_minimo, or.case_chiuse, or.omobitransfobia,
-             or.cassonetti_intelligenti_con_tessera, or.concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-             or.divieto_di_nuovi_fast_food_nel_centro_storico, or.estensione_delle_zone_a_traffico_limitato,
-             or.finanziamento_eventi_culturali_gratuiti, or.nuova_biblioteca_comunale,
-             or.nuove_case_popolari, or.nuove_piste_ciclabili, or.nuovi_asili_nido_comunali,
-             or.nuovo_stadio_comunale, or.parcheggi_gratuiti_per_residenti,
-             or.potenziamento_trasporto_pubblico, or.riduzione_tasse_rifiuti,
-             or.sicurezza_strade_scolastiche, or.sostegno_commercio_locale,
-             or.verde_pubblico_e_giardini, or.nuovi_inceneritori, or.chiusura_ospedali_di_provincia,
-             or.raccolta_rifiuti_porta_a_porta, or.riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-             or.sussidi_comunali_per_famiglie_numerose, or.videosorveglianza_in_spazi_pubblici,
-             or.riduzione_parcheggi_a_pagamento
+      SELECT o.text, orr.energia_nucleare, orr.sperimentazione_animale, orr.legalizzazione_canapa, orr.caccia, orr.eutanasia,
+             orr.carne_coltivata, orr.nato, orr.matrimonio_gay, orr.salario_minimo, orr.case_chiuse, orr.omobitransfobia,
+             orr.cassonetti_intelligenti_con_tessera, orr.concessione_spazi_pubblici_a_centri_sociali_autogestiti,
+             orr.divieto_di_nuovi_fast_food_nel_centro_storico, orr.estensione_delle_zone_a_traffico_limitato,
+             orr.finanziamento_eventi_culturali_gratuiti, orr.nuova_biblioteca_comunale,
+             orr.nuove_case_popolari, orr.nuove_piste_ciclabili, orr.nuovi_asili_nido_comunali,
+             orr.nuovo_stadio_comunale, orr.parcheggi_gratuiti_per_residenti,
+             orr.potenziamento_trasporto_pubblico, orr.riduzione_tasse_rifiuti,
+             orr.sicurezza_strade_scolastiche, orr.sostegno_commercio_locale,
+             orr.verde_pubblico_e_giardini, orr.nuovi_inceneritori, orr.chiusura_ospedali_di_provincia,
+             orr.raccolta_rifiuti_porta_a_porta, orr.riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
+             orr.sussidi_comunali_per_famiglie_numerose, orr.videosorveglianza_in_spazi_pubblici,
+             orr.riduzione_parcheggi_a_pagamento
       FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte or ON or.user_id = $1
+      LEFT JOIN opinioni_risposte orr ON orr.user_id = $1
       WHERE $2 = ANY(o.gradi_opinione)
     `;
     
