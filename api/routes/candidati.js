@@ -217,46 +217,42 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
     });
     
-    // Calcola il conteggio reale delle opinioni comuni
+    // Calcola il conteggio reale delle opinioni comuni usando la stessa logica dei rappresentanti
     const candidatiConOpinioni = await Promise.all(candidati.map(async (candidato) => {
       try {
-        // Ottieni le opinioni del candidato dalla tabella opinioni_risposte
+        // Ottieni le opinioni del candidato dalla tabella opinioni_risposte (struttura normalizzata)
         const candidatoAnswersQuery = `
-          SELECT * FROM opinioni_risposte WHERE user_id = $1
+          SELECT o.text, or.risposta
+          FROM opinioni_domande o
+          LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+          WHERE o.gradi_opinione IS NOT NULL
         `;
         
         const candidatoAnswersResult = await pool.query(candidatoAnswersQuery, [candidato.id]);
         const candidatoData = {};
         
-        if (candidatoAnswersResult.rows.length > 0) {
-          const candidatoRow = candidatoAnswersResult.rows[0];
-          // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-          Object.keys(candidatoRow).forEach(key => {
-            if (key !== 'user_id' && key !== 'fonti_opinioni') {
-              candidatoData[key] = candidatoRow[key];
-            }
-          });
-        }
+        candidatoAnswersResult.rows.forEach(row => {
+          const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
+          candidatoData[opinionKey] = row.risposta;
+        });
         
         // Ottieni le opinioni dell'utente corrente dalla tabella opinioni_risposte
         let userOpinions = null;
         if (req.userId) {
           const userAnswersQuery = `
-            SELECT * FROM opinioni_risposte WHERE user_id = $1
+            SELECT o.text, or.risposta
+            FROM opinioni_domande o
+            LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+            WHERE o.gradi_opinione IS NOT NULL
           `;
           
           const userAnswersResult = await pool.query(userAnswersQuery, [req.userId]);
           userOpinions = {};
           
-          if (userAnswersResult.rows.length > 0) {
-            const userRow = userAnswersResult.rows[0];
-            // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-            Object.keys(userRow).forEach(key => {
-              if (key !== 'user_id' && key !== 'fonti_opinioni') {
-                userOpinions[key] = userRow[key];
-              }
-            });
-          }
+          userAnswersResult.rows.forEach(row => {
+            const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
+            userOpinions[opinionKey] = row.risposta;
+          });
         }
         
         // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
@@ -272,21 +268,19 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           if (testUserResult.rows.length > 0) {
             const testUserId = testUserResult.rows[0].id;
             const testUserAnswersQuery = `
-              SELECT * FROM opinioni_risposte WHERE user_id = $1
+              SELECT o.text, or.risposta
+              FROM opinioni_domande o
+              LEFT JOIN opinioni_risposte or ON o.id = or.opinione_id AND or.user_id = $1
+              WHERE o.gradi_opinione IS NOT NULL
             `;
             
             const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
             userOpinions = {};
             
-            if (testUserAnswersResult.rows.length > 0) {
-              const testUserRow = testUserAnswersResult.rows[0];
-              // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-              Object.keys(testUserRow).forEach(key => {
-                if (key !== 'user_id' && key !== 'fonti_opinioni') {
-                  userOpinions[key] = testUserRow[key];
-                }
-              });
-            }
+            testUserAnswersResult.rows.forEach(row => {
+              const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
+              userOpinions[opinionKey] = row.risposta;
+            });
             console.log('🔍 DEBUG - Usando Nicolas Micheletti come utente di riferimento per opinioni comuni');
           }
         }
