@@ -103,6 +103,17 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           return { ...candidato, opinioni_comuni: 0 };
         }
 
+        // Ottieni le opinioni del grado specifico (stessa logica dei candidati)
+        const gradoOpinioniQuery = `
+          SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
+        `;
+        const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoForOpinions]);
+        const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
+
+        if (opinioniDelGrado.length === 0) {
+          return { ...candidato, opinioni_comuni: 0 };
+        }
+
         // Carica le opinioni del candidato per il grado specifico
         const candidatoAnswersQuery = `
           SELECT user_id, ${opinioniDelGrado.join(', ')} FROM opinioni_risposte WHERE user_id = $1
