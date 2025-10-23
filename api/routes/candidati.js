@@ -316,7 +316,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           }
         });
         
-        return { ...candidato, opinioniComuni };
+           console.log(`🔍 DEBUG API - Candidato ${candidato.nome} ${candidato.cognome} (ID: ${candidato.id}):`);
+           console.log('  Opinioni Candidato:', candidatoData);
+           console.log('  Opinioni Utente:', userOpinions);
+           console.log('  Opinioni Comuni Calcolate:', opinioniComuni);
+           return { ...candidato, opinioniComuni };
       } catch (error) {
         console.error('❌ Errore nel calcolo opinioni comuni per candidato:', candidato.id, error);
         return { ...candidato, opinioniComuni: 0 };
