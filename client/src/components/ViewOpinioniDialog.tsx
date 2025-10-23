@@ -9,6 +9,7 @@ import { ViewProgrammaDialog } from "@/components/ViewProgrammaDialog";
 
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 
 // Mappa colori per le risposte
 const responseColors = {
@@ -46,6 +47,7 @@ export function ViewOpinioniDialog({
 }: ViewOpinioniDialogProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [opinions, setOpinions] = useState<Record<string, string | null>>({});
   const [isLoadingOpinions, setIsLoadingOpinions] = useState(true);
   const [questions, setQuestions] = useState<{id: string, text: string}[]>([]);
