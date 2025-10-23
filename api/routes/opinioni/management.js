@@ -48,11 +48,34 @@ router.get('/proposte', verifyToken, async (req, res) => {
       gradi_opinione: row.gradi_opinione
     })));
     
+    // Mappa le lettere ai nomi completi per il frontend
+    const mappedData = result.rows.map(row => {
+      const gradoMapping = {
+        'E': 'Europeo',
+        'N': 'Nazionale', 
+        'R': 'Regionale',
+        'C': 'Comunale'
+      };
+      
+      const mappedGradi = row.gradi_opinione?.map(grado => gradoMapping[grado] || grado) || [];
+      
+      return {
+        ...row,
+        gradi_opinione: mappedGradi
+      };
+    });
+    
+    console.log('🔍 DEBUG - Dati mappati per frontend:', mappedData.slice(0, 3).map(row => ({
+      id: row.id,
+      text: row.text,
+      gradi_opinione: row.gradi_opinione
+    })));
+    
     console.log(`✅ Trovate ${result.rows.length} opinioni per gestione`);
     
     res.json({
       success: true,
-      data: result.rows
+      data: mappedData
     });
     
   } catch (error) {
@@ -92,8 +115,18 @@ router.post('/', verifyToken, async (req, res) => {
         approfondimento = EXCLUDED.approfondimento
     `;
     
+    // Mappa i nomi completi alle lettere per il database
+    const gradoMapping = {
+      'Europeo': 'E',
+      'Nazionale': 'N', 
+      'Regionale': 'R',
+      'Comunale': 'C'
+    };
+    
+    const mappedGradi = gradi_opinione.map(grado => gradoMapping[grado] || grado);
+    
     const approfondimento = `## Proposta ${gradi_opinione.join(', ')}\n\n${text}`;
-    const result = await pool.query(insertQuery, [id, text, gradi_opinione, approfondimento]);
+    const result = await pool.query(insertQuery, [id, text, mappedGradi, approfondimento]);
     
     console.log('✅ Opinione creata/aggiornata con successo:', id);
     
@@ -132,6 +165,16 @@ router.put('/:id', verifyToken, async (req, res) => {
       });
     }
     
+    // Mappa i nomi completi alle lettere per il database
+    const gradoMapping = {
+      'Europeo': 'E',
+      'Nazionale': 'N', 
+      'Regionale': 'R',
+      'Comunale': 'C'
+    };
+    
+    const mappedGradi = gradi_opinione.map(grado => gradoMapping[grado] || grado);
+    
     const updateQuery = `
       UPDATE opinioni_domande
       SET text = $1, gradi_opinione = $2, approfondimento = $3
@@ -139,7 +182,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     `;
     
     const approfondimento = `## Proposta ${gradi_opinione.join(', ')}\n\n${text}`;
-    const result = await pool.query(updateQuery, [text, gradi_opinione, approfondimento, id]);
+    const result = await pool.query(updateQuery, [text, mappedGradi, approfondimento, id]);
     
     if (result.rowCount === 0) {
       return res.status(404).json({
