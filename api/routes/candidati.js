@@ -248,6 +248,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         };
         const gradoDatabase = gradoMapping[grado_candidatura] || grado_candidatura;
         
+        // Per Regione e Comune, includi anche le opinioni nazionali
+        let gradiDaIncludere = [gradoDatabase];
+        if (grado_candidatura === 'R' || grado_candidatura === 'CO') {
+          gradiDaIncludere.push('N');
+        }
+        
         // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
         let userOpinions = null;
         if (req.userId) {
