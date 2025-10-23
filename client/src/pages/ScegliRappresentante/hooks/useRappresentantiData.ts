@@ -38,6 +38,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         
         console.log('🔍 DEBUG Frontend - Categoria:', categoria);
         console.log('🔍 DEBUG Frontend - IsTestRoute:', isTestRoute);
+        console.log('🔍 DEBUG Frontend - URL finale:', url);
         
         const response = await apiRequest("GET", url);
 
