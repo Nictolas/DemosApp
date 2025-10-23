@@ -119,6 +119,8 @@ export default function OpinioniNazionali() {
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni nazionali sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Nazionale'] });
+      // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
+      queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       setTimeout(() => setLocation("/opinioni"), 1500);
     },
     onError: (error: any) => {

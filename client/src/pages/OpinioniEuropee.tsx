@@ -111,6 +111,8 @@ export default function OpinioniEuropee() {
     onSuccess: () => {
       toast({ title: "Successo", description: "Le tue opinioni europee sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Europeo'] });
+      // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
+      queryClient.invalidateQueries({ queryKey: ['candidatiData'] });
       setTimeout(() => setLocation("/opinioni"), 1500);
     },
     onError: (error: any) => {

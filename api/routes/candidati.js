@@ -329,6 +329,12 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       .slice(0, 4);
     
     
+    // Debug temporaneo per vedere se opinioniComuni è presente
+    console.log('🔍 DEBUG - Candidati finali:');
+    candidatiOrdinati.forEach((candidato, index) => {
+      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: opinioniComuni=${candidato.opinioniComuni}`);
+    });
+    
     res.json({
       success: true,
       data: candidatiOrdinati,
