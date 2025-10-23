@@ -16,10 +16,10 @@ async function ensureVotiTableExists() {
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS voti_opinioni_proposte (
         id SERIAL PRIMARY KEY,
-        user_id VARCHAR(255) NOT NULL,
+        utente_id UUID NOT NULL,
         opinione_id VARCHAR(255) NOT NULL,
         data_voto TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, opinione_id)
+        UNIQUE(utente_id, opinione_id)
       );
     `;
     
@@ -27,8 +27,8 @@ async function ensureVotiTableExists() {
     
     // Crea indici per performance
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_voti_opinioni_user_id 
-      ON voti_opinioni_proposte(user_id);
+      CREATE INDEX IF NOT EXISTS idx_voti_opinioni_utente_id 
+      ON voti_opinioni_proposte(utente_id);
     `);
     
     await pool.query(`
@@ -61,9 +61,9 @@ router.get('/test-voto', async (req, res) => {
     
     // Prova inserimento
     const insertQuery = `
-      INSERT INTO voti_opinioni_proposte (user_id, opinione_id)
+      INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
       VALUES ($1, $2)
-      ON CONFLICT (user_id, opinione_id) DO NOTHING
+      ON CONFLICT (utente_id, opinione_id) DO NOTHING
     `;
     
     const result = await pool.query(insertQuery, [testUserId, testOpinioneId]);
@@ -72,7 +72,7 @@ router.get('/test-voto', async (req, res) => {
     // Verifica che il voto sia stato inserito
     const checkQuery = `
       SELECT * FROM voti_opinioni_proposte 
-      WHERE user_id = $1 AND opinione_id = $2
+      WHERE utente_id = $1 AND opinione_id = $2
     `;
     const checkResult = await pool.query(checkQuery, [testUserId, testOpinioneId]);
     console.log('🔍 Voto inserito:', checkResult.rows);
@@ -305,9 +305,9 @@ router.post('/:id/vota', verifyToken, async (req, res) => {
     
     // Inserisci il voto nella tabella voti_opinioni_proposte
     const insertVotoQuery = `
-      INSERT INTO voti_opinioni_proposte (user_id, opinione_id)
+      INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
       VALUES ($1, $2)
-      ON CONFLICT (user_id, opinione_id) DO NOTHING
+      ON CONFLICT (utente_id, opinione_id) DO NOTHING
     `;
     
     console.log('🔍 Inserimento voto con parametri:', { userId, id });
@@ -368,7 +368,7 @@ router.delete('/:id/vota', verifyToken, async (req, res) => {
     // Rimuovi il voto dalla tabella voti_opinioni_proposte
     const deleteVotoQuery = `
       DELETE FROM voti_opinioni_proposte 
-      WHERE user_id = $1 AND opinione_id = $2
+      WHERE utente_id = $1 AND opinione_id = $2
     `;
     
     console.log('🔍 Rimozione voto...');
