@@ -128,6 +128,13 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
     a.text.localeCompare(b.text, 'it', { sensitivity: 'base' })
   );
 
+  // Debug: log dei dati ricevuti
+  console.log('🔍 DEBUG - ListaOpinioni ricevute:', opinioniOrdinate.map(op => ({
+    id: op.id,
+    text: op.text,
+    gradi_opinione: op.gradi_opinione
+  })));
+
   return (
     <div className="space-y-2">
         {opinioniOrdinate.map((op) => (
@@ -156,21 +163,25 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
                 {op.text} <span className="text-xs text-muted-foreground">({op.id})</span>
               </span>
               <div className="flex flex-wrap gap-2 mt-1">
-                {GRADI_OPINIONE.map(grado => (
-                  <button
-                    key={grado}
-                    onClick={() => handleToggleGrado(op.id, grado)}
-                    disabled={editMutation.isPending}
-                    className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                      op.gradi_opinione?.includes(grado) 
-                        ? "bg-blue-500 text-white hover:bg-blue-600" 
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                    } ${editMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    title={op.gradi_opinione?.includes(grado) ? `Rimuovi grado ${grado}` : `Aggiungi grado ${grado}`}
-                  >
-                    {grado}
-                  </button>
-                ))}
+                {GRADI_OPINIONE.map(grado => {
+                  const isSelected = op.gradi_opinione?.includes(grado);
+                  console.log(`🔍 DEBUG - Opinione ${op.id} (${op.text}): grado ${grado} = ${isSelected}, gradi_opinione =`, op.gradi_opinione);
+                  return (
+                    <button
+                      key={grado}
+                      onClick={() => handleToggleGrado(op.id, grado)}
+                      disabled={editMutation.isPending}
+                      className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                        isSelected
+                          ? "bg-blue-500 text-white hover:bg-blue-600" 
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      } ${editMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      title={isSelected ? `Rimuovi grado ${grado}` : `Aggiungi grado ${grado}`}
+                    >
+                      {grado}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
