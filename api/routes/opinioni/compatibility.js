@@ -117,6 +117,8 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
 router.get('/proposte', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
+    console.log('🔍 Headers:', req.headers);
+    console.log('🔍 Query params:', req.query);
     
     const query = `
       SELECT id, text, gradi_opinione, approfondimento
@@ -124,7 +126,9 @@ router.get('/proposte', async (req, res) => {
       ORDER BY text
     `;
     
+    console.log('🔍 Esecuzione query:', query);
     const result = await pool.query(query);
+    console.log('🔍 Query result:', result.rows.length, 'rows');
     
     console.log(`✅ Trovate ${result.rows.length} opinioni per gestione`);
     
@@ -135,6 +139,7 @@ router.get('/proposte', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Errore nel recuperare opinioni:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server',
