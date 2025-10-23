@@ -318,7 +318,7 @@ router.get('/:userId/opinioni', verifyToken, userDataAuditMiddleware, async (req
     
     // Carica le opinioni specifiche per il grado (se specificato) dalla tabella opinioni_domande
     let opinioniQuery = `
-      SELECT id, text, gradi_opinione, informazioni, approfondimenti
+      SELECT id, text, gradi_opinione, approfondimento
       FROM opinioni_domande
     `;
     
