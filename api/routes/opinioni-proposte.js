@@ -45,6 +45,55 @@ async function ensureVotiTableExists() {
 // Inizializza la tabella all'avvio
 ensureVotiTableExists();
 
+// GET /api/opinioni-proposte/test-voto - Test endpoint per verificare inserimento voto
+router.get('/test-voto', async (req, res) => {
+  try {
+    console.log('🧪 TEST - Test inserimento voto');
+    
+    // Test inserimento voto di prova
+    const testUserId = 'test-user-id';
+    const testOpinioneId = 'allevamenti_intensivi';
+    
+    console.log('🔍 Test parametri:', { testUserId, testOpinioneId });
+    
+    // Prima assicurati che la tabella esista
+    await ensureVotiTableExists();
+    
+    // Prova inserimento
+    const insertQuery = `
+      INSERT INTO voti_opinioni_proposte (user_id, opinione_id)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id, opinione_id) DO NOTHING
+    `;
+    
+    const result = await pool.query(insertQuery, [testUserId, testOpinioneId]);
+    console.log('📊 Risultato test inserimento:', result);
+    
+    // Verifica che il voto sia stato inserito
+    const checkQuery = `
+      SELECT * FROM voti_opinioni_proposte 
+      WHERE user_id = $1 AND opinione_id = $2
+    `;
+    const checkResult = await pool.query(checkQuery, [testUserId, testOpinioneId]);
+    console.log('🔍 Voto inserito:', checkResult.rows);
+    
+    res.json({
+      success: true,
+      test_inserted: result.rowCount > 0,
+      vote_exists: checkResult.rows.length > 0,
+      vote_data: checkResult.rows[0] || null
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel test voto:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // GET /api/opinioni-proposte/debug - Debug endpoint per verificare database
 router.get('/debug', async (req, res) => {
   try {
