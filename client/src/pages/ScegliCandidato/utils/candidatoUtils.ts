@@ -1,6 +1,6 @@
 export const getTitolo = (categoria: string): string => {
   switch (categoria) {
-    case "europeo": return "E";
+    case "europeo": return "Europeo";
     case "camera": return "C";
     case "senato": return "S";
     case "regione": return "R";
