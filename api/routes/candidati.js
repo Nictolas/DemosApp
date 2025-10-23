@@ -238,6 +238,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           });
         }
         
+        // Mappa il grado_candidatura del frontend al grado del database
+        const gradoMapping = {
+          'E': 'E',
+          'C': 'N', 
+          'S': 'N',
+          'R': 'R',
+          'CO': 'CO'
+        };
+        const gradoDatabase = gradoMapping[grado_candidatura] || grado_candidatura;
+        
         // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
         let userOpinions = null;
         if (req.userId) {
@@ -245,7 +255,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           const gradoOpinioniQuery = `
             SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
           `;
-          const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [grado_candidatura]);
+          const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
           const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
           
           if (opinioniDelGrado.length > 0) {
