@@ -355,6 +355,20 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       });
     });
     
+    // Debug finale per verificare la struttura della risposta
+    console.log('🔍 DEBUG - Struttura candidati nella risposta:');
+    candidatiOrdinati.forEach((candidato, index) => {
+      console.log(`  Candidato ${index + 1}:`, {
+        id: candidato.id,
+        nome: candidato.nome,
+        cognome: candidato.cognome,
+        opinioniComuni: candidato.opinioniComuni,
+        tipoOpinioniComuni: typeof candidato.opinioniComuni,
+        isOpinioniComuniNull: candidato.opinioniComuni === null,
+        isOpinioniComuniUndefined: candidato.opinioniComuni === undefined
+      });
+    });
+    
     res.json({
       success: true,
       data: candidatiOrdinati,
