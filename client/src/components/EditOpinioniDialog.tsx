@@ -274,9 +274,9 @@ export function EditOpinioniDialog({
         if (dbField) {
           // Converti le risposte al formato database
           let dbAnswer = answer;
-          if (answer === 'Favorevole') dbAnswer = 'Sì';
-          else if (answer === 'Contrario') dbAnswer = 'No';
-          else if (answer === 'Indeciso') dbAnswer = 'Indeciso';
+          if (answer === 'Favorevole') dbAnswer = 'f';
+          else if (answer === 'Contrario') dbAnswer = 'c';
+          else if (answer === 'Indeciso') dbAnswer = 'i';
           
           opinioniPerDatabase[dbField] = dbAnswer;
         }
