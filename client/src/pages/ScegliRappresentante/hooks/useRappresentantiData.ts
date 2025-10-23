@@ -32,7 +32,7 @@ export const useRappresentantiData = (user: any, categoria: string) => {
         } else {
           // Use the existing API endpoint for regular rappresentanti routes
           const grado = getTitolo(categoria);
-          url = `/api/rappresentanti/disponibili?grado=${encodeURIComponent(grado)}&categoria=${encodeURIComponent(categoria || '')}`;
+          url = `/api/rappresentanti/disponibili?grado_elezione=${encodeURIComponent(grado)}`;
           console.log('🔍 DEBUG Frontend - Chiamata API RAPPRESENTANTI:', url);
         }
         
