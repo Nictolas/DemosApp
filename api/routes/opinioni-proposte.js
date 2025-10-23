@@ -166,6 +166,38 @@ router.get('/debug', async (req, res) => {
   }
 });
 
+// GET /api/opinioni-proposte/voti-utente - Ottieni voti dell'utente autenticato
+router.get('/voti-utente', verifyToken, async (req, res) => {
+  try {
+    const userId = req.userId;
+    console.log('🔍 GET /api/opinioni-proposte/voti-utente - Voti utente:', userId);
+    
+    const query = `
+      SELECT opinione_id 
+      FROM voti_opinioni_proposte 
+      WHERE utente_id = $1
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    const votiUtente = result.rows.map(row => row.opinione_id);
+    
+    console.log(`✅ Trovati ${votiUtente.length} voti per utente ${userId}`);
+    
+    res.json({
+      success: true,
+      data: votiUtente
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare voti utente:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore nel recuperare voti utente',
+      message: error.message
+    });
+  }
+});
+
 // GET /api/opinioni-proposte - Ottieni opinioni da approvare dalla tabella opinioni
 router.get('/', async (req, res) => {
   try {

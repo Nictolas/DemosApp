@@ -39,8 +39,17 @@ export const useProponiOpinioneData = (user: any) => {
         
         setOpinioni(opinioniMapped);
         
-        // Per ora, non abbiamo ancora i voti dell'utente, li impostiamo vuoti
-        setUserVoti([]);
+        // Carica i voti dell'utente
+        console.log('🔍 Caricamento voti utente...');
+        const votiResponse = await apiRequest('GET', '/api/opinioni-proposte/voti-utente');
+        if (votiResponse.ok) {
+          const votiData = await votiResponse.json();
+          setUserVoti(votiData.data || []);
+          console.log('✅ Voti utente caricati:', votiData.data);
+        } else {
+          console.log('⚠️ Errore nel caricare voti utente');
+          setUserVoti([]);
+        }
         
         console.log(`✅ Caricate ${opinioniMapped.length} opinioni proposte`);
       } else {
@@ -126,6 +135,9 @@ export const useProponiOpinioneData = (user: any) => {
       
       console.log('✅ Voto registrato con successo');
       
+      // Aggiorna immediatamente i voti dell'utente
+      setUserVoti(prev => [...prev, id]);
+      
       const remainingVotes = getRemainingVotes('opinioni_proposte', currentVotes + 1);
       toast({ 
         title: "Successo", 
@@ -207,6 +219,9 @@ export const useProponiOpinioneData = (user: any) => {
       }
       
       console.log('✅ Voto rimosso con successo');
+      
+      // Aggiorna immediatamente i voti dell'utente
+      setUserVoti(prev => prev.filter(votoId => votoId !== id));
       
       const remainingVotes = getRemainingVotes('opinioni_proposte', userVoti.length - 1);
       toast({ 

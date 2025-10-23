@@ -27,7 +27,7 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
             <span>Opinioni proposte</span>
           </CardTitle>
           <CardDescription>
-            Vota le opinioni che ritieni più importanti. L'admin valuterà le più votate.
+            Vota l'opinione che vorresti vedere aggiunta.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -55,7 +55,7 @@ export const OpinioniList: React.FC<OpinioniListProps> = ({
           </div>
         </div>
         <CardDescription>
-          Vota le opinioni che ritieni più importanti. L'admin valuterà le più votate.
+          Vota l'opinione che vorresti vedere aggiunta.
           {hasReachedLimit && (
             <span className="block mt-1 text-red-600 font-medium">
               Hai raggiunto il limite di {limit} voti. Rimuovi un voto esistente per votarne una nuova.
