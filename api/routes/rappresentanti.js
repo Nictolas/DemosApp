@@ -74,54 +74,33 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
     
-    // Carica le opinioni specifiche per il grado richiesto dalla tabella opinioni_domande
-    const gradoOpinionsQuery = `
-      SELECT o.id, o.text, o.gradi_opinione
-      FROM opinioni_domande o
-      WHERE $1 = ANY(o.gradi_opinione) OR $2 = ANY(o.gradi_opinione)
-      ORDER BY o.text
-    `;
-    
-    // Usa sia il grado mappato che quello originale per le opinioni
+    // Usa la stessa logica semplice dei candidati per le opinioni comuni
     const gradoForOpinions = grado ? (gradoMapping[grado] || grado) : null;
-    const gradoOriginale = grado; // Es. "Europeo" per grado "E"
-    const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [gradoForOpinions, gradoOriginale]);
-    const gradoOpinions = gradoOpinionsResult.rows;
     
-    console.log(`🔍 DEBUG - Opinion per grado ${grado} caricate:`, gradoOpinions.length);
-    console.log(`🔍 DEBUG - Opinion per grado ${grado}:`, gradoOpinions.map(o => o.text));
-    
-    // Carica le opinioni dell'utente corrente per il calcolo della compatibilità
-    const userOpinionsQuery = `
-      SELECT o.text, orr.energia_nucleare, orr.sperimentazione_animale, orr.legalizzazione_canapa, orr.caccia, orr.eutanasia,
-             orr.carne_coltivata, orr.nato, orr.matrimonio_gay, orr.salario_minimo, orr.case_chiuse, orr.omobitransfobia,
-             orr.cassonetti_intelligenti_con_tessera, orr.concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-             orr.divieto_di_nuovi_fast_food_nel_centro_storico, orr.estensione_delle_zone_a_traffico_limitato,
-             orr.finanziamento_eventi_culturali_gratuiti, orr.nuova_biblioteca_comunale,
-             orr.nuove_case_popolari, orr.nuove_piste_ciclabili, orr.nuovi_asili_nido_comunali,
-             orr.nuovo_stadio_comunale, orr.parcheggi_gratuiti_per_residenti,
-             orr.potenziamento_trasporto_pubblico, orr.riduzione_tasse_rifiuti,
-             orr.sicurezza_strade_scolastiche, orr.sostegno_commercio_locale,
-             orr.verde_pubblico_e_giardini, orr.nuovi_inceneritori, orr.chiusura_ospedali_di_provincia,
-             orr.raccolta_rifiuti_porta_a_porta, orr.riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-             orr.sussidi_comunali_per_famiglie_numerose, orr.videosorveglianza_in_spazi_pubblici,
-             orr.riduzione_parcheggi_a_pagamento
-      FROM opinioni_domande o
-      LEFT JOIN opinioni_risposte orr ON orr.user_id = $1
-      WHERE $2 = ANY(o.gradi_opinione)
-    `;
-    
-    const userOpinionsResult = await pool.query(userOpinionsQuery, [userId, gradoForOpinions]);
-    const userOpinions = {};
-    userOpinionsResult.rows.forEach(row => {
-      const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-      // Mappa la risposta dalla colonna corrispondente
-      const opinionField = opinionId.replace(/\s+/g, '_').toLowerCase();
-      userOpinions[opinionId] = row[opinionField];
-    });
-    
-    console.log('🔍 DEBUG - Opinion utente corrente caricate:', Object.keys(userOpinions).length);
-    console.log('🔍 DEBUG - Opinion utente corrente:', userOpinions);
+    // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico (stessa logica candidati)
+    let userOpinions = null;
+    if (userId) {
+      // Prima ottieni le opinioni del grado specifico
+      const gradoOpinioniQuery = `
+        SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
+      `;
+      const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoForOpinions]);
+      const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
+      
+      if (opinioniDelGrado.length > 0) {
+        // Costruisci la query dinamica per le colonne del grado specifico
+        const colonneQuery = opinioniDelGrado.join(', ');
+        const userAnswersQuery = `
+          SELECT user_id, ${colonneQuery} FROM opinioni_risposte WHERE user_id = $1
+        `;
+        const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
+        
+        if (userAnswersResult.rows.length > 0) {
+          userOpinions = userAnswersResult.rows[0];
+          delete userOpinions.user_id; // Rimuovi user_id dai dati
+        }
+      }
+    }
     
     // Funzione per calcolare le opinioni comuni tra utente e rappresentante
     // USA LA STESSA LOGICA DEL FRONTEND per evitare discrepanze
@@ -233,13 +212,52 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
     
-    // Calcola le opinioni comuni per ogni candidato e aggiungi il campo opinioni_comuni
+    // Calcola le opinioni comuni per ogni candidato (stessa logica dei candidati)
     candidati = await Promise.all(candidati.map(async (candidato) => {
-      const opinioniComuni = await calculateCommonOpinions(userOpinions, candidato, grado);
-      return {
-        ...candidato,
-        opinioni_comuni: opinioniComuni
-      };
+      try {
+        if (!userOpinions) {
+          return { ...candidato, opinioni_comuni: 0 };
+        }
+
+        // Carica le opinioni del candidato per il grado specifico
+        const candidatoAnswersQuery = `
+          SELECT user_id, ${opinioniDelGrado.join(', ')} FROM opinioni_risposte WHERE user_id = $1
+        `;
+        const candidatoAnswersResult = await pool.query(candidatoAnswersQuery, [candidato.id]);
+        
+        if (candidatoAnswersResult.rows.length === 0) {
+          return { ...candidato, opinioni_comuni: 0 };
+        }
+        
+        const candidatoData = candidatoAnswersResult.rows[0];
+        delete candidatoData.user_id;
+
+        // Calcola opinioni comuni confrontando le opinioni (già filtrate per grado)
+        let opinioniComuni = 0;
+        const allOpinionIds = new Set([...Object.keys(candidatoData), ...Object.keys(userOpinions)]);
+        
+        allOpinionIds.forEach(opinionId => {
+          const candidatoValue = candidatoData[opinionId];
+          const userValue = userOpinions[opinionId];
+          
+          // Conta come opinione comune SOLO se:
+          // 1. Entrambi hanno risposto (non null)
+          // 2. Entrambi hanno un valore valido (f, c, i)
+          // 3. I valori sono identici
+          if (candidatoValue && userValue && 
+              candidatoValue !== null && userValue !== null &&
+              (candidatoValue === 'f' || candidatoValue === 'c' || candidatoValue === 'i') &&
+              (userValue === 'f' || userValue === 'c' || userValue === 'i') &&
+              candidatoValue === userValue) {
+            opinioniComuni++;
+          }
+        });
+        
+        return { ...candidato, opinioni_comuni };
+      } catch (error) {
+        console.error('❌ Errore nel calcolo opinioni comuni per candidato:', candidato.id, error);
+        return { ...candidato, opinioni_comuni: 0 };
+      }
     }));
     
     // Ordina per opinioni comuni (decrescente) e poi per cognome
