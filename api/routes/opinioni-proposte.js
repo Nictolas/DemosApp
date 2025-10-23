@@ -121,17 +121,11 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-proposte - Caricamento tutte le opinioni');
     
-    // Query per ottenere tutte le opinioni con conteggio voti
+    // Query semplificata per ottenere tutte le opinioni (senza JOIN problematico)
     const query = `
-      SELECT o.id, o.text as testo, o.gradi_opinione, o.approfondimento,
-             COALESCE(voti_count.count, 0) as voti
-      FROM opinioni_domande o
-      LEFT JOIN (
-        SELECT opinione_id, COUNT(*) as count
-        FROM voti_opinioni_proposte
-        GROUP BY opinione_id
-      ) voti_count ON o.id = voti_count.opinione_id
-      ORDER BY o.text
+      SELECT id, text as testo, gradi_opinione, approfondimento
+      FROM opinioni_domande
+      ORDER BY text
     `;
     
     const result = await pool.query(query);
@@ -151,7 +145,7 @@ router.get('/', async (req, res) => {
       nome: null,
       cognome: null,
       email: null,
-      voti: parseInt(row.voti) || 0
+      voti: 0 // Valore fisso per ora
     }));
     
     res.json({

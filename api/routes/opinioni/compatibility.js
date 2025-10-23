@@ -114,7 +114,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/proposte - Ottieni tutte le opinioni (per gestione)
-router.get('/proposte', verifyToken, async (req, res) => {
+router.get('/proposte', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
     
