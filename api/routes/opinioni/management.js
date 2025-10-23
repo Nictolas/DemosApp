@@ -41,6 +41,13 @@ router.get('/proposte', verifyToken, async (req, res) => {
     
     const result = await pool.query(query);
     
+    // Debug: log dei primi 3 risultati per vedere la struttura
+    console.log('🔍 DEBUG - Prime 3 opinioni con gradi_opinione:', result.rows.slice(0, 3).map(row => ({
+      id: row.id,
+      text: row.text,
+      gradi_opinione: row.gradi_opinione
+    })));
+    
     console.log(`✅ Trovate ${result.rows.length} opinioni per gestione`);
     
     res.json({

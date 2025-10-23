@@ -114,7 +114,7 @@ router.get('/opinioni-list', verifyToken, async (req, res) => {
 });
 
 // GET /api/opinioni/proposte - Ottieni tutte le opinioni (per gestione)
-router.get('/proposte', async (req, res) => {
+router.get('/proposte', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
     console.log('🔍 Headers:', req.headers);
@@ -129,6 +129,13 @@ router.get('/proposte', async (req, res) => {
     console.log('🔍 Esecuzione query:', query);
     const result = await pool.query(query);
     console.log('🔍 Query result:', result.rows.length, 'rows');
+    
+    // Debug: log dei primi 3 risultati per vedere la struttura
+    console.log('🔍 DEBUG - Prime 3 opinioni con gradi_opinione:', result.rows.slice(0, 3).map(row => ({
+      id: row.id,
+      text: row.text,
+      gradi_opinione: row.gradi_opinione
+    })));
     
     console.log(`✅ Trovate ${result.rows.length} opinioni per gestione`);
     
