@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Eye, Check } from "lucide-react";
 import { CandidatoCardProps } from "../types";
-import { apiRequest } from "@/lib/queryClient";
 
 export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   candidato,
@@ -13,78 +12,6 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
   onSeleziona,
   onViewOpinioni
 }) => {
-  const [opinioniComuni, setOpinioniComuni] = useState<number>(0);
-  const [isLoadingOpinioni, setIsLoadingOpinioni] = useState(false);
-
-  // Funzione per normalizzare le risposte (stessa logica del ViewOpinioniDialog)
-  const normalizeAnswer = (answer: string | undefined) => {
-    if (!answer || answer === null || answer === undefined) return null;
-    if (answer === 'f' || answer === 'c' || answer === 'i') return answer;
-    return null;
-  };
-
-  // Funzione per determinare se due opinioni sono compatibili
-  const isOpinioneComune = (val1: string | undefined, val2: string | undefined) => {
-    const normalizedVal1 = normalizeAnswer(val1);
-    const normalizedVal2 = normalizeAnswer(val2);
-    return (
-      normalizedVal1 && normalizedVal2 &&
-      normalizedVal1 === normalizedVal2
-    );
-  };
-
-  // Calcola le opinioni comuni quando il componente si monta
-  useEffect(() => {
-    const calcolaOpinioniComuni = async () => {
-      setIsLoadingOpinioni(true);
-      try {
-        // Ottieni le opinioni del candidato
-        const candidatoResponse = await apiRequest("GET", `/api/users/${candidato.id}/opinioni?grado=E`);
-        if (!candidatoResponse.ok) return;
-        const candidatoData = await candidatoResponse.json();
-        
-        // Ottieni le opinioni dell'utente corrente
-        const userResponse = await apiRequest("GET", `/api/users/me/opinioni?grado=E`);
-        if (!userResponse.ok) return;
-        const userData = await userResponse.json();
-        
-        if (candidatoData.success && userData.success) {
-          const candidatoOpinions = candidatoData.data.opinioni || [];
-          const userOpinions = userData.data.opinioni || [];
-          
-          // Crea mappe per confronto rapido
-          const candidatoMap: Record<string, string> = {};
-          const userMap: Record<string, string> = {};
-          
-          candidatoOpinions.forEach((opinion: any) => {
-            candidatoMap[opinion.id] = opinion.userAnswer;
-          });
-          
-          userOpinions.forEach((opinion: any) => {
-            userMap[opinion.id] = opinion.userAnswer;
-          });
-          
-          // Calcola opinioni comuni
-          let comuni = 0;
-          Object.keys(candidatoMap).forEach(opinionId => {
-            if (isOpinioneComune(candidatoMap[opinionId], userMap[opinionId])) {
-              comuni++;
-            }
-          });
-          
-          setOpinioniComuni(comuni);
-          console.log(`🔍 DEBUG CandidatoCard - ${candidato.nome}: ${comuni} opinioni comuni`);
-        }
-      } catch (error) {
-        console.error('Errore nel calcolo opinioni comuni:', error);
-        setOpinioniComuni(0);
-      } finally {
-        setIsLoadingOpinioni(false);
-      }
-    };
-    
-    calcolaOpinioniComuni();
-  }, [candidato.id, candidato.nome]);
 
   const handleSeleziona = () => {
     onSeleziona(candidato.id);
@@ -126,7 +53,7 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
         {/* Opinion Comuni */}
         <div className="text-center">
           <Badge variant="secondary" className="text-xs">
-            {isLoadingOpinioni ? '...' : `${opinioniComuni} opinioni comuni`}
+            {candidato.opinioniComuni || 0} opinioni comuni
           </Badge>
         </div>
         

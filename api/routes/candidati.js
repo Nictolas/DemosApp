@@ -335,11 +335,17 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: opinioniComuni=${candidato.opinioniComuni}`);
     });
     
+    // Mappa opinioniComuni a opinioni_comuni per compatibilità con il frontend
+    const candidatiMappati = candidatiOrdinati.map(candidato => ({
+      ...candidato,
+      opinioni_comuni: candidato.opinioniComuni || 0
+    }));
+    
     res.json({
       success: true,
-      data: candidatiOrdinati,
-      count: candidatiOrdinati.length,
-      message: `Trovati ${candidatiOrdinati.length} candidati più compatibili per grado_candidatura: ${grado_candidatura}`
+      data: candidatiMappati,
+      count: candidatiMappati.length,
+      message: `Trovati ${candidatiMappati.length} candidati più compatibili per grado_candidatura: ${grado_candidatura}`
     });
     
   } catch (error) {
