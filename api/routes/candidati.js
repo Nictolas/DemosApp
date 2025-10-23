@@ -329,12 +329,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       .slice(0, 4);
     
     
-    // Debug temporaneo per vedere cosa stiamo restituendo
-    console.log('🔍 DEBUG - Candidati finali con opinioni comuni:');
-    candidatiOrdinati.forEach((candidato, index) => {
-      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: ${candidato.opinioniComuni} opinioni comuni`);
-    });
-    
     res.json({
       success: true,
       data: candidatiOrdinati,
