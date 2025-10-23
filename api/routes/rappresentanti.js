@@ -14,31 +14,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
     
     
-    // Query per ottenere utenti con ruolo "Politico" o "Candidato Politico" dalla tabella users
-    // Filtra per grado_elezione in base al parametro grado ricevuto
-    let gradoFilter = '';
-    let queryParams = [];
-    
-    if (grado) {
-      // Mappa i gradi dal frontend ai valori del database (compressi)
-      const gradoMapping = {
-        'Europeo': 'E',
-        'E': 'E',  // Supporto formato corto
-        'Nazionale': 'N',
-        'N': 'N',  // Supporto formato corto
-        'Camera': 'C',
-        'C': 'C',  // Supporto formato corto
-        'Senato': 'S',
-        'S': 'S',  // Supporto formato corto
-        'Regionale': 'R',
-        'R': 'R',  // Supporto formato corto
-        'Comunale': 'CO',
-        'CO': 'CO'  // Supporto formato corto
-      };
-      
-      const mappedGrado = gradoMapping[grado] || grado;
-      gradoFilter = ` AND grado_candidatura = $1`;
-      queryParams.push(mappedGrado);
+    if (!grado_elezione) {
+      return res.status(400).json({
+        success: false,
+        error: 'Parametro grado_elezione richiesto'
+      });
     }
     
     const query = `
@@ -60,14 +40,14 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         u.comune_elezione
       FROM users u
       WHERE (u.ruolo = 'P' OR u.ruolo = 'CP')
-        ${gradoFilter}
+        AND u.grado_elezione = $1
       ORDER BY u.cognome, u.nome
     `;
     
-    const result = await pool.query(query, queryParams);
+    const result = await pool.query(query, [grado_elezione]);
     
     console.log('🔍 DEBUG - Query rappresentanti:', query);
-    console.log('🔍 DEBUG - Parametri query:', queryParams);
+    console.log('🔍 DEBUG - Parametri query:', [grado_elezione]);
     console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
     
     // Mappa il grado_elezione del frontend al grado del database
