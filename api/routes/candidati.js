@@ -300,6 +300,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           }
         
         if (!userOpinions) {
+          console.log(`❌ DEBUG - Nessuna opinione utente per candidato ${candidato.nome} ${candidato.cognome}`);
           return { ...candidato, opinioniComuni: 0 };
         }
         
