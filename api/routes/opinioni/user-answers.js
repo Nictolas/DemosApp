@@ -103,48 +103,108 @@ router.post('/salva', verifyToken, async (req, res) => {
       return result.rows[0]?.id;
     };
     
-    // Salva le opinioni nella nuova struttura
+    // Salva le opinioni nella struttura con colonne separate
     let savedCount = 0;
     let errorCount = 0;
+    
+    // Mappa delle opinioni ai campi del database
+    const opinionMapping = {
+      'energia_nucleare': 'energia_nucleare',
+      'sperimentazione_animale': 'sperimentazione_animale',
+      'legalizzazione_canapa': 'legalizzazione_canapa',
+      'caccia': 'caccia',
+      'eutanasia': 'eutanasia',
+      'carne_coltivata': 'carne_coltivata',
+      'cittadina_animale': 'cittadina_animale',
+      'nato': 'nato',
+      'matrimonio_gay': 'matrimonio_gay',
+      'salario_minimo': 'salario_minimo',
+      'case_chiuse': 'case_chiuse',
+      'omobitransfobia': 'omobitransfobia',
+      'nuovi_inceneritori': 'nuovi_inceneritori',
+      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+      'nuove_case_popolari': 'nuove_case_popolari',
+      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+      'sostegno_commercio_locale': 'sostegno_commercio_locale',
+      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
+      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
+    };
+    
+    // Prepara i campi da aggiornare
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
       
-      try {
-        // Ottieni l'ID dell'opinione dalla tabella opinioni_domande
-        const opinioneId = await getOpinioneIdByText(opinionId);
-        
-        if (!opinioneId) {
-          console.warn(`⚠️ Opinione non trovata: ${opinionId}`);
-          errorCount++;
-          continue;
-        }
-        
-        // Gestisci i valori compressi dal frontend
-        let dbValue = null;
-        if (risposta === 'f') dbValue = 'f';
-        else if (risposta === 'c') dbValue = 'c';
-        else if (risposta === 'i') dbValue = 'i';
-        else if (risposta === 'Favorevole') dbValue = 'f';
-        else if (risposta === 'Contrario') dbValue = 'c';
-        else if (risposta === 'Indeciso') dbValue = 'i';
-        else if (risposta === 'Astenuto') dbValue = null;
-        
-        // Inserisci o aggiorna nella tabella opinioni_risposte
-        await pool.query(`
-          INSERT INTO opinioni_risposte (user_id, opinione_id, risposta)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (user_id, opinione_id) DO UPDATE SET
-            risposta = EXCLUDED.risposta
-        `, [userId, opinioneId, dbValue]);
-        
-        savedCount++;
-        console.log(`✅ Salvata opinione ${opinionId} (ID: ${opinioneId}) = ${dbValue}`);
-        
-      } catch (error) {
-        console.error(`❌ Errore nel salvare opinione ${opinionId}:`, error.message);
+      const dbField = opinionMapping[opinionId];
+      if (!dbField) {
+        console.warn(`⚠️ Campo non mappato: ${opinionId}`);
         errorCount++;
+        continue;
       }
+      
+      // Converti i valori al formato corretto
+      let dbValue = null;
+      if (risposta === 'f') dbValue = 'f';
+      else if (risposta === 'c') dbValue = 'c';
+      else if (risposta === 'i') dbValue = 'i';
+      else if (risposta === 'Favorevole') dbValue = 'f';
+      else if (risposta === 'Contrario') dbValue = 'c';
+      else if (risposta === 'Indeciso') dbValue = 'i';
+      else if (risposta === 'Astenuto') dbValue = null;
+      
+      updateFields.push(`${dbField} = $${paramIndex}`);
+      updateValues.push(dbValue);
+      paramIndex++;
+      
+      console.log(`✅ Preparato campo: ${dbField} = ${dbValue}`);
+    }
+    
+    if (updateFields.length === 0) {
+      console.error('❌ Nessun campo valido da aggiornare');
+      return res.status(400).json({
+        success: false,
+        error: 'Nessuna opinione valida da salvare',
+        message: 'Verifica che le opinioni corrispondano ai campi disponibili'
+      });
+    }
+    
+    // Esegui l'aggiornamento
+    try {
+      const updateQuery = `
+        INSERT INTO opinioni_risposte (user_id, ${Object.keys(opinioni).map(id => opinionMapping[id]).filter(Boolean).join(', ')})
+        VALUES ($1, ${Object.keys(opinioni).map((_, i) => `$${i + 2}`).join(', ')})
+        ON CONFLICT (user_id) DO UPDATE SET
+          ${updateFields.join(', ')}
+      `;
+      
+      const allValues = [userId, ...updateValues];
+      await pool.query(updateQuery, allValues);
+      
+      savedCount = updateFields.length;
+      console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
+      
+    } catch (error) {
+      console.error(`❌ Errore nel salvare opinioni:`, error.message);
+      errorCount++;
     }
     
     console.log(`📊 Risultato salvataggio: ${savedCount} salvate, ${errorCount} errori`);
