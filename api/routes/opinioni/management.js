@@ -28,6 +28,36 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/opinioni/proposte - Ottieni tutte le opinioni (per gestione)
+router.get('/proposte', verifyToken, async (req, res) => {
+  try {
+    console.log('🔍 GET /api/opinioni/proposte - Richiesta opinioni per gestione');
+    
+    const query = `
+      SELECT id, text, gradi_opinione, approfondimento
+      FROM opinioni_domande
+      ORDER BY text
+    `;
+    
+    const result = await pool.query(query);
+    
+    console.log(`✅ Trovate ${result.rows.length} opinioni per gestione`);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+    
+  } catch (error) {
+    console.error('❌ Errore nel recuperare opinioni:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server',
+      message: 'Impossibile recuperare le opinioni'
+    });
+  }
+});
+
 // POST /api/opinioni - Crea una nuova opinione
 router.post('/', verifyToken, async (req, res) => {
   try {
