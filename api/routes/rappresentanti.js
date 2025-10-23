@@ -11,9 +11,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const { grado, categoria } = req.query;
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Headers:', req.headers);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Query params:', req.query);
     
     // Query per ottenere utenti con ruolo "Politico" o "Candidato Politico" dalla tabella users
     // Filtra per grado_elezione in base al parametro grado ricevuto
@@ -65,14 +62,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       ORDER BY u.cognome, u.nome
     `;
     
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Esecuzione query principale...');
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Query:', query);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Params:', queryParams);
-    
     const result = await pool.query(query, queryParams);
-    
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Utenti trovati:', result.rows.length);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Filtro applicato:', gradoFilter);
     
     // Usa la stessa logica semplice dei candidati per le opinioni comuni
     const gradoForOpinions = grado ? (gradoMapping[grado] || grado) : null;
@@ -102,112 +92,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       }
     }
     
-    // Funzione per calcolare le opinioni comuni tra utente e rappresentante
-    // USA LA STESSA LOGICA DEL FRONTEND per evitare discrepanze
-    const calculateCommonOpinions = async (userOpinions, candidateOpinions, grado) => {
-      let commonCount = 0;
-      
-      console.log('🔍 DEBUG calculateCommonOpinions - Inizio calcolo per candidato:', candidateOpinions.nome, candidateOpinions.cognome, 'grado:', grado);
-      
-      // Carica le opinioni dalla tabella opinioni_domande per il grado specifico
-      const gradoOpinionsQuery = `
-        SELECT o.id, o.text, o.gradi_opinione
-        FROM opinioni_domande o
-        WHERE $1 = ANY(o.gradi_opinione)
-        ORDER BY o.text
-      `;
-      
-      const gradoOpinionsResult = await pool.query(gradoOpinionsQuery, [grado]);
-      const gradoOpinions = gradoOpinionsResult.rows;
-      
-      console.log(`🔍 DEBUG calculateCommonOpinions - Opinion caricate dalla tabella opinioni per grado ${grado}:`, gradoOpinions.length);
-      
-      // Carica le opinioni del candidato dalla tabella opinioni_risposte
-      const candidateOpinionsQuery = `
-        SELECT o.text, or.energia_nucleare, or.sperimentazione_animale, or.legalizzazione_canapa, or.caccia, or.eutanasia,
-               or.carne_coltivata, or.nato, or.matrimonio_gay, or.salario_minimo, or.case_chiuse, or.omobitransfobia,
-               or.cassonetti_intelligenti_con_tessera, or.concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-               or.divieto_di_nuovi_fast_food_nel_centro_storico, or.estensione_delle_zone_a_traffico_limitato,
-               or.finanziamento_eventi_culturali_gratuiti, or.nuova_biblioteca_comunale,
-               or.nuove_case_popolari, or.nuove_piste_ciclabili, or.nuovi_asili_nido_comunali,
-               or.nuovo_stadio_comunale, or.parcheggi_gratuiti_per_residenti,
-               or.potenziamento_trasporto_pubblico, or.riduzione_tasse_rifiuti,
-               or.sicurezza_strade_scolastiche, or.sostegno_commercio_locale,
-               or.verde_pubblico_e_giardini, or.nuovi_inceneritori, or.chiusura_ospedali_di_provincia,
-               or.raccolta_rifiuti_porta_a_porta, or.riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-               or.sussidi_comunali_per_famiglie_numerose, or.videosorveglianza_in_spazi_pubblici,
-               or.riduzione_parcheggi_a_pagamento
-        FROM opinioni_domande o
-        LEFT JOIN opinioni_risposte or ON or.user_id = $1
-        WHERE $2 = ANY(o.gradi_opinione)
-      `;
-      
-      const candidateOpinionsResult = await pool.query(candidateOpinionsQuery, [candidateOpinions.id, grado]);
-      const candidateOpinionsMap = {};
-      candidateOpinionsResult.rows.forEach(row => {
-        const opinionId = row.text.replace(/\s+/g, '_').toLowerCase();
-        // Mappa il testo dell'opinione alla colonna corrispondente in opinioni_risposte
-        const opinionColumn = row.text.replace(/\s+/g, '_').toLowerCase();
-        candidateOpinionsMap[opinionId] = row[opinionColumn];
-      });
-      
-      // Funzione per normalizzare le risposte al formato frontend
-    const normalizeAnswer = (answer) => {
-      if (!answer || answer === null || answer === undefined) return 'Astenuto';
-      // Gestione valori compressi
-      if (answer === 'f') return 'Favorevole';
-      if (answer === 'c') return 'Contrario';
-      if (answer === 'i') return 'Indeciso';
-      // Gestione valori non compressi
-      if (answer === 'Favorevole') return 'Favorevole';
-      if (answer === 'Contrario') return 'Contrario';
-      if (answer === 'Indeciso') return 'Indeciso';
-      if (answer === 'Astenuto') return 'Astenuto';
-      return 'Astenuto'; // Default per valori non riconosciuti
-    };
-      
-      console.log(`🔍 DEBUG calculateCommonOpinions - User opinions sample:`, Object.keys(userOpinions).slice(0, 5).map(key => `${key}: ${userOpinions[key]}`));
-      console.log(`🔍 DEBUG calculateCommonOpinions - Candidate opinions sample:`, Object.keys(candidateOpinionsMap).slice(0, 5).map(key => `${key}: ${candidateOpinionsMap[key]}`));
-      
-      // Controlla ogni opinione dalla tabella opinioni
-      gradoOpinions.forEach(opinion => {
-        const opinionId = opinion.text.replace(/\s+/g, '_').toLowerCase();
-        
-        const userAnswer = userOpinions[opinionId];
-        const candidateAnswer = candidateOpinionsMap[opinionId];
-        
-        // Normalizza le risposte al formato frontend
-        const normalizedUserAnswer = normalizeAnswer(userAnswer);
-        const normalizedCandidateAnswer = normalizeAnswer(candidateAnswer);
-        
-        console.log(`🔍 DEBUG calculateCommonOpinions - ${opinion.text} (${opinionId}): user="${userAnswer}"->"${normalizedUserAnswer}", candidate="${candidateAnswer}"->"${normalizedCandidateAnswer}"`);
-        
-        // Conta come opinione comune solo se entrambi hanno risposto con una posizione valida e la risposta è identica
-        if (normalizedUserAnswer && normalizedCandidateAnswer && 
-            normalizedUserAnswer !== 'Astenuto' && normalizedCandidateAnswer !== 'Astenuto' &&
-            normalizedUserAnswer === normalizedCandidateAnswer) {
-          commonCount++;
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE COMUNE trovata: ${opinion.text} = "${normalizedUserAnswer}"`);
-        } else if (normalizedUserAnswer && normalizedCandidateAnswer) {
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONI DIVERSE: ${opinion.text} = user:"${normalizedUserAnswer}" vs candidate:"${normalizedCandidateAnswer}"`);
-        } else {
-          console.log(`🔍 DEBUG calculateCommonOpinions - OPINIONE NON VALIDA: ${opinion.text} = user:"${normalizedUserAnswer}" candidate:"${normalizedCandidateAnswer}"`);
-        }
-      });
-      
-      console.log(`🔍 DEBUG calculateCommonOpinions - Totale opinioni comuni per ${candidateOpinions.nome} ${candidateOpinions.cognome} (${grado}): ${commonCount}`);
-      return commonCount;
-    };
-    
-    // Debug: controlliamo quanti utenti hanno grado_elezione = grado richiesto
-    const debugQuery = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1`;
-    const debugResult = await pool.query(debugQuery, [grado]);
-    console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado}:`, debugResult.rows[0].count);
-    
-    // Debug: controlliamo quanti utenti hanno grado_elezione = grado richiesto E ruolo corretto
-    const debugQuery2 = `SELECT COUNT(*) as count FROM users WHERE grado_elezione = $1 AND (ruolo = 'P' OR ruolo = 'CP') AND status = 'a'`;
-    const debugResult2 = await pool.query(debugQuery2, [grado]);
-    console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Utenti con grado_elezione ${grado} E ruolo corretto:`, debugResult2.rows[0].count);
     
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
@@ -271,22 +155,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // Limita ai primi 4 candidati più compatibili
     candidati = candidati.slice(0, 4);
     
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Candidati dopo calcolo compatibilità:', candidati.length);
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Top candidati:', candidati.map(c => ({ 
-      nome: c.nome, 
-      cognome: c.cognome, 
-      opinioni_comuni: c.opinioni_comuni 
-    })));
-    
-    // Debug: vediamo alcuni esempi di utenti con grado_elezione = grado richiesto
-    const debugQuery3 = `SELECT id, nome, cognome, ruolo, grado_elezione, status, avatar_config FROM users WHERE grado_elezione = $1 LIMIT 5`;
-    const debugResult3 = await pool.query(debugQuery3, [grado]);
-    console.log(`🔍 DEBUG /api/rappresentanti/disponibili - Esempi utenti ${grado}:`, debugResult3.rows);
-    
-    // Debug: controlliamo se i candidati hanno avatar_config
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Primi 3 candidati con avatar_config:', 
-      candidati.slice(0, 3).map(c => ({ id: c.id, nome: c.nome, cognome: c.cognome, avatar_config: c.avatar_config }))
-    );
     
     // Assicurati che ogni candidato abbia un avatar_config valido
     candidati = candidati.map(candidato => {
@@ -435,7 +303,6 @@ router.get('/', verifyToken, async (req, res) => {
   try {
     console.log('🔍 GET /api/rappresentanti - Richiesta rappresentanti');
     const userId = req.userId;
-    console.log('🔍 DEBUG - userId:', userId);
     
     // Ottieni i rappresentanti selezionati dall'utente
     const userQuery = `
@@ -452,7 +319,6 @@ router.get('/', verifyToken, async (req, res) => {
     const userResult = await pool.query(userQuery, [userId]);
     const user = userResult.rows[0] || {};
     
-    console.log('🔍 DEBUG Frontend - Utente rappresentanti selezionati:', user);
     
     // Ottieni i dettagli dei rappresentanti selezionati
     const rappresentantiSelezionati = {};
@@ -492,17 +358,9 @@ router.get('/', verifyToken, async (req, res) => {
           rappresentantiSelezionati[categoria] = [rappresentante];
           idMap[rappresentanteId] = `${rappresentante.nome} ${rappresentante.cognome}`;
           
-          console.log(`🔍 DEBUG - Rappresentante ${categoria} trovato:`, rappresentante.nome, rappresentante.cognome);
-        } else {
-          console.log(`⚠️ DEBUG - Rappresentante ${categoria} con ID ${rappresentanteId} non trovato`);
         }
-      } else {
-        console.log(`ℹ️ DEBUG - Nessun rappresentante selezionato per ${categoria}`);
       }
     }
-    
-    console.log('🔍 DEBUG Frontend - Rappresentanti selezionati:', rappresentantiSelezionati);
-    console.log('🔍 DEBUG Frontend - idMap:', idMap);
     
     res.json({
       success: true,
