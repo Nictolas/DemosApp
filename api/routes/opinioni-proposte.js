@@ -171,12 +171,22 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
     
-    // Query per ottenere solo le opinioni "da approvare"
+    // Query per ottenere le opinioni "da approvare" con conteggio voti
     const query = `
-      SELECT id, text as testo, gradi_opinione, approfondimento
-      FROM opinioni_domande
-      WHERE 'da approvare' = ANY(gradi_opinione)
-      ORDER BY text
+      SELECT 
+        o.id, 
+        o.text as testo, 
+        o.gradi_opinione, 
+        o.approfondimento,
+        COALESCE(v.voti_count, 0) as voti
+      FROM opinioni_domande o
+      LEFT JOIN (
+        SELECT opinione_id, COUNT(*) as voti_count
+        FROM voti_opinioni_proposte
+        GROUP BY opinione_id
+      ) v ON o.id = v.opinione_id
+      WHERE 'da approvare' = ANY(o.gradi_opinione)
+      ORDER BY o.text
     `;
     
     const result = await pool.query(query);
@@ -196,7 +206,7 @@ router.get('/', async (req, res) => {
       nome: null,
       cognome: null,
       email: null,
-      voti: 0 // Valore fisso per ora
+      voti: parseInt(row.voti) // Conteggio voti reale
     }));
     
     res.json({
