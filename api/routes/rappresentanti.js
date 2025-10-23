@@ -80,12 +80,18 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
         userOpinions = {};
         
+        console.log(`🔍 DEBUG - User answers query result:`, userAnswersResult.rows.length, 'righe');
+        
         if (userAnswersResult.rows.length > 0) {
           const userRow = userAnswersResult.rows[0];
+          console.log(`🔍 DEBUG - User row keys:`, Object.keys(userRow));
           // Mappa solo le opinioni del grado specifico
           opinioniDelGrado.forEach(opinionId => {
             userOpinions[opinionId] = userRow[opinionId];
           });
+          console.log(`🔍 DEBUG - User opinions mappate:`, userOpinions);
+        } else {
+          console.log(`🔍 DEBUG - Nessuna risposta utente trovata per userId: ${userId}`);
         }
       }
     }
@@ -125,20 +131,30 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
         // Calcola opinioni comuni solo se l'utente ha opinioni
         let opinioniComuni = 0;
+        console.log(`🔍 DEBUG - Calcolo opinioni per candidato ${candidato.id}:`, {
+          userOpinions: userOpinions ? Object.keys(userOpinions).length : 0,
+          candidatoData: Object.keys(candidatoData).length
+        });
+        
         if (userOpinions && Object.keys(userOpinions).length > 0) {
           // Confronta solo le opinioni del grado specifico
           Object.keys(userOpinions).forEach(opinionId => {
             const candidatoValue = candidatoData[opinionId];
             const userValue = userOpinions[opinionId];
             
+            console.log(`🔍 DEBUG - Confronto opinione ${opinionId}: candidato=${candidatoValue}, user=${userValue}`);
+            
             // Conta come opinione comune SOLO se:
             // 1. Entrambi hanno risposto (non null)
             // 2. Le risposte sono identiche
             if (candidatoValue !== null && userValue !== null && candidatoValue === userValue) {
               opinioniComuni++;
+              console.log(`🔍 DEBUG - Opinione comune trovata! Totale: ${opinioniComuni}`);
             }
           });
         }
+        
+        console.log(`🔍 DEBUG - Candidato ${candidato.id} ha ${opinioniComuni} opinioni comuni`);
         
         return { ...candidato, opinioni_comuni, opinioniComuni };
       } catch (error) {
