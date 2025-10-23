@@ -41,6 +41,7 @@ const candidatiSostenitoriRoutes = require('./routes/candidati-sostenitori');
 const sondaggiRoutes = require('./routes/sondaggi');
 const adminRoutes = require('./routes/admin/database');
 const candidatiRoutes = require('./routes/candidati');
+const fixDatabaseRoutes = require('./routes/fix-database');
 const attivistiRoutes = require('./routes/attivisti');
 const attivismoTipologieRoutes = require('./routes/attivismo-tipologie');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
@@ -268,6 +269,7 @@ app.use('/api/statistiche', publicLimiter, statisticheRoutes);
 // app.use('/api/test', testSimpleRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/candidati', candidatiRoutes);
+app.use('/api/fix-database', fixDatabaseRoutes);
 app.use('/api/attivisti', attivistiRoutes);
 app.use('/api/attivismo-tipologie', attivismoTipologieRoutes);
 
