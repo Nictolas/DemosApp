@@ -11,6 +11,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const { grado, categoria } = req.query;
     const userId = req.userId;
     
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
+    
     
     // Query per ottenere utenti con ruolo "Politico" o "Candidato Politico" dalla tabella users
     // Filtra per grado_elezione in base al parametro grado ricevuto
@@ -63,6 +65,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     `;
     
     const result = await pool.query(query, queryParams);
+    
+    console.log('🔍 DEBUG - Query rappresentanti:', query);
+    console.log('🔍 DEBUG - Parametri query:', queryParams);
+    console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
     
     // Copia ESATTAMENTE la logica dei candidati
     const gradoDatabase = grado ? (gradoMapping[grado] || grado) : null;
