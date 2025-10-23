@@ -54,7 +54,7 @@ router.get('/proposte', verifyToken, async (req, res) => {
         'E': 'Europeo',
         'N': 'Nazionale', 
         'R': 'Regionale',
-        'C': 'Comunale'
+        'CO': 'Comunale'
       };
       
       const mappedGradi = row.gradi_opinione?.map(grado => gradoMapping[grado] || grado) || [];
@@ -120,7 +120,7 @@ router.post('/', verifyToken, async (req, res) => {
       'Europeo': 'E',
       'Nazionale': 'N', 
       'Regionale': 'R',
-      'Comunale': 'C'
+      'Comunale': 'CO'
     };
     
     const mappedGradi = gradi_opinione.map(grado => gradoMapping[grado] || grado);
@@ -170,7 +170,7 @@ router.put('/:id', verifyToken, async (req, res) => {
       'Europeo': 'E',
       'Nazionale': 'N', 
       'Regionale': 'R',
-      'Comunale': 'C'
+      'Comunale': 'CO'
     };
     
     const mappedGradi = gradi_opinione.map(grado => gradoMapping[grado] || grado);
