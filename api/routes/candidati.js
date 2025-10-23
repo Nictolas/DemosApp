@@ -238,24 +238,33 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           });
         }
         
-        // Ottieni le opinioni dell'utente corrente dalla tabella opinioni_risposte
+        // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
         let userOpinions = null;
         if (req.userId) {
-          const userAnswersQuery = `
-            SELECT * FROM opinioni_risposte WHERE user_id = $1
+          // Prima ottieni le opinioni del grado specifico
+          const gradoOpinioniQuery = `
+            SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
           `;
+          const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [grado_candidatura]);
+          const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
           
-          const userAnswersResult = await pool.query(userAnswersQuery, [req.userId]);
-          userOpinions = {};
-          
-          if (userAnswersResult.rows.length > 0) {
-            const userRow = userAnswersResult.rows[0];
-            // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-            Object.keys(userRow).forEach(key => {
-              if (key !== 'user_id' && key !== 'fonti_opinioni') {
-                userOpinions[key] = userRow[key];
-              }
-            });
+          if (opinioniDelGrado.length > 0) {
+            // Costruisci la query dinamica per le colonne del grado specifico
+            const colonneQuery = opinioniDelGrado.join(', ');
+            const userAnswersQuery = `
+              SELECT user_id, ${colonneQuery} FROM opinioni_risposte WHERE user_id = $1
+            `;
+            
+            const userAnswersResult = await pool.query(userAnswersQuery, [req.userId]);
+            userOpinions = {};
+            
+            if (userAnswersResult.rows.length > 0) {
+              const userRow = userAnswersResult.rows[0];
+              // Mappa solo le opinioni del grado specifico
+              opinioniDelGrado.forEach(opinionId => {
+                userOpinions[opinionId] = userRow[opinionId];
+              });
+            }
           }
         }
         
@@ -294,27 +303,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           return { ...candidato, opinioniComuni: 0 };
         }
         
-        // Ottieni le opinioni del grado specifico dal database
-        const gradoOpinioniQuery = `
-          SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
-        `;
-        const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [grado_candidatura]);
-        const opinioniDelGrado = new Set(gradoOpinioniResult.rows.map(row => row.id));
-        
-        console.log(`🔍 DEBUG - Opinion del grado ${grado_candidatura}:`, opinioniDelGrado.size);
-        console.log(`🔍 DEBUG - Opinion del grado:`, Array.from(opinioniDelGrado));
-        
-        // Calcola opinioni comuni confrontando SOLO le opinioni del grado specifico
+        // Calcola opinioni comuni confrontando le opinioni (già filtrate per grado)
         let opinioniComuni = 0;
         const allOpinionIds = new Set([...Object.keys(candidatoData), ...Object.keys(userOpinions)]);
         
         allOpinionIds.forEach(opinionId => {
-          // Filtra solo le opinioni del grado specifico
-          if (!opinioniDelGrado.has(opinionId)) {
-            console.log(`⏭️ SALTATA - ${opinionId} (non del grado ${grado_candidatura})`);
-            return;
-          }
-          
           const candidatoValue = candidatoData[opinionId];
           const userValue = userOpinions[opinionId];
           
