@@ -261,7 +261,7 @@ router.post('/:id/vota', verifyToken, async (req, res) => {
       ON CONFLICT (user_id, opinione_id) DO NOTHING
     `;
     
-    console.log('🔍 Inserimento voto...');
+    console.log('🔍 Inserimento voto con parametri:', { userId, id });
     const insertResult = await pool.query(insertVotoQuery, [userId, id]);
     console.log('📊 Risultato inserimento:', insertResult);
     
