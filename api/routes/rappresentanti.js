@@ -24,11 +24,17 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       // Mappa i gradi dal frontend ai valori del database (compressi)
       const gradoMapping = {
         'Europeo': 'E',
+        'E': 'E',  // Supporto formato corto
         'Nazionale': 'N',
+        'N': 'N',  // Supporto formato corto
         'Camera': 'C',
-        'Senato': 'S', 
+        'C': 'C',  // Supporto formato corto
+        'Senato': 'S',
+        'S': 'S',  // Supporto formato corto
         'Regionale': 'R',
-        'Comunale': 'CO'
+        'R': 'R',  // Supporto formato corto
+        'Comunale': 'CO',
+        'CO': 'CO'  // Supporto formato corto
       };
       
       const mappedGrado = gradoMapping[grado] || grado;
