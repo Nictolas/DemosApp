@@ -259,37 +259,45 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           }
         }
         
-        // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
-        if (!userOpinions) {
-          // Prima trova l'ID di Nicolas Micheletti
-          const testUserResult = await pool.query(`
-            SELECT id FROM users 
-            WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
-            ORDER BY nome, cognome
-            LIMIT 1
-          `);
-          
-          if (testUserResult.rows.length > 0) {
-            const testUserId = testUserResult.rows[0].id;
-            const testUserAnswersQuery = `
-              SELECT * FROM opinioni_risposte WHERE user_id = $1
-            `;
+          // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
+          if (!userOpinions) {
+            console.log('🔍 DEBUG - Nessun utente corrente, cercando Nicolas Micheletti...');
+            // Prima trova l'ID di Nicolas Micheletti
+            const testUserResult = await pool.query(`
+              SELECT id FROM users 
+              WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
+              ORDER BY nome, cognome
+              LIMIT 1
+            `);
             
-            const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
-            userOpinions = {};
-            
-            if (testUserAnswersResult.rows.length > 0) {
-              const testUserRow = testUserAnswersResult.rows[0];
-              // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-              Object.keys(testUserRow).forEach(key => {
-                if (key !== 'user_id' && key !== 'fonti_opinioni') {
-                  userOpinions[key] = testUserRow[key];
-                }
-              });
+            if (testUserResult.rows.length > 0) {
+              const testUserId = testUserResult.rows[0].id;
+              console.log('🔍 DEBUG - Trovato Nicolas Micheletti con ID:', testUserId);
+              const testUserAnswersQuery = `
+                SELECT * FROM opinioni_risposte WHERE user_id = $1
+              `;
+              
+              const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
+              userOpinions = {};
+              
+              if (testUserAnswersResult.rows.length > 0) {
+                const testUserRow = testUserAnswersResult.rows[0];
+                // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+                Object.keys(testUserRow).forEach(key => {
+                  if (key !== 'user_id' && key !== 'fonti_opinioni') {
+                    userOpinions[key] = testUserRow[key];
+                  }
+                });
+                console.log('🔍 DEBUG - Nicolas Micheletti ha opinioni:', Object.keys(userOpinions).length, 'opinioni');
+              } else {
+                console.log('🔍 DEBUG - Nicolas Micheletti non ha opinioni nel database');
+              }
+            } else {
+              console.log('🔍 DEBUG - Nicolas Micheletti non trovato nel database');
             }
-            console.log('🔍 DEBUG - Usando Nicolas Micheletti come utente di riferimento per opinioni comuni');
+          } else {
+            console.log('🔍 DEBUG - Utente corrente ha opinioni:', Object.keys(userOpinions).length, 'opinioni');
           }
-        }
         
         if (!userOpinions) {
           return { ...candidato, opinioniComuni: 0 };
@@ -333,6 +341,18 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Candidati finali ordinati per opinioni comuni (primi 4):');
     candidatiOrdinati.forEach((candidato, index) => {
       console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: ${candidato.opinioniComuni} opinioni comuni`);
+    });
+    
+    // Debug aggiuntivo per verificare che opinioniComuni sia presente
+    console.log('🔍 DEBUG - Verifica struttura candidati:');
+    candidatiOrdinati.forEach((candidato, index) => {
+      console.log(`  Candidato ${index + 1}:`, {
+        id: candidato.id,
+        nome: candidato.nome,
+        cognome: candidato.cognome,
+        opinioniComuni: candidato.opinioniComuni,
+        hasOpinioniComuni: 'opinioniComuni' in candidato
+      });
     });
     
     res.json({
