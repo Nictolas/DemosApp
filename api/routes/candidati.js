@@ -261,7 +261,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
           // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
           if (!userOpinions) {
-            console.log('🔍 DEBUG - Nessun utente corrente, cercando Nicolas Micheletti...');
             // Prima trova l'ID di Nicolas Micheletti
             const testUserResult = await pool.query(`
               SELECT id FROM users 
@@ -272,7 +271,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
             
             if (testUserResult.rows.length > 0) {
               const testUserId = testUserResult.rows[0].id;
-              console.log('🔍 DEBUG - Trovato Nicolas Micheletti con ID:', testUserId);
               const testUserAnswersQuery = `
                 SELECT * FROM opinioni_risposte WHERE user_id = $1
               `;
@@ -288,19 +286,11 @@ router.get('/disponibili', verifyToken, async (req, res) => {
                     userOpinions[key] = testUserRow[key];
                   }
                 });
-                console.log('🔍 DEBUG - Nicolas Micheletti ha opinioni:', Object.keys(userOpinions).length, 'opinioni');
-              } else {
-                console.log('🔍 DEBUG - Nicolas Micheletti non ha opinioni nel database');
               }
-            } else {
-              console.log('🔍 DEBUG - Nicolas Micheletti non trovato nel database');
             }
-          } else {
-            console.log('🔍 DEBUG - Utente corrente ha opinioni:', Object.keys(userOpinions).length, 'opinioni');
           }
         
         if (!userOpinions) {
-          console.log(`❌ DEBUG - Nessuna opinione utente per candidato ${candidato.nome} ${candidato.cognome}`);
           return { ...candidato, opinioniComuni: 0 };
         }
         
@@ -338,37 +328,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       .sort((a, b) => (b.opinioniComuni || 0) - (a.opinioniComuni || 0))
       .slice(0, 4);
     
-    // Debug finale per vedere cosa stiamo restituendo
-    console.log('🔍 DEBUG - Candidati finali ordinati per opinioni comuni (primi 4):');
-    candidatiOrdinati.forEach((candidato, index) => {
-      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: ${candidato.opinioniComuni} opinioni comuni`);
-    });
-    
-    // Debug aggiuntivo per verificare che opinioniComuni sia presente
-    console.log('🔍 DEBUG - Verifica struttura candidati:');
-    candidatiOrdinati.forEach((candidato, index) => {
-      console.log(`  Candidato ${index + 1}:`, {
-        id: candidato.id,
-        nome: candidato.nome,
-        cognome: candidato.cognome,
-        opinioniComuni: candidato.opinioniComuni,
-        hasOpinioniComuni: 'opinioniComuni' in candidato
-      });
-    });
-    
-    // Debug finale per verificare la struttura della risposta
-    console.log('🔍 DEBUG - Struttura candidati nella risposta:');
-    candidatiOrdinati.forEach((candidato, index) => {
-      console.log(`  Candidato ${index + 1}:`, {
-        id: candidato.id,
-        nome: candidato.nome,
-        cognome: candidato.cognome,
-        opinioniComuni: candidato.opinioniComuni,
-        tipoOpinioniComuni: typeof candidato.opinioniComuni,
-        isOpinioniComuniNull: candidato.opinioniComuni === null,
-        isOpinioniComuniUndefined: candidato.opinioniComuni === undefined
-      });
-    });
     
     res.json({
       success: true,
