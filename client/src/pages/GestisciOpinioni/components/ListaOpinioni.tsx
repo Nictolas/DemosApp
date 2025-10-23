@@ -23,7 +23,6 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
   const [editGrado, setEditGrado] = useState("Nazionale");
   const [approfondimentoDialogOpen, setApprofondimentoDialogOpen] = useState(false);
   const [selectedOpinione, setSelectedOpinione] = useState<Opinione | null>(null);
-  const [filtroGrado, setFiltroGrado] = useState<string | null>(null);
   
   const { deleteMutation, editMutation } = useOpinioniMutations();
 
@@ -75,13 +74,6 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
     setApprofondimentoDialogOpen(true);
   };
 
-  const handleFiltroGrado = (grado: string) => {
-    setFiltroGrado(filtroGrado === grado ? null : grado);
-  };
-
-  const handleRimuoviFiltro = () => {
-    setFiltroGrado(null);
-  };
 
   const handleToggleGrado = (opinioneId: string, grado: string) => {
     const opinione = opinioni.find(op => op.id === opinioneId);
@@ -131,59 +123,13 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
     );
   }
 
-  // Filtra le opinioni in base al grado selezionato
-  const opinioniFiltrate = filtroGrado 
-    ? opinioni.filter(op => op.gradi_opinione?.includes(filtroGrado))
-    : opinioni;
-
   // Ordina le opinioni alfabeticamente per testo
-  const opinioniOrdinate = [...opinioniFiltrate].sort((a, b) => 
+  const opinioniOrdinate = [...opinioni].sort((a, b) => 
     a.text.localeCompare(b.text, 'it', { sensitivity: 'base' })
   );
 
   return (
-    <div className="space-y-4">
-      {/* Header con filtri */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Opinioni Ufficiali</h3>
-          {filtroGrado && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleRimuoviFiltro}
-              className="text-xs"
-            >
-              Rimuovi filtro
-            </Button>
-          )}
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {GRADI_OPINIONE.map(grado => (
-            <button
-              key={grado}
-              onClick={() => handleFiltroGrado(grado)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                filtroGrado === grado
-                  ? "bg-blue-500 text-white shadow-md"
-                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-              }`}
-            >
-              {grado}
-            </button>
-          ))}
-        </div>
-        
-        {filtroGrado && (
-          <div className="mt-2 text-sm text-gray-600">
-            Mostrando {opinioniOrdinate.length} opinioni per grado "{filtroGrado}"
-          </div>
-        )}
-      </div>
-
-      {/* Lista opinioni */}
-      <div className="space-y-2">
+    <div className="space-y-2">
         {opinioniOrdinate.map((op) => (
         <div key={op.id} className="flex items-center justify-between border rounded-lg px-4 py-2 bg-white shadow-sm">
           {editingId === op.id ? (
@@ -283,7 +229,6 @@ export const ListaOpinioni: React.FC<ListaOpinioniProps> = ({
           </div>
         </div>
         ))}
-      </div>
       
       {/* Dialog per Approfondimento */}
       {selectedOpinione && (
