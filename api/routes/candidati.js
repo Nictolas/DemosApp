@@ -260,6 +260,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
         console.log(`🔍 DEBUG ${grado_candidatura} - Grado database: ${gradoDatabase}, Opinion trovate: ${opinioniDelGrado.length}`);
         
+        
           
           if (opinioniDelGrado.length > 0) {
             // Costruisci la query dinamica per le colonne del grado specifico
