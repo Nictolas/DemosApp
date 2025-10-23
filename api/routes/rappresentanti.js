@@ -70,8 +70,15 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG - Parametri query:', queryParams);
     console.log('🔍 DEBUG - Risultati trovati:', result.rows.length);
     
-    // Copia ESATTAMENTE la logica dei candidati
-    const gradoDatabase = grado ? (gradoMapping[grado] || grado) : null;
+    // Mappa il grado_elezione del frontend al grado del database
+    const gradoMapping = {
+      'E': 'E',
+      'C': 'N', 
+      'S': 'N',
+      'R': 'R',
+      'CO': 'CO'
+    };
+    const gradoDatabase = gradoMapping[grado_elezione] || grado_elezione;
     
     // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
     let userOpinions = null;
