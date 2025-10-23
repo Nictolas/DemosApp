@@ -119,17 +119,18 @@ router.get('/debug', async (req, res) => {
 // GET /api/opinioni-proposte - Ottieni opinioni da approvare dalla tabella opinioni
 router.get('/', async (req, res) => {
   try {
-    console.log('🔍 GET /api/opinioni-proposte - Caricamento tutte le opinioni');
+    console.log('🔍 GET /api/opinioni-proposte - Caricamento opinioni da approvare');
     
-    // Query semplificata per ottenere tutte le opinioni (senza JOIN problematico)
+    // Query per ottenere solo le opinioni "da approvare"
     const query = `
       SELECT id, text as testo, gradi_opinione, approfondimento
       FROM opinioni_domande
+      WHERE 'da approvare' = ANY(gradi_opinione)
       ORDER BY text
     `;
     
     const result = await pool.query(query);
-    console.log(`✅ Trovate ${result.rows.length} opinioni`);
+    console.log(`✅ Trovate ${result.rows.length} opinioni da approvare`);
     
     // Mappa i dati per compatibilità con il frontend
     const mappedData = result.rows.map(row => ({

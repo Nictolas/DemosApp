@@ -4,8 +4,8 @@
  */
 
 export const VOTING_LIMITS = {
-  // Opinioni proposte - limite ragionevole per iniziare
-  opinioni_proposte: 5,
+  // Opinioni proposte - solo 1 voto
+  opinioni_proposte: 1,
   
   // Capo di Stato - solo 1 voto
   capo_stato: 1,

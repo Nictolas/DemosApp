@@ -19,14 +19,14 @@
 
 ```typescript
 export const VOTING_LIMITS = {
-  opinioni_proposte: 5,        // 5 voti per opinioni proposte
-  capo_stato: 3,               // 3 voti per capo di stato
-  iniziative_popolari: 3,      // 3 voti per iniziative popolari
-  referendum_abrogativi: 3,    // 3 voti per referendum
+  opinioni_proposte: 1,        // 1 voto per opinioni proposte
+  capo_stato: 1,               // 1 voto per capo di stato
+  iniziative_popolari: 1,      // 1 voto per iniziative popolari
+  referendum_abrogativi: 1,    // 1 voto per referendum
   ice: 1,                      // 1 voto per ICE
   ministri: 1,                 // 1 voto per ministero
-  amnistia: 5,                 // 5 voti per amnistia
-  grazia: 5,                   // 5 voti per grazia
+  amnistia: 1,                 // 1 voto per amnistia
+  grazia: 1,                   // 1 voto per grazia
   comunicazioni: 10            // 10 like/dislike
 };
 ```
@@ -95,7 +95,7 @@ export const VOTING_LIMITS = {
 ## ✅ **CATEGORIE IMPLEMENTATE**
 
 ### 1. **Opinioni Proposte** ✅
-- **Limite**: 5 voti massimi
+- **Limite**: 1 voto massimo
 - **Funzionalità**: Voto/rimozione, contatore, feedback
 - **File**: `client/src/pages/ProponiOpinione/`
 
