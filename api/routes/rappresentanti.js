@@ -8,10 +8,10 @@ const router = express.Router();
 // GET /api/rappresentanti/disponibili - Ottieni rappresentanti disponibili per grado e categoria
 router.get('/disponibili', verifyToken, async (req, res) => {
   try {
-    const { grado, categoria } = req.query;
+    const { grado_elezione } = req.query;
     const userId = req.userId;
     
-    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado, categoria, userId });
+    console.log('🔍 DEBUG /api/rappresentanti/disponibili - Richiesta ricevuta:', { grado_elezione, userId });
     
     
     if (!grado_elezione) {
