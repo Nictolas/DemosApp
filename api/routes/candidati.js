@@ -294,11 +294,26 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           return { ...candidato, opinioniComuni: 0 };
         }
         
-        // Calcola opinioni comuni confrontando tutte le opinioni disponibili
+        // Ottieni le opinioni del grado specifico dal database
+        const gradoOpinioniQuery = `
+          SELECT id FROM opinioni_domande WHERE grado_elezione = $1
+        `;
+        const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [grado_candidatura]);
+        const opinioniDelGrado = new Set(gradoOpinioniResult.rows.map(row => row.id));
+        
+        console.log(`🔍 DEBUG - Opinion del grado ${grado_candidatura}:`, opinioniDelGrado.size);
+        
+        // Calcola opinioni comuni confrontando SOLO le opinioni del grado specifico
         let opinioniComuni = 0;
         const allOpinionIds = new Set([...Object.keys(candidatoData), ...Object.keys(userOpinions)]);
         
         allOpinionIds.forEach(opinionId => {
+          // Filtra solo le opinioni del grado specifico
+          if (!opinioniDelGrado.has(opinionId)) {
+            console.log(`⏭️ SALTATA - ${opinionId} (non del grado ${grado_candidatura})`);
+            return;
+          }
+          
           const candidatoValue = candidatoData[opinionId];
           const userValue = userOpinions[opinionId];
           
@@ -312,7 +327,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
               (userValue === 'f' || userValue === 'c' || userValue === 'i') &&
               candidatoValue === userValue) {
             opinioniComuni++;
-            console.log(`✅ OPINIONE COMUNE: ${opinionId} = "${candidatoValue}"`);
+            console.log(`✅ OPINIONE COMUNE (${grado_candidatura}): ${opinionId} = "${candidatoValue}"`);
           }
         });
         
