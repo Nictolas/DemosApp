@@ -4,7 +4,7 @@ const express = require('express');
 const managementRoutes = require('./management');
 const userAnswersRoutes = require('./user-answers');
 const statsRoutes = require('./stats');
-const compatibilityRoutes = require('./compatibility');
+// compatibilityRoutes rimosso - gestisce solo politici/candidati
 
 const router = express.Router();
 
@@ -12,6 +12,5 @@ const router = express.Router();
 router.use('/', managementRoutes);
 router.use('/', userAnswersRoutes);
 router.use('/', statsRoutes);
-router.use('/', compatibilityRoutes);
 
 module.exports = router;
