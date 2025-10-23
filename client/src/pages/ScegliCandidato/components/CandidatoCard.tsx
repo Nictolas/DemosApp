@@ -51,20 +51,9 @@ export const CandidatoCard: React.FC<CandidatoCardProps> = ({
         
         {/* Opinion Comuni */}
         <div className="text-center">
-          <p className="text-sm text-gray-600">
-            <span className="text-red-600 font-bold">TEST: 6</span> opinioni comuni
-          </p>
-          <p className="text-sm text-gray-600">
-            {(() => {
-              const num = candidato.opinioniComuni;
-              console.log('🔍 RENDERING NUMERO:', num, typeof num);
-              return num !== undefined && num !== null ? num : 0;
-            })()} opinioni comuni (dinamico)
-          </p>
-          {/* Debug temporaneo per vedere i dati */}
-          <div className="text-xs text-red-500 bg-yellow-100 p-1 rounded">
-            DEBUG: opinioniComuni = {JSON.stringify(candidato.opinioniComuni)} (tipo: {typeof candidato.opinioniComuni})
-          </div>
+          <Badge variant="secondary" className="text-xs">
+            {candidato.opinioniComuni || 0} opinioni comuni
+          </Badge>
         </div>
         
         {/* Pulsanti */}
