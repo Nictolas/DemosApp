@@ -98,47 +98,52 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     candidati = await Promise.all(candidati.map(async (candidato) => {
       try {
         if (!userOpinions) {
-          return { ...candidato, opinioni_comuni: 0 };
+          return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
         }
 
         // Carica le opinioni del candidato per il grado specifico
         const candidatoAnswersQuery = `
-          SELECT user_id, ${opinioniDelGrado.join(', ')} FROM opinioni_risposte WHERE user_id = $1
+          SELECT * FROM opinioni_risposte WHERE user_id = $1
         `;
         const candidatoAnswersResult = await pool.query(candidatoAnswersQuery, [candidato.id]);
         
         if (candidatoAnswersResult.rows.length === 0) {
-          return { ...candidato, opinioni_comuni: 0 };
+          return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
         }
         
-        const candidatoData = candidatoAnswersResult.rows[0];
-        delete candidatoData.user_id;
-
-        // Calcola opinioni comuni confrontando le opinioni (già filtrate per grado)
+        const candidatoData = {};
+        
+        if (candidatoAnswersResult.rows.length > 0) {
+          const candidatoRow = candidatoAnswersResult.rows[0];
+          // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+          Object.keys(candidatoRow).forEach(key => {
+            if (key !== 'user_id' && key !== 'fonti_opinioni') {
+              candidatoData[key] = candidatoRow[key];
+            }
+          });
+        }
+        
+        // Calcola opinioni comuni solo se l'utente ha opinioni
         let opinioniComuni = 0;
-        const allOpinionIds = new Set([...Object.keys(candidatoData), ...Object.keys(userOpinions)]);
+        if (userOpinions && Object.keys(userOpinions).length > 0) {
+          // Confronta solo le opinioni del grado specifico
+          Object.keys(userOpinions).forEach(opinionId => {
+            const candidatoValue = candidatoData[opinionId];
+            const userValue = userOpinions[opinionId];
+            
+            // Conta come opinione comune SOLO se:
+            // 1. Entrambi hanno risposto (non null)
+            // 2. Le risposte sono identiche
+            if (candidatoValue !== null && userValue !== null && candidatoValue === userValue) {
+              opinioniComuni++;
+            }
+          });
+        }
         
-        allOpinionIds.forEach(opinionId => {
-          const candidatoValue = candidatoData[opinionId];
-          const userValue = userOpinions[opinionId];
-          
-          // Conta come opinione comune SOLO se:
-          // 1. Entrambi hanno risposto (non null)
-          // 2. Entrambi hanno un valore valido (f, c, i)
-          // 3. I valori sono identici
-          if (candidatoValue && userValue && 
-              candidatoValue !== null && userValue !== null &&
-              (candidatoValue === 'f' || candidatoValue === 'c' || candidatoValue === 'i') &&
-              (userValue === 'f' || userValue === 'c' || userValue === 'i') &&
-              candidatoValue === userValue) {
-            opinioniComuni++;
-          }
-        });
-        
-        return { ...candidato, opinioni_comuni };
+        return { ...candidato, opinioni_comuni, opinioniComuni };
       } catch (error) {
         console.error('❌ Errore nel calcolo opinioni comuni per candidato:', candidato.id, error);
-        return { ...candidato, opinioni_comuni: 0 };
+        return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
       }
     }));
     
