@@ -64,17 +64,17 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     const result = await pool.query(query, queryParams);
     
-    // Usa la stessa logica semplice dei candidati per le opinioni comuni
-    const gradoForOpinions = grado ? (gradoMapping[grado] || grado) : null;
+    // Copia ESATTAMENTE la logica dei candidati
+    const gradoDatabase = grado ? (gradoMapping[grado] || grado) : null;
     
-    // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico (stessa logica candidati)
+    // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
     let userOpinions = null;
     if (userId) {
       // Prima ottieni le opinioni del grado specifico
       const gradoOpinioniQuery = `
         SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
       `;
-      const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoForOpinions]);
+      const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
       const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
       
       if (opinioniDelGrado.length > 0) {
@@ -83,11 +83,16 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         const userAnswersQuery = `
           SELECT user_id, ${colonneQuery} FROM opinioni_risposte WHERE user_id = $1
         `;
+        
         const userAnswersResult = await pool.query(userAnswersQuery, [userId]);
+        userOpinions = {};
         
         if (userAnswersResult.rows.length > 0) {
-          userOpinions = userAnswersResult.rows[0];
-          delete userOpinions.user_id; // Rimuovi user_id dai dati
+          const userRow = userAnswersResult.rows[0];
+          // Mappa solo le opinioni del grado specifico
+          opinioniDelGrado.forEach(opinionId => {
+            userOpinions[opinionId] = userRow[opinionId];
+          });
         }
       }
     }
@@ -96,21 +101,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     // I candidati sono già filtrati dalla query SQL, non serve ulteriore filtro
     let candidati = result.rows;
     
-    // Calcola le opinioni comuni per ogni candidato (stessa logica dei candidati)
+    // Calcola opinioni comuni per ogni candidato (COPIA ESATTA dai candidati)
     candidati = await Promise.all(candidati.map(async (candidato) => {
       try {
         if (!userOpinions) {
-          return { ...candidato, opinioni_comuni: 0 };
-        }
-
-        // Ottieni le opinioni del grado specifico (stessa logica dei candidati)
-        const gradoOpinioniQuery = `
-          SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
-        `;
-        const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoForOpinions]);
-        const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
-
-        if (opinioniDelGrado.length === 0) {
           return { ...candidato, opinioni_comuni: 0 };
         }
 
