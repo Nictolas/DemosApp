@@ -251,12 +251,15 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
         let userOpinions = null;
         if (req.userId) {
-          // Prima ottieni le opinioni del grado specifico
-          const gradoOpinioniQuery = `
-            SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
-          `;
-          const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
-          const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
+        // Prima ottieni le opinioni del grado specifico
+        const gradoOpinioniQuery = `
+          SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
+        `;
+        const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
+        const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
+        
+        console.log(`🔍 DEBUG REGIONE - Grado candidatura: ${grado_candidatura}, Grado database: ${gradoDatabase}`);
+        console.log(`🔍 DEBUG REGIONE - Opinion del grado trovate: ${opinioniDelGrado.length}`, opinioniDelGrado);
           
           if (opinioniDelGrado.length > 0) {
             // Costruisci la query dinamica per le colonne del grado specifico
@@ -317,9 +320,15 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         let opinioniComuni = 0;
         const allOpinionIds = new Set([...Object.keys(candidatoData), ...Object.keys(userOpinions)]);
         
+        console.log(`🔍 DEBUG REGIONE - Candidato ${candidato.nome}: candidatoData keys:`, Object.keys(candidatoData));
+        console.log(`🔍 DEBUG REGIONE - User opinions keys:`, Object.keys(userOpinions));
+        console.log(`🔍 DEBUG REGIONE - All opinion IDs:`, Array.from(allOpinionIds));
+        
         allOpinionIds.forEach(opinionId => {
           const candidatoValue = candidatoData[opinionId];
           const userValue = userOpinions[opinionId];
+          
+          console.log(`🔍 DEBUG REGIONE - Confronto ${opinionId}: candidato="${candidatoValue}", user="${userValue}"`);
           
           // Conta come opinione comune SOLO se:
           // 1. Entrambi hanno risposto (non null)
