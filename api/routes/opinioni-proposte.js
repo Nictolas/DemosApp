@@ -166,11 +166,14 @@ router.get('/', async (req, res) => {
 // POST /api/opinioni-proposte - Crea una nuova opinione proposta nella tabella opinioni
 router.post('/', async (req, res) => {
   try {
+    console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
+    console.log('🔍 Body ricevuto:', req.body);
+    console.log('🔍 Headers:', req.headers);
+    
     const { testo, titolo, descrizione, categoria } = req.body;
     const userId = 'test-user-id'; // Temporaneo per test
     
-    console.log('📝 POST /api/opinioni-proposte - Creazione nuova opinione proposta');
-    console.log('🔍 Testo:', testo);
+    console.log('🔍 Testo estratto:', testo);
     console.log('🔍 User ID:', userId);
     
     if (!testo || !testo.trim()) {
