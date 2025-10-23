@@ -1,5 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
+const { verifyToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -222,10 +223,10 @@ router.post('/', async (req, res) => {
 });
 
 // POST /api/opinioni-proposte/:id/vota - Vota un'opinione proposta
-router.post('/:id/vota', async (req, res) => {
+router.post('/:id/vota', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = 'test-user-id'; // Temporaneo per test
+    const userId = req.userId; // User ID dall'autenticazione JWT
     
     console.log('👍 POST /api/opinioni-proposte/:id/vota - Voto opinione proposta');
     console.log('🔍 ID opinione:', id);
@@ -284,10 +285,10 @@ router.post('/:id/vota', async (req, res) => {
 });
 
 // DELETE /api/opinioni-proposte/:id/vota - Rimuovi voto da un'opinione proposta
-router.delete('/:id/vota', async (req, res) => {
+router.delete('/:id/vota', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = 'test-user-id'; // Temporaneo per test
+    const userId = req.userId; // User ID dall'autenticazione JWT
     
     console.log('👎 DELETE /api/opinioni-proposte/:id/vota - Rimozione voto');
     console.log('🔍 ID opinione:', id);
