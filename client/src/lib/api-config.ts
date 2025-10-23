@@ -2,16 +2,13 @@
 declare const importMetaEnv: Record<string, string | undefined> & { VITE_API_BASE_URL?: string };
 
 const resolveBaseUrl = (): string => {
-  // Usa sempre il server di produzione per ora (fino a quando non configuriamo il database locale)
-  return 'https://demos-c7k0.onrender.com/api';
+  // Controlla se siamo in sviluppo locale
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return '/api'; // Usa il proxy di Vite
+  }
   
-  // Controlla se siamo in produzione (Render)
-  // if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-  //   return 'https://demos-c7k0.onrender.com/api';
-  // }
-
-  // Sviluppo locale
-  // return 'http://localhost:3001/api';
+  // Produzione - usa il server di produzione
+  return 'https://demos-c7k0.onrender.com/api';
 };
 
 export const API_CONFIG = {
