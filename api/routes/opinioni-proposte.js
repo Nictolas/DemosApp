@@ -121,7 +121,7 @@ router.get('/', async (req, res) => {
   try {
     console.log('🔍 GET /api/opinioni-proposte - Caricamento tutte le opinioni');
     
-    // Query per ottenere tutte le opinioni
+    // Query per ottenere tutte le opinioni con conteggio voti
     const query = `
       SELECT o.id, o.text as testo, o.gradi_opinione, o.approfondimento,
              COALESCE(voti_count.count, 0) as voti
