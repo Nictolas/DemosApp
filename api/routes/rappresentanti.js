@@ -70,6 +70,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
       const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
       
+      console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}, Opinion trovate: ${opinioniDelGrado.length}`);
+      
       if (opinioniDelGrado.length > 0) {
         // Costruisci la query dinamica per le colonne del grado specifico
         const colonneQuery = opinioniDelGrado.join(', ');
@@ -92,6 +94,37 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           console.log(`🔍 DEBUG - User opinions mappate:`, userOpinions);
         } else {
           console.log(`🔍 DEBUG - Nessuna risposta utente trovata per userId: ${userId}`);
+        }
+      }
+    }
+    
+    // Se non c'è un utente corrente, usa Nicolas Micheletti come riferimento per il test
+    if (!userOpinions) {
+      // Prima trova l'ID di Nicolas Micheletti
+      const testUserResult = await pool.query(`
+        SELECT id FROM users 
+        WHERE nome ILIKE '%nicolas%' OR cognome ILIKE '%micheletti%' OR email ILIKE '%nicolas%'
+        ORDER BY nome, cognome
+        LIMIT 1
+      `);
+      
+      if (testUserResult.rows.length > 0) {
+        const testUserId = testUserResult.rows[0].id;
+        const testUserAnswersQuery = `
+          SELECT * FROM opinioni_risposte WHERE user_id = $1
+        `;
+        
+        const testUserAnswersResult = await pool.query(testUserAnswersQuery, [testUserId]);
+        userOpinions = {};
+        
+        if (testUserAnswersResult.rows.length > 0) {
+          const testUserRow = testUserAnswersResult.rows[0];
+          // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
+          Object.keys(testUserRow).forEach(key => {
+            if (key !== 'user_id' && key !== 'fonti_opinioni') {
+              userOpinions[key] = testUserRow[key];
+            }
+          });
         }
       }
     }
@@ -129,12 +162,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           });
         }
         
-        // Calcola opinioni comuni solo se l'utente ha opinioni
+        // Calcola opinioni comuni confrontando SOLO le opinioni del grado specifico
         let opinioniComuni = 0;
-        console.log(`🔍 DEBUG - Calcolo opinioni per candidato ${candidato.id}:`, {
-          userOpinions: userOpinions ? Object.keys(userOpinions).length : 0,
-          candidatoData: Object.keys(candidatoData).length
-        });
         
         if (userOpinions && Object.keys(userOpinions).length > 0) {
           // Confronta solo le opinioni del grado specifico
@@ -149,7 +178,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
             // 2. Le risposte sono identiche
             if (candidatoValue !== null && userValue !== null && candidatoValue === userValue) {
               opinioniComuni++;
-              console.log(`🔍 DEBUG - Opinione comune trovata! Totale: ${opinioniComuni}`);
+              console.log(`✅ OPINIONE COMUNE (${grado_elezione}): ${opinionId} = "${candidatoValue}"`);
             }
           });
         }
@@ -165,14 +194,20 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     
     // Ordina per opinioni comuni (decrescente) e poi per cognome
     candidati.sort((a, b) => {
-      if (b.opinioni_comuni !== a.opinioni_comuni) {
-        return b.opinioni_comuni - a.opinioni_comuni;
+      if (b.opinioniComuni !== a.opinioniComuni) {
+        return b.opinioniComuni - a.opinioniComuni;
       }
       return a.cognome.localeCompare(b.cognome);
     });
     
     // Limita ai primi 4 candidati più compatibili
     candidati = candidati.slice(0, 4);
+    
+    // Debug temporaneo per vedere se opinioniComuni è presente
+    console.log('🔍 DEBUG - Rappresentanti finali:');
+    candidati.forEach((candidato, index) => {
+      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome}: opinioniComuni=${candidato.opinioniComuni}`);
+    });
     
     
     // Assicurati che ogni candidato abbia un avatar_config valido
