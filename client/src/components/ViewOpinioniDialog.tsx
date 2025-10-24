@@ -84,8 +84,20 @@ export function ViewOpinioniDialog({
     const fetchQuestions = async () => {
       setIsLoadingQuestions(true);
       try {
-        // Chiama direttamente l'endpoint per le opinioni europee
-        const res = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=E`);
+        // Mappa la categoria al grado corretto
+        const gradoMapping = {
+          'europeo': 'E',
+          'camera': 'N',
+          'senato': 'N', 
+          'regione': 'R',
+          'comune': 'CO'
+        };
+        const grado = gradoMapping[categoria] || 'E';
+        
+        console.log(`🔍 DEBUG ViewOpinioniDialog - Categoria: ${categoria}, Grado: ${grado}`);
+        
+        // Chiama l'endpoint con il grado corretto basato sulla categoria
+        const res = await apiRequest("GET", `/api/users/${utenteId}/opinioni?grado=${grado}`);
         if (!res.ok) throw new Error();
         const result = await res.json();
         if (result.success && result.data) {
@@ -94,7 +106,7 @@ export function ViewOpinioniDialog({
             id: opinion.id,
             text: opinion.text
           }));
-          console.log('🔍 DEBUG fetchQuestions - Questions caricate da opinioni europee:', questionsArray);
+          console.log(`🔍 DEBUG fetchQuestions - Questions caricate da opinioni ${categoria} (grado ${grado}):`, questionsArray);
           setQuestions(questionsArray);
           
           // Carica anche le opinioni dell'utente selezionato
@@ -129,7 +141,7 @@ export function ViewOpinioniDialog({
       }
     };
     fetchQuestions();
-  }, [open, utenteId]); // Aggiunto utenteId come dipendenza
+  }, [open, utenteId, categoria]); // Aggiunto categoria come dipendenza
 
   // Le opinioni vengono ora caricate insieme alle domande nel primo useEffect
 
