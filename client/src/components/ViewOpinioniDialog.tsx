@@ -151,7 +151,19 @@ export function ViewOpinioniDialog({
       if (!user?.id) return;
       setIsLoadingMyOpinions(true);
       try {
-        const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=E`);
+        // Mappa la categoria al grado corretto (stesso mapping del rappresentante)
+        const gradoMapping = {
+          'europeo': 'E',
+          'camera': 'N',
+          'senato': 'N', 
+          'regione': 'R',
+          'comune': 'CO'
+        };
+        const grado = gradoMapping[categoria] || 'E';
+        
+        console.log(`🔍 DEBUG fetchMyOpinions - Categoria: ${categoria}, Grado: ${grado}`);
+        
+        const response = await apiRequest("GET", `/api/users/${user.id}/opinioni?grado=${grado}`);
         
         if (response.ok) {
           const data = await response.json();
@@ -174,7 +186,7 @@ export function ViewOpinioniDialog({
       }
     };
     if (user && open) fetchMyOpinions();
-  }, [user?.id, open]);
+  }, [user?.id, open, categoria]);
 
   // Carica le iniziative e i referendum a cui l'utente ha messo Like (per ora vuoto)
   useEffect(() => {
