@@ -138,9 +138,20 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
         }
 
-        // Carica le opinioni del candidato per il grado specifico
+        // Carica le opinioni del rappresentante SOLO per il grado specifico
+        const gradoOpinioniQuery = `
+          SELECT id FROM opinioni_domande WHERE $1 = ANY(gradi_opinione)
+        `;
+        const gradoOpinioniResult = await pool.query(gradoOpinioniQuery, [gradoDatabase]);
+        const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
+        
+        if (opinioniDelGrado.length === 0) {
+          return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
+        }
+        
+        const colonneQuery = opinioniDelGrado.join(', ');
         const candidatoAnswersQuery = `
-          SELECT * FROM opinioni_risposte WHERE user_id = $1
+          SELECT user_id, ${colonneQuery} FROM opinioni_risposte WHERE user_id = $1
         `;
         const candidatoAnswersResult = await pool.query(candidatoAnswersQuery, [candidato.id]);
         
@@ -152,11 +163,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
         if (candidatoAnswersResult.rows.length > 0) {
           const candidatoRow = candidatoAnswersResult.rows[0];
-          // Mappa tutte le colonne di opinioni (escludendo user_id e fonti_opinioni)
-          Object.keys(candidatoRow).forEach(key => {
-            if (key !== 'user_id' && key !== 'fonti_opinioni') {
-              candidatoData[key] = candidatoRow[key];
-            }
+          // Mappa SOLO le opinioni del grado specifico
+          opinioniDelGrado.forEach(opinionId => {
+            candidatoData[opinionId] = candidatoRow[opinionId];
           });
         }
         
