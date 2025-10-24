@@ -30,10 +30,6 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         u.ruolo,
         u.status,
         u.avatar_config,
-        u.grado_candidatura,
-        u.regione_candidatura,
-        u.provincia_candidatura,
-        u.comune_candidatura,
         u.grado_elezione,
         u.regione_elezione,
         u.provincia_elezione,
@@ -59,6 +55,8 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       'CO': 'CO'
     };
     const gradoDatabase = gradoMapping[grado_elezione] || grado_elezione;
+    
+    console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}`);
     
     // Ottieni le opinioni dell'utente corrente SOLO per il grado specifico
     let userOpinions = null;
