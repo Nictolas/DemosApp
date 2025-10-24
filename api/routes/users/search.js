@@ -247,11 +247,23 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       dataNascitaFormattata = `${data.getDate().toString().padStart(2, '0')}/${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
     }
     
+    // Mappa il ruolo dal database al frontend
+    const ruoloMapping = {
+      'E': 'Elettore',
+      'P': 'Politico', 
+      'C': 'Candidato',
+      'CP': 'Candidato Politico',
+      'A': 'Attivista',
+      'AD': 'Admin'
+    };
+    
     const responseData = {
       success: true,
       user: {
         ...user,
-        data_nascita: dataNascitaFormattata
+        data_nascita: dataNascitaFormattata,
+        genere: decompressGender(user.genere),
+        ruolo: ruoloMapping[user.ruolo] || user.ruolo
       }
     };
     

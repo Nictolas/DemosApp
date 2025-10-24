@@ -82,11 +82,11 @@ export function PersonalDataSection({ formData, onFieldChange, isAdmin = false }
                 <SelectValue placeholder="Seleziona il ruolo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="elettore">Elettore</SelectItem>
+                <SelectItem value="Elettore">Elettore</SelectItem>
                 <SelectItem value="Politico">Politico</SelectItem>
                 <SelectItem value="Candidato">Candidato</SelectItem>
                 <SelectItem value="Candidato Politico">Candidato Politico</SelectItem>
-                <SelectItem value="Utente">Utente</SelectItem>
+                <SelectItem value="Attivista">Attivista</SelectItem>
                 <SelectItem value="Admin">Admin</SelectItem>
               </SelectContent>
             </Select>
@@ -145,6 +145,9 @@ function getGenereValue(genere: string): string {
     'A': 'altro',
     'Maschio': 'uomo',
     'Femmina': 'donna',
+    'Altro': 'altro',
+    'Uomo': 'uomo',
+    'Donna': 'donna',
     'Altro': 'altro'
   };
   
