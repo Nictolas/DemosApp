@@ -61,6 +61,7 @@ export default function ScegliRappresentante() {
             nome={opinioniDialogData?.nome}
             cognome={opinioniDialogData?.cognome}
             avatarConfig={opinioniDialogData?.avatarConfig}
+            categoria={categoria || ''}
           />
           
           {rappresentanti.length === 0 ? (
