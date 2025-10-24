@@ -114,11 +114,12 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     const countResult = await pool.query(countQuery, queryParams);
     const totalUsers = parseInt(countResult.rows[0].total);
     
-    // Query per gli utenti con paginazione
+    // Query per gli utenti con paginazione - solo dati essenziali per la tabella
     let usersQuery = `
       SELECT id, name, nome, cognome, email, ruolo, status, created_at, updated_at,
              grado_elezione, grado_candidatura, avatar_config, genere, cittadinanza,
-             regione_residenza, comune_residenza
+             paese_residenza, regione_residenza, provincia_residenza, comune_residenza,
+             data_nascita
       FROM users 
       ${whereClause}
       ORDER BY created_at DESC
@@ -133,11 +134,18 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
     
     const usersResult = await pool.query(usersQuery, queryParamsWithPagination);
     
-    console.log(`✅ Lista utenti recuperata: ${usersResult.rows.length} su ${totalUsers} totali`);
+    // Trasforma i dati per il frontend (solo dati essenziali)
+    const users = usersResult.rows.map(user => ({
+      ...user,
+      genere: decompressGender(user.genere),
+      data_nascita: user.data_nascita ? new Date(user.data_nascita).toISOString().split('T')[0] : null
+    }));
+    
+    console.log(`✅ Lista utenti recuperata: ${users.length} su ${totalUsers} totali`);
     
     res.json({
       success: true,
-      users: usersResult.rows,
+      users,
       pagination: {
         page: parseInt(page),
         limit: limitValue || totalUsers,

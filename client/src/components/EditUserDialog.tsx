@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { UserInfo } from "../pages/Profilo";
+import { UserInfo } from "@/types/profile";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
