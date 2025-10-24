@@ -69,6 +69,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       const opinioniDelGrado = gradoOpinioniResult.rows.map(row => row.id);
       
       console.log(`🔍 DEBUG ${grado_elezione} - Grado database: ${gradoDatabase}, Opinion trovate: ${opinioniDelGrado.length}`);
+      console.log(`🔍 DEBUG - Opinion IDs per grado ${gradoDatabase}:`, opinioniDelGrado);
       
       if (opinioniDelGrado.length > 0) {
         // Costruisci la query dinamica per le colonne del grado specifico
@@ -171,6 +172,9 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
         // Calcola opinioni comuni confrontando SOLO le opinioni del grado specifico
         let opinioniComuni = 0;
+        
+        console.log(`🔍 DEBUG - User opinions keys:`, Object.keys(userOpinions || {}));
+        console.log(`🔍 DEBUG - Candidato data keys:`, Object.keys(candidatoData));
         
         if (userOpinions && Object.keys(userOpinions).length > 0) {
           // Confronta solo le opinioni del grado specifico
