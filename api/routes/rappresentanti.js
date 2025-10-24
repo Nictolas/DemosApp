@@ -192,7 +192,7 @@ router.get('/disponibili', verifyToken, async (req, res) => {
         
         console.log(`🔍 DEBUG - Candidato ${candidato.id} ha ${opinioniComuni} opinioni comuni`);
         
-        return { ...candidato, opinioni_comuni, opinioniComuni };
+        return { ...candidato, opinioni_comuni: opinioniComuni, opinioniComuni };
       } catch (error) {
         console.error('❌ Errore nel calcolo opinioni comuni per candidato:', candidato.id, error);
         return { ...candidato, opinioni_comuni: 0, opinioniComuni: 0 };
