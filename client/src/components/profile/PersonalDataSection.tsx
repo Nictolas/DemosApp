@@ -2,7 +2,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserInfo } from "../../pages/Profilo";
+import { UserInfo } from "@/types/profile";
 
 interface PersonalDataSectionProps {
   formData: UserInfo & { uid: string };

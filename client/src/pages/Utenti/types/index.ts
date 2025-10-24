@@ -1,13 +1,6 @@
-export type User = {
-  id: string;
-  nome: string;
-  cognome: string;
-  email: string;
-  ruolo: string;
-  status: 'pending' | 'active' | 'rejected';
-  // Aggiungo tutte le altre colonne possibili
-  [key: string]: any; // Per permettere colonne dinamiche
-};
+import { UserSummary } from "@/types/profile";
+
+export type User = UserSummary;
 
 export type SortDirection = "asc" | "desc";
 

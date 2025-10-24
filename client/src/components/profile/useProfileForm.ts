@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { UserInfo } from "../../pages/Profilo";
+import { UserInfo } from "@/types/profile";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 

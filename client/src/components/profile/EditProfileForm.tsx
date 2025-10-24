@@ -1,5 +1,5 @@
 import React from "react";
-import { UserInfo } from "../../pages/Profilo";
+import { UserInfo } from "@/types/profile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";

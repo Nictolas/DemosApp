@@ -1,3 +1,25 @@
+// Tipo per i dati essenziali mostrati nella tabella (caricamento veloce)
+export type UserSummary = {
+  id: string;
+  nome: string;
+  cognome: string;
+  email: string;
+  data_nascita: string;
+  genere: string;
+  cittadinanza: string;
+  ruolo: string;
+  paese_residenza: string;
+  regione_residenza: string;
+  provincia_residenza: string;
+  comune_residenza: string;
+  grado_elezione?: string;
+  grado_candidatura?: string;
+  avatar_config?: string;
+  status?: string;
+  [key: string]: any;
+};
+
+// Tipo completo per i dati dell'utente (caricamento completo)
 export type UserInfo = {
   id?: string;
   nome: string;
