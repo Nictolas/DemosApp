@@ -319,27 +319,26 @@ router.get('/disponibili', verifyToken, async (req, res) => {
           return { ...candidato, opinioniComuni: 0 };
         }
         
-        // Calcola opinioni comuni confrontando le opinioni (già filtrate per grado)
+        // Calcola opinioni comuni confrontando SOLO le opinioni del grado specifico
         let opinioniComuni = 0;
-        const allOpinionIds = new Set([...Object.keys(candidatoData), ...Object.keys(userOpinions)]);
         
-        allOpinionIds.forEach(opinionId => {
-          const candidatoValue = candidatoData[opinionId];
-          const userValue = userOpinions[opinionId];
-          
-          // Conta come opinione comune SOLO se:
-          // 1. Entrambi hanno risposto (non null)
-          // 2. Entrambi hanno un valore valido (f, c, i)
-          // 3. I valori sono identici
-          if (candidatoValue && userValue && 
-              candidatoValue !== null && userValue !== null &&
-              (candidatoValue === 'f' || candidatoValue === 'c' || candidatoValue === 'i') &&
-              (userValue === 'f' || userValue === 'c' || userValue === 'i') &&
-              candidatoValue === userValue) {
-            opinioniComuni++;
-            console.log(`✅ OPINIONE COMUNE (${grado_candidatura}): ${opinionId} = "${candidatoValue}"`);
-          }
-        });
+        if (userOpinions && Object.keys(userOpinions).length > 0) {
+          // Confronta solo le opinioni del grado specifico
+          Object.keys(userOpinions).forEach(opinionId => {
+            const candidatoValue = candidatoData[opinionId];
+            const userValue = userOpinions[opinionId];
+            
+            console.log(`🔍 DEBUG - Confronto opinione ${opinionId}: candidato=${candidatoValue}, user=${userValue}`);
+            
+            // Conta come opinione comune SOLO se:
+            // 1. Entrambi hanno risposto (non null)
+            // 2. Le risposte sono identiche
+            if (candidatoValue !== null && userValue !== null && candidatoValue === userValue) {
+              opinioniComuni++;
+              console.log(`✅ OPINIONE COMUNE (${grado_candidatura}): ${opinionId} = "${candidatoValue}"`);
+            }
+          });
+        }
         
            return { ...candidato, opinioniComuni };
       } catch (error) {
@@ -348,11 +347,15 @@ router.get('/disponibili', verifyToken, async (req, res) => {
       }
     }));
     
-    // Ordina per opinioni comuni (decrescente) e prendi i primi 4
+    // Ordina per opinioni comuni (decrescente) e poi per cognome
     const candidatiOrdinati = candidatiConOpinioni
-      .sort((a, b) => (b.opinioniComuni || 0) - (a.opinioniComuni || 0))
+      .sort((a, b) => {
+        if (b.opinioniComuni !== a.opinioniComuni) {
+          return b.opinioniComuni - a.opinioniComuni;
+        }
+        return a.cognome.localeCompare(b.cognome);
+      })
       .slice(0, 4);
-    
     
     // Debug temporaneo per vedere se opinioniComuni è presente
     console.log('🔍 DEBUG - Candidati finali:');
