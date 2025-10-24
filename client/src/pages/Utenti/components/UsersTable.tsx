@@ -5,7 +5,6 @@ import { Edit, Trash2 } from "lucide-react";
 import { User, SortState } from "../types";
 import { formatColumnValue } from "../utils/columnUtils";
 import { renderColumnValue } from "../utils/renderUtils";
-import { EditableDropdown } from "./EditableDropdown";
 
 interface UsersTableProps {
   users: User[];
@@ -16,8 +15,6 @@ interface UsersTableProps {
   onEditOpinioni: (user: User) => void;
   onDelete: (user: User) => void;
   onEditAvatar?: (user: User) => void;
-  userChanges?: Record<string, { grado_elezione?: string | null; grado_candidatura?: string | null }>;
-  onFieldChange?: (userId: string, field: 'grado_elezione' | 'grado_candidatura', value: string | null) => void;
 }
 
 export const UsersTable: React.FC<UsersTableProps> = ({
@@ -28,9 +25,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   onEdit,
   onEditOpinioni,
   onDelete,
-  onEditAvatar,
-  userChanges = {},
-  onFieldChange
+  onEditAvatar
 }) => {
   if (users.length === 0) {
     return (
@@ -75,19 +70,9 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                   key={column} 
                   className={column === 'avatar' ? "text-center w-16" : "min-w-[150px] max-w-[300px]"}
                 >
-                  {column === 'grado_elezione' || column === 'grado_candidatura' ? (
-                    <EditableDropdown
-                      value={userChanges[user.id]?.[column] !== undefined ? userChanges[user.id][column] : user[column]}
-                      onChange={(value) => onFieldChange?.(user.id, column, value)}
-                      options={['E', 'N', 'C', 'S', 'R', 'CO']}
-                      placeholder="Seleziona..."
-                      className="w-full"
-                    />
-                  ) : (
-                    <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column)}>
-                      {renderColumnValue(user[column], column, user, onEditAvatar)}
-                    </div>
-                  )}
+                  <div className={column === 'avatar' ? "" : "truncate"} title={formatColumnValue(user[column], column)}>
+                    {renderColumnValue(user[column], column, user, onEditAvatar)}
+                  </div>
                 </TableCell>
               ))}
               <TableCell className="text-center">

@@ -7,6 +7,8 @@ export const HIDDEN_COLUMNS = [
   // Colonne tecniche da nascondere
   'id', 'password_hash', 'avatar_config', 'fonti_opinioni',
   'created_at', 'updated_at', 'reset_token', 'reset_token_expires', 'email_verification_token',
+  // Colonne specifiche da rimuovere dalla tabella
+  'cittadinanza', 'regione_residenza', 'comune_residenza', 'name', 'nome', 'cognome',
   // Colonne di opinioni locali (troppo specifiche)
   'cassonetti_intelligenti_con_tessera', 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
   'divieto_di_nuovi_fast_food_nel_centro_storico', 'estensione_delle_zone_a_traffico_limitato',
@@ -35,7 +37,7 @@ export const FORCED_COLUMNS = [
 // Colonne con priorità di ordinamento
 export const PRIORITY_COLUMNS = [
   'avatar', 'nome_completo', 'email', 'ruolo', 'status', 
-  'data_nascita', 'genere', 'cittadinanza', 'paese_residenza', 'regione_residenza', 'provincia_residenza', 'comune_residenza',
+  'data_nascita', 'genere', 'paese_residenza', 'provincia_residenza',
   'verified', 'auth_method', 'premium', 'is_premium', 'is_admin',
   'privacy_policy_consent', 'terms_of_service_consent', 'cookie_policy_consent',
   'profile_visibility', 'opinions_public', 'email_notifications', 'push_notifications',
