@@ -90,6 +90,7 @@ router.get('/opinioni-list', async (req, res) => {
     console.log(`🔍 DEBUG - Query per grado ${grado}:`, opinionQuery);
     console.log(`🔍 DEBUG - Parametri query:`, [grado]);
     console.log(`🔍 DEBUG - Risultati trovati:`, opinionResult.rows.length);
+    console.log(`🔍 DEBUG - Prime 5 opinioni trovate:`, opinionResult.rows.slice(0, 5).map(o => ({ text: o.text, gradi: o.gradi_opinione })));
     
     if (opinionResult.rows.length === 0) {
       console.log(`⚠️ Nessuna opinione trovata per il grado: ${grado}`);
