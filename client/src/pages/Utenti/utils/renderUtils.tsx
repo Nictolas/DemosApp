@@ -2,7 +2,7 @@ import React from "react";
 import { Link } from "wouter";
 import { User } from "../types";
 import { formatColumnValue } from "./columnUtils";
-import { getRoleColor, getGenderColor, getCandidaturaStatusColor } from "./styleUtils";
+import { getRoleColor, getGenderColor, getCandidaturaStatusColor, getGradoColor } from "./styleUtils";
 import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 
 // Funzione per renderizzare il valore con targhette colorate
@@ -110,7 +110,7 @@ export const renderColumnValue = (value: any, columnName: string, user?: User, o
   if (columnName === 'grado_elezione') {
     if (value) {
       return (
-        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-purple-100 text-purple-800 border-purple-200">
+        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getGradoColor(value)}`}>
           {value}
         </span>
       );
@@ -122,7 +122,7 @@ export const renderColumnValue = (value: any, columnName: string, user?: User, o
   if (columnName === 'grado_candidatura') {
     if (value) {
       return (
-        <span className="px-2 py-1 text-xs font-medium rounded-full border bg-indigo-100 text-indigo-800 border-indigo-200">
+        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getGradoColor(value)}`}>
           {value}
         </span>
       );
