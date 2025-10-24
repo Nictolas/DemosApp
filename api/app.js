@@ -133,11 +133,24 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   console.log('🌐 CORS Middleware - Origin:', origin);
   
-  if (origin && (origin.includes('demos.community') || origin.includes('localhost'))) {
+  // Lista degli origin consentiti
+  const allowedOrigins = [
+    'https://www.demos.community',
+    'https://demos.community',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    console.log('✅ CORS: Header impostati per origin:', origin);
+  } else if (origin) {
+    console.log('🚨 CORS: Origin non autorizzato:', origin);
   }
   
   next();
@@ -148,11 +161,24 @@ app.options('*', (req, res) => {
   const origin = req.headers.origin;
   console.log('🔍 CORS OPTIONS richiesta da:', origin);
   
-  if (origin && (origin.includes('demos.community') || origin.includes('localhost'))) {
+  // Lista degli origin consentiti
+  const allowedOrigins = [
+    'https://www.demos.community',
+    'https://demos.community',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173'
+  ];
+  
+  if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, Pragma');
+    console.log('✅ CORS OPTIONS: Header impostati per origin:', origin);
+  } else if (origin) {
+    console.log('🚨 CORS OPTIONS: Origin non autorizzato:', origin);
   }
   
   res.status(200).end();
