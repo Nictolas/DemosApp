@@ -19,9 +19,10 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
   const { formData, isSubmitting, handleChange, handleSubmit } = useProfileForm(userData, onProfileUpdated, isAdmin);
 
   // Determina se mostrare le sezioni in base al ruolo
-  const shouldShowElectionSection = formData.ruolo === "P" || formData.ruolo === "CP";
-  const shouldShowCandidacySection = formData.ruolo === "C" || formData.ruolo === "CP";
-  const shouldShowActivismSection = formData.ruolo === "A" || formData.ruolo === "AD";
+  // Se è un admin che modifica un utente, mostra sempre tutte le sezioni
+  const shouldShowElectionSection = isAdmin || formData.ruolo === "P" || formData.ruolo === "CP";
+  const shouldShowCandidacySection = isAdmin || formData.ruolo === "C" || formData.ruolo === "CP";
+  const shouldShowActivismSection = isAdmin || formData.ruolo === "A" || formData.ruolo === "AD";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
