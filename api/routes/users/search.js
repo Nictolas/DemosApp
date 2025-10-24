@@ -277,7 +277,21 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
         genere: decompressGender(responseData.user.genere),
         ruolo: responseData.user.ruolo,
         data_nascita: responseData.user.data_nascita,
-        cittadinanza: responseData.user.cittadinanza
+        cittadinanza: responseData.user.cittadinanza,
+        paese_residenza: responseData.user.paese_residenza,
+        regione_residenza: responseData.user.regione_residenza,
+        provincia_residenza: responseData.user.provincia_residenza,
+        comune_residenza: responseData.user.comune_residenza,
+        grado_elezione: responseData.user.grado_elezione,
+        paese_elezione: responseData.user.paese_elezione,
+        regione_elezione: responseData.user.regione_elezione,
+        provincia_elezione: responseData.user.provincia_elezione,
+        comune_elezione: responseData.user.comune_elezione,
+        grado_candidatura: responseData.user.grado_candidatura,
+        paese_candidatura: responseData.user.paese_candidatura,
+        regione_candidatura: responseData.user.regione_candidatura,
+        provincia_candidatura: responseData.user.provincia_candidatura,
+        comune_candidatura: responseData.user.comune_candidatura
       }
     });
     

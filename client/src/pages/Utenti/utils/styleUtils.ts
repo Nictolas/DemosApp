@@ -18,11 +18,14 @@ export const getRoleColor = (ruolo: string) => {
 export const getGenderColor = (genere: string) => {
   switch (genere?.toLowerCase()) {
     case 'uomo':
-      return 'bg-sky-100 text-sky-800 border-sky-200';
+    case 'u':
+      return 'bg-sky-100 text-sky-800 border-sky-200'; // Azzurro
     case 'donna':
-      return 'bg-rose-100 text-rose-800 border-rose-200';
+    case 'd':
+      return 'bg-pink-100 text-pink-800 border-pink-200'; // Rosa
     case 'altro':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'a':
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200'; // Giallo
     default:
       return 'bg-gray-100 text-gray-800 border-gray-200';
   }
