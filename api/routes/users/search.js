@@ -196,6 +196,9 @@ router.get('/pending', verifyToken, requireAdmin, async (req, res) => {
 router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔍 GET /api/users/:userId - Richiesta utente specifico');
+    console.log('🔍 DEBUG - URL completa:', req.url);
+    console.log('🔍 DEBUG - Params:', req.params);
+    console.log('🔍 DEBUG - Query:', req.query);
     
     const { userId } = req.params;
     console.log('🔍 DEBUG - userId ricevuto:', userId);

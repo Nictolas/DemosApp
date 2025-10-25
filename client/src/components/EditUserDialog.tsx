@@ -53,6 +53,23 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
           data_nascita: data.user.data_nascita,
           cittadinanza: data.user.cittadinanza
         });
+        
+        // Debug specifico per i dati geografici
+        console.log('🔍 DEBUG - Dati geografici ricevuti:', {
+          paese_residenza: data.user.paese_residenza,
+          regione_residenza: data.user.regione_residenza,
+          provincia_residenza: data.user.provincia_residenza,
+          comune_residenza: data.user.comune_residenza,
+          paese_elezione: data.user.paese_elezione,
+          regione_elezione: data.user.regione_elezione,
+          provincia_elezione: data.user.provincia_elezione,
+          comune_elezione: data.user.comune_elezione,
+          paese_candidatura: data.user.paese_candidatura,
+          regione_candidatura: data.user.regione_candidatura,
+          provincia_candidatura: data.user.provincia_candidatura,
+          comune_candidatura: data.user.comune_candidatura
+        });
+        
         setUserData({ ...data.user, email: userEmail, uid: userUid });
       } else {
         throw new Error("Formato dati non valido");
