@@ -22,6 +22,15 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug logging per verificare i parametri ricevuti
+  console.log('🔍 DEBUG EditUserDialog - Props ricevute:', {
+    userEmail,
+    userUid,
+    open,
+    onOpenChange: !!onOpenChange,
+    onUserUpdated: !!onUserUpdated
+  });
+
   // Carica i dati dell'utente quando il dialog si apre
   useEffect(() => {
     if (open && userUid) {
@@ -30,12 +39,15 @@ export function EditUserDialog({ userEmail, userUid, open, onOpenChange, onUserU
   }, [open, userUid]);
 
   const loadUserData = async () => {
+    console.log('🔍 DEBUG loadUserData - Inizio caricamento dati per userUid:', userUid);
     setIsLoading(true);
     setError(null);
 
     try {
       // Carica i dati tramite API usando l'uid
+      console.log('🔍 DEBUG loadUserData - Chiamando API:', `/api/users/${encodeURIComponent(userUid)}`);
       const response = await apiRequest("GET", `/api/users/${encodeURIComponent(userUid)}`);
+      console.log('🔍 DEBUG loadUserData - Response status:', response.status);
       if (!response.ok) {
         throw new Error("Errore nel caricamento dei dati dell'utente");
       }
