@@ -60,10 +60,10 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
             title="Residenza"
             prefix="residenza"
             initialData={{
-              paese: formData.paese_residenza || "",
-              regione: formData.regione_residenza || "",
-              provincia: formData.provincia_residenza || "",
-              comune: formData.comune_residenza || "",
+              paese_residenza: formData.paese_residenza || "",
+              regione_residenza: formData.regione_residenza || "",
+              provincia_residenza: formData.provincia_residenza || "",
+              comune_residenza: formData.comune_residenza || "",
             }}
             onFieldChange={(field, value) => handleChange(field as keyof (UserInfo & { uid: string }), value)}
           />
@@ -77,11 +77,11 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
               title="Elezione"
               prefix="elezione"
               initialData={{
-                paese: formData.paese_elezione || "",
-                regione: formData.regione_elezione || "",
-                provincia: formData.provincia_elezione || "",
-                comune: formData.comune_elezione || "",
-                aula: formData.aula_elezione || "",
+                paese_elezione: formData.paese_elezione || "",
+                regione_elezione: formData.regione_elezione || "",
+                provincia_elezione: formData.provincia_elezione || "",
+                comune_elezione: formData.comune_elezione || "",
+                aula_elezione: formData.aula_elezione || "",
               }}
               onFieldChange={(field, value) => handleChange(field as keyof (UserInfo & { uid: string }), value)}
               showAula={true}
@@ -99,11 +99,11 @@ export function EditProfileForm({ userData, onProfileUpdated, onCancel, isAdmin 
               title="Candidatura"
               prefix="candidatura"
               initialData={{
-                paese: formData.paese_candidatura || "",
-                regione: formData.regione_candidatura || "",
-                provincia: formData.provincia_candidatura || "",
-                comune: formData.comune_candidatura || "",
-                aula: formData.aula_candidatura || "",
+                paese_candidatura: formData.paese_candidatura || "",
+                regione_candidatura: formData.regione_candidatura || "",
+                provincia_candidatura: formData.provincia_candidatura || "",
+                comune_candidatura: formData.comune_candidatura || "",
+                aula_candidatura: formData.aula_candidatura || "",
               }}
               onFieldChange={(field, value) => handleChange(field as keyof (UserInfo & { uid: string }), value)}
               showAula={true}
