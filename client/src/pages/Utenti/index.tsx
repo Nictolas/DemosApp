@@ -385,6 +385,9 @@ export default function Utenti() {
   };
 
   const handleEdit = (user: any) => {
+    console.log('🔍 DEBUG handleEdit - user ricevuto:', user);
+    console.log('🔍 DEBUG handleEdit - user.id:', user.id);
+    console.log('🔍 DEBUG handleEdit - user.email:', user.email);
     setSelectedUser(user);
     setShowEditDialog(true);
   };
@@ -927,6 +930,7 @@ export default function Utenti() {
         {selectedUser && (
           <>
             <EditUserDialog 
+              userEmail={selectedUser.email}
               userUid={selectedUser.id} 
               open={showEditDialog} 
               onOpenChange={setShowEditDialog} 
