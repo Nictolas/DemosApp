@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyToken } = require('../middleware/auth');
 const { pool } = require('../middleware/auth');
+const { compressRegione, compressProvince, decompressRegione, decompressProvince } = require('../utils/locationUtils');
 
 const router = express.Router();
 
@@ -189,6 +190,16 @@ router.get('/:regione', async (req, res) => {
     // Converte slug in nome regione (es. "toscana" -> "Toscana")
     const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
     
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
+    
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
       SELECT id, text
@@ -273,7 +284,7 @@ router.get('/:regione', async (req, res) => {
       `;
       
       try {
-        const statsResult = await pool.query(statsQuery, [regionName]);
+        const statsResult = await pool.query(statsQuery, [regionCode]);
         const row = statsResult.rows[0];
         
         stats[questionId] = {
@@ -322,6 +333,16 @@ router.get('/genere/:regione', async (req, res) => {
     // Converte slug in nome regione (es. "toscana" -> "Toscana")
     const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
     
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
+    
     const query = `
       SELECT 
         genere,
@@ -333,7 +354,7 @@ router.get('/genere/:regione', async (req, res) => {
       ORDER BY totale DESC
     `;
     
-    const result = await pool.query(query, [regionName]);
+    const result = await pool.query(query, [regionCode]);
     
     res.json({
       success: true,
@@ -356,6 +377,17 @@ router.get('/:regione/:provincia', async (req, res) => {
     // Converte slug in nome regione e provincia
     const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
     const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
     
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
@@ -432,7 +464,7 @@ router.get('/:regione/:provincia', async (req, res) => {
       `;
       
       try {
-        const statsResult = await pool.query(statsQuery, [regionName, provinciaName]);
+        const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode]);
         const row = statsResult.rows[0];
         
         stats[questionId] = {
@@ -482,6 +514,17 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
     const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
     const provinciaName = provincia.charAt(0).toUpperCase() + provincia.slice(1).replace(/-/g, ' ');
     const comuneName = comune.charAt(0).toUpperCase() + comune.slice(1).replace(/-/g, ' ');
+    
+    // Converte nomi in codici per la query database
+    const regionCode = compressRegione(regionName);
+    const provinciaCode = compressProvince(provinciaName);
+    
+    if (!regionCode || !provinciaCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione o provincia non valida'
+      });
+    }
     
     // 1. Prima recupera le domande dalla tabella opinioni
     const questionsQuery = `
@@ -559,7 +602,7 @@ router.get('/:regione/:provincia/:comune', async (req, res) => {
       `;
       
       try {
-        const statsResult = await pool.query(statsQuery, [regionName, provinciaName, comuneName]);
+        const statsResult = await pool.query(statsQuery, [regionCode, provinciaCode, comuneName]);
         const row = statsResult.rows[0];
         
         stats[questionId] = {

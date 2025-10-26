@@ -5,6 +5,7 @@
  */
 
 const { compressProvince, decompressProvince } = require('./provinceUtils');
+const { compressRegione, decompressRegione } = require('./regioniUtils');
 
 // Mappatura da database a frontend per cittadinanza
 const CITIZENSHIP_DB_TO_FRONTEND = {
@@ -240,6 +241,19 @@ function decompressUserLocation(user) {
     decompressedUser.paese_candidatura = decompressCountry(decompressedUser.paese_candidatura);
   }
   
+  // Decompressione regioni
+  if (decompressedUser.regione_residenza) {
+    decompressedUser.regione_residenza = decompressRegione(decompressedUser.regione_residenza);
+  }
+  
+  if (decompressedUser.regione_elezione) {
+    decompressedUser.regione_elezione = decompressRegione(decompressedUser.regione_elezione);
+  }
+  
+  if (decompressedUser.regione_candidatura) {
+    decompressedUser.regione_candidatura = decompressRegione(decompressedUser.regione_candidatura);
+  }
+  
   // Decompressione province
   if (decompressedUser.provincia_residenza) {
     decompressedUser.provincia_residenza = decompressProvince(decompressedUser.provincia_residenza);
@@ -280,6 +294,19 @@ function compressUserLocation(user) {
   
   if (compressedUser.paese_candidatura) {
     compressedUser.paese_candidatura = compressCountry(compressedUser.paese_candidatura);
+  }
+  
+  // Compressione regioni
+  if (compressedUser.regione_residenza) {
+    compressedUser.regione_residenza = compressRegione(compressedUser.regione_residenza);
+  }
+  
+  if (compressedUser.regione_elezione) {
+    compressedUser.regione_elezione = compressRegione(compressedUser.regione_elezione);
+  }
+  
+  if (compressedUser.regione_candidatura) {
+    compressedUser.regione_candidatura = compressRegione(compressedUser.regione_candidatura);
   }
   
   // Compressione province

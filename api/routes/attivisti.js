@@ -1,5 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
+const { compressRegione, decompressRegione } = require('../utils/locationUtils');
 const router = express.Router();
 require('dotenv').config();
 
@@ -43,9 +44,13 @@ router.get('/', async (req, res) => {
 
     // Filtro per regione
     if (regione && regione.trim()) {
-      whereConditions.push(`u.regione_residenza = $${paramIndex}`);
-      queryParams.push(regione.trim());
-      paramIndex++;
+      // Converte nome regione in codice per la query database
+      const regionCode = compressRegione(regione.trim());
+      if (regionCode) {
+        whereConditions.push(`u.regione_residenza = $${paramIndex}`);
+        queryParams.push(regionCode);
+        paramIndex++;
+      }
     }
 
     // Filtro per tipologia di attivismo
@@ -254,7 +259,7 @@ router.get('/filtri', async (req, res) => {
   try {
     console.log('🔍 GET /api/attivisti/filtri - Filtri disponibili richiesti');
     
-    // Ottieni regioni uniche
+    // Ottieni regioni uniche e decompressi per il frontend
     const regioniResult = await pool.query(`
       SELECT DISTINCT regione_residenza
       FROM users 
@@ -263,6 +268,12 @@ router.get('/filtri', async (req, res) => {
       AND regione_residenza != ''
       ORDER BY regione_residenza
     `);
+    
+    // Decompressione regioni per il frontend
+    const regioni = regioniResult.rows
+      .map(row => decompressRegione(row.regione_residenza))
+      .filter(regione => regione) // Rimuove valori null
+      .sort();
     
     // Ottieni tipologie uniche
     const tipologieResult = await pool.query(`
@@ -274,7 +285,6 @@ router.get('/filtri', async (req, res) => {
       ORDER BY tipo
     `);
     
-    const regioni = regioniResult.rows.map(row => row.regione_residenza);
     const tipologie = tipologieResult.rows.map(row => row.tipo);
     
     console.log(`✅ Filtri disponibili: ${regioni.length} regioni, ${tipologie.length} tipologie`);

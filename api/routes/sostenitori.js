@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { decompressUserLocation } = require('../utils/locationUtils');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -66,8 +67,8 @@ router.get('/', async (req, res) => {
           ruolo: row.ruolo,
           data_nascita: row.data_nascita,
           genere: row.genere,
-          regione_residenza: row.regione_residenza,
-          provincia_residenza: row.provincia_residenza,
+          regione_residenza: decompressUserLocation({ regione_residenza: row.regione_residenza }).regione_residenza,
+          provincia_residenza: decompressUserLocation({ provincia_residenza: row.provincia_residenza }).provincia_residenza,
           comune_residenza: row.comune_residenza,
           data_registrazione: row.created_at,
           supporterRoles: []
@@ -109,7 +110,7 @@ router.get('/', async (req, res) => {
       else genderDistribution.Altro++;
 
       // Distribuzione per località
-      const location = supporter.regione_residenza || supporter.regione || 'Non specificato';
+      const location = decompressUserLocation({ regione_residenza: supporter.regione_residenza }).regione_residenza || supporter.regione || 'Non specificato';
       locationDistribution[location] = (locationDistribution[location] || 0) + 1;
 
       // Distribuzione per età

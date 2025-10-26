@@ -1,6 +1,7 @@
 const express = require('express');
 const { verifyToken } = require('../../middleware/auth');
 const { pool } = require('../../middleware/auth');
+const { compressRegione, decompressRegione } = require('../../utils/locationUtils');
 
 const router = express.Router();
 
@@ -408,6 +409,16 @@ router.get('/stats/:opinionId/regione/:regione', verifyToken, async (req, res) =
     // Converte slug in nome regione (es. "toscana" -> "Toscana")
     const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
     
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
+    
     // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
     const opinionMapping = {
       // Opinion nazionali/europee/regionali/comunali (stesse colonne, senza prefissi)
@@ -476,7 +487,7 @@ router.get('/stats/:opinionId/regione/:regione', verifyToken, async (req, res) =
       AND regione_residenza = $1
     `;
     
-    const statsResult = await pool.query(statsQuery, [regionName]);
+    const statsResult = await pool.query(statsQuery, [regionCode]);
     const stats = statsResult.rows[0];
     
     // Query per ottenere il testo dell'opinione
@@ -526,6 +537,16 @@ router.get('/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, re
     
     // Converte slug in nome regione (es. "toscana" -> "Toscana")
     const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
     
     // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
     const opinionMapping = {
@@ -614,7 +635,7 @@ router.get('/stats/:opinionId/eta/regione/:regione', verifyToken, async (req, re
         END
     `;
     
-    const etaResult = await pool.query(etaQuery, [regionName]);
+    const etaResult = await pool.query(etaQuery, [regionCode]);
     
     res.json({
       success: true,
@@ -637,6 +658,16 @@ router.get('/stats/:opinionId/genere/regione/:regione', verifyToken, async (req,
     
     // Converte slug in nome regione (es. "toscana" -> "Toscana")
     const regionName = regione.charAt(0).toUpperCase() + regione.slice(1).replace(/-/g, ' ');
+    
+    // Converte nome regione in codice per la query database
+    const regionCode = compressRegione(regionName);
+    
+    if (!regionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Regione non valida'
+      });
+    }
     
     // Mappa l'ID dell'opinione alla colonna corretta nella tabella users
     const opinionMapping = {
@@ -702,7 +733,7 @@ router.get('/stats/:opinionId/genere/regione/:regione', verifyToken, async (req,
       ORDER BY genere
     `;
     
-    const genereResult = await pool.query(genereQuery, [regionName]);
+    const genereResult = await pool.query(genereQuery, [regionCode]);
     
     res.json({
       success: true,
