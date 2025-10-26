@@ -229,19 +229,35 @@ export function ViewOpinioniDialog({
 
   // La funzione loadUserOpinions è stata integrata nel primo useEffect
 
-  // Sostituisco la funzione categorizeAllOpinions con una versione che cicla su tutte le domande attive (questions)
+  // Sostituisco la funzione categorizeAllOpinions con una versione che usa myOpinions invece di questions
   function categorizeAllOpinionsDyn(): {favorevoli: {id: string, label: string}[], indecisi: {id: string, label: string}[], contrari: {id: string, label: string}[]} {
     const favorevoli: { id: string, label: string }[] = [];
     const indecisi: { id: string, label: string }[] = [];
     const contrari: { id: string, label: string }[] = [];
-    questions.forEach((q: {id: string, text: string}) => {
-      const value = opinions[q.id];
+    
+    // Usa myOpinions invece di questions per evitare il problema delle questions vuote
+    Object.entries(myOpinions).forEach(([opinionId, value]) => {
       // Usa solo valori compressi, ignora null
-      if (value === "f") favorevoli.push({ id: q.id, label: q.text });
-      else if (value === "i") indecisi.push({ id: q.id, label: q.text });
-      else if (value === "c") contrari.push({ id: q.id, label: q.text });
+      if (value === "f") {
+        // Trova il testo della domanda dalle questions se disponibile, altrimenti usa l'ID
+        const question = questions.find(q => q.id === opinionId);
+        const label = question ? question.text : opinionId;
+        favorevoli.push({ id: opinionId, label });
+      }
+      else if (value === "i") {
+        const question = questions.find(q => q.id === opinionId);
+        const label = question ? question.text : opinionId;
+        indecisi.push({ id: opinionId, label });
+      }
+      else if (value === "c") {
+        const question = questions.find(q => q.id === opinionId);
+        const label = question ? question.text : opinionId;
+        contrari.push({ id: opinionId, label });
+      }
       // Ignora null e altri valori
     });
+    
+    console.log('DEBUG categorizeAllOpinionsDyn result:', { favorevoli, indecisi, contrari });
     return { favorevoli, indecisi, contrari };
   }
 
