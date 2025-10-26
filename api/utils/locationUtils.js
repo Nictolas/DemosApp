@@ -65,7 +65,25 @@ function decompressCitizenship(dbValue) {
  */
 function compressCitizenship(frontendValue) {
   if (!frontendValue) return null;
-  return CITIZENSHIP_FRONTEND_TO_DB[frontendValue] || null;
+  
+  // Prima prova il mapping standard
+  if (CITIZENSHIP_FRONTEND_TO_DB[frontendValue]) {
+    return CITIZENSHIP_FRONTEND_TO_DB[frontendValue];
+  }
+  
+  // Poi prova il mapping legacy
+  if (CITIZENSHIP_LEGACY_TO_DB[frontendValue]) {
+    return CITIZENSHIP_LEGACY_TO_DB[frontendValue];
+  }
+  
+  // Se non trova nulla, prova con case insensitive
+  const lowerValue = frontendValue.toLowerCase();
+  if (CITIZENSHIP_LEGACY_TO_DB[lowerValue]) {
+    return CITIZENSHIP_LEGACY_TO_DB[lowerValue];
+  }
+  
+  console.log('⚠️ compressCitizenship: Valore non riconosciuto:', frontendValue);
+  return null;
 }
 
 /**
@@ -85,7 +103,25 @@ function decompressCountry(dbValue) {
  */
 function compressCountry(frontendValue) {
   if (!frontendValue) return null;
-  return COUNTRY_FRONTEND_TO_DB[frontendValue] || null;
+  
+  // Prima prova il mapping standard
+  if (COUNTRY_FRONTEND_TO_DB[frontendValue]) {
+    return COUNTRY_FRONTEND_TO_DB[frontendValue];
+  }
+  
+  // Poi prova il mapping legacy
+  if (COUNTRY_LEGACY_TO_DB[frontendValue]) {
+    return COUNTRY_LEGACY_TO_DB[frontendValue];
+  }
+  
+  // Se non trova nulla, prova con case insensitive
+  const lowerValue = frontendValue.toLowerCase();
+  if (COUNTRY_LEGACY_TO_DB[lowerValue]) {
+    return COUNTRY_LEGACY_TO_DB[lowerValue];
+  }
+  
+  console.log('⚠️ compressCountry: Valore non riconosciuto:', frontendValue);
+  return null;
 }
 
 /**
