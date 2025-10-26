@@ -31,6 +31,10 @@ export default function ScegliRappresentante() {
     opinioniAlertData
   } = useRappresentantiData(user, categoria || '');
 
+  // Debug per l'alert
+  console.log('🔍 DEBUG ScegliRappresentante - showOpinioniAlert:', showOpinioniAlert);
+  console.log('🔍 DEBUG ScegliRappresentante - opinioniAlertData:', opinioniAlertData);
+
   const {
     selezionando,
     opinioniDialogData,

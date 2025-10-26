@@ -30,7 +30,13 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
   onGoToOpinions,
   onContinueAnyway
 }) => {
-  if (!data) return null;
+  console.log('🔍 DEBUG OpinioniIncompleteAlert - open:', open);
+  console.log('🔍 DEBUG OpinioniIncompleteAlert - data:', data);
+  
+  if (!data) {
+    console.log('🔍 DEBUG OpinioniIncompleteAlert - data è null, non renderizzando');
+    return null;
+  }
 
   const gradoLabels: Record<string, string> = {
     'N': 'Nazionali',

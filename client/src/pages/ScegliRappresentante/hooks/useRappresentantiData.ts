@@ -64,15 +64,22 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       
       // Prima controlla le opinioni incomplete
       console.log('🔍 DEBUG - Controllo opinioni incomplete per grado:', grado);
+      console.log('🔍 DEBUG - User:', user);
+      console.log('🔍 DEBUG - Categoria:', categoria);
       const opinioniCheck = await checkOpinioni();
       console.log('🔍 DEBUG - Risultato controllo opinioni:', opinioniCheck);
       
       if (opinioniCheck && !opinioniCheck.isComplete) {
         console.log('🔍 DEBUG - Opinion incomplete trovate, mostrando alert');
+        console.log('🔍 DEBUG - opinioniCheck.isComplete:', opinioniCheck.isComplete);
+        console.log('🔍 DEBUG - opinioniCheck:', JSON.stringify(opinioniCheck, null, 2));
         setOpinioniAlertData(opinioniCheck);
         setShowOpinioniAlert(true);
+        console.log('🔍 DEBUG - showOpinioniAlert impostato a true');
         setLoading(false);
         return; // Non caricare i dati se le opinioni sono incomplete
+      } else {
+        console.log('🔍 DEBUG - Opinion complete o nessun risultato, continuando con il caricamento');
       }
       
       try {
