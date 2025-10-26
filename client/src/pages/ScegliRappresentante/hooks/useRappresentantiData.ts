@@ -43,6 +43,10 @@ export const useRappresentantiData = (user: any, categoria: string) => {
   
   // Detect if the current route is under /candidati
   const [isTestRoute] = useRoute("/candidati/:categoria");
+  
+  console.log('🔍 DEBUG - URL corrente:', window.location.pathname);
+  console.log('🔍 DEBUG - isTestRoute:', isTestRoute);
+  console.log('🔍 DEBUG - categoria:', categoria);
 
   // Mappa categoria a grado per il controllo opinioni
   const gradoMapping: Record<string, string> = {
