@@ -36,7 +36,8 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
     'N': 'Nazionali',
     'E': 'Europee',
     'R': 'Regionali',
-    'C': 'Comunali'
+    'C': 'Comunali',
+    'CO': 'Comunali'  // Aggiunto per gestire grado CO
   };
 
   const gradoLabel = gradoLabels[data.grado] || data.grado;
