@@ -178,6 +178,11 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
           const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
           filteredData[key] = compressedValue;
         } 
+        // Applica compressione per le regioni
+        else if (key === 'regione_residenza' || key === 'regione_elezione' || key === 'regione_candidatura') {
+          const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
+          filteredData[key] = compressedValue;
+        }
         // Applica compressione per le province
         else if (key === 'provincia_residenza' || key === 'provincia_elezione' || key === 'provincia_candidatura') {
           const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];

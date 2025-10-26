@@ -158,10 +158,13 @@ router.post('/register',
       genere: genere,
       cittadinanza: cittadinanza,
       paese_residenza: paese_residenza,
+      regione_residenza: regione_residenza,
       provincia_residenza: provincia_residenza,
       paese_elezione: paese_elezione,
+      regione_elezione: regione_elezione,
       provincia_elezione: provincia_elezione,
       paese_candidatura: paese_candidatura,
+      regione_candidatura: regione_candidatura,
       provincia_candidatura: provincia_candidatura,
       ruolo: ruolo
     });
@@ -169,10 +172,13 @@ router.post('/register',
     const compressedGenere = compressGender(genere);
     const compressedCittadinanza = compressUserLocation({ cittadinanza }).cittadinanza;
     const compressedPaeseResidenza = compressUserLocation({ paese_residenza }).paese_residenza;
+    const compressedRegioneResidenza = compressUserLocation({ regione_residenza }).regione_residenza;
     const compressedProvinciaResidenza = compressUserLocation({ provincia_residenza }).provincia_residenza;
     const compressedPaeseElezione = compressUserLocation({ paese_elezione }).paese_elezione;
+    const compressedRegioneElezione = compressUserLocation({ regione_elezione }).regione_elezione;
     const compressedProvinciaElezione = compressUserLocation({ provincia_elezione }).provincia_elezione;
     const compressedPaeseCandidatura = compressUserLocation({ paese_candidatura }).paese_candidatura;
+    const compressedRegioneCandidatura = compressUserLocation({ regione_candidatura }).regione_candidatura;
     const compressedProvinciaCandidatura = compressUserLocation({ provincia_candidatura }).provincia_candidatura;
     
     // Compressione ruolo
@@ -190,10 +196,13 @@ router.post('/register',
       genere: compressedGenere,
       cittadinanza: compressedCittadinanza,
       paese_residenza: compressedPaeseResidenza,
+      regione_residenza: compressedRegioneResidenza,
       provincia_residenza: compressedProvinciaResidenza,
       paese_elezione: compressedPaeseElezione,
+      regione_elezione: compressedRegioneElezione,
       provincia_elezione: compressedProvinciaElezione,
       paese_candidatura: compressedPaeseCandidatura,
+      regione_candidatura: compressedRegioneCandidatura,
       provincia_candidatura: compressedProvinciaCandidatura,
       ruolo: compressedRuolo
     });
@@ -210,17 +219,17 @@ router.post('/register',
       formattedDataNascita, // Usa la data convertita
       compressedCittadinanza || null,
       compressedPaeseResidenza || null,
-      regione_residenza || null,
+      compressedRegioneResidenza || null,
       compressedProvinciaResidenza || null,
       comune_residenza || null,
       normalizedGradoElezione,
       compressedPaeseElezione || null,
-      regione_elezione || null,
+      compressedRegioneElezione || null,
       compressedProvinciaElezione || null,
       comune_elezione || null,
       normalizedGradoCandidatura,
       compressedPaeseCandidatura || null,
-      regione_candidatura || null,
+      compressedRegioneCandidatura || null,
       compressedProvinciaCandidatura || null,
       comune_candidatura || null,
       privacy_policy_consent || false,

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const { verifyToken } = require('../middleware/auth');
+const { decompressUserLocation } = require('../utils/locationUtils');
 require('dotenv').config();
 
 const pool = new Pool({
