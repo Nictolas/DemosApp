@@ -43,9 +43,9 @@ export const useCandidatiData = (user: any, categoria: string) => {
   const gradoMapping: Record<string, string> = {
     'camera': 'N',
     'senato': 'N', 
-    'europee': 'E',
-    'regionali': 'R',
-    'comunali': 'C'
+    'europeo': 'E',
+    'regione': 'R',
+    'comune': 'CO'  // Corretto: comune usa grado CO, non C
   };
 
   const grado = gradoMapping[categoria] || 'N';

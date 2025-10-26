@@ -16,7 +16,8 @@ router.get('/check-missing/:grado', verifyToken, async (req, res) => {
       'N': 'N',
       'E': 'E', 
       'R': 'R',
-      'C': 'C'
+      'C': 'C',
+      'CO': 'CO'  // Aggiunto per gestire grado CO
     };
     
     const gradoDatabase = gradoMapping[grado];
