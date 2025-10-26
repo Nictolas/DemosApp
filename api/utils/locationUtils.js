@@ -1,8 +1,10 @@
 /**
- * Utilità per la gestione di cittadinanza e paese residenza con compressione database
- * Frontend: "Italiana", "Italia", "Straniera", etc.
- * Database: "it", "it", "st", etc.
+ * Utilità per la gestione di cittadinanza, paese residenza e province con compressione database
+ * Frontend: "Italiana", "Italia", "Straniera", "Milano", etc.
+ * Database: "it", "it", "st", "MI", etc.
  */
+
+const { compressProvince, decompressProvince } = require('./provinceUtils');
 
 // Mappatura da database a frontend per cittadinanza
 const CITIZENSHIP_DB_TO_FRONTEND = {
@@ -213,7 +215,7 @@ function getValidDatabaseCountries() {
 }
 
 /**
- * Decompressione di un oggetto con cittadinanza e paesi (residenza, elezione, candidatura)
+ * Decompressione di un oggetto con cittadinanza, paesi e province (residenza, elezione, candidatura)
  * @param {Object} user - Oggetto utente con valori compressi
  * @returns {Object} - Oggetto utente con valori decompressi
  */
@@ -238,11 +240,24 @@ function decompressUserLocation(user) {
     decompressedUser.paese_candidatura = decompressCountry(decompressedUser.paese_candidatura);
   }
   
+  // Decompressione province
+  if (decompressedUser.provincia_residenza) {
+    decompressedUser.provincia_residenza = decompressProvince(decompressedUser.provincia_residenza);
+  }
+  
+  if (decompressedUser.provincia_elezione) {
+    decompressedUser.provincia_elezione = decompressProvince(decompressedUser.provincia_elezione);
+  }
+  
+  if (decompressedUser.provincia_candidatura) {
+    decompressedUser.provincia_candidatura = decompressProvince(decompressedUser.provincia_candidatura);
+  }
+  
   return decompressedUser;
 }
 
 /**
- * Compressione di un oggetto con cittadinanza e paesi (residenza, elezione, candidatura)
+ * Compressione di un oggetto con cittadinanza, paesi e province (residenza, elezione, candidatura)
  * @param {Object} user - Oggetto utente con valori decompressi
  * @returns {Object} - Oggetto utente con valori compresse
  */
@@ -265,6 +280,19 @@ function compressUserLocation(user) {
   
   if (compressedUser.paese_candidatura) {
     compressedUser.paese_candidatura = compressCountry(compressedUser.paese_candidatura);
+  }
+  
+  // Compressione province
+  if (compressedUser.provincia_residenza) {
+    compressedUser.provincia_residenza = compressProvince(compressedUser.provincia_residenza);
+  }
+  
+  if (compressedUser.provincia_elezione) {
+    compressedUser.provincia_elezione = compressProvince(compressedUser.provincia_elezione);
+  }
+  
+  if (compressedUser.provincia_candidatura) {
+    compressedUser.provincia_candidatura = compressProvince(compressedUser.provincia_candidatura);
   }
   
   return compressedUser;

@@ -158,22 +158,44 @@ router.post('/register',
       genere: genere,
       cittadinanza: cittadinanza,
       paese_residenza: paese_residenza,
+      provincia_residenza: provincia_residenza,
       paese_elezione: paese_elezione,
-      paese_candidatura: paese_candidatura
+      provincia_elezione: provincia_elezione,
+      paese_candidatura: paese_candidatura,
+      provincia_candidatura: provincia_candidatura,
+      ruolo: ruolo
     });
     
     const compressedGenere = compressGender(genere);
     const compressedCittadinanza = compressUserLocation({ cittadinanza }).cittadinanza;
     const compressedPaeseResidenza = compressUserLocation({ paese_residenza }).paese_residenza;
+    const compressedProvinciaResidenza = compressUserLocation({ provincia_residenza }).provincia_residenza;
     const compressedPaeseElezione = compressUserLocation({ paese_elezione }).paese_elezione;
+    const compressedProvinciaElezione = compressUserLocation({ provincia_elezione }).provincia_elezione;
     const compressedPaeseCandidatura = compressUserLocation({ paese_candidatura }).paese_candidatura;
+    const compressedProvinciaCandidatura = compressUserLocation({ provincia_candidatura }).provincia_candidatura;
+    
+    // Compressione ruolo
+    const ruoloMapping = {
+      'Elettore': 'E',
+      'Politico': 'P',
+      'Candidato': 'C',
+      'Candidato Politico': 'CP',
+      'Attivista': 'A',
+      'Admin': 'AD'
+    };
+    const compressedRuolo = ruoloMapping[ruolo] || 'E'; // Default a 'Elettore'
     
     console.log('🔍 DEBUG - Valori compressi:', {
       genere: compressedGenere,
       cittadinanza: compressedCittadinanza,
       paese_residenza: compressedPaeseResidenza,
+      provincia_residenza: compressedProvinciaResidenza,
       paese_elezione: compressedPaeseElezione,
-      paese_candidatura: compressedPaeseCandidatura
+      provincia_elezione: compressedProvinciaElezione,
+      paese_candidatura: compressedPaeseCandidatura,
+      provincia_candidatura: compressedProvinciaCandidatura,
+      ruolo: compressedRuolo
     });
     
     const queryParams = [
@@ -181,7 +203,7 @@ router.post('/register',
       finalCognome, 
       email.toLowerCase(), 
       passwordHash, 
-      ruolo || 'Elettore',
+      compressedRuolo,
       'p',
       verificationToken,
       compressedGenere || null,
@@ -189,17 +211,17 @@ router.post('/register',
       compressedCittadinanza || null,
       compressedPaeseResidenza || null,
       regione_residenza || null,
-      provincia_residenza || null,
+      compressedProvinciaResidenza || null,
       comune_residenza || null,
       normalizedGradoElezione,
       compressedPaeseElezione || null,
       regione_elezione || null,
-      provincia_elezione || null,
+      compressedProvinciaElezione || null,
       comune_elezione || null,
       normalizedGradoCandidatura,
       compressedPaeseCandidatura || null,
       regione_candidatura || null,
-      provincia_candidatura || null,
+      compressedProvinciaCandidatura || null,
       comune_candidatura || null,
       privacy_policy_consent || false,
       terms_of_service_consent || false,
