@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Rappresentante, OpinioniDialogData } from "../types";
 import { getTitolo, getFieldName } from "../utils/rappresentanteUtils";
-import { getTitolo as getTitoloCandidati } from "../../ScegliCandidato/utils/candidatoUtils";
+import { getTitolo as getTitoloCandidati } from "../utils/candidatoUtils";
 import { useRoute } from "wouter";
 
 // Hook per controllare opinioni mancanti
@@ -43,10 +43,6 @@ export const useRappresentantiData = (user: any, categoria: string) => {
   
   // Detect if the current route is under /candidati
   const [isTestRoute] = useRoute("/candidati/:categoria");
-  
-  console.log('🔍 DEBUG - URL corrente:', window.location.pathname);
-  console.log('🔍 DEBUG - isTestRoute:', isTestRoute);
-  console.log('🔍 DEBUG - categoria:', categoria);
 
   // Mappa categoria a grado per il controllo opinioni
   const gradoMapping: Record<string, string> = {
@@ -66,16 +62,6 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       
       setLoading(true);
       try {
-        console.log('🔍 DEBUG Frontend - Controllo opinioni per grado:', grado);
-        
-        // Prima controlla le opinioni mancanti
-        const opinioniCheck = await checkOpinioni();
-        
-        if (opinioniCheck && !opinioniCheck.isComplete) {
-          console.log('⚠️ Opinion incomplete trovate:', opinioniCheck);
-          setOpinioniAlertData(opinioniCheck);
-          setShowOpinioniAlert(true);
-        }
         
         let url = '';
         if (isTestRoute) {
@@ -161,9 +147,6 @@ export const useRappresentantiData = (user: any, categoria: string) => {
     rappresentanti,
     loading,
     rappresentanteSelezionato,
-    setRappresentanteSelezionato,
-    showOpinioniAlert,
-    setShowOpinioniAlert,
-    opinioniAlertData
+    setRappresentanteSelezionato
   };
 };

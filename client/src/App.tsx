@@ -437,7 +437,6 @@ export default function App() {
 
               {/* Route del menu principale */}
               <Route path="/menu">
-                {console.log('🎯 App - Route /menu matchata!')}
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/menu" component={Menu} />
                 </PageTransition>
@@ -542,7 +541,7 @@ export default function App() {
                 </PageTransition>
               </Route>
 
-              {/* Route scegli rappresentante - identica a candidati */}
+              {/* Route scegli rappresentante - USA IL COMPONENTE RAPPRESENTANTI */}
               <Route path="/scegli-rappresentante/:categoria">
                 <PageTransition location={location} type="fade-up" showLoader={false}>
                   <ProtectedRoute path="/scegli-rappresentante/:categoria" component={ScegliRappresentante} />
@@ -556,7 +555,7 @@ export default function App() {
         </PageTransition>
       </Route>
 
-      {/* Route scegli candidato - USA LO STESSO COMPONENTE DI RAPPRESENTANTI */}
+      {/* Route scegli candidato - USA LO STESSO COMPONENTE DEI RAPPRESENTANTI */}
       <Route path="/candidati/:categoria">
         <PageTransition location={location} type="fade-up" showLoader={false}>
           <ProtectedRoute path="/candidati/:categoria" component={ScegliRappresentante} />
