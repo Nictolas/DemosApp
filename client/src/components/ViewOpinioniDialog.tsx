@@ -229,14 +229,14 @@ export function ViewOpinioniDialog({
 
   // La funzione loadUserOpinions è stata integrata nel primo useEffect
 
-  // Sostituisco la funzione categorizeAllOpinions con una versione che usa myOpinions invece di questions
+  // Funzione per categorizzare le opinioni del rappresentante selezionato
   function categorizeAllOpinionsDyn(): {favorevoli: {id: string, label: string}[], indecisi: {id: string, label: string}[], contrari: {id: string, label: string}[]} {
     const favorevoli: { id: string, label: string }[] = [];
     const indecisi: { id: string, label: string }[] = [];
     const contrari: { id: string, label: string }[] = [];
     
-    // Usa myOpinions invece di questions per evitare il problema delle questions vuote
-    Object.entries(myOpinions).forEach(([opinionId, value]) => {
+    // Usa le opinioni del rappresentante selezionato (opinions) invece di myOpinions
+    Object.entries(opinions).forEach(([opinionId, value]) => {
       // Usa solo valori compressi, ignora null
       if (value === "f") {
         // Trova il testo della domanda dalle questions se disponibile, altrimenti usa l'ID
@@ -316,7 +316,15 @@ export function ViewOpinioniDialog({
                     {categorizeAllOpinionsDyn().favorevoli.length > 0 ? (
                       categorizeAllOpinionsDyn().favorevoli.map(({ id, label }, index) => (
                         <div key={id} className="bg-green-50 border border-green-200 rounded-md p-3 flex items-center justify-between">
-                          <span className="text-green-800 font-medium">{label}</span>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              checked={isOpinioneComune(myOpinions[id], opinions[id])} 
+                              readOnly 
+                              className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
+                            />
+                            <span className="text-green-800 font-medium">{label}</span>
+                          </div>
                           <div className="flex items-center ml-2 gap-1">
                             {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-green-600" size={20} /> : null}
                             {fonti[id] ? (
@@ -350,7 +358,15 @@ export function ViewOpinioniDialog({
                     {categorizeAllOpinionsDyn().indecisi.length > 0 ? (
                       categorizeAllOpinionsDyn().indecisi.map(({ id, label }, index) => (
                         <div key={id} className="bg-yellow-50 border border-yellow-200 rounded-md p-3 flex items-center justify-between">
-                          <span className="text-yellow-800 font-medium">{label}</span>
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="checkbox" 
+                              checked={isOpinioneComune(myOpinions[id], opinions[id])} 
+                              readOnly 
+                              className="w-4 h-4 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500 focus:ring-2"
+                            />
+                            <span className="text-yellow-800 font-medium">{label}</span>
+                          </div>
                           <div className="flex items-center ml-2 gap-1">
                             {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-yellow-600" size={20} /> : null}
                             {fonti[id] ? (
@@ -386,7 +402,15 @@ export function ViewOpinioniDialog({
                         const fonteKey = id;
                         return (
                           <div key={id} className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
-                            <span className="text-red-800 font-medium">{label}</span>
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="checkbox" 
+                                checked={isOpinioneComune(myOpinions[id], opinions[id])} 
+                                readOnly 
+                                className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2"
+                              />
+                              <span className="text-red-800 font-medium">{label}</span>
+                            </div>
                             <div className="flex items-center ml-2 gap-1">
                               {isOpinioneComune(myOpinions[id], opinions[id]) ? <Check className="text-red-600" size={20} /> : null}
                               {fonti[fonteKey] ? (
