@@ -108,12 +108,6 @@ export default function ScegliRappresentante() {
         onContinueAnyway={handleContinueAnyway}
       />
       
-      {/* Dialog per visualizzare opinioni rappresentante */}
-      <ViewOpinioniDialog
-        open={!!opinioniDialogData}
-        onOpenChange={(open) => !open && closeOpinioniDialog()}
-        data={opinioniDialogData}
-      />
     </PageTransition>
   );
 }
