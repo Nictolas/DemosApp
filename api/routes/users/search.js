@@ -2,6 +2,7 @@ const express = require('express');
 const { pool } = require('../../middleware/auth');
 const { verifyToken, requireAdmin } = require('../../middleware/auth');
 const { decompressGender } = require('../../utils/genderUtils');
+const { decompressUserLocation } = require('../../utils/locationUtils');
 
 const router = express.Router();
 
@@ -268,10 +269,13 @@ router.get('/:userId', verifyToken, requireAdmin, async (req, res) => {
       'AD': 'Admin'
     };
     
+    // Applica decompressione per i dati geografici
+    const decompressedUser = decompressUserLocation(user);
+    
     const responseData = {
       success: true,
       user: {
-        ...user,
+        ...decompressedUser,
         data_nascita: dataNascitaFormattata,
         genere: decompressGender(user.genere),
         ruolo: ruoloMapping[user.ruolo] || user.ruolo
