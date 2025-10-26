@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useAuthReady } from "@/hooks/use-auth-ready";
-import { Redirect, useParams } from "wouter";
+import { Redirect, useParams, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useCandidatiData } from "./hooks/useCandidatiData";
@@ -10,18 +10,23 @@ import { Header } from "./components/Header";
 import { EmptyState } from "./components/EmptyState";
 import { CandidatoCard } from "./components/CandidatoCard";
 import { LoadingStates } from "./components/LoadingStates";
+import { OpinioniIncompleteAlert } from "./components/OpinioniIncompleteAlert";
 import { getTitolo } from "./utils/candidatoUtils";
 
 export default function ScegliCandidato() {
   const { categoria } = useParams<{ categoria: string }>();
   const { user, isLoading } = useAuth();
   const authReady = useAuthReady();
+  const [, setLocation] = useLocation();
 
   const { 
     candidati, 
     loading, 
     candidatoSelezionato, 
-    setCandidatoSelezionato 
+    setCandidatoSelezionato,
+    showOpinioniAlert,
+    setShowOpinioniAlert,
+    opinioniAlertData
   } = useCandidatiData(user, categoria || '');
 
   const {
@@ -34,6 +39,15 @@ export default function ScegliCandidato() {
 
   const handleSelezionaCandidato = (candidatoId: string) => {
     selezionaCandidato(candidatoId, setCandidatoSelezionato);
+  };
+
+  const handleGoToOpinions = () => {
+    setShowOpinioniAlert(false);
+    setLocation('/opinioni');
+  };
+
+  const handleContinueAnyway = () => {
+    setShowOpinioniAlert(false);
   };
 
   if (!user && !isLoading) {
@@ -90,6 +104,22 @@ export default function ScegliCandidato() {
           )}
         </div>
       </div>
+      
+      {/* Alert per opinioni incomplete */}
+      <OpinioniIncompleteAlert
+        open={showOpinioniAlert}
+        onOpenChange={setShowOpinioniAlert}
+        data={opinioniAlertData}
+        onGoToOpinions={handleGoToOpinions}
+        onContinueAnyway={handleContinueAnyway}
+      />
+      
+      {/* Dialog per visualizzare opinioni candidato */}
+      <ViewOpinioniDialog
+        open={!!opinioniDialogData}
+        onOpenChange={(open) => !open && closeOpinioniDialog()}
+        data={opinioniDialogData}
+      />
     </PageTransition>
   );
 }

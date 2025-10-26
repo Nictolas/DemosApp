@@ -4,11 +4,52 @@ import { apiRequest } from "@/lib/queryClient";
 import { Candidato, OpinioniDialogData } from "../types";
 import { getFieldName, getTitolo } from "../utils/candidatoUtils";
 
+// Hook per controllare opinioni mancanti
+const useOpinioniCheck = (grado: string) => {
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<any>(null);
+
+  const checkOpinioni = async () => {
+    if (!grado) return null;
+    
+    setIsChecking(true);
+    try {
+      const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+      if (response.ok) {
+        const result = await response.json();
+        setCheckResult(result.data);
+        return result.data;
+      }
+    } catch (error) {
+      console.error("Errore nel controllo opinioni:", error);
+    } finally {
+      setIsChecking(false);
+    }
+    return null;
+  };
+
+  return { checkOpinioni, isChecking, checkResult };
+};
+
 export const useCandidatiData = (user: any, categoria: string) => {
   const { toast } = useToast();
   const [candidati, setCandidati] = useState<Candidato[]>([]);
   const [loading, setLoading] = useState(true);
   const [candidatoSelezionato, setCandidatoSelezionato] = useState<string | null>(null);
+  const [showOpinioniAlert, setShowOpinioniAlert] = useState(false);
+  const [opinioniAlertData, setOpinioniAlertData] = useState<any>(null);
+
+  // Mappa categoria a grado per il controllo opinioni
+  const gradoMapping: Record<string, string> = {
+    'camera': 'N',
+    'senato': 'N', 
+    'europee': 'E',
+    'regionali': 'R',
+    'comunali': 'C'
+  };
+
+  const grado = gradoMapping[categoria] || 'N';
+  const { checkOpinioni } = useOpinioniCheck(grado);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -16,6 +57,17 @@ export const useCandidatiData = (user: any, categoria: string) => {
       
       setLoading(true);
       try {
+        console.log('🔍 DEBUG Frontend - Controllo opinioni per grado:', grado);
+        
+        // Prima controlla le opinioni mancanti
+        const opinioniCheck = await checkOpinioni();
+        
+        if (opinioniCheck && !opinioniCheck.isComplete) {
+          console.log('⚠️ Opinion incomplete trovate:', opinioniCheck);
+          setOpinioniAlertData(opinioniCheck);
+          setShowOpinioniAlert(true);
+        }
+        
         console.log('🔍 DEBUG Frontend - Fetching candidati per categoria:', categoria);
         
         // Mappa la categoria al grado_candidatura corretto
@@ -91,6 +143,9 @@ export const useCandidatiData = (user: any, categoria: string) => {
     candidati,
     loading,
     candidatoSelezionato,
-    setCandidatoSelezionato
+    setCandidatoSelezionato,
+    showOpinioniAlert,
+    setShowOpinioniAlert,
+    opinioniAlertData
   };
 };

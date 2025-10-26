@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useAuthReady } from "@/hooks/use-auth-ready";
-import { Redirect, useParams } from "wouter";
+import { Redirect, useParams, useLocation } from "wouter";
 import { PageTransition } from "@/components/PageTransition";
 import { ViewOpinioniDialog } from "@/components/ViewOpinioniDialog";
 import { useFCM } from "@/hooks/useFCM";
@@ -11,6 +11,7 @@ import { Header } from "./components/Header";
 import { EmptyState } from "./components/EmptyState";
 import { RappresentanteCard } from "./components/RappresentanteCard";
 import { LoadingStates } from "./components/LoadingStates";
+import { OpinioniIncompleteAlert } from "../ScegliCandidato/components/OpinioniIncompleteAlert";
 import { getTitolo } from "./utils/rappresentanteUtils";
 
 export default function ScegliRappresentante() {
@@ -18,12 +19,16 @@ export default function ScegliRappresentante() {
   const { user, isLoading } = useAuth();
   const authReady = useAuthReady();
   const { token: fcmToken } = useFCM();
+  const [, setLocation] = useLocation();
 
   const { 
     rappresentanti, 
     loading, 
     rappresentanteSelezionato, 
-    setRappresentanteSelezionato 
+    setRappresentanteSelezionato,
+    showOpinioniAlert,
+    setShowOpinioniAlert,
+    opinioniAlertData
   } = useRappresentantiData(user, categoria || '');
 
   const {
@@ -36,6 +41,15 @@ export default function ScegliRappresentante() {
 
   const handleSelezionaRappresentante = (rappresentanteId: string) => {
     selezionaRappresentante(rappresentanteId, setRappresentanteSelezionato);
+  };
+
+  const handleGoToOpinions = () => {
+    setShowOpinioniAlert(false);
+    setLocation('/opinioni');
+  };
+
+  const handleContinueAnyway = () => {
+    setShowOpinioniAlert(false);
   };
 
   if (!user && !isLoading) {
@@ -84,6 +98,22 @@ export default function ScegliRappresentante() {
           )}
         </div>
       </div>
+      
+      {/* Alert per opinioni incomplete */}
+      <OpinioniIncompleteAlert
+        open={showOpinioniAlert}
+        onOpenChange={setShowOpinioniAlert}
+        data={opinioniAlertData}
+        onGoToOpinions={handleGoToOpinions}
+        onContinueAnyway={handleContinueAnyway}
+      />
+      
+      {/* Dialog per visualizzare opinioni rappresentante */}
+      <ViewOpinioniDialog
+        open={!!opinioniDialogData}
+        onOpenChange={(open) => !open && closeOpinioniDialog()}
+        data={opinioniDialogData}
+      />
     </PageTransition>
   );
 }
