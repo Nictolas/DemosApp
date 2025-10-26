@@ -212,10 +212,10 @@ router.get('/disponibili', verifyToken, async (req, res) => {
     const candidatiResult = await pool.query(candidatiQuery, [grado_candidatura]);
     const candidati = candidatiResult.rows;
     
-    console.log('🔍 DEBUG - Candidati trovati:', candidati.length);
-    candidati.forEach((candidato, index) => {
-      console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
-    });
+        console.log('🔍 DEBUG - Candidati trovati:', candidati.length);
+        candidati.forEach((candidato, index) => {
+          console.log(`  ${index + 1}. ${candidato.nome} ${candidato.cognome} (${candidato.ruolo})`);
+        });
     
     // Calcola il conteggio reale delle opinioni comuni
     const candidatiConOpinioni = await Promise.all(candidati.map(async (candidato) => {

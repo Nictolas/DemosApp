@@ -11,7 +11,7 @@ import { Header } from "./components/Header";
 import { EmptyState } from "./components/EmptyState";
 import { RappresentanteCard } from "./components/RappresentanteCard";
 import { LoadingStates } from "./components/LoadingStates";
-import { OpinioniIncompleteAlert } from "../ScegliCandidato/components/OpinioniIncompleteAlert";
+import { OpinioniIncompleteAlert } from "./components/OpinioniIncompleteAlert";
 import { getTitolo } from "./utils/rappresentanteUtils";
 
 export default function ScegliRappresentante() {

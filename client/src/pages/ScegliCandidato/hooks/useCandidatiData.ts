@@ -3,6 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Candidato, OpinioniDialogData } from "../types";
 import { getFieldName, getTitolo } from "../utils/candidatoUtils";
+import { useRoute } from "wouter";
 
 // Hook per controllare opinioni mancanti
 const useOpinioniCheck = (grado: string) => {
@@ -38,6 +39,9 @@ export const useCandidatiData = (user: any, categoria: string) => {
   const [candidatoSelezionato, setCandidatoSelezionato] = useState<string | null>(null);
   const [showOpinioniAlert, setShowOpinioniAlert] = useState(false);
   const [opinioniAlertData, setOpinioniAlertData] = useState<any>(null);
+  
+  // Detect if the current route is under /scegli-rappresentante
+  const [isRappresentanteRoute] = useRoute("/scegli-rappresentante/:categoria");
 
   // Mappa categoria a grado per il controllo opinioni
   const gradoMapping: Record<string, string> = {
