@@ -109,13 +109,15 @@ export default function ScegliRappresentante() {
       </div>
       
       {/* Alert per opinioni incomplete */}
-      <OpinioniIncompleteAlert
-        open={showOpinioniAlert}
-        onOpenChange={setShowOpinioniAlert}
-        data={opinioniAlertData}
-        onGoToOpinions={handleGoToOpinions}
-        onContinueAnyway={handleContinueAnyway}
-      />
+      {showOpinioniAlert && opinioniAlertData && (
+        <OpinioniIncompleteAlert
+          open={showOpinioniAlert}
+          onOpenChange={setShowOpinioniAlert}
+          data={opinioniAlertData}
+          onGoToOpinions={handleGoToOpinions}
+          onContinueAnyway={handleContinueAnyway}
+        />
+      )}
       
     </PageTransition>
   );
