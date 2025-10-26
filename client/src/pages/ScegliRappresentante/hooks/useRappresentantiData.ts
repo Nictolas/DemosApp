@@ -61,6 +61,20 @@ export const useRappresentantiData = (user: any, categoria: string) => {
       if (!user) return;
       
       setLoading(true);
+      
+      // Prima controlla le opinioni incomplete
+      console.log('🔍 DEBUG - Controllo opinioni incomplete per grado:', grado);
+      const opinioniCheck = await checkOpinioni();
+      console.log('🔍 DEBUG - Risultato controllo opinioni:', opinioniCheck);
+      
+      if (opinioniCheck && !opinioniCheck.isComplete) {
+        console.log('🔍 DEBUG - Opinion incomplete trovate, mostrando alert');
+        setOpinioniAlertData(opinioniCheck);
+        setShowOpinioniAlert(true);
+        setLoading(false);
+        return; // Non caricare i dati se le opinioni sono incomplete
+      }
+      
       try {
         
         let url = '';
@@ -147,6 +161,9 @@ export const useRappresentantiData = (user: any, categoria: string) => {
     rappresentanti,
     loading,
     rappresentanteSelezionato,
-    setRappresentanteSelezionato
+    setRappresentanteSelezionato,
+    showOpinioniAlert,
+    setShowOpinioniAlert,
+    opinioniAlertData
   };
 };
