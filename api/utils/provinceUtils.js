@@ -184,10 +184,10 @@ function compressProvince(frontendValue) {
     return PROVINCE_FRONTEND_TO_DB[frontendValue];
   }
   
-  // Se non trova nulla, prova con case insensitive
-  const lowerValue = frontendValue.toLowerCase();
+  // Se non trova nulla, prova con case insensitive e normalizzazione
+  const normalizedValue = frontendValue.toLowerCase().trim();
   for (const [name, code] of Object.entries(PROVINCE_DB_TO_FRONTEND)) {
-    if (name.toLowerCase() === lowerValue) {
+    if (name.toLowerCase().trim() === normalizedValue) {
       return code;
     }
   }
