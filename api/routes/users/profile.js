@@ -159,7 +159,17 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url'
     ];
     
-    // Filtra solo i campi consentiti e applica compressione per i dati geografici
+    // Compressione ruolo
+    const ruoloMapping = {
+      'Elettore': 'E',
+      'Politico': 'P',
+      'Candidato': 'C',
+      'Candidato Politico': 'CP',
+      'Attivista': 'A',
+      'Admin': 'AD'
+    };
+    
+    // Filtra solo i campi consentiti e applica compressione per i dati geografici e ruolo
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
@@ -167,6 +177,15 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
         if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
           const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
           filteredData[key] = compressedValue;
+        } 
+        // Applica compressione per le province
+        else if (key === 'provincia_residenza' || key === 'provincia_elezione' || key === 'provincia_candidatura') {
+          const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
+          filteredData[key] = compressedValue;
+        }
+        // Applica compressione per il ruolo
+        else if (key === 'ruolo') {
+          filteredData[key] = ruoloMapping[updateData[key]] || updateData[key];
         } else {
           filteredData[key] = updateData[key];
         }
