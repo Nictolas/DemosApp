@@ -33,8 +33,9 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
   console.log('🔍 DEBUG OpinioniIncompleteAlert - open:', open);
   console.log('🔍 DEBUG OpinioniIncompleteAlert - data:', data);
   
+  // Ora data dovrebbe sempre essere disponibile dato che il componente viene renderizzato solo quando showOpinioniAlert && opinioniAlertData
   if (!data) {
-    console.log('🔍 DEBUG OpinioniIncompleteAlert - data è null, non renderizzando');
+    console.log('🔍 DEBUG OpinioniIncompleteAlert - data è null, questo non dovrebbe succedere!');
     return null;
   }
 
