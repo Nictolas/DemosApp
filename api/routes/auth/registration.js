@@ -154,6 +154,28 @@ router.post('/register',
     );
     
     // Debug: verifica i parametri che verranno passati alla query
+    console.log('🔍 DEBUG - Valori originali:', {
+      genere: genere,
+      cittadinanza: cittadinanza,
+      paese_residenza: paese_residenza,
+      paese_elezione: paese_elezione,
+      paese_candidatura: paese_candidatura
+    });
+    
+    const compressedGenere = compressGender(genere);
+    const compressedCittadinanza = compressUserLocation({ cittadinanza }).cittadinanza;
+    const compressedPaeseResidenza = compressUserLocation({ paese_residenza }).paese_residenza;
+    const compressedPaeseElezione = compressUserLocation({ paese_elezione }).paese_elezione;
+    const compressedPaeseCandidatura = compressUserLocation({ paese_candidatura }).paese_candidatura;
+    
+    console.log('🔍 DEBUG - Valori compressi:', {
+      genere: compressedGenere,
+      cittadinanza: compressedCittadinanza,
+      paese_residenza: compressedPaeseResidenza,
+      paese_elezione: compressedPaeseElezione,
+      paese_candidatura: compressedPaeseCandidatura
+    });
+    
     const queryParams = [
       finalNome, 
       finalCognome, 
@@ -162,20 +184,20 @@ router.post('/register',
       ruolo || 'Elettore',
       'p',
       verificationToken,
-      compressGender(genere) || null,
+      compressedGenere || null,
       formattedDataNascita, // Usa la data convertita
-      compressUserLocation({ cittadinanza }).cittadinanza || null,
-      compressUserLocation({ paese_residenza }).paese_residenza || null,
+      compressedCittadinanza || null,
+      compressedPaeseResidenza || null,
       regione_residenza || null,
       provincia_residenza || null,
       comune_residenza || null,
       normalizedGradoElezione,
-      compressUserLocation({ paese_elezione }).paese_elezione || null,
+      compressedPaeseElezione || null,
       regione_elezione || null,
       provincia_elezione || null,
       comune_elezione || null,
       normalizedGradoCandidatura,
-      compressUserLocation({ paese_candidatura }).paese_candidatura || null,
+      compressedPaeseCandidatura || null,
       regione_candidatura || null,
       provincia_candidatura || null,
       comune_candidatura || null,

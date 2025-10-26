@@ -48,7 +48,25 @@ function decompressGender(dbValue) {
  */
 function compressGender(frontendValue) {
   if (!frontendValue) return null;
-  return FRONTEND_TO_DB[frontendValue] || null;
+  
+  // Prima prova il mapping standard
+  if (FRONTEND_TO_DB[frontendValue]) {
+    return FRONTEND_TO_DB[frontendValue];
+  }
+  
+  // Poi prova il mapping legacy
+  if (LEGACY_TO_DB[frontendValue]) {
+    return LEGACY_TO_DB[frontendValue];
+  }
+  
+  // Se non trova nulla, prova con case insensitive
+  const lowerValue = frontendValue.toLowerCase();
+  if (LEGACY_TO_DB[lowerValue]) {
+    return LEGACY_TO_DB[lowerValue];
+  }
+  
+  console.log('⚠️ compressGender: Valore non riconosciuto:', frontendValue);
+  return null;
 }
 
 /**
