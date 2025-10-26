@@ -177,7 +177,7 @@ function getValidDatabaseCountries() {
 }
 
 /**
- * Decompressione di un oggetto con cittadinanza e paese residenza
+ * Decompressione di un oggetto con cittadinanza e paesi (residenza, elezione, candidatura)
  * @param {Object} user - Oggetto utente con valori compressi
  * @returns {Object} - Oggetto utente con valori decompressi
  */
@@ -194,11 +194,19 @@ function decompressUserLocation(user) {
     decompressedUser.paese_residenza = decompressCountry(decompressedUser.paese_residenza);
   }
   
+  if (decompressedUser.paese_elezione) {
+    decompressedUser.paese_elezione = decompressCountry(decompressedUser.paese_elezione);
+  }
+  
+  if (decompressedUser.paese_candidatura) {
+    decompressedUser.paese_candidatura = decompressCountry(decompressedUser.paese_candidatura);
+  }
+  
   return decompressedUser;
 }
 
 /**
- * Compressione di un oggetto con cittadinanza e paese residenza
+ * Compressione di un oggetto con cittadinanza e paesi (residenza, elezione, candidatura)
  * @param {Object} user - Oggetto utente con valori decompressi
  * @returns {Object} - Oggetto utente con valori compresse
  */
@@ -213,6 +221,14 @@ function compressUserLocation(user) {
   
   if (compressedUser.paese_residenza) {
     compressedUser.paese_residenza = compressCountry(compressedUser.paese_residenza);
+  }
+  
+  if (compressedUser.paese_elezione) {
+    compressedUser.paese_elezione = compressCountry(compressedUser.paese_elezione);
+  }
+  
+  if (compressedUser.paese_candidatura) {
+    compressedUser.paese_candidatura = compressCountry(compressedUser.paese_candidatura);
   }
   
   return compressedUser;

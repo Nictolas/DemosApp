@@ -24,9 +24,6 @@ export function useGeographicData(
     comune?: string;
   }
 ) {
-  // Debug logging per verificare i dati ricevuti
-  console.log('🔍 DEBUG useGeographicData - initialData ricevuto:', initialData);
-  
   // Mapping per convertire i codici paese
   const mapPaeseCode = (code: string) => {
     const mapping: Record<string, string> = {
@@ -40,14 +37,6 @@ export function useGeographicData(
 
   const rawPaese = initialData.paese_residenza || initialData.paese || "";
   const mappedPaese = mapPaeseCode(rawPaese);
-  
-  console.log('🔍 DEBUG useGeographicData - Valori estratti:', {
-    paese: rawPaese,
-    mappedPaese,
-    regione: initialData.regione_residenza || initialData.regione || "",
-    provincia: initialData.provincia_residenza || initialData.provincia || "",
-    comune: initialData.comune_residenza || initialData.comune || "",
-  });
 
   const [data, setData] = useState<GeographicData>({
     selectedPaese: mappedPaese,
@@ -58,8 +47,6 @@ export function useGeographicData(
     province: [],
     comuni: [],
   });
-
-  console.log('🔍 DEBUG useGeographicData - Stato iniziale:', data);
 
   // Ottieni le opzioni per le regioni in base al paese selezionato
   const getRegioni = (paese: string) => {

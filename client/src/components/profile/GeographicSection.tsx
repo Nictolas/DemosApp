@@ -43,9 +43,6 @@ export function GeographicSection({
   gradoValue = "",
   onGradoChange
 }: GeographicSectionProps) {
-  // Debug logging per verificare i dati ricevuti
-  console.log(`🔍 DEBUG GeographicSection [${title}] - initialData ricevuto:`, initialData);
-  
   const {
     selectedPaese,
     selectedRegione,
@@ -59,17 +56,6 @@ export function GeographicSection({
     updateProvincia,
     updateComune,
   } = useGeographicData(initialData);
-
-  // Debug logging per verificare i valori selezionati
-  console.log(`🔍 DEBUG GeographicSection [${title}] - Valori selezionati:`, {
-    selectedPaese,
-    selectedRegione,
-    selectedProvincia,
-    selectedComune,
-    regioniCount: regioni.length,
-    provinceCount: province.length,
-    comuniCount: comuni.length
-  });
 
   const handlePaeseChange = (paese: string) => {
     updatePaese(paese);

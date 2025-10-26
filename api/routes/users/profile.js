@@ -2,6 +2,7 @@ const express = require('express');
 const { pool, verifyToken, requireAdmin } = require('../../middleware/auth');
 const { userDataAuditMiddleware } = require('../../middleware/auditMiddleware');
 const { decompressUserOpinions, compressUserOpinions, getOpinionColumns } = require('../../utils/opinionUtils');
+const { compressUserLocation } = require('../../utils/locationUtils');
 
 const router = express.Router();
 
@@ -158,11 +159,17 @@ router.put('/me', verifyToken, userDataAuditMiddleware, async (req, res) => {
       'facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'telegram_url', 'website_url', 'twitch_url', 'youtube_url'
     ];
     
-    // Filtra solo i campi consentiti
+    // Filtra solo i campi consentiti e applica compressione per i dati geografici
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
       if (allowedFields.includes(key) && updateData[key] !== undefined) {
-        filteredData[key] = updateData[key];
+        // Applica compressione per i campi paese
+        if (key === 'paese_residenza' || key === 'paese_elezione' || key === 'paese_candidatura') {
+          const compressedValue = compressUserLocation({ [key]: updateData[key] })[key];
+          filteredData[key] = compressedValue;
+        } else {
+          filteredData[key] = updateData[key];
+        }
       }
     });
     
