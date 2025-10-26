@@ -91,11 +91,11 @@ export default function Candidati() {
           <ViewOpinioniDialog
             open={!!opinioniDialogData}
             onOpenChange={(open) => !open && handleCloseOpinioniDialog()}
-            utenteId={opinioniDialogData?.utenteId || ''}
-            nome={opinioniDialogData?.nome}
-            cognome={opinioniDialogData?.cognome}
-            avatarConfig={opinioniDialogData?.avatarConfig}
-            categoria={opinioniDialogData?.categoria as any}
+            utenteId={opinioniDialogData.utenteId}
+            nome={opinioniDialogData.nome}
+            cognome={opinioniDialogData.cognome}
+            avatarConfig={opinioniDialogData.avatarConfig}
+            categoria={opinioniDialogData.categoria as any}
           />
         )}
       </div>

@@ -17,12 +17,14 @@ export const RappresentanteCard: React.FC<RappresentanteCardProps> = ({
   const avatarConfig = getAvatarContent(rappresentante.avatar_config);
 
   const handleViewOpinioni = () => {
-    onViewOpinioni({
+    const data = {
       utenteId: rappresentante.id,
       nome: rappresentante.nome,
       cognome: rappresentante.cognome,
       avatarConfig: rappresentante.avatar_config
-    });
+    };
+    console.log('🔍 DEBUG RappresentanteCard - handleViewOpinioni chiamato con data:', data);
+    onViewOpinioni(data);
   };
 
   const renderAvatar = () => {
