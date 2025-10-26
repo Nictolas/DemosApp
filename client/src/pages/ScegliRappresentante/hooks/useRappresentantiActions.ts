@@ -102,7 +102,9 @@ export const useRappresentantiActions = (user: any, categoria: string, fcmToken:
   };
 
   const openOpinioniDialog = (data: OpinioniDialogData) => {
+    console.log('🔍 DEBUG useRappresentantiActions - openOpinioniDialog chiamato con data:', data);
     setOpinioniDialogData(data);
+    console.log('🔍 DEBUG useRappresentantiActions - opinioniDialogData impostato a:', data);
   };
 
   const closeOpinioniDialog = () => {

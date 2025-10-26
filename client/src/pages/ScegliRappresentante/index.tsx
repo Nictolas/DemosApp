@@ -68,15 +68,20 @@ export default function ScegliRappresentante() {
           
           <Header categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
           
-          <ViewOpinioniDialog
-            open={!!opinioniDialogData}
-            onOpenChange={(open) => { if (!open) closeOpinioniDialog(); }}
-            utenteId={opinioniDialogData?.utenteId || ''}
-            nome={opinioniDialogData?.nome}
-            cognome={opinioniDialogData?.cognome}
-            avatarConfig={opinioniDialogData?.avatarConfig}
-            categoria={categoria || ''}
-          />
+          {opinioniDialogData && (
+            <ViewOpinioniDialog
+              open={!!opinioniDialogData}
+              onOpenChange={(open) => { if (!open) closeOpinioniDialog(); }}
+              utenteId={opinioniDialogData.utenteId}
+              nome={opinioniDialogData.nome}
+              cognome={opinioniDialogData.cognome}
+              avatarConfig={opinioniDialogData.avatarConfig}
+              categoria={categoria || ''}
+            />
+          )}
+          {/* Debug info */}
+          {console.log('🔍 DEBUG ScegliRappresentante - opinioniDialogData:', opinioniDialogData)}
+          {console.log('🔍 DEBUG ScegliRappresentante - open:', !!opinioniDialogData)}
           
           {rappresentanti.length === 0 ? (
             <EmptyState categoria={categoria || ''} getTitolo={() => getTitolo(categoria || '')} />
