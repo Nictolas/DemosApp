@@ -75,13 +75,26 @@ router.get('/profile', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni/salva - Salva le opinioni dell'utente
-router.post('/salva', (req, res, next) => {
-  console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva ROUTE HIT! 🚨🚨🚨');
-  console.log('🚨 DEBUG: Headers:', req.headers);
-  next();
-}, verifyToken, async (req, res) => {
+router.post('/salva', async (req, res) => {
   console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨');
   console.log('🚨 DEBUG: req.body:', JSON.stringify(req.body, null, 2));
+  
+  // Controllo token manuale
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, error: 'Token mancante' });
+  }
+  
+  const token = authHeader.substring(7);
+  const { verifyAccessToken } = require('../../utils/jwt');
+  let decoded;
+  try {
+    decoded = verifyAccessToken(token);
+  } catch (e) {
+    return res.status(401).json({ success: false, error: 'Token non valido' });
+  }
+  
+  req.userId = decoded.userId || decoded.email;
   console.log('🚨 DEBUG: req.userId:', req.userId);
   console.log('🚨 DEBUG: Chiavi disponibili in opinionMapping:', Object.keys({
       'energia_nucleare': 'energia_nucleare',
