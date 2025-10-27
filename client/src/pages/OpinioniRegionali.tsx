@@ -159,6 +159,10 @@ export default function OpinioniRegionali() {
     
     console.log('  opinionsToSave:', opinionsToSave);
     console.log('  Numero opinioni da salvare:', Object.keys(opinionsToSave).length);
+    console.log('  DETTAGLIO opinioni da salvare:');
+    Object.entries(opinionsToSave).forEach(([key, value]) => {
+      console.log(`    ${key} = ${value}`);
+    });
     
     if (Object.keys(opinionsToSave).length === 0) {
       console.log('❌ DEBUG: Nessuna opinione da salvare');

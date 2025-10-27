@@ -77,8 +77,44 @@ router.get('/profile', verifyToken, async (req, res) => {
 // POST /api/opinioni/salva - Salva le opinioni dell'utente
 router.post('/salva', verifyToken, async (req, res) => {
   console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨');
-  console.log('🚨 DEBUG: req.body:', req.body);
+  console.log('🚨 DEBUG: req.body:', JSON.stringify(req.body, null, 2));
   console.log('🚨 DEBUG: req.userId:', req.userId);
+  console.log('🚨 DEBUG: Chiavi disponibili in opinionMapping:', Object.keys({
+      'energia_nucleare': 'energia_nucleare',
+      'sperimentazione_animale': 'sperimentazione_animale',
+      'legalizzazione_canapa': 'legalizzazione_canapa',
+      'caccia': 'caccia',
+      'eutanasia': 'eutanasia',
+      'carne_coltivata': 'carne_coltivata',
+      'nato': 'nato',
+      'matrimonio_gay': 'matrimonio_gay',
+      'salario_minimo': 'salario_minimo',
+      'case_chiuse': 'case_chiuse',
+      'omobitransfobia': 'omobitransfobia',
+      'nuovi_inceneritori': 'nuovi_inceneritori',
+      'chiusura_ospedali_di_provincia': 'chiusura_ospedali_di_provincia',
+      'cassonetti_intelligenti_con_tessera': 'cassonetti_intelligenti_con_tessera',
+      'concessione_spazi_pubblici_a_centri_sociali_autogestiti': 'concessione_spazi_pubblici_a_centri_sociali_autogestiti',
+      'divieto_di_nuovi_fast_food_nel_centro_storico': 'divieto_di_nuovi_fast_food_nel_centro_storico',
+      'estensione_delle_zone_a_traffico_limitato': 'estensione_delle_zone_a_traffico_limitato',
+      'finanziamento_eventi_culturali_gratuiti': 'finanziamento_eventi_culturali_gratuiti',
+      'nuova_biblioteca_comunale': 'nuova_biblioteca_comunale',
+      'nuove_case_popolari': 'nuove_case_popolari',
+      'nuove_piste_ciclabili': 'nuove_piste_ciclabili',
+      'nuovi_asili_nido_comunali': 'nuovi_asili_nido_comunali',
+      'nuovo_stadio_comunale': 'nuovo_stadio_comunale',
+      'parcheggi_gratuiti_per_residenti': 'parcheggi_gratuiti_per_residenti',
+      'potenziamento_trasporto_pubblico': 'potenziamento_trasporto_pubblico',
+      'riduzione_tasse_rifiuti': 'riduzione_tasse_rifiuti',
+      'sicurezza_strade_scolastiche': 'sicurezza_strade_scolastiche',
+      'sostegno_commercio_locale': 'sostegno_commercio_locale',
+      'verde_pubblico_e_giardini': 'verde_pubblico_e_giardini',
+      'raccolta_rifiuti_porta_a_porta': 'raccolta_rifiuti_porta_a_porta',
+      'riduzione_dell_illuminazione_notturna_per_risparmio_energetico': 'riduzione_dell_illuminazione_notturna_per_risparmio_energetico',
+      'sussidi_comunali_per_famiglie_numerose': 'sussidi_comunali_per_famiglie_numerose',
+      'videosorveglianza_in_spazi_pubblici': 'videosorveglianza_in_spazi_pubblici',
+      'riduzione_parcheggi_a_pagamento': 'riduzione_parcheggi_a_pagamento'
+    }));
   
   try {
     const userId = req.userId;
