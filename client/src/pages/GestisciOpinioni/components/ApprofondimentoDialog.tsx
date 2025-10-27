@@ -32,6 +32,7 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [customId, setCustomId] = useState(""); // ID personalizzato per nuove opinioni
   const [gradiProposta, setGradiProposta] = useState({
     Europeo: false,
     Nazionale: false,
@@ -167,6 +168,18 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     try {
       setIsSaving(true);
       
+      // Valida ID personalizzato per opinioni "da approvare"
+      const isDaApprovare = opinione?.gradi_opinione?.includes('da approvare');
+      if (isDaApprovare && !customId.trim()) {
+        toast({
+          title: "Errore",
+          description: "Inserisci un ID personalizzato per l'opinione.",
+          variant: "destructive",
+        });
+        setIsSaving(false);
+        return;
+      }
+      
       // Prepara i gradi selezionati (conversione da nomi a codici)
       const gradoCodeMap = {
         'Europeo': 'E',
@@ -178,13 +191,24 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         .filter(([_, isSelected]) => isSelected)
         .map(([grado, _]) => gradoCodeMap[grado as keyof typeof gradoCodeMap]);
       
+      if (gradiSelezionati.length === 0) {
+        toast({
+          title: "Errore",
+          description: "Seleziona almeno un grado per l'opinione.",
+          variant: "destructive",
+        });
+        setIsSaving(false);
+        return;
+      }
+      
       // Combina tutti gli approfondimenti in un unico testo
       const approfondimentoCombinato = Object.entries(approfondimentiPerGrado)
         .filter(([grado, _]) => gradiProposta[grado as keyof typeof gradiProposta])
         .map(([grado, testo]) => `## Proposta ${grado}\n\n${testo}`)
         .join('\n\n');
       
-      const currentOpinionId = opinionId || opinione?.id;
+      // Usa customId se presente, altrimenti usa l'ID corrente
+      const currentOpinionId = (isDaApprovare && customId.trim()) ? customId.trim() : (opinionId || opinione?.id);
       const response = await apiRequest("PUT", `/api/opinioni/${currentOpinionId}/approfondimento`, {
         approfondimento: approfondimentoCombinato,
         gradi_opinione: gradiSelezionati
@@ -247,6 +271,26 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden flex flex-col bg-white">
+
+          {/* Campo ID personalizzato - Solo per opinioni "da approvare" */}
+          {!readOnly && opinione?.gradi_opinione?.includes('da approvare') && (
+            <div className="space-y-2 mb-4">
+              <label htmlFor="customId" className="text-sm font-medium">
+                ID personalizzato per l'opinione (obbligatorio):
+              </label>
+              <input
+                id="customId"
+                type="text"
+                value={customId}
+                onChange={(e) => setCustomId(e.target.value)}
+                placeholder="es. club_scolastici"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground">
+                Questo ID verrà usato sia come riga in opinioni_domande che come colonna in opinioni_risposte
+              </p>
+            </div>
+          )}
 
           {/* Contenuto - 4 Sezioni Separate */}
           <div className="flex-1 overflow-hidden">

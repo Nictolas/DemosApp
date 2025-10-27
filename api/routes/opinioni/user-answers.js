@@ -497,6 +497,32 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       });
     }
     
+    // Controlla se l'opinione esiste e se è "da approvare"
+    const checkOpinioneQuery = `SELECT id, text, gradi_opinione FROM opinioni_domande WHERE id = $1`;
+    const checkResult = await pool.query(checkOpinioneQuery, [id]);
+    
+    // Se non esiste, creala (nuova opinione da approvare)
+    if (checkResult.rows.length === 0) {
+      console.log('📝 Creando nuova opinione con ID:', id);
+      const createOpinioneQuery = `
+        INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
+        VALUES ($1, $2, $3, $4)
+      `;
+      await pool.query(createOpinioneQuery, [
+        id,
+        id, // Usa l'ID come testo temporaneo
+        gradi_opinione,
+        approfondimento
+      ]);
+      console.log('✅ Nuova opinione creata con ID:', id);
+    } else {
+      // Se esiste ed è "da approvare", verifica
+      const currentGradi = checkResult.rows[0].gradi_opinione;
+      if (currentGradi && Array.isArray(currentGradi) && currentGradi.includes('da approvare')) {
+        console.log('📝 Aggiornando opinione "da approvare" con ID:', id);
+      }
+    }
+    
     // Cerca per ID se è numerico, altrimenti cerca per text o id diretto
     let updateQuery, params;
     if (/^\d+$/.test(id)) {
