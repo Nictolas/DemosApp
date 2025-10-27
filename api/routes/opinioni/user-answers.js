@@ -544,6 +544,11 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       
       console.log('✅ Nuova opinione creata con ID:', customId);
       
+      // Cancella tutti i voti nella tabella voti_opinioni_proposte (non servono più)
+      const deleteVotesQuery = `DELETE FROM voti_opinioni_proposte WHERE opinione_id = $1`;
+      const deleteVotesResult = await pool.query(deleteVotesQuery, [id]);
+      console.log(`📊 Cancellati ${deleteVotesResult.rowCount} voti temporanei per l'opinione ${id}`);
+      
       // Elimina l'opinione originale
       const deleteOldQuery = `DELETE FROM opinioni_domande WHERE id = $1`;
       await pool.query(deleteOldQuery, [id]);
