@@ -152,56 +152,34 @@ export default function Preferiti() {
     return <Redirect to="/auth" />;
   }
 
-  // Funzione per controllare le opinioni incomplete per tutti i gradi rilevanti
-  const checkOpinioniIncomplete = async (categoria: string): Promise<boolean> => {
-    // Mappa categoria a gradi rilevanti
-    const gradoMapping: Record<string, string[]> = {
-      'politici': ['N', 'R', 'CO'], // Nazionale, Regionale, Comunale per rappresentanti
-      'candidati': ['E', 'N', 'R', 'CO'], // Europeo, Nazionale, Regionale, Comunale per candidati
-    };
+  // Funzione semplice per controllare se tutte le opinioni sono complete
+  const checkOpinioniComplete = async (): Promise<boolean> => {
+    console.log('🔍 DEBUG Preferiti - Controllo se tutte le opinioni sono complete');
     
-    const gradi = gradoMapping[categoria] || ['N'];
-    
-    console.log('🔍 DEBUG Preferiti - Controllo opinioni per categoria:', categoria, 'gradi:', gradi);
-    
-    // Controlla tutti i gradi e trova quello con più opinioni incomplete
-    let maxIncomplete = 0;
-    let worstGrado = null;
-    let worstData = null;
-    
-    for (const grado of gradi) {
-      try {
+    try {
+      // Controlla tutti i gradi: N, E, R, CO
+      const gradi = ['N', 'E', 'R', 'CO'];
+      
+      for (const grado of gradi) {
         const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
-        console.log('🔍 DEBUG Preferiti - Risposta API per grado', grado, ':', response);
         
         if (response.ok) {
           const result = await response.json();
-          console.log('🔍 DEBUG Preferiti - Risultato per grado', grado, ':', result);
           
           if (result.success && result.data && !result.data.isComplete) {
-            const incompleteCount = result.data.opinioniMancanti || 0;
-            console.log('🔍 DEBUG Preferiti - Grado', grado, 'ha', incompleteCount, 'opinioni incomplete');
-            
-            if (incompleteCount > maxIncomplete) {
-              maxIncomplete = incompleteCount;
-              worstGrado = grado;
-              worstData = result.data;
-            }
+            console.log('🔍 DEBUG Preferiti - Opinion incomplete trovate nel grado', grado);
+            return false; // Trovate opinioni incomplete
           }
         }
-      } catch (error) {
-        console.error("Errore nel controllo opinioni per grado", grado, ":", error);
       }
+      
+      console.log('🔍 DEBUG Preferiti - Tutte le opinioni sono complete');
+      return true; // Tutte complete
+      
+    } catch (error) {
+      console.error("Errore nel controllo opinioni:", error);
+      return true; // In caso di errore, permetti l'accesso
     }
-    
-    if (worstData) {
-      console.log('🔍 DEBUG Preferiti - Opinion incomplete trovate nel grado', worstGrado, ':', worstData);
-      setOpinioniAlertData(worstData);
-      return true;
-    }
-    
-    console.log('🔍 DEBUG Preferiti - Tutte le opinioni complete');
-    return false;
   };
 
   // Funzione per gestire la navigazione con controllo opinioni
@@ -213,8 +191,18 @@ export default function Preferiti() {
                       path.startsWith('/candidati') ? 'candidati' : null;
     
     if (categoria) {
-      const opinioniIncomplete = await checkOpinioniIncomplete(categoria);
-      if (opinioniIncomplete) {
+      const tutteComplete = await checkOpinioniComplete();
+      if (!tutteComplete) {
+        // Crea dati semplici per l'alert
+        setOpinioniAlertData({
+          grado: 'Tutti',
+          totaleOpinioni: 0,
+          opinioniRisposte: 0,
+          opinioniMancanti: 0,
+          percentualeCompletamento: 0,
+          isComplete: false,
+          missingOpinions: []
+        });
         setShowOpinioniAlert(true);
         return;
       }

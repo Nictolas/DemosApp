@@ -1,8 +1,6 @@
 import React from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 
 interface OpinioniIncompleteAlertProps {
   open: boolean;
@@ -37,16 +35,6 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
     return null;
   }
 
-  const gradoLabels: Record<string, string> = {
-    'N': 'Nazionali',
-    'E': 'Europee',
-    'R': 'Regionali',
-    'C': 'Comunali',
-    'CO': 'Comunali'  // Aggiunto per gestire grado CO
-  };
-
-  const gradoLabel = gradoLabels[data.grado] || data.grado;
-
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="max-w-md">
@@ -57,31 +45,9 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
           </div>
           <AlertDialogDescription className="space-y-3">
             <p>
-              Per trovare i candidati più compatibili per le opinioni <strong>{gradoLabel}</strong>, 
-              completa prima tutte le opinioni di questo grado.
+              Per accedere a questa sezione, completa prima tutte le opinioni disponibili.
             </p>
             
-            <div className="bg-gray-50 p-3 rounded-lg space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Completamento:</span>
-                <Badge variant={data.percentualeCompletamento >= 80 ? "default" : "secondary"}>
-                  {data.percentualeCompletamento}%
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>{data.opinioniRisposte} di {data.totaleOpinioni} opinioni completate</span>
-              </div>
-              
-              {data.opinioniMancanti > 0 && (
-                <div className="flex items-center gap-2 text-sm text-amber-600">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>{data.opinioniMancanti} opinioni mancanti</span>
-                </div>
-              )}
-            </div>
-
             <p className="text-sm text-gray-600">
               💡 Completando tutte le opinioni otterrai risultati più precisi e affidabili!
             </p>
