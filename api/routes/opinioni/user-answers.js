@@ -262,7 +262,7 @@ router.post('/salva', async (req, res) => {
       updateFields.push(`${dbField} = $${paramIndex}`);
       insertFields.push(dbField);
       insertValues.push(dbValue);
-      paramIndex++;
+      paramIndex++; // Questo viene usato solo per UPDATE, per INSERT usiamo i + 2
       
       console.log(`✅ Preparato campo: ${dbField} = ${dbValue}`);
     }
