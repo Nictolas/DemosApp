@@ -264,7 +264,19 @@ router.post('/', async (req, res) => {
     console.log('🔍 Headers:', req.headers);
     
     const { testo, titolo, descrizione, categoria } = req.body;
-    const userId = 'test-user-id'; // Temporaneo per test
+    
+    // Estrae userId dal token se presente
+    let userId = null;
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decoded.userId;
+      } catch (error) {
+        console.log('⚠️ Token non valido, continuo senza userId');
+      }
+    }
     
     console.log('🔍 Testo estratto:', testo);
     console.log('🔍 User ID:', userId);
@@ -296,6 +308,22 @@ router.post('/', async (req, res) => {
     ]);
     
     console.log('✅ Opinione proposta creata con successo nella tabella opinioni:', id);
+    
+    // Se l'utente è autenticato, aggiungi automaticamente il suo voto
+    if (userId) {
+      try {
+        const insertVoteQuery = `
+          INSERT INTO voti_opinioni_proposte (utente_id, opinione_id)
+          VALUES ($1, $2)
+          ON CONFLICT (utente_id, opinione_id) DO NOTHING
+        `;
+        await pool.query(insertVoteQuery, [userId, id]);
+        console.log(`✅ Voto automatico aggiunto per utente ${userId} su opinione ${id}`);
+      } catch (error) {
+        console.error('⚠️ Errore nell\'aggiungere voto automatico:', error);
+        // Non bloccare l'operazione se il voto non può essere aggiunto
+      }
+    }
     
     res.json({
       success: true,
