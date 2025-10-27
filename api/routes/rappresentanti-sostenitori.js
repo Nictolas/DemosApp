@@ -20,39 +20,36 @@ router.get('/sostenitori', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come rappresentante O lo seguono genericamente
+    // Trova tutti gli utenti che hanno scelto questo utente come rappresentante
     const result = await pool.query(`
-      SELECT DISTINCT
-        u.id,
-        u.nome,
-        u.cognome,
-        u.email,
-        u.ruolo,
-        u.data_nascita,
-        u.genere,
-        u.regione_residenza,
-        u.provincia_residenza,
-        u.comune_residenza,
-        u.created_at,
+      SELECT 
+        id,
+        nome,
+        cognome,
+        email,
+        ruolo,
+        data_nascita,
+        genere,
+        regione_residenza,
+        provincia_residenza,
+        comune_residenza,
+        created_at,
         CASE 
-          WHEN u.rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
-          WHEN u.rappresentante_camera = $1 THEN 'Rappresentante Camera'
-          WHEN u.rappresentante_senato = $1 THEN 'Rappresentante Senato'
-          WHEN u.rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
-          WHEN u.rappresentante_comune = $1 THEN 'Rappresentante Comunale'
-          WHEN us.supported_id = $1 THEN 'Sostenitore Generico'
+          WHEN rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
+          WHEN rappresentante_camera = $1 THEN 'Rappresentante Camera'
+          WHEN rappresentante_senato = $1 THEN 'Rappresentante Senato'
+          WHEN rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
+          WHEN rappresentante_comune = $1 THEN 'Rappresentante Comunale'
         END as supporter_role
-      FROM users u
-      LEFT JOIN user_supports us ON u.id = us.supporter_id AND us.supported_id = $1
+      FROM users
       WHERE (
-        u.rappresentante_europeo = $1 OR
-        u.rappresentante_camera = $1 OR
-        u.rappresentante_senato = $1 OR
-        u.rappresentante_regionale = $1 OR
-        u.rappresentante_comune = $1 OR
-        us.supported_id = $1
+        rappresentante_europeo = $1 OR
+        rappresentante_camera = $1 OR
+        rappresentante_senato = $1 OR
+        rappresentante_regionale = $1 OR
+        rappresentante_comune = $1
       )
-      ORDER BY u.created_at DESC
+      ORDER BY created_at DESC
     `, [sostenuto_id]);
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
@@ -141,9 +138,11 @@ router.get('/sostenitori', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recupero sostenitori rappresentanti:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

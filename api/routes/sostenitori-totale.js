@@ -22,29 +22,49 @@ router.get('/totale', async (req, res) => {
       });
     }
 
-    // Per ora, conta solo i sostenitori generici per test
-    console.log('🔍 DEBUG: Contando solo sostenitori generici per test');
+    // Trova tutti gli utenti che hanno scelto questo utente come candidato O rappresentante
     const result = await pool.query(`
-      SELECT DISTINCT
-        u.id,
-        u.nome,
-        u.cognome,
-        u.email,
-        u.ruolo,
-        u.data_nascita,
-        u.genere,
-        u.regione_residenza,
-        u.provincia_residenza,
-        u.comune_residenza,
-        u.created_at,
-        'Sostenitore Generico' as supporter_role
-      FROM users u
-      LEFT JOIN user_supports us ON u.id = us.supporter_id
-      WHERE us.supported_id = $1
-      ORDER BY u.created_at DESC
+      SELECT 
+        id,
+        nome,
+        cognome,
+        email,
+        ruolo,
+        data_nascita,
+        genere,
+        regione_residenza,
+        provincia_residenza,
+        comune_residenza,
+        created_at,
+        CASE 
+          WHEN candidato_europeo = $1 THEN 'Candidato Europeo'
+          WHEN candidato_camera = $1 THEN 'Candidato Camera'
+          WHEN candidato_senato = $1 THEN 'Candidato Senato'
+          WHEN candidato_regionale = $1 THEN 'Candidato Regionale'
+          WHEN candidato_comune = $1 THEN 'Candidato Comunale'
+          WHEN rappresentante_europeo = $1 THEN 'Rappresentante Europeo'
+          WHEN rappresentante_camera = $1 THEN 'Rappresentante Camera'
+          WHEN rappresentante_senato = $1 THEN 'Rappresentante Senato'
+          WHEN rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
+          WHEN rappresentante_comune = $1 THEN 'Rappresentante Comunale'
+        END as supporter_role
+      FROM users
+      WHERE (
+        candidato_europeo = $1 OR
+        candidato_camera = $1 OR
+        candidato_senato = $1 OR
+        candidato_regionale = $1 OR
+        candidato_comune = $1 OR
+        rappresentante_europeo = $1 OR
+        rappresentante_camera = $1 OR
+        rappresentante_senato = $1 OR
+        rappresentante_regionale = $1 OR
+        rappresentante_comune = $1
+      )
+      ORDER BY created_at DESC
     `, [sostenuto_id]);
     
-    console.log('🔍 DEBUG: Trovati sostenitori generici:', result.rows.length);
+    console.log('🔍 DEBUG: Trovati sostenitori totali:', result.rows.length);
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
     const supportersMap = new Map();
