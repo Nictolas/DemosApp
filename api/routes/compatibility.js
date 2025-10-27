@@ -103,19 +103,7 @@ router.get('/opinioni-list', async (req, res) => {
     
     // Query per ottenere le risposte dell'utente dalla tabella opinioni_risposte
     const userQuery = `
-      SELECT o.text, orr.energia_nucleare, orr.sperimentazione_animale, orr.legalizzazione_canapa, orr.caccia, orr.eutanasia,
-             orr.carne_coltivata, orr.nato, orr.matrimonio_gay, orr.salario_minimo, orr.case_chiuse, orr.omobitransfobia,
-             orr.cassonetti_intelligenti_con_tessera, orr.concessione_spazi_pubblici_a_centri_sociali_autogestiti,
-             orr.divieto_di_nuovi_fast_food_nel_centro_storico, orr.estensione_delle_zone_a_traffico_limitato,
-             orr.finanziamento_eventi_culturali_gratuiti, orr.nuova_biblioteca_comunale,
-             orr.nuove_case_popolari, orr.nuove_piste_ciclabili, orr.nuovi_asili_nido_comunali,
-             orr.nuovo_stadio_comunale, orr.parcheggi_gratuiti_per_residenti,
-             orr.potenziamento_trasporto_pubblico, orr.riduzione_tasse_rifiuti,
-             orr.sicurezza_strade_scolastiche, orr.sostegno_commercio_locale,
-             orr.verde_pubblico_e_giardini, orr.nuovi_inceneritori, orr.chiusura_ospedali_di_provincia,
-             orr.raccolta_rifiuti_porta_a_porta, orr.riduzione_dell_illuminazione_notturna_per_risparmio_energetico,
-             orr.sussidi_comunali_per_famiglie_numerose, orr.videosorveglianza_in_spazi_pubblici,
-             orr.riduzione_parcheggi_a_pagamento
+      SELECT o.id, o.text, orr.*
       FROM opinioni_domande o
       LEFT JOIN opinioni_risposte orr ON orr.user_id = $1
       WHERE $2 = ANY(o.gradi_opinione)
@@ -124,18 +112,17 @@ router.get('/opinioni-list', async (req, res) => {
     const userAnswersResult = await pool.query(userQuery, [userId, grado]);
     const userAnswers = {};
     userAnswersResult.rows.forEach(row => {
-      const opinionKey = row.text.replace(/\s+/g, '_').replace(/'/g, '_').toLowerCase();
-      // Mappa la risposta dalla colonna corrispondente in opinioni_risposte
-      // L'ID dell'opinione corrisponde al nome della colonna nella tabella opinioni_risposte
-      userAnswers[opinionKey] = row[opinionKey];
+      // Usa l'ID direttamente dal database
+      const opinionId = row.id;
+      // Prendi il valore dalla colonna corrispondente usando l'ID
+      userAnswers[opinionId] = row[opinionId];
     });
     
     console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
-      const opinionKey = opinion.text.replace(/\s+/g, '_').replace(/'/g, '_').toLowerCase();
-      const userAnswer = userAnswers[opinionKey]; // Usa la chiave dell'opinione per trovare la risposta
+      const userAnswer = userAnswers[opinion.id]; // Usa l'ID per trovare la risposta
       
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;
@@ -145,10 +132,10 @@ router.get('/opinioni-list', async (req, res) => {
         frontendAnswer = null;
       }
       
-      console.log(`🔍 DEBUG - Formattando opinione: key=${opinionKey}, text="${opinion.text}", userAnswer=${userAnswer}`);
+      console.log(`🔍 DEBUG - Formattando opinione: id=${opinion.id}, text="${opinion.text}", userAnswer=${userAnswer}`);
       
       return {
-        id: opinionKey, // USA LA CHIAVE CHE CORRISPONDE AL NOME DELLA COLONNA NEL DATABASE
+        id: opinion.id, // USA L'ID DIRETTO DAL DATABASE (opinioni_domande.id)
         text: opinion.text,
         grado: opinion.gradi_opinione,
         userAnswer: frontendAnswer

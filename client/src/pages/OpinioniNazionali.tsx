@@ -141,9 +141,8 @@ export default function OpinioniNazionali() {
     const opinionsToSave: Record<string, string> = {};
     questions.forEach(question => {
       if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
-        // Converti l'apostrofo in underscore per l'ID dell'opinione
-        const convertedId = question.id.replace(/'/g, '_');
-        opinionsToSave[convertedId] = opinions[question.id];
+        // Usa l'ID dell'opinione direttamente dal database
+        opinionsToSave[question.id] = opinions[question.id];
       }
     });
     
