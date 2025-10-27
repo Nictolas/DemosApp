@@ -546,6 +546,28 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
     
     console.log('✅ Approfondimento salvato con successo per opinione:', id);
     
+    // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
+    try {
+      const checkColumnQuery = `
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'opinioni_risposte' 
+        AND column_name = $1
+      `;
+      const columnCheck = await pool.query(checkColumnQuery, [id]);
+      
+      if (columnCheck.rows.length === 0) {
+        console.log(`📊 Aggiungo colonna ${id} a opinioni_risposte...`);
+        // Usa un identificatore quotato per il nome della colonna
+        const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN "${id}" TEXT`;
+        await pool.query(addColumnQuery);
+        console.log(`✅ Colonna ${id} aggiunta a opinioni_risposte`);
+      }
+    } catch (error) {
+      console.error('❌ Errore nell\'aggiungere colonna opinioni_risposte:', error);
+      // Non bloccare l'operazione se fallisce
+    }
+    
     res.json({
       success: true,
       data: {
