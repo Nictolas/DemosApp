@@ -106,8 +106,12 @@ export default function OpinioniRegionali() {
 
   // 2. Mutazione per salvare le opinioni
   const saveMutation = useMutation({
-    mutationFn: (newOpinions: Record<string, string>) => apiRequest("POST", "/api/opinioni/salva", { opinioni: newOpinions }),
-    onSuccess: () => {
+    mutationFn: (newOpinions: Record<string, string>) => {
+      console.log('🔍 DEBUG saveMutation.mutationFn chiamata con:', newOpinions);
+      return apiRequest("POST", "/api/opinioni/salva", { opinioni: newOpinions });
+    },
+    onSuccess: (data) => {
+      console.log('🔍 DEBUG saveMutation.onSuccess:', data);
       toast({ title: "Successo", description: "Le tue opinioni regionali sono state salvate." });
       queryClient.invalidateQueries({ queryKey: ['opinioniQuestions', 'Regionale'] });
       // Invalida anche la cache della pagina candidati per aggiornare le opinioni comuni
@@ -115,12 +119,18 @@ export default function OpinioniRegionali() {
       setTimeout(() => setLocation("/opinioni"), 1500);
     },
     onError: (error: any) => {
+      console.log('🔍 DEBUG saveMutation.onError:', error);
       toast({ title: "Errore", description: error.message || "Impossibile salvare le opinioni.", variant: "destructive" });
     }
   });
 
   const handleOpinionChange = (questionId: string, value: string) => {
-    setOpinions(prev => ({ ...prev, [questionId]: value }));
+    console.log(`🔍 DEBUG handleOpinionChange: ${questionId} = ${value}`);
+    setOpinions(prev => {
+      const newOpinions = { ...prev, [questionId]: value };
+      console.log(`🔍 DEBUG setOpinions:`, newOpinions);
+      return newOpinions;
+    });
   };
 
   const handleSave = () => {
