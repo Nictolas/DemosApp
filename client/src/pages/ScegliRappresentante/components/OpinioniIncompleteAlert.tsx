@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle, ArrowRight } from "lucide-react";
@@ -20,15 +20,13 @@ interface OpinioniIncompleteAlertProps {
     }>;
   } | null;
   onGoToOpinions: () => void;
-  onContinueAnyway: () => void;
 }
 
 export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = ({
   open,
   onOpenChange,
   data,
-  onGoToOpinions,
-  onContinueAnyway
+  onGoToOpinions
 }) => {
   console.log('🔍 DEBUG OpinioniIncompleteAlert - open:', open);
   console.log('🔍 DEBUG OpinioniIncompleteAlert - data:', data);
@@ -91,9 +89,6 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
         </AlertDialogHeader>
         
         <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-          <AlertDialogCancel onClick={onContinueAnyway} className="w-full sm:w-auto">
-            Continua comunque
-          </AlertDialogCancel>
           <AlertDialogAction onClick={onGoToOpinions} className="w-full sm:w-auto">
             <ArrowRight className="h-4 w-4 mr-2" />
             Vai alle Opinion
