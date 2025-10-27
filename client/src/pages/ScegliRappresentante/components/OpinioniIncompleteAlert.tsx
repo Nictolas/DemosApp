@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 
 interface OpinioniIncompleteAlertProps {
@@ -39,11 +39,11 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
-            <AlertDialogTitle>Opinioni Incomplete</AlertDialogTitle>
-          </div>
-          <AlertDialogDescription className="space-y-3">
+          <AlertDialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <AlertTriangle className="h-6 w-6 text-amber-500" />
+            Opinioni Incomplete
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-3 text-base text-gray-700 mt-2">
             <p>
               Per accedere a questa sezione, completa prima tutte le opinioni disponibili.
             </p>
@@ -54,10 +54,13 @@ export const OpinioniIncompleteAlert: React.FC<OpinioniIncompleteAlertProps> = (
           </AlertDialogDescription>
         </AlertDialogHeader>
         
-        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-          <AlertDialogAction onClick={onGoToOpinions} className="w-full sm:w-auto">
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-4">
+          <AlertDialogCancel onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+            Chiudi
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={onGoToOpinions} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold">
             <ArrowRight className="h-4 w-4 mr-2" />
-            Vai alle Opinion
+            Vai alle Opinioni
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
