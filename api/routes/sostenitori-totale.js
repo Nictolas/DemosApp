@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { decompressProvince } = require('../utils/provinceUtils');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -22,7 +23,7 @@ router.get('/totale', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come candidato, rappresentante O attivista
+    // Trova tutti gli utenti che hanno scelto questo utente come candidato, rappresentante, attivista o organizzazione
     const result = await pool.query(`
       SELECT 
         id,
@@ -48,6 +49,7 @@ router.get('/totale', async (req, res) => {
           WHEN rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
           WHEN rappresentante_comune = $1 THEN 'Rappresentante Comunale'
           WHEN attivisti = $1 THEN 'Attivista'
+          WHEN organizzazioni = $1 THEN 'Organizzazione'
         END as supporter_role
       FROM users
       WHERE (
@@ -61,7 +63,8 @@ router.get('/totale', async (req, res) => {
         rappresentante_senato = $1 OR
         rappresentante_regionale = $1 OR
         rappresentante_comune = $1 OR
-        attivisti = $1
+        attivisti = $1 OR
+        organizzazioni = $1
       )
       ORDER BY created_at DESC
     `, [sostenuto_id]);
@@ -98,6 +101,7 @@ router.get('/totale', async (req, res) => {
     const totalSupporters = supporters.length;
     const genderDistribution = { Uomo: 0, Donna: 0, Altro: 0 };
     const locationDistribution = {};
+    const provinceDistribution = {};
     let ageSum = 0;
     const ageDistribution = {
       '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0
@@ -126,6 +130,11 @@ router.get('/totale', async (req, res) => {
       const location = supporter.regione_residenza || supporter.regione || 'Non specificato';
       locationDistribution[location] = (locationDistribution[location] || 0) + 1;
 
+      // Distribuzione per provincia (decompressa)
+      const provinceCode = supporter.provincia_residenza;
+      const province = provinceCode ? decompressProvince(provinceCode) || provinceCode : 'Non specificato';
+      provinceDistribution[province] = (provinceDistribution[province] || 0) + 1;
+
       // Distribuzione per età
       const age = getAge(supporter.data_nascita);
       if (age !== null) {
@@ -148,6 +157,7 @@ router.get('/totale', async (req, res) => {
         totalSupporters,
         genderDistribution,
         locationDistribution,
+        provinceDistribution,
         averageAge,
         ageDistribution
       }

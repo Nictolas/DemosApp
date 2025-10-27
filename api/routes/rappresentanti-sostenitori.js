@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { decompressProvince } = require('../utils/provinceUtils');
 require('dotenv').config();
 
 const pool = new Pool({
@@ -82,6 +83,7 @@ router.get('/sostenitori', async (req, res) => {
     const totalSupporters = supporters.length;
     const genderDistribution = { Uomo: 0, Donna: 0, Altro: 0 };
     const locationDistribution = {};
+    const provinceDistribution = {};
     let ageSum = 0;
     const ageDistribution = {
       '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0
@@ -110,6 +112,11 @@ router.get('/sostenitori', async (req, res) => {
       const location = supporter.regione_residenza || supporter.regione || 'Non specificato';
       locationDistribution[location] = (locationDistribution[location] || 0) + 1;
 
+      // Distribuzione per provincia (decompressa)
+      const provinceCode = supporter.provincia_residenza;
+      const province = provinceCode ? decompressProvince(provinceCode) || provinceCode : 'Non specificato';
+      provinceDistribution[province] = (provinceDistribution[province] || 0) + 1;
+
       // Distribuzione per età
       const age = getAge(supporter.data_nascita);
       if (age !== null) {
@@ -132,6 +139,7 @@ router.get('/sostenitori', async (req, res) => {
         totalSupporters,
         genderDistribution,
         locationDistribution,
+        provinceDistribution,
         averageAge,
         ageDistribution
       }
