@@ -73,7 +73,6 @@ router.get('/', async (req, res) => {
     const result = await pool.query(`
       SELECT
         u.id,
-        u.codice_attivista,
         u.nome,
         u.cognome,
         u.email,
@@ -303,11 +302,5 @@ router.get('/filtri', async (req, res) => {
     });
   }
 });
-
-// Importa le route per la votazione
-const voteRouter = require('./attivisti-vote');
-
-// Usa le route di votazione
-router.use('/', voteRouter);
 
 module.exports = router;

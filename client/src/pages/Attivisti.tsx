@@ -46,6 +46,7 @@ interface Attivista {
   twitch_url?: string;
   youtube_url?: string;
   tipologie_attivismo?: TipologiaAttivismo[];
+  supporters_count?: number;
 }
 
 interface AttivistiResponse {

@@ -11,7 +11,6 @@ import { apiRequest } from "@/lib/queryClient";
 
 interface Attivista {
   id: string;
-  codice_attivista: number;
   nome: string;
   cognome: string;
   email: string;
@@ -172,9 +171,7 @@ export default function Attivisti() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-xl font-bold text-blue-600">
-                            {attivista.codice_attivista}
-                          </span>
+                          <UserCheck className="h-6 w-6 text-blue-600" />
                         </div>
                         <div>
                           <CardTitle className="text-lg">
@@ -186,7 +183,7 @@ export default function Attivisti() {
                         </div>
                       </div>
                       <Badge variant="secondary">
-                        Codice {attivista.codice_attivista}
+                        {attivista.supporters_count} sostenitori
                       </Badge>
                     </div>
                   </CardHeader>
