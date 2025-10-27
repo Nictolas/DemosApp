@@ -158,7 +158,8 @@ router.post('/salva', verifyToken, async (req, res) => {
     
     // Prepara i campi da aggiornare
     const updateFields = [];
-    const updateValues = [];
+    const insertFields = [];
+    const insertValues = [];
     let paramIndex = 1;
     
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
@@ -182,7 +183,8 @@ router.post('/salva', verifyToken, async (req, res) => {
       else if (risposta === 'Astenuto') dbValue = null;
       
       updateFields.push(`${dbField} = $${paramIndex}`);
-      updateValues.push(dbValue);
+      insertFields.push(dbField);
+      insertValues.push(dbValue);
       paramIndex++;
       
       console.log(`✅ Preparato campo: ${dbField} = ${dbValue}`);
@@ -200,13 +202,13 @@ router.post('/salva', verifyToken, async (req, res) => {
     // Esegui l'aggiornamento
     try {
       const updateQuery = `
-        INSERT INTO opinioni_risposte (user_id, ${Object.keys(opinioni).map(id => opinionMapping[id]).filter(Boolean).join(', ')})
-        VALUES ($1, ${Object.keys(opinioni).map((_, i) => `$${i + 2}`).join(', ')})
+        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+        VALUES ($1, ${insertFields.map((_, i) => `$${i + 2}`).join(', ')})
         ON CONFLICT (user_id) DO UPDATE SET
           ${updateFields.join(', ')}
       `;
       
-      const allValues = [userId, ...updateValues];
+      const allValues = [userId, ...insertValues];
       
       console.log('🔍 DEBUG - Query SQL finale:', updateQuery);
       console.log('🔍 DEBUG - Valori query:', allValues);
