@@ -167,10 +167,16 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
     try {
       setIsSaving(true);
       
-      // Prepara i gradi selezionati
+      // Prepara i gradi selezionati (conversione da nomi a codici)
+      const gradoCodeMap = {
+        'Europeo': 'E',
+        'Nazionale': 'N',
+        'Regionale': 'R',
+        'Comunale': 'CO'
+      };
       const gradiSelezionati = Object.entries(gradiProposta)
         .filter(([_, isSelected]) => isSelected)
-        .map(([grado, _]) => grado);
+        .map(([grado, _]) => gradoCodeMap[grado as keyof typeof gradoCodeMap]);
       
       // Combina tutti gli approfondimenti in un unico testo
       const approfondimentoCombinato = Object.entries(approfondimentiPerGrado)
