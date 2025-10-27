@@ -309,10 +309,10 @@ router.post('/salva', async (req, res) => {
         const updateQuery = `
           UPDATE opinioni_risposte 
           SET ${updateFields.join(', ')}
-          WHERE user_id = $1
+          WHERE user_id = $${updateFields.length + 1}
         `;
         
-        const allValues = [userId, ...insertValues];
+        const allValues = [...insertValues, userId];
         console.log('🔍 DEBUG - Utente esistente, aggiorno solo opinioni specifiche');
         console.log('🔍 DEBUG - Query SQL:', updateQuery);
         console.log('🔍 DEBUG - Valori query:', allValues);
