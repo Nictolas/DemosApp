@@ -20,25 +20,38 @@ router.get('/sostenitori', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come attivista
-    const result = await pool.query(`
-      SELECT 
-        id,
-        nome,
-        cognome,
-        email,
-        ruolo,
-        data_nascita,
-        genere,
-        regione_residenza,
-        provincia_residenza,
-        comune_residenza,
-        created_at,
-        'Attivista' as supporter_role
-      FROM users
-      WHERE attivisti = $1
-      ORDER BY created_at DESC
+    // Recupera il codice_attivista dell'attivista
+    const codiceResult = await pool.query(`
+      SELECT codice_attivista FROM users WHERE id = $1
     `, [sostenuto_id]);
+
+    let result;
+    if (codiceResult.rows.length === 0 || !codiceResult.rows[0].codice_attivista) {
+      // Nessun codice_attivista, restituisci array vuoto
+      result = { rows: [] };
+    } else {
+      const codiceAttivista = codiceResult.rows[0].codice_attivista;
+
+      // Trova tutti gli utenti che hanno questo codice_attivista nella colonna attivisti
+      result = await pool.query(`
+        SELECT 
+          id,
+          nome,
+          cognome,
+          email,
+          ruolo,
+          data_nascita,
+          genere,
+          regione_residenza,
+          provincia_residenza,
+          comune_residenza,
+          created_at,
+          'Attivista' as supporter_role
+        FROM users
+        WHERE attivisti = $1
+        ORDER BY created_at DESC
+      `, [codiceAttivista]);
+    }
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
     const supportersMap = new Map();
