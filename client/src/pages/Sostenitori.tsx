@@ -167,7 +167,7 @@ export default function Sostenitori() {
   if (isAuthLoading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!user) return <Redirect to="/auth" />;
 
-  const isAuthorized = ["P", "Candidato", "Candidato Politico", "Admin"].includes(user.ruolo);
+  const isAuthorized = ["AD", "A", "P", "C", "CP", "O"].includes(user.ruolo);
   if (!isAuthorized) {
     return (
         <div className="min-h-screen p-4 flex items-center justify-center">
