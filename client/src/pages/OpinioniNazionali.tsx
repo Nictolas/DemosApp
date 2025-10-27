@@ -103,10 +103,10 @@ export default function OpinioniNazionali() {
       // Mappa le risposte dell'utente usando userAnswer da ogni opinione
       const mappedOpinions: Record<string, string> = {};
       questions.forEach(question => {
-        if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
+        if (question.userAnswer && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
         } else {
-          mappedOpinions[question.id] = 'Astenuto';
+          // Non impostare nulla per opinioni senza risposta - rimangono undefined
         }
       });
       setOpinions(mappedOpinions);

@@ -91,12 +91,12 @@ export default function OpinioniEuropee() {
           userAnswer: question.userAnswer
         });
         
-        if (question.userAnswer && question.userAnswer !== 'Astenuto' && question.userAnswer !== null) {
+        if (question.userAnswer && question.userAnswer !== null) {
           mappedOpinions[question.id] = question.userAnswer;
           console.log(`✅ Mappata opinione esistente: ${question.id} = ${question.userAnswer}`);
         } else {
-          mappedOpinions[question.id] = 'Astenuto';
-          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> impostato Astenuto`);
+          // Non impostare nulla per opinioni senza risposta - rimangono undefined
+          console.log(`ℹ️ Opinione senza risposta: ${question.id} (userAnswer: ${question.userAnswer}) -> non impostata`);
         }
       });
       
@@ -143,6 +143,8 @@ export default function OpinioniEuropee() {
         // Usa l'ID dell'opinione come chiave per l'API
         opinionsToSave[question.id] = opinions[question.id];
         console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
+      } else {
+        console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
       }
     });
     
