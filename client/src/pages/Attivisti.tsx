@@ -372,10 +372,30 @@ export default function Attivisti() {
             description: "Hai votato per questo attivista",
           });
           
+          // Salva il precedente attivista votato
+          const previousAttivistaId = Array.from(followingUsers)[0];
+          
           // Aggiorna lo stato locale (rimuovi eventuali altri voti e aggiungi questo)
           setFollowingUsers(prev => new Set([attivistaId]));
           
-          // Aggiorna conteggio locale + riordina lista
+          // Decrementa il conteggio del precedente attivista se esisteva
+          if (previousAttivistaId && previousAttivistaId !== attivistaId) {
+            const prevCount = (attivisti.find(a => a.id === previousAttivistaId) as any)?.supporters_count || 0;
+            const prevTotal = Math.max(0, prevCount - 1);
+            setSupportersCount(prev => ({ ...prev, [previousAttivistaId]: prevTotal }));
+            setFilteredAttivisti(prev => {
+              const next = prev.map(a => (a.id === previousAttivistaId ? ({ ...(a as any), supporters_count: prevTotal } as any) : a));
+              (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+              return next;
+            });
+            setAttivisti(prev => {
+              const next = prev.map(a => (a.id === previousAttivistaId ? ({ ...(a as any), supporters_count: prevTotal } as any) : a));
+              (next as any[]).sort((a: any, b: any) => (b.supporters_count ?? 0) - (a.supporters_count ?? 0));
+              return next;
+            });
+          }
+          
+          // Incrementa il conteggio del nuovo attivista
           const currentCount = (attivisti.find(a => a.id === attivistaId) as any)?.supporters_count || 0;
           const total = currentCount + 1;
           setSupportersCount(prev => ({ ...prev, [attivistaId]: total }));
