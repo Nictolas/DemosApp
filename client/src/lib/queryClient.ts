@@ -9,12 +9,15 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export const apiRequest = async (method: string, url: string, body?: any, customHeaders?: Record<string, string>) => {
+  console.log('🔍 DEBUG apiRequest - Inizio richiesta:', { method, url, body });
+  
   let headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   
   // Usa token JWT dal localStorage invece di Firebase
   const token = localStorage.getItem('auth_token');
+  console.log('🔍 DEBUG apiRequest - Token presente:', !!token);
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -26,12 +29,21 @@ export const apiRequest = async (method: string, url: string, body?: any, custom
   }
   
   const finalUrl = getApiUrl(url);
+  console.log('🔍 DEBUG apiRequest - URL finale:', finalUrl);
+  console.log('🔍 DEBUG apiRequest - Headers:', headers);
   
-  return fetch(finalUrl, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  try {
+    const response = await fetch(finalUrl, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    console.log('🔍 DEBUG apiRequest - Risposta ricevuta:', { status: response.status, ok: response.ok, url: response.url });
+    return response;
+  } catch (error) {
+    console.error('🔍 DEBUG apiRequest - ERRORE:', error);
+    throw error;
+  }
 };
 
 type UnauthorizedBehavior = "returnNull" | "throw";
