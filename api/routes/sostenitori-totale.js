@@ -22,7 +22,7 @@ router.get('/totale', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come candidato O rappresentante
+    // Trova tutti gli utenti che hanno scelto questo utente come candidato, rappresentante O attivista
     const result = await pool.query(`
       SELECT 
         id,
@@ -47,6 +47,7 @@ router.get('/totale', async (req, res) => {
           WHEN rappresentante_senato = $1 THEN 'Rappresentante Senato'
           WHEN rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
           WHEN rappresentante_comune = $1 THEN 'Rappresentante Comunale'
+          WHEN attivisti = $1 THEN 'Attivista'
         END as supporter_role
       FROM users
       WHERE (
@@ -59,7 +60,8 @@ router.get('/totale', async (req, res) => {
         rappresentante_camera = $1 OR
         rappresentante_senato = $1 OR
         rappresentante_regionale = $1 OR
-        rappresentante_comune = $1
+        rappresentante_comune = $1 OR
+        attivisti = $1
       )
       ORDER BY created_at DESC
     `, [sostenuto_id]);
