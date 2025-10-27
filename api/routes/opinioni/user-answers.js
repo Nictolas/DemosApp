@@ -77,6 +77,21 @@ router.get('/profile', verifyToken, async (req, res) => {
 // POST /api/opinioni/salva - Salva le opinioni dell'utente
 router.post('/salva', async (req, res) => {
   console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨');
+  console.log('🚨 DEBUG: req.body RAW:', req.body);
+  console.log('🚨 DEBUG: req.body tipo:', typeof req.body);
+  console.log('🚨 DEBUG: req.body keys:', Object.keys(req.body || {}));
+  console.log('🚨 DEBUG: req.headers:', req.headers);
+  
+  // Se req.body è una stringa, prova a parsearla
+  if (typeof req.body === 'string') {
+    try {
+      req.body = JSON.parse(req.body);
+      console.log('🚨 DEBUG: Parsed JSON body:', req.body);
+    } catch (e) {
+      console.error('🚨 DEBUG: Errore parsing JSON:', e);
+    }
+  }
+  
   console.log('🚨 DEBUG: req.body:', JSON.stringify(req.body, null, 2));
   
   // Controllo token manuale
