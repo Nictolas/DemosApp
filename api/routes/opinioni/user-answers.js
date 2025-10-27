@@ -76,6 +76,10 @@ router.get('/profile', verifyToken, async (req, res) => {
 
 // POST /api/opinioni/salva - Salva le opinioni dell'utente
 router.post('/salva', verifyToken, async (req, res) => {
+  console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨');
+  console.log('🚨 DEBUG: req.body:', req.body);
+  console.log('🚨 DEBUG: req.userId:', req.userId);
+  
   try {
     const userId = req.userId;
     const { opinioni } = req.body;
@@ -85,6 +89,12 @@ router.post('/salva', verifyToken, async (req, res) => {
     console.log('📋 Opinion ricevute:', opinioni);
     console.log('🔍 Tipo opinioni:', typeof opinioni);
     console.log('🔍 Chiavi opinioni:', Object.keys(opinioni || {}));
+    console.log('🔍 DETTAGLIO opinioni ricevute:');
+    if (opinioni && typeof opinioni === 'object') {
+      Object.entries(opinioni).forEach(([key, value]) => {
+        console.log(`  ${key}: ${value}`);
+      });
+    }
     
     if (!opinioni || typeof opinioni !== 'object') {
       return res.status(400).json({
@@ -197,6 +207,10 @@ router.post('/salva', verifyToken, async (req, res) => {
       `;
       
       const allValues = [userId, ...updateValues];
+      
+      console.log('🔍 DEBUG - Query SQL finale:', updateQuery);
+      console.log('🔍 DEBUG - Valori query:', allValues);
+      
       await pool.query(updateQuery, allValues);
       
       savedCount = updateFields.length;
