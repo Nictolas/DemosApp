@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react";
 import { usePasswordChange } from "./hooks/usePasswordChange";
 import { useLogout } from "./hooks/useLogout";
-import { Header } from "./components/Header";
 import { LinksSection } from "./components/LinksSection";
 import { LogoutDialog } from "./components/LogoutDialog";
 import { PageContainer } from "@/components/PageContainer";
@@ -44,8 +43,6 @@ export default function Impostazioni() {
   return (
     <PageContainer className="bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8 h-full flex flex-col">
-        <Header />
-
         <div className="flex-1 flex items-center justify-center">
           <div className="grid gap-8 w-full max-w-2xl">
             {/* Sezione Unica con 4 Pulsanti */}
