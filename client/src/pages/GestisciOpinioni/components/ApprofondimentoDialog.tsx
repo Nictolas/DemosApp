@@ -207,12 +207,15 @@ export const ApprofondimentoDialog: React.FC<ApprofondimentoDialogProps> = ({
         .map(([grado, testo]) => `## Proposta ${grado}\n\n${testo}`)
         .join('\n\n');
       
-      // Usa customId se presente, altrimenti usa l'ID corrente
-      const currentOpinionId = (isDaApprovare && customId.trim()) ? customId.trim() : (opinionId || opinione?.id);
-      const response = await apiRequest("PUT", `/api/opinioni/${currentOpinionId}/approfondimento`, {
+      // Per opinioni "da approvare", invia l'ID vecchio nell'URL e il nuovo ID nel body
+      const urlOpinionId = isDaApprovare ? (opinionId || opinione?.id) : (opinionId || opinione?.id);
+      const body = {
         approfondimento: approfondimentoCombinato,
-        gradi_opinione: gradiSelezionati
-      });
+        gradi_opinione: gradiSelezionati,
+        ...(isDaApprovare && customId.trim() && { customId: customId.trim() })
+      };
+      
+      const response = await apiRequest("PUT", `/api/opinioni/${urlOpinionId}/approfondimento`, body);
       
       if (response.ok) {
         toast({
