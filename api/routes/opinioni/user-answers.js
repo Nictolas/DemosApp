@@ -75,7 +75,11 @@ router.get('/profile', verifyToken, async (req, res) => {
 });
 
 // POST /api/opinioni/salva - Salva le opinioni dell'utente
-router.post('/salva', verifyToken, async (req, res) => {
+router.post('/salva', (req, res, next) => {
+  console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva ROUTE HIT! 🚨🚨🚨');
+  console.log('🚨 DEBUG: Headers:', req.headers);
+  next();
+}, verifyToken, async (req, res) => {
   console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨');
   console.log('🚨 DEBUG: req.body:', JSON.stringify(req.body, null, 2));
   console.log('🚨 DEBUG: req.userId:', req.userId);
