@@ -103,7 +103,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN LATERAL (
         SELECT COUNT(*) AS cnt
         FROM users s
-        WHERE s.attivisti = u.codice_attivista
+        WHERE s.attivisti = u.id
       ) us ON TRUE
       WHERE ${whereClause}
       ORDER BY supporters_count DESC, u.created_at DESC

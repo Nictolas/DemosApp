@@ -22,16 +22,6 @@ router.get('/totale', async (req, res) => {
       });
     }
 
-    // Recupera il codice_attivista dell'utente supportato
-    const codiceResult = await pool.query(`
-      SELECT codice_attivista FROM users WHERE id = $1
-    `, [sostenuto_id]);
-    
-    let codiceAttivista = null;
-    if (codiceResult.rows.length > 0 && codiceResult.rows[0].codice_attivista) {
-      codiceAttivista = codiceResult.rows[0].codice_attivista;
-    }
-
     // Trova tutti gli utenti che hanno scelto questo utente come candidato, rappresentante O attivista
     const result = await pool.query(`
       SELECT 
@@ -57,7 +47,7 @@ router.get('/totale', async (req, res) => {
           WHEN rappresentante_senato = $1 THEN 'Rappresentante Senato'
           WHEN rappresentante_regionale = $1 THEN 'Rappresentante Regionale'
           WHEN rappresentante_comune = $1 THEN 'Rappresentante Comunale'
-          WHEN attivisti = $2 THEN 'Attivista'
+          WHEN attivisti = $1 THEN 'Attivista'
         END as supporter_role
       FROM users
       WHERE (
@@ -70,11 +60,11 @@ router.get('/totale', async (req, res) => {
         rappresentante_camera = $1 OR
         rappresentante_senato = $1 OR
         rappresentante_regionale = $1 OR
-        rappresentante_comune = $1
-        ${codiceAttivista ? `OR attivisti = $2` : ''}
+        rappresentante_comune = $1 OR
+        attivisti = $1
       )
       ORDER BY created_at DESC
-    `, codiceAttivista ? [sostenuto_id, codiceAttivista] : [sostenuto_id]);
+    `, [sostenuto_id]);
     
     console.log('🔍 DEBUG: Trovati sostenitori totali:', result.rows.length);
 
