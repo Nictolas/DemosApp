@@ -474,7 +474,6 @@ router.put('/:userId/opinioni', verifyToken, requireAdmin, async (req, res) => {
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
       'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
       'nato': 'nato',
       'matrimonio_gay': 'matrimonio_gay',
       'salario_minimo': 'salario_minimo',
