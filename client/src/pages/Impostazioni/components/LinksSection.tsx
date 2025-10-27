@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Shield, Lock, LogOut, AlertTriangle, Copyright } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Shield, Lock, LogOut, AlertTriangle, Copyright, Settings } from "lucide-react";
 import { ChangePasswordForm } from "../types";
 
 interface LinksSectionProps {
@@ -32,7 +32,21 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full -translate-y-16 translate-x-16"></div>
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-400/20 to-orange-500/20 rounded-full translate-y-12 -translate-x-12"></div>
       
-      <CardContent className="relative space-y-6 pt-6">
+      <CardHeader className="relative">
+        <CardTitle className="flex items-center gap-3 text-2xl font-bold">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <Settings className="h-5 w-5 text-white" />
+          </div>
+          <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+            Impostazioni
+          </span>
+        </CardTitle>
+        <CardDescription className="text-gray-600 text-base">
+          Gestisci il tuo account e le preferenze
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent className="relative space-y-6">
         {/* Layout responsive: 1 colonna su mobile, 2 colonne su desktop */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* GDPR */}
