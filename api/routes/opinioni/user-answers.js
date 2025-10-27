@@ -313,6 +313,7 @@ router.post('/salva', async (req, res) => {
         `;
         
         const allValues = [...insertValues, userId];
+        console.log('🔍 DEBUG - Numero parametri UPDATE:', updateFields.length, 'campo WHERE:', updateFields.length + 1);
         console.log('🔍 DEBUG - Utente esistente, aggiorno solo opinioni specifiche');
         console.log('🔍 DEBUG - Query SQL:', updateQuery);
         console.log('🔍 DEBUG - Valori query:', allValues);
