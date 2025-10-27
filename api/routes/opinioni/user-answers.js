@@ -481,10 +481,21 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       });
     }
     
-    // Cerca per ID se è numerico, altrimenti cerca per text
+    // Cerca per ID se è numerico, altrimenti cerca per text o id diretto
     let updateQuery, params;
     if (/^\d+$/.test(id)) {
       // ID numerico
+      updateQuery = `
+        UPDATE opinioni_domande 
+        SET approfondimento = $1, gradi_opinione = $2
+        WHERE id::text = $3
+        RETURNING id, text, approfondimento, gradi_opinione
+      `;
+      params = [approfondimento || '', gradi_opinione || [], id];
+    } else {
+      // ID testuale (es. energia_nucleare) - prova prima per id, poi per text
+      console.log('🔍 DEBUG - Aggiornando opinione con ID/testo:', id);
+      
       updateQuery = `
         UPDATE opinioni_domande 
         SET approfondimento = $1, gradi_opinione = $2
@@ -492,20 +503,10 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
         RETURNING id, text, approfondimento, gradi_opinione
       `;
       params = [approfondimento || '', gradi_opinione || [], id];
-    } else {
-      // ID testuale (es. energia_nucleare)
-      const textToSearch = id.replace(/_/g, ' ');
-      console.log('🔍 DEBUG - Aggiornando opinione con testo:', textToSearch);
-      
-      updateQuery = `
-        UPDATE opinioni_domande 
-        SET approfondimento = $1, gradi_opinione = $2
-        WHERE LOWER(TRIM(text)) = LOWER(TRIM($3))
-        RETURNING id, text, approfondimento, gradi_opinione
-      `;
-      params = [approfondimento || '', gradi_opinione || [], textToSearch];
     }
     
+    console.log('🔍 DEBUG - Query:', updateQuery);
+    console.log('🔍 DEBUG - Params:', params);
     let result = await pool.query(updateQuery, params);
     
     if (result.rows.length === 0) {
