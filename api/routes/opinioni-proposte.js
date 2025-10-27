@@ -281,7 +281,7 @@ router.post('/', async (req, res) => {
     
     // Inserisce nella tabella opinioni_domande con gradi_opinione contenente "da approvare"
     const insertQuery = `
-      INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimenti)
+      INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
       VALUES ($1, $2, $3, $4)
     `;
     
