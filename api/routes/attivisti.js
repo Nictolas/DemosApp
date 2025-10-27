@@ -46,21 +46,31 @@ router.get('/', async (req, res) => {
     if (regione && regione.trim() && regione !== 'all') {
       // Converte nome regione in codice per la query database
       const regionCode = compressRegione(regione.trim());
-      console.log('🔍 Filtro regione:', { regione, regionCode });
+      console.log('🔍 Filtro regione:', { 
+        input: regione.trim(), 
+        regionCode, 
+        willFilter: !!regionCode 
+      });
       if (regionCode) {
         whereConditions.push(`u.regione_residenza = $${paramIndex}`);
         queryParams.push(regionCode);
         paramIndex++;
       } else {
         console.log('⚠️ Regione non riconosciuta o non trovata:', regione);
+        console.log('⚠️ Proviamo a cercare anche AD (Admin) che hanno regione:', regione);
       }
     }
 
     // Filtro per tipologia di attivismo
     if (tipologia && tipologia.trim() && tipologia !== 'all') {
       console.log('🔍 Filtro tipologia:', tipologia);
-      whereConditions.push(`u.tipologie_attivismo @> $${paramIndex}`);
-      queryParams.push(JSON.stringify([{ tipo: tipologia.trim() }]));
+      // Cerca tipologie che contengono un elemento con tipo = tipologia
+      whereConditions.push(`EXISTS (
+        SELECT 1 
+        FROM jsonb_array_elements(u.tipologie_attivismo) AS elem
+        WHERE elem->>'tipo' = $${paramIndex}
+      )`);
+      queryParams.push(tipologia.trim());
       paramIndex++;
     }
 
