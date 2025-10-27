@@ -705,8 +705,10 @@ export default function Attivisti() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <Button 
                                 size="sm" 
-                                variant="outline" 
-                                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                                variant={followingUsers.has(attivista.id) ? "default" : "outline"}
+                                className={followingUsers.has(attivista.id) 
+                                  ? "bg-blue-600 text-white hover:bg-blue-700" 
+                                  : "text-blue-600 border-blue-600 hover:bg-blue-50"}
                                 onClick={() => handleVoteAttivista(attivista.id)}
                                 disabled={!user?.id}
                               >
@@ -754,8 +756,10 @@ export default function Attivisti() {
                         <div className="flex-shrink-0">
                           <Button 
                             size="sm" 
-                            variant="outline" 
-                            className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                            variant={followingUsers.has(attivista.id) ? "default" : "outline"}
+                            className={followingUsers.has(attivista.id) 
+                              ? "bg-blue-600 text-white hover:bg-blue-700" 
+                              : "text-blue-600 border-blue-600 hover:bg-blue-50"}
                             onClick={() => handleVoteAttivista(attivista.id)}
                             disabled={!user?.id}
                           >
