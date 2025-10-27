@@ -56,7 +56,12 @@ export default function Sostenitori() {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/rappresentanti/sostenitori?sostenuto_id=${user.id}`);
       if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori rappresentanti");
-      return response.json();
+      const data = await response.json();
+      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
+      if (data.success && data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
+      }
+      return data;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "P" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -68,7 +73,12 @@ export default function Sostenitori() {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/candidati/sostenitori?sostenuto_id=${user.id}`);
       if (!response.ok) throw new Error("Errore nel caricamento dei dati dei sostenitori candidati");
-      return response.json();
+      const data = await response.json();
+      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
+      if (data.success && data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
+      }
+      return data;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -80,7 +90,12 @@ export default function Sostenitori() {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/sostenitori/totale?sostenuto_id=${user.id}`);
       if (!response.ok) throw new Error("Errore nel caricamento dei dati totali");
-      return response.json();
+      const data = await response.json();
+      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
+      if (data.success && data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
+      }
+      return data;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
