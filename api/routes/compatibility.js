@@ -124,7 +124,7 @@ router.get('/opinioni-list', async (req, res) => {
     const userAnswersResult = await pool.query(userQuery, [userId, grado]);
     const userAnswers = {};
     userAnswersResult.rows.forEach(row => {
-      const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
+      const opinionKey = row.text.replace(/\s+/g, '_').replace(/'/g, '_').toLowerCase();
       // Mappa la risposta dalla colonna corrispondente in opinioni_risposte
       // L'ID dell'opinione corrisponde al nome della colonna nella tabella opinioni_risposte
       userAnswers[opinionKey] = row[opinionKey];
@@ -134,7 +134,7 @@ router.get('/opinioni-list', async (req, res) => {
     
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
-      const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
+      const opinionKey = opinion.text.replace(/\s+/g, '_').replace(/'/g, '_').toLowerCase();
       const userAnswer = userAnswers[opinionKey]; // Usa la chiave dell'opinione per trovare la risposta
       
       // Restituisci direttamente i valori compressi dal database
