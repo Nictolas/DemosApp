@@ -126,8 +126,8 @@ router.get('/opinioni-list', async (req, res) => {
     userAnswersResult.rows.forEach(row => {
       const opinionKey = row.text.replace(/\s+/g, '_').toLowerCase();
       // Mappa la risposta dalla colonna corrispondente in opinioni_risposte
-      const opinionField = opinionKey.replace(/\s+/g, '_').toLowerCase();
-      userAnswers[opinionKey] = row[opinionField];
+      // L'ID dell'opinione corrisponde al nome della colonna nella tabella opinioni_risposte
+      userAnswers[opinionKey] = row[opinionKey];
     });
     
     console.log('🔍 DEBUG - User answers caricate:', Object.keys(userAnswers).length);
@@ -135,7 +135,7 @@ router.get('/opinioni-list', async (req, res) => {
     // Formatta le opinioni per il frontend
     const formattedOpinions = opinionResult.rows.map(opinion => {
       const opinionKey = opinion.text.replace(/\s+/g, '_').toLowerCase();
-      const userAnswer = userAnswers[opinionKey]; // Usa la chiave dell'opinione
+      const userAnswer = userAnswers[opinionKey]; // Usa la chiave dell'opinione per trovare la risposta
       
       // Restituisci direttamente i valori compressi dal database
       let frontendAnswer = null;
@@ -145,8 +145,10 @@ router.get('/opinioni-list', async (req, res) => {
         frontendAnswer = null;
       }
       
+      console.log(`🔍 DEBUG - Formattando opinione: key=${opinionKey}, text="${opinion.text}", userAnswer=${userAnswer}`);
+      
       return {
-        id: opinionKey,
+        id: opinionKey, // USA LA CHIAVE CHE CORRISPONDE AL NOME DELLA COLONNA NEL DATABASE
         text: opinion.text,
         grado: opinion.gradi_opinione,
         userAnswer: frontendAnswer
