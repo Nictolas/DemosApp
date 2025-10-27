@@ -477,11 +477,11 @@ router.get('/:id/approfondimento', verifyToken, async (req, res) => {
 // PUT /api/opinioni/:id/approfondimento - Aggiorna approfondimento di un'opinione (solo admin)
 router.put('/:id/approfondimento', verifyToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const { approfondimento, gradi_opinione } = req.body;
+    const { id } = req.params; // ID vecchio (UUID temporaneo)
+    const { approfondimento, gradi_opinione, customId } = req.body; // customId = nuovo ID scelto dall'admin
     
     console.log('💾 PUT /api/opinioni/:id/approfondimento - Salvataggio approfondimento per opinione:', id);
-    console.log('📋 Dati ricevuti:', { approfondimento, gradi_opinione });
+    console.log('📋 Dati ricevuti:', { approfondimento, gradi_opinione, customId });
     
     // Verifica che l'utente sia admin
     const userQuery = `
@@ -497,70 +497,97 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
       });
     }
     
-    // Controlla se l'opinione esiste e se è "da approvare"
-    const checkOpinioneQuery = `SELECT id, text, gradi_opinione FROM opinioni_domande WHERE id = $1`;
-    const checkResult = await pool.query(checkOpinioneQuery, [id]);
+    // Determina se è un cambio ID (da UUID a ID personalizzato)
+    let actualId = id;
+    const isChangingId = customId && customId.trim() && customId.trim() !== id;
     
-    // Se non esiste, creala (nuova opinione da approvare)
-    if (checkResult.rows.length === 0) {
-      console.log('📝 Creando nuova opinione con ID:', id);
-      const createOpinioneQuery = `
+    if (isChangingId) {
+      console.log('📝 L\'admin vuole cambiare l\'ID da', id, 'a', customId);
+      
+      // Verifica se il nuovo ID esiste già
+      const checkNewIdQuery = `SELECT id FROM opinioni_domande WHERE id = $1`;
+      const checkNewId = await pool.query(checkNewIdQuery, [customId]);
+      
+      if (checkNewId.rows.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'ID già esistente',
+          message: `L'ID "${customId}" è già utilizzato da un'altra opinione.`
+        });
+      }
+      
+      // Recupera l'opinione originale (UUID)
+      const getOriginalQuery = `SELECT id, text, gradi_opinione, approfondimento FROM opinioni_domande WHERE id = $1`;
+      const originalResult = await pool.query(getOriginalQuery, [id]);
+      
+      if (originalResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Opinione originale non trovata',
+          message: `Nessuna opinione trovata con ID: ${id}`
+        });
+      }
+      
+      const originalOpinion = originalResult.rows[0];
+      
+      // Crea la nuova opinione con il nuovo ID
+      const insertNewQuery = `
         INSERT INTO opinioni_domande (id, text, gradi_opinione, approfondimento)
         VALUES ($1, $2, $3, $4)
       `;
-      await pool.query(createOpinioneQuery, [
-        id,
-        id, // Usa l'ID come testo temporaneo
-        gradi_opinione,
-        approfondimento
+      await pool.query(insertNewQuery, [
+        customId.trim(),
+        originalOpinion.text, // Mantieni il testo originale
+        gradi_opinione, // Nuovi gradi selezionati
+        approfondimento // Nuovo approfondimento
       ]);
-      console.log('✅ Nuova opinione creata con ID:', id);
-    } else {
-      // Se esiste ed è "da approvare", verifica
-      const currentGradi = checkResult.rows[0].gradi_opinione;
-      if (currentGradi && Array.isArray(currentGradi) && currentGradi.includes('da approvare')) {
-        console.log('📝 Aggiornando opinione "da approvare" con ID:', id);
-      }
-    }
-    
-    // Cerca per ID se è numerico, altrimenti cerca per text o id diretto
-    let updateQuery, params;
-    if (/^\d+$/.test(id)) {
-      // ID numerico
-      updateQuery = `
-        UPDATE opinioni_domande 
-        SET approfondimento = $1, gradi_opinione = $2
-        WHERE id::text = $3
-        RETURNING id, text, approfondimento, gradi_opinione
-      `;
-      params = [approfondimento || '', gradi_opinione || [], id];
-    } else {
-      // ID testuale (es. energia_nucleare) - prova prima per id, poi per text
-      console.log('🔍 DEBUG - Aggiornando opinione con ID/testo:', id);
       
-      updateQuery = `
-        UPDATE opinioni_domande 
-        SET approfondimento = $1, gradi_opinione = $2
-        WHERE id = $3
-        RETURNING id, text, approfondimento, gradi_opinione
-      `;
-      params = [approfondimento || '', gradi_opinione || [], id];
+      console.log('✅ Nuova opinione creata con ID:', customId);
+      
+      // Elimina l'opinione originale
+      const deleteOldQuery = `DELETE FROM opinioni_domande WHERE id = $1`;
+      await pool.query(deleteOldQuery, [id]);
+      
+      console.log('✅ Vecchia opinione eliminata con ID:', id);
+      
+      // Usa il nuovo ID per il resto
+      actualId = customId.trim();
     }
     
-    console.log('🔍 DEBUG - Query:', updateQuery);
-    console.log('🔍 DEBUG - Params:', params);
-    let result = await pool.query(updateQuery, params);
-    
-    if (result.rows.length === 0) {
-      console.log('⚠️ Opinione non trovata con testo per update, provo con ID diretto:', id);
-      // Fallback: prova a cercare per ID diretto
-      const fallbackUpdateQuery = `
-        UPDATE opinioni_domande 
-        SET approfondimento = $1, gradi_opinione = $2
-        WHERE id = $3
-        RETURNING id, text, approfondimento, gradi_opinione
-      `;
-      result = await pool.query(fallbackUpdateQuery, [approfondimento || '', gradi_opinione || [], id]);
+    // Se abbiamo cambiato ID, non serve fare UPDATE (già fatto con INSERT)
+    let result;
+    if (isChangingId) {
+      // L'opinione è già stata creata con il nuovo ID, basta recuperarla
+      const getNewOpinionQuery = `SELECT id, text, approfondimento, gradi_opinione FROM opinioni_domande WHERE id = $1`;
+      result = await pool.query(getNewOpinionQuery, [actualId]);
+      
+      console.log('✅ Approfondimento salvato con successo per opinione (nuovo ID):', actualId);
+    } else {
+      // Cerca per ID se è numerico, altrimenti cerca per text o id diretto
+      let updateQuery, params;
+      if (/^\d+$/.test(actualId)) {
+        // ID numerico
+        updateQuery = `
+          UPDATE opinioni_domande 
+          SET approfondimento = $1, gradi_opinione = $2
+          WHERE id::text = $3
+          RETURNING id, text, approfondimento, gradi_opinione
+        `;
+        params = [approfondimento || '', gradi_opinione || [], actualId];
+      } else {
+        // ID testuale
+        updateQuery = `
+          UPDATE opinioni_domande 
+          SET approfondimento = $1, gradi_opinione = $2
+          WHERE id = $3
+          RETURNING id, text, approfondimento, gradi_opinione
+        `;
+        params = [approfondimento || '', gradi_opinione || [], actualId];
+      }
+      
+      console.log('🔍 DEBUG - Query:', updateQuery);
+      console.log('🔍 DEBUG - Params:', params);
+      result = await pool.query(updateQuery, params);
       
       if (result.rows.length === 0) {
         return res.status(404).json({
@@ -568,9 +595,9 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
           error: 'Opinione non trovata'
         });
       }
+      
+      console.log('✅ Approfondimento salvato con successo per opinione:', actualId);
     }
-    
-    console.log('✅ Approfondimento salvato con successo per opinione:', id);
     
     // Aggiungi la colonna corrispondente in opinioni_risposte se non esiste
     try {
@@ -580,14 +607,14 @@ router.put('/:id/approfondimento', verifyToken, async (req, res) => {
         WHERE table_name = 'opinioni_risposte' 
         AND column_name = $1
       `;
-      const columnCheck = await pool.query(checkColumnQuery, [id]);
+      const columnCheck = await pool.query(checkColumnQuery, [actualId]);
       
       if (columnCheck.rows.length === 0) {
-        console.log(`📊 Aggiungo colonna ${id} a opinioni_risposte...`);
+        console.log(`📊 Aggiungo colonna ${actualId} a opinioni_risposte...`);
         // Usa un identificatore quotato per il nome della colonna
-        const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN "${id}" TEXT`;
+        const addColumnQuery = `ALTER TABLE opinioni_risposte ADD COLUMN "${actualId}" TEXT`;
         await pool.query(addColumnQuery);
-        console.log(`✅ Colonna ${id} aggiunta a opinioni_risposte`);
+        console.log(`✅ Colonna ${actualId} aggiunta a opinioni_risposte`);
       }
     } catch (error) {
       console.error('❌ Errore nell\'aggiungere colonna opinioni_risposte:', error);
