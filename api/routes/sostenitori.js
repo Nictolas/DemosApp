@@ -224,6 +224,8 @@ router.post('/follow', async (req, res) => {
       });
     }
 
+    console.log('🗳️ Votazione per attivista - user:', supportedUser);
+
     // Verifica se l'utente sta già votando questo attivista
     const currentVote = await pool.query(`
       SELECT attivisti FROM users WHERE id = $1
@@ -389,6 +391,132 @@ router.get('/following', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Errore nel recupero attivista votato:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/sostenitori/follow-organizzazione - Vota un'organizzazione (limite di 1 voto)
+router.post('/follow-organizzazione', async (req, res) => {
+  try {
+    const { supporter_id, supported_id } = req.body;
+
+    console.log('🗳️ POST /api/sostenitori/follow-organizzazione - Voto organizzazione', { supporter_id, supported_id });
+
+    if (!supporter_id || !supported_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'supporter_id e supported_id sono obbligatori'
+      });
+    }
+
+    // Verifica che entrambi gli utenti esistano
+    const usersCheck = await pool.query(`
+      SELECT id, ruolo FROM users WHERE id IN ($1, $2)
+    `, [supporter_id, supported_id]);
+
+    if (usersCheck.rows.length !== 2) {
+      return res.status(404).json({
+        success: false,
+        error: 'Uno o entrambi gli utenti non esistono'
+      });
+    }
+
+    // Verifica che l'utente supportato sia un'organizzazione
+    const supportedUser = usersCheck.rows.find(u => u.id === supported_id);
+    if (supportedUser.ruolo !== 'O') {
+      return res.status(400).json({
+        success: false,
+        error: 'Puoi votare solo per le organizzazioni'
+      });
+    }
+
+    console.log('🗳️ Votazione per organizzazione - user:', supportedUser);
+
+    // Verifica se l'utente sta già votando questa organizzazione
+    const currentVote = await pool.query(`
+      SELECT organizzazioni FROM users WHERE id = $1
+    `, [supporter_id]);
+
+    if (currentVote.rows.length > 0 && currentVote.rows[0].organizzazioni === supported_id) {
+      return res.status(409).json({
+        success: false,
+        error: 'Stai già votando questa organizzazione'
+      });
+    }
+
+    // Aggiorna il voto dell'utente (sostituisce eventuali altri voti) usando l'ID
+    const result = await pool.query(`
+      UPDATE users 
+      SET organizzazioni = $2, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, organizzazioni, updated_at
+    `, [supporter_id, supported_id]);
+
+    console.log('✅ Voto organizzazione aggiornato:', result.rows[0]);
+
+    res.json({
+      success: true,
+      message: 'Organizzazione votata con successo',
+      data: {
+        user_id: result.rows[0].id,
+        organizzazione_id: result.rows[0].organizzazioni,
+        updated_at: result.rows[0].updated_at
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel votare organizzazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// DELETE /api/sostenitori/unfollow-organizzazione - Rimuovi voto organizzazione
+router.delete('/unfollow-organizzazione', async (req, res) => {
+  try {
+    const { supporter_id, supported_id } = req.body;
+    
+    if (!supporter_id || !supported_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'supporter_id e supported_id sono obbligatori'
+      });
+    }
+
+    // Verifica che l'utente stia effettivamente votando questa organizzazione
+    const currentVote = await pool.query(`
+      SELECT organizzazioni FROM users WHERE id = $1
+    `, [supporter_id]);
+
+    if (currentVote.rows.length === 0 || currentVote.rows[0].organizzazioni !== supported_id) {
+      return res.status(404).json({
+        success: false,
+        error: 'Non stai votando questa organizzazione'
+      });
+    }
+
+    // Rimuovi il voto
+    const result = await pool.query(`
+      UPDATE users 
+      SET organizzazioni = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, updated_at
+    `, [supporter_id]);
+
+    console.log('✅ Voto organizzazione rimosso per utente:', result.rows[0].id);
+
+    res.json({
+      success: true,
+      message: 'Hai rimosso il voto per questa organizzazione'
+    });
+
+  } catch (error) {
+    console.error('❌ Errore nel rimuovere voto organizzazione:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

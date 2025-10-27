@@ -47,6 +47,8 @@ const candidatiRoutes = require('./routes/candidati');
 const fixDatabaseRoutes = require('./routes/fix-database');
 const debugOpinioniRoutes = require('./routes/debug-opinioni');
 const attivistiRoutes = require('./routes/attivisti');
+const organizzazioniRoutes = require('./routes/organizzazioni');
+const organizzazioniSostenitoriRoutes = require('./routes/organizzazioni-sostenitori');
 const attivismoTipologieRoutes = require('./routes/attivismo-tipologie');
 const gdprRightsRoutes = require('./routes/user/gdpr-rights');
 const gdprRequestsRoutes = require('./routes/user/gdpr-requests');
@@ -292,6 +294,7 @@ app.use('/api/sostenitori', sostenitoriTotaleRoutes);
 app.use('/api/rappresentanti', rappresentantiSostenitoriRoutes);
 app.use('/api/candidati', candidatiSostenitoriRoutes);
 app.use('/api/attivisti', attivistiSostenitoriRoutes);
+app.use('/api/organizzazioni', organizzazioniSostenitoriRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/sondaggi', sondaggiRoutes);
 app.use('/api/segnalazioni', segnalazioniRoutes);
@@ -305,6 +308,7 @@ app.use('/api/candidati', candidatiRoutes);
 app.use('/api/fix-database', fixDatabaseRoutes);
 app.use('/api/debug-opinioni', debugOpinioniRoutes);
 app.use('/api/attivisti', attivistiRoutes);
+app.use('/api/organizzazioni', organizzazioniRoutes);
 app.use('/api/attivismo-tipologie', attivismoTipologieRoutes);
 
 // Route per diritti GDPR
