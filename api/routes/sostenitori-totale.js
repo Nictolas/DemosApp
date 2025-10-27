@@ -25,7 +25,7 @@ router.get('/totale', async (req, res) => {
     // Per ora, conta solo i sostenitori generici per test
     console.log('🔍 DEBUG: Contando solo sostenitori generici per test');
     const result = await pool.query(`
-      SELECT 
+      SELECT DISTINCT
         u.id,
         u.nome,
         u.cognome,
@@ -39,7 +39,7 @@ router.get('/totale', async (req, res) => {
         u.created_at,
         'Sostenitore Generico' as supporter_role
       FROM users u
-      INNER JOIN user_supports us ON u.id = us.supporter_id
+      LEFT JOIN user_supports us ON u.id = us.supporter_id
       WHERE us.supported_id = $1
       ORDER BY u.created_at DESC
     `, [sostenuto_id]);
@@ -132,9 +132,11 @@ router.get('/totale', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recupero sostenitori totali:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
