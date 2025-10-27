@@ -74,9 +74,9 @@ router.get('/profile', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/opinioni/salva - Salva le opinioni dell'utente
+// POST /api/opinioni/salva - Salva le opinioni dell'utente  
 router.post('/salva', async (req, res) => {
-  console.log('🚨🚨🚨 DEBUG: POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨');
+  console.log('🚨🚨🚨🚨🚨 SECONDA VERSIONE - POST /api/opinioni/salva CHIAMATO! 🚨🚨🚨🚨🚨');
   console.log('🚨 DEBUG: req.body RAW:', req.body);
   console.log('🚨 DEBUG: req.body tipo:', typeof req.body);
   console.log('🚨 DEBUG: req.body keys:', Object.keys(req.body || {}));
