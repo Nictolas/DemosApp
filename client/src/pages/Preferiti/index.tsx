@@ -4,6 +4,8 @@ import { Redirect, useLocation } from "wouter";
 import { Heart, Users, Star, UserCheck, Building2 } from "lucide-react";
 import { PageContainer } from "@/components/PageContainer";
 import { Card } from "@/components/ui/card";
+import { OpinioniIncompleteAlert } from "@/pages/ScegliRappresentante/components/OpinioniIncompleteAlert";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PreferitiButtonProps {
   path: string;
@@ -124,6 +126,10 @@ const preferitiItems = [
 export default function Preferiti() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Stato per l'alert delle opinioni incomplete
+  const [showOpinioniAlert, setShowOpinioniAlert] = useState(false);
+  const [opinioniAlertData, setOpinioniAlertData] = useState<any>(null);
 
   // Gestione stati di loading e autenticazione
   if (isAuthLoading) {
@@ -146,10 +152,58 @@ export default function Preferiti() {
     return <Redirect to="/auth" />;
   }
 
-  const navigateWithButtonReset = (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  // Funzione per controllare le opinioni incomplete
+  const checkOpinioniIncomplete = async (categoria: string): Promise<boolean> => {
+    // Mappa categoria a grado
+    const gradoMapping: Record<string, string> = {
+      'politici': 'N', // Default per rappresentanti
+      'candidati': 'E', // Default per candidati europei
+    };
+    
+    const grado = gradoMapping[categoria] || 'N';
+    
+    try {
+      const response = await apiRequest("GET", `/api/opinioni/check-missing/${grado}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data && !result.data.isComplete) {
+          setOpinioniAlertData(result.data);
+          return true; // Opinion incomplete trovate
+        }
+      }
+    } catch (error) {
+      console.error("Errore nel controllo opinioni:", error);
+    }
+    
+    return false; // Opinion complete
+  };
+
+  // Funzione per gestire la navigazione con controllo opinioni
+  const handleNavigate = async (path: string, event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    
+    // Controlla se è una categoria che richiede opinioni complete
+    const categoria = path.startsWith('/rappresentanti') ? 'politici' : 
+                      path.startsWith('/candidati') ? 'candidati' : null;
+    
+    if (categoria) {
+      const opinioniIncomplete = await checkOpinioniIncomplete(categoria);
+      if (opinioniIncomplete) {
+        setShowOpinioniAlert(true);
+        return;
+      }
+    }
+    
+    // Se le opinioni sono complete o non è una categoria che le richiede, naviga normalmente
     setLocation(path);
   };
+
+  // Handler per "Vai alle Opinion"
+  const handleGoToOpinions = () => {
+    setShowOpinioniAlert(false);
+    setLocation('/opinioni');
+  };
+
 
   return (
     <PageContainer className="preferiti-page flex flex-col bg-gradient-to-b from-blue-50 to-white select-none">
@@ -178,13 +232,23 @@ export default function Preferiti() {
                   icon={item.icon}
                   label={item.label}
                   color={item.color}
-                  onNavigate={navigateWithButtonReset}
+                  onNavigate={handleNavigate}
                 />
               ))}
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Alert per opinioni incomplete */}
+      {showOpinioniAlert && opinioniAlertData && (
+        <OpinioniIncompleteAlert
+          open={showOpinioniAlert}
+          onOpenChange={setShowOpinioniAlert}
+          data={opinioniAlertData}
+          onGoToOpinions={handleGoToOpinions}
+        />
+      )}
     </PageContainer>
   );
 }

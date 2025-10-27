@@ -30,9 +30,9 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://demos-c7k0.onrender.com',
+        target: 'http://localhost:10000',
         changeOrigin: true,
-        secure: true,
+        secure: false,
         rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
