@@ -122,7 +122,8 @@ router.post('/salva', (req, res, next) => {
   
   try {
     const userId = req.userId;
-    const { opinioni } = req.body;
+    // Il frontend invia le opinioni direttamente nel body, non in un campo "opinioni"
+    const opinioni = req.body.opinioni || req.body; // Prova entrambi
     
     console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
     console.log('👤 User ID:', userId);
@@ -136,7 +137,7 @@ router.post('/salva', (req, res, next) => {
       });
     }
     
-    if (!opinioni || typeof opinioni !== 'object') {
+    if (!opinioni || typeof opinioni !== 'object' || Object.keys(opinioni).length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Dati mancanti',
