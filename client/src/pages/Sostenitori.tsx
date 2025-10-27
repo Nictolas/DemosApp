@@ -42,6 +42,11 @@ interface CandidatiData {
     supporters: Supporter[];
 }
 
+interface AttivistiData {
+    stats: SupporterStats;
+    supporters: Supporter[];
+}
+
 const COLORS = ['#3b82f6', '#ec4899', '#eab308']; // Blu per Uomo, Rosa per Donna, Giallo per Altro
 
 export default function Sostenitori() {
@@ -83,6 +88,23 @@ export default function Sostenitori() {
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "C" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
 
+  // Query per sostenitori Attivisti
+  const { data: attivistiData, isLoading: isLoadingAttivisti, isError: isErrorAttivisti } = useQuery<AttivistiData>({
+    queryKey: ['attivistiData', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error("Utente non autenticato");
+      const response = await apiRequest("GET", `/api/attivisti/sostenitori?sostenuto_id=${user.id}`);
+      if (!response.ok) throw new Error("Errore nel caricamento dei dati degli attivisti");
+      const data = await response.json();
+      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
+      if (data.success && data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
+      }
+      return data;
+    },
+    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O"),
+  });
+
   // Query per sostenitori Totali (Admin e Candidato Politico)
   const { data: totaleData, isLoading: isLoadingTotale, isError: isErrorTotale } = useQuery<SostenitoriData>({
     queryKey: ['totaleData', user?.id],
@@ -108,8 +130,7 @@ export default function Sostenitori() {
       case "candidato":
         return candidatiData;
       case "attivista":
-        // Per ora riutilizziamo i totali (stessa vista e metriche)
-        return totaleData;
+        return attivistiData;
       case "totale":
         return totaleData;
       default:
@@ -139,6 +160,8 @@ export default function Sostenitori() {
         return isLoadingRappresentanti;
       case "candidato":
         return isLoadingCandidati;
+      case "attivista":
+        return isLoadingAttivisti;
       case "totale":
         return isLoadingTotale;
       default:
@@ -152,6 +175,8 @@ export default function Sostenitori() {
         return isErrorRappresentanti;
       case "candidato":
         return isErrorCandidati;
+      case "attivista":
+        return isErrorAttivisti;
       case "totale":
         return isErrorTotale;
       default:
@@ -220,7 +245,7 @@ export default function Sostenitori() {
                 <TabsContent value="attivista" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={setShowSupportersList ? showSupportersList : false} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
                 </TabsContent>
               )}
 
@@ -228,7 +253,7 @@ export default function Sostenitori() {
                 <TabsContent value="politico" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
                 </TabsContent>
               )}
 
@@ -236,7 +261,7 @@ export default function Sostenitori() {
                 <TabsContent value="candidato" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
                 </TabsContent>
               )}
 
@@ -244,7 +269,7 @@ export default function Sostenitori() {
                 <TabsContent value="totale" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {stats && <SostenitoriContent stats={stats} supporters={supporters} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
                 </TabsContent>
               )}
             </Tabs>
