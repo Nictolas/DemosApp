@@ -37,7 +37,10 @@ export const useProponiOpinioneData = (user: any) => {
           data_creazione: op.data_creazione
         }));
         
-        setOpinioni(opinioniMapped);
+        // Ordina le opinioni per numero di voti decrescente (più votate in alto)
+        const opinioniOrdinate = opinioniMapped.sort((a, b) => b.voti - a.voti);
+        
+        setOpinioni(opinioniOrdinate);
         
         // Carica i voti dell'utente
         console.log('🔍 Caricamento voti utente...');
