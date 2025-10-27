@@ -122,8 +122,8 @@ router.post('/salva', (req, res, next) => {
   
   try {
     const userId = req.userId;
-    // Il frontend invia le opinioni direttamente nel body, non in un campo "opinioni"
-    const opinioni = req.body.opinioni || req.body; // Prova entrambi
+    // Il frontend invia le opinioni direttamente nel body
+    const opinioni = req.body.opinioni || req.body; // Accetta sia req.body.opinioni che req.body
     
     console.log('💾 POST /api/opinioni/salva - Salvataggio opinioni utente');
     console.log('👤 User ID:', userId);
