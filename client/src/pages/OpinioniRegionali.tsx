@@ -149,9 +149,10 @@ export default function OpinioniRegionali() {
       });
       
       if (opinions[question.id] && opinions[question.id] !== 'Astenuto') {
-        // Usa l'ID dell'opinione come chiave per l'API
-        opinionsToSave[question.id] = opinions[question.id];
-        console.log(`✅ Aggiunta opinione: ${question.id} = ${opinions[question.id]}`);
+        // Converti l'apostrofo in underscore per l'ID dell'opinione
+        const convertedId = question.id.replace(/'/g, '_');
+        opinionsToSave[convertedId] = opinions[question.id];
+        console.log(`✅ Aggiunta opinione: ${question.id} -> ${convertedId} = ${opinions[question.id]}`);
       } else {
         console.log(`❌ Opinione non aggiunta: ${question.id} = ${opinions[question.id]} (motivo: ${!opinions[question.id] ? 'non selezionata' : opinions[question.id] === 'Astenuto' ? 'Astenuto' : 'altro'})`);
       }
