@@ -201,21 +201,42 @@ router.post('/salva', verifyToken, async (req, res) => {
     
     // Esegui l'aggiornamento
     try {
-      const updateQuery = `
-        INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
-        VALUES ($1, ${insertFields.map((_, i) => `$${i + 2}`).join(', ')})
-        ON CONFLICT (user_id) DO UPDATE SET
-          ${updateFields.join(', ')}
-      `;
+      // Prima controlla se l'utente ha già delle risposte
+      const checkQuery = `SELECT user_id FROM opinioni_risposte WHERE user_id = $1`;
+      const checkResult = await pool.query(checkQuery, [userId]);
       
-      const allValues = [userId, ...insertValues];
+      if (checkResult.rows.length === 0) {
+        // Prima volta: inserisci tutte le opinioni
+        const insertQuery = `
+          INSERT INTO opinioni_risposte (user_id, ${insertFields.join(', ')})
+          VALUES ($1, ${insertFields.map((_, i) => `$${i + 2}`).join(', ')})
+        `;
+        
+        const allValues = [userId, ...insertValues];
+        console.log('🔍 DEBUG - Prima volta, inserisco tutte le opinioni');
+        console.log('🔍 DEBUG - Query SQL:', insertQuery);
+        console.log('🔍 DEBUG - Valori query:', allValues);
+        
+        await pool.query(insertQuery, allValues);
+        savedCount = insertFields.length;
+        
+      } else {
+        // Utente esistente: aggiorna solo le opinioni specifiche
+        const updateQuery = `
+          UPDATE opinioni_risposte 
+          SET ${updateFields.join(', ')}
+          WHERE user_id = $1
+        `;
+        
+        const allValues = [userId, ...insertValues];
+        console.log('🔍 DEBUG - Utente esistente, aggiorno solo opinioni specifiche');
+        console.log('🔍 DEBUG - Query SQL:', updateQuery);
+        console.log('🔍 DEBUG - Valori query:', allValues);
+        
+        await pool.query(updateQuery, allValues);
+        savedCount = updateFields.length;
+      }
       
-      console.log('🔍 DEBUG - Query SQL finale:', updateQuery);
-      console.log('🔍 DEBUG - Valori query:', allValues);
-      
-      await pool.query(updateQuery, allValues);
-      
-      savedCount = updateFields.length;
       console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
       
     } catch (error) {
