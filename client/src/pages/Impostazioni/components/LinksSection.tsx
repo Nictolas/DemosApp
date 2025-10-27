@@ -48,8 +48,8 @@ export const LinksSection: React.FC<LinksSectionProps> = ({
       </CardHeader>
       
       <CardContent className="relative space-y-6">
-        {/* Layout 2x3 per i 6 pulsanti */}
-        <div className="grid grid-cols-2 gap-4">
+        {/* Layout responsive: 1 colonna su mobile, 2 colonne su desktop */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* GDPR */}
           <Link href="/gdpr">
             <Button 
