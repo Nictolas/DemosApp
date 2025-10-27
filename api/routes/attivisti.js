@@ -275,17 +275,17 @@ router.get('/filtri', async (req, res) => {
   try {
     console.log('🔍 GET /api/attivisti/filtri - Filtri disponibili richiesti');
     
-    // Ottieni regioni uniche e decompressi per il frontend
+    // Ottieni regioni uniche (già compresse nel DB come "LO", "TO", etc.)
     const regioniResult = await pool.query(`
       SELECT DISTINCT regione_residenza
       FROM users 
-      WHERE ruolo = 'A' 
+      WHERE (ruolo = 'A' OR ruolo = 'AD')
       AND regione_residenza IS NOT NULL 
       AND regione_residenza != ''
       ORDER BY regione_residenza
     `);
     
-    // Decompressione regioni per il frontend
+    // Decompressione regioni per il frontend (DB ha "LO" → "Lombardia" per mostrare nel dropdown)
     const regioni = regioniResult.rows
       .map(row => decompressRegione(row.regione_residenza))
       .filter(regione => regione) // Rimuove valori null
@@ -295,7 +295,7 @@ router.get('/filtri', async (req, res) => {
     const tipologieResult = await pool.query(`
       SELECT DISTINCT jsonb_array_elements(tipologie_attivismo)->>'tipo' as tipo
       FROM users 
-      WHERE ruolo = 'A'
+      WHERE (ruolo = 'A' OR ruolo = 'AD')
       AND tipologie_attivismo IS NOT NULL
       AND jsonb_array_length(tipologie_attivismo) > 0
       ORDER BY tipo
