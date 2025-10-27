@@ -20,39 +20,36 @@ router.get('/sostenitori', async (req, res) => {
       });
     }
 
-    // Trova tutti gli utenti che hanno scelto questo utente come candidato O lo seguono genericamente
+    // Trova tutti gli utenti che hanno scelto questo utente come candidato
     const result = await pool.query(`
-      SELECT DISTINCT
-        u.id,
-        u.nome,
-        u.cognome,
-        u.email,
-        u.ruolo,
-        u.data_nascita,
-        u.genere,
-        u.regione_residenza,
-        u.provincia_residenza,
-        u.comune_residenza,
-        u.created_at,
+      SELECT 
+        id,
+        nome,
+        cognome,
+        email,
+        ruolo,
+        data_nascita,
+        genere,
+        regione_residenza,
+        provincia_residenza,
+        comune_residenza,
+        created_at,
         CASE 
-          WHEN u.candidato_europeo = $1 THEN 'Candidato Europeo'
-          WHEN u.candidato_camera = $1 THEN 'Candidato Camera'
-          WHEN u.candidato_senato = $1 THEN 'Candidato Senato'
-          WHEN u.candidato_regionale = $1 THEN 'Candidato Regionale'
-          WHEN u.candidato_comune = $1 THEN 'Candidato Comunale'
-          WHEN us.supported_id = $1 THEN 'Sostenitore Generico'
+          WHEN candidato_europeo = $1 THEN 'Candidato Europeo'
+          WHEN candidato_camera = $1 THEN 'Candidato Camera'
+          WHEN candidato_senato = $1 THEN 'Candidato Senato'
+          WHEN candidato_regionale = $1 THEN 'Candidato Regionale'
+          WHEN candidato_comune = $1 THEN 'Candidato Comunale'
         END as supporter_role
-      FROM users u
-      LEFT JOIN user_supports us ON u.id = us.supporter_id AND us.supported_id = $1
+      FROM users
       WHERE (
-        u.candidato_europeo = $1 OR
-        u.candidato_camera = $1 OR
-        u.candidato_senato = $1 OR
-        u.candidato_regionale = $1 OR
-        u.candidato_comune = $1 OR
-        us.supported_id = $1
+        candidato_europeo = $1 OR
+        candidato_camera = $1 OR
+        candidato_senato = $1 OR
+        candidato_regionale = $1 OR
+        candidato_comune = $1
       )
-      ORDER BY u.created_at DESC
+      ORDER BY created_at DESC
     `, [sostenuto_id]);
 
     // Raggruppa i sostenitori per utente e raccoglie i ruoli
@@ -141,9 +138,11 @@ router.get('/sostenitori', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recupero sostenitori candidati:', error);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({
       success: false,
-      error: 'Errore interno del server'
+      error: 'Errore interno del server',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
