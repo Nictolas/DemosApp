@@ -1,14 +1,28 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Verifica che DATABASE_URL sia definito
+if (!process.env.DATABASE_URL) {
+  console.error('❌ ERRORE: DATABASE_URL non è definito nel file .env');
+  console.log('💡 Suggerimento: Esegui questo script sul server o configura DATABASE_URL nel file .env');
+  process.exit(1);
+}
+
 // Configurazione database
+const dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_PRODUCTION;
+
+console.log('🔍 DATABASE_URL presente:', !!dbUrl);
+console.log('🔍 Tipo URL:', typeof dbUrl);
+console.log('🔍 Primi 50 caratteri:', dbUrl ? dbUrl.substring(0, 50) : 'null');
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString: dbUrl,
+  ssl: { rejectUnauthorized: false }
 });
 
 async function addAttivistiOrganizzazioniColumns() {
   console.log('🚀 Inizio aggiunta colonne attivisti e organizzazioni...');
+  console.log('🔗 Connessione al database:', process.env.DATABASE_URL.replace(/:\/\/[^:]+:[^@]+@/, '://***:***@')); // Nasconde credenziali
   
   try {
     // Verifica se le colonne esistono già

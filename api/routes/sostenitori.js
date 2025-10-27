@@ -224,39 +224,25 @@ router.post('/follow', async (req, res) => {
       });
     }
 
-    // Recupera il codice_attivista dell'attivista
-    const attivistaQuery = await pool.query(`
-      SELECT codice_attivista FROM users WHERE id = $1
-    `, [supported_id]);
-
-    if (attivistaQuery.rows.length === 0 || !attivistaQuery.rows[0].codice_attivista) {
-      return res.status(404).json({
-        success: false,
-        error: 'Attivista non trovato o senza codice_attivista'
-      });
-    }
-
-    const codiceAttivista = attivistaQuery.rows[0].codice_attivista;
-
     // Verifica se l'utente sta già votando questo attivista
     const currentVote = await pool.query(`
       SELECT attivisti FROM users WHERE id = $1
     `, [supporter_id]);
 
-    if (currentVote.rows.length > 0 && currentVote.rows[0].attivisti === codiceAttivista) {
+    if (currentVote.rows.length > 0 && currentVote.rows[0].attivisti === supported_id) {
       return res.status(409).json({
         success: false,
         error: 'Stai già votando questo attivista'
       });
     }
 
-    // Aggiorna il voto dell'utente (sostituisce eventuali altri voti) usando il codice_attivista
+    // Aggiorna il voto dell'utente (sostituisce eventuali altri voti) usando l'ID
     const result = await pool.query(`
       UPDATE users 
       SET attivisti = $2, updated_at = NOW()
       WHERE id = $1
       RETURNING id, attivisti, updated_at
-    `, [supporter_id, codiceAttivista]);
+    `, [supporter_id, supported_id]);
 
     console.log('✅ Voto attivista aggiornato:', result.rows[0]);
 
@@ -291,26 +277,12 @@ router.delete('/unfollow', async (req, res) => {
       });
     }
 
-    // Recupera il codice_attivista dell'attivista per verificare il voto
-    const attivistaQuery = await pool.query(`
-      SELECT codice_attivista FROM users WHERE id = $1
-    `, [supported_id]);
-
-    if (attivistaQuery.rows.length === 0 || !attivistaQuery.rows[0].codice_attivista) {
-      return res.status(404).json({
-        success: false,
-        error: 'Attivista non trovato'
-      });
-    }
-
-    const codiceAttivista = attivistaQuery.rows[0].codice_attivista;
-
     // Verifica che l'utente stia effettivamente votando questo attivista
     const currentVote = await pool.query(`
       SELECT attivisti FROM users WHERE id = $1
     `, [supporter_id]);
 
-    if (currentVote.rows.length === 0 || currentVote.rows[0].attivisti !== codiceAttivista) {
+    if (currentVote.rows.length === 0 || currentVote.rows[0].attivisti !== supported_id) {
       return res.status(404).json({
         success: false,
         error: 'Non stai votando questo attivista'
@@ -355,29 +327,12 @@ router.get('/count', async (req, res) => {
 
     console.log('🔍 DEBUG: Conteggio sostenitori per:', sostenuto_id);
 
-    // Recupera il codice_attivista
-    const codiceResult = await pool.query(`
-      SELECT codice_attivista FROM users WHERE id = $1
-    `, [sostenuto_id]);
-
-    if (codiceResult.rows.length === 0 || !codiceResult.rows[0].codice_attivista) {
-      return res.json({
-        success: true,
-        data: {
-          totalSupporters: 0,
-          attivistaSupporters: 0
-        }
-      });
-    }
-
-    const codiceAttivista = codiceResult.rows[0].codice_attivista;
-
-    // Conta voti per attivista usando il codice_attivista nella colonna attivisti
+    // Conta voti per attivista usando la colonna attivisti
     const attivistaResult = await pool.query(`
       SELECT COUNT(*) as count
       FROM users 
       WHERE attivisti = $1
-    `, [codiceAttivista]);
+    `, [sostenuto_id]);
 
     const attivistaCount = parseInt(attivistaResult.rows[0].count);
 
