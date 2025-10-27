@@ -6,6 +6,8 @@
 const resolveBaseUrl = (): string => {
   // Controlla se siamo in produzione (Render)
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    console.log('🔍 DEBUG api-request.ts - Hostname:', window.location.hostname);
+    console.log('🔍 DEBUG api-request.ts - URL completo:', window.location.href);
     return 'https://demos-c7k0.onrender.com/api';
   }
 
@@ -112,6 +114,11 @@ class ApiRequest {
   }
 
   async post<T = any>(endpoint: string, data?: any, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+    console.log('🔍 DEBUG ApiRequest.post - endpoint:', endpoint);
+    console.log('🔍 DEBUG ApiRequest.post - data:', data);
+    console.log('🔍 DEBUG ApiRequest.post - this.baseURL:', this.baseURL);
+    const fullUrl = `${this.baseURL}${endpoint}`;
+    console.log('🔍 DEBUG ApiRequest.post - URL completo:', fullUrl);
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
