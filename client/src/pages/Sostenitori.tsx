@@ -15,6 +15,7 @@ interface SupporterStats {
   totalSupporters: number;
   genderDistribution: { Uomo: number; Donna: number; Altro: number; };
   locationDistribution: Record<string, number>;
+  provinceDistribution?: Record<string, number>;
   averageAge: number;
   ageDistribution: Record<string, number>;
 }
@@ -151,6 +152,14 @@ export default function Sostenitori() {
     if (!stats) return [];
     return Object.entries(stats.ageDistribution).map(([name, value]) => ({ name, 'Numero Sostenitori': value }));
   }, [stats]);
+
+  const provinceChartData = useMemo(() => {
+    if (!stats || !stats.provinceDistribution) return [];
+    return Object.entries(stats.provinceDistribution)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10); // Top 10 province
+  }, [stats]);
   // === FINE MODIFICHE LOGICA GRAFICI ===
 
   // Logica di loading e error per tab attiva
@@ -245,7 +254,7 @@ export default function Sostenitori() {
                 <TabsContent value="attivista" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
 
@@ -253,7 +262,7 @@ export default function Sostenitori() {
                 <TabsContent value="politico" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
 
@@ -261,7 +270,7 @@ export default function Sostenitori() {
                 <TabsContent value="candidato" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
 
@@ -269,7 +278,7 @@ export default function Sostenitori() {
                 <TabsContent value="totale" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
                   {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} />}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
                 </TabsContent>
               )}
             </Tabs>
@@ -285,9 +294,10 @@ const SostenitoriContent = ({
   stats, 
   supporters, 
   showSupportersList, 
-  setShowSupportersList, 
+  setShowSupportersList,
   genderChartData, 
-  ageChartData 
+  ageChartData,
+  provinceChartData
 }: {
   stats: SupporterStats;
   supporters: Supporter[];
@@ -295,6 +305,7 @@ const SostenitoriContent = ({
   setShowSupportersList: (value: boolean) => void;
   genderChartData: any[];
   ageChartData: any[];
+  provinceChartData: any[];
 }) => (
   <div className="space-y-8">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -339,6 +350,27 @@ const SostenitoriContent = ({
       </CardContent></Card>
       {/* === FINE MODIFICHE GRAFICI === */}
     </div>
+
+    {/* Distribuzione per Provincia */}
+    {provinceChartData.length > 0 && (
+      <Card className="bg-white">
+        <CardHeader>
+          <CardTitle>Distribuzione Geografica per Provincia</CardTitle>
+        </CardHeader>
+        <CardContent className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={provinceChartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#8884d8" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    )}
   </div>
 );
 
