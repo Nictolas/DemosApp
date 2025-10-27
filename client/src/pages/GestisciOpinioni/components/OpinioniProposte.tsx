@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, MessageSquare, Check, X } from "lucide-react";
 import { OpinioneProposta } from "../types";
 import { useOpinioniMutations } from "../hooks";
+import { ApprofondimentoDialog } from "./ApprofondimentoDialog";
 
 interface OpinioniProposteProps {
   proposte: OpinioneProposta[];
@@ -16,6 +17,8 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
   isError 
 }) => {
   const { processPropostaMutation } = useOpinioniMutations();
+  const [selectedProposta, setSelectedProposta] = useState<OpinioneProposta | null>(null);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -68,7 +71,10 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
               <Button 
                 size="sm" 
                 variant="default" 
-                onClick={() => processPropostaMutation.mutate({id: op.id, action: 'accetta'})} 
+                onClick={() => {
+                  setSelectedProposta(op);
+                  setApproveDialogOpen(true);
+                }}
                 disabled={processPropostaMutation.isPending}
               >
                 <Check className="h-4 w-4" />
@@ -85,6 +91,23 @@ export const OpinioniProposte: React.FC<OpinioniProposteProps> = ({
           </li>
         ))}
       </ul>
+      
+      {/* Dialog per approvare opinione proposta */}
+      {selectedProposta && (
+        <ApprofondimentoDialog
+          opinionId={selectedProposta.id}
+          opinionText={selectedProposta.testo}
+          open={approveDialogOpen}
+          onOpenChange={setApproveDialogOpen}
+          opinione={{
+            id: selectedProposta.id,
+            text: selectedProposta.testo,
+            categoria: '',
+            gradi_opinione: ['da approvare']
+          }}
+          readOnly={false}
+        />
+      )}
     </div>
   );
 };
