@@ -125,7 +125,6 @@ router.post('/salva', verifyToken, async (req, res) => {
       'caccia': 'caccia',
       'eutanasia': 'eutanasia',
       'carne_coltivata': 'carne_coltivata',
-      'cittadina_animale': 'cittadina_animale',
       'nato': 'nato',
       'matrimonio_gay': 'matrimonio_gay',
       'salario_minimo': 'salario_minimo',
@@ -162,12 +161,15 @@ router.post('/salva', verifyToken, async (req, res) => {
     const insertValues = [];
     let paramIndex = 1;
     
+    const unmappedOpinions = [];
+    
     for (const [opinionId, risposta] of Object.entries(opinioni)) {
       console.log(`🔍 DEBUG - Processando opinione: ${opinionId} = ${risposta}`);
       
       const dbField = opinionMapping[opinionId];
       if (!dbField) {
         console.warn(`⚠️ Campo non mappato: ${opinionId}`);
+        unmappedOpinions.push(opinionId);
         errorCount++;
         continue;
       }
@@ -181,6 +183,12 @@ router.post('/salva', verifyToken, async (req, res) => {
       else if (risposta === 'Contrario') dbValue = 'c';
       else if (risposta === 'Indeciso') dbValue = 'i';
       else if (risposta === 'Astenuto') dbValue = null;
+      else {
+        console.warn(`⚠️ Valore non riconosciuto: ${risposta} per opinione ${opinionId}`);
+        unmappedOpinions.push(opinionId);
+        errorCount++;
+        continue;
+      }
       
       updateFields.push(`${dbField} = $${paramIndex}`);
       insertFields.push(dbField);
@@ -188,6 +196,10 @@ router.post('/salva', verifyToken, async (req, res) => {
       paramIndex++;
       
       console.log(`✅ Preparato campo: ${dbField} = ${dbValue}`);
+    }
+    
+    if (unmappedOpinions.length > 0) {
+      console.error(`❌ Opinion non mappate: ${unmappedOpinions.join(', ')}`);
     }
     
     if (updateFields.length === 0) {
@@ -216,9 +228,12 @@ router.post('/salva', verifyToken, async (req, res) => {
         console.log('🔍 DEBUG - Prima volta, inserisco tutte le opinioni');
         console.log('🔍 DEBUG - Query SQL:', insertQuery);
         console.log('🔍 DEBUG - Valori query:', allValues);
+        console.log('🔍 DEBUG - Campi:', insertFields);
+        console.log('🔍 DEBUG - Indice parametri:', paramIndex);
         
-        await pool.query(insertQuery, allValues);
+        const result = await pool.query(insertQuery, allValues);
         savedCount = insertFields.length;
+        console.log(`✅ Query eseguita con successo. Righe inserite: ${result.rowCount}`);
         
       } else {
         // Utente esistente: aggiorna solo le opinioni specifiche
@@ -232,15 +247,20 @@ router.post('/salva', verifyToken, async (req, res) => {
         console.log('🔍 DEBUG - Utente esistente, aggiorno solo opinioni specifiche');
         console.log('🔍 DEBUG - Query SQL:', updateQuery);
         console.log('🔍 DEBUG - Valori query:', allValues);
+        console.log('🔍 DEBUG - Campi da aggiornare:', updateFields);
         
-        await pool.query(updateQuery, allValues);
+        const result = await pool.query(updateQuery, allValues);
         savedCount = updateFields.length;
+        console.log(`✅ Query eseguita con successo. Righe aggiornate: ${result.rowCount}`);
       }
       
       console.log(`✅ Salvate ${savedCount} opinioni per utente ${userId}`);
       
     } catch (error) {
       console.error(`❌ Errore nel salvare opinioni:`, error.message);
+      console.error(`❌ Stack trace:`, error.stack);
+      console.error(`❌ Code:`, error.code);
+      console.error(`❌ Detail:`, error.detail);
       errorCount++;
     }
     
