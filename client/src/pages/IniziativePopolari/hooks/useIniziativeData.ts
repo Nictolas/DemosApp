@@ -29,6 +29,15 @@ export const useIniziativeData = (user: any) => {
     });
   }, [data?.richieste]);
 
+  // Separa le iniziative proposte da quelle ufficiali
+  const iniziativeUfficiali = React.useMemo(() => {
+    return listaIniziative.filter(iniziativa => iniziativa.quorum !== 'proposta');
+  }, [listaIniziative]);
+
+  const iniziativeProposte = React.useMemo(() => {
+    return listaIniziative.filter(iniziativa => iniziativa.quorum === 'proposta');
+  }, [listaIniziative]);
+
   // Informazioni sui limiti di proposte
   const currentProposals = listaIniziative.filter(iniziativa => iniziativa.utente_id === user?.id).length;
   const limit = getVotingLimit('iniziative_popolari_proposte');
@@ -37,6 +46,8 @@ export const useIniziativeData = (user: any) => {
 
   return {
     listaIniziative,
+    iniziativeUfficiali,
+    iniziativeProposte,
     mieiVoti: data?.mieiVoti || [],
     isLoading,
     isError,

@@ -6,6 +6,7 @@ import { Header } from "./components/Header";
 import { CreateButton } from "./components/CreateButton";
 import { IniziativaForm } from "./components/IniziativaForm";
 import { IniziativeTable } from "./components/IniziativeTable";
+import { IniziativeProposte } from "./components/IniziativeProposte";
 import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useIniziativeData } from "./hooks/useIniziativeData";
@@ -17,6 +18,8 @@ export default function IniziativePopolari() {
 
   const { 
     listaIniziative, 
+    iniziativeUfficiali,
+    iniziativeProposte,
     mieiVoti, 
     isLoading, 
     isError,
@@ -81,8 +84,29 @@ export default function IniziativePopolari() {
           
           <IniziativeStatsChart listaIniziative={listaIniziative} />
           
+          {/* Sezione per Admin: Iniziative Proposte */}
+          {user?.ruolo === 'AD' && iniziativeProposte.length > 0 && (
+            <div className="mb-8">
+              <IniziativeProposte
+                iniziativeProposte={iniziativeProposte}
+                isLoading={isLoading}
+                isError={isError}
+                onView={startEditView}
+                onApprove={(id) => {
+                  // TODO: Implementare approvazione
+                  console.log('Approvare iniziativa:', id);
+                }}
+                onReject={(id) => {
+                  // TODO: Implementare rifiuto
+                  console.log('Rifiutare iniziativa:', id);
+                }}
+              />
+            </div>
+          )}
+          
+          {/* Iniziative Ufficiali */}
           <IniziativeTable
-            listaIniziative={listaIniziative}
+            listaIniziative={iniziativeUfficiali}
             mieiVoti={mieiVoti}
             isLoading={isLoading}
             isError={isError}
