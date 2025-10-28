@@ -151,10 +151,15 @@ router.get('/', async (req, res) => {
 // POST /api/iniziative-popolari - Crea richiesta iniziativa popolare (come ICE)
 router.post('/', verifyToken, async (req, res) => {
   try {
+    console.log('🔍 DEBUG POST: Inizio creazione iniziativa popolare');
+    console.log('🔍 DEBUG POST: Headers:', req.headers);
+    console.log('🔍 DEBUG POST: Body completo:', req.body);
+    
     const { nome, descrizione, dataInizio, dataFine, sitoWeb } = req.body;
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
-    console.log('🔍 DEBUG: Dati ricevuti:', { nome, descrizione, dataInizio, dataFine, sitoWeb });
+    console.log('🔍 DEBUG POST: UserId:', userId);
+    console.log('🔍 DEBUG POST: Dati estratti:', { nome, descrizione, dataInizio, dataFine, sitoWeb });
     
     // Validazione campi obbligatori
     if (!nome || !descrizione) {
@@ -164,22 +169,25 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
-    // Genera un ID univoco per la richiesta iniziativa
-    const iniziativaId = `iniziativa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Genera un UUID valido per la richiesta iniziativa
+    const crypto = require('crypto');
+    const iniziativaId = crypto.randomUUID();
     console.log('🔍 DEBUG: Iniziativa ID generato:', iniziativaId);
     
     // Usa la colonna quorum per distinguere le iniziative proposte
     const query = `
-      INSERT INTO iniziative_popolari (id, nome, descrizione, datainizio, datafine, sitoweb, quorum, data_creazione)
-      VALUES ($1, $2, $3, $4, $5, $6, 'proposta', NOW())
+      INSERT INTO iniziative_popolari (id, firestoreid, nome, descrizione, datainizio, datafine, sitoweb, quorum, data_creazione)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposta', NOW())
       RETURNING *
     `;
     
-    const params = [iniziativaId, nome, descrizione, dataInizio, dataFine, sitoWeb];
-    console.log('🔍 DEBUG: Parametri query:', params);
+    console.log('🔍 DEBUG POST: Parametri query:', params);
+    
+    console.log('🔍 DEBUG POST: Tentativo connessione database...');
+    console.log('🔍 DEBUG POST: DATABASE_URL presente:', !!process.env.DATABASE_URL);
     
     const result = await pool.query(query, params);
-    console.log('🔍 DEBUG: Risultato inserimento:', result.rows[0]);
+    console.log('🔍 DEBUG POST: Risultato inserimento:', result.rows[0]);
     
     console.log(`✅ Iniziativa proposta creata: ${iniziativaId}`);
     
@@ -188,11 +196,17 @@ router.post('/', verifyToken, async (req, res) => {
       richiesta: result.rows[0]
     });
   } catch (error) {
-    console.error('❌ Errore nella creazione iniziativa popolare:', error);
+    console.error('❌ DEBUG POST: Errore nella creazione iniziativa popolare:', error);
+    console.error('❌ DEBUG POST: Stack trace:', error.stack);
+    console.error('❌ DEBUG POST: Error code:', error.code);
+    console.error('❌ DEBUG POST: Error detail:', error.detail);
+    
     res.status(500).json({
       success: false,
       error: 'Errore nella creazione iniziativa popolare',
-      details: error.message
+      details: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
