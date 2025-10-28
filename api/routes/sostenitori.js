@@ -524,4 +524,180 @@ router.delete('/unfollow-organizzazione', async (req, res) => {
   }
 });
 
+// GET /api/sostenitori/organizzazione - Ottieni sostenitori di un'organizzazione
+router.get('/organizzazione', async (req, res) => {
+  try {
+    const { sostenuto_id } = req.query;
+
+    if (!sostenuto_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID organizzazione richiesto'
+      });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.nome,
+        u.cognome,
+        u.email,
+        u.ruolo,
+        u.data_nascita,
+        u.genere,
+        u.regione_residenza,
+        u.provincia_residenza,
+        u.comune_residenza,
+        u.created_at
+      FROM users u
+      WHERE u.organizzazioni = $1
+      ORDER BY u.created_at DESC
+    `, [sostenuto_id]);
+
+    const supporters = result.rows.map(row => ({
+      uid: row.id,
+      nome: row.nome,
+      cognome: row.cognome,
+      email: row.email,
+      ruolo: row.ruolo,
+      data_nascita: row.data_nascita,
+      genere: row.genere,
+      regione_residenza: decompressUserLocation({ regione_residenza: row.regione_residenza }).regione_residenza,
+      provincia_residenza: decompressUserLocation({ provincia_residenza: row.provincia_residenza }).provincia_residenza,
+      comune_residenza: row.comune_residenza,
+      data_registrazione: row.created_at
+    }));
+
+    const totalSupporters = supporters.length;
+    const genderDistribution = { Uomo: 0, Donna: 0, Altro: 0 };
+    const locationDistribution = {};
+
+    const getAge = (birthDate) => {
+      if (!birthDate) return null;
+      const today = new Date();
+      const birth = new Date(birthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    let ageSum = 0;
+    const ageDistribution = {
+      '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56-65': 0, '65+': 0
+    };
+
+    supporters.forEach(s => {
+      const genere = s.genere || s.sesso || 'Altro';
+      if (genere === 'Maschio' || genere === 'M' || genere === 'uomo') genderDistribution.Uomo++;
+      else if (genere === 'Femmina' || genere === 'F' || genere === 'donna') genderDistribution.Donna++;
+      else genderDistribution.Altro++;
+
+      const location = decompressUserLocation({ regione_residenza: s.regione_residenza }).regione_residenza || s.regione || 'Non specificato';
+      locationDistribution[location] = (locationDistribution[location] || 0) + 1;
+
+      const age = getAge(s.data_nascita);
+      if (age !== null) {
+        ageSum += age;
+        if (age >= 18 && age <= 25) ageDistribution['18-25']++;
+        else if (age >= 26 && age <= 35) ageDistribution['26-35']++;
+        else if (age >= 36 && age <= 45) ageDistribution['36-45']++;
+        else if (age >= 46 && age <= 55) ageDistribution['46-55']++;
+        else if (age >= 56 && age <= 65) ageDistribution['56-65']++;
+        else if (age > 65) ageDistribution['65+']++;
+      }
+    });
+
+    const averageAge = totalSupporters > 0 ? Math.round(ageSum / totalSupporters) : 0;
+
+    res.json({
+      success: true,
+      supporters,
+      stats: {
+        totalSupporters,
+        genderDistribution,
+        locationDistribution,
+        averageAge,
+        ageDistribution
+      }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel recupero sostenitori organizzazione:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// GET /api/sostenitori/totale - Conteggi aggregati per utente
+router.get('/totale', async (req, res) => {
+  try {
+    const { sostenuto_id } = req.query;
+
+    if (!sostenuto_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID sostenuto richiesto'
+      });
+    }
+
+    // Politico: utenti che hanno scelto questo utente come rappresentante a qualunque livello
+    const politicoQ = await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM users
+      WHERE $1 IN (
+        rappresentante_europeo,
+        rappresentante_camera,
+        rappresentante_senato,
+        rappresentante_regionale,
+        rappresentante_comune
+      )
+    `, [sostenuto_id]);
+    const politico = parseInt(politicoQ.rows[0].count);
+
+    // Attivista: voti nella colonna attivisti
+    const attivistaQ = await pool.query(`
+      SELECT COUNT(*) AS count FROM users WHERE attivisti = $1
+    `, [sostenuto_id]);
+    const attivista = parseInt(attivistaQ.rows[0].count);
+
+    // Organizzazione: voti nella colonna organizzazioni
+    const organizzazioneQ = await pool.query(`
+      SELECT COUNT(*) AS count FROM users WHERE organizzazioni = $1
+    `, [sostenuto_id]);
+    const organizzazione = parseInt(organizzazioneQ.rows[0].count);
+
+    // Candidato: verifica se esiste la colonna 'candidati' e in caso conta, altrimenti 0
+    let candidato = 0;
+    const candidatesColumn = await pool.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'candidati'
+      ) AS exists
+    `);
+    if (candidatesColumn.rows[0] && candidatesColumn.rows[0].exists) {
+      const candidatoQ = await pool.query(`
+        SELECT COUNT(*) AS count FROM users WHERE candidati = $1
+      `, [sostenuto_id]);
+      candidato = parseInt(candidatoQ.rows[0].count);
+    }
+
+    const totale = politico + candidato + attivista + organizzazione;
+
+    res.json({
+      success: true,
+      data: { politico, candidato, attivista, organizzazione, totale }
+    });
+  } catch (error) {
+    console.error('❌ Errore nel calcolo totale sostenitori:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
 module.exports = router;
