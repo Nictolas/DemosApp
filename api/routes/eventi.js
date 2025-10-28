@@ -114,17 +114,11 @@ router.get('/', verifyToken, async (req, res) => {
     let paramCount = 0;
     
     // Filtra per eventi creati da rappresentanti/candidati selezionati
+    // MA mostra SEMPRE tutti gli eventi "Elezioni" indipendentemente dal filtro
     if (selectedIds.length > 0) {
       paramCount++;
-      query += ` AND e.organizzatore IN (SELECT CONCAT(nome, ' ', cognome) FROM users WHERE id = ANY($${paramCount}))`;
+      query += ` AND (e.tipologia_evento = 'Elezioni' OR e.organizzatore IN (SELECT CONCAT(nome, ' ', cognome) FROM users WHERE id = ANY($${paramCount})))`;
       queryParams.push(selectedIds);
-    }
-    
-    // Filtra eventi "Elezioni" per regione (mantenendo la logica esistente)
-    if (user.regione_residenza) {
-      paramCount++;
-      query += ` AND (e.tipologia_evento != 'Elezioni' OR e.regione_evento = $${paramCount})`;
-      queryParams.push(user.regione_residenza);
     }
     
     query += ` ORDER BY e.giorno_inizio ASC, e.created_at ASC`;
