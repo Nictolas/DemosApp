@@ -3,9 +3,193 @@
  * Converte i valori compressi dal database in formato leggibile per l'utente
  */
 
-// Importa le utilità esistenti
-const { decompressRegione } = require('../api/utils/regioniUtils');
-const { decompressProvince } = require('../api/utils/provinceUtils');
+// Mapping da database a frontend per regioni (codici ISTAT)
+const REGIONI_DB_TO_FRONTEND: Record<string, string> = {
+  'AB': 'Abruzzo',
+  'BA': 'Basilicata',
+  'CA': 'Calabria',
+  'CM': 'Campania',
+  'ER': 'Emilia-Romagna',
+  'FG': 'Friuli-Venezia Giulia',
+  'LA': 'Lazio',
+  'LI': 'Liguria',
+  'LO': 'Lombardia',
+  'MA': 'Marche',
+  'MO': 'Molise',
+  'PI': 'Piemonte',
+  'PU': 'Puglia',
+  'SA': 'Sardegna',
+  'SI': 'Sicilia',
+  'TO': 'Toscana',
+  'TN': 'Trentino-Alto Adige',
+  'UM': 'Umbria',
+  'VA': 'Valle d\'Aosta',
+  'VE': 'Veneto'
+};
+
+// Mapping da frontend a database per regioni
+const REGIONI_FRONTEND_TO_DB: Record<string, string> = {};
+Object.entries(REGIONI_DB_TO_FRONTEND).forEach(([code, name]) => {
+  REGIONI_FRONTEND_TO_DB[name] = code;
+});
+
+// Mapping da database a frontend per province
+const PROVINCE_DB_TO_FRONTEND: Record<string, string> = {
+  // Abruzzo
+  'AQ': 'L\'Aquila',
+  'CH': 'Chieti',
+  'PE': 'Pescara',
+  'TE': 'Teramo',
+  
+  // Basilicata
+  'PZ': 'Potenza',
+  'MT': 'Matera',
+  
+  // Calabria
+  'CS': 'Cosenza',
+  'CZ': 'Catanzaro',
+  'KR': 'Crotone',
+  'RC': 'Reggio Calabria',
+  'VV': 'Vibo Valentia',
+  
+  // Campania
+  'AV': 'Avellino',
+  'BN': 'Benevento',
+  'CE': 'Caserta',
+  'NA': 'Napoli',
+  'SA': 'Salerno',
+  
+  // Emilia-Romagna
+  'BO': 'Bologna',
+  'FE': 'Ferrara',
+  'FC': 'Forlì-Cesena',
+  'MO': 'Modena',
+  'PR': 'Parma',
+  'PC': 'Piacenza',
+  'RA': 'Ravenna',
+  'RE': 'Reggio Emilia',
+  'RN': 'Rimini',
+  
+  // Friuli-Venezia Giulia
+  'GO': 'Gorizia',
+  'PN': 'Pordenone',
+  'TS': 'Trieste',
+  'UD': 'Udine',
+  
+  // Lazio
+  'FR': 'Frosinone',
+  'LT': 'Latina',
+  'RI': 'Rieti',
+  'RM': 'Roma',
+  'VT': 'Viterbo',
+  
+  // Liguria
+  'GE': 'Genova',
+  'IM': 'Imperia',
+  'SP': 'La Spezia',
+  'SV': 'Savona',
+  
+  // Lombardia
+  'BG': 'Bergamo',
+  'BS': 'Brescia',
+  'CO': 'Como',
+  'CR': 'Cremona',
+  'MN': 'Mantova',
+  'MI': 'Milano',
+  'MB': 'Monza e Brianza',
+  'PV': 'Pavia',
+  'SO': 'Sondrio',
+  'VA': 'Varese',
+  
+  // Marche
+  'AN': 'Ancona',
+  'AP': 'Ascoli Piceno',
+  'FM': 'Fermo',
+  'MC': 'Macerata',
+  'PU': 'Pesaro e Urbino',
+  
+  // Molise
+  'CB': 'Campobasso',
+  'IS': 'Isernia',
+  
+  // Piemonte
+  'AL': 'Alessandria',
+  'AT': 'Asti',
+  'BI': 'Biella',
+  'CN': 'Cuneo',
+  'NO': 'Novara',
+  'TO': 'Torino',
+  'VB': 'Verbano-Cusio-Ossola',
+  'VC': 'Vercelli',
+  
+  // Puglia
+  'BA': 'Bari',
+  'BT': 'Barletta-Andria-Trani',
+  'BR': 'Brindisi',
+  'FG': 'Foggia',
+  'LE': 'Lecce',
+  'TA': 'Taranto',
+  
+  // Sardegna
+  'CA': 'Cagliari',
+  'CI': 'Carbonia-Iglesias',
+  'VS': 'Medio Campidano',
+  'NU': 'Nuoro',
+  'OG': 'Ogliastra',
+  'OT': 'Olbia-Tempio',
+  'OR': 'Oristano',
+  'SS': 'Sassari',
+  'SU': 'Sud Sardegna',
+  
+  // Sicilia
+  'AG': 'Agrigento',
+  'CL': 'Caltanissetta',
+  'CT': 'Catania',
+  'EN': 'Enna',
+  'ME': 'Messina',
+  'PA': 'Palermo',
+  'RG': 'Ragusa',
+  'SR': 'Siracusa',
+  'TP': 'Trapani',
+  
+  // Toscana
+  'AR': 'Arezzo',
+  'FI': 'Firenze',
+  'GR': 'Grosseto',
+  'LI': 'Livorno',
+  'LU': 'Lucca',
+  'MS': 'Massa-Carrara',
+  'PI': 'Pisa',
+  'PT': 'Pistoia',
+  'PO': 'Prato',
+  'SI': 'Siena',
+  
+  // Trentino-Alto Adige
+  'BZ': 'Bolzano',
+  'TN': 'Trento',
+  
+  // Umbria
+  'PG': 'Perugia',
+  'TR': 'Terni',
+  
+  // Valle d'Aosta
+  'AO': 'Aosta',
+  
+  // Veneto
+  'BL': 'Belluno',
+  'PD': 'Padova',
+  'RO': 'Rovigo',
+  'TV': 'Treviso',
+  'VE': 'Venezia',
+  'VR': 'Verona',
+  'VI': 'Vicenza'
+};
+
+// Mapping da frontend a database per province
+const PROVINCE_FRONTEND_TO_DB: Record<string, string> = {};
+Object.entries(PROVINCE_DB_TO_FRONTEND).forEach(([code, name]) => {
+  PROVINCE_FRONTEND_TO_DB[name] = code;
+});
 
 /**
  * Converte il paese compresso in formato leggibile
@@ -31,7 +215,7 @@ export function decompressPaeseEvento(paeseCompresso: string | null): string {
 export function decompressRegioneEvento(regioneCompressa: string | null): string {
   if (!regioneCompressa) return '';
   
-  return decompressRegione(regioneCompressa) || regioneCompressa;
+  return REGIONI_DB_TO_FRONTEND[regioneCompressa] || regioneCompressa;
 }
 
 /**
@@ -42,7 +226,7 @@ export function decompressRegioneEvento(regioneCompressa: string | null): string
 export function decompressProvinciaEvento(provinciaCompressa: string | null): string {
   if (!provinciaCompressa) return '';
   
-  return decompressProvince(provinciaCompressa) || provinciaCompressa;
+  return PROVINCE_DB_TO_FRONTEND[provinciaCompressa] || provinciaCompressa;
 }
 
 /**
@@ -112,9 +296,7 @@ export function compressPaeseEvento(paeseFrontend: string | null): string {
 export function compressRegioneEvento(regioneFrontend: string | null): string {
   if (!regioneFrontend) return '';
   
-  // Usa la funzione esistente dalle utilità
-  const { compressRegione } = require('../../api/utils/regioniUtils');
-  return compressRegione(regioneFrontend) || regioneFrontend;
+  return REGIONI_FRONTEND_TO_DB[regioneFrontend] || regioneFrontend;
 }
 
 /**
@@ -125,7 +307,5 @@ export function compressRegioneEvento(regioneFrontend: string | null): string {
 export function compressProvinciaEvento(provinciaFrontend: string | null): string {
   if (!provinciaFrontend) return '';
   
-  // Usa la funzione esistente dalle utilità
-  const { compressProvince } = require('../../api/utils/provinceUtils');
-  return compressProvince(provinciaFrontend) || provinciaFrontend;
+  return PROVINCE_FRONTEND_TO_DB[provinciaFrontend] || provinciaFrontend;
 }
