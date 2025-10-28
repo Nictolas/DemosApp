@@ -48,6 +48,19 @@ interface AttivistiData {
     supporters: Supporter[];
 }
 
+interface OrganizzazioniData {
+  stats: SupporterStats;
+  supporters: Supporter[];
+}
+
+interface TotaleCounts {
+  politico: number;
+  candidato: number;
+  attivista: number;
+  organizzazione: number;
+  totale: number;
+}
+
 const COLORS = ['#3b82f6', '#ec4899', '#eab308']; // Blu per Uomo, Rosa per Donna, Giallo per Altro
 
 export default function Sostenitori() {
@@ -106,19 +119,31 @@ export default function Sostenitori() {
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O"),
   });
 
-  // Query per sostenitori Totali (Admin e Candidato Politico)
-  const { data: totaleData, isLoading: isLoadingTotale, isError: isErrorTotale } = useQuery<SostenitoriData>({
+  // Query per sostenitori Organizzazioni (visibile solo ad AD e O)
+  const { data: organizzazioniData, isLoading: isLoadingOrganizzazioni, isError: isErrorOrganizzazioni } = useQuery<OrganizzazioniData>({
+    queryKey: ['organizzazioniData', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error("Utente non autenticato");
+      const response = await apiRequest("GET", `/api/sostenitori/organizzazione?sostenuto_id=${user.id}`);
+      if (!response.ok) throw new Error("Errore nel caricamento dei dati organizzazioni");
+      const data = await response.json();
+      if (data.success && data.supporters && data.stats) {
+        return { supporters: data.supporters, stats: data.stats };
+      }
+      return data;
+    },
+    enabled: !!user && (user.ruolo === "AD" || user.ruolo === "O"),
+  });
+
+  // Query per conteggi Totali
+  const { data: totaleData, isLoading: isLoadingTotale, isError: isErrorTotale } = useQuery<TotaleCounts>({
     queryKey: ['totaleData', user?.id],
     queryFn: async () => {
       if (!user?.id) throw new Error("Utente non autenticato");
       const response = await apiRequest("GET", `/api/sostenitori/totale?sostenuto_id=${user.id}`);
       if (!response.ok) throw new Error("Errore nel caricamento dei dati totali");
       const data = await response.json();
-      // Gestisci il caso in cui l'API restituisce { success: true, supporters, stats }
-      if (data.success && data.supporters && data.stats) {
-        return { supporters: data.supporters, stats: data.stats };
-      }
-      return data;
+      return data.data as TotaleCounts;
     },
     enabled: !!user && (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O"),
   });
@@ -132,15 +157,17 @@ export default function Sostenitori() {
         return candidatiData;
       case "attivista":
         return attivistiData;
+      case "organizzazione":
+        return organizzazioniData;
       case "totale":
-        return totaleData;
+        return undefined; // gestito separatamente
       default:
         return rappresentantiData;
     }
   };
 
   const currentData = getCurrentData();
-  const { stats, supporters = [] } = currentData || {};
+  const { stats, supporters = [] } = (currentData as any) || {};
   
   // === INIZIO MODIFICHE LOGICA GRAFICI ===
   const genderChartData = useMemo(() => {
@@ -171,6 +198,8 @@ export default function Sostenitori() {
         return isLoadingCandidati;
       case "attivista":
         return isLoadingAttivisti;
+      case "organizzazione":
+        return isLoadingOrganizzazioni;
       case "totale":
         return isLoadingTotale;
       default:
@@ -186,6 +215,8 @@ export default function Sostenitori() {
         return isErrorCandidati;
       case "attivista":
         return isErrorAttivisti;
+      case "organizzazione":
+        return isErrorOrganizzazioni;
       case "totale":
         return isErrorTotale;
       default:
@@ -204,6 +235,8 @@ export default function Sostenitori() {
     if (user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
     // nuova scheda Attivista
     if (user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") tabCount++;
+    // nuova scheda Organizzazione
+    if (user.ruolo === "AD" || user.ruolo === "O") tabCount++;
     
     switch (tabCount) {
       case 1: return "grid-cols-1";
@@ -246,10 +279,20 @@ export default function Sostenitori() {
                 {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
                   <TabsTrigger value="attivista">Attivista</TabsTrigger>
                 )}
+                {(user.ruolo === "AD" || user.ruolo === "O") && (
+                  <TabsTrigger value="organizzazione">Organizzazione</TabsTrigger>
+                )}
                 {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                   <TabsTrigger value="totale">Totale</TabsTrigger>
                 )}
               </TabsList>
+              {(user.ruolo === "AD" || user.ruolo === "O") && (
+                <TabsContent value="organizzazione" className="space-y-8">
+                  {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
+                  {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
+                </TabsContent>
+              )}
               {(user.ruolo === "AD" || user.ruolo === "A" || user.ruolo === "O") && (
                 <TabsContent value="attivista" className="space-y-8">
                   {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
@@ -276,9 +319,17 @@ export default function Sostenitori() {
 
               {(user.ruolo === "AD" || user.ruolo === "CP" || user.ruolo === "A" || user.ruolo === "O") && (
                 <TabsContent value="totale" className="space-y-8">
-                  {isLoading && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
-                  {isError && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
-                  {!isLoading && !isError && stats && <SostenitoriContent stats={stats} supporters={supporters || []} showSupportersList={showSupportersList} setShowSupportersList={setShowSupportersList} genderChartData={genderChartData} ageChartData={ageChartData} provinceChartData={provinceChartData} />}
+                  {isLoadingTotale && <div className="flex items-center justify-center py-16"><Loader2 className="h-12 w-12 animate-spin" /></div>}
+                  {isErrorTotale && <div className="text-center text-red-500 p-8">Errore nel caricamento dei dati.</div>}
+                  {!isLoadingTotale && !isErrorTotale && totaleData && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{totaleData.politico}</p><p className="text-sm text-muted-foreground">Politico</p></CardContent></Card>
+                      <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{totaleData.candidato}</p><p className="text-sm text-muted-foreground">Candidato</p></CardContent></Card>
+                      <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{totaleData.attivista}</p><p className="text-sm text-muted-foreground">Attivista</p></CardContent></Card>
+                      <Card className="bg-white"><CardContent className="pt-6"><p className="text-2xl font-bold">{totaleData.organizzazione}</p><p className="text-sm text-muted-foreground">Organizzazione</p></CardContent></Card>
+                      <Card className="bg-white lg:col-span-4"><CardContent className="pt-6"><p className="text-3xl font-bold">{totaleData.totale}</p><p className="text-sm text-muted-foreground">Totale</p></CardContent></Card>
+                    </div>
+                  )}
                 </TabsContent>
               )}
             </Tabs>
