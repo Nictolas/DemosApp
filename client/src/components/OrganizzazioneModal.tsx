@@ -20,6 +20,7 @@ interface Organizzazione {
   created_at: string;
   updated_at: string;
   avatar_config?: string;
+  regione_residenza?: string;
   facebook_url?: string;
   twitter_url?: string;
   instagram_url?: string;
@@ -42,6 +43,36 @@ const OrganizzazioneModal: React.FC<OrganizzazioneModalProps> = ({ organizzazion
 
   const getInitials = (nome: string) => {
     return `${nome.charAt(0)}`.toUpperCase();
+  };
+
+  // Mappa locale codici → nomi regione per UI
+  const REGIONI_DB_TO_FRONTEND: Record<string, string> = {
+    LO: 'Lombardia',
+    LA: 'Lazio',
+    TO: 'Toscana',
+    PI: 'Piemonte',
+    VE: 'Veneto',
+    EM: 'Emilia-Romagna',
+    LI: 'Liguria',
+    UM: 'Umbria',
+    MA: 'Marche',
+    AB: 'Abruzzo',
+    MO: 'Molise',
+    CM: 'Campania',
+    PU: 'Puglia',
+    BA: 'Basilicata',
+    CA: 'Calabria',
+    SI: 'Sicilia',
+    SA: 'Sardegna',
+    TR: 'Trentino-Alto Adige',
+    FR: 'Friuli-Venezia Giulia',
+    VA: 'Valle d\'Aosta'
+  };
+
+  const decompressRegioneLocal = (value?: string) => {
+    if (!value) return undefined;
+    const v = value.trim();
+    return REGIONI_DB_TO_FRONTEND[v] || v; // fallback: mostra com'è
   };
 
   const socialLinks = [
@@ -88,23 +119,12 @@ const OrganizzazioneModal: React.FC<OrganizzazioneModalProps> = ({ organizzazion
 
           <div className="px-6 py-6">
             <div className="text-center mb-6">
-              <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                {parseAvatarConfig(organizzazione.avatar_config) ? (
-                  <CustomAvatar 
-                    config={parseAvatarConfig(organizzazione.avatar_config) as any}
-                    size={80}
-                    className="h-20 w-20"
-                  />
-                ) : (
-                  <span className="text-2xl font-bold text-blue-600">
-                    {getInitials(organizzazione.nome)}
-                  </span>
-                )}
-              </div>
-
               <h2 className="text-xl font-bold text-gray-900 mb-1">{organizzazione.nome}</h2>
               {organizzazione.cognome && (
                 <p className="text-sm text-gray-600">Codice 5x1000: {organizzazione.cognome}</p>
+              )}
+              {organizzazione.regione_residenza && (
+                <p className="text-sm text-gray-600 mt-1">{decompressRegioneLocal(organizzazione.regione_residenza)}</p>
               )}
             </div>
 
