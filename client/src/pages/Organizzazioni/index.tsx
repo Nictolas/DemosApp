@@ -470,7 +470,7 @@ export default function Organizzazioni() {
                 <h1 className="text-3xl font-bold text-gray-900">Organizzazioni</h1>
               </div>
               <p className="text-lg text-gray-600">
-                Scegli il tuo organizzazione preferito.
+                Scegli la tua organizzazione preferita.
                 <br />
                 <span className="text-sm text-gray-500">(In futuro sarà possibile scegliere più organizzazioni.)</span>
               </p>
