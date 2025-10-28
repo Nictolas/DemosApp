@@ -477,7 +477,7 @@ export default function Attivisti() {
             </div>
 
             {/* Barra di Ricerca e Filtri */}
-            {!isLoading && !isError && attivisti.length > 0 && (
+            {!isLoading && !isError && (
               <div className="mb-6">
                 <div className="max-w-4xl mx-auto w-full max-w-full">
                   {/* Ricerca Testuale */}

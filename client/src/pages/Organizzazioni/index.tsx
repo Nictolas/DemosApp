@@ -657,10 +657,10 @@ export default function Organizzazioni() {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Avatar
+                            Nome
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Nome
+                            Codice 5x1000
                           </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Sostenitori
@@ -673,29 +673,19 @@ export default function Organizzazioni() {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {filteredOrganizzazioni.map((organizzazione) => (
                           <tr key={organizzazione.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {parseAvatarConfig(organizzazione.avatar_config) ? (
-                                <CustomAvatar 
-                                  config={parseAvatarConfig(organizzazione.avatar_config) as any}
-                                  size={40}
-                                  className="h-10 w-10"
-                                />
-                              ) : (
-                                <Avatar className="h-10 w-10">
-                                  <AvatarFallback className="bg-blue-100 text-blue-600">
-                                    {getInitials(organizzazione.nome, organizzazione.cognome)}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </td>
                             <td className="px-6 py-4 whitespace-nowrap min-w-0">
                               <button
                                 onClick={() => handleorganizzazioneClick(organizzazione)}
                                 className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-colors truncate max-w-xs"
-                                title={`${organizzazione.nome} ${organizzazione.cognome}`}
+                                title={`${organizzazione.nome}`}
                               >
-                                {organizzazione.nome} {organizzazione.cognome}
+                                {organizzazione.nome}
                               </button>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {organizzazione.cognome || '-'}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">

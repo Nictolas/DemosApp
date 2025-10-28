@@ -201,16 +201,7 @@ const AttivistaModal: React.FC<AttivistaModalProps> = ({ attivista, isOpen, onCl
               <h2 className="text-xl font-bold text-gray-900 mb-1">
                 {attivista.nome} {attivista.cognome}
               </h2>
-              
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(attivista.status)}`}>
-                  {translateStatus(attivista.status)}
-                </span>
-              </div>
-              
-              <p className="text-sm text-gray-600">
-                {attivista.regione_residenza || 'Non specificata'}
-              </p>
+
             </div>
 
             {/* Tipologie di Attivismo */}
