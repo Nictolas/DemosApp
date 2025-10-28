@@ -80,16 +80,26 @@ export default function Attivisti() {
   useEffect(() => {
     const fetchFiltri = async () => {
       try {
+        console.log('🔍 fetchFiltri - Chiamata API filtri attivisti');
         const response = await fetch(`${API_BASE}/api/attivisti/filtri`);
+        console.log('🔍 fetchFiltri - Response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('🔍 fetchFiltri - Data ricevuta:', data);
+          
           if (data.success) {
+            console.log('✅ fetchFiltri - Successo, regioni:', data.data.regioni.length, 'tipologie:', data.data.tipologie.length);
             setRegioni(data.data.regioni);
             setTipologie(data.data.tipologie);
+          } else {
+            console.error('❌ fetchFiltri - API success=false:', data);
           }
+        } else {
+          console.error('❌ fetchFiltri - Response not ok:', response.status, response.statusText);
         }
       } catch (error) {
-        console.error('Errore nel caricamento dei filtri:', error);
+        console.error('❌ fetchFiltri - Errore:', error);
       }
     };
 
@@ -111,8 +121,13 @@ export default function Attivisti() {
       }
     };
 
+    // Carica sempre i filtri (pagina pubblica)
     fetchFiltri();
-    fetchFollowingStatus();
+    
+    // Carica stato following solo se autenticato
+    if (user?.id) {
+      fetchFollowingStatus();
+    }
   }, [user?.id]);
 
   // Carica gli attivisti
@@ -456,6 +471,8 @@ export default function Attivisti() {
   console.log('🎨 Attivisti render - attivisti data:', attivisti);
   console.log('🎨 Attivisti render - filteredAttivisti data:', filteredAttivisti);
   console.log('🎨 Attivisti render - searchTerm:', searchTerm);
+  console.log('🎨 Attivisti render - regioni disponibili:', regioni.length, regioni);
+  console.log('🎨 Attivisti render - tipologie disponibili:', tipologie.length, tipologie);
   console.log('🎨 Attivisti render - should show table:', !isLoading && !isError && filteredAttivisti.length > 0);
   console.log('🎨 Attivisti render - RENDERING PAGE NOW!');
   
