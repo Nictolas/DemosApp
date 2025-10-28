@@ -342,6 +342,11 @@ module.exports = {
   getValidDatabaseCountries,
   decompressUserLocation,
   compressUserLocation,
+  // Re-export regioni e province utilities
+  compressRegione,
+  decompressRegione,
+  compressProvince,
+  decompressProvince,
   CITIZENSHIP_DB_TO_FRONTEND,
   CITIZENSHIP_FRONTEND_TO_DB,
   COUNTRY_DB_TO_FRONTEND,
