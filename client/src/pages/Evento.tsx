@@ -14,6 +14,7 @@ import { Redirect, useRouter } from "wouter";
 import { ITALY_DATA } from "@/data/italyData";
 import { apiRequest } from "@/lib/queryClient";
 import DatePicker from "@/components/DatePicker";
+import { compressPaeseEvento, compressRegioneEvento, compressProvinciaEvento } from "@/utils/eventiGeographicUtils";
 
 const eventoSchema = z.object({
   nome_evento: z.string().min(1, "Il nome dell'evento è obbligatorio"),
@@ -117,15 +118,18 @@ export default function Evento() {
 
   const submitEvento = useMutation({
     mutationFn: async (data: EventoFormData) => {
-      // Aggiungi automaticamente l'organizzatore (nome dell'utente)
-      const dataWithOrganizzatore = {
+      // Comprimi i dati geografici per il database
+      const compressedData = {
         ...data,
+        paese_evento: compressPaeseEvento(data.paese_evento),
+        regione_evento: compressRegioneEvento(data.regione_evento),
+        provincia_evento: compressProvinciaEvento(data.provincia_evento),
         organizzatore: user?.nome && user?.cognome ? `${user.nome} ${user.cognome}` : user?.email || "Utente"
       };
       
-      console.log('📤 Invio dati evento:', dataWithOrganizzatore);
+      console.log('📤 Invio dati evento (compressi):', compressedData);
       
-      const response = await apiRequest.post("/eventi", dataWithOrganizzatore);
+      const response = await apiRequest.post("/eventi", compressedData);
       
       console.log('📥 Risposta server:', response);
       

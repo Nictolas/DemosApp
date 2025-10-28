@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { ITALY_DATA } from "@/data/italyData";
 import DatePicker from "@/components/DatePicker";
+import { formatEventoLocation, formatEventoElezioniLocation, decompressPaeseEvento, decompressRegioneEvento, decompressProvinciaEvento, compressPaeseEvento, compressRegioneEvento, compressProvinciaEvento } from "@/utils/eventiGeographicUtils";
 
 // Schema di validazione per il form di modifica
 const eventoSchema = z.object({
@@ -165,9 +166,9 @@ export default function Eventi() {
       editForm.reset({
         nome_evento: editingEvent.nome_evento || "",
         tipologia_evento: editingEvent.tipologia_evento || "",
-        paese_evento: editingEvent.paese_evento || "Italia",
-        regione_evento: editingEvent.regione_evento || "",
-        provincia_evento: editingEvent.provincia_evento || "",
+        paese_evento: decompressPaeseEvento(editingEvent.paese_evento) || "Italia",
+        regione_evento: decompressRegioneEvento(editingEvent.regione_evento) || "",
+        provincia_evento: decompressProvinciaEvento(editingEvent.provincia_evento) || "",
         comune_evento: editingEvent.comune_evento || "",
         indirizzo_evento: editingEvent.indirizzo_evento || "",
         giorno_inizio: editingEvent.giorno_inizio ? editingEvent.giorno_inizio.split('T')[0] : "",
@@ -183,13 +184,17 @@ export default function Eventi() {
     mutationFn: async (data: EventoFormData) => {
       if (!editingEvent?.id) throw new Error('ID evento mancante');
       
-      const dataWithOrganizzatore = {
+      // Comprimi i dati geografici per il database
+      const compressedData = {
         ...data,
+        paese_evento: compressPaeseEvento(data.paese_evento),
+        regione_evento: compressRegioneEvento(data.regione_evento),
+        provincia_evento: compressProvinciaEvento(data.provincia_evento),
         organizzatore: user?.nome && user?.cognome ? `${user.nome} ${user.cognome}` : user?.email || "Utente"
       };
       
-      console.log('📤 Invio dati evento aggiornati:', dataWithOrganizzatore);
-      const response = await apiRequest.put(`/eventi/${editingEvent.id}`, dataWithOrganizzatore);
+      console.log('📤 Invio dati evento aggiornati (compressi):', compressedData);
+      const response = await apiRequest.put(`/eventi/${editingEvent.id}`, compressedData);
       console.log('📥 Risposta server:', response);
       
       if (!response.success) {
@@ -348,10 +353,17 @@ export default function Eventi() {
                               <div className="mb-3 flex items-center">
                                 <MapPin className="h-4 w-4 text-gray-500 mr-2" />
                                 <span className="text-gray-600">
-                                  {evento.comune_evento && evento.indirizzo_evento 
-                                    ? `${evento.comune_evento}, ${evento.indirizzo_evento}`
-                                    : evento.comune_evento || 'Luogo non specificato'
-                                  }
+                                  {formatEventoLocation(evento) || 'Luogo non specificato'}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Luogo per eventi "Elezioni" */}
+                            {evento.tipologia_evento === 'Elezioni' && (
+                              <div className="mb-3 flex items-center">
+                                <MapPin className="h-4 w-4 text-yellow-600 mr-2" />
+                                <span className="text-gray-700 font-medium">
+                                  {formatEventoElezioniLocation(evento) || 'Regione non specificata'}
                                 </span>
                               </div>
                             )}
