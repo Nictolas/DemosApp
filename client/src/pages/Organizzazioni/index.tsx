@@ -8,7 +8,7 @@ import { CustomAvatar } from "@/components/avatar/CustomAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import organizzazioneModal from "@/components/organizzazioneModal";
+import OrganizzazioneModal from "@/components/OrganizzazioneModal";
 import { useAuth } from "@/hooks/use-auth-neon";
 import { useToast } from "@/hooks/use-toast";
 
@@ -541,11 +541,13 @@ export default function Organizzazioni() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="all">Tutte le regioni</SelectItem>
-                              {regioni.map((regione) => (
-                                <SelectItem key={regione} value={regione}>
-                                  {regione}
-                                </SelectItem>
-                              ))}
+                              {regioni && regioni.length > 0 ? (
+                                regioni.map((regione) => (
+                                  <SelectItem key={regione} value={regione}>
+                                    {regione}
+                                  </SelectItem>
+                                ))
+                              ) : null}
                             </SelectContent>
                           </Select>
                         </div>
@@ -561,11 +563,13 @@ export default function Organizzazioni() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="all">Tutte le tipologie</SelectItem>
-                              {tipologie.map((tipologia) => (
-                                <SelectItem key={tipologia} value={tipologia}>
-                                  {tipologia}
-                                </SelectItem>
-                              ))}
+                              {tipologie && tipologie.length > 0 ? (
+                                tipologie.map((tipologia) => (
+                                  <SelectItem key={tipologia} value={tipologia}>
+                                    {tipologia}
+                                  </SelectItem>
+                                ))
+                              ) : null}
                             </SelectContent>
                           </Select>
                         </div>
@@ -765,9 +769,9 @@ export default function Organizzazioni() {
           </div>
         </div>
 
-        {/* Modale organizzazione */}
-        <organizzazioneModal
-          organizzazione={selectedorganizzazione}
+        {/* Modale Organizzazione */}
+        <OrganizzazioneModal
+          organizzazione={selectedorganizzazione as any}
           isOpen={isModalOpen}
           onClose={handleCloseModal}
         />
