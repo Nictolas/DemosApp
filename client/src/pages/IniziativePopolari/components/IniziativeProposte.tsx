@@ -83,8 +83,8 @@ export const IniziativeProposte: React.FC<IniziativeProposteProps> = ({
                   <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span>
                       Data proposta: <strong>
-                        {iniziativa.data_creazione 
-                          ? new Date(iniziativa.data_creazione).toLocaleDateString('it-IT')
+                        {iniziativa.data_creazione || iniziativa.created_at
+                          ? new Date(iniziativa.data_creazione || iniziativa.created_at).toLocaleDateString('it-IT')
                           : 'N/A'
                         }
                       </strong>

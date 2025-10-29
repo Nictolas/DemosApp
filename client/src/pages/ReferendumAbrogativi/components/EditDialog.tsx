@@ -26,8 +26,8 @@ export const EditDialog: React.FC<EditDialogProps> = ({ referendum, onClose, onS
   const defaultValues = {
     nome: referendum?.nome || "",
     descrizione: referendum?.descrizione || "",
-    dataInizio: formatDateForInput(referendum?.dataInizio || referendum?.datainizio || ""),
-    dataFine: formatDateForInput(referendum?.dataFine || referendum?.datafine || ""),
+    dataInizio: formatDateForInput(referendum?.dataInizio || referendum?.data_inizio || ""),
+    dataFine: formatDateForInput(referendum?.dataFine || referendum?.data_fine || ""),
     sitoWeb: referendum?.sitoWeb || referendum?.sitoweb || ""
   };
 

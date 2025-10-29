@@ -23,8 +23,8 @@ export const useReferendumData = (user: any) => {
   const listaReferendum = React.useMemo(() => {
     const referendum = data?.richieste || [];
     return referendum.sort((a, b) => {
-      const dateA = new Date(a.dataInizio || a.datainizio || a.data_inizio || 0);
-      const dateB = new Date(b.dataInizio || b.datainizio || b.data_inizio || 0);
+      const dateA = new Date(a.dataInizio || a.data_inizio || 0);
+      const dateB = new Date(b.dataInizio || b.data_inizio || 0);
       return dateB.getTime() - dateA.getTime(); // Più recenti in alto
     });
   }, [data?.richieste]);

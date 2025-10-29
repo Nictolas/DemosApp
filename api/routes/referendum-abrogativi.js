@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
       query = `
         SELECT *
         FROM referendum_abrogativi
-        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `;
     } else {
       // Altri utenti vedono solo i referendum ufficiali (quorum != 'proposta') e con esito 'In Attesa'
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
         SELECT *
         FROM referendum_abrogativi
         WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
-        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `;
     }
     
@@ -89,10 +89,10 @@ router.get('/', async (req, res) => {
     // Normalizza i dati per il frontend
     const normalizedData = result.rows.map(row => ({
       ...row,
-      dataInizio: row.datainizio || row.data_inizio,
-      dataFine: row.datafine || row.data_fine,
-      sitoWeb: row.sitoweb || row.sito_web,
-      data_creazione: row.data_creazione || row.created_at
+      dataInizio: row.data_inizio,
+      dataFine: row.data_fine,
+      sitoWeb: row.sito_web || row.sitoweb,
+      data_creazione: row.created_at
     }));
 
     // Genera la classifica basata sui voti
@@ -102,19 +102,19 @@ router.get('/', async (req, res) => {
         const classificaQuery = `
           SELECT 
             ra.nome,
-            ra.sitoweb as sitoWeb,
+            ra.sito_web as sitoWeb,
             COUNT(vra.referendum_id) as voti
           FROM referendum_abrogativi ra
           LEFT JOIN voti_referendum_abrogativi vra ON ra.id::text = vra.referendum_id
           WHERE ra.quorum != 'proposta' AND (ra.esito = 'In Attesa' OR ra.esito IS NULL)
-          GROUP BY ra.id, ra.nome, ra.sitoweb
+          GROUP BY ra.id, ra.nome, ra.sito_web
           ORDER BY voti DESC, ra.nome ASC
         `;
         
         const classificaResult = await pool.query(classificaQuery);
         classifica = classificaResult.rows.map(row => ({
           nome: row.nome,
-          sitoWeb: row.sitoweb,
+          sitoWeb: row.sitoweb || row.sito_web,
           voti: parseInt(row.voti) || 0
         }));
         console.log(`✅ Generata classifica con ${classifica.length} referendum`);
@@ -159,14 +159,15 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
-    // Genera un ID univoco per la richiesta referendum
-    const referendumId = `referendum_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Genera un UUID valido per la richiesta referendum
+    const crypto = require('crypto');
+    const referendumId = crypto.randomUUID();
     console.log('🔍 DEBUG: Referendum ID generato:', referendumId);
     
     // Usa la colonna quorum per distinguere i referendum proposti
     const query = `
-      INSERT INTO referendum_abrogativi (id, nome, descrizione, datainizio, datafine, sitoweb, quorum, data_creazione)
-      VALUES ($1, $2, $3, $4, $5, $6, 'proposta', NOW())
+      INSERT INTO referendum_abrogativi (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
+      VALUES ($1, $2, $3, $4, $5, $6, 'proposta')
       RETURNING *
     `;
     
@@ -212,7 +213,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     
     const updateQuery = `
       UPDATE referendum_abrogativi
-      SET nome = $1, descrizione = $2, datainizio = $3, datafine = $4, sitoweb = $5, quorum = $6
+      SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6
       WHERE id = $7
       RETURNING *
     `;
