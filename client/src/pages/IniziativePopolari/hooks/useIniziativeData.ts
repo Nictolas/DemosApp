@@ -38,8 +38,20 @@ export const useIniziativeData = (user: any) => {
     return listaIniziative.filter(iniziativa => iniziativa.quorum === 'proposta');
   }, [listaIniziative]);
 
-  // Informazioni sui limiti di proposte
-  const currentProposals = listaIniziative.filter(iniziativa => iniziativa.utente_id === user?.id).length;
+  // Filtra le proposte dell'utente corrente (sia userid che utente_id per compatibilità)
+  const miaIniziativaProposta = React.useMemo(() => {
+    if (!user?.id) return null;
+    return iniziativeProposte.find(
+      iniziativa => 
+        (iniziativa.userid === user.id || iniziativa.utente_id === user.id) &&
+        iniziativa.quorum === 'proposta'
+    ) || null;
+  }, [iniziativeProposte, user?.id]);
+
+  // Informazioni sui limiti di proposte - usa userid o utente_id
+  const currentProposals = listaIniziative.filter(
+    iniziativa => iniziativa.userid === user?.id || iniziativa.utente_id === user?.id
+  ).length;
   const limit = getVotingLimit('iniziative_popolari_proposte');
   const remainingProposals = getRemainingVotes('iniziative_popolari_proposte', currentProposals);
   const hasReachedLimit = hasReachedVotingLimit('iniziative_popolari_proposte', currentProposals);
@@ -48,6 +60,7 @@ export const useIniziativeData = (user: any) => {
     listaIniziative,
     iniziativeUfficiali,
     iniziativeProposte,
+    miaIniziativaProposta,
     mieiVoti: data?.mieiVoti || [],
     isLoading,
     isError,
