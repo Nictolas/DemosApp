@@ -169,18 +169,34 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
+    // Verifica se l'utente ha già una proposta in attesa
+    const existingProposalQuery = `
+      SELECT id, nome 
+      FROM iniziative_popolari 
+      WHERE userid = $1 AND quorum = 'proposta'
+      LIMIT 1
+    `;
+    const existingProposal = await pool.query(existingProposalQuery, [userId]);
+    
+    if (existingProposal.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Hai già una proposta in attesa di approvazione. Puoi proporre solo una iniziativa alla volta.'
+      });
+    }
+    
     // Genera un UUID valido per la richiesta iniziativa
     const crypto = require('crypto');
     const iniziativaId = crypto.randomUUID();
     console.log('🔍 DEBUG: Iniziativa ID generato:', iniziativaId);
     
-    // Definisce i parametri per la query
-    const params = [iniziativaId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+    // Definisce i parametri per la query - include userid e quorum = 'proposta'
+    const params = [iniziativaId, userId, nome, descrizione, dataInizio, dataFine, sitoWeb];
     
-    // Usa la colonna quorum per distinguere le iniziative proposte
+    // Inserisce con quorum = 'proposta' e userid dell'utente che propone
     const query = `
-      INSERT INTO iniziative_popolari (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
-      VALUES ($1, $2, $3, $4, $5, $6, 'proposta')
+      INSERT INTO iniziative_popolari (id, userid, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposta')
       RETURNING *
     `;
     
@@ -493,23 +509,29 @@ router.get('/richieste', verifyToken, async (req, res) => {
 // POST /api/iniziative-popolari/:id/accetta - Accetta richiesta iniziativa popolare
 router.post('/:id/accetta', verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
+    const adminUserId = req.userId;
     const { id } = req.params;
     
-    console.log('🔍 DEBUG /api/iniziative-popolari/accetta - Utente:', userId, 'Ruolo:', userRole, 'ID:', id);
+    console.log('🔍 DEBUG /api/iniziative-popolari/accetta - Admin:', adminUserId, 'ID:', id);
     
-    // Solo gli Admin possono accettare richieste
-    if (userRole !== 'Admin') {
+    // Verifica che l'utente sia admin
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [adminUserId]);
+    
+    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'AD') {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato'
+        error: 'Accesso negato. Solo Admin possono approvare le iniziative.'
       });
     }
     
+    // Approva: cambia quorum da 'proposta' a 'ok' e azzera userid
     const result = await pool.query(
-      'UPDATE iniziative_popolari SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-      ['approved', id]
+      `UPDATE iniziative_popolari 
+       SET quorum = 'ok', userid = NULL, updated_at = NOW() 
+       WHERE id = $1 AND quorum = 'proposta'
+       RETURNING *`,
+      [id]
     );
     
     if (result.rows.length === 0) {
@@ -537,40 +559,45 @@ router.post('/:id/accetta', verifyToken, async (req, res) => {
 // POST /api/iniziative-popolari/:id/rifiuta - Rifiuta richiesta iniziativa popolare
 router.post('/:id/rifiuta', verifyToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
+    const adminUserId = req.userId;
     const { id } = req.params;
     
-    console.log('🔍 DEBUG /api/iniziative-popolari/rifiuta - Utente:', userId, 'Ruolo:', userRole, 'ID:', id);
+    console.log('🔍 DEBUG /api/iniziative-popolari/rifiuta - Admin:', adminUserId, 'ID:', id);
     
-    // Solo gli Admin possono rifiutare richieste
-    if (userRole !== 'Admin') {
+    // Verifica che l'utente sia admin
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [adminUserId]);
+    
+    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'AD') {
       return res.status(403).json({
         success: false,
-        error: 'Accesso negato'
+        error: 'Accesso negato. Solo Admin possono rifiutare le iniziative.'
       });
     }
     
+    // Rifiuta: elimina la proposta
     const result = await pool.query(
-      'UPDATE iniziative_popolari SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-      ['rejected', id]
+      `DELETE FROM iniziative_popolari 
+       WHERE id = $1 AND quorum = 'proposta'
+       RETURNING *`,
+      [id]
     );
     
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        error: 'Richiesta non trovata'
+        error: 'Iniziativa non trovata o già processata'
       });
     }
     
-    console.log('✅ DEBUG /api/iniziative-popolari/rifiuta - Richiesta rifiutata:', id);
+    console.log('✅ DEBUG /api/iniziative-popolari/rifiuta - Iniziativa rifiutata:', id);
     
     res.json({
       success: true,
-      data: result.rows[0]
+      message: 'Iniziativa rifiutata e eliminata'
     });
   } catch (error) {
-    console.error('❌ Errore nel rifiuto richiesta iniziativa popolare:', error);
+    console.error('❌ Errore nel rifiuto iniziativa popolare:', error);
     res.status(500).json({
       success: false,
       error: 'Errore interno del server'

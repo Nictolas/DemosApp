@@ -49,6 +49,30 @@ export const useIniziativeActions = () => {
     onError: (e: any) => toast({ title: "Errore", description: e.message || MESSAGES.ERROR.DELETE, variant: "destructive" }),
   });
 
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/iniziative-popolari/${id}/accetta`),
+    onSuccess: () => {
+      toast({ title: "Successo", description: "Iniziativa approvata con successo!" });
+      invalidateAndRefetch();
+    },
+    onError: async (e: any) => {
+      const errorMsg = e instanceof Response ? await e.text() : e.message;
+      toast({ title: "Errore", description: errorMsg || "Errore nell'approvazione", variant: "destructive" });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/iniziative-popolari/${id}/rifiuta`),
+    onSuccess: () => {
+      toast({ title: "Successo", description: "Iniziativa rifiutata e eliminata" });
+      invalidateAndRefetch();
+    },
+    onError: async (e: any) => {
+      const errorMsg = e instanceof Response ? await e.text() : e.message;
+      toast({ title: "Errore", description: errorMsg || "Errore nel rifiuto", variant: "destructive" });
+    },
+  });
+
   // Funzioni per gestire lo stato
   const showCreateForm = () => setState(prev => ({ ...prev, showForm: true }));
   const hideCreateForm = () => setState(prev => ({ ...prev, showForm: false }));
@@ -59,7 +83,7 @@ export const useIniziativeActions = () => {
 
   // Funzioni per gestire le azioni
   const handleCreate = (data: IniziativaFormData, currentProposals: number = 0) => {
-    // Controlla il limite di proposte
+    // Controlla il limite di proposte (ora controllato anche lato backend)
     const limit = getVotingLimit('iniziative_popolari_proposte');
     if (hasReachedVotingLimit('iniziative_popolari_proposte', currentProposals)) {
       toast({ 
@@ -73,12 +97,16 @@ export const useIniziativeActions = () => {
   };
   const handleUpdate = (data: IniziativaFormData) => editMutation.mutate(data);
   const handleDelete = (id: string) => deleteMutation.mutate(id);
+  const handleApprove = (id: string) => approveMutation.mutate(id);
+  const handleReject = (id: string) => rejectMutation.mutate(id);
 
   return {
     state,
     addMutation,
     editMutation,
     deleteMutation,
+    approveMutation,
+    rejectMutation,
     showCreateForm,
     hideCreateForm,
     startEdit,
@@ -87,6 +115,8 @@ export const useIniziativeActions = () => {
     closeView,
     handleCreate,
     handleUpdate,
-    handleDelete
+    handleDelete,
+    handleApprove,
+    handleReject
   };
 };

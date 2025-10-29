@@ -41,7 +41,9 @@ export default function IniziativePopolari() {
     closeView,
     handleCreate,
     handleUpdate,
-    handleDelete
+    handleDelete,
+    handleApprove,
+    handleReject
   } = useIniziativeActions();
 
 
@@ -92,14 +94,8 @@ export default function IniziativePopolari() {
                 isLoading={isLoading}
                 isError={isError}
                 onView={startEditView}
-                onApprove={(id) => {
-                  // TODO: Implementare approvazione
-                  console.log('Approvare iniziativa:', id);
-                }}
-                onReject={(id) => {
-                  // TODO: Implementare rifiuto
-                  console.log('Rifiutare iniziativa:', id);
-                }}
+                onApprove={handleApprove}
+                onReject={handleReject}
               />
             </div>
           )}

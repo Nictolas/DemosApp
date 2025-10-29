@@ -6,6 +6,7 @@ import { Header } from "./components/Header";
 import { CreateButton } from "./components/CreateButton";
 import { ReferendumForm } from "./components/ReferendumForm";
 import { ReferendumTable } from "./components/ReferendumTable";
+import { ReferendumProposte } from "./components/ReferendumProposte";
 import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useReferendumData } from "./hooks/useReferendumData";
@@ -16,7 +17,9 @@ export default function ReferendumAbrogativi() {
   const { user, isLoading: isAuthLoading } = useAuth();
 
   const { 
-    listaReferendum, 
+    listaReferendum,
+    referendumUfficiali,
+    referendumProposte,
     mieiVoti, 
     isLoading, 
     isError,
@@ -38,7 +41,9 @@ export default function ReferendumAbrogativi() {
     closeView,
     handleCreate,
     handleUpdate,
-    handleDelete
+    handleDelete,
+    handleApprove,
+    handleReject
   } = useReferendumActions();
 
 
@@ -81,8 +86,23 @@ export default function ReferendumAbrogativi() {
           
           <ReferendumStatsChart listaReferendum={listaReferendum} />
           
+          {/* Sezione per Admin: Referendum Proposti */}
+          {user?.ruolo === 'AD' && referendumProposte.length > 0 && (
+            <div className="mb-8">
+              <ReferendumProposte
+                referendumProposte={referendumProposte}
+                isLoading={isLoading}
+                isError={isError}
+                onView={startEditView}
+                onApprove={handleApprove}
+                onReject={handleReject}
+              />
+            </div>
+          )}
+          
+          {/* Referendum Ufficiali */}
           <ReferendumTable
-            listaReferendum={listaReferendum}
+            listaReferendum={referendumUfficiali}
             mieiVoti={mieiVoti}
             isLoading={isLoading}
             isError={isError}

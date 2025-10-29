@@ -159,19 +159,36 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
+    // Verifica se l'utente ha già una proposta in attesa
+    const existingProposalQuery = `
+      SELECT id, nome 
+      FROM referendum_abrogativi 
+      WHERE userid = $1 AND quorum = 'proposta'
+      LIMIT 1
+    `;
+    const existingProposal = await pool.query(existingProposalQuery, [userId]);
+    
+    if (existingProposal.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Hai già una proposta in attesa di approvazione. Puoi proporre solo un referendum alla volta.'
+      });
+    }
+    
     // Genera un UUID valido per la richiesta referendum
     const crypto = require('crypto');
     const referendumId = crypto.randomUUID();
     console.log('🔍 DEBUG: Referendum ID generato:', referendumId);
     
-    // Usa la colonna quorum per distinguere i referendum proposti
+    // Definisce i parametri per la query - include userid e quorum = 'proposta'
+    const params = [referendumId, userId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+    
+    // Inserisce con quorum = 'proposta' e userid dell'utente che propone
     const query = `
-      INSERT INTO referendum_abrogativi (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
-      VALUES ($1, $2, $3, $4, $5, $6, 'proposta')
+      INSERT INTO referendum_abrogativi (id, userid, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposta')
       RETURNING *
     `;
-    
-    const params = [referendumId, nome, descrizione, dataInizio, dataFine, sitoWeb];
     console.log('🔍 DEBUG: Parametri query:', params);
     
     const result = await pool.query(query, params);
@@ -280,6 +297,105 @@ router.delete('/:id', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Errore nell\'eliminazione referendum abrogativo'
+    });
+  }
+});
+
+// POST /api/referendum-abrogativi/:id/accetta - Accetta referendum abrogativo proposto
+router.post('/:id/accetta', verifyToken, async (req, res) => {
+  try {
+    const adminUserId = req.userId;
+    const { id } = req.params;
+    
+    console.log('🔍 DEBUG /api/referendum-abrogativi/accetta - Admin:', adminUserId, 'ID:', id);
+    
+    // Verifica che l'utente sia admin
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [adminUserId]);
+    
+    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'AD') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo Admin possono approvare i referendum.'
+      });
+    }
+    
+    // Approva: cambia quorum da 'proposta' a 'ok' e azzera userid
+    const result = await pool.query(
+      `UPDATE referendum_abrogativi 
+       SET quorum = 'ok', userid = NULL, updated_at = NOW() 
+       WHERE id = $1 AND quorum = 'proposta'
+       RETURNING *`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Referendum non trovato o già approvato'
+      });
+    }
+    
+    console.log('✅ DEBUG /api/referendum-abrogativi/accetta - Referendum approvato:', id);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('❌ Errore nell\'approvazione referendum abrogativo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
+    });
+  }
+});
+
+// POST /api/referendum-abrogativi/:id/rifiuta - Rifiuta referendum abrogativo proposto
+router.post('/:id/rifiuta', verifyToken, async (req, res) => {
+  try {
+    const adminUserId = req.userId;
+    const { id } = req.params;
+    
+    console.log('🔍 DEBUG /api/referendum-abrogativi/rifiuta - Admin:', adminUserId, 'ID:', id);
+    
+    // Verifica che l'utente sia admin
+    const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
+    const userResult = await pool.query(userQuery, [adminUserId]);
+    
+    if (userResult.rows.length === 0 || userResult.rows[0].ruolo !== 'AD') {
+      return res.status(403).json({
+        success: false,
+        error: 'Accesso negato. Solo Admin possono rifiutare i referendum.'
+      });
+    }
+    
+    // Rifiuta: elimina il referendum o marca come rifiutato
+    const result = await pool.query(
+      `DELETE FROM referendum_abrogativi 
+       WHERE id = $1 AND quorum = 'proposta'
+       RETURNING *`,
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Referendum non trovato o già processato'
+      });
+    }
+    
+    console.log('✅ DEBUG /api/referendum-abrogativi/rifiuta - Referendum rifiutato:', id);
+    
+    res.json({
+      success: true,
+      message: 'Referendum rifiutato e eliminato'
+    });
+  } catch (error) {
+    console.error('❌ Errore nel rifiuto referendum abrogativo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore interno del server'
     });
   }
 });
