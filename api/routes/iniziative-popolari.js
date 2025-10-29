@@ -159,7 +159,18 @@ router.post('/', verifyToken, async (req, res) => {
     const userId = req.userId; // Usa l'ID reale dell'utente autenticato
     
     console.log('🔍 DEBUG POST: UserId:', userId);
+    console.log('🔍 DEBUG POST: req.user:', req.user);
+    console.log('🔍 DEBUG POST: req.userId:', req.userId);
     console.log('🔍 DEBUG POST: Dati estratti:', { nome, descrizione, dataInizio, dataFine, sitoWeb });
+    
+    // Validazione userId
+    if (!userId) {
+      console.error('❌ DEBUG POST: UserId è null o undefined!');
+      return res.status(401).json({
+        success: false,
+        error: 'Autenticazione richiesta. Esegui il login per proporre un\'iniziativa.'
+      });
+    }
     
     // Validazione campi obbligatori
     if (!nome || !descrizione) {
@@ -205,10 +216,23 @@ router.post('/', verifyToken, async (req, res) => {
     console.log('🔍 DEBUG POST: Tentativo connessione database...');
     console.log('🔍 DEBUG POST: DATABASE_URL presente:', !!process.env.DATABASE_URL);
     
+    console.log('🔍 DEBUG POST: Esecuzione query INSERT...');
+    console.log('🔍 DEBUG POST: Query:', query);
+    console.log('🔍 DEBUG POST: Parametri:', JSON.stringify(params, null, 2));
+    
     const result = await pool.query(query, params);
     console.log('🔍 DEBUG POST: Risultato inserimento:', result.rows[0]);
+    console.log('🔍 DEBUG POST: Numero righe inserite:', result.rowCount);
     
-    console.log(`✅ Iniziativa proposta creata: ${iniziativaId}`);
+    if (!result.rows || result.rows.length === 0) {
+      console.error('❌ DEBUG POST: Nessuna riga inserita!');
+      return res.status(500).json({
+        success: false,
+        error: 'Errore: nessun dato inserito nel database'
+      });
+    }
+    
+    console.log(`✅ Iniziativa proposta creata: ${iniziativaId} per utente: ${userId}`);
     
     res.json({
       success: true,
