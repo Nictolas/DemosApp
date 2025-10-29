@@ -48,6 +48,30 @@ export const useReferendumActions = () => {
     onError: (e: any) => toast({ title: "Errore", description: e.message || MESSAGES.ERROR.DELETE, variant: "destructive" }),
   });
 
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/referendum-abrogativi/${id}/accetta`),
+    onSuccess: () => {
+      toast({ title: "Successo", description: "Referendum approvato con successo!" });
+      invalidateAndRefetch();
+    },
+    onError: async (e: any) => {
+      const errorMsg = e instanceof Response ? await e.text() : e.message;
+      toast({ title: "Errore", description: errorMsg || "Errore nell'approvazione", variant: "destructive" });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/referendum-abrogativi/${id}/rifiuta`),
+    onSuccess: () => {
+      toast({ title: "Successo", description: "Referendum rifiutato e eliminato" });
+      invalidateAndRefetch();
+    },
+    onError: async (e: any) => {
+      const errorMsg = e instanceof Response ? await e.text() : e.message;
+      toast({ title: "Errore", description: errorMsg || "Errore nel rifiuto", variant: "destructive" });
+    },
+  });
+
   // Funzioni per gestire lo stato
   const showCreateForm = () => setState(prev => ({ ...prev, showForm: true }));
   const hideCreateForm = () => setState(prev => ({ ...prev, showForm: false }));
@@ -72,12 +96,16 @@ export const useReferendumActions = () => {
   };
   const handleUpdate = (data: ReferendumFormData) => editMutation.mutate(data);
   const handleDelete = (id: string) => deleteMutation.mutate(id);
+  const handleApprove = (id: string) => approveMutation.mutate(id);
+  const handleReject = (id: string) => rejectMutation.mutate(id);
 
   return {
     state,
     addMutation,
     editMutation,
     deleteMutation,
+    approveMutation,
+    rejectMutation,
     showCreateForm,
     hideCreateForm,
     startEdit,
@@ -86,6 +114,8 @@ export const useReferendumActions = () => {
     closeView,
     handleCreate,
     handleUpdate,
-    handleDelete
+    handleDelete,
+    handleApprove,
+    handleReject
   };
 };

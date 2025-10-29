@@ -29,14 +29,25 @@ export const useReferendumData = (user: any) => {
     });
   }, [data?.richieste]);
 
+  // Separa i referendum proposti da quelli ufficiali
+  const referendumUfficiali = React.useMemo(() => {
+    return listaReferendum.filter(referendum => referendum.quorum !== 'proposta');
+  }, [listaReferendum]);
+
+  const referendumProposte = React.useMemo(() => {
+    return listaReferendum.filter(referendum => referendum.quorum === 'proposta');
+  }, [listaReferendum]);
+
   // Informazioni sui limiti di proposte
-  const currentProposals = listaReferendum.filter(referendum => referendum.utente_id === user?.id).length;
+  const currentProposals = referendumProposte.filter(referendum => referendum.userid === user?.id || referendum.utente_id === user?.id).length;
   const limit = getVotingLimit('referendum_abrogativi_proposti');
   const remainingProposals = getRemainingVotes('referendum_abrogativi_proposti', currentProposals);
   const hasReachedLimit = hasReachedVotingLimit('referendum_abrogativi_proposti', currentProposals);
 
   return {
     listaReferendum,
+    referendumUfficiali,
+    referendumProposte,
     mieiVoti: data?.mieiVoti || [],
     isLoading,
     isError,
