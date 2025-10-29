@@ -38,7 +38,17 @@ export const useReferendumData = (user: any) => {
     return listaReferendum.filter(referendum => referendum.quorum === 'proposta');
   }, [listaReferendum]);
 
-  // Informazioni sui limiti di proposte
+  // Filtra le proposte dell'utente corrente (sia userid che utente_id per compatibilità)
+  const mioReferendumProposto = React.useMemo(() => {
+    if (!user?.id) return null;
+    return referendumProposte.find(
+      referendum => 
+        (referendum.userid === user.id || referendum.utente_id === user.id) &&
+        referendum.quorum === 'proposta'
+    ) || null;
+  }, [referendumProposte, user?.id]);
+
+  // Informazioni sui limiti di proposte - usa userid o utente_id
   const currentProposals = referendumProposte.filter(referendum => referendum.userid === user?.id || referendum.utente_id === user?.id).length;
   const limit = getVotingLimit('referendum_abrogativi_proposti');
   const remainingProposals = getRemainingVotes('referendum_abrogativi_proposti', currentProposals);
@@ -48,6 +58,7 @@ export const useReferendumData = (user: any) => {
     listaReferendum,
     referendumUfficiali,
     referendumProposte,
+    mioReferendumProposto,
     mieiVoti: data?.mieiVoti || [],
     isLoading,
     isError,

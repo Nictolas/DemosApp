@@ -7,6 +7,7 @@ import { CreateButton } from "./components/CreateButton";
 import { ReferendumForm } from "./components/ReferendumForm";
 import { ReferendumTable } from "./components/ReferendumTable";
 import { ReferendumProposte } from "./components/ReferendumProposte";
+import { MioReferendumProposto } from "./components/MioReferendumProposto";
 import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useReferendumData } from "./hooks/useReferendumData";
@@ -20,6 +21,7 @@ export default function ReferendumAbrogativi() {
     listaReferendum,
     referendumUfficiali,
     referendumProposte,
+    mioReferendumProposto,
     mieiVoti, 
     isLoading, 
     isError,
@@ -70,7 +72,7 @@ export default function ReferendumAbrogativi() {
           <div className="flex justify-start items-center mb-4">
             <CreateButton 
               onClick={showCreateForm} 
-              disabled={hasReachedLimit}
+              disabled={hasReachedLimit || !!mioReferendumProposto}
               currentProposals={currentProposals}
               limit={limit}
             />
@@ -82,6 +84,17 @@ export default function ReferendumAbrogativi() {
               onCancel={hideCreateForm}
               isLoading={addMutation.isPending}
             />
+          )}
+          
+          {/* Sezione: Il mio referendum proposto */}
+          {mioReferendumProposto && (
+            <div className="mb-8">
+              <MioReferendumProposto
+                referendum={mioReferendumProposto}
+                onDelete={handleDelete}
+                isDeleting={deleteMutation.isPending}
+              />
+            </div>
           )}
           
           <ReferendumStatsChart listaReferendum={listaReferendum} />

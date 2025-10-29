@@ -259,21 +259,50 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/referendum-abrogativi/:id - Elimina referendum abrogativo (per admin)
+// DELETE /api/referendum-abrogativi/:id - Elimina referendum abrogativo
+// Permette a:
+// - Admin di eliminare qualsiasi referendum
+// - Utenti di eliminare solo la propria proposta (quorum = 'proposta' e userid corrispondente)
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Verifica che l'utente sia admin o moderatore
     const userId = req.userId;
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     
-    if (userResult.rows.length === 0 || !["AD"].includes(userResult.rows[0].ruolo)) {
-      return res.status(403).json({
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
         success: false,
-        error: 'Accesso negato. Solo Admin possono eliminare i referendum abrogativi.'
+        error: 'Utente non trovato'
       });
+    }
+    
+    // Ottieni il ruolo dell'utente e verifica i permessi
+    const userRole = userResult.rows[0].ruolo;
+    const isAdmin = userRole === 'AD';
+    
+    // Se non è admin, verifica che il referendum sia una proposta dell'utente
+    if (!isAdmin) {
+      const referendumQuery = `SELECT id, userid, quorum FROM referendum_abrogativi WHERE id = $1`;
+      const referendumResult = await pool.query(referendumQuery, [id]);
+      
+      if (referendumResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Referendum abrogativo non trovato'
+        });
+      }
+      
+      const referendum = referendumResult.rows[0];
+      const isOwner = referendum.userid === userId && referendum.quorum === 'proposta';
+      
+      if (!isOwner) {
+        return res.status(403).json({
+          success: false,
+          error: 'Accesso negato. Puoi eliminare solo le tue proposte in attesa di approvazione.'
+        });
+      }
     }
     
     const deleteQuery = `DELETE FROM referendum_abrogativi WHERE id = $1 RETURNING *`;
@@ -286,7 +315,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
     
-    console.log(`✅ Referendum abrogativo eliminato: ${id}`);
+    console.log(`✅ Referendum abrogativo eliminato: ${id} da utente: ${userId} (${isAdmin ? 'Admin' : 'Proprietario'})`);
     
     res.json({
       success: true,
