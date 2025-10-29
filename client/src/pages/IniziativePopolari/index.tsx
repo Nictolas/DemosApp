@@ -7,6 +7,7 @@ import { CreateButton } from "./components/CreateButton";
 import { IniziativaForm } from "./components/IniziativaForm";
 import { IniziativeTable } from "./components/IniziativeTable";
 import { IniziativeProposte } from "./components/IniziativeProposte";
+import { MiaIniziativaProposta } from "./components/MiaIniziativaProposta";
 import { EditDialog } from "./components/EditDialog";
 import { ViewDialog } from "./components/ViewDialog";
 import { useIniziativeData } from "./hooks/useIniziativeData";
@@ -20,6 +21,7 @@ export default function IniziativePopolari() {
     listaIniziative, 
     iniziativeUfficiali,
     iniziativeProposte,
+    miaIniziativaProposta,
     mieiVoti, 
     isLoading, 
     isError,
@@ -70,7 +72,7 @@ export default function IniziativePopolari() {
           <div className="flex justify-start items-center mb-4">
             <CreateButton 
               onClick={showCreateForm} 
-              disabled={hasReachedLimit}
+              disabled={hasReachedLimit || !!miaIniziativaProposta}
               currentProposals={currentProposals}
               limit={limit}
             />
@@ -82,6 +84,17 @@ export default function IniziativePopolari() {
               onCancel={hideCreateForm}
               isLoading={addMutation.isPending}
             />
+          )}
+          
+          {/* Sezione: La mia iniziativa proposta */}
+          {miaIniziativaProposta && (
+            <div className="mb-8">
+              <MiaIniziativaProposta
+                iniziativa={miaIniziativaProposta}
+                onDelete={handleDelete}
+                isDeleting={deleteMutation.isPending}
+              />
+            </div>
           )}
           
           <IniziativeStatsChart listaIniziative={listaIniziative} />

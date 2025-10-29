@@ -303,21 +303,50 @@ router.put('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// DELETE /api/iniziative-popolari/:id - Elimina iniziativa popolare (per admin)
+// DELETE /api/iniziative-popolari/:id - Elimina iniziativa popolare
+// Permette a:
+// - Admin di eliminare qualsiasi iniziativa
+// - Utenti di eliminare solo la propria proposta (quorum = 'proposta' e userid corrispondente)
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Verifica che l'utente sia admin o moderatore
     const userId = req.userId;
+    
     const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
     const userResult = await pool.query(userQuery, [userId]);
     
-    if (userResult.rows.length === 0 || !["AD"].includes(userResult.rows[0].ruolo)) {
-      return res.status(403).json({
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
         success: false,
-        error: 'Accesso negato. Solo Admin possono eliminare le iniziative popolari.'
+        error: 'Utente non trovato'
       });
+    }
+    
+    // Ottieni il ruolo dell'utente e verifica i permessi
+    const userRole = userResult.rows[0].ruolo;
+    const isAdmin = userRole === 'AD';
+    
+    // Se non è admin, verifica che l'iniziativa sia una proposta dell'utente
+    if (!isAdmin) {
+      const iniziativaQuery = `SELECT id, userid, quorum FROM iniziative_popolari WHERE id = $1`;
+      const iniziativaResult = await pool.query(iniziativaQuery, [id]);
+      
+      if (iniziativaResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Iniziativa popolare non trovata'
+        });
+      }
+      
+      const iniziativa = iniziativaResult.rows[0];
+      const isOwner = iniziativa.userid === userId && iniziativa.quorum === 'proposta';
+      
+      if (!isOwner) {
+        return res.status(403).json({
+          success: false,
+          error: 'Accesso negato. Puoi eliminare solo le tue proposte in attesa di approvazione.'
+        });
+      }
     }
     
     const deleteQuery = `DELETE FROM iniziative_popolari WHERE id = $1 RETURNING *`;
