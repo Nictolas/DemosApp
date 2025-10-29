@@ -50,7 +50,7 @@ router.get('/', async (req, res) => {
       query = `
         SELECT *
         FROM iniziative_popolari
-        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `;
     } else {
       // Altri utenti vedono solo le iniziative ufficiali (quorum != 'proposta') e con esito 'In Attesa'
@@ -58,7 +58,7 @@ router.get('/', async (req, res) => {
         SELECT *
         FROM iniziative_popolari
         WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
-        ORDER BY datainizio DESC NULLS LAST, data_creazione DESC
+        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `;
     }
     
@@ -89,10 +89,10 @@ router.get('/', async (req, res) => {
     // Normalizza i dati per il frontend
     const normalizedData = result.rows.map(row => ({
       ...row,
-      dataInizio: row.datainizio || row.data_inizio,
-      dataFine: row.datafine || row.data_fine,
-      sitoWeb: row.sitoweb || row.sito_web,
-      data_creazione: row.data_creazione || row.created_at,
+      dataInizio: row.data_inizio,
+      dataFine: row.data_fine,
+      sitoWeb: row.sito_web || row.sitoweb,
+      data_creazione: row.created_at,
       // Assicurati che i campi obbligatori esistano
       descrizione: row.descrizione || '',
       firme: row.firme || 0,
@@ -107,19 +107,19 @@ router.get('/', async (req, res) => {
         const classificaQuery = `
           SELECT 
             ip.nome,
-            ip.sitoweb as sitoWeb,
+            ip.sito_web as sitoWeb,
             COUNT(vip.iniziativa_id) as voti
           FROM iniziative_popolari ip
           LEFT JOIN voti_iniziative_popolari vip ON ip.id::text = vip.iniziativa_id
           WHERE ip.quorum != 'proposta' AND (ip.esito = 'In Attesa' OR ip.esito IS NULL)
-          GROUP BY ip.id, ip.nome, ip.sitoweb
+          GROUP BY ip.id, ip.nome, ip.sito_web
           ORDER BY voti DESC, ip.nome ASC
         `;
         
         const classificaResult = await pool.query(classificaQuery);
         classifica = classificaResult.rows.map(row => ({
           nome: row.nome,
-          sitoWeb: row.sitoweb,
+          sitoWeb: row.sitoweb || row.sito_web,
           voti: parseInt(row.voti) || 0
         }));
         console.log(`✅ Generata classifica con ${classifica.length} iniziative`);
@@ -174,10 +174,13 @@ router.post('/', verifyToken, async (req, res) => {
     const iniziativaId = crypto.randomUUID();
     console.log('🔍 DEBUG: Iniziativa ID generato:', iniziativaId);
     
+    // Definisce i parametri per la query
+    const params = [iniziativaId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+    
     // Usa la colonna quorum per distinguere le iniziative proposte
     const query = `
-      INSERT INTO iniziative_popolari (id, firestoreid, nome, descrizione, datainizio, datafine, sitoweb, quorum, data_creazione)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposta', NOW())
+      INSERT INTO iniziative_popolari (id, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
+      VALUES ($1, $2, $3, $4, $5, $6, 'proposta')
       RETURNING *
     `;
     
@@ -231,7 +234,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     
     const updateQuery = `
       UPDATE iniziative_popolari
-      SET nome = $1, descrizione = $2, datainizio = $3, datafine = $4, sitoweb = $5, quorum = $6
+      SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6
       WHERE id = $7
       RETURNING *
     `;
