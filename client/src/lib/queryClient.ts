@@ -33,11 +33,19 @@ export const apiRequest = async (method: string, url: string, body?: any, custom
   console.log('🔍 DEBUG apiRequest - Headers:', headers);
   
   try {
-    const response = await fetch(finalUrl, {
+    // Disabilita la cache per evitare problemi con status 304
+    const fetchOptions: RequestInit = {
       method,
-      headers,
+      headers: {
+        ...headers,
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
       body: body ? JSON.stringify(body) : undefined,
-    });
+      cache: 'no-store'
+    };
+    
+    const response = await fetch(finalUrl, fetchOptions);
     
     console.log('🔍 DEBUG apiRequest - Risposta ricevuta:', { status: response.status, ok: response.ok, url: response.url });
     
@@ -56,8 +64,25 @@ export const apiRequest = async (method: string, url: string, body?: any, custom
       throw new Error(errorMessage);
     }
     
-    // Restituisci il JSON della risposta
-    const data = await response.json();
+    // Leggi il body come testo prima di parsarlo, per gestire meglio il caso 304
+    const text = await response.text();
+    
+    // Se il body è vuoto (può succedere con 304), gestiscilo
+    if (!text || text.trim() === '') {
+      console.warn('⚠️ DEBUG apiRequest - Risposta con body vuoto, status:', response.status);
+      throw new Error('Risposta vuota dal server');
+    }
+    
+    // Prova a parsare il JSON
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      console.error('❌ DEBUG apiRequest - Errore nel parsing JSON:', parseError);
+      console.error('❌ DEBUG apiRequest - Testo ricevuto:', text);
+      throw new Error('Errore nel parsing della risposta JSON');
+    }
+    
     console.log('🔍 DEBUG apiRequest - Dati ricevuti:', data);
     return data;
   } catch (error) {
