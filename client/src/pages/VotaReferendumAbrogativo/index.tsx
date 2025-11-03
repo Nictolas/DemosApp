@@ -9,7 +9,6 @@ import { Header } from "./components/Header";
 import { UserPreferences } from "./components/UserPreferences";
 import { ReferendumTable } from "./components/ReferendumTable";
 import { ReferendumRanking } from "./components/ReferendumRanking";
-import { SaveButton } from "./components/SaveButton";
 import { ReferendumViewDialog } from "./components/ReferendumViewDialog";
 
 export default function VotaReferendumAbrogativo() {
@@ -25,7 +24,6 @@ export default function VotaReferendumAbrogativo() {
     saveVotiMutation,
     toggleSelezione,
     toggleSelezioneClassifica,
-    votiCambiati,
     classificaOttimistica,
     currentVotes,
     limit,
@@ -97,14 +95,6 @@ export default function VotaReferendumAbrogativo() {
               isBlocked={data?.blocco?.isBlocked || false}
               isPending={saveVotiMutation.isPending}
               hasReachedLimit={hasReachedLimit}
-            />
-
-            {/* Pulsante salvataggio */}
-            <SaveButton
-              onSave={() => saveVotiMutation.mutate(selectedVoti)}
-              isPending={saveVotiMutation.isPending}
-              votiCambiati={votiCambiati}
-              isBlocked={data?.blocco?.isBlocked || false}
             />
           </div>
         )}

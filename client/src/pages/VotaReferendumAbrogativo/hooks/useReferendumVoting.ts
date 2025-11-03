@@ -20,8 +20,20 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
 
   // Mutazione per salvare i voti
   const saveVotiMutation = useMutation({
-    mutationFn: (voti: string[]) => apiRequest("POST", "/api/referendum-abrogativi/vota", { voti }),
+    mutationFn: async (voti: string[]) => {
+      console.log('🔍 DEBUG Frontend - saveVotiMutation.mutate chiamata per referendum');
+      console.log('🔍 DEBUG Frontend - Voti da inviare:', voti);
+      try {
+        const response = await apiRequest("POST", "/api/referendum-abrogativi/vota", { voti });
+        console.log('🔍 DEBUG Frontend - Risposta API ricevuta:', response);
+        return response;
+      } catch (error) {
+        console.error('❌ DEBUG Frontend - Errore nella chiamata API:', error);
+        throw error;
+      }
+    },
     onSuccess: () => {
+      console.log('✅ DEBUG Frontend - saveVotiMutation.onSuccess chiamato per referendum');
       const remainingVotes = getRemainingVotes('referendum_abrogativi', selectedVoti.length);
       toast({ 
         title: "Preferenze salvate", 
@@ -30,6 +42,7 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
       queryClient.invalidateQueries({ queryKey: ['referendumAbrogativiData'] });
     },
     onError: (error: any) => {
+      console.error('❌ DEBUG Frontend - saveVotiMutation.onError per referendum:', error);
       toast({ 
         title: "Errore", 
         description: error.message || "Impossibile salvare le preferenze.", 
@@ -43,44 +56,77 @@ export const useReferendumVoting = (data: ReferendumAbrogativiData | undefined) 
     if (saveVotiMutation.isPending || data?.blocco?.isBlocked) return;
     
     setSelectedVoti(prev => {
-      // Se il referendum è già selezionato, rimuovilo
+      // Se il referendum è già selezionato, rimuovilo (non salva, solo rimuove localmente)
       if (prev.includes(referendumId)) {
         return prev.filter(id => id !== referendumId);
       }
       
-      // Se l'utente ha già votato e prova a votare un altro referendum, mostra alert di conferma
+      // Verifica se l'utente ha già votato (controlla data?.mieiVoti)
+      const haGiaVotato = (data?.mieiVoti || []).length > 0;
       const currentVotes = prev.length;
       const limit = getVotingLimit('referendum_abrogativi');
       
+      // Se l'utente sta aggiungendo un voto e ha già raggiunto il limite locale
       if (hasReachedVotingLimit('referendum_abrogativi', currentVotes)) {
         // Trova il nome del referendum già votato
         const currentVotedId = prev[0];
         const currentVotedReferendum = data?.referendum.find(r => r.id === currentVotedId);
+        const newReferendum = data?.referendum.find(r => r.id === referendumId);
         
         const currentVotedName = currentVotedReferendum?.nome || 'il referendum selezionato';
+        const newReferendumName = newReferendum?.nome || 'questo referendum';
         
-        // Mostra alert di conferma sincrono (blocca l'esecuzione finché l'utente non risponde)
-        // Salva i valori necessari prima dell'alert
-        const newId = referendumId;
-        const shouldConfirm = () => {
-          const confirmed = window.confirm(
-            `Hai votato: ${currentVotedName}.\n\nSicuro di voler cambiare voto?`
-          );
-          return confirmed;
-        };
+        // Messaggio diverso se ha già votato (deve includere info sulla settimana)
+        let messaggioConfirm;
+        if (haGiaVotato) {
+          messaggioConfirm = `Hai votato: ${currentVotedName}.\n\nSicuro di voler cambiare voto?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+        } else {
+          messaggioConfirm = `Vuoi votare per: ${newReferendumName}?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+        }
         
-        // Esegui la conferma immediatamente (prima del return)
-        // Usiamo una funzione immediatamente invocata per gestire l'alert sincrono
-        if (shouldConfirm()) {
+        // Mostra alert di conferma sincrono
+        const confirmed = window.confirm(messaggioConfirm);
+        
+        if (confirmed) {
           // L'utente ha confermato, sostituisci il voto
-          return [newId];
+          const nuoviVoti = [referendumId];
+          // Salva fuori dalla callback per evitare problemi di sincronizzazione
+          setTimeout(() => {
+            console.log('🔍 DEBUG - Salvataggio automatico dopo cambio voto referendum:', nuoviVoti);
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return nuoviVoti;
         } else {
           // L'utente ha annullato, mantieni il voto corrente
           return prev;
         }
       }
       
-      // Aggiungi il voto
+      // Se è il primo voto (non ha ancora votato e sta aggiungendo)
+      if (!haGiaVotato && currentVotes === 0) {
+        const newReferendum = data?.referendum.find(r => r.id === referendumId);
+        const newReferendumName = newReferendum?.nome || 'questo referendum';
+        
+        // Mostra alert di conferma per il primo voto
+        const messaggioConfirm = `Vuoi votare per: ${newReferendumName}?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+        const confirmed = window.confirm(messaggioConfirm);
+        
+        if (confirmed) {
+          // L'utente ha confermato, aggiungi il voto
+          const nuoviVoti = [...prev, referendumId];
+          // Salva fuori dalla callback per evitare problemi di sincronizzazione
+          setTimeout(() => {
+            console.log('🔍 DEBUG - Salvataggio automatico primo voto referendum:', nuoviVoti);
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return nuoviVoti;
+        } else {
+          // L'utente ha annullato, non aggiungere il voto
+          return prev;
+        }
+      }
+      
+      // Caso normale: aggiungi il voto senza salvare (non dovrebbe arrivare qui con limite 1)
       return [...prev, referendumId];
     });
   };
