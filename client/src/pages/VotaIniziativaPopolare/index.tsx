@@ -8,8 +8,6 @@ import { useIniziativeVoting } from "./hooks/useIniziativeVoting";
 import { Header } from "./components/Header";
 import { UserPreferences } from "./components/UserPreferences";
 import { IniziativeRanking } from "./components/IniziativeRanking";
-import { SaveButton } from "./components/SaveButton";
-import { ConfirmDialog } from "./components/ConfirmDialog";
 import { IniziativaViewDialog } from "./components/IniziativaViewDialog";
 
 export default function VotaIniziativaPopolare() {
@@ -22,12 +20,9 @@ export default function VotaIniziativaPopolare() {
   // Hook per la logica di voto
   const {
     selectedVoti,
-    showConfirmDialog,
-    setShowConfirmDialog,
     saveVotiMutation,
     toggleSelezione,
     toggleSelezioneClassifica,
-    votiCambiati,
     classificaOttimistica,
     currentVotes,
     limit,
@@ -100,37 +95,9 @@ export default function VotaIniziativaPopolare() {
               isPending={saveVotiMutation.isPending}
               hasReachedLimit={hasReachedLimit}
             />
-
-            {/* Pulsante salvataggio */}
-            <SaveButton
-              onSave={() => {
-                console.log('🔍 DEBUG index.tsx - SaveButton clicked, aprendo dialog');
-                console.log('🔍 DEBUG index.tsx - selectedVoti:', selectedVoti);
-                console.log('🔍 DEBUG index.tsx - votiCambiati:', votiCambiati);
-                setShowConfirmDialog(true);
-              }}
-              isPending={saveVotiMutation.isPending}
-              votiCambiati={votiCambiati}
-              isBlocked={data?.blocco?.isBlocked || false}
-              userRole={user?.ruolo || user?.role}
-            />
           </div>
         )}
       </div>
-
-      {/* Dialog di conferma */}
-      <ConfirmDialog
-        open={showConfirmDialog}
-        onOpenChange={(open) => {
-          console.log('🔍 DEBUG index.tsx - ConfirmDialog open changed:', open);
-          setShowConfirmDialog(open);
-        }}
-        onConfirm={() => {
-          console.log('🔍 DEBUG index.tsx - ConfirmDialog onConfirm, chiamando mutation con:', selectedVoti);
-          saveVotiMutation.mutate(selectedVoti);
-        }}
-        isPending={saveVotiMutation.isPending}
-      />
 
       {/* Dialog di visualizzazione iniziativa */}
       <IniziativaViewDialog

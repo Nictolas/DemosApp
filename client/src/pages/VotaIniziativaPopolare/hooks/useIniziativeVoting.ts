@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import React from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +10,6 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
   const queryClient = useQueryClient();
   
   const [selectedVoti, setSelectedVoti] = useState<string[]>([]);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Effect per aggiornare selectedVoti quando i dati arrivano
   useEffect(() => {
@@ -56,54 +54,86 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
     },
     onSettled: () => {
       console.log('🔍 DEBUG Frontend - saveVotiMutation.onSettled chiamato');
-      setShowConfirmDialog(false);
     }
   });
 
   // Logica locale per gestire i voti
   const toggleSelezione = (id: string) => {
-    if (saveVotiMutation.isPending || data?.blocco.isBlocked) return;
+    if (saveVotiMutation.isPending || data?.blocco?.isBlocked) return;
     
-    // Usa un callback per accedere allo stato corrente
+    // Accedi allo stato corrente per decidere l'azione
     setSelectedVoti(prev => {
-      // Se l'iniziativa è già selezionata, rimuovila
+      // Se l'iniziativa è già selezionata, rimuovila (non salva, solo rimuove localmente)
       if (prev.includes(id)) {
         return prev.filter(n => n !== id);
       }
       
-      // Se l'utente ha già votato e prova a votare un'altra iniziativa, mostra alert di conferma
+      // Verifica se l'utente ha già votato (controlla data?.mieiVoti)
+      const haGiaVotato = (data?.mieiVoti || []).length > 0;
       const currentVotes = prev.length;
       const limit = getVotingLimit('iniziative_popolari');
       
+      // Se l'utente sta aggiungendo un voto e ha già raggiunto il limite locale
       if (hasReachedVotingLimit('iniziative_popolari', currentVotes)) {
         // Trova il nome dell'iniziativa già votata
         const currentVotedId = prev[0];
         const currentVotedIniziativa = data?.iniziative.find(i => i.id === currentVotedId);
+        const newIniziativa = data?.iniziative.find(i => i.id === id);
         
         const currentVotedName = currentVotedIniziativa?.nome || 'l\'iniziativa selezionata';
+        const newIniziativaName = newIniziativa?.nome || 'questa iniziativa';
         
-        // Mostra alert di conferma sincrono (blocca l'esecuzione finché l'utente non risponde)
-        // Salva i valori necessari prima dell'alert
-        const newId = id;
-        const shouldConfirm = () => {
-          const confirmed = window.confirm(
-            `Hai votato: ${currentVotedName}.\n\nSicuro di voler cambiare voto?`
-          );
-          return confirmed;
-        };
+        // Messaggio diverso se ha già votato (deve includere info sulla settimana)
+        let messaggioConfirm;
+        if (haGiaVotato) {
+          messaggioConfirm = `Hai votato: ${currentVotedName}.\n\nSicuro di voler cambiare voto?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+        } else {
+          messaggioConfirm = `Vuoi votare per: ${newIniziativaName}?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+        }
         
-        // Esegui la conferma immediatamente (prima del return)
-        // Usiamo una funzione immediatamente invocata per gestire l'alert sincrono
-        if (shouldConfirm()) {
+        // Mostra alert di conferma sincrono
+        const confirmed = window.confirm(messaggioConfirm);
+        
+        if (confirmed) {
           // L'utente ha confermato, sostituisci il voto
-          return [newId];
+          const nuoviVoti = [id];
+          // Salva fuori dalla callback per evitare problemi di sincronizzazione
+          setTimeout(() => {
+            console.log('🔍 DEBUG - Salvataggio automatico dopo cambio voto:', nuoviVoti);
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return nuoviVoti;
         } else {
           // L'utente ha annullato, mantieni il voto corrente
           return prev;
         }
       }
       
-      // Aggiungi il voto
+      // Se è il primo voto (non ha ancora votato e sta aggiungendo)
+      if (!haGiaVotato && currentVotes === 0) {
+        const newIniziativa = data?.iniziative.find(i => i.id === id);
+        const newIniziativaName = newIniziativa?.nome || 'questa iniziativa';
+        
+        // Mostra alert di conferma per il primo voto
+        const messaggioConfirm = `Vuoi votare per: ${newIniziativaName}?\n\nDopo aver salvato, potrai modificare le preferenze solo tra una settimana.`;
+        const confirmed = window.confirm(messaggioConfirm);
+        
+        if (confirmed) {
+          // L'utente ha confermato, aggiungi il voto
+          const nuoviVoti = [...prev, id];
+          // Salva fuori dalla callback per evitare problemi di sincronizzazione
+          setTimeout(() => {
+            console.log('🔍 DEBUG - Salvataggio automatico primo voto:', nuoviVoti);
+            saveVotiMutation.mutate(nuoviVoti);
+          }, 0);
+          return nuoviVoti;
+        } else {
+          // L'utente ha annullato, non aggiungere il voto
+          return prev;
+        }
+      }
+      
+      // Caso normale: aggiungi il voto senza salvare (non dovrebbe arrivare qui con limite 1)
       return [...prev, id];
     });
   };
@@ -116,8 +146,8 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
     }
   };
 
-  // Calcola se i voti sono cambiati
-  const votiCambiati = React.useMemo(() => {
+  // Calcola se i voti sono cambiati (non più usato dopo rimozione pulsante Salva, ma lasciato per compatibilità)
+  const votiCambiati = useMemo(() => {
     const selectedSorted = [...selectedVoti].sort();
     const savedSorted = [...(data?.mieiVoti || [])].sort();
     const changed = JSON.stringify(selectedSorted) !== JSON.stringify(savedSorted);
@@ -267,12 +297,9 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
 
   return {
     selectedVoti,
-    showConfirmDialog,
-    setShowConfirmDialog,
     saveVotiMutation,
     toggleSelezione,
     toggleSelezioneClassifica,
-    votiCambiati,
     // Classifica ottimistica aggiornata
     classificaOttimistica,
     // Informazioni sui limiti
