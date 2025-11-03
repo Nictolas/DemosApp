@@ -13,12 +13,12 @@ const resolveBaseUrl = (): string => {
   }
   
   // Produzione - usa il server di produzione
-  // In produzione su demos.community, usa l'URL relativo che passa attraverso il proxy
+  // Il frontend è statico, quindi dobbiamo usare l'URL completo del backend API
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    // Se siamo su demos.community o www.demos.community, usa il proxy interno
+    // Se siamo su demos.community o www.demos.community, usa api.demos.community
     if (hostname === 'demos.community' || hostname === 'www.demos.community') {
-      return '/api'; // Usa il proxy interno di Render/Cloudflare
+      return 'https://api.demos.community/api'; // Usa il dominio API dedicato
     }
   }
   
