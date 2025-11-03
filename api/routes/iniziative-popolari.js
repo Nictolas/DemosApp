@@ -142,7 +142,12 @@ router.get('/', async (req, res) => {
             ip.sito_web as sitoWeb,
             COUNT(vip.iniziativa_id) as voti
           FROM iniziative_popolari ip
-          LEFT JOIN voti_iniziative_popolari vip ON ip.id::text = vip.iniziativa_id
+          LEFT JOIN voti_iniziative_popolari vip ON (
+            ip.id::text = vip.iniziativa_id OR 
+            REPLACE(ip.id::text, '-', '') = vip.iniziativa_id OR
+            ip.id::text = REPLACE(vip.iniziativa_id, '-', '') OR
+            REPLACE(ip.id::text, '-', '') = REPLACE(vip.iniziativa_id, '-', '')
+          )
           WHERE ip.quorum != 'proposta' AND (ip.esito = 'In Attesa' OR ip.esito IS NULL)
           GROUP BY ip.id, ip.nome, ip.sito_web
           ORDER BY voti DESC, ip.nome ASC
