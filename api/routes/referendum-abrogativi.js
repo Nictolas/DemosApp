@@ -124,12 +124,12 @@ router.get('/', async (req, res) => {
         const classificaQuery = `
           SELECT 
             ra.nome,
-            ra.sito_web as sitoWeb,
+            ra.sitoweb as sitoWeb,
             COUNT(vra.referendum_id) as voti
           FROM referendum_abrogativi ra
           LEFT JOIN voti_referendum_abrogativi vra ON ra.id::text = vra.referendum_id
           WHERE ra.quorum != 'proposta' AND (ra.esito = 'In Attesa' OR ra.esito IS NULL)
-          GROUP BY ra.id, ra.nome, ra.sito_web
+          GROUP BY ra.id, ra.nome, ra.sitoweb
           ORDER BY voti DESC, ra.nome ASC
         `;
         
@@ -227,8 +227,9 @@ router.post('/', verifyToken, async (req, res) => {
     const params = [referendumId, userId, nome, descrizione, dataInizio, dataFine, sitoWeb];
     
     // Inserisce con quorum = 'proposta' e userid dell'utente che propone
+    // NOTA: La colonna si chiama 'sitoweb' non 'sito_web' nella tabella referendum_abrogativi
     const query = `
-      INSERT INTO referendum_abrogativi (id, userid, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
+      INSERT INTO referendum_abrogativi (id, userid, nome, descrizione, data_inizio, data_fine, sitoweb, quorum)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposta')
       RETURNING *
     `;
@@ -296,7 +297,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     
     const updateQuery = `
       UPDATE referendum_abrogativi
-      SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sito_web = $5, quorum = $6
+      SET nome = $1, descrizione = $2, data_inizio = $3, data_fine = $4, sitoweb = $5, quorum = $6
       WHERE id = $7
       RETURNING *
     `;
