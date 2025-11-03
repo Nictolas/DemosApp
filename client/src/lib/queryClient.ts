@@ -38,10 +38,30 @@ export const apiRequest = async (method: string, url: string, body?: any, custom
       headers,
       body: body ? JSON.stringify(body) : undefined,
     });
+    
     console.log('🔍 DEBUG apiRequest - Risposta ricevuta:', { status: response.status, ok: response.ok, url: response.url });
-    return response;
+    
+    // Verifica se la risposta è ok prima di restituirla
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+        console.error('❌ DEBUG apiRequest - Errore nella risposta:', errorData);
+      } catch (e) {
+        const text = await response.text();
+        console.error('❌ DEBUG apiRequest - Errore (non JSON):', text);
+        errorMessage = text || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+    
+    // Restituisci il JSON della risposta
+    const data = await response.json();
+    console.log('🔍 DEBUG apiRequest - Dati ricevuti:', data);
+    return data;
   } catch (error) {
-    console.error('🔍 DEBUG apiRequest - ERRORE:', error);
+    console.error('❌ DEBUG apiRequest - ERRORE:', error);
     throw error;
   }
 };
