@@ -28,6 +28,7 @@ export default function VotaIniziativaPopolare() {
     toggleSelezione,
     toggleSelezioneClassifica,
     votiCambiati,
+    classificaOttimistica,
     currentVotes,
     limit,
     remainingVotes,
@@ -90,7 +91,7 @@ export default function VotaIniziativaPopolare() {
 
             {/* Classifica */}
             <IniziativeRanking
-              classifica={data?.classifica || []}
+              classifica={classificaOttimistica || data?.classifica || []}
               iniziative={data?.iniziative || []}
               selectedVoti={selectedVoti}
               onToggleSelezioneClassifica={toggleSelezioneClassifica}
