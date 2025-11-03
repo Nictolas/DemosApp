@@ -26,6 +26,7 @@ export default function VotaReferendumAbrogativo() {
     toggleSelezione,
     toggleSelezioneClassifica,
     votiCambiati,
+    classificaOttimistica,
     currentVotes,
     limit,
     remainingVotes,
@@ -88,7 +89,7 @@ export default function VotaReferendumAbrogativo() {
 
             {/* Classifica */}
             <ReferendumRanking
-              classifica={data?.classifica || []}
+              classifica={classificaOttimistica || data?.classifica || []}
               referendum={data?.referendum || []}
               selectedVoti={selectedVoti}
               onToggleSelezioneClassifica={toggleSelezioneClassifica}
