@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { IniziativePopolariData } from "../types";
+import { IniziativePopolariData, Classifica } from "../types";
 import { getVotingLimit, hasReachedVotingLimit, getRemainingVotes } from "@/config/votingLimits";
 
 export const useIniziativeVoting = (data: IniziativePopolariData | undefined) => {
@@ -105,6 +105,79 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
   // Calcola se i voti sono cambiati
   const votiCambiati = JSON.stringify([...selectedVoti].sort()) !== JSON.stringify([...(data?.mieiVoti || [])].sort());
 
+  // Calcola la classifica ottimistica (aggiornata immediatamente con i cambiamenti locali)
+  const classificaOttimistica = useMemo(() => {
+    if (!data?.classifica || !data?.iniziative) {
+      return [];
+    }
+
+    // Crea una mappa della classifica originale (nome -> {voti, sitoWeb})
+    const classificaMap = new Map<string, { voti: number; sitoWeb?: string }>();
+    data.classifica.forEach(item => {
+      classificaMap.set(item.nome, { voti: item.voti, sitoWeb: item.sitoWeb });
+    });
+
+    // Aggiungi anche tutte le iniziative ufficiali (quorum != 'proposta') che potrebbero non essere in classifica
+    data.iniziative
+      .filter(i => i.quorum !== 'proposta')
+      .forEach(iniziativa => {
+        if (!classificaMap.has(iniziativa.nome)) {
+          classificaMap.set(iniziativa.nome, { voti: 0, sitoWeb: iniziativa.sitoWeb });
+        }
+      });
+
+    // Trova le iniziative aggiunte (in selectedVoti ma non in mieiVoti)
+    const iniziativeAggiunte = selectedVoti.filter(id => !(data?.mieiVoti || []).includes(id));
+    
+    // Trova le iniziative rimosse (in mieiVoti ma non in selectedVoti)
+    const iniziativeRimosse = (data?.mieiVoti || []).filter(id => !selectedVoti.includes(id));
+
+    // Incrementa i voti per le iniziative aggiunte
+    iniziativeAggiunte.forEach(id => {
+      const iniziativa = data.iniziative.find(i => i.id === id);
+      if (iniziativa) {
+        const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+        classificaMap.set(iniziativa.nome, {
+          voti: current.voti + 1,
+          sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+        });
+      }
+    });
+
+    // Decrementa i voti per le iniziative rimosse
+    iniziativeRimosse.forEach(id => {
+      const iniziativa = data.iniziative.find(i => i.id === id);
+      if (iniziativa) {
+        const current = classificaMap.get(iniziativa.nome) || { voti: 0, sitoWeb: iniziativa.sitoWeb };
+        classificaMap.set(iniziativa.nome, {
+          voti: Math.max(0, current.voti - 1),
+          sitoWeb: current.sitoWeb || iniziativa.sitoWeb
+        });
+      }
+    });
+
+    // Converti la mappa in array e ordina per voti decrescenti
+    const classificaAggiornata: Classifica[] = Array.from(classificaMap.entries())
+      .map(([nome, { voti, sitoWeb }]) => ({
+        nome,
+        sitoWeb,
+        voti
+      }))
+      .filter(item => item.voti > 0 || selectedVoti.some(id => {
+        const iniziativa = data.iniziative.find(i => i.id === id);
+        return iniziativa?.nome === item.nome;
+      })) // Mantieni le iniziative con voti > 0 o quelle selezionate
+      .sort((a, b) => {
+        // Ordina per voti decrescenti, poi per nome crescente
+        if (b.voti !== a.voti) {
+          return b.voti - a.voti;
+        }
+        return a.nome.localeCompare(b.nome);
+      });
+
+    return classificaAggiornata;
+  }, [data?.classifica, data?.iniziative, selectedVoti, data?.mieiVoti]);
+
   // Informazioni sui limiti di voto
   const currentVotes = selectedVoti.length;
   const limit = getVotingLimit('iniziative_popolari');
@@ -119,6 +192,8 @@ export const useIniziativeVoting = (data: IniziativePopolariData | undefined) =>
     toggleSelezione,
     toggleSelezioneClassifica,
     votiCambiati,
+    // Classifica ottimistica aggiornata
+    classificaOttimistica,
     // Informazioni sui limiti
     currentVotes,
     limit,
