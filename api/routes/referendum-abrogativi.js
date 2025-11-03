@@ -175,6 +175,23 @@ router.get('/', async (req, res) => {
         const debugReferendumResult = await pool.query(debugReferendumQuery);
         console.log('🔍 DEBUG - ID referendum:', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
         
+        // Debug: verifica manualmente la corrispondenza tra voti e referendum
+        if (debugVotiResult.rows.length > 0 && debugReferendumResult.rows.length > 0) {
+          console.log('🔍 DEBUG - Verifica corrispondenza manuale:');
+          debugVotiResult.rows.forEach(voto => {
+            debugReferendumResult.rows.forEach(ref => {
+              const refIdText = ref.id.toString();
+              const refIdNoDash = refIdText.replace(/-/g, '');
+              const votoId = voto.referendum_id;
+              const votoIdNoDash = String(votoId).replace(/-/g, '');
+              
+              if (refIdText === votoId || refIdNoDash === votoId || refIdText === votoIdNoDash || refIdNoDash === votoIdNoDash) {
+                console.log(`✅ MATCH trovato: ${ref.nome} (${ref.id}) <-> voto (${votoId})`);
+              }
+            });
+          });
+        }
+        
         classifica = classificaResult.rows.map(row => ({
           nome: row.nome,
           sitoWeb: row.sitoweb || row.sito_web,
