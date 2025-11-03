@@ -23,13 +23,14 @@ router.get('/', async (req, res) => {
       'Expires': '0'
     });
     
-    // Ottieni il ruolo dell'utente se autenticato
+    // Ottieni il ruolo dell'utente e l'ID se autenticato
     let userRole = null;
+    let userId = null;
     if (req.headers.authorization) {
       try {
         const token = req.headers.authorization.replace('Bearer ', '');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded.userId;
+        userId = decoded.userId;
         
         // Ottieni il ruolo dell'utente
         const userQuery = `SELECT ruolo FROM users WHERE id = $1`;
@@ -53,16 +54,37 @@ router.get('/', async (req, res) => {
         ORDER BY data_inizio DESC NULLS LAST, created_at DESC
       `;
     } else {
-      // Altri utenti vedono solo i referendum ufficiali (quorum != 'proposta') e con esito 'In Attesa'
-      query = `
-        SELECT *
-        FROM referendum_abrogativi
-        WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
-        ORDER BY data_inizio DESC NULLS LAST, created_at DESC
-      `;
+      // Altri utenti vedono:
+      // 1. I referendum ufficiali (quorum != 'proposta') e con esito 'In Attesa'
+      // 2. Le proposte proprie (quorum = 'proposta' e userid corrispondente)
+      if (userId) {
+        query = `
+          SELECT *
+          FROM referendum_abrogativi
+          WHERE (
+            (quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL))
+            OR (quorum = 'proposta' AND userid = $1)
+          )
+          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
+        `;
+      } else {
+        // Utente non autenticato: solo referendum ufficiali
+        query = `
+          SELECT *
+          FROM referendum_abrogativi
+          WHERE quorum != 'proposta' AND (esito = 'In Attesa' OR esito IS NULL)
+          ORDER BY data_inizio DESC NULLS LAST, created_at DESC
+        `;
+      }
     }
     
-    const result = await pool.query(query);
+    // Esegui la query con parametri se necessario
+    let result;
+    if (userRole !== "AD" && userId) {
+      result = await pool.query(query, [userId]);
+    } else {
+      result = await pool.query(query);
+    }
     console.log(`✅ Recuperati ${result.rows.length} record da referendum_abrogativi`);
     
     // Se l'utente è autenticato, ottieni i suoi voti
@@ -135,10 +157,15 @@ router.get('/', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Errore nel recuperare referendum abrogativi:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error detail:', error.detail);
     res.status(500).json({
       success: false,
       error: 'Errore nel recuperare referendum abrogativi',
-      details: error.message
+      details: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
