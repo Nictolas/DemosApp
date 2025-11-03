@@ -21,6 +21,7 @@ export const useReferendumActions = () => {
   // Mutazioni gestite da React Query
   const addMutation = useMutation({
     mutationFn: (data: ReferendumFormData) => apiRequest("POST", API_ENDPOINTS.REFERENDUM_CREATE, data),
+    retry: false, // Disabilita retry automatico per prevenire doppi submit
     onSuccess: () => {
       toast({ title: "Successo", description: MESSAGES.SUCCESS.CREATED });
       setState(prev => ({ ...prev, showForm: false }));

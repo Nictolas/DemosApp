@@ -12,6 +12,8 @@ import { ReferendumFormProps } from "../types";
 import { referendumSchema } from "../types";
 
 export const ReferendumForm: React.FC<ReferendumFormProps> = ({ onSubmit, onCancel, isLoading }) => {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
   const form = useForm({
     resolver: zodResolver(referendumSchema),
     defaultValues: {
@@ -23,9 +25,20 @@ export const ReferendumForm: React.FC<ReferendumFormProps> = ({ onSubmit, onCanc
     }
   });
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = React.useCallback((data: any) => {
+    // Previeni doppi submit
+    if (isSubmitting || isLoading) {
+      return;
+    }
+    
+    setIsSubmitting(true);
     onSubmit(data);
-  };
+    
+    // Reset dopo un delay per permettere al loading di essere gestito
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 2000);
+  }, [isSubmitting, isLoading, onSubmit]);
 
   return (
     <Card className="mb-6">
@@ -122,8 +135,8 @@ export const ReferendumForm: React.FC<ReferendumFormProps> = ({ onSubmit, onCanc
               <Button type="button" variant="outline" onClick={onCancel}>
                 Annulla
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Salvando..." : "Salva"}
+              <Button type="submit" disabled={isLoading || isSubmitting}>
+                {isLoading || isSubmitting ? "Salvando..." : "Salva"}
               </Button>
             </div>
           </form>
