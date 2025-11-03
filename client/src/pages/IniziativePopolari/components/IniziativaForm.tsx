@@ -12,14 +12,27 @@ import { IniziativaFormProps } from "../types";
 import { iniziativaSchema, DEFAULT_FORM_VALUES } from "../constants/schema";
 
 export const IniziativaForm: React.FC<IniziativaFormProps> = ({ onSubmit, onCancel, isLoading, defaultValues = DEFAULT_FORM_VALUES }) => {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
   const form = useForm({
     resolver: zodResolver(iniziativaSchema),
     defaultValues
   });
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = React.useCallback((data: any) => {
+    // Previeni doppi submit
+    if (isSubmitting || isLoading) {
+      return;
+    }
+    
+    setIsSubmitting(true);
     onSubmit(data);
-  };
+    
+    // Reset dopo un delay per permettere al loading di essere gestito
+    setTimeout(() => {
+      setIsSubmitting(false);
+    }, 2000);
+  }, [isSubmitting, isLoading, onSubmit]);
 
   return (
     <Card className="mb-6">
@@ -116,8 +129,8 @@ export const IniziativaForm: React.FC<IniziativaFormProps> = ({ onSubmit, onCanc
               <Button type="button" variant="outline" onClick={onCancel}>
                 Annulla
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Salvando..." : "Salva"}
+              <Button type="submit" disabled={isLoading || isSubmitting}>
+                {isLoading || isSubmitting ? "Salvando..." : "Salva"}
               </Button>
             </div>
           </form>

@@ -180,64 +180,89 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
     
-    // Verifica se l'utente ha già una proposta in attesa
-    const existingProposalQuery = `
-      SELECT id, nome 
-      FROM iniziative_popolari 
-      WHERE userid = $1 AND quorum = 'proposta'
-      LIMIT 1
-    `;
-    const existingProposal = await pool.query(existingProposalQuery, [userId]);
-    
-    if (existingProposal.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Hai già una proposta in attesa di approvazione. Puoi proporre solo una iniziativa alla volta.'
+    // Inizia una transazione per prevenire race conditions in caso di doppio submit simultaneo
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Verifica se l'utente ha già una proposta in attesa
+      // Usa SELECT FOR UPDATE per bloccare la riga durante la transazione
+      const existingProposalQuery = `
+        SELECT id, nome
+        FROM iniziative_popolari
+        WHERE userid = $1 AND quorum = 'proposta'
+        LIMIT 1
+        FOR UPDATE
+      `;
+      const existingProposal = await client.query(existingProposalQuery, [userId]);
+
+      if (existingProposal.rows.length > 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        console.log('⚠️ DEBUG POST: Utente ha già una proposta in attesa, bloccando nuovo inserimento');
+        return res.status(400).json({
+          success: false,
+          error: 'Hai già una proposta in attesa di approvazione. Puoi proporre solo una iniziativa alla volta.'
+        });
+      }
+
+      // Genera un UUID valido per la richiesta iniziativa
+      const crypto = require('crypto');
+      const iniziativaId = crypto.randomUUID();
+      console.log('🔍 DEBUG: Iniziativa ID generato:', iniziativaId);
+
+      // Definisce i parametri per la query - include userid e quorum = 'proposta'
+      const params = [iniziativaId, userId, nome, descrizione, dataInizio, dataFine, sitoWeb];
+
+      // Inserisce con quorum = 'proposta' e userid dell'utente che propone
+      const query = `
+        INSERT INTO iniziative_popolari (id, userid, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposta')
+        RETURNING *
+      `;
+
+      console.log('🔍 DEBUG POST: Parametri query:', params);
+      console.log('🔍 DEBUG POST: Tentativo connessione database...');
+      console.log('🔍 DEBUG POST: DATABASE_URL presente:', !!process.env.DATABASE_URL);
+      console.log('🔍 DEBUG POST: Esecuzione query INSERT in transazione...');
+      console.log('🔍 DEBUG POST: Query:', query);
+      console.log('🔍 DEBUG POST: Parametri:', JSON.stringify(params, null, 2));
+
+      const result = await client.query(query, params);
+      console.log('🔍 DEBUG POST: Risultato inserimento:', result.rows[0]);
+      console.log('🔍 DEBUG POST: Numero righe inserite:', result.rowCount);
+
+      if (!result.rows || result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        console.error('❌ DEBUG POST: Nessuna riga inserita!');
+        return res.status(500).json({
+          success: false,
+          error: 'Errore: nessun dato inserito nel database'
+        });
+      }
+
+      // Commit della transazione
+      await client.query('COMMIT');
+      client.release();
+
+      console.log(`✅ Iniziativa proposta creata: ${iniziativaId} per utente: ${userId}`);
+
+      res.json({
+        success: true,
+        richiesta: result.rows[0]
       });
+    } catch (transactionError) {
+      // Rollback in caso di errore
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('❌ Errore durante rollback:', rollbackError);
+      }
+      client.release();
+      throw transactionError;
     }
-    
-    // Genera un UUID valido per la richiesta iniziativa
-    const crypto = require('crypto');
-    const iniziativaId = crypto.randomUUID();
-    console.log('🔍 DEBUG: Iniziativa ID generato:', iniziativaId);
-    
-    // Definisce i parametri per la query - include userid e quorum = 'proposta'
-    const params = [iniziativaId, userId, nome, descrizione, dataInizio, dataFine, sitoWeb];
-    
-    // Inserisce con quorum = 'proposta' e userid dell'utente che propone
-    const query = `
-      INSERT INTO iniziative_popolari (id, userid, nome, descrizione, data_inizio, data_fine, sito_web, quorum)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'proposta')
-      RETURNING *
-    `;
-    
-    console.log('🔍 DEBUG POST: Parametri query:', params);
-    
-    console.log('🔍 DEBUG POST: Tentativo connessione database...');
-    console.log('🔍 DEBUG POST: DATABASE_URL presente:', !!process.env.DATABASE_URL);
-    
-    console.log('🔍 DEBUG POST: Esecuzione query INSERT...');
-    console.log('🔍 DEBUG POST: Query:', query);
-    console.log('🔍 DEBUG POST: Parametri:', JSON.stringify(params, null, 2));
-    
-    const result = await pool.query(query, params);
-    console.log('🔍 DEBUG POST: Risultato inserimento:', result.rows[0]);
-    console.log('🔍 DEBUG POST: Numero righe inserite:', result.rowCount);
-    
-    if (!result.rows || result.rows.length === 0) {
-      console.error('❌ DEBUG POST: Nessuna riga inserita!');
-      return res.status(500).json({
-        success: false,
-        error: 'Errore: nessun dato inserito nel database'
-      });
-    }
-    
-    console.log(`✅ Iniziativa proposta creata: ${iniziativaId} per utente: ${userId}`);
-    
-    res.json({
-      success: true,
-      richiesta: result.rows[0]
-    });
   } catch (error) {
     console.error('❌ DEBUG POST: Errore nella creazione iniziativa popolare:', error);
     console.error('❌ DEBUG POST: Stack trace:', error.stack);
