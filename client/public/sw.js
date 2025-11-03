@@ -41,11 +41,23 @@ self.addEventListener('activate', (event) => {
 
 // Intercettazione delle richieste
 self.addEventListener('fetch', (event) => {
-  // Non cachare i file JavaScript per evitare problemi di aggiornamento
+  const url = new URL(event.request.url);
+  
+  // NON intercettare le richieste API - lasciale passare direttamente alla rete
+  if (url.pathname.startsWith('/api/') || 
+      url.hostname.includes('api.demos.community') ||
+      url.hostname.includes('demos-c7k0.onrender.com') ||
+      url.hostname.includes('localhost') && url.port === '3001') {
+    // Per le richieste API, passa direttamente alla rete senza cache
+    return fetch(event.request);
+  }
+  
+  // Non cachare i file JavaScript e CSS per evitare problemi di aggiornamento
   if (event.request.url.includes('.js') || event.request.url.includes('.css')) {
     return fetch(event.request);
   }
   
+  // Per le altre richieste, usa la cache
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
