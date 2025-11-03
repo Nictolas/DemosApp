@@ -95,13 +95,36 @@ router.get('/', async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.userId;
         
+        // Query per recuperare i voti dell'utente
+        // Usa DISTINCT ON per ottenere solo l'ultimo voto per utente (se ci sono duplicati)
         const userVotiQuery = `
-          SELECT referendum_id FROM voti_referendum_abrogativi 
-          WHERE userid = $1
+          SELECT DISTINCT ON (userid) referendum_id 
+          FROM voti_referendum_abrogativi 
+          WHERE userid::text = $1 OR userid = $1::uuid
+          ORDER BY userid, timestamp DESC, created_at DESC
+          LIMIT 1
         `;
         const userVotiResult = await pool.query(userVotiQuery, [userId]);
-        mieiVoti = userVotiResult.rows.map(v => v.referendum_id);
-        console.log(`✅ Recuperati ${mieiVoti.length} voti utente`);
+        
+        // Se non trova voti, prova solo come UUID
+        if (userVotiResult.rows.length === 0) {
+          const userVotiQueryUUID = `
+            SELECT referendum_id FROM voti_referendum_abrogativi 
+            WHERE userid = $1::uuid
+            ORDER BY timestamp DESC, created_at DESC
+            LIMIT 1
+          `;
+          const userVotiResultUUID = await pool.query(userVotiQueryUUID, [userId]);
+          console.log(`🔍 DEBUG: Query solo UUID per userId ${userId}:`, userVotiResultUUID.rows);
+          mieiVoti = userVotiResultUUID.rows.map(v => v.referendum_id);
+        } else {
+          mieiVoti = userVotiResult.rows.map(v => v.referendum_id);
+        }
+        
+        // Limita a massimo 1 voto (per sicurezza)
+        mieiVoti = mieiVoti.slice(0, 1);
+        
+        console.log(`✅ Recuperati ${mieiVoti.length} voti utente:`, mieiVoti);
       } catch (authError) {
         // Se il token non è valido, continua senza autenticazione
         console.log('⚠️ Token non valido per referendum abrogativi, continuando senza autenticazione');
@@ -138,13 +161,26 @@ router.get('/', async (req, res) => {
           ORDER BY voti DESC, ra.nome ASC
         `;
         
+        console.log('🔍 DEBUG - Esecuzione query classifica referendum');
         const classificaResult = await pool.query(classificaQuery);
+        console.log('🔍 DEBUG - Risultati classifica raw referendum:', classificaResult.rows);
+        
+        // Debug: verifica tutti i voti nel database
+        const debugVotiQuery = 'SELECT referendum_id, COUNT(*) as count FROM voti_referendum_abrogativi GROUP BY referendum_id';
+        const debugVotiResult = await pool.query(debugVotiQuery);
+        console.log('🔍 DEBUG - Tutti i voti per referendum_id:', debugVotiResult.rows);
+        
+        // Debug: verifica gli ID dei referendum
+        const debugReferendumQuery = 'SELECT id, nome FROM referendum_abrogativi WHERE quorum != \'proposta\' AND (esito = \'In Attesa\' OR esito IS NULL)';
+        const debugReferendumResult = await pool.query(debugReferendumQuery);
+        console.log('🔍 DEBUG - ID referendum:', debugReferendumResult.rows.map(r => ({ id: r.id, id_text: r.id.toString(), nome: r.nome })));
+        
         classifica = classificaResult.rows.map(row => ({
           nome: row.nome,
           sitoWeb: row.sitoweb || row.sito_web,
           voti: parseInt(row.voti) || 0
         }));
-        console.log(`✅ Generata classifica con ${classifica.length} referendum`);
+        console.log(`✅ Generata classifica con ${classifica.length} referendum:`, classifica);
       } catch (classificaError) {
         console.log('⚠️ Errore nella generazione classifica, continuando senza:', classificaError.message);
         // Se la classifica fallisce, continua senza di essa
@@ -578,11 +614,23 @@ router.post('/vota', verifyToken, async (req, res) => {
     // Poi inserisce i nuovi voti (massimo 1)
     if (votiDaSalvare.length > 0) {
       const referendumId = votiDaSalvare[0];
+      console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Tentativo inserimento voto:`, {
+        userId,
+        referendumId,
+        referendumIdType: typeof referendumId
+      });
+      
+      // Converti referendumId a string per assicurarsi che sia nel formato corretto
+      const referendumIdString = String(referendumId);
+      
       await client.query(
         'INSERT INTO voti_referendum_abrogativi (userid, referendum_id, timestamp, created_at, updated_at) VALUES ($1::uuid, $2, NOW(), NOW(), NOW())',
-        [userId, referendumId]
+        [userId, referendumIdString]
       );
-      console.log(`🔍 DEBUG /api/referendum-abrogativi/vota - Voto inserito: ${referendumId}`);
+      console.log(`✅ DEBUG /api/referendum-abrogativi/vota - Voto inserito con successo:`, {
+        referendumId: referendumIdString,
+        userId
+      });
     }
     
     await client.query('COMMIT');
